@@ -112,6 +112,25 @@ void main() {
     );
   });
 
+  test('uiLanguage defaults system and dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.uiLanguage, UiLanguageSetting.system);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, uiLanguage: UiLanguageSetting.ptBr),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, uiLanguage: UiLanguageSetting.system),
+        baseline,
+      ),
+      isFalse,
+    );
+  });
+
   test('effectiveSelectStyle maps auto from isDesktopWindow', () {
     addTearDown(() => debugOverrideDesktopWindow = null);
 

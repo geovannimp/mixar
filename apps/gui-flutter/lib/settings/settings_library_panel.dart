@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
@@ -11,98 +12,98 @@ class SettingsLibraryPanel extends StatelessWidget {
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
 
-  static const List<(AnalysisDurationSetting, String, String)> _analysisModes =
-      [
-        (
-          AnalysisDurationSetting.fast,
-          'Fast',
-          'Analyze a short preview for quick library scans.',
-        ),
-        (
-          AnalysisDurationSetting.precise,
-          'Precise',
-          'Balanced analysis for most libraries.',
-        ),
-        (
-          AnalysisDurationSetting.complete,
-          'Complete',
-          'Analyze the full track (slowest, most accurate).',
-        ),
-      ];
-
-  static const List<(KeyDisplayModeSetting, String, String)> _keyDisplayModes =
-      [
-        (
-          KeyDisplayModeSetting.musical,
-          'Musical',
-          'Note names in deck chip and library key column — e.g. C, Am, F#m.',
-        ),
-        (
-          KeyDisplayModeSetting.camelot,
-          'Camelot',
-          'Mixed In Key codes — e.g. 8B (C major), 8A (A minor), 11B.',
-        ),
-      ];
-
-  static const List<(KeyColorModeSetting, String, String)> _keyColorModes = [
-    (
-      KeyColorModeSetting.off,
-      'Off',
-      'Key labels use the default text color everywhere.',
-    ),
-    (
-      KeyColorModeSetting.absolute,
-      'Absolute (circle of fifths)',
-      'Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer).',
-    ),
-    (
-      KeyColorModeSetting.harmonic,
-      'Harmonic (playing deck)',
-      'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.',
-    ),
-  ];
-
-  static String _labelFor(AnalysisDurationSetting mode) => switch (mode) {
-    AnalysisDurationSetting.fast => 'Fast',
-    AnalysisDurationSetting.precise => 'Precise',
-    AnalysisDurationSetting.complete => 'Complete',
-  };
-
-  static String _keyDisplayLabel(KeyDisplayModeSetting mode) =>
-      _keyDisplayModes.firstWhere((m) => m.$1 == mode).$2;
-
-  static String _keyColorLabel(KeyColorModeSetting mode) =>
-      _keyColorModes.firstWhere((m) => m.$1 == mode).$2;
-
   static const _stemsFormats = ['opus', 'flac'];
+  static const _analysisModes = AnalysisDurationSetting.values;
+  static const _keyDisplayModes = KeyDisplayModeSetting.values;
+  static const _keyColorModes = KeyColorModeSetting.values;
 
   static String _normalizedStemsFormat(String format) =>
       _stemsFormats.contains(format) ? format : 'opus';
 
-  static String _stemsFormatLabel(String format) => switch (format) {
-    'flac' => 'FLAC (lossless)',
-    _ => 'Opus (160 kbps)',
+  static String _analysisLabel(
+    AppLocalizations l10n,
+    AnalysisDurationSetting mode,
+  ) => switch (mode) {
+    AnalysisDurationSetting.fast => l10n.settingsLibraryAnalysisFast,
+    AnalysisDurationSetting.precise => l10n.settingsLibraryAnalysisPrecise,
+    AnalysisDurationSetting.complete => l10n.settingsLibraryAnalysisComplete,
   };
+
+  static String _analysisSubtitle(
+    AppLocalizations l10n,
+    AnalysisDurationSetting mode,
+  ) => switch (mode) {
+    AnalysisDurationSetting.fast => l10n.settingsLibraryAnalysisFastSubtitle,
+    AnalysisDurationSetting.precise =>
+      l10n.settingsLibraryAnalysisPreciseSubtitle,
+    AnalysisDurationSetting.complete =>
+      l10n.settingsLibraryAnalysisCompleteSubtitle,
+  };
+
+  static String _keyDisplayLabel(
+    AppLocalizations l10n,
+    KeyDisplayModeSetting mode,
+  ) => switch (mode) {
+    KeyDisplayModeSetting.musical => l10n.settingsLibraryKeyDisplayMusical,
+    KeyDisplayModeSetting.camelot => l10n.settingsLibraryKeyDisplayCamelot,
+  };
+
+  static String _keyDisplaySubtitle(
+    AppLocalizations l10n,
+    KeyDisplayModeSetting mode,
+  ) => switch (mode) {
+    KeyDisplayModeSetting.musical =>
+      l10n.settingsLibraryKeyDisplayMusicalSubtitle,
+    KeyDisplayModeSetting.camelot =>
+      l10n.settingsLibraryKeyDisplayCamelotSubtitle,
+  };
+
+  static String _keyColorLabel(
+    AppLocalizations l10n,
+    KeyColorModeSetting mode,
+  ) => switch (mode) {
+    KeyColorModeSetting.off => l10n.settingsLibraryKeyColorOff,
+    KeyColorModeSetting.absolute => l10n.settingsLibraryKeyColorAbsolute,
+    KeyColorModeSetting.harmonic => l10n.settingsLibraryKeyColorHarmonic,
+  };
+
+  static String _keyColorSubtitle(
+    AppLocalizations l10n,
+    KeyColorModeSetting mode,
+  ) => switch (mode) {
+    KeyColorModeSetting.off => l10n.settingsLibraryKeyColorOffSubtitle,
+    KeyColorModeSetting.absolute =>
+      l10n.settingsLibraryKeyColorAbsoluteSubtitle,
+    KeyColorModeSetting.harmonic =>
+      l10n.settingsLibraryKeyColorHarmonicSubtitle,
+  };
+
+  static String _stemsFormatLabel(AppLocalizations l10n, String format) =>
+      switch (format) {
+        'flac' => l10n.settingsLibraryStemFlac,
+        _ => l10n.settingsLibraryStemOpus,
+      };
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 16,
       children: [
-        const SettingsSectionHeader(
-          title: 'Library',
-          description: 'Track import, offline analysis, and list display.',
+        SettingsSectionHeader(
+          title: l10n.settingsSectionLibrary,
+          description: l10n.settingsLibraryDescription,
         ),
         SettingsField(
-          label: 'Analysis quality',
+          label: l10n.settingsLibraryAnalysisQuality,
           child: SettingsSelect(
-            dialogTitle: 'Analysis quality',
+            dialogTitle: l10n.settingsLibraryAnalysisQuality,
             value: draft.analysisDuration,
-            options: [for (final (mode, _, _) in _analysisModes) mode],
-            labelBuilder: _labelFor,
-            subtitleBuilder: (mode) =>
-                _analysisModes.firstWhere((m) => m.$1 == mode).$3,
+            options: _analysisModes,
+            labelBuilder: (mode) => _analysisLabel(l10n, mode),
+            subtitleBuilder: (mode) => _analysisSubtitle(l10n, mode),
             onChanged: (mode) =>
                 onChanged(copyAppSettings(draft, analysisDuration: mode)),
           ),
@@ -112,32 +113,30 @@ class SettingsLibraryPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              const SettingsSectionHeader(
-                title: 'Musical key',
-                description: 'How keys are labeled and color-coded in deck chrome and the library table.',
+              SettingsSectionHeader(
+                title: l10n.settingsLibraryMusicalKeyTitle,
+                description: l10n.settingsLibraryMusicalKeyDescription,
               ),
               SettingsField(
-                label: 'Key display mode',
+                label: l10n.settingsLibraryKeyDisplayMode,
                 child: SettingsSelect(
-                  dialogTitle: 'Key display mode',
+                  dialogTitle: l10n.settingsLibraryKeyDisplayMode,
                   value: draft.keyDisplayMode,
-                  options: [for (final (mode, _, _) in _keyDisplayModes) mode],
-                  labelBuilder: _keyDisplayLabel,
-                  subtitleBuilder: (mode) =>
-                      _keyDisplayModes.firstWhere((m) => m.$1 == mode).$3,
+                  options: _keyDisplayModes,
+                  labelBuilder: (mode) => _keyDisplayLabel(l10n, mode),
+                  subtitleBuilder: (mode) => _keyDisplaySubtitle(l10n, mode),
                   onChanged: (m) =>
                       onChanged(copyAppSettings(draft, keyDisplayMode: m)),
                 ),
               ),
               SettingsField(
-                label: 'Key color mode',
+                label: l10n.settingsLibraryKeyColorMode,
                 child: SettingsSelect(
-                  dialogTitle: 'Key color mode',
+                  dialogTitle: l10n.settingsLibraryKeyColorMode,
                   value: draft.keyColorMode,
-                  options: [for (final (mode, _, _) in _keyColorModes) mode],
-                  labelBuilder: _keyColorLabel,
-                  subtitleBuilder: (mode) =>
-                      _keyColorModes.firstWhere((m) => m.$1 == mode).$3,
+                  options: _keyColorModes,
+                  labelBuilder: (mode) => _keyColorLabel(l10n, mode),
+                  subtitleBuilder: (mode) => _keyColorSubtitle(l10n, mode),
                   onChanged: (m) =>
                       onChanged(copyAppSettings(draft, keyColorMode: m)),
                 ),
@@ -146,36 +145,36 @@ class SettingsLibraryPanel extends StatelessWidget {
           ),
         ),
         SettingsField(
-          label: 'Stem format',
+          label: l10n.settingsLibraryStemFormat,
           child: SettingsSelect<String>(
-            dialogTitle: 'Stem format',
+            dialogTitle: l10n.settingsLibraryStemFormat,
             value: _normalizedStemsFormat(draft.stemsFormat),
             options: _stemsFormats,
-            labelBuilder: _stemsFormatLabel,
+            labelBuilder: (format) => _stemsFormatLabel(l10n, format),
             onChanged: (v) => onChanged(copyAppSettings(draft, stemsFormat: v)),
           ),
         ),
         SettingsToggle(
-          label: 'Dim played tracks',
+          label: l10n.settingsLibraryDimPlayedTracks,
           value: draft.dimPlayedTracks,
           onChanged: (enabled) =>
               onChanged(copyAppSettings(draft, dimPlayedTracks: enabled)),
         ),
         SettingsField(
-          label: 'Track row layout',
+          label: l10n.settingsLibraryTrackRowLayout,
           child: SettingsSelect<LibraryRowDensitySetting>(
-            dialogTitle: 'Track row layout',
+            dialogTitle: l10n.settingsLibraryTrackRowLayout,
             value: draft.libraryRowDensity,
             options: const [
               LibraryRowDensitySetting.comfortable,
               LibraryRowDensitySetting.compact,
             ],
             labelBuilder: (mode) => mode == LibraryRowDensitySetting.compact
-                ? 'Compact'
-                : 'Comfortable',
+                ? l10n.settingsLibraryRowCompact
+                : l10n.settingsLibraryRowComfortable,
             subtitleBuilder: (mode) => mode == LibraryRowDensitySetting.compact
-                ? 'One dense line per track — fits the most rows on screen.'
-                : 'Two lines per track: title above artist, BPM, key and length.',
+                ? l10n.settingsLibraryRowCompactSubtitle
+                : l10n.settingsLibraryRowComfortableSubtitle,
             onChanged: (mode) =>
                 onChanged(copyAppSettings(draft, libraryRowDensity: mode)),
           ),

@@ -1,6 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/l10n/kit_localizations.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/settings/ui_language.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/desktop_chrome.dart';
@@ -62,17 +66,26 @@ final ShadThemeData _shadLight = shadThemeFromMixar(MixarThemeData.light());
 final ShadThemeData _shadDark = shadThemeFromMixar(MixarThemeData.dark());
 
 /// Root app: Mixar theme tokens + Shad bridge + mixer shell.
-class Application extends StatelessWidget {
+class Application extends ConsumerWidget {
   const new({required this.appTitle, super.key});
 
   final String appTitle;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref
+        .watch(appSettingsProvider)
+        .maybeWhen(
+          data: (settings) => localeFromUiLanguage(settings.uiLanguage),
+          orElse: () => null,
+        );
+
     return MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      locale: locale,
+      localizationsDelegates: mixarLocalizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: _materialLight,
       darkTheme: _materialDark,
       builder: (context, child) {

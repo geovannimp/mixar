@@ -481,7 +481,7 @@ Extend `Deck` in `engine-dsp` with:
 | Keyboard shortcuts | — | Yes |
 | Jog/scratch gesture | Receives delta commands | Pointer events |
 | State sync to UI | **Emit engine events** (§9) | Subscribe; render only |
-| Toast / errors | Returns structured errors | Flutter host UI (`showFToast` / Forui) |
+| Toast / errors | Returns structured errors | Flutter host UI (`showMixarToast` / MixarTheme) |
 
 **Rule:** Any action that affects audio within **<10 ms** must be engine-side; UI sends commands, never computes audio.
 
@@ -663,7 +663,7 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 4. **Volume, EQ, crossfader** reflect engine state; changes apply without glitching audio.
 5. Scrolling **waveforms track the playhead** during playback without visible drift vs. audio.
 6. **Hot cues, loops, quantize, sync, sampler, slip, key lock, jog/scratch, cue/PFL, VU** work from the Flutter host.
-7. Engine errors use **Flutter host UI** toasts only (`showFToast` / Forui).
+7. Engine errors use **Flutter host UI** toasts only (`showMixarToast` / MixarTheme).
 8. Evt omnibus delivered to UI: headless / simulated publish updates Flutter host state without a matching UI command return value.
 9. Overview, beat grid, pads in Hot Cue mode, and **`save_hot_cue`** / **`save_loop`** persistence; high-rate position on the bus (§9.6).
 
@@ -711,7 +711,7 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | DK6 | Cue persistence | **`track_hot_cue`** table; **`save_hot_cue`** per slot (shipped) |
 | DK7 | Loop persistence | **`track_loop`** table; **`save_loop`** per slot (shipped) |
 | DK8 | Deck state API | Bus `status` / `updated` snapshots — no `get_deck_state`; no `get_status` hydrate |
-| DK9 | Error UX | **Flutter host UI** toasts (`showFToast` / Forui); engine start surfaces start failures in host error UX |
+| DK9 | Error UX | **Flutter host UI** toasts (`showMixarToast` / MixarTheme); engine start surfaces start failures in host error UX |
 | DK10 | Status authority | **GitHub issues** track unfinished work; §3 is a factual snapshot only (no parallel roadmap in this doc) |
 | DK11 | Position stream | High-rate `position` evt on the MessagePack omnibus (FRB → `EngineEvt`) |
 | DK12 | State sync | **Event bus** — UI subscribes; engine + host publish via session evt bus (FRB forwarder → typed `EngineEvt`) |

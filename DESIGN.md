@@ -108,7 +108,7 @@ components:
 
 Mixar looks like what it is: open, performance-ready DJ software with nothing hidden behind a paywall. The visual system is restrained zinc neutrals, a single teal accent for action and live state, and deck identity colors (green / blue on marketing surfaces) that echo the booth without turning the UI into a light show. Density is comfortable — readable type, generous section rhythm, cards that breathe — while interactive elements feel tactile through soft hover lift and crisp pill shapes.
 
-The marketing site (`apps/website`) is the most fully custom expression of this world: Outfit body, Space Grotesk headings, CSS token themes with light/dark via `data-theme`. The desktop app (`apps/gui-flutter`) operates in **Forui neutral** light/dark themes with domain-specific performance colors (fader accents, VU segments, cue amber). Shared brand commitments: Mixar logo (inverted on dark), teal as the primary interactive signal, honest "in development" status when applicable, and deck semantics that must stay distinguishable under pressure.
+The marketing site (`apps/website`) is the most fully custom expression of this world: Outfit body, Space Grotesk headings, CSS token themes with light/dark via `data-theme`. The desktop app (`apps/gui-flutter`) uses **MixarTheme** light/dark tokens (with an intentional **ShadTheme** bridge for Shad/Material widgets) plus domain-specific performance colors (fader accents, VU segments, cue amber). Shared brand commitments: Mixar logo (inverted on dark), teal as the primary interactive signal, honest "in development" status when applicable, and deck semantics that must stay distinguishable under pressure.
 
 **Key Characteristics:**
 
@@ -117,7 +117,7 @@ The marketing site (`apps/website`) is the most fully custom expression of this 
 - Pill buttons and badges; rounded cards (12px) and hero media (20px)
 - Outfit + Space Grotesk on web; tabular figures for BPM/time via OpenType features
 - Soft hover lift on CTAs; scroll reveals respect `prefers-reduced-motion`
-- App UI: Forui components, 40px custom title bar, 12px desktop window radius
+- App UI: Mixar shell widgets + Shad-bridged controls, 40px custom title bar, 12px desktop window radius
 
 ## Colors
 
@@ -156,9 +156,9 @@ Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom 
 - **Panel** (#ffffff light / #18181c dark): Cards, theme toggle, popovers.
 - **Hairline** (rgba black/white @ 8%): Borders on cards, header scroll state, inputs-at-rest.
 
-### App-specific (Flutter / Forui)
+### App-specific (Flutter / MixarTheme)
 
-- **Forui neutral semantic tokens** (`background`, `foreground`, `mutedForeground`, `border`, `primary`): Base app chrome — do not override with raw hex in widgets; read from `context.theme.colors`.
+- **MixarTheme semantic tokens** (`background`, `foreground`, `mutedForeground`, `border`, `primary`): Base app chrome — do not override with raw hex in widgets; read from `context.theme.colors`. Shad widgets consume the bridged `ShadTheme` built from the same Mixar palette.
 - **Fader Deck A sky** (#38bdf8 grip): Vertical/horizontal fader accent for Deck A in the app (differs from web deck-a green — align in a future pass).
 - **Fader Deck B rose** (#fb7185 grip): Fader accent for Deck B in the app.
 - **Cue Amber** (#FCD34D / ring #F59E0B @ 40%): Headphone cue / PFL active state.
@@ -190,7 +190,7 @@ Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom 
 
 ### App note
 
-Flutter currently inherits **Forui neutral** type scale (`theme.typography.*`). Custom Outfit / Space Grotesk in the app is planned; until then, match web hierarchy intent using Forui roles (body, label, heading) rather than hard-coded sizes.
+Flutter ships **Outfit** (body), **Space Grotesk** (display), and **Noto Sans Mono** via `MixarFonts` / `lib/shell/app_typography.dart`, exposed on `theme.typography.*`. Match web hierarchy intent with those roles (body, label, heading) rather than hard-coded sizes.
 
 ### Named Rules
 
@@ -269,9 +269,10 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 
 ### App chrome (Flutter)
 
-- **Header:** 40px, background token, logo white-filtered, engine status caption, Forui tabs, window controls
-- **Controls:** Forui buttons, switches, sliders; faders custom with deck accent grips
+- **Header:** 40px, background token, logo white-filtered, engine status caption, Mixar `MTabs`, window controls
+- **Controls:** Mixar / Shad-bridged buttons, switches, sliders; faders custom with deck accent grips
 - **Tooltips:** App tooltip wrapper for performance controls
+- **Toasts:** `showMixarToast` (context_show) for concise error feedback
 - **Panels:** Bordered deck sections; performance controls grouped in bordered panels per deck spec
 
 ### Motion

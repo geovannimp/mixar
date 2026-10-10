@@ -217,13 +217,12 @@ tasks:
 
   generate:
     command: "bash"
-    args:
-      - "-c"
-      - 'export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"; flutter_rust_bridge_codegen generate'
+    args: ["scripts/ensure-frb-codegen.sh"]
     toolchain: "system"
     inputs:
       - "@group(rustBuilder)"
       - "flutter_rust_bridge.yaml"
+      - "scripts/ensure-frb-codegen.sh"
     options:
       cache: false
       runInCI: false

@@ -226,6 +226,58 @@ class DeckLoadInFlight extends Notifier<Map<int, int>> {
 final deckLoadInFlightProvider =
     NotifierProvider<DeckLoadInFlight, Map<int, int>>(DeckLoadInFlight.new);
 
+/// Per-deck monotonic load generation. Stale UI chrome commits check this.
+class DeckLoadGeneration extends Notifier<Map<int, int>> {
+  @override
+  Map<int, int> build() => const {};
+
+  /// Begin a load attempt; returns its generation token.
+  int begin(int deckId) {
+    final next = (state[deckId] ?? 0) + 1;
+    state = {...state, deckId: next};
+    return next;
+  }
+
+  bool isCurrent(int deckId, int generation) => state[deckId] == generation;
+}
+
+final deckLoadGenerationProvider =
+    NotifierProvider<DeckLoadGeneration, Map<int, int>>(DeckLoadGeneration.new);
+
+/// Narrow engine ops for deck load — production wraps [EngineTransport]; tests
+/// override [deckLoadTransportProvider] with a fake.
+abstract class DeckLoadTransport {
+  Future<void> loadLibraryTrack({required int deckId, required String trackId});
+
+  Future<void> loadPath({required int deckId, required String path});
+}
+
+class _EngineDeckLoadTransport implements DeckLoadTransport {
+  new(this._engine);
+
+  final EngineTransport _engine;
+
+  @override
+  Future<void> loadLibraryTrack({
+    required int deckId,
+    required String trackId,
+  }) => _engine.loadLibraryTrack(deckId: deckId, trackId: trackId);
+
+  @override
+  Future<void> loadPath({required int deckId, required String path}) =>
+      _engine.loadPath(deckId: deckId, path: path);
+}
+
+final deckLoadTransportProvider = FutureProvider<DeckLoadTransport?>((
+  ref,
+) async {
+  final engine = await ref.watch(engineTransportProvider.future);
+  if (engine == null) {
+    return null;
+  }
+  return _EngineDeckLoadTransport(engine);
+});
+
 final ProviderFamily<bool, int> deckLoadingProvider =
     Provider.family<bool, int>(
       (ref, deckId) => ref.watch(

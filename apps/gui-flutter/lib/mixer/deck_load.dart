@@ -8,7 +8,6 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/app_notice.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart' show EngineTransport;
 
 typedef _Read = T Function<T>(ProviderListenable<T> provider);
 
@@ -75,38 +74,37 @@ Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
   if (payload == null) {
     return;
   }
-  await _loadPayloadToDeck(read: ref.read, deckId: deckId, payload: payload);
+  await loadPayloadOntoDeck(ref.read, deckId, payload);
 }
 
-Future<void> loadPayloadToDeck(
-  WidgetRef ref,
+/// Shared deck-load path (UI drop/keyboard + MIDI).
+///
+/// Uses [deckLoadGenerationProvider] so a superseded attempt does not
+/// overwrite chrome after a newer load wins.
+Future<void> loadPayloadOntoDeck(
+  _Read read,
   int deckId,
   TrackDragPayload payload,
 ) async {
-  await _loadPayloadToDeck(read: ref.read, deckId: deckId, payload: payload);
-}
-
-Future<void> _loadPayloadToDeck({
-  required _Read read,
-  required int deckId,
-  required TrackDragPayload payload,
-}) async {
-  final loading = read(deckLoadInFlightProvider.notifier);
-  loading.set(deckId, true);
+  final generation = read(deckLoadGenerationProvider.notifier).begin(deckId);
+  final loading = read(deckLoadInFlightProvider.notifier)..set(deckId, true);
   try {
-    final engine = await read<Future<EngineTransport?>>(
-      engineTransportProvider.future,
-    );
-    if (engine == null) {
+    final transport = await read(deckLoadTransportProvider.future);
+    if (transport == null) {
       return;
     }
     await applyTrackDrop(
       deckId: deckId,
       payload: payload,
       loadLibraryTrack: (id, trackId) =>
-          engine.loadLibraryTrack(deckId: id, trackId: trackId),
-      loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
+          transport.loadLibraryTrack(deckId: id, trackId: trackId),
+      loadPath: (id, path) => transport.loadPath(deckId: id, path: path),
     );
+    if (!read(
+      deckLoadGenerationProvider.notifier,
+    ).isCurrent(deckId, generation)) {
+      return;
+    }
     read(engineUiProvider.notifier)
       ..setDeckTrackPath(deckId, payload.path)
       ..setDeckTrackId(deckId, payload.trackId);
@@ -114,6 +112,12 @@ Future<void> _loadPayloadToDeck({
     loading.set(deckId, false);
   }
 }
+
+Future<void> loadPayloadToDeck(
+  WidgetRef ref,
+  int deckId,
+  TrackDragPayload payload,
+) => loadPayloadOntoDeck(ref.read, deckId, payload);
 
 Future<void> pickTrackForDeck(WidgetRef ref, int deckId) async {
   final result = await FilePicker.pickFiles(

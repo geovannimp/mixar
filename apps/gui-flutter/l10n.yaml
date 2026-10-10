@@ -1,0 +1,5 @@
+# Generated Dart lands in arb-dir (lib/l10n). Do not set synthetic-package —
+# Flutter no longer honors that flag.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
