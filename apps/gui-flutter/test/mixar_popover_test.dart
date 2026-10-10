@@ -216,4 +216,68 @@ void main() {
     expect(find.text('Analyze tracks…'), findsNothing);
     expect(menuController.isShowing, isFalse);
   });
+
+  testWidgets(
+    'MixarMenuAnchor mobile hide then show waits for dialog to finish',
+    (tester) async {
+      final theme = MixarThemeData.dark();
+      late MixarOverlayController menuController;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
+          home: Scaffold(
+            body: Center(
+              child: MixarMenuAnchor(
+                style: SelectStyleSetting.mobile,
+                menuBuilder: (context, controller) => MixarMenuBody(
+                  groups: [
+                    MixarMenuGroup(
+                      children: [
+                        MixarMenuItem(
+                          title: const Text('Analyze tracks…'),
+                          onPress: controller.hide,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                childBuilder: (context, controller) {
+                  menuController = controller;
+                  return GestureDetector(
+                    onTap: controller.toggle,
+                    child: const Text('Open menu'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open menu'));
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsOneWidget);
+
+      // Rapid hide → show while the first dialog is still dismissing must not
+      // stack a second route.
+      menuController.hide();
+      menuController.show();
+      await tester.pump();
+      expect(find.text('Analyze tracks…'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsNothing);
+      expect(menuController.isShowing, isFalse);
+
+      // After the route finishes, a fresh show works again.
+      menuController.show();
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsOneWidget);
+
+      menuController.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsNothing);
+    },
+  );
 }

@@ -16,6 +16,7 @@ void main() {
     required void Function(String) onChanged,
     SelectStyleSetting style = SelectStyleSetting.desktop,
     String? dialogTitle,
+    bool enabled = true,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -33,6 +34,7 @@ void main() {
                 onChanged: onChanged,
                 style: style,
                 dialogTitle: dialogTitle,
+                enabled: enabled,
               ),
             ),
           ),
@@ -171,6 +173,21 @@ void main() {
 
     expect(find.text('Quality'), findsNothing);
     expect(changed, isFalse);
+  });
+
+  testWidgets('disabled mobile style does not open a dialog', (tester) async {
+    await pumpSelect(
+      tester,
+      value: 'low',
+      onChanged: (_) {},
+      style: SelectStyleSetting.mobile,
+      dialogTitle: 'Quality',
+      enabled: false,
+    );
+
+    await tester.tap(find.byType(ShadSelect<String>));
+    await tester.pumpAndSettle();
+    expect(find.text('Quality'), findsNothing);
   });
 
   testWidgets('mobile option subtitles stay left-aligned and muted', (

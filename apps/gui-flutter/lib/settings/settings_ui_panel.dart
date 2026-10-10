@@ -34,6 +34,7 @@ class SettingsUiPanel extends StatelessWidget {
               SettingsField(
                 label: 'Select style',
                 child: SettingsSelect<SelectStyleSetting>(
+                  dialogTitle: 'Select style',
                   value: draft.selectStyle,
                   options: const [
                     SelectStyleSetting.auto,

@@ -236,11 +236,9 @@ class _MenuDialogController extends MixarOverlayController {
 
   final Future<void> Function() onOpen;
   NavigatorState? _dialogNavigator;
+  Future<void>? _dialogFuture;
   var _open = false;
-
-  /// Bumped on each [show]/[hide] so a stale [onOpen] completion cannot clear
-  /// a newer open cycle (e.g. hide → show before the pop animation finishes).
-  var _generation = 0;
+  var _disposed = false;
 
   @override
   bool get isShowing => _open;
@@ -251,26 +249,31 @@ class _MenuDialogController extends MixarOverlayController {
 
   @override
   void show() {
-    if (_open) return;
+    // Block while a dialog route is still in flight / animating out so rapid
+    // hide → show cannot stack a second route on the still-popping first one.
+    if (_disposed || _open || _dialogFuture != null) return;
     _open = true;
-    final generation = ++_generation;
-    notifyListeners();
-    onOpen().whenComplete(() {
-      if (generation != _generation) return;
-      _handleClosed();
+    _notify();
+    final future = onOpen();
+    _dialogFuture = future;
+    future.whenComplete(() {
+      if (!identical(_dialogFuture, future)) return;
+      _dialogFuture = null;
+      _dialogNavigator = null;
+      if (_disposed) return;
+      if (!_open) return;
+      _open = false;
+      _notify();
     });
   }
 
   @override
   void hide() {
-    if (!_open) return;
+    if (_disposed || !_open) return;
     final nav = _dialogNavigator;
-    // Clear immediately so a follow-up [show] is not dropped while the dialog
-    // is still animating out.
     _open = false;
     _dialogNavigator = null;
-    _generation++;
-    notifyListeners();
+    _notify();
     if (nav != null && nav.canPop()) {
       nav.pop();
     }
@@ -279,10 +282,19 @@ class _MenuDialogController extends MixarOverlayController {
   @override
   void toggle() => _open ? hide() : show();
 
-  void _handleClosed() {
+  @override
+  void dispose() {
+    // Do not nav.pop() here: Wolt modal rebuilds during dispose and looks up
+    // inherited widgets on a deactivated host. Callers should hide first when
+    // possible; late whenComplete callbacks are ignored via [_disposed].
+    _disposed = true;
     _dialogNavigator = null;
-    if (!_open) return;
     _open = false;
+    super.dispose();
+  }
+
+  void _notify() {
+    if (_disposed) return;
     notifyListeners();
   }
 }

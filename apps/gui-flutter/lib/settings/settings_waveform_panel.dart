@@ -23,6 +23,7 @@ class SettingsWaveformPanel extends StatelessWidget {
         SettingsField(
           label: 'Display mode',
           child: SettingsSelect(
+            dialogTitle: 'Display mode',
             value: draft.waveformDisplayMode,
             options: WaveformDisplayModeSetting.values,
             labelBuilder: (m) => switch (m) {

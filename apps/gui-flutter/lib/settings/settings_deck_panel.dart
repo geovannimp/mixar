@@ -47,6 +47,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                     child: SettingsField(
                       label: 'Top jog mode',
                       child: SettingsSelect(
+                        dialogTitle: 'Top jog mode',
                         value: draft.defaultTopJogMode,
                         options: _jogModes,
                         labelBuilder: _jogLabel,
@@ -60,6 +61,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                     child: SettingsField(
                       label: 'Outer jog mode',
                       child: SettingsSelect(
+                        dialogTitle: 'Outer jog mode',
                         value: draft.defaultOuterJogMode,
                         options: _jogModes,
                         labelBuilder: _jogLabel,
@@ -89,6 +91,7 @@ class SettingsDeckPanel extends ConsumerWidget {
               SettingsField(
                 label: 'Default tempo range',
                 child: SettingsSelect(
+                  dialogTitle: 'Default tempo range',
                   value: draft.defaultTempoRange,
                   options: _tempoRangeOptions(draft),
                   labelBuilder: formatTempoRange,
@@ -124,6 +127,7 @@ class SettingsDeckPanel extends ConsumerWidget {
               SettingsField(
                 label: 'Sampler play mode',
                 child: SettingsSelect(
+                  dialogTitle: 'Sampler play mode',
                   value: draft.samplerPlayMode,
                   options: SamplerPlayModeSetting.values,
                   labelBuilder: (m) => m.name,
@@ -134,6 +138,7 @@ class SettingsDeckPanel extends ConsumerWidget {
               SettingsField(
                 label: 'Sampler strip route',
                 child: SettingsSelect(
+                  dialogTitle: 'Sampler strip route',
                   value: draft.samplerStripRoute,
                   options: SamplerStripRouteSettingFrb.values,
                   labelBuilder: (m) => m == SamplerStripRouteSettingFrb.before
@@ -153,6 +158,8 @@ class SettingsDeckPanel extends ConsumerWidget {
                         label:
                             'Deck ${deck == 0 ? 'A' : 'B'} default sampler bank',
                         child: SettingsSelect<String?>(
+                          dialogTitle:
+                              'Deck ${deck == 0 ? 'A' : 'B'} default sampler bank',
                           value: draft.deckDefaultSamplerBankId[deck],
                           options: _bankOptions(
                             banks,

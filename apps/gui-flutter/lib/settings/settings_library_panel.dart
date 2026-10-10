@@ -97,6 +97,7 @@ class SettingsLibraryPanel extends StatelessWidget {
         SettingsField(
           label: 'Analysis quality',
           child: SettingsSelect(
+            dialogTitle: 'Analysis quality',
             value: draft.analysisDuration,
             options: [for (final (mode, _, _) in _analysisModes) mode],
             labelBuilder: _labelFor,
@@ -118,6 +119,7 @@ class SettingsLibraryPanel extends StatelessWidget {
               SettingsField(
                 label: 'Key display mode',
                 child: SettingsSelect(
+                  dialogTitle: 'Key display mode',
                   value: draft.keyDisplayMode,
                   options: [for (final (mode, _, _) in _keyDisplayModes) mode],
                   labelBuilder: _keyDisplayLabel,
@@ -130,6 +132,7 @@ class SettingsLibraryPanel extends StatelessWidget {
               SettingsField(
                 label: 'Key color mode',
                 child: SettingsSelect(
+                  dialogTitle: 'Key color mode',
                   value: draft.keyColorMode,
                   options: [for (final (mode, _, _) in _keyColorModes) mode],
                   labelBuilder: _keyColorLabel,
@@ -145,6 +148,7 @@ class SettingsLibraryPanel extends StatelessWidget {
         SettingsField(
           label: 'Stem format',
           child: SettingsSelect<String>(
+            dialogTitle: 'Stem format',
             value: _normalizedStemsFormat(draft.stemsFormat),
             options: _stemsFormats,
             labelBuilder: _stemsFormatLabel,
@@ -160,6 +164,7 @@ class SettingsLibraryPanel extends StatelessWidget {
         SettingsField(
           label: 'Track row layout',
           child: SettingsSelect<LibraryRowDensitySetting>(
+            dialogTitle: 'Track row layout',
             value: draft.libraryRowDensity,
             options: const [
               LibraryRowDensitySetting.comfortable,

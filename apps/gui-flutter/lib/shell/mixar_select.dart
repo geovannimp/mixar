@@ -149,7 +149,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
       context: context,
       builder: (dialogContext) {
         final theme = dialogContext.theme;
-        return Padding(
+        return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
