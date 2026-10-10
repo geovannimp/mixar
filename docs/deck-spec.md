@@ -2,14 +2,13 @@
 
 Reference: [`tech-spec.md`](tech-spec.md), [`dj-waveform-spec.md`](dj-waveform-spec.md), [`audio-analyzer-spec.md`](audio-analyzer-spec.md).
 
-This document defines what a **professional DJ deck** should contain in Mixar, based on competitor products (Rekordbox, Serato DJ Pro, Traktor Pro, DJUCED / Hercules), the attached reference screenshots, and the gap between our current MVP and industry expectations.
+This document defines what a **professional DJ deck** should contain in Mixar: current state, information architecture, feature requirements, and engine/GUI boundaries. Unfinished work is tracked in GitHub issues.
 
 ---
 
 ## Table of Contents
 
 - [1 — Summary](#1--summary)
-- [2 — Competitor Reference](#2--competitor-reference)
 - [3 — Current State (Mixar)](#3--current-state-mixar)
 - [4 — Deck Information Architecture](#4--deck-information-architecture)
 - [5 — Feature Specification](#5--feature-specification)
@@ -48,7 +47,7 @@ A DJ deck is a **performance surface** for one loaded track. It combines:
 4. **Creative tools** — controller pads (default: hot cues), loops, FX, stems, sampler.
 5. **Mixer integration** — volume, EQ, filter, cue/PFL, crossfader assignment.
 
-Industry decks (Rekordbox Performance, Serato, Traktor) share a common layout pattern visible in the reference screenshots:
+Typical deck layout:
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -64,30 +63,6 @@ Industry decks (Rekordbox Performance, Serato, Traktor) share a common layout pa
 ```
 
 §3 is the factual **current-state** snapshot (implemented / partial / not). Feature sections below are **product requirements**, not a second status board — unfinished work is tracked in GitHub issues.
-
----
-
-## 2 — Competitor Reference
-
-| Product | Deck count | Hot cues | Memory cues | Loops | Sync | Key | Stems | FX | Notable UX |
-|---------|------------|----------|-------------|-------|------|-----|-------|-----|------------|
-| **Rekordbox 7** ([manual](https://cdn.rekordbox.com/files/20241213141602/rekordbox7.0.7_manual_EN.pdf)) | 2–4 | 16 | 10 | In/out, saved, hotcue-as-loop | Beat / BPM / Key sync | Musical + Camelot | Stems (subscription) | 3 slots + RMX/DJM-style | Intelligent cue analysis, phrase/vocal analysis, master deck |
-| **Serato DJ Pro** ([manual](https://serato.com/dj/pro)) | 2–4 | 8 | Temp cue | Auto + manual + loop roll | Smart + Simple sync | Key detect + display | Stems FX / pad modes | 50+ built-in | Slip mode, quantize, beat jump, slicer, key lock |
-| **Traktor Pro** | 2–4 | 8 | Load marker | In/out, beat-sized | Sync | Key + transpose | Stems (version-dependent) | 2 FX units + filter | Colored waveforms, flux/slip variants, MIDI mapping |
-| **Virtual DJ** ([manual](https://www.virtualdj.com/manuals/)) | 2–99 | 8 (pad mode) | — | In/out, pad modes | Beat / BPM sync | Key detect + display | **Stems pad mode** (Vocal, Instru, Bass, Kick, HiHat, Stems FX) | Pad-assigned FX | **8 performance pads** switch function by mode (Hot Cue, Stems, Sampler, …); vertical PADS / LOOP side labels |
-| **DJUCED / Hercules** (screenshot ref.) | 2 | 8 labeled | — | 1/2× length, IN/OUT | Beat / Key / Master sync | Key shift ± | Vocal / Drums / Inst mute | 3 FX dropdowns | Named hot cues (Intro, Drop), quantize, slip, vinyl |
-
-Common expectations across all products:
-
-- **Dual-resolution waveforms** (overview + scrolling detail).
-- **Beat grid** aligned to offline analysis; sync/quantize depend on it.
-- **Controller pads** (8 slots, 2×4 grid) whose **function changes by pad mode**; default mode is **Hot Cue** (Virtual DJ, Serato pad modes).
-- **Hot cues** (in Hot Cue mode): color, optional name/comment, jump on trigger.
-- **Pitch/tempo** via fader or numeric control; **key lock** when tempo changes.
-- **Sync** to align deck tempo (and optionally key) to master or other deck.
-- **Loops** with beat-quantized length and halve/double.
-- **Per-deck FX** (at least filter + 1–2 insert effects).
-- **Stem or frequency isolation** increasingly standard (mute vocals, drums-only, etc.).
 
 ---
 
@@ -169,14 +144,14 @@ DeckState
 └── waveform: scroll_window_ms, zoom_level
 ```
 
-UI layout zones (match competitor ergonomics):
+UI layout zones:
 
 | Zone | Priority | Contents |
 |------|----------|----------|
 | **A — Waveform stack** | P0 | Overview + scrolling lane + playhead + grid + markers |
 | **B — Metadata bar** | P0 | Title, artist, elapsed/remain/total, BPM, key |
 | **C — Controller pads** | P1 | 8 performance pads (2×4); **mode selector**; default **Hot Cue** mode |
-| **D — Loop / jump** | P1 | Loop in/out, length, ½/2×, beat jump (separate panel; Virtual DJ “LOOP” side label) |
+| **D — Loop / jump** | P1 | Loop in/out, length, ½/2×, beat jump (separate panel) |
 | **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
 | **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range |
 | **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
@@ -189,19 +164,19 @@ UI layout zones (match competitor ergonomics):
 
 ### 5.1 Track metadata & status
 
-| ID | Feature | Description | Competitors | Priority |
-|----|---------|-------------|-------------|----------|
-| M1 | **Title & artist** | Primary and secondary line; truncate with tooltip | All | P0 |
-| M2 | **Album art** | Circular or square thumbnail; placeholder when missing | Rekordbox, Serato | P1 |
-| M3 | **Duration** | Total track length | All | P0 |
-| M4 | **Elapsed time** | Display `position_ms` as mm:ss.ms | All | P0 |
-| M5 | **Remaining time** | `-mm:ss` from `duration_ms - position_ms` | All | P0 |
-| M6 | **Original BPM** | From library analysis | All | P0 |
-| M7 | **Effective BPM** | After pitch adjustment (`original × pitch_ratio`) | All | P1 |
-| M8 | **Musical key** | e.g. `Gm`, `8A` (user preference) | All | P0 |
-| M9 | **Sync state indicator** | Off / armed / tempo synced / beat synced / master | Serato, Rekordbox | P1 |
-| M10 | **Track rating / color** | Optional library field on deck | Serato, Traktor | P3 |
-| M11 | **Loading / analyzing state** | Spinner when decode or waveform job running | All | P0 |
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| M1 | **Title & artist** | Primary and secondary line; truncate with tooltip | P0 |
+| M2 | **Album art** | Circular or square thumbnail; placeholder when missing | P1 |
+| M3 | **Duration** | Total track length | P0 |
+| M4 | **Elapsed time** | Display `position_ms` as mm:ss.ms | P0 |
+| M5 | **Remaining time** | `-mm:ss` from `duration_ms - position_ms` | P0 |
+| M6 | **Original BPM** | From library analysis | P0 |
+| M7 | **Effective BPM** | After pitch adjustment (`original × pitch_ratio`) | P1 |
+| M8 | **Musical key** | e.g. `Gm`, `8A` (user preference) | P0 |
+| M9 | **Sync state indicator** | Off / armed / tempo synced / beat synced / master | P1 |
+| M10 | **Track rating / color** | Optional library field on deck | P3 |
+| M11 | **Loading / analyzing state** | Spinner when decode or waveform job running | P0 |
 
 **Data source:** `library` track row + live deck status from engine (`EngineEvt` / `EngineUiSnapshot`).
 
@@ -220,9 +195,9 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 | W5 | **Loop region highlight** | Active loop bracket on waveform | P1 |
 | W6 | **Zoom** | Adjust `visible_ms` (e.g. 4000–64000 ms); mouse wheel or buttons | P1 → [#210](https://github.com/geovannimp/mixar/issues/210) |
 | W7 | **Stacked dual-deck view** | Deck A lane above Deck B (current) | P0 |
-| W8 | **Phase / beat phase indicator** | Small bar showing position within beat/bar (Serato) | P2 |
+| W8 | **Phase / beat phase indicator** | Small bar showing position within beat/bar | P2 |
 | W9 | **End-of-track warning** | Visual cue near track end | P2 |
-| W10 | **Intro / outro markers** | From analysis phrases (Rekordbox) | P3 |
+| W10 | **Intro / outro markers** | From analysis phrases | P3 |
 
 ---
 
@@ -232,13 +207,13 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 |----|---------|-------------|----------|
 | T1 | **Play / Pause** | Toggle playback | P0 |
 | T2 | **Cue (hold)** | Hold = temporary cue point audition; release = resume | P0 |
-| T3 | **Cue (set)** | Set temporary cue at current position (Serato) | P1 |
+| T3 | **Cue (set)** | Set temporary cue at current position | P1 |
 | T4 | **Previous cue / jump to start** | Jump to first hot cue or track start | P2 |
 | T5 | **Unload / eject** | Clear deck | P1 |
 | T6 | **Reverse** | Play backward while held or toggled | P3 |
 | T7 | **Emergency brake** | Instant stop + cue (hardware pattern) | P3 |
 
-**Keyboard shortcuts** (Serato-style): cue, play, sync, hot cues 1–8 — map in GUI layer.
+**Keyboard shortcuts**: cue, play, sync, hot cues 1–8 — map in GUI layer.
 
 ---
 
@@ -278,7 +253,7 @@ Controller pads are the primary abstraction: the eight deck buttons carry a sele
 | L1 | **Auto loop** | Quantized loop of N beats (1, 2, 4, 8, 16, 32) | P1 |
 | L2 | **Loop in / out** | Manual set in and out points | P1 |
 | L3 | **Loop halve / double** | ÷2 / ×2 current length | P1 |
-| L4 | **Loop roll** | Temporary loop while held (Serato) | P2 |
+| L4 | **Loop roll** | Temporary loop while held | P2 |
 | L5 | **Saved loops** | Named loops persisted per track | P2 |
 | L6 | **Active loop on waveform** | Visual bracket + beat count | P1 |
 | L7 | **Reloop / exit loop** | Toggle loop off; optional slip exit | P1 |
@@ -292,7 +267,7 @@ Loop engine must **wrap read position** within `[in, out)` while optionally adva
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
 | G1 | **Beat grid display** | From library analysis | P0 |
-| G2 | **Grid edit mode** | Adjust downbeat / BPM (Traktor, Serato) | P3 |
+| G2 | **Grid edit mode** | Adjust downbeat / BPM | P3 |
 | G3 | **Quantize toggle (Q)** | Snap cue/loop/hotcue to grid | P1 |
 | G4 | **Quantize value** | 1/2 beat, 1 beat, 1 bar | P1 |
 | G5 | **Phase nudge** | Micro-adjust phase vs master (± ms) | P2 |
@@ -309,7 +284,7 @@ Currently in center `DeckMixer`; may stay centralized or duplicate mini-strips o
 | X1 | **Channel volume fader** | 0–100% | P0 |
 | X2 | **3-band EQ** | Low / mid / high kill or ± dB | P0 |
 | X3 | **Filter (HP/LP)** | Single knob wet/dry or crossfade | P1 |
-| X4 | **Gain trim** | Pre-fader level; persisted per track (Serato) | P2 |
+| X4 | **Gain trim** | Pre-fader level; persisted per track | P2 |
 | X5 | **VU / level meter** | Peak or RMS per deck | P2 |
 | X6 | **Crossfader assign** | A / B / thru (4-deck future) | P2 |
 | X7 | **Channel fader curve** | Configurable crossfader law | P3 |
@@ -320,7 +295,7 @@ Currently in center `DeckMixer`; may stay centralized or duplicate mini-strips o
 
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
-| F1 | **Filter effect** | DJ-style one-knob HP/LP (Traktor) | P1 |
+| F1 | **Filter effect** | DJ-style one-knob HP/LP | P1 |
 | F2 | **FX slot 1–3** | Insert or send; dropdown selection | P2 |
 | F3 | **FX parameters** | 1–3 knobs per effect | P2 |
 | F4 | **FX on/off & wet/dry** | Per slot | P2 |
@@ -367,8 +342,8 @@ Keyboard and Key Shift pad modes are shipped ([#298](https://github.com/geovanni
 
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
-| A1 | **Slip mode** | Shadow playhead continues during loop/scratch/cue; catch up on exit ([Serato manual](https://serato.com/dj/pro)) — **shipped** ([#38](https://github.com/geovannimp/mixar/issues/38)) | P2 |
-| A2 | **Censor / censor button** | Temporary reverse or mute (Serato) | P3 → [#295](https://github.com/geovannimp/mixar/issues/295) |
+| A1 | **Slip mode** | Shadow playhead continues during loop/scratch/cue; catch up on exit — **shipped** ([#38](https://github.com/geovannimp/mixar/issues/38)) | P2 |
+| A2 | **Censor / censor button** | Temporary reverse or mute | P3 → [#295](https://github.com/geovannimp/mixar/issues/295) |
 | A3 | **Brake / spin down** | Vinyl stop effect | P3 |
 
 ---
@@ -414,7 +389,7 @@ Keyboard and Key Shift pad modes are shipped ([#298](https://github.com/geovanni
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
 | HW1 | **MIDI map deck controls** | Learn mode; maps to `EngineCommand` → same events as UI (§9) | P3 → [#49](https://github.com/geovannimp/mixar/issues/49) |
-| HW2 | **HID controller profiles** | Rekordbox / Serato compatible devices | P4 |
+| HW2 | **HID controller profiles** | Common HID DJ controllers | P4 |
 | HW3 | **Motorized fader feedback** | — | P4 |
 | HW4 | **Low-latency WASAPI/ASIO** | Windows pro audio | v2 (main spec) |
 
@@ -711,18 +686,6 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 
 ## 11 — References
 
-### Competitor documentation
-
-| Resource | URL |
-|----------|-----|
-| Rekordbox 7 introduction | https://cdn.rekordbox.com/files/20260409151246/rekordbox7.2.14_introduction_EN.pdf |
-| Rekordbox 7 manual (hot cues, analysis) | https://cdn.rekordbox.com/files/20241213141602/rekordbox7.0.7_manual_EN.pdf |
-| Rekordbox features (sync, layouts) | https://rekordbox.com/en/feature/style/ |
-| Serato DJ Pro features | https://serato.com/dj/pro |
-| Serato DJ Pro user manual (cue, loop, slip, sync) | https://d1aeri3ty3izns.cloudfront.net/media/36/366330/download_366330.pdf |
-
-### This repository
-
 | Resource | Path |
 |----------|------|
 | Engine deck DSP | `crates/engine-dsp/src/deck.rs` |
@@ -733,13 +696,6 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | Waveform spec | `docs/dj-waveform-spec.md` |
 | Analyzer / beat grid | `docs/audio-analyzer-spec.md` |
 
-### Reference screenshots (session)
-
-- Rekordbox-style: FX row, stem pads, hot cues, loop controls, sync, pitch — `assets/image-42583e66-*.png`
-- DJUCED-style: labeled hot cues, key sync/shift, stem mute, master sync — `assets/image-27f8012a-*.png`
-- Traktor-style: FX assign, colored hot cues 1–8, filter, sync, loop on waveform — `assets/image-f960b3e2-*.png`
-- Virtual DJ-style: **STEMS pad mode**, mode dropdown, 2×4 pad grid, PADS/LOOP side labels — `assets/image-7f761d7a-*.png`
-
 ---
 
 ## Decision log (initial)
@@ -747,7 +703,7 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | # | Topic | Decision |
 |---|--------|----------|
 | DK1 | Pad count | **8 slots** (2×4 grid); schema allows **16** for Hot Cue mode expansion |
-| DK12a | Pad abstraction | **8 controller pads** with **mode selector**; **Hot Cue = default mode** (Virtual DJ / Serato model); `track_hot_cue` stores Hot Cue mode data only |
+| DK12a | Pad abstraction | **8 controller pads** with **mode selector**; **Hot Cue = default mode**; `track_hot_cue` stores Hot Cue mode data only |
 | DK2 | Key lock | Tempo fader + sync use [`timestretch`](https://crates.io/crates/timestretch) WideKeylock (`SetKeyLock`); vinyl jog stays fractional |
 | DK3 | Waveform EQ link | Static analysis colors MVP; optional EQ tint post-MVP (dj-waveform-spec) |
 | DK4 | Stems | Separate analysis/spec when chosen; tracked in [#46](https://github.com/geovannimp/mixar/issues/46) |

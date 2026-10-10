@@ -1,9 +1,9 @@
 # Keyboard & Key Shift pad modes — design (#298)
 
 **Date:** 2026-10-07
-**Status:** Shipped (2026-10-07); corrected to the Rekordbox page model (2026-10-08)
+**Status:** Shipped (2026-10-07); page model corrected (2026-10-08)
 **Issue:** [geovannimp/mixar#298](https://github.com/geovannimp/mixar/issues/298)
-**Related:** deck-spec §5.4 (P4 key shift), §5.5/§5.10 (pad modes); `docs/stems-pad-mode-design.md` (same pad-mode pattern); #300 (DDJ-400 LED pages); DDJ-400 hardware diagram footnote *6; rekordbox 7 manual p164–165
+**Related:** deck-spec §5.4 (P4 key shift), §5.5/§5.10 (pad modes); `docs/stems-pad-mode-design.md` (same pad-mode pattern); #300 (DDJ-400 LED pages); DDJ-400 hardware diagram footnote *6
 
 ## Goal
 
@@ -26,7 +26,7 @@ non-goal). Key lock only *holds* pitch while tempo changes.
 | Topic | Choice |
 |-------|--------|
 | Pitch DSP | Realtime pitch factor in `crates/stretch`: keylock-stretch at `tempo/pitch` + `StreamingSincResampler` output stage (see math below) |
-| Semitone pages | Keyboard is 4 pitch-only pages; Key Shift is 5 (pages 1–4 shared + a Reset/Up/Down/Sync utility page). Slot 0 = pad 1 = root; page 2 `[0..+7]` is the default in both (DDJ-400 footnote *6; rekordbox 7 manual p164–165) |
+| Semitone pages | Keyboard is 4 pitch-only pages; Key Shift is 5 (pages 1–4 shared + a Reset/Up/Down/Sync utility page). Slot 0 = pad 1 = root; page 2 `[0..+7]` is the default in both (DDJ-400 footnote *6) |
 | Key Shift pads | Press applies the page action and latches it (absolute semitones, RESET, UP, DOWN); SYNC is a no-op |
 | Key Shift page switch | Shift bank (`ch 9/11`) slot 7 → next page, slot 8 → previous page (wrapping `5 → 1`); other slots no-op |
 | Keyboard root | The selected hot cue (`keyboard_root_hot_cue`, default 0). No scale state exists |
@@ -66,12 +66,12 @@ Semitone offsets are clamped to `-16..=+16`. Non-finite input maps to `0`.
 ## Pad layouts
 
 Engine slots are zero-based `0..7`; UI/DDJ-400 pads are `1..8`.
-Rekordbox convention: pad 1 top-left, pad 4 top-right, pad 5 bottom-left, pad 8
-bottom-right. `slot 0 = pad 1 = MIDI offset 0 = root`.
+Pad 1 top-left, pad 4 top-right, pad 5 bottom-left, pad 8 bottom-right.
+`slot 0 = pad 1 = MIDI offset 0 = root`.
 
-Both modes are page-based (DDJ-400 hardware diagram footnote *6; rekordbox 7
-manual p164–165). **Keyboard is pitch-only with four pages; Key Shift adds a
-fifth utility page.** The page bar labels each page by its semitone range:
+Both modes are page-based (DDJ-400 hardware diagram footnote *6).
+**Keyboard is pitch-only with four pages; Key Shift adds a fifth utility page.**
+The page bar labels each page by its semitone range:
 
 | Page | Slots (pads 1–8) | Label | Keyboard | Key Shift |
 |------|------------------|-------|:--------:|:---------:|

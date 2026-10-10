@@ -45,10 +45,11 @@ A modular Rust audio engine with runtime-selectable backends (CPAL/PipeWire on L
 
 **Explicit non-goals / deferred (MVP scope):**
 
-- Semitone key shift / stems beyond key-lock tempo stretch
 - Recording/streaming, telemetry
-- WASAPI exclusive / ASIO native low-latency backends (v2 target)
-- WASM browser mixing (future work)
+- WASAPI exclusive / ASIO / CoreAudio low-latency backends — [#453](https://github.com/geovannimp/mixar/issues/453)
+- WASM browser mixing — [#59](https://github.com/geovannimp/mixar/issues/59)
+- Optional file-tag write-back — [#451](https://github.com/geovannimp/mixar/issues/451)
+- CDJ USB playlist export — [#452](https://github.com/geovannimp/mixar/issues/452)
 
 **License:** GPL-3.0
 

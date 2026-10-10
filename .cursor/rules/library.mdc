@@ -6,7 +6,7 @@ alwaysApply: false
 
 # library Module Rules
 
-Reference: `docs/tech-spec.md` §10. Architecture overview: `README.md`.
+Reference: `docs/tech-spec.md` §5. Architecture overview: `DEVELOPER.md`.
 
 - **Role:** Canonical implementation of `Library` + `WritableLibrary` from `library-core`. One user library manager per app (`LibraryManager`). Persistence is an implementation detail of this crate.
 - **Collections:** Flat list ordered by name. Each has `CollectionConfig`: `Folder { fs_path }` or `Playlist { sortable }`. No playlist-folder tree.
