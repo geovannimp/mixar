@@ -15,8 +15,8 @@ enum MixarBorderSide { top, right, bottom, left }
 
 /// Full-width left-aligned option row for the mobile select dialog.
 ///
-/// Avoids [AppButton]'s centered shrink-wrap layout, which looks wrong with
-/// subtitles and forced primary/selected green contrast issues.
+/// Avoids [AppButton]'s centered shrink-wrap layout. Selected rows use the
+/// Mixar [MixarColors.selection] green tint (same wash as desktop options).
 class _MobileSelectOption extends StatelessWidget {
   const new({
     required this.label,
@@ -39,7 +39,17 @@ class _MobileSelectOption extends StatelessWidget {
       selected: selected,
       semanticsLabel: subtitle == null ? label : '$label. $subtitle',
       builder: (context, state) {
-        final fill = state.active ? theme.colors.secondary : theme.colors.card;
+        final fill = selected
+            ? theme.colors.selection
+            : state.active
+            ? theme.colors.secondary
+            : theme.colors.card;
+        final labelColor = selected
+            ? theme.colors.selectionForeground
+            : theme.colors.foreground;
+        final subtitleColor = selected
+            ? theme.colors.selectionForeground.withValues(alpha: 0.75)
+            : theme.colors.mutedForeground;
         return DecoratedBox(
           decoration: BoxDecoration(
             color: fill,
@@ -59,7 +69,7 @@ class _MobileSelectOption extends StatelessWidget {
                   label,
                   textAlign: TextAlign.start,
                   style: theme.typography.body.sm.copyWith(
-                    color: theme.colors.foreground,
+                    color: labelColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -69,7 +79,7 @@ class _MobileSelectOption extends StatelessWidget {
                     subtitle!,
                     textAlign: TextAlign.start,
                     style: theme.typography.body.xs.copyWith(
-                      color: theme.colors.mutedForeground,
+                      color: subtitleColor,
                       height: 1.25,
                     ),
                   ),

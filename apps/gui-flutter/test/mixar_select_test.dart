@@ -188,11 +188,25 @@ void main() {
     await tester.pumpAndSettle();
 
     final subtitle = tester.widget<Text>(find.text('Dialog picker'));
-    expect(subtitle.style?.color, theme.colors.mutedForeground);
+    expect(
+      subtitle.style?.color,
+      theme.colors.selectionForeground.withValues(alpha: 0.75),
+    );
     expect(subtitle.textAlign, TextAlign.start);
 
     final title = tester.widget<Text>(find.text('Mobile').last);
     expect(title.textAlign, TextAlign.start);
-    expect(title.style?.color, theme.colors.foreground);
+    expect(title.style?.color, theme.colors.selectionForeground);
+
+    final selectedRow = tester.widget<DecoratedBox>(
+      find
+          .ancestor(
+            of: find.text('Dialog picker'),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    final decoration = selectedRow.decoration! as BoxDecoration;
+    expect(decoration.color, theme.colors.selection);
   });
 }
