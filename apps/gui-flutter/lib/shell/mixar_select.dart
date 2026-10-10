@@ -23,7 +23,6 @@ class _MobileSelectOption extends StatelessWidget {
     required this.selected,
     required this.onPress,
     this.subtitle,
-    super.key,
   });
 
   final String label;
