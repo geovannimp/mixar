@@ -269,7 +269,7 @@ void main() {
           )
           .first,
     );
-    final decoration = selectedRow.decoration! as BoxDecoration;
+    final decoration = selectedRow.decoration as BoxDecoration;
     expect(decoration.color, theme.colors.selection);
   });
 }
