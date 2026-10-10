@@ -1,0 +1,76 @@
+---
+title: "Overview"
+description: "How Mixar prepares, caches, and plays NI-compatible stems — ownership, load path, and how the pieces fit together."
+section: "Stems"
+order: 1
+---
+
+Mixar plays four stem layers (**drums**, **bass**, **other**, **vocals**) plus a [mixdown](/docs/users/stems#mixdown). Sources are either a user **NI Stem file** (`.stem.mp4`) opened in place, or a **generated** NI-compatible cache produced by HTDemucs ONNX (via ORT) and stored under app support.
+
+User-facing docs: [Stems](/docs/users/stems) ([native NI](/docs/users/stems/native-ni), [generate](/docs/users/stems/generate), [storage](/docs/users/stems/storage)) and [Stems pad mode](/docs/users/performance-pads/stems). This topic covers architecture for contributors.
+
+## Load path
+
+Stem ensure runs only from the per-track **Generate stems** action (library worker). Deck load never starts separation or hot-swaps mid-play.
+
+```text
+Prepare / load track
+        │
+        ├─ source is .stem.mp4? ──► StemBundle (in place) ──► deck load
+        │
+        ├─ valid stem cache? ──► StemBundle(cache) ──► deck load
+        │         (main = mixdown; stems attached)
+        │
+        └─ else ──► decode original ──► deck load
+              (pads inert; no ensure)
+```
+
+## App-support layout
+
+```text
+{app_support}/
+  library.db
+  settings.json
+  stems/{fnv64(track_id)}.stem.mp4   ← generated NI Stem cache
+  models/{name}-{sha8}.onnx          ← HTDemucs ONNX (Mixxx htdemucs_mixxx_v1)
+```
+
+## Ownership
+
+| Layer | Responsibility |
+|-------|----------------|
+| `analyzer-stems` | Model ensure/download, ORT session + EP cascade, HTDemucs split |
+| `codec` | Detect/open `.stem.mp4`; mux/demux five consistent streams + STEM atom |
+| `library` | `track_stem` rows, `stems_root` / `models_root`, clear + usage |
+| Prepare / host | Resolve native Stem or cache → `StemBundle`; never enqueue ensure on deck load |
+| `engine-dsp` | Main buffer + optional four stems in NI index order |
+| `gui-flutter` | Stems pads, generating banner, Settings → Storage |
+
+Use **`LibraryTransport`** for storage usage/clear and generate actions. No raw FRB from widgets.
+
+## StemBundle
+
+Conceptual type used by prepare/host:
+
+- [`mixdown`](/docs/users/stems#mixdown) — main `LoadedAudio` (or PCM + rate)
+- `stems: [LoadedAudio; 4]` — **drums, bass, other, vocals**
+- optional STEM atom labels/colors
+- `source_path`
+
+Demucs model output may use a different slot order; **permute once** when packing the bundle/file. Load does not remap.
+
+## Pages in this topic
+
+- [Storage & models](/docs/developers/stems/storage-and-models) — cache roots, clear UI, backend ids
+- [Inference](/docs/developers/stems/inference) — ORT + HTDemucs ONNX, EP cascade
+- [NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4) — file format, DB, prepare resolution
+- [Analyze & progress](/docs/developers/stems/analyze-progress) — job split, phases, pad flags
+
+## References
+
+| Resource | Path / URL |
+|----------|------------|
+| User guide | [Stems](/docs/users/stems), [Stems pads](/docs/users/performance-pads/stems) |
+| Codec STEM mux | `crates/codec/src/stem_mp4.rs` |
+| Library stems | `crates/library/src/stems.rs` |
+| Issues | [#46](https://github.com/geovannimp/mixar/issues/46), [#380](https://github.com/geovannimp/mixar/issues/380) |

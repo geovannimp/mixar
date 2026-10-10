@@ -1,0 +1,77 @@
+---
+title: "NI .stem.mp4"
+description: "Single-file NI-compatible stem cache and playback — format, library rows, and prepare resolution."
+section: "Stems"
+order: 4
+---
+
+Mixar caches generated stems as a single NI-compatible `.stem.mp4`. User Stem files and Mixar-generated cache share one load path. When a valid Stem is available for a track, that file is the playback source ([mixdown](/docs/users/stems#mixdown) + four stems) instead of the original audio.
+
+References: [NI Stems](https://www.native-instruments.com/pages/stems), [Mixxx stem mixing](https://mixxx.org/news/2024-08-26-stem-mixing/), [stemgen `nistem.rs`](https://github.com/acolombier/stemgen/blob/main/src/nistem.rs).
+
+## Decisions
+
+| Topic | Choice |
+|-------|--------|
+| Cache format | Single `{stems_root}/{fnv64(track_id)}.stem.mp4` |
+| User Stem files | Open in place; never Demucs; never write Mixar cache |
+| When stems are prepared | Early only (Generate stems / library worker). **No** ensure or hot-swap on deck load |
+| Deck load if cache missing | Play original only; Stems pads inert |
+| Mux mode | **Consistent streams** — all five streams same codec + sample rate |
+| Codecs | Settings `stems_format`: `opus` (default) \| `flac`. AAC stays out of the UI until a pure-Rust encoder lands in `codec`. |
+| Tooling | Pure Rust mux/demux in `codec` (Symphonia for demux/decode; dedicated MP4 writer + STEM atom — **no ffmpeg**) |
+| Stem order (file + engine) | NI: `drums`, `bass`, `other`, `vocals` ([mixdown](/docs/users/stems#mixdown) = stream 0) |
+| `mastering_dsp` | Write disabled defaults in STEM atom; do not implement playback |
+
+## Early prep
+
+```text
+GenerateStems action / library worker
+  └─ source is normal audio (not a Stem file)
+        └─ Demucs → mux consistent .stem.mp4 → track_stem.path
+```
+
+Prepare resolution is summarized in the [overview](/docs/developers/stems).
+
+## Components
+
+| Piece | Responsibility |
+|-------|----------------|
+| `codec` | Detect/open `.stem.mp4`; demux all audio streams; mux consistent-stream `.stem.mp4` + STEM JSON atom. Keep single-track `AudioDecoder` for normal files. |
+| `analyzer-stems` | HTDemucs split → PCM stems; call mux helper. |
+| `library` | `track_stem` with single `path`; ensure only from analyze/worker; skip ensure for native Stems; clear-cache deletes `.stem.mp4` tree (+ old dirs). |
+| Prepare / host | Resolve native Stem **or** cache hit → `StemBundle`; else main-only. Never enqueue stem ensure on deck load. |
+| `engine-dsp` | Main buffer + optional four stems; NI index order. Bundle load = [mixdown](/docs/users/stems#mixdown) as main + attach stems immediately. |
+
+## File format
+
+- Container: MP4, extension `.stem.mp4`
+- Five stereo audio streams, identical codec and sample rate
+- Stream 0 = [mixdown](/docs/users/stems#mixdown) (re-encoded from source PCM for generated files)
+- Streams 1–4 = drums, bass, other, vocals
+- STEM atom JSON (`version: 1`, four `{name, color}`, `mastering_dsp` disabled) — labels/colors match stemgen defaults (Drums/Bass/Other/Vocals)
+- Detection: `.stem.mp4` extension for browse/import; validate on open (≥5 audio streams + STEM atom preferred)
+
+## Cache & DB
+
+**Filesystem (generated):** `{app_support}/stems/{fnv64(track_id)}.stem.mp4`
+
+**`track_stem` (generated cache only):**
+
+- `track_id` PK
+- `path` — absolute path to the `.stem.mp4`
+- `backend`, `source_fingerprint`, `format`, `sample_rate`, `generated_at`
+
+Native library Stem tracks: **no** `track_stem` row; prepare opens `source_ref` directly.
+
+**Stale when:** format setting changes, fingerprint mismatches, file missing, or legacy four-file directory layout present without a valid `.stem.mp4` row.
+
+**Migration:** `ensure` / `clear_all_track_stems` remove old per-track directories; generate regenerates when requested.
+
+## Error handling
+
+- Corrupt cache `.stem.mp4`: drop/invalidate row; fall back to original on prepare.
+- Corrupt **native** Stem source: fail loudly (toast / prepare error); do not Demucs.
+- Ensure writes to temp then rename; failed temp deleted; no partial DB row on failure.
+- Codec inside a user Stem that Symphonia cannot decode: error; no silent fallback to Demucs.
+- Clear cache while in use: best-effort delete (see [Storage & models](/docs/developers/stems/storage-and-models)).

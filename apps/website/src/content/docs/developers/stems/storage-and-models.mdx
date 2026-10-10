@@ -1,0 +1,52 @@
+---
+title: "Storage & models"
+description: "Mixar-owned stem and ONNX model caches under app support, plus the Settings → Storage clear UI."
+section: "Stems"
+order: 2
+---
+
+Mixar owns HTDemucs ONNX weights under app support (not third-party ProjectDirs caches). Settings exposes a minimal Storage panel: stem-cache size, model size, and clear-all for each.
+
+## Decisions
+
+| Topic | Choice |
+|-------|--------|
+| Storage UI depth | Minimal: sizes + Clear all stems / Clear model |
+| Model location | `{app_support}/models/` — Mixar download + verify + ONNX path for ort Session |
+| Clear stems | Delete `{stems_root}/**` and all `track_stem` rows; never touch original audio |
+| Sync stems | Remove orphan files under `{stems_root}` not referenced by `track_stem`, and drop rows whose files are missing |
+| Clear model | Delete `{models_root}/**` |
+| Eviction | Manual only |
+| Cache backend id | `{model}/{ep}`, default `htdemucs_mixxx_v1/<ep>` (older SSC / Burn ids miss and regenerate) |
+
+## Flow
+
+```text
+analyzer-stems::ensure_model(models_root, name)
+  → registry manifest + download/verify into models_root
+  → local ONNX path → ort Session (EP cascade) → mux `.stem.mp4`
+
+LibraryBuses: stems_root + models_root
+LibraryTransport: storageUsage / clearStemCache / clearModelCache
+
+Settings → Storage
+  Stem cache: N  [Clear]
+  Model cache: N [Clear]
+```
+
+## Components
+
+| Piece | Role |
+|-------|------|
+| `analyzer-stems` | `ensure_model(models_root, …)`; split takes `models_root`; ort infer + `.stem.mp4` mux |
+| `library` | `models_root` on buses; `clear_all_track_stems` (files + rows); dir size helpers |
+| `host-flutter` | Set `models_root` next to `stems` on open; FRB storage usage/clear |
+| Flutter | `SettingsSection.storage` + panel; confirm dialogs; refresh sizes |
+
+## Error handling
+
+- Clear while a deck holds attached stems: OK — files may be open on some OSes; best-effort delete, report partial failure via toast. Next load re-resolves.
+- Model missing after clear: next ensure re-downloads into Mixar `models/`.
+- Usage scan: recursive byte sum; treat missing root as 0.
+
+See also [Inference](/docs/developers/stems/inference) and [NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4).
