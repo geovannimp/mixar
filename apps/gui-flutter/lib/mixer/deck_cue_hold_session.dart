@@ -1,19 +1,31 @@
 /// Orders cue-hold begin/end on one per-deck future.
 ///
 /// End is ignored unless begin completed successfully. Dispose drains the
-/// chain so a in-flight hold still gets its end cmd.
+/// chain so an in-flight hold still gets its end cmd.
 class DeckCueHoldSession {
   Future<void> _chain = Future<void>.value();
   var _began = false;
+  var _beginQueued = false;
 
   /// Enqueue [begin]; mark hold active only after it completes.
+  ///
+  /// Ignores re-entrant begins while a begin is queued or the hold is active.
   void begin(Future<void> Function() begin) {
+    if (_began || _beginQueued) {
+      return;
+    }
+    _beginQueued = true;
     final step = _chain.then((_) async {
-      await begin();
-      _began = true;
+      try {
+        await begin();
+        _began = true;
+      } finally {
+        _beginQueued = false;
+      }
     });
     _chain = step.catchError((Object _) {
       _began = false;
+      _beginQueued = false;
     });
   }
 
@@ -30,8 +42,18 @@ class DeckCueHoldSession {
   }
 
   /// Schedule end (if hold began) and wait for the session to drain.
+  ///
+  /// Unlike [end], errors from [end] propagate to the caller so dispose can
+  /// observe a failed engine endCueHold.
   Future<void> disposeEnd(Future<void> Function() end) async {
-    this.end(end);
+    final step = _chain.then((_) async {
+      if (!_began) {
+        return;
+      }
+      _began = false;
+      await end();
+    });
+    _chain = step;
     await _chain;
   }
 

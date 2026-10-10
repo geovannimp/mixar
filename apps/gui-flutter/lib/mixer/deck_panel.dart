@@ -192,8 +192,21 @@ class _DeckCueControl extends ConsumerStatefulWidget {
 
 class _DeckCueControlState extends ConsumerState<_DeckCueControl> {
   final _session = DeckCueHoldSession();
-  // Cached for dispose — Riverpod forbids ref.read after unmount.
+  // Cached via listenManual — Riverpod forbids ref.read in dispose().
   EngineTransport? _engine;
+  ProviderSubscription<AsyncValue<EngineTransport?>>? _engineListen;
+
+  @override
+  void initState() {
+    super.initState();
+    _engineListen = ref.listenManual(
+      engineTransportProvider,
+      (prev, next) {
+        _engine = next.asData?.value;
+      },
+      fireImmediately: true,
+    );
+  }
 
   void _beginHold() {
     final deckId = widget.deckId;
@@ -216,16 +229,18 @@ class _DeckCueControlState extends ConsumerState<_DeckCueControl> {
     final engine = _engine;
     final deckId = widget.deckId;
     unawaited(
-      _session.disposeEnd(() async {
-        await engine?.endCueHold(deckId: deckId);
-      }),
+      _session
+          .disposeEnd(() async {
+            await engine?.endCueHold(deckId: deckId);
+          })
+          .catchError((Object _) {}),
     );
+    _engineListen?.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    _engine = ref.watch(engineTransportProvider).asData?.value;
     return DeckCueButton(
       disabled: widget.disabled,
       onBeginHold: _beginHold,

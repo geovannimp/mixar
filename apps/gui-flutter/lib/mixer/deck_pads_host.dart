@@ -34,6 +34,7 @@ class DeckPadsHost extends ConsumerStatefulWidget {
 
 class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
   String? _hydratedTrackId;
+  ProviderSubscription<String?>? _trackIdListen;
 
   rust.EngineTransport? get _engine =>
       ref.read(engineTransportProvider).asData?.value;
@@ -128,18 +129,26 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     _hydratedTrackId = trackId;
     final library = ref.read(libraryTransportProvider).asData?.value;
     if (library != null && trackId != null && trackId.isNotEmpty) {
-      unawaited(library.refreshTrack(trackId: trackId));
+      unawaited(
+        library.refreshTrack(trackId: trackId).catchError(_toastError),
+      );
     }
   }
 
   @override
   void initState() {
     super.initState();
-    ref.listenManual<String?>(
+    _trackIdListen = ref.listenManual<String?>(
       deckTrackIdProvider(widget.deckId),
       (prev, next) => _hydrateTrack(next),
       fireImmediately: true,
     );
+  }
+
+  @override
+  void dispose() {
+    _trackIdListen?.close();
+    super.dispose();
   }
 
   @override

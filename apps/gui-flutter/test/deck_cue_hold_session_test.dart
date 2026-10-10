@@ -61,4 +61,73 @@ void main() {
     });
     expect(log, ['begin', 'end']);
   });
+
+  test('disposeEnd propagates end failures', () async {
+    final session = DeckCueHoldSession()..begin(() async {});
+    await session.drain();
+
+    await expectLater(
+      session.disposeEnd(() async {
+        throw StateError('end failed');
+      }),
+      throwsA(isA<StateError>()),
+    );
+  });
+
+  test('disposeEnd is a no-op without prior begin', () async {
+    final session = DeckCueHoldSession();
+    var ended = false;
+
+    await session.disposeEnd(() async {
+      ended = true;
+    });
+    expect(ended, isFalse);
+  });
+
+  test('session supports multiple begin/end cycles', () async {
+    final session = DeckCueHoldSession();
+    final log = <String>[];
+
+    session
+      ..begin(() async {
+        log.add('begin-1');
+      })
+      ..end(() async {
+        log.add('end-1');
+      });
+    await session.drain();
+
+    session
+      ..begin(() async {
+        log.add('begin-2');
+      })
+      ..end(() async {
+        log.add('end-2');
+      });
+    await session.drain();
+
+    expect(log, ['begin-1', 'end-1', 'begin-2', 'end-2']);
+  });
+
+  test('re-entrant begin is ignored while hold is active', () async {
+    final session = DeckCueHoldSession();
+    final log = <String>[];
+    final beginRelease = Completer<void>();
+
+    session
+      ..begin(() async {
+        log.add('begin-1');
+        await beginRelease.future;
+      })
+      ..begin(() async {
+        log.add('begin-2');
+      });
+    beginRelease.complete();
+    session.end(() async {
+      log.add('end');
+    });
+    await session.drain();
+
+    expect(log, ['begin-1', 'end']);
+  });
 }
