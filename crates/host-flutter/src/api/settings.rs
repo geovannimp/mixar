@@ -959,10 +959,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
         let mut value = serde_json::to_value(sample_settings()).expect("json");
-        value
-            .as_object_mut()
-            .expect("object")
-            .remove("ui_language");
+        value.as_object_mut().expect("object").remove("ui_language");
         std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
         let host = load_host(&path);
         assert_eq!(
@@ -986,10 +983,7 @@ mod tests {
         settings.ui_language = UiLanguageSetting::En;
         write_settings_file(&path, &settings).expect("write");
         let host = load_host(&path);
-        assert_eq!(
-            settings_from_host(&host).ui_language,
-            UiLanguageSetting::En
-        );
+        assert_eq!(settings_from_host(&host).ui_language, UiLanguageSetting::En);
     }
 
     #[test]
