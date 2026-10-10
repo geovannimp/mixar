@@ -23,7 +23,7 @@ From the repo root (Flutter + ninja are pinned in `mise.toml`):
 ```sh
 mise install   # Flutter postinstall activates dashmonx (https://github.com/rosenpin/dashmonx)
 export PATH="$HOME/.cargo/bin:$PATH"   # for flutter_rust_bridge_codegen
-cargo install flutter_rust_bridge_codegen --locked   # once, if missing
+cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked   # once, if missing / wrong version
 ```
 
 ## Develop
@@ -37,7 +37,7 @@ npm run flutter:dev
 
 Desktop uses [`window_manager`](https://pub.dev/packages/window_manager) with `TitleBarStyle.hidden` and in-app min/max/close controls (drag empty header regions to move; double-click to maximize).
 
-After Rust API changes:
+After Rust API changes (requires `flutter_rust_bridge_codegen` 2.13.0):
 
 ```sh
 moon run gui-flutter:generate
