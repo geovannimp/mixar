@@ -119,12 +119,7 @@ void main() {
   });
 
   testWidgets('desktop style still uses ShadSelect', (tester) async {
-    await pumpSelect(
-      tester,
-      value: 'low',
-      onChanged: (_) {},
-      style: SelectStyleSetting.desktop,
-    );
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
     expect(find.byType(ShadSelect<String>), findsOneWidget);
   });
 

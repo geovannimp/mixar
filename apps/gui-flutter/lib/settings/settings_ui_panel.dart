@@ -47,7 +47,8 @@ class SettingsUiPanel extends StatelessWidget {
                   },
                   subtitleBuilder: (mode) => switch (mode) {
                     SelectStyleSetting.auto =>
-                      'Platform default — desktop OS uses dropdown, phones use dialog.',
+                      'Platform default — desktop OS uses dropdown, '
+                          'phones use dialog.',
                     SelectStyleSetting.desktop =>
                       'Popover dropdown (current desktop select).',
                     SelectStyleSetting.mobile =>
