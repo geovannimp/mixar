@@ -3,6 +3,7 @@ import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
@@ -99,6 +100,7 @@ void main() {
                 Align(
                   alignment: Alignment.topLeft,
                   child: MixarMenuAnchor(
+                    style: SelectStyleSetting.desktop,
                     menuBuilder: (context, controller) =>
                         const Text('Menu body'),
                     childBuilder: (context, controller) => GestureDetector(
@@ -121,5 +123,46 @@ void main() {
     await tester.tapAt(const Offset(350, 350));
     await tester.pumpAndSettle();
     expect(find.text('Menu body'), findsNothing);
+  });
+
+  testWidgets('MixarMenuAnchor mobile style opens a dialog', (tester) async {
+    final theme = MixarThemeData.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: MixarMenuAnchor(
+              style: SelectStyleSetting.mobile,
+              menuBuilder: (context, controller) => MixarMenuBody(
+                groups: [
+                  MixarMenuGroup(
+                    children: [
+                      MixarMenuItem(
+                        title: const Text('Analyze tracks…'),
+                        onPress: controller.hide,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              childBuilder: (context, controller) => GestureDetector(
+                onTap: controller.toggle,
+                child: const Text('Open menu'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyze tracks…'), findsOneWidget);
+
+    await tester.tap(find.text('Analyze tracks…'));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyze tracks…'), findsNothing);
   });
 }

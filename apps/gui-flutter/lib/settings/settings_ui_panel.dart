@@ -47,12 +47,12 @@ class SettingsUiPanel extends StatelessWidget {
                   },
                   subtitleBuilder: (mode) => switch (mode) {
                     SelectStyleSetting.auto =>
-                      'Platform default — desktop OS uses dropdown, '
-                          'phones use dialog.',
+                      'Platform default — desktop OS uses popovers, '
+                          'phones use dialogs.',
                     SelectStyleSetting.desktop =>
-                      'Popover dropdown (current desktop select).',
+                      'Anchored popovers for selects and ⋯ menus.',
                     SelectStyleSetting.mobile =>
-                      'Open options in a dialog for touch-friendly picking.',
+                      'Open selects and ⋯ menus in a dialog.',
                   },
                   onChanged: (mode) =>
                       onChanged(copyAppSettings(draft, selectStyle: mode)),
