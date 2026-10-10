@@ -102,6 +102,9 @@ void main() {
       failed: 0,
       errors: [],
     );
-    expect(mixxxImportSummary(l10n, updated), 'Updated 5 tracks from Mixxx');
+    expect(
+      mixxxImportSummary(l10n, updated),
+      l10n.mixxxImportUpdated(l10n.mixxxCountTracks(5), ''),
+    );
   });
 }
