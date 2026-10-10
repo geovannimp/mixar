@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
@@ -19,24 +20,24 @@ class SettingsDeckPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final banks = ref.watch(samplerBanksProvider).value ?? const [];
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 16,
       children: [
-        const SettingsSectionHeader(
-          title: 'Deck',
-          description:
-              'Default jog, tempo, and sampler behavior for new decks.',
+        SettingsSectionHeader(
+          title: l10n.settingsSectionDeck,
+          description: l10n.settingsDeckDescription,
         ),
         SettingsPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              const SettingsSectionHeader(
-                title: 'Jog wheel',
-                description: 'Defaults for top (touch) and outer (freewheel) platter policy.',
+              SettingsSectionHeader(
+                title: l10n.settingsDeckJogTitle,
+                description: l10n.settingsDeckJogDescription,
               ),
               const SizedBox(height: 0),
               Row(
@@ -45,12 +46,12 @@ class SettingsDeckPanel extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: SettingsField(
-                      label: 'Top jog mode',
+                      label: l10n.settingsDeckTopJogMode,
                       child: SettingsSelect(
                         dialogTitle: 'Top jog mode',
                         value: draft.defaultTopJogMode,
                         options: _jogModes,
-                        labelBuilder: _jogLabel,
+                        labelBuilder: (m) => _jogLabel(l10n, m),
                         onChanged: (m) => onChanged(
                           copyAppSettings(draft, defaultTopJogMode: m),
                         ),
@@ -59,12 +60,12 @@ class SettingsDeckPanel extends ConsumerWidget {
                   ),
                   Expanded(
                     child: SettingsField(
-                      label: 'Outer jog mode',
+                      label: l10n.settingsDeckOuterJogMode,
                       child: SettingsSelect(
                         dialogTitle: 'Outer jog mode',
                         value: draft.defaultOuterJogMode,
                         options: _jogModes,
-                        labelBuilder: _jogLabel,
+                        labelBuilder: (m) => _jogLabel(l10n, m),
                         onChanged: (m) => onChanged(
                           copyAppSettings(draft, defaultOuterJogMode: m),
                         ),
@@ -76,20 +77,18 @@ class SettingsDeckPanel extends ConsumerWidget {
             ],
           ),
         ),
-
         SettingsPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              const SettingsSectionHeader(
-                title: 'Tempo and Key',
-                description:
-                    'Default pitch-fader range and key lock for new decks.',
+              SettingsSectionHeader(
+                title: l10n.settingsDeckTempoKeyTitle,
+                description: l10n.settingsDeckTempoKeyDescription,
               ),
               const SizedBox(height: 0),
               SettingsField(
-                label: 'Default tempo range',
+                label: l10n.settingsDeckDefaultTempoRange,
                 child: SettingsSelect(
                   dialogTitle: 'Default tempo range',
                   value: draft.defaultTempoRange,
@@ -101,10 +100,10 @@ class SettingsDeckPanel extends ConsumerWidget {
                 ),
               ),
               SettingsField(
-                label: 'Default key lock',
-                hint: 'Tempo-only pitch when on (time-stretch). Off = vinyl tempo.',
+                label: l10n.settingsDeckDefaultKeyLock,
+                hint: l10n.settingsDeckDefaultKeyLockHint,
                 child: SettingsToggle(
-                  label: 'Key lock',
+                  label: l10n.settingsDeckKeyLock,
                   value: draft.defaultKeyLock,
                   onChanged: (v) =>
                       onChanged(copyAppSettings(draft, defaultKeyLock: v)),
@@ -113,37 +112,43 @@ class SettingsDeckPanel extends ConsumerWidget {
             ],
           ),
         ),
-
         SettingsPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              const SettingsSectionHeader(
-                title: 'Sampler',
-                description: 'Default play mode for inherit banks and default bank per deck.',
+              SettingsSectionHeader(
+                title: l10n.settingsDeckSamplerTitle,
+                description: l10n.settingsDeckSamplerDescription,
               ),
               const SizedBox(height: 0),
               SettingsField(
-                label: 'Sampler play mode',
+                label: l10n.settingsDeckSamplerPlayMode,
                 child: SettingsSelect(
                   dialogTitle: 'Sampler play mode',
                   value: draft.samplerPlayMode,
                   options: SamplerPlayModeSetting.values,
-                  labelBuilder: (m) => m.name,
+                  labelBuilder: (m) => switch (m) {
+                    SamplerPlayModeSetting.oneshot =>
+                      l10n.settingsDeckSamplerPlayOneshot,
+                    SamplerPlayModeSetting.hold =>
+                      l10n.settingsDeckSamplerPlayHold,
+                    SamplerPlayModeSetting.loop =>
+                      l10n.settingsDeckSamplerPlayLoop,
+                  },
                   onChanged: (m) =>
                       onChanged(copyAppSettings(draft, samplerPlayMode: m)),
                 ),
               ),
               SettingsField(
-                label: 'Sampler strip route',
+                label: l10n.settingsDeckSamplerStripRoute,
                 child: SettingsSelect(
                   dialogTitle: 'Sampler strip route',
                   value: draft.samplerStripRoute,
                   options: SamplerStripRouteSettingFrb.values,
                   labelBuilder: (m) => m == SamplerStripRouteSettingFrb.before
-                      ? 'Before channel strip'
-                      : 'After channel strip',
+                      ? l10n.settingsDeckSamplerStripBefore
+                      : l10n.settingsDeckSamplerStripAfter,
                   onChanged: (m) =>
                       onChanged(copyAppSettings(draft, samplerStripRoute: m)),
                 ),
@@ -155,8 +160,9 @@ class SettingsDeckPanel extends ConsumerWidget {
                   for (var deck = 0; deck < 2; deck++)
                     Expanded(
                       child: SettingsField(
-                        label:
-                            'Deck ${deck == 0 ? 'A' : 'B'} default sampler bank',
+                        label: deck == 0
+                            ? l10n.settingsDeckDefaultSamplerBankA
+                            : l10n.settingsDeckDefaultSamplerBankB,
                         child: SettingsSelect<String?>(
                           dialogTitle:
                               'Deck ${deck == 0 ? 'A' : 'B'} default sampler bank',
@@ -165,7 +171,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                             banks,
                             draft.deckDefaultSamplerBankId[deck],
                           ),
-                          labelBuilder: (id) => _bankLabel(banks, id),
+                          labelBuilder: (id) => _bankLabel(l10n, banks, id),
                           onChanged: (bankId) => _setDeckBank(deck, bankId),
                         ),
                       ),
@@ -212,9 +218,13 @@ class SettingsDeckPanel extends ConsumerWidget {
     ];
   }
 
-  static String _bankLabel(List<SamplerBankInfo> banks, String? id) {
+  static String _bankLabel(
+    AppLocalizations l10n,
+    List<SamplerBankInfo> banks,
+    String? id,
+  ) {
     if (id == null) {
-      return 'None';
+      return l10n.commonNone;
     }
     for (final bank in banks) {
       if (bank.id == id) {
@@ -224,9 +234,10 @@ class SettingsDeckPanel extends ConsumerWidget {
     return id;
   }
 
-  static String _jogLabel(JogModeSetting mode) => switch (mode) {
-    JogModeSetting.vinyl => 'Vinyl (scratch)',
-    JogModeSetting.pitchBend => 'Pitch bend',
-    JogModeSetting.ignore => 'Ignore',
-  };
+  static String _jogLabel(AppLocalizations l10n, JogModeSetting mode) =>
+      switch (mode) {
+        JogModeSetting.vinyl => l10n.settingsDeckJogVinyl,
+        JogModeSetting.pitchBend => l10n.settingsDeckJogPitchBend,
+        JogModeSetting.ignore => l10n.settingsDeckJogIgnore,
+      };
 }

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/shell/app_button.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:material_ui/material_ui.dart';
@@ -17,9 +17,8 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [mixxxDatabasePathProvider.overrideWith((ref) => path())],
-      child: MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
+      child: mixarTestMaterialApp(
+        theme: theme,
         home: const Scaffold(body: MixxxImportPanel()),
       ),
     ),
@@ -28,15 +27,14 @@ Future<void> _pump(
 }
 
 void main() {
+  final l10n = lookupAppLocalizations(const Locale('en'));
+
   testWidgets('disables the action when no Mixxx database is found', (
     tester,
   ) async {
     await _pump(tester, path: () async => null);
-    expect(find.text('Import from Mixxx'), findsOneWidget);
-    expect(
-      find.text('No Mixxx library found on this computer.'),
-      findsOneWidget,
-    );
+    expect(find.text(l10n.mixxxImportTitle), findsOneWidget);
+    expect(find.text(l10n.mixxxImportNotFound), findsOneWidget);
     expect(tester.widget<AppButton>(find.byType(AppButton)).onPress, isNull);
   }, semanticsEnabled: false);
 
@@ -55,7 +53,7 @@ void main() {
       tester,
       path: () async => throw StateError('bridge unavailable'),
     );
-    expect(find.text('Could not check for a Mixxx library.'), findsOneWidget);
+    expect(find.text(l10n.mixxxImportCheckFailed), findsOneWidget);
     expect(tester.widget<AppButton>(find.byType(AppButton)).onPress, isNull);
   }, semanticsEnabled: false);
 
@@ -71,7 +69,7 @@ void main() {
       failed: 0,
       errors: [],
     );
-    final summary = mixxxImportSummary(report);
+    final summary = mixxxImportSummary(l10n, report);
     expect(summary, contains('3 tracks'));
     expect(summary, contains('2 updated'));
     expect(summary, contains('1 playlist'));
@@ -91,7 +89,7 @@ void main() {
       failed: 0,
       errors: [],
     );
-    expect(mixxxImportSummary(skipped), 'Mixxx library already imported');
+    expect(mixxxImportSummary(l10n, skipped), l10n.mixxxImportAlreadyImported);
 
     const updated = MixxxImportReport(
       tracksAdded: 0,
@@ -104,6 +102,9 @@ void main() {
       failed: 0,
       errors: [],
     );
-    expect(mixxxImportSummary(updated), 'Updated 5 tracks from Mixxx');
+    expect(
+      mixxxImportSummary(l10n, updated),
+      l10n.mixxxImportUpdated(l10n.mixxxCountTracks(5), ''),
+    );
   });
 }

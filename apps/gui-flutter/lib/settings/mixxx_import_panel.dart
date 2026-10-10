@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
@@ -38,7 +39,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
         preview = await mixxxImportPreview(dbPath: path);
       } on Object catch (e) {
         if (mounted) {
-          _toastError('Could not read Mixxx library', e);
+          _toastError(AppLocalizations.of(context)!.mixxxImportReadFailed, e);
         }
         return;
       }
@@ -46,26 +47,25 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
         return;
       }
 
+      final l10n = AppLocalizations.of(context)!;
       final confirmed = await showMixarConfirm<bool>(
         context: context,
-        title: 'Import from Mixxx?',
-        body:
-            'This imports tracks, playlists, crates, and watched '
-            'folders from:\n'
-            '$path\n\n'
-            '${preview.trackCount} tracks '
-            '(${preview.missingFileCount} missing), '
-            '${preview.playlistCount} playlists, '
-            '${preview.crateCount} crates, '
-            '${preview.folderCount} folders.\n\n'
-            'Missing files are imported as unavailable tracks.',
-        actions: const [
+        title: l10n.mixxxImportConfirmTitle,
+        body: l10n.mixxxImportConfirmBody(
+          path,
+          preview.trackCount,
+          preview.missingFileCount,
+          preview.playlistCount,
+          preview.crateCount,
+          preview.folderCount,
+        ),
+        actions: [
           MixarDialogAction(
-            label: 'Cancel',
+            label: l10n.settingsCancel,
             value: false,
             variant: MixarButtonVariant.outline,
           ),
-          MixarDialogAction(label: 'Import', value: true),
+          MixarDialogAction(label: l10n.commonImport, value: true),
         ],
       );
       if (confirmed != true || !mounted) {
@@ -83,7 +83,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
       _toastReport(report);
     } on Object catch (e) {
       if (mounted) {
-        _toastError('Mixxx import failed', e);
+        _toastError(AppLocalizations.of(context)!.mixxxImportFailed, e);
       }
     } finally {
       if (mounted) {
@@ -93,19 +93,23 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
   }
 
   void _toastReport(MixxxImportReport report) {
+    final l10n = AppLocalizations.of(context)!;
     if (report.failed > 0) {
       final details = report.errors.take(3).join('\n');
       showMixarToast(
         context: context,
-        title: Text('Mixxx import finished with ${report.failed} error(s)'),
+        title: Text(l10n.mixxxImportFinishedWithErrors(report.failed)),
         description: Text(
-          details.isEmpty ? mixxxImportSummary(report) : details,
+          details.isEmpty ? mixxxImportSummary(l10n, report) : details,
         ),
         variant: MixarToastVariant.destructive,
       );
       return;
     }
-    showMixarToast(context: context, title: Text(mixxxImportSummary(report)));
+    showMixarToast(
+      context: context,
+      title: Text(mixxxImportSummary(l10n, report)),
+    );
   }
 
   void _toastError(String title, Object error) {
@@ -120,15 +124,16 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final database = ref.watch(mixxxDatabasePathProvider);
     final dbPath = database.asData?.value;
     final status = dbPath != null
-        ? 'Found: $dbPath'
+        ? l10n.mixxxImportFound(dbPath)
         : database.hasError
-        ? 'Could not check for a Mixxx library.'
+        ? l10n.mixxxImportCheckFailed
         : database.isLoading
-        ? 'Looking for a Mixxx library…'
-        : 'No Mixxx library found on this computer.';
+        ? l10n.mixxxImportLooking
+        : l10n.mixxxImportNotFound;
     final onPress = !_busy && dbPath != null ? () => _run(dbPath) : null;
 
     return SettingsPanel(
@@ -141,14 +146,13 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
               spacing: 4,
               children: [
                 Text(
-                  'Import from Mixxx',
+                  l10n.mixxxImportTitle,
                   style: theme.typography.body.sm.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  'Bring tracks, playlists, and crates from your Mixxx '
-                  'library into Mixar.',
+                  l10n.mixxxImportDescription,
                   style: theme.typography.body.sm.copyWith(
                     color: theme.colors.mutedForeground,
                   ),
@@ -165,7 +169,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
           AppButton(
             size: MixarButtonSize.sm,
             onPress: onPress,
-            child: Text(_busy ? 'Importing…' : 'Import from Mixxx library…'),
+            child: Text(_busy ? l10n.mixxxImporting : l10n.mixxxImportButton),
           ),
         ],
       ),
@@ -174,35 +178,32 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
 }
 
 /// One-line result of a Mixxx import, shown in the completion toast.
-String mixxxImportSummary(MixxxImportReport report) {
+String mixxxImportSummary(AppLocalizations l10n, MixxxImportReport report) {
   final imported =
       report.tracksAdded +
       report.playlistsImported +
       report.cratesImported +
       report.foldersImported;
   final missing = report.tracksMissingFiles > 0
-      ? ' (${report.tracksMissingFiles} missing)'
+      ? l10n.mixxxImportMissingSuffix(report.tracksMissingFiles)
       : '';
   if (imported == 0) {
     if (report.tracksUpdated == 0) {
       return report.collectionsSkipped > 0
-          ? 'Mixxx library already imported'
-          : 'Nothing to import from Mixxx';
+          ? l10n.mixxxImportAlreadyImported
+          : l10n.mixxxImportNothing;
     }
-    final updated = _count(report.tracksUpdated, 'track');
-    return 'Updated $updated from Mixxx$missing';
+    final updated = l10n.mixxxCountTracks(report.tracksUpdated);
+    return l10n.mixxxImportUpdated(updated, missing);
   }
   final parts = [
-    if (report.tracksAdded > 0) _count(report.tracksAdded, 'track'),
-    if (report.tracksUpdated > 0) '${report.tracksUpdated} updated',
+    if (report.tracksAdded > 0) l10n.mixxxCountTracks(report.tracksAdded),
+    if (report.tracksUpdated > 0) l10n.mixxxCountUpdated(report.tracksUpdated),
     if (report.playlistsImported > 0)
-      _count(report.playlistsImported, 'playlist'),
-    if (report.cratesImported > 0) _count(report.cratesImported, 'crate'),
-    if (report.foldersImported > 0) _count(report.foldersImported, 'folder'),
+      l10n.mixxxCountPlaylists(report.playlistsImported),
+    if (report.cratesImported > 0) l10n.mixxxCountCrates(report.cratesImported),
+    if (report.foldersImported > 0)
+      l10n.mixxxCountFolders(report.foldersImported),
   ];
-  return 'Imported ${parts.join(', ')} from Mixxx$missing';
+  return l10n.mixxxImportImported(parts.join(', '), missing);
 }
-
-/// `"1 track"` / `"3 tracks"`.
-String _count(int count, String noun) =>
-    '$count ${count == 1 ? noun : '${noun}s'}';

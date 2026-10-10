@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
@@ -15,14 +16,14 @@ class SettingsMixerPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 16,
       children: [
-        const SettingsSectionHeader(
-          title: 'Mixer',
-          description:
-              'Keep analyzed tracks near a consistent perceived loudness.',
+        SettingsSectionHeader(
+          title: l10n.settingsSectionMixer,
+          description: l10n.settingsMixerDescription,
         ),
         SettingsPanel(
           child: Column(
@@ -30,7 +31,7 @@ class SettingsMixerPanel extends StatelessWidget {
             spacing: 16,
             children: [
               SettingsToggle(
-                label: 'Volume normalizer',
+                label: l10n.settingsMixerVolumeNormalizer,
                 labelStyle: theme.typography.body.sm.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -41,7 +42,7 @@ class SettingsMixerPanel extends StatelessWidget {
               ),
               if (draft.volumeNormalizerEnabled)
                 SettingsField(
-                  label: 'Target LUFS',
+                  label: l10n.settingsMixerTargetLufs,
                   child: _NumericStepper(
                     value: draft.targetLufs,
                     min: kMinTargetLufs,

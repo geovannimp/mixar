@@ -74,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 804620510;
+  int get rustContentHash => -2090406206;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -781,6 +781,8 @@ abstract class RustLibApi extends BaseApi {
   Future<SamplerSlotChrome> crateApiEngineSamplerSlotChromeDefault();
 
   Future<SelectStyleSetting> crateApiSettingsSelectStyleSettingDefault();
+
+  Future<UiLanguageSetting> crateApiSettingsUiLanguageSettingDefault();
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_AudioBackendTransport;
@@ -5999,6 +6001,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: [],
       );
 
+  @override
+  Future<UiLanguageSetting> crateApiSettingsUiLanguageSettingDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 134,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ui_language_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsUiLanguageSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsUiLanguageSettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "ui_language_setting_default",
+        argNames: [],
+      );
+
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_AudioBackendTransport => wire
       .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport;
@@ -6330,8 +6362,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 32)
-      throw Exception('unexpected arr length: expect 32 but see ${arr.length}');
+    if (arr.length != 33)
+      throw Exception('unexpected arr length: expect 33 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -6365,6 +6397,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       selectStyle: dco_decode_select_style_setting(arr[29]),
       dimPlayedTracks: dco_decode_bool(arr[30]),
       stemsFormat: dco_decode_String(arr[31]),
+      uiLanguage: dco_decode_ui_language_setting(arr[32]),
     );
   }
 
@@ -7370,6 +7403,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UiLanguageSetting dco_decode_ui_language_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return UiLanguageSetting.values[raw as int];
+  }
+
+  @protected
   void dco_decode_unit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return;
@@ -7788,6 +7827,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_selectStyle = sse_decode_select_style_setting(deserializer);
     var var_dimPlayedTracks = sse_decode_bool(deserializer);
     var var_stemsFormat = sse_decode_String(deserializer);
+    var var_uiLanguage = sse_decode_ui_language_setting(deserializer);
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -7821,6 +7861,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       selectStyle: var_selectStyle,
       dimPlayedTracks: var_dimPlayedTracks,
       stemsFormat: var_stemsFormat,
+      uiLanguage: var_uiLanguage,
     );
   }
 
@@ -9236,6 +9277,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  UiLanguageSetting sse_decode_ui_language_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return UiLanguageSetting.values[inner];
+  }
+
+  @protected
   void sse_decode_unit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
   }
@@ -9693,6 +9743,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_select_style_setting(self.selectStyle, serializer);
     sse_encode_bool(self.dimPlayedTracks, serializer);
     sse_encode_String(self.stemsFormat, serializer);
+    sse_encode_ui_language_setting(self.uiLanguage, serializer);
   }
 
   @protected
@@ -10887,6 +10938,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self);
+  }
+
+  @protected
+  void sse_encode_ui_language_setting(
+    UiLanguageSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

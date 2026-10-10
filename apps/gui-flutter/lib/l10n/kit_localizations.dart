@@ -1,0 +1,18 @@
+import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+
+/// Delegates for Mixar: app ARBs + material_ui kit localizations.
+///
+/// Prefer material_ui's [GlobalMaterialLocalizations] (not Flutter's) so the
+/// kit's `MaterialLocalizations` type resolves for non-English locales.
+///
+/// [GlobalMaterialLocalizations.delegates] already includes Cupertino and
+/// Widgets delegates — do not add Flutter's copies alongside it.
+///
+/// Do **not** use generated [AppLocalizations.localizationsDelegates]: that
+/// list wires Flutter's own Material/Cupertino delegates and breaks
+/// material_ui's typed [MaterialLocalizations] for non-English locales.
+List<LocalizationsDelegate<dynamic>> get mixarLocalizationsDelegates => [
+  AppLocalizations.delegate,
+  ...GlobalMaterialLocalizations.delegates,
+];

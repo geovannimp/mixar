@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
@@ -12,23 +13,25 @@ class SettingsWaveformPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SettingsSectionHeader(
-          title: 'Waveform',
-          description: 'RGB mixes low/mid/high into one color. Filtered stacks the three bands.',
+        SettingsSectionHeader(
+          title: l10n.settingsSectionWaveform,
+          description: l10n.settingsWaveformDescription,
         ),
         const SizedBox(height: 20),
         SettingsField(
-          label: 'Display mode',
+          label: l10n.settingsWaveformDisplayMode,
           child: SettingsSelect(
-            dialogTitle: 'Display mode',
+            dialogTitle: l10n.settingsWaveformDisplayMode,
             value: draft.waveformDisplayMode,
             options: WaveformDisplayModeSetting.values,
             labelBuilder: (m) => switch (m) {
-              WaveformDisplayModeSetting.rgb => 'RGB',
-              WaveformDisplayModeSetting.filtered => 'Filtered',
+              WaveformDisplayModeSetting.rgb => l10n.settingsWaveformModeRgb,
+              WaveformDisplayModeSetting.filtered =>
+                l10n.settingsWaveformModeFiltered,
             },
             onChanged: (m) =>
                 onChanged(copyAppSettings(draft, waveformDisplayMode: m)),

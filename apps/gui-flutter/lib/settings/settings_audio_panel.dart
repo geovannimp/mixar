@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
@@ -23,6 +24,7 @@ class SettingsAudioPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final devicesAsync = ref.watch(audioDevicesProvider(draft.backend));
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
     final backends = ref.watch(audioBackendNamesProvider);
@@ -40,9 +42,9 @@ class SettingsAudioPanel extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 16,
       children: [
-        const SettingsSectionHeader(
-          title: 'Audio',
-          description: 'Engine output and buses.',
+        SettingsSectionHeader(
+          title: l10n.settingsSectionAudio,
+          description: l10n.settingsAudioDescription,
         ),
         SettingsPanel(
           child: Column(
@@ -54,7 +56,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                 spacing: 6,
                 children: [
                   SettingsField(
-                    label: 'Backend',
+                    label: l10n.settingsAudioBackend,
                     child: SettingsSelect(
                       dialogTitle: 'Backend',
                       value: draft.backend,
@@ -65,7 +67,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                     ),
                   ),
                   SettingsToggle(
-                    label: 'Low latency',
+                    label: l10n.settingsAudioLowLatency,
                     value: draft.lowLatency,
                     onChanged: (v) =>
                         onChanged(copyAppSettings(draft, lowLatency: v)),
@@ -73,9 +75,9 @@ class SettingsAudioPanel extends ConsumerWidget {
                 ],
               ),
               SettingsField(
-                label: 'Sample rate',
+                label: l10n.settingsAudioSampleRate,
                 hint: devicesAsync.isLoading
-                    ? 'Loading rates for the master output device…'
+                    ? l10n.settingsAudioSampleRateLoading
                     : null,
                 child: SettingsSelect(
                   dialogTitle: 'Sample rate',
@@ -88,20 +90,23 @@ class SettingsAudioPanel extends ConsumerWidget {
                 ),
               ),
               SettingsField(
-                label: 'Resampler quality',
+                label: l10n.settingsAudioResamplerQuality,
                 child: SettingsSelect(
                   dialogTitle: 'Resampler quality',
                   value: draft.resamplerQuality,
                   options: _resamplerQualities,
-                  labelBuilder: (v) => v,
+                  labelBuilder: (v) => switch (v) {
+                    'low' => l10n.settingsAudioResamplerLow,
+                    'high' => l10n.settingsAudioResamplerHigh,
+                    _ => l10n.settingsAudioResamplerMedium,
+                  },
                   onChanged: (q) =>
                       onChanged(copyAppSettings(draft, resamplerQuality: q)),
                 ),
               ),
               SettingsField(
-                label: 'Buffer size',
-                hint:
-                    'Must be a multiple of 64 frames (mixer graph chunk size).',
+                label: l10n.settingsAudioBufferSize,
+                hint: l10n.settingsAudioBufferSizeHint,
                 child: _BufferSizeSlider(
                   value: draft.bufferSize,
                   onChanged: (v) =>
@@ -117,7 +122,7 @@ class SettingsAudioPanel extends ConsumerWidget {
             spacing: 16,
             children: [
               Text(
-                'Master bus',
+                l10n.settingsAudioMasterBus,
                 style: theme.typography.body.sm.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -138,7 +143,7 @@ class SettingsAudioPanel extends ConsumerWidget {
             spacing: 16,
             children: [
               SettingsToggle(
-                label: 'Preview bus (headphones / cue)',
+                label: l10n.settingsAudioPreviewBus,
                 labelStyle: theme.typography.body.sm.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -226,6 +231,7 @@ class _BufferSizeSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final snapped = _snap(value);
 
     return Column(
@@ -246,7 +252,8 @@ class _BufferSizeSlider extends StatelessWidget {
           value: _toNorm(snapped),
           divisions: _indexMax,
           onChanged: (norm) => onChanged(_fromNorm(norm)),
-          semanticFormatterCallback: (norm) => '${_fromNorm(norm)} frames',
+          semanticFormatterCallback: (norm) =>
+              l10n.settingsAudioBufferSizeSemantics(_fromNorm(norm)),
         ),
       ],
     );
@@ -269,10 +276,11 @@ class _BusRouteFields extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final deviceOptions = <OutputDevice>[
       OutputDevice(
         id: 'default',
-        name: 'System default',
+        name: l10n.settingsLanguageSystemDefault,
         isDefault: true,
         maxChannels: 2,
         defaultSampleRates: Uint32List.fromList([48000]),
@@ -288,14 +296,16 @@ class _BusRouteFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsField(
-          label: 'Device',
+          label: l10n.settingsAudioDevice,
           child: SettingsSelect(
             dialogTitle: 'Device',
             value: selectedId,
             options: [for (final device in deviceOptions) device.id],
             labelBuilder: (id) {
               final device = deviceOptions.firstWhere((d) => d.id == id);
-              return device.isDefault ? 'System default' : device.name;
+              return device.isDefault
+                  ? l10n.settingsLanguageSystemDefault
+                  : device.name;
             },
             onChanged: (deviceId) => onChanged(
               _clampRoute(
@@ -312,13 +322,14 @@ class _BusRouteFields extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         SettingsField(
-          label: 'Channel mode',
+          label: l10n.settingsAudioChannelMode,
           child: SettingsSelect(
             dialogTitle: 'Channel mode',
             value: route.mode,
             options: BusChannelMode.values,
-            labelBuilder: (m) =>
-                m == BusChannelMode.stereo ? 'Stereo pair' : 'Mono (fold L+R)',
+            labelBuilder: (m) => m == BusChannelMode.stereo
+                ? l10n.settingsAudioStereoPair
+                : l10n.settingsAudioMonoFold,
             onChanged: (mode) => onChanged(
               BusRouteSettings(
                 deviceId: route.deviceId,
@@ -334,7 +345,7 @@ class _BusRouteFields extends StatelessWidget {
           children: [
             Expanded(
               child: SettingsField(
-                label: 'Left channel',
+                label: l10n.settingsAudioLeftChannel,
                 child: _ChannelStepper(
                   value: route.leftChannel,
                   maxChannels: maxChannels,
@@ -352,7 +363,7 @@ class _BusRouteFields extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: SettingsField(
-                label: 'Right channel',
+                label: l10n.settingsAudioRightChannel,
                 child: _ChannelStepper(
                   value: route.rightChannel,
                   maxChannels: maxChannels,
@@ -374,7 +385,7 @@ class _BusRouteFields extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Loading devices…',
+              l10n.settingsAudioLoadingDevices,
               style: theme.typography.body.sm.copyWith(
                 color: theme.colors.mutedForeground,
               ),
