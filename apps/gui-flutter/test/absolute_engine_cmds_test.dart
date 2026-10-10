@@ -114,4 +114,65 @@ void main() {
       expect(container.read(engineUiProvider).keyLockFor(0), isTrue);
     });
   });
+
+  group('runOptimisticDeckBool', () {
+    test('rolls back when engine is null', () async {
+      var value = false;
+      await runOptimisticDeckBool<Object>(
+        previous: false,
+        desired: true,
+        write: (next) => value = next,
+        readCurrent: () => value,
+        resolveEngine: () async => null,
+        send: (_) async {},
+      );
+      expect(value, isFalse);
+    });
+
+    test('rolls back and rethrows when send fails', () async {
+      var value = false;
+      final writes = <bool>[];
+      await expectLater(
+        runOptimisticDeckBool<Object>(
+          previous: false,
+          desired: true,
+          write: (next) {
+            value = next;
+            writes.add(next);
+          },
+          readCurrent: () => value,
+          resolveEngine: () async => Object(),
+          send: (_) async => throw StateError('boom'),
+        ),
+        throwsStateError,
+      );
+      expect(writes, [true, false]);
+      expect(value, isFalse);
+    });
+
+    test('does not clobber when MIDI moved mirror before failure', () async {
+      var value = false;
+      final writes = <bool>[];
+      await expectLater(
+        runOptimisticDeckBool<Object>(
+          previous: false,
+          desired: true,
+          write: (next) {
+            value = next;
+            writes.add(next);
+          },
+          readCurrent: () => value,
+          resolveEngine: () async => Object(),
+          send: (_) async {
+            // MIDI absolute pause landed; skip rollback write.
+            value = false;
+            throw StateError('boom');
+          },
+        ),
+        throwsStateError,
+      );
+      expect(writes, [true]);
+      expect(value, isFalse);
+    });
+  });
 }

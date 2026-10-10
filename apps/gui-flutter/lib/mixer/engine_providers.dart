@@ -642,16 +642,17 @@ Future<void> loadPayloadToDeck(
 
 /// Drive play/pause from an absolute desired state (never `!snapshot` after await).
 Future<void> setDeckPlaying(WidgetRef ref, int deckId, bool playing) async {
-  ref.read(engineUiProvider.notifier).setPlaying(deckId, playing);
-  final engine = await ref.read(engineTransportProvider.future);
-  if (engine == null) {
-    return;
-  }
-  await sendDeckPlaying(
-    deckId: deckId,
-    playing: playing,
-    play: engine.play,
-    pause: engine.pause,
+  await _withOptimisticDeckBool(
+    ref: ref,
+    desired: playing,
+    read: (snap) => snap.isPlaying(deckId),
+    write: (ui, value) => ui.setPlaying(deckId, value),
+    send: (engine) => sendDeckPlaying(
+      deckId: deckId,
+      playing: playing,
+      play: engine.play,
+      pause: engine.pause,
+    ),
   );
 }
 
@@ -667,6 +668,54 @@ Future<void> sendDeckPlaying({
   } else {
     await pause(deckId: deckId);
   }
+}
+
+/// Optimistic absolute bool cmd: mirror first, roll back if transport is
+/// missing or the send fails — unless an intervening EngineEvt already moved
+/// the mirror (MIDI dual-control).
+@visibleForTesting
+Future<void> runOptimisticDeckBool<T extends Object>({
+  required bool previous,
+  required bool desired,
+  required void Function(bool value) write,
+  required bool Function() readCurrent,
+  required Future<T?> Function() resolveEngine,
+  required Future<void> Function(T engine) send,
+}) async {
+  write(desired);
+  try {
+    final engine = await resolveEngine();
+    if (engine == null) {
+      if (readCurrent() == desired) {
+        write(previous);
+      }
+      return;
+    }
+    await send(engine);
+  } on Object {
+    if (readCurrent() == desired) {
+      write(previous);
+    }
+    rethrow;
+  }
+}
+
+Future<void> _withOptimisticDeckBool({
+  required WidgetRef ref,
+  required bool desired,
+  required bool Function(EngineUiSnapshot snap) read,
+  required void Function(EngineUi ui, bool value) write,
+  required Future<void> Function(EngineTransport engine) send,
+}) async {
+  final previous = read(ref.read(engineUiProvider));
+  await runOptimisticDeckBool<EngineTransport>(
+    previous: previous,
+    desired: desired,
+    write: (value) => write(ref.read(engineUiProvider.notifier), value),
+    readCurrent: () => read(ref.read(engineUiProvider)),
+    resolveEngine: () => ref.read(engineTransportProvider.future),
+    send: send,
+  );
 }
 
 Future<void> setDeckVolume(WidgetRef ref, int deckId, double volume) async {
@@ -738,9 +787,13 @@ Future<void> setDeckTempoRange(
 }
 
 Future<void> setDeckKeyLock(WidgetRef ref, int deckId, bool enabled) async {
-  ref.read(engineUiProvider.notifier).setKeyLock(deckId, enabled);
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.setKeyLock(deckId: deckId, enabled: enabled);
+  await _withOptimisticDeckBool(
+    ref: ref,
+    desired: enabled,
+    read: (snap) => snap.keyLockFor(deckId),
+    write: (ui, value) => ui.setKeyLock(deckId, value),
+    send: (engine) => engine.setKeyLock(deckId: deckId, enabled: enabled),
+  );
 }
 
 Future<void> toggleDeckSync(
@@ -758,15 +811,23 @@ Future<void> setMasterDeck(WidgetRef ref, int deckId) async {
 }
 
 Future<void> setDeckQuantize(WidgetRef ref, int deckId, bool enabled) async {
-  ref.read(engineUiProvider.notifier).setQuantize(deckId, enabled);
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.setQuantize(deckId: deckId, enabled: enabled);
+  await _withOptimisticDeckBool(
+    ref: ref,
+    desired: enabled,
+    read: (snap) => snap.quantizeFor(deckId),
+    write: (ui, value) => ui.setQuantize(deckId, value),
+    send: (engine) => engine.setQuantize(deckId: deckId, enabled: enabled),
+  );
 }
 
 Future<void> setDeckSlip(WidgetRef ref, int deckId, bool enabled) async {
-  ref.read(engineUiProvider.notifier).setSlipEnabled(deckId, enabled);
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.setSlip(deckId: deckId, enabled: enabled);
+  await _withOptimisticDeckBool(
+    ref: ref,
+    desired: enabled,
+    read: (snap) => snap.slipEnabledFor(deckId),
+    write: (ui, value) => ui.setSlipEnabled(deckId, value),
+    send: (engine) => engine.setSlip(deckId: deckId, enabled: enabled),
+  );
 }
 
 Future<void> beginDeckCueHold(WidgetRef ref, int deckId) async {
