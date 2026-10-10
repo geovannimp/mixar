@@ -122,6 +122,13 @@ void main() {
       ),
       isTrue,
     );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, uiLanguage: UiLanguageSetting.system),
+        baseline,
+      ),
+      isFalse,
+    );
   });
 
   test('effectiveSelectStyle maps auto from isDesktopWindow', () {

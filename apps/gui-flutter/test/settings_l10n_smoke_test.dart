@@ -19,7 +19,9 @@ void main() {
     );
   });
 
-  testWidgets('settingsTitle localizes under pt_BR', (tester) async {
+  testWidgets('settingsTitle localizes under pt_BR and differs from en', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       mixarTestMaterialApp(
         theme: MixarThemeData.dark(),
@@ -32,6 +34,21 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('CONFIGURAÇÕES'), findsOneWidget);
+    expect(find.text('SETTINGS'), findsNothing);
+
+    await tester.pumpWidget(
+      mixarTestMaterialApp(
+        theme: MixarThemeData.dark(),
+        locale: const Locale('en'),
+        home: Builder(
+          builder: (context) =>
+              Text(AppLocalizations.of(context)!.settingsTitle),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('SETTINGS'), findsOneWidget);
+    expect(find.text('CONFIGURAÇÕES'), findsNothing);
   });
 
   testWidgets('SettingsSidebar chrome follows pt_BR locale', (tester) async {

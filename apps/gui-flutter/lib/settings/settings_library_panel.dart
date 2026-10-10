@@ -13,70 +13,80 @@ class SettingsLibraryPanel extends StatelessWidget {
   final ValueChanged<AppSettings> onChanged;
 
   static const _stemsFormats = ['opus', 'flac'];
+  static const _analysisModes = AnalysisDurationSetting.values;
+  static const _keyDisplayModes = KeyDisplayModeSetting.values;
+  static const _keyColorModes = KeyColorModeSetting.values;
 
   static String _normalizedStemsFormat(String format) =>
       _stemsFormats.contains(format) ? format : 'opus';
 
+  static String _analysisLabel(
+    AppLocalizations l10n,
+    AnalysisDurationSetting mode,
+  ) => switch (mode) {
+    AnalysisDurationSetting.fast => l10n.settingsLibraryAnalysisFast,
+    AnalysisDurationSetting.precise => l10n.settingsLibraryAnalysisPrecise,
+    AnalysisDurationSetting.complete => l10n.settingsLibraryAnalysisComplete,
+  };
+
+  static String _analysisSubtitle(
+    AppLocalizations l10n,
+    AnalysisDurationSetting mode,
+  ) => switch (mode) {
+    AnalysisDurationSetting.fast => l10n.settingsLibraryAnalysisFastSubtitle,
+    AnalysisDurationSetting.precise =>
+      l10n.settingsLibraryAnalysisPreciseSubtitle,
+    AnalysisDurationSetting.complete =>
+      l10n.settingsLibraryAnalysisCompleteSubtitle,
+  };
+
+  static String _keyDisplayLabel(
+    AppLocalizations l10n,
+    KeyDisplayModeSetting mode,
+  ) => switch (mode) {
+    KeyDisplayModeSetting.musical => l10n.settingsLibraryKeyDisplayMusical,
+    KeyDisplayModeSetting.camelot => l10n.settingsLibraryKeyDisplayCamelot,
+  };
+
+  static String _keyDisplaySubtitle(
+    AppLocalizations l10n,
+    KeyDisplayModeSetting mode,
+  ) => switch (mode) {
+    KeyDisplayModeSetting.musical =>
+      l10n.settingsLibraryKeyDisplayMusicalSubtitle,
+    KeyDisplayModeSetting.camelot =>
+      l10n.settingsLibraryKeyDisplayCamelotSubtitle,
+  };
+
+  static String _keyColorLabel(
+    AppLocalizations l10n,
+    KeyColorModeSetting mode,
+  ) => switch (mode) {
+    KeyColorModeSetting.off => l10n.settingsLibraryKeyColorOff,
+    KeyColorModeSetting.absolute => l10n.settingsLibraryKeyColorAbsolute,
+    KeyColorModeSetting.harmonic => l10n.settingsLibraryKeyColorHarmonic,
+  };
+
+  static String _keyColorSubtitle(
+    AppLocalizations l10n,
+    KeyColorModeSetting mode,
+  ) => switch (mode) {
+    KeyColorModeSetting.off => l10n.settingsLibraryKeyColorOffSubtitle,
+    KeyColorModeSetting.absolute =>
+      l10n.settingsLibraryKeyColorAbsoluteSubtitle,
+    KeyColorModeSetting.harmonic =>
+      l10n.settingsLibraryKeyColorHarmonicSubtitle,
+  };
+
+  static String _stemsFormatLabel(AppLocalizations l10n, String format) =>
+      switch (format) {
+        'flac' => l10n.settingsLibraryStemFlac,
+        _ => l10n.settingsLibraryStemOpus,
+      };
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final analysisModes = <(AnalysisDurationSetting, String, String)>[
-      (
-        AnalysisDurationSetting.fast,
-        l10n.settingsLibraryAnalysisFast,
-        l10n.settingsLibraryAnalysisFastSubtitle,
-      ),
-      (
-        AnalysisDurationSetting.precise,
-        l10n.settingsLibraryAnalysisPrecise,
-        l10n.settingsLibraryAnalysisPreciseSubtitle,
-      ),
-      (
-        AnalysisDurationSetting.complete,
-        l10n.settingsLibraryAnalysisComplete,
-        l10n.settingsLibraryAnalysisCompleteSubtitle,
-      ),
-    ];
-    final keyDisplayModes = <(KeyDisplayModeSetting, String, String)>[
-      (
-        KeyDisplayModeSetting.musical,
-        l10n.settingsLibraryKeyDisplayMusical,
-        l10n.settingsLibraryKeyDisplayMusicalSubtitle,
-      ),
-      (
-        KeyDisplayModeSetting.camelot,
-        l10n.settingsLibraryKeyDisplayCamelot,
-        l10n.settingsLibraryKeyDisplayCamelotSubtitle,
-      ),
-    ];
-    final keyColorModes = <(KeyColorModeSetting, String, String)>[
-      (
-        KeyColorModeSetting.off,
-        l10n.settingsLibraryKeyColorOff,
-        l10n.settingsLibraryKeyColorOffSubtitle,
-      ),
-      (
-        KeyColorModeSetting.absolute,
-        l10n.settingsLibraryKeyColorAbsolute,
-        l10n.settingsLibraryKeyColorAbsoluteSubtitle,
-      ),
-      (
-        KeyColorModeSetting.harmonic,
-        l10n.settingsLibraryKeyColorHarmonic,
-        l10n.settingsLibraryKeyColorHarmonicSubtitle,
-      ),
-    ];
-
-    String analysisLabel(AnalysisDurationSetting mode) =>
-        analysisModes.firstWhere((m) => m.$1 == mode).$2;
-    String keyDisplayLabel(KeyDisplayModeSetting mode) =>
-        keyDisplayModes.firstWhere((m) => m.$1 == mode).$2;
-    String keyColorLabel(KeyColorModeSetting mode) =>
-        keyColorModes.firstWhere((m) => m.$1 == mode).$2;
-    String stemsFormatLabel(String format) => switch (format) {
-      'flac' => l10n.settingsLibraryStemFlac,
-      _ => l10n.settingsLibraryStemOpus,
-    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,10 +101,9 @@ class SettingsLibraryPanel extends StatelessWidget {
           child: SettingsSelect(
             dialogTitle: l10n.settingsLibraryAnalysisQuality,
             value: draft.analysisDuration,
-            options: [for (final (mode, _, _) in analysisModes) mode],
-            labelBuilder: analysisLabel,
-            subtitleBuilder: (mode) =>
-                analysisModes.firstWhere((m) => m.$1 == mode).$3,
+            options: _analysisModes,
+            labelBuilder: (mode) => _analysisLabel(l10n, mode),
+            subtitleBuilder: (mode) => _analysisSubtitle(l10n, mode),
             onChanged: (mode) =>
                 onChanged(copyAppSettings(draft, analysisDuration: mode)),
           ),
@@ -113,10 +122,9 @@ class SettingsLibraryPanel extends StatelessWidget {
                 child: SettingsSelect(
                   dialogTitle: l10n.settingsLibraryKeyDisplayMode,
                   value: draft.keyDisplayMode,
-                  options: [for (final (mode, _, _) in keyDisplayModes) mode],
-                  labelBuilder: keyDisplayLabel,
-                  subtitleBuilder: (mode) =>
-                      keyDisplayModes.firstWhere((m) => m.$1 == mode).$3,
+                  options: _keyDisplayModes,
+                  labelBuilder: (mode) => _keyDisplayLabel(l10n, mode),
+                  subtitleBuilder: (mode) => _keyDisplaySubtitle(l10n, mode),
                   onChanged: (m) =>
                       onChanged(copyAppSettings(draft, keyDisplayMode: m)),
                 ),
@@ -126,10 +134,9 @@ class SettingsLibraryPanel extends StatelessWidget {
                 child: SettingsSelect(
                   dialogTitle: l10n.settingsLibraryKeyColorMode,
                   value: draft.keyColorMode,
-                  options: [for (final (mode, _, _) in keyColorModes) mode],
-                  labelBuilder: keyColorLabel,
-                  subtitleBuilder: (mode) =>
-                      keyColorModes.firstWhere((m) => m.$1 == mode).$3,
+                  options: _keyColorModes,
+                  labelBuilder: (mode) => _keyColorLabel(l10n, mode),
+                  subtitleBuilder: (mode) => _keyColorSubtitle(l10n, mode),
                   onChanged: (m) =>
                       onChanged(copyAppSettings(draft, keyColorMode: m)),
                 ),
@@ -143,7 +150,7 @@ class SettingsLibraryPanel extends StatelessWidget {
             dialogTitle: l10n.settingsLibraryStemFormat,
             value: _normalizedStemsFormat(draft.stemsFormat),
             options: _stemsFormats,
-            labelBuilder: stemsFormatLabel,
+            labelBuilder: (format) => _stemsFormatLabel(l10n, format),
             onChanged: (v) => onChanged(copyAppSettings(draft, stemsFormat: v)),
           ),
         ),
