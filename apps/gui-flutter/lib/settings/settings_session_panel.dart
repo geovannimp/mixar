@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
@@ -15,25 +16,26 @@ class SettingsSessionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 16,
       children: [
-        const SettingsSectionHeader(
-          title: 'Session',
-          description: 'Performance history and session boundaries.',
+        SettingsSectionHeader(
+          title: l10n.settingsSectionSession,
+          description: l10n.settingsSessionDescription,
         ),
         SettingsPanel(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              const SettingsSectionHeader(
-                title: 'Performance history',
-                description: 'Log deck playback to XSPF session files under app support.',
+              SettingsSectionHeader(
+                title: l10n.settingsSessionHistoryTitle,
+                description: l10n.settingsSessionHistoryDescription,
               ),
               SettingsToggle(
-                label: 'Record performance history',
+                label: l10n.settingsSessionRecordHistory,
                 value: draft.historyEnabled,
                 onChanged: (enabled) =>
                     onChanged(copyAppSettings(draft, historyEnabled: enabled)),
@@ -45,11 +47,14 @@ class SettingsSessionPanel extends StatelessWidget {
                 children: [
                   Expanded(
                     child: SettingsField(
-                      label: 'Session idle timeout',
-                      hint: 'Close after this long with no qualifying deck output.',
+                      label: l10n.settingsSessionIdleTimeout,
+                      hint: l10n.settingsSessionIdleTimeoutHint,
                       child: MixarInput(
                         initialValue: '${draft.historySessionIdleMinutes}',
-                        trailing: _suffixLabel(context, 'minutes'),
+                        trailing: _suffixLabel(
+                          context,
+                          l10n.settingsSessionMinutes,
+                        ),
                         onChanged: (text) {
                           final parsed = int.tryParse(text.trim());
                           if (parsed != null && parsed > 0) {
@@ -66,12 +71,14 @@ class SettingsSessionPanel extends StatelessWidget {
                   ),
                   Expanded(
                     child: SettingsField(
-                      label: 'Minimum play duration',
-                      hint:
-                          'Commit entries after this much qualifying playback.',
+                      label: l10n.settingsSessionMinPlayDuration,
+                      hint: l10n.settingsSessionMinPlayDurationHint,
                       child: MixarInput(
                         initialValue: '${draft.historyMinPlaySeconds}',
-                        trailing: _suffixLabel(context, 'seconds'),
+                        trailing: _suffixLabel(
+                          context,
+                          l10n.settingsSessionSeconds,
+                        ),
                         onChanged: (text) {
                           final parsed = int.tryParse(text.trim());
                           if (parsed != null && parsed > 0) {
@@ -89,7 +96,7 @@ class SettingsSessionPanel extends StatelessWidget {
                 ],
               ),
               SettingsField(
-                label: 'Minimum effective deck volume',
+                label: l10n.settingsSessionMinDeckVolume,
                 child: _MinDeckVolumeSlider(
                   value: draft.historyMinDeckVolume,
                   onChanged: (volume) => onChanged(
@@ -131,6 +138,7 @@ class _MinDeckVolumeSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final snapped = _snap(value);
     final label = '${(snapped * 100).toStringAsFixed(0)}%';
 
@@ -152,7 +160,8 @@ class _MinDeckVolumeSlider extends StatelessWidget {
           value: snapped,
           divisions: 100,
           onChanged: (v) => onChanged(_snap(v)),
-          semanticFormatterCallback: (v) => '${(v * 100).round()} percent',
+          semanticFormatterCallback: (v) =>
+              l10n.settingsSessionPercentSemantics((v * 100).round()),
         ),
       ],
     );

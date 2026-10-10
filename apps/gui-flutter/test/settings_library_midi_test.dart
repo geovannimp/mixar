@@ -18,6 +18,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: mixarTestLocalizationsDelegates,
+          supportedLocales: mixarTestSupportedLocales,
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
           home: Scaffold(
@@ -46,6 +49,9 @@ void main() {
           controllerDevicesProvider.overrideWith((ref) async => const []),
         ],
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: mixarTestLocalizationsDelegates,
+          supportedLocales: mixarTestSupportedLocales,
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
           home: Scaffold(
@@ -85,6 +91,9 @@ void main() {
           ),
         ],
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: mixarTestLocalizationsDelegates,
+          supportedLocales: mixarTestSupportedLocales,
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
           home: Scaffold(
@@ -127,6 +136,9 @@ void main() {
           controllerDevicesProvider.overrideWith((ref) async => const []),
         ],
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: mixarTestLocalizationsDelegates,
+          supportedLocales: mixarTestSupportedLocales,
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
           home: Scaffold(
@@ -169,6 +181,9 @@ void main() {
           controllerDevicesProvider.overrideWith((ref) async => const []),
         ],
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: mixarTestLocalizationsDelegates,
+          supportedLocales: mixarTestSupportedLocales,
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
           home: Scaffold(

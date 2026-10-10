@@ -1,3 +1,5 @@
+import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/l10n/kit_localizations.dart';
 import 'package:gui_flutter/shell/legacy_material_scope.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -23,3 +25,9 @@ TransitionBuilder mixarMaterialAppBuilder(
     );
   };
 }
+
+/// Common [MaterialApp] localization wiring for widget tests.
+List<LocalizationsDelegate<dynamic>> get mixarTestLocalizationsDelegates =>
+    mixarLocalizationsDelegates;
+
+List<Locale> get mixarTestSupportedLocales => AppLocalizations.supportedLocales;

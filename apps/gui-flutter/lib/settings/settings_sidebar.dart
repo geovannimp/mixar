@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -13,6 +14,7 @@ class SettingsSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: theme.colors.border)),
@@ -24,7 +26,7 @@ class SettingsSidebar extends StatelessWidget {
           children: [
             for (final section in kSettingsSections)
               _SettingsNavItem(
-                label: section.label,
+                label: section.label(l10n),
                 icon: _iconFor(section),
                 selected: section == active,
                 onPress: () => onSelect(section),

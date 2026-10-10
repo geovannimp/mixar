@@ -154,6 +154,9 @@ void main() {
           ...extraOverrides,
         ],
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: mixarTestLocalizationsDelegates,
+          supportedLocales: mixarTestSupportedLocales,
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
           home: const AppShell(appTitle: 'Mixar'),
@@ -324,6 +327,9 @@ void main() {
       ProviderScope(
         overrides: _settingsOverrides(),
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: mixarTestLocalizationsDelegates,
+          supportedLocales: mixarTestSupportedLocales,
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
           home: const SizedBox(width: 1400, height: 900, child: SettingsPage()),

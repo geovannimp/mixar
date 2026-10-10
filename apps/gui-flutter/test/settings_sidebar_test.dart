@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/settings/settings_sidebar.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
@@ -16,6 +17,9 @@ void main() {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: mixarTestLocalizationsDelegates,
+        supportedLocales: mixarTestSupportedLocales,
         theme: materialUiThemeFromMixar(theme),
         builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(
@@ -33,11 +37,12 @@ void main() {
       onSelect: (section) => selected = section,
     );
 
+    final l10n = lookupAppLocalizations(const Locale('en'));
     for (final section in kSettingsSections) {
-      expect(find.text(section.label), findsOneWidget);
+      expect(find.text(section.label(l10n)), findsOneWidget);
     }
 
-    await tester.tap(find.text(SettingsSection.mixer.label));
+    await tester.tap(find.text(l10n.settingsSectionMixer));
     await tester.pump();
     expect(selected, SettingsSection.mixer);
   });

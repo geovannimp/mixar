@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/settings/settings_deck_panel.dart';
@@ -43,12 +44,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
       loading: () => Center(
         child: Text(
-          'Loading settings…',
+          l10n.settingsLoading,
           style: theme.typography.body.sm.copyWith(
             color: theme.colors.mutedForeground,
           ),
@@ -85,7 +87,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       AppButton.icon(
                         variant: .ghost,
                         size: .sm,
-                        semanticsLabel: 'Close',
+                        semanticsLabel: l10n.settingsCloseSemantics,
                         onPress: _busy ? null : () => _close(dirty),
                         child: const Icon(LucideIcons.x),
                       ),
@@ -94,7 +96,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'SETTINGS',
+                            l10n.settingsTitle,
                             style: theme.typography.body.xs.copyWith(
                               fontWeight: FontWeight.w700,
                               letterSpacing: 2,
@@ -102,7 +104,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Saving restarts the engine automatically if it's running.",
+                            l10n.settingsSubtitle,
                             style: theme.typography.body.sm.copyWith(
                               color: theme.colors.mutedForeground,
                             ),
@@ -115,7 +117,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         size: .sm,
                         mainAxisSize: .min,
                         onPress: _busy ? null : () => _save(draft),
-                        child: Text(_busy ? 'Saving…' : 'Save'),
+                        child: Text(
+                          _busy ? l10n.settingsSaving : l10n.settingsSave,
+                        ),
                       ),
                   ],
                 ),
@@ -171,22 +175,27 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         _baseline = result.saved;
         _error = result.applyError;
       });
+      final l10n = AppLocalizations.of(context)!;
       if (result.applyError != null) {
         showMixarToast(
           context: context,
-          title: const Text('Settings saved, but not applied'),
+          title: Text(l10n.settingsSavedNotAppliedToast),
           description: Text(result.applyError!),
           variant: MixarToastVariant.destructive,
         );
       } else {
-        showMixarToast(context: context, title: const Text('Settings saved'));
+        showMixarToast(
+          context: context,
+          title: Text(l10n.settingsSavedToast),
+        );
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         setState(() => _error = '$e');
         showMixarToast(
           context: context,
-          title: const Text('Save failed'),
+          title: Text(l10n.settingsSaveFailedToast),
           description: Text('$e'),
           variant: MixarToastVariant.destructive,
         );
@@ -203,22 +212,23 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       widget.onClose?.call();
       return;
     }
+    final l10n = AppLocalizations.of(context)!;
     final choice = await showMixarConfirm<_CloseChoice>(
       context: context,
-      title: 'Unsaved settings',
-      body: 'Save changes before closing?',
-      actions: const [
+      title: l10n.settingsUnsavedTitle,
+      body: l10n.settingsUnsavedBody,
+      actions: [
         MixarDialogAction(
-          label: 'Cancel',
+          label: l10n.settingsCancel,
           value: _CloseChoice.cancel,
           variant: MixarButtonVariant.outline,
         ),
         MixarDialogAction(
-          label: 'Discard',
+          label: l10n.settingsDiscard,
           value: _CloseChoice.discard,
           variant: MixarButtonVariant.destructive,
         ),
-        MixarDialogAction(label: 'Save', value: _CloseChoice.save),
+        MixarDialogAction(label: l10n.settingsSave, value: _CloseChoice.save),
       ],
     );
     if (!mounted) {

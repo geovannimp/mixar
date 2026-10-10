@@ -4,12 +4,338 @@
   "@settingsTitle": {
     "description": "Settings page header title"
   },
+  "settingsSubtitle": "Saving restarts the engine automatically if it's running.",
+  "settingsLoading": "Loading settings…",
+  "settingsCloseSemantics": "Close",
+  "settingsSave": "Save",
+  "settingsSaving": "Saving…",
+  "settingsSavedToast": "Settings saved",
+  "settingsSavedNotAppliedToast": "Settings saved, but not applied",
+  "settingsSaveFailedToast": "Save failed",
+  "settingsUnsavedTitle": "Unsaved settings",
+  "settingsUnsavedBody": "Save changes before closing?",
+  "settingsCancel": "Cancel",
+  "settingsDiscard": "Discard",
+  "commonLoading": "Loading…",
+  "commonSync": "Sync",
+  "commonClear": "Clear",
+  "commonUpdate": "Update",
+  "commonImport": "Import",
+  "commonNone": "None",
+  "settingsSectionAudio": "Audio",
+  "settingsSectionMixer": "Mixer",
+  "settingsSectionWaveform": "Waveform",
+  "settingsSectionDeck": "Deck",
+  "settingsSectionUi": "UI",
+  "settingsSectionLibrary": "Library",
+  "settingsSectionStorage": "Storage",
+  "settingsSectionSession": "Session",
+  "settingsSectionControllers": "Controllers",
+  "settingsUiDescription": "Chrome and hover tips for the desktop app.",
   "settingsUiLanguageLabel": "Language",
-  "@settingsUiLanguageLabel": {
-    "description": "UI panel language preference field label"
-  },
   "settingsLanguageSystemDefault": "System default",
-  "@settingsLanguageSystemDefault": {
-    "description": "Language select option that follows the OS locale"
+  "settingsShowTooltips": "Show tooltips",
+  "settingsAudioDescription": "Engine output and buses.",
+  "settingsAudioBackend": "Backend",
+  "settingsAudioLowLatency": "Low latency",
+  "settingsAudioSampleRate": "Sample rate",
+  "settingsAudioSampleRateLoading": "Loading rates for the master output device…",
+  "settingsAudioResamplerQuality": "Resampler quality",
+  "settingsAudioBufferSize": "Buffer size",
+  "settingsAudioBufferSizeHint": "Must be a multiple of 64 frames (mixer graph chunk size).",
+  "settingsAudioBufferSizeSemantics": "{frames} frames",
+  "@settingsAudioBufferSizeSemantics": {
+    "placeholders": {
+      "frames": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAudioMasterBus": "Master bus",
+  "settingsAudioPreviewBus": "Preview bus (headphones / cue)",
+  "settingsAudioDevice": "Device",
+  "settingsAudioChannelMode": "Channel mode",
+  "settingsAudioStereoPair": "Stereo pair",
+  "settingsAudioMonoFold": "Mono (fold L+R)",
+  "settingsAudioLeftChannel": "Left channel",
+  "settingsAudioRightChannel": "Right channel",
+  "settingsAudioLoadingDevices": "Loading devices…",
+  "settingsMixerDescription": "Keep analyzed tracks near a consistent perceived loudness.",
+  "settingsMixerVolumeNormalizer": "Volume normalizer",
+  "settingsMixerTargetLufs": "Target LUFS",
+  "settingsWaveformDescription": "RGB mixes low/mid/high into one color. Filtered stacks the three bands.",
+  "settingsWaveformDisplayMode": "Display mode",
+  "settingsWaveformModeRgb": "RGB",
+  "settingsWaveformModeFiltered": "Filtered",
+  "settingsDeckDescription": "Default jog, tempo, and sampler behavior for new decks.",
+  "settingsDeckJogTitle": "Jog wheel",
+  "settingsDeckJogDescription": "Defaults for top (touch) and outer (freewheel) platter policy.",
+  "settingsDeckTopJogMode": "Top jog mode",
+  "settingsDeckOuterJogMode": "Outer jog mode",
+  "settingsDeckJogVinyl": "Vinyl (scratch)",
+  "settingsDeckJogPitchBend": "Pitch bend",
+  "settingsDeckJogIgnore": "Ignore",
+  "settingsDeckTempoKeyTitle": "Tempo and Key",
+  "settingsDeckTempoKeyDescription": "Default pitch-fader range and key lock for new decks.",
+  "settingsDeckDefaultTempoRange": "Default tempo range",
+  "settingsDeckDefaultKeyLock": "Default key lock",
+  "settingsDeckDefaultKeyLockHint": "Tempo-only pitch when on (time-stretch). Off = vinyl tempo.",
+  "settingsDeckKeyLock": "Key lock",
+  "settingsDeckSamplerTitle": "Sampler",
+  "settingsDeckSamplerDescription": "Default play mode for inherit banks and default bank per deck.",
+  "settingsDeckSamplerPlayMode": "Sampler play mode",
+  "settingsDeckSamplerPlayOneshot": "Oneshot",
+  "settingsDeckSamplerPlayHold": "Hold",
+  "settingsDeckSamplerPlayLoop": "Loop",
+  "settingsDeckSamplerStripRoute": "Sampler strip route",
+  "settingsDeckSamplerStripBefore": "Before channel strip",
+  "settingsDeckSamplerStripAfter": "After channel strip",
+  "settingsDeckDefaultSamplerBankA": "Deck A default sampler bank",
+  "settingsDeckDefaultSamplerBankB": "Deck B default sampler bank",
+  "settingsLibraryDescription": "Track import, offline analysis, and list display.",
+  "settingsLibraryAnalysisQuality": "Analysis quality",
+  "settingsLibraryAnalysisFast": "Fast",
+  "settingsLibraryAnalysisFastSubtitle": "Analyze a short preview for quick library scans.",
+  "settingsLibraryAnalysisPrecise": "Precise",
+  "settingsLibraryAnalysisPreciseSubtitle": "Balanced analysis for most libraries.",
+  "settingsLibraryAnalysisComplete": "Complete",
+  "settingsLibraryAnalysisCompleteSubtitle": "Analyze the full track (slowest, most accurate).",
+  "settingsLibraryMusicalKeyTitle": "Musical key",
+  "settingsLibraryMusicalKeyDescription": "How keys are labeled and color-coded in deck chrome and the library table.",
+  "settingsLibraryKeyDisplayMode": "Key display mode",
+  "settingsLibraryKeyDisplayMusical": "Musical",
+  "settingsLibraryKeyDisplayMusicalSubtitle": "Note names in deck chip and library key column — e.g. C, Am, F#m.",
+  "settingsLibraryKeyDisplayCamelot": "Camelot",
+  "settingsLibraryKeyDisplayCamelotSubtitle": "Mixed In Key codes — e.g. 8B (C major), 8A (A minor), 11B.",
+  "settingsLibraryKeyColorMode": "Key color mode",
+  "settingsLibraryKeyColorOff": "Off",
+  "settingsLibraryKeyColorOffSubtitle": "Key labels use the default text color everywhere.",
+  "settingsLibraryKeyColorAbsolute": "Absolute (circle of fifths)",
+  "settingsLibraryKeyColorAbsoluteSubtitle": "Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer).",
+  "settingsLibraryKeyColorHarmonic": "Harmonic (playing deck)",
+  "settingsLibraryKeyColorHarmonicSubtitle": "Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.",
+  "settingsLibraryStemFormat": "Stem format",
+  "settingsLibraryStemOpus": "Opus (160 kbps)",
+  "settingsLibraryStemFlac": "FLAC (lossless)",
+  "settingsLibraryDimPlayedTracks": "Dim played tracks",
+  "settingsLibraryTrackRowLayout": "Track row layout",
+  "settingsLibraryRowCompact": "Compact",
+  "settingsLibraryRowCompactSubtitle": "One dense line per track — fits the most rows on screen.",
+  "settingsLibraryRowComfortable": "Comfortable",
+  "settingsLibraryRowComfortableSubtitle": "Two lines per track: title above artist, BPM, key and length.",
+  "settingsSessionDescription": "Performance history and session boundaries.",
+  "settingsSessionHistoryTitle": "Performance history",
+  "settingsSessionHistoryDescription": "Log deck playback to XSPF session files under app support.",
+  "settingsSessionRecordHistory": "Record performance history",
+  "settingsSessionIdleTimeout": "Session idle timeout",
+  "settingsSessionIdleTimeoutHint": "Close after this long with no qualifying deck output.",
+  "settingsSessionMinPlayDuration": "Minimum play duration",
+  "settingsSessionMinPlayDurationHint": "Commit entries after this much qualifying playback.",
+  "settingsSessionMinutes": "minutes",
+  "settingsSessionSeconds": "seconds",
+  "settingsSessionMinDeckVolume": "Minimum effective deck volume",
+  "settingsSessionPercentSemantics": "{percent} percent",
+  "@settingsSessionPercentSemantics": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsStorageDescription": "Disk use for Mixar caches and library metadata under app support.",
+  "settingsStorageMixarStorage": "Mixar storage",
+  "settingsStorageUsed": "{size} used",
+  "@settingsStorageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsStorageStemCache": "Stem cache",
+  "settingsStorageStemModel": "Stem model",
+  "settingsStorageWaveform": "Waveform",
+  "settingsStorageTrackMetadata": "Track metadata",
+  "settingsStorageSyncStemTitle": "Sync stem cache?",
+  "settingsStorageSyncStemBody": "Removes stem files that are not listed in the library database, and drops DB rows whose files are missing. Referenced cache files and original audio are kept.",
+  "settingsStorageSyncFailed": "Sync failed",
+  "settingsStorageClearFailed": "Clear failed",
+  "settingsStorageClearStemTitle": "Clear stem cache?",
+  "settingsStorageClearStemBody": "Deletes generated stem files for all tracks. Original library audio is not touched.",
+  "settingsStorageClearStemOk": "Stem cache cleared",
+  "settingsStorageClearModelTitle": "Clear stem model cache?",
+  "settingsStorageClearModelBody": "Deletes downloaded stem separation models. They will re-download when needed.",
+  "settingsStorageClearModelOk": "Stem model cleared",
+  "settingsStorageClearWaveformTitle": "Clear waveform cache?",
+  "settingsStorageClearWaveformBody": "Deletes cached waveform overviews. They regenerate when you open a track.",
+  "settingsStorageClearWaveformOk": "Waveform cache cleared",
+  "settingsControllersDescription": "MIDI mappings and connected hardware. Trust a device to auto-enable it on connect after Save.",
+  "settingsControllersMappingsTitle": "Mappings",
+  "settingsControllersMappingsDescription": "Stored in app data. Seed copies shipped maps when missing; Update overwrites from the app bundle.",
+  "settingsControllersUpdateAll": "Update All",
+  "settingsControllersNoMappings": "No mappings in app data yet.",
+  "settingsControllersMidiPortsTitle": "MIDI ports",
+  "settingsControllersMidiPortsDescription": "Detected MIDI inputs and outputs, and the mapping each one matches.",
+  "settingsControllersNoMidiPorts": "No MIDI ports detected.",
+  "settingsControllersNoMapping": "No mapping",
+  "settingsControllersMappingArrow": "→ {mapping}",
+  "@settingsControllersMappingArrow": {
+    "placeholders": {
+      "mapping": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsControllersDirectionIn": "IN",
+  "settingsControllersDirectionOut": "OUT",
+  "settingsControllersAttached": "Attached",
+  "settingsControllersUpdateAvailable": "Update available",
+  "settingsControllersTrust": "Trust",
+  "settingsControllersAttach": "Attach",
+  "settingsControllersTrustSemantics": "Trust device {name}",
+  "@settingsControllersTrustSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsControllersEnableSemantics": "Enable {name}",
+  "@settingsControllersEnableSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mixxxImportTitle": "Import from Mixxx",
+  "mixxxImportDescription": "Bring tracks, playlists, and crates from your Mixxx library into Mixar.",
+  "mixxxImportFound": "Found: {path}",
+  "@mixxxImportFound": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "mixxxImportCheckFailed": "Could not check for a Mixxx library.",
+  "mixxxImportLooking": "Looking for a Mixxx library…",
+  "mixxxImportNotFound": "No Mixxx library found on this computer.",
+  "mixxxImportButton": "Import from Mixxx library…",
+  "mixxxImporting": "Importing…",
+  "mixxxImportConfirmTitle": "Import from Mixxx?",
+  "mixxxImportConfirmBody": "This imports tracks, playlists, crates, and watched folders from:\n{path}\n\n{trackCount} tracks ({missingFileCount} missing), {playlistCount} playlists, {crateCount} crates, {folderCount} folders.\n\nMissing files are imported as unavailable tracks.",
+  "@mixxxImportConfirmBody": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      },
+      "trackCount": {
+        "type": "int"
+      },
+      "missingFileCount": {
+        "type": "int"
+      },
+      "playlistCount": {
+        "type": "int"
+      },
+      "crateCount": {
+        "type": "int"
+      },
+      "folderCount": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxImportReadFailed": "Could not read Mixxx library",
+  "mixxxImportFailed": "Mixxx import failed",
+  "mixxxImportFinishedWithErrors": "Mixxx import finished with {count} error(s)",
+  "@mixxxImportFinishedWithErrors": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxImportAlreadyImported": "Mixxx library already imported",
+  "mixxxImportNothing": "Nothing to import from Mixxx",
+  "mixxxImportUpdated": "Updated {updated} from Mixxx{missing}",
+  "@mixxxImportUpdated": {
+    "placeholders": {
+      "updated": {
+        "type": "String"
+      },
+      "missing": {
+        "type": "String"
+      }
+    }
+  },
+  "mixxxImportImported": "Imported {parts} from Mixxx{missing}",
+  "@mixxxImportImported": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      },
+      "missing": {
+        "type": "String"
+      }
+    }
+  },
+  "mixxxImportMissingSuffix": " ({count} missing)",
+  "@mixxxImportMissingSuffix": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountTracks": "{count, plural, =1{1 track} other{{count} tracks}}",
+  "@mixxxCountTracks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountPlaylists": "{count, plural, =1{1 playlist} other{{count} playlists}}",
+  "@mixxxCountPlaylists": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountCrates": "{count, plural, =1{1 crate} other{{count} crates}}",
+  "@mixxxCountCrates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountFolders": "{count, plural, =1{1 folder} other{{count} folders}}",
+  "@mixxxCountFolders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountUpdated": "{count} updated",
+  "@mixxxCountUpdated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsStorageStemAlreadyInSync": "Stem cache already in sync",
+  "settingsStorageRemovedOrphans": "{count, plural, =1{Removed 1 orphan stem file} other{Removed {count} orphan stem files}}",
+  "@settingsStorageRemovedOrphans": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

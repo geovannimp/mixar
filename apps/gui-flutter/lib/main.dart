@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/l10n/kit_localizations.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/ui_language.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
@@ -83,7 +84,7 @@ class Application extends ConsumerWidget {
       title: appTitle,
       debugShowCheckedModeBanner: false,
       locale: locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: mixarLocalizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       theme: _materialLight,
       darkTheme: _materialDark,

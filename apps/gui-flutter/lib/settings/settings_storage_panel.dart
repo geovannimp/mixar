@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
@@ -62,18 +63,19 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
   }
 
   Future<void> _confirmSyncStems() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showMixarConfirm<bool>(
       context: context,
-      title: 'Sync stem cache?',
-      body: 'Removes stem files that are not listed in the library database, and drops DB rows whose files are missing. Referenced cache files and original audio are kept.',
-      actions: const [
+      title: l10n.settingsStorageSyncStemTitle,
+      body: l10n.settingsStorageSyncStemBody,
+      actions: [
         MixarDialogAction(
-          label: 'Cancel',
+          label: l10n.settingsCancel,
           value: false,
           variant: MixarButtonVariant.outline,
         ),
         MixarDialogAction(
-          label: 'Sync',
+          label: l10n.commonSync,
           value: true,
           variant: MixarButtonVariant.primary,
         ),
@@ -89,12 +91,13 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
       if (!mounted) {
         return;
       }
+      final toastL10n = AppLocalizations.of(context)!;
       showMixarToast(
         context: context,
         title: Text(
           removed == 0
-              ? 'Stem cache already in sync'
-              : 'Removed $removed orphan stem file${removed == 1 ? '' : 's'}',
+              ? toastL10n.settingsStorageStemAlreadyInSync
+              : toastL10n.settingsStorageRemovedOrphans(removed),
         ),
       );
       await _refresh();
@@ -104,7 +107,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
       }
       showMixarToast(
         context: context,
-        title: const Text('Sync failed'),
+        title: Text(AppLocalizations.of(context)!.settingsStorageSyncFailed),
         description: Text('$e'),
         variant: MixarToastVariant.destructive,
       );
@@ -121,18 +124,19 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
     required Future<void> Function(LibraryTransport) clear,
     required String okTitle,
   }) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showMixarConfirm<bool>(
       context: context,
       title: title,
       body: body,
-      actions: const [
+      actions: [
         MixarDialogAction(
-          label: 'Cancel',
+          label: l10n.settingsCancel,
           value: false,
           variant: MixarButtonVariant.outline,
         ),
         MixarDialogAction(
-          label: 'Clear',
+          label: l10n.commonClear,
           value: true,
           variant: MixarButtonVariant.destructive,
         ),
@@ -163,7 +167,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
       }
       showMixarToast(
         context: context,
-        title: const Text('Clear failed'),
+        title: Text(AppLocalizations.of(context)!.settingsStorageClearFailed),
         description: Text('$e'),
         variant: MixarToastVariant.destructive,
       );
@@ -177,6 +181,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final usage = _usage;
     final stems = usage?.stemsBytes ?? BigInt.zero;
     final models = usage?.modelsBytes ?? BigInt.zero;
@@ -190,9 +195,9 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 16,
       children: [
-        const SettingsSectionHeader(
-          title: 'Storage',
-          description: 'Disk use for Mixar caches and library metadata under app support.',
+        SettingsSectionHeader(
+          title: l10n.settingsSectionStorage,
+          description: l10n.settingsStorageDescription,
         ),
         if (_error != null)
           Text(
@@ -210,14 +215,14 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Mixar storage',
+                      l10n.settingsStorageMixarStorage,
                       style: theme.typography.body.sm.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                   Text(
-                    ready ? '${formatStorageBytes(total)} used' : '…',
+                    ready ? l10n.settingsStorageUsed(formatStorageBytes(total)) : '…',
                     style: theme.typography.body.sm.copyWith(
                       color: theme.colors.mutedForeground,
                     ),
@@ -239,49 +244,49 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
                 children: [
                   _StorageLegendRow(
                     color: _kStemCacheColor,
-                    label: 'Stem cache',
+                    label: l10n.settingsStorageStemCache,
                     sizeLabel: ready ? formatStorageBytes(stems) : '…',
                     onSync: !clearEnabled ? null : () => _confirmSyncStems(),
                     onClear: !clearEnabled
                         ? null
                         : () => _confirmClear(
-                            title: 'Clear stem cache?',
-                            body: 'Deletes generated stem files for all tracks. Original library audio is not touched.',
+                            title: l10n.settingsStorageClearStemTitle,
+                            body: l10n.settingsStorageClearStemBody,
                             clear: (t) => t.clearStemCache(),
-                            okTitle: 'Stem cache cleared',
+                            okTitle: l10n.settingsStorageClearStemOk,
                           ),
                   ),
                   _StorageLegendRow(
                     color: _kStemModelColor,
-                    label: 'Stem model',
+                    label: l10n.settingsStorageStemModel,
                     sizeLabel: ready ? formatStorageBytes(models) : '…',
                     onSync: null,
                     onClear: !clearEnabled
                         ? null
                         : () => _confirmClear(
-                            title: 'Clear stem model cache?',
-                            body: 'Deletes downloaded stem separation models. They will re-download when needed.',
+                            title: l10n.settingsStorageClearModelTitle,
+                            body: l10n.settingsStorageClearModelBody,
                             clear: (t) => t.clearModelCache(),
-                            okTitle: 'Stem model cleared',
+                            okTitle: l10n.settingsStorageClearModelOk,
                           ),
                   ),
                   _StorageLegendRow(
                     color: _kWaveformColor,
-                    label: 'Waveform',
+                    label: l10n.settingsStorageWaveform,
                     sizeLabel: ready ? formatStorageBytes(waveforms) : '…',
                     onSync: null,
                     onClear: !clearEnabled
                         ? null
                         : () => _confirmClear(
-                            title: 'Clear waveform cache?',
-                            body: 'Deletes cached waveform overviews. They regenerate when you open a track.',
+                            title: l10n.settingsStorageClearWaveformTitle,
+                            body: l10n.settingsStorageClearWaveformBody,
                             clear: (t) => t.clearWaveformCache(),
-                            okTitle: 'Waveform cache cleared',
+                            okTitle: l10n.settingsStorageClearWaveformOk,
                           ),
                   ),
                   _StorageLegendRow(
                     color: _kMetadataColor,
-                    label: 'Track metadata',
+                    label: l10n.settingsStorageTrackMetadata,
                     sizeLabel: ready ? formatStorageBytes(metadata) : '…',
                     onSync: null,
                     onClear: null,
@@ -358,6 +363,7 @@ class _StorageLegendRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       spacing: 12,
       children: [
@@ -387,14 +393,14 @@ class _StorageLegendRow extends StatelessWidget {
             variant: MixarButtonVariant.outline,
             size: MixarButtonSize.sm,
             onPress: onSync,
-            child: const Text('Sync'),
+            child: Text(l10n.commonSync),
           ),
         if (onClear != null)
           AppButton(
             variant: MixarButtonVariant.destructive,
             size: MixarButtonSize.sm,
             onPress: onClear,
-            child: const Text('Clear'),
+            child: Text(l10n.commonClear),
           ),
       ],
     );

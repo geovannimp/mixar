@@ -1,15 +1,338 @@
 {
   "@@locale": "pt",
   "settingsTitle": "CONFIGURAÇÕES",
-  "@settingsTitle": {
-    "description": "Settings page header title"
-  },
+  "settingsSubtitle": "Salvar reinicia o engine automaticamente se ele estiver em execução.",
+  "settingsLoading": "Carregando configurações…",
+  "settingsCloseSemantics": "Fechar",
+  "settingsSave": "Salvar",
+  "settingsSaving": "Salvando…",
+  "settingsSavedToast": "Configurações salvas",
+  "settingsSavedNotAppliedToast": "Configurações salvas, mas não aplicadas",
+  "settingsSaveFailedToast": "Falha ao salvar",
+  "settingsUnsavedTitle": "Configurações não salvas",
+  "settingsUnsavedBody": "Salvar alterações antes de fechar?",
+  "settingsCancel": "Cancelar",
+  "settingsDiscard": "Descartar",
+  "commonLoading": "Carregando…",
+  "commonSync": "Sincronizar",
+  "commonClear": "Limpar",
+  "commonUpdate": "Atualizar",
+  "commonImport": "Importar",
+  "commonNone": "Nenhum",
+  "settingsSectionAudio": "Áudio",
+  "settingsSectionMixer": "Mixer",
+  "settingsSectionWaveform": "Forma de onda",
+  "settingsSectionDeck": "Deck",
+  "settingsSectionUi": "Interface",
+  "settingsSectionLibrary": "Biblioteca",
+  "settingsSectionStorage": "Armazenamento",
+  "settingsSectionSession": "Sessão",
+  "settingsSectionControllers": "Controladores",
+  "settingsUiDescription": "Chrome e dicas ao passar o mouse no app desktop.",
   "settingsUiLanguageLabel": "Idioma",
-  "@settingsUiLanguageLabel": {
-    "description": "UI panel language preference field label"
-  },
   "settingsLanguageSystemDefault": "Padrão do sistema",
-  "@settingsLanguageSystemDefault": {
-    "description": "Language select option that follows the OS locale"
+  "settingsShowTooltips": "Mostrar dicas",
+  "settingsAudioDescription": "Saída do engine e barramentos.",
+  "settingsAudioBackend": "Backend",
+  "settingsAudioLowLatency": "Baixa latência",
+  "settingsAudioSampleRate": "Taxa de amostragem",
+  "settingsAudioSampleRateLoading": "Carregando taxas do dispositivo de saída master…",
+  "settingsAudioResamplerQuality": "Qualidade do resampler",
+  "settingsAudioBufferSize": "Tamanho do buffer",
+  "settingsAudioBufferSizeHint": "Deve ser múltiplo de 64 frames (tamanho do chunk do mixer).",
+  "settingsAudioBufferSizeSemantics": "{frames} frames",
+  "@settingsAudioBufferSizeSemantics": {
+    "placeholders": {
+      "frames": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAudioMasterBus": "Barramento master",
+  "settingsAudioPreviewBus": "Barramento de preview (fones / cue)",
+  "settingsAudioDevice": "Dispositivo",
+  "settingsAudioChannelMode": "Modo de canal",
+  "settingsAudioStereoPair": "Par estéreo",
+  "settingsAudioMonoFold": "Mono (somar L+R)",
+  "settingsAudioLeftChannel": "Canal esquerdo",
+  "settingsAudioRightChannel": "Canal direito",
+  "settingsAudioLoadingDevices": "Carregando dispositivos…",
+  "settingsMixerDescription": "Mantém faixas analisadas com volume percebido consistente.",
+  "settingsMixerVolumeNormalizer": "Normalizador de volume",
+  "settingsMixerTargetLufs": "LUFS alvo",
+  "settingsWaveformDescription": "RGB mistura grave/médio/agudo em uma cor. Filtrado empilha as três bandas.",
+  "settingsWaveformDisplayMode": "Modo de exibição",
+  "settingsWaveformModeRgb": "RGB",
+  "settingsWaveformModeFiltered": "Filtrado",
+  "settingsDeckDescription": "Comportamento padrão de jog, tempo e sampler para novos decks.",
+  "settingsDeckJogTitle": "Jog wheel",
+  "settingsDeckJogDescription": "Padrões da política do prato superior (toque) e externo (freewheel).",
+  "settingsDeckTopJogMode": "Modo do jog superior",
+  "settingsDeckOuterJogMode": "Modo do jog externo",
+  "settingsDeckJogVinyl": "Vinil (scratch)",
+  "settingsDeckJogPitchBend": "Pitch bend",
+  "settingsDeckJogIgnore": "Ignorar",
+  "settingsDeckTempoKeyTitle": "Tempo e tom",
+  "settingsDeckTempoKeyDescription": "Faixa padrão do pitch fader e key lock para novos decks.",
+  "settingsDeckDefaultTempoRange": "Faixa de tempo padrão",
+  "settingsDeckDefaultKeyLock": "Key lock padrão",
+  "settingsDeckDefaultKeyLockHint": "Com ligado, só altera o tempo (time-stretch). Desligado = tempo de vinil.",
+  "settingsDeckKeyLock": "Key lock",
+  "settingsDeckSamplerTitle": "Sampler",
+  "settingsDeckSamplerDescription": "Modo de reprodução padrão para bancos herdados e banco padrão por deck.",
+  "settingsDeckSamplerPlayMode": "Modo de reprodução do sampler",
+  "settingsDeckSamplerPlayOneshot": "Oneshot",
+  "settingsDeckSamplerPlayHold": "Hold",
+  "settingsDeckSamplerPlayLoop": "Loop",
+  "settingsDeckSamplerStripRoute": "Rota do sampler no strip",
+  "settingsDeckSamplerStripBefore": "Antes do channel strip",
+  "settingsDeckSamplerStripAfter": "Depois do channel strip",
+  "settingsDeckDefaultSamplerBankA": "Banco padrão do sampler no deck A",
+  "settingsDeckDefaultSamplerBankB": "Banco padrão do sampler no deck B",
+  "settingsLibraryDescription": "Importação de faixas, análise offline e exibição da lista.",
+  "settingsLibraryAnalysisQuality": "Qualidade da análise",
+  "settingsLibraryAnalysisFast": "Rápida",
+  "settingsLibraryAnalysisFastSubtitle": "Analisa um trecho curto para varreduras rápidas da biblioteca.",
+  "settingsLibraryAnalysisPrecise": "Precisa",
+  "settingsLibraryAnalysisPreciseSubtitle": "Análise equilibrada para a maioria das bibliotecas.",
+  "settingsLibraryAnalysisComplete": "Completa",
+  "settingsLibraryAnalysisCompleteSubtitle": "Analisa a faixa inteira (mais lenta e precisa).",
+  "settingsLibraryMusicalKeyTitle": "Tom musical",
+  "settingsLibraryMusicalKeyDescription": "Como os tons são rotulados e coloridos no deck e na tabela da biblioteca.",
+  "settingsLibraryKeyDisplayMode": "Modo de exibição do tom",
+  "settingsLibraryKeyDisplayMusical": "Musical",
+  "settingsLibraryKeyDisplayMusicalSubtitle": "Nomes das notas no chip do deck e na coluna de tom — ex.: C, Am, F#m.",
+  "settingsLibraryKeyDisplayCamelot": "Camelot",
+  "settingsLibraryKeyDisplayCamelotSubtitle": "Códigos Mixed In Key — ex.: 8B (Dó maior), 8A (Lá menor), 11B.",
+  "settingsLibraryKeyColorMode": "Modo de cor do tom",
+  "settingsLibraryKeyColorOff": "Desligado",
+  "settingsLibraryKeyColorOffSubtitle": "Rótulos de tom usam a cor de texto padrão em todo lugar.",
+  "settingsLibraryKeyColorAbsolute": "Absoluto (círculo das quintas)",
+  "settingsLibraryKeyColorAbsoluteSubtitle": "Cor fixa por tom na roda — maiores vivos, menores suaves (ex.: 8B forte, 8A mais suave).",
+  "settingsLibraryKeyColorHarmonic": "Harmônico (deck em reprodução)",
+  "settingsLibraryKeyColorHarmonicSubtitle": "Verde/amarelo em relação ao deck tocando — ex.: com 2A tocando, 1A/2A/3A/2B verdes, 1B/3B amarelos.",
+  "settingsLibraryStemFormat": "Formato de stems",
+  "settingsLibraryStemOpus": "Opus (160 kbps)",
+  "settingsLibraryStemFlac": "FLAC (sem perda)",
+  "settingsLibraryDimPlayedTracks": "Escurecer faixas já tocadas",
+  "settingsLibraryTrackRowLayout": "Layout das linhas de faixa",
+  "settingsLibraryRowCompact": "Compacto",
+  "settingsLibraryRowCompactSubtitle": "Uma linha densa por faixa — cabe mais linhas na tela.",
+  "settingsLibraryRowComfortable": "Confortável",
+  "settingsLibraryRowComfortableSubtitle": "Duas linhas por faixa: título acima de artista, BPM, tom e duração.",
+  "settingsSessionDescription": "Histórico de performance e limites de sessão.",
+  "settingsSessionHistoryTitle": "Histórico de performance",
+  "settingsSessionHistoryDescription": "Registra a reprodução dos decks em arquivos XSPF no suporte do app.",
+  "settingsSessionRecordHistory": "Registrar histórico de performance",
+  "settingsSessionIdleTimeout": "Tempo ocioso da sessão",
+  "settingsSessionIdleTimeoutHint": "Fecha após esse tempo sem saída qualificada do deck.",
+  "settingsSessionMinPlayDuration": "Duração mínima de reprodução",
+  "settingsSessionMinPlayDurationHint": "Confirma entradas após essa quantidade de reprodução qualificada.",
+  "settingsSessionMinutes": "minutos",
+  "settingsSessionSeconds": "segundos",
+  "settingsSessionMinDeckVolume": "Volume mínimo efetivo do deck",
+  "settingsSessionPercentSemantics": "{percent} por cento",
+  "@settingsSessionPercentSemantics": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsStorageDescription": "Uso de disco dos caches do Mixar e metadados da biblioteca no suporte do app.",
+  "settingsStorageMixarStorage": "Armazenamento do Mixar",
+  "settingsStorageUsed": "{size} usados",
+  "@settingsStorageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsStorageStemCache": "Cache de stems",
+  "settingsStorageStemModel": "Modelo de stems",
+  "settingsStorageWaveform": "Forma de onda",
+  "settingsStorageTrackMetadata": "Metadados das faixas",
+  "settingsStorageSyncStemTitle": "Sincronizar cache de stems?",
+  "settingsStorageSyncStemBody": "Remove arquivos de stem que não estão no banco da biblioteca e apaga linhas do banco cujos arquivos faltam. Arquivos de cache referenciados e o áudio original são mantidos.",
+  "settingsStorageSyncFailed": "Falha na sincronização",
+  "settingsStorageClearFailed": "Falha ao limpar",
+  "settingsStorageClearStemTitle": "Limpar cache de stems?",
+  "settingsStorageClearStemBody": "Apaga arquivos de stem gerados de todas as faixas. O áudio original da biblioteca não é alterado.",
+  "settingsStorageClearStemOk": "Cache de stems limpo",
+  "settingsStorageClearModelTitle": "Limpar cache de modelos de stem?",
+  "settingsStorageClearModelBody": "Apaga modelos de separação de stems baixados. Eles serão baixados de novo quando necessário.",
+  "settingsStorageClearModelOk": "Modelo de stems limpo",
+  "settingsStorageClearWaveformTitle": "Limpar cache de formas de onda?",
+  "settingsStorageClearWaveformBody": "Apaga overviews de forma de onda em cache. Eles são regenerados ao abrir uma faixa.",
+  "settingsStorageClearWaveformOk": "Cache de formas de onda limpo",
+  "settingsControllersDescription": "Mapeamentos MIDI e hardware conectado. Confie em um dispositivo para ativá-lo automaticamente ao conectar depois de Salvar.",
+  "settingsControllersMappingsTitle": "Mapeamentos",
+  "settingsControllersMappingsDescription": "Armazenados nos dados do app. A semente copia mapas empacotados quando faltam; Atualizar sobrescreve a partir do pacote do app.",
+  "settingsControllersUpdateAll": "Atualizar todos",
+  "settingsControllersNoMappings": "Ainda não há mapeamentos nos dados do app.",
+  "settingsControllersMidiPortsTitle": "Portas MIDI",
+  "settingsControllersMidiPortsDescription": "Entradas e saídas MIDI detectadas e o mapeamento correspondente a cada uma.",
+  "settingsControllersNoMidiPorts": "Nenhuma porta MIDI detectada.",
+  "settingsControllersNoMapping": "Sem mapeamento",
+  "settingsControllersMappingArrow": "→ {mapping}",
+  "@settingsControllersMappingArrow": {
+    "placeholders": {
+      "mapping": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsControllersDirectionIn": "IN",
+  "settingsControllersDirectionOut": "OUT",
+  "settingsControllersAttached": "Anexado",
+  "settingsControllersUpdateAvailable": "Atualização disponível",
+  "settingsControllersTrust": "Confiar",
+  "settingsControllersAttach": "Anexar",
+  "settingsControllersTrustSemantics": "Confiar no dispositivo {name}",
+  "@settingsControllersTrustSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsControllersEnableSemantics": "Ativar {name}",
+  "@settingsControllersEnableSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mixxxImportTitle": "Importar do Mixxx",
+  "mixxxImportDescription": "Traga faixas, playlists e crates da sua biblioteca Mixxx para o Mixar.",
+  "mixxxImportFound": "Encontrado: {path}",
+  "@mixxxImportFound": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "mixxxImportCheckFailed": "Não foi possível verificar uma biblioteca Mixxx.",
+  "mixxxImportLooking": "Procurando uma biblioteca Mixxx…",
+  "mixxxImportNotFound": "Nenhuma biblioteca Mixxx encontrada neste computador.",
+  "mixxxImportButton": "Importar da biblioteca Mixxx…",
+  "mixxxImporting": "Importando…",
+  "mixxxImportConfirmTitle": "Importar do Mixxx?",
+  "mixxxImportConfirmBody": "Isso importa faixas, playlists, crates e pastas observadas de:\n{path}\n\n{trackCount} faixas ({missingFileCount} ausentes), {playlistCount} playlists, {crateCount} crates, {folderCount} pastas.\n\nArquivos ausentes são importados como faixas indisponíveis.",
+  "@mixxxImportConfirmBody": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      },
+      "trackCount": {
+        "type": "int"
+      },
+      "missingFileCount": {
+        "type": "int"
+      },
+      "playlistCount": {
+        "type": "int"
+      },
+      "crateCount": {
+        "type": "int"
+      },
+      "folderCount": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxImportReadFailed": "Não foi possível ler a biblioteca Mixxx",
+  "mixxxImportFailed": "Falha na importação do Mixxx",
+  "mixxxImportFinishedWithErrors": "Importação do Mixxx terminou com {count} erro(s)",
+  "@mixxxImportFinishedWithErrors": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxImportAlreadyImported": "Biblioteca Mixxx já importada",
+  "mixxxImportNothing": "Nada para importar do Mixxx",
+  "mixxxImportUpdated": "Atualizado {updated} do Mixxx{missing}",
+  "@mixxxImportUpdated": {
+    "placeholders": {
+      "updated": {
+        "type": "String"
+      },
+      "missing": {
+        "type": "String"
+      }
+    }
+  },
+  "mixxxImportImported": "Importado {parts} do Mixxx{missing}",
+  "@mixxxImportImported": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      },
+      "missing": {
+        "type": "String"
+      }
+    }
+  },
+  "mixxxImportMissingSuffix": " ({count} ausentes)",
+  "@mixxxImportMissingSuffix": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountTracks": "{count, plural, =1{1 faixa} other{{count} faixas}}",
+  "@mixxxCountTracks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountPlaylists": "{count, plural, =1{1 playlist} other{{count} playlists}}",
+  "@mixxxCountPlaylists": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountCrates": "{count, plural, =1{1 crate} other{{count} crates}}",
+  "@mixxxCountCrates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountFolders": "{count, plural, =1{1 pasta} other{{count} pastas}}",
+  "@mixxxCountFolders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mixxxCountUpdated": "{count} atualizadas",
+  "@mixxxCountUpdated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsStorageStemAlreadyInSync": "Cache de stems já sincronizado",
+  "settingsStorageRemovedOrphans": "{count, plural, =1{Removido 1 arquivo de stem órfão} other{Removidos {count} arquivos de stem órfãos}}",
+  "@settingsStorageRemovedOrphans": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
