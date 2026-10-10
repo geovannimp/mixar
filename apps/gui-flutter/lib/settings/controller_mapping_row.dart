@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/library/library_list_chrome.dart'
     show MetaPill, kMetaPillGap;
 import 'package:gui_flutter/shell/app_button.dart';
@@ -34,6 +35,7 @@ class ControllerMappingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final name = [
       mapping.vendorName,
       mapping.productName,
@@ -57,7 +59,7 @@ class ControllerMappingRow extends StatelessWidget {
       if (version != null) chip('v$version'),
       if (attached)
         chip(
-          'Attached',
+          l10n.settingsControllersAttached,
           textColor: theme.colors.primary,
           fontWeight: FontWeight.w600,
         ),
@@ -89,7 +91,7 @@ class ControllerMappingRow extends StatelessWidget {
       children: [
         if (mapping.updateAvailable)
           Text(
-            'Update available',
+            l10n.settingsControllersUpdateAvailable,
             style: theme.typography.body.xs.copyWith(
               color: theme.colors.primary,
               fontWeight: FontWeight.w600,
@@ -100,20 +102,20 @@ class ControllerMappingRow extends StatelessWidget {
           size: .sm,
           mainAxisSize: .min,
           onPress: attachBusy ? null : onUpdate,
-          child: const Text('Update'),
+          child: Text(l10n.commonUpdate),
         ),
         _ToggleButton(
-          label: 'Trust',
+          label: l10n.settingsControllersTrust,
           on: trusted,
           enabled: !trustBusy,
-          semanticsLabel: 'Trust device $name',
+          semanticsLabel: l10n.settingsControllersTrustSemantics(name),
           onPress: () => onToggleTrust(!trusted),
         ),
         _ToggleButton(
-          label: 'Attach',
+          label: l10n.settingsControllersAttach,
           on: attached,
           enabled: !attachBusy,
-          semanticsLabel: 'Enable $name',
+          semanticsLabel: l10n.settingsControllersEnableSemantics(name),
           onPress: () => onToggleAttach(!attached),
         ),
       ],

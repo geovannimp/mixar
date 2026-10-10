@@ -52,6 +52,9 @@ dependencies:
   shadcn_ui: ^0.57.0
   riverpod: ^3.4.3
   equatable: ^3.0.0
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -66,6 +69,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/controller_mapping_row.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
@@ -63,6 +64,7 @@ class _SettingsControllersPanelState
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final mappings = ref.watch(controllerMappingsProvider);
     final devices = ref.watch(controllerDevicesProvider);
     final attachedIds = ref.watch(attachedMappingIdsProvider);
@@ -71,9 +73,9 @@ class _SettingsControllersPanelState
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 16,
       children: [
-        const SettingsSectionHeader(
-          title: 'Controllers',
-          description: 'MIDI mappings and connected hardware. Trust a device to auto-enable it on connect after Save.',
+        SettingsSectionHeader(
+          title: l10n.settingsSectionControllers,
+          description: l10n.settingsControllersDescription,
         ),
         SettingsPanel(
           child: Column(
@@ -84,10 +86,10 @@ class _SettingsControllersPanelState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 12,
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: SettingsSectionHeader(
-                      title: 'Mappings',
-                      description: 'Stored in app data. Seed copies shipped maps when missing; Update overwrites from the app bundle.',
+                      title: l10n.settingsControllersMappingsTitle,
+                      description: l10n.settingsControllersMappingsDescription,
                     ),
                   ),
                   AppButton(
@@ -102,7 +104,7 @@ class _SettingsControllersPanelState
                               ref.invalidate(controllerMappingsProvider);
                             }
                           }),
-                    child: const Text('Update All'),
+                    child: Text(l10n.settingsControllersUpdateAll),
                   ),
                 ],
               ),
@@ -110,7 +112,7 @@ class _SettingsControllersPanelState
                 data: (rows) {
                   if (rows.isEmpty) {
                     return Text(
-                      'No mappings in app data yet.',
+                      l10n.settingsControllersNoMappings,
                       style: theme.typography.body.sm.copyWith(
                         color: theme.colors.mutedForeground,
                       ),
@@ -156,7 +158,7 @@ class _SettingsControllersPanelState
                   );
                 },
                 loading: () => Text(
-                  'Loading…',
+                  l10n.commonLoading,
                   style: theme.typography.body.sm.copyWith(
                     color: theme.colors.mutedForeground,
                   ),
@@ -176,15 +178,15 @@ class _SettingsControllersPanelState
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 12,
             children: [
-              const SettingsSectionHeader(
-                title: 'MIDI ports',
-                description: 'Detected MIDI inputs and outputs, and the mapping each one matches.',
+              SettingsSectionHeader(
+                title: l10n.settingsControllersMidiPortsTitle,
+                description: l10n.settingsControllersMidiPortsDescription,
               ),
               devices.when(
                 data: (rows) {
                   if (rows.isEmpty) {
                     return Text(
-                      'No MIDI ports detected.',
+                      l10n.settingsControllersNoMidiPorts,
                       style: theme.typography.body.sm.copyWith(
                         color: theme.colors.mutedForeground,
                       ),
@@ -204,7 +206,7 @@ class _SettingsControllersPanelState
                   );
                 },
                 loading: () => Text(
-                  'Loading…',
+                  l10n.commonLoading,
                   style: theme.typography.body.sm.copyWith(
                     color: theme.colors.mutedForeground,
                   ),
@@ -233,6 +235,7 @@ class _MidiPortRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final mapping = device.matchedMappingId;
     return Row(
       spacing: 10,
@@ -251,7 +254,9 @@ class _MidiPortRow extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 180),
           child: Text(
-            mapping == null ? 'No mapping' : '→ $mapping',
+            mapping == null
+                ? l10n.settingsControllersNoMapping
+                : l10n.settingsControllersMappingArrow(mapping),
             textAlign: TextAlign.right,
             style: theme.typography.body.xs.copyWith(
               color: mapping == null
@@ -276,6 +281,7 @@ class _DirectionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
     final input = direction == ControllerDeviceDirection.input;
     final color = input ? theme.colors.primary : theme.colors.accent;
     return DecoratedBox(
@@ -289,7 +295,9 @@ class _DirectionBadge extends StatelessWidget {
         height: 20,
         child: Center(
           child: Text(
-            input ? 'IN' : 'OUT',
+            input
+                ? l10n.settingsControllersDirectionIn
+                : l10n.settingsControllersDirectionOut,
             style: theme.typography.body.xs.copyWith(
               color: color,
               fontWeight: FontWeight.w700,
