@@ -327,6 +327,24 @@ abstract class AppLocalizations {
   /// **'Resampler quality'**
   String get settingsAudioResamplerQuality;
 
+  /// No description provided for @settingsAudioResamplerLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get settingsAudioResamplerLow;
+
+  /// No description provided for @settingsAudioResamplerMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get settingsAudioResamplerMedium;
+
+  /// No description provided for @settingsAudioResamplerHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get settingsAudioResamplerHigh;
+
   /// No description provided for @settingsAudioBufferSize.
   ///
   /// In en, this message translates to:

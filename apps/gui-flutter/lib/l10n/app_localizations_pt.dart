@@ -128,6 +128,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioResamplerQuality => 'Qualidade do resampler';
 
   @override
+  String get settingsAudioResamplerLow => 'Baixa';
+
+  @override
+  String get settingsAudioResamplerMedium => 'Média';
+
+  @override
+  String get settingsAudioResamplerHigh => 'Alta';
+
+  @override
   String get settingsAudioBufferSize => 'Tamanho do buffer';
 
   @override
@@ -143,7 +152,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioMasterBus => 'Barramento master';
 
   @override
-  String get settingsAudioPreviewBus => 'Barramento de preview (fones / cue)';
+  String get settingsAudioPreviewBus => 'Escuta (fones / cue)';
 
   @override
   String get settingsAudioDevice => 'Dispositivo';
@@ -152,7 +161,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioChannelMode => 'Modo de canal';
 
   @override
-  String get settingsAudioStereoPair => 'Par estéreo';
+  String get settingsAudioStereoPair => 'Par stereo';
 
   @override
   String get settingsAudioMonoFold => 'Mono (somar L+R)';
@@ -818,6 +827,15 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String get settingsAudioResamplerQuality => 'Qualidade do resampler';
 
   @override
+  String get settingsAudioResamplerLow => 'Baixa';
+
+  @override
+  String get settingsAudioResamplerMedium => 'Média';
+
+  @override
+  String get settingsAudioResamplerHigh => 'Alta';
+
+  @override
   String get settingsAudioBufferSize => 'Tamanho do buffer';
 
   @override
@@ -833,7 +851,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String get settingsAudioMasterBus => 'Barramento master';
 
   @override
-  String get settingsAudioPreviewBus => 'Barramento de preview (fones / cue)';
+  String get settingsAudioPreviewBus => 'Escuta (fones / cue)';
 
   @override
   String get settingsAudioDevice => 'Dispositivo';
@@ -842,7 +860,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String get settingsAudioChannelMode => 'Modo de canal';
 
   @override
-  String get settingsAudioStereoPair => 'Par estéreo';
+  String get settingsAudioStereoPair => 'Par stereo';
 
   @override
   String get settingsAudioMonoFold => 'Mono (somar L+R)';

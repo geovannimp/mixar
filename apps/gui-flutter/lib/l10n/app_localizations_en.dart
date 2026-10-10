@@ -127,6 +127,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAudioResamplerQuality => 'Resampler quality';
 
   @override
+  String get settingsAudioResamplerLow => 'Low';
+
+  @override
+  String get settingsAudioResamplerMedium => 'Medium';
+
+  @override
+  String get settingsAudioResamplerHigh => 'High';
+
+  @override
   String get settingsAudioBufferSize => 'Buffer size';
 
   @override

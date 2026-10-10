@@ -95,7 +95,11 @@ class SettingsAudioPanel extends ConsumerWidget {
                   dialogTitle: 'Resampler quality',
                   value: draft.resamplerQuality,
                   options: _resamplerQualities,
-                  labelBuilder: (v) => v,
+                  labelBuilder: (v) => switch (v) {
+                    'low' => l10n.settingsAudioResamplerLow,
+                    'high' => l10n.settingsAudioResamplerHigh,
+                    _ => l10n.settingsAudioResamplerMedium,
+                  },
                   onChanged: (q) =>
                       onChanged(copyAppSettings(draft, resamplerQuality: q)),
                 ),
