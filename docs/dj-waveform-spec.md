@@ -2,7 +2,7 @@
 
 Reference: main engine spec [`tech-spec.md`](tech-spec.md), analyzer spec [`audio-analyzer-spec.md`](audio-analyzer-spec.md).
 
-This document synthesizes how professional DJ applications build, store, and render waveforms, with **Mixxx** as the primary open-source reference (GPLv2, source-verifiable). Closed-source products (Rekordbox, Serato, Traktor) are described where public documentation and community reverse-engineering exist.
+Mixar waveform architecture, storage, and rendering decisions. Industry research (peak vs RMS audits, Mixxx internals, closed-source product notes) lives outside the repository.
 
 ---
 
@@ -10,11 +10,7 @@ This document synthesizes how professional DJ applications build, store, and ren
 
 - [1 — Summary](#1--summary)
 - [2 — What DJ Waveforms Are For](#2--what-dj-waveforms-are-for)
-- [3 — Peak vs RMS (Correcting a Common Assumption)](#3--peak-vs-rms-correcting-a-common-assumption)
-- [4 — Industry Comparison](#4--industry-comparison)
-- [5 — Mixxx Reference Implementation](#5--mixxx-reference-implementation)
-- [6 — Closed-Source Products (Rekordbox, Serato)](#6--closed-source-products-rekordbox-serato)
-- [7 — EQ and Waveform Display](#7--eq-and-waveform-display)
+- [3 — Mixar amplitude & EQ policy](#3--mixar-amplitude--eq-policy)
 - [8 — Rendering Architecture](#8--rendering-architecture)
   - [8.4 Progressive resolution](#84-progressive-resolution-agreed-design)
   - [8.5 Peak buffers + Flutter paint](#85-peak-buffers-rust--host-paint-flutter-decided)
@@ -33,13 +29,13 @@ This document synthesizes how professional DJ applications build, store, and ren
 
 ## 1 — Summary
 
-| Topic | Finding |
-|-------|---------|
-| **RMS everywhere?** | **No.** The best-documented open-source DJ app (Mixxx) defaults to **peak (max absolute amplitude)** per visual sample. RMS was a long-standing TODO and became an **optional** analysis mode in 2025 ([mixxx#14325](https://github.com/mixxxdj/mixxx/pull/14325)). |
-| **Spectral color** | Nearly universal: offline 3-band split (low / mid / high) drives color. Crossovers and filter types vary. |
+| Topic | Mixar choice |
+|-------|--------------|
+| **Amplitude metric** | **Peak** (`max(abs(sample))`) per visual bucket / band |
+| **Spectral color** | Offline 3-band split (low / mid / high) drives RGB-style color |
 | **Scrolling view** | Fixed center playhead; waveform data scrolls horizontally. Zoom defines seconds visible. |
 | **Two resolutions** | Detailed waveform for scrolling + low-res **overview** for full-track navigation. |
-| **EQ affects display?** | **MVP:** static. **Future:** Mixxx-style band gains at render time (§8.6). |
+| **EQ affects display?** | **MVP:** static. **Future:** optional band gains at render time (§8.6). |
 | **When computed** | Overview at library import; scroll **window** detail at deck load / seek (background). |
 | **Mixar storage** | **Overview only** in `library.db` (`track_waveform` table); hi-res window in memory; progressive UI (§8.4). |
 
@@ -60,192 +56,11 @@ They are **not** intended to reflect post-EQ or post-filter audio with perfect a
 
 ---
 
-## 3 — Peak vs RMS (Correcting a Common Assumption)
+## 3 — Mixar amplitude & EQ policy
 
-### 3.1 Definitions
-
-| Method | Per-bucket computation | Visual character |
-|--------|------------------------|------------------|
-| **Peak** | `max(abs(sample))` over the bucket (per band) | Sharp transients; kicks and snares pop; more “spiky”. |
-| **RMS** | `sqrt(mean(sample²))` over the bucket (per band) | Smoother envelope; closer to perceived **energy**; sections easier to read. |
-| **Average of peaks** | Mean of peak values from finer strides aggregated into a coarser bucket | Smoother than peak, but **not** true RMS. |
-
-### 3.2 What Mixxx actually does (verified in source)
-
-**File:** `src/analyzer/analyzerwaveform.cpp`
-
-1. **Main (scrolling) waveform** — **peak sampling**:
-   - For each audio sample, band-split signal is passed through Bessel IIR filters.
-   - `storeIfGreater()` keeps the **maximum** `abs()` value seen within each visual stride.
-   - Comment in source explicitly says: *“Take max value, not average of data”*.
-   - Commented-out code shows an abandoned experiment with `sample²` accumulation (RMS-like).
-
-2. **Overview / summary waveform** — **average of peak strides**:
-   - `WaveformStride::averageStore()` divides accumulated peak strides by a divisor.
-   - This is **not** RMS; it is the mean of per-stride peak values over a longer window.
-
-3. **RMS mode (2025+)** — optional:
-   - [PR #14325](https://github.com/mixxxdj/mixxx/pull/14325) adds user-selectable RMS analysis.
-   - Protobuf schema already had a field for it; implementation was missing for ~13 years.
-   - Maintainer notes: RMS helps electronic music **section identification** in overview; some users prefer peak for spotting features.
-   - Regenerates waveform data when the preference changes.
-
-### 3.3 Practical takeaway
-
-- **Peak is the historical DJ default** in the only open codebase we can audit.
-- **RMS is a desirable option**, especially for overviews and long-track structure, but it is **not** universal.
-- Claiming “all DJ software uses RMS” is **not supported** by available evidence; many visuals behave like peak or peak-averaged data.
-
----
-
-## 4 — Industry Comparison
-
-| Product | Analysis | Amplitude metric | Color modes | EQ → display |
-|---------|----------|------------------|-------------|--------------|
-| **Mixxx** | Offline at import | Peak (default); RMS optional | Simple, Filtered, RGB, RGB L/R, HSV, Stem | Optional real-time band gain |
-| **Rekordbox** | Offline (`rekordbox` analysis) | Not public; behaves like peak/RGB | Blue (amplitude), RGB, 3-Band | Static (no knob feedback) |
-| **Serato** | Offline | Not public | Frequency-colored (low → red) | Static |
-| **Traktor** | Offline | Not public | Blue/orange or RGB depending on version | Static |
-| **Mixar** | JIT on deck load | Peak (max abs) | RGB-style spectral | Not implemented |
-
----
-
-## 5 — Mixxx Reference Implementation
-
-### 5.1 Analysis pipeline
-
-```text
-Audio file (import)
-    → decode to stereo float
-    → 3× Bessel 4th-order IIR band filters (per channel)
-         Low:  below 600 Hz
-         Mid:  600 Hz – 4000 Hz
-         High: above 4000 Hz
-    → for each visual stride:
-         peak_L_band = max(abs(filtered_L)) across stride
-         peak_R_band = max(abs(filtered_R)) across stride
-    → quantize to uint8 (0–255) per band per channel
-    → persist to library DB (AnalysisDAO)
-```
-
-**Visual sample rate:** `441` visual samples per second of audio (`mainWaveformSampleRate` constant).  
-At 44.1 kHz audio, each visual sample spans ~100 audio samples.
-
-**Overview resolution:** `2 × 1920` visual samples (~3840 points), sized for a full-width HD overview.
-
-### 5.2 Stored data shape
-
-**File:** `src/waveform/waveform.h`
-
-```cpp
-struct WaveformFilteredData {
-    unsigned char low;
-    unsigned char mid;
-    unsigned char high;
-    unsigned char all;   // full-band peak
-};
-
-struct WaveformData {
-    WaveformFilteredData filtered;
-    unsigned char stems[kMaxSupportedStems];
-};
-```
-
-- **Per visual sample:** L and R each store 4 amplitudes (all, low, mid, high).
-- **8-bit** values; normalized at analysis time with `× 255` scaling.
-
-### 5.3 Waveform display types
-
-Documented in [mixxx/manual#603](https://github.com/mixxxdj/manual/issues/603):
-
-| Type | Behavior |
-|------|----------|
-| **Simple** | Monochrome full-band amplitude. |
-| **Filtered** | Separate colored layers per band (low bottom, high top). |
-| **RGB** | Bar height from full signal; color from weighted low/mid/high amplitudes. |
-| **RGB L/R** | RGB computed independently per channel. |
-| **HSV** | Low → brightness, high → saturation; hue fixed. |
-| **Stem** | Per-stem layers when stem files are loaded. |
-
-Since Mixxx 2.4, scrolling renderers use **GLSL shaders** at 60 fps ([Mixxx blog 2024](https://mixxx.org/news/2024-02-23-improved-waveforms/)).
-
-### 5.4 Scrolling view mechanics
-
-- **Playhead** fixed at horizontal center.
-- Renderer maps pixel columns to a range of visual frames using `firstDisplayedPosition` / `lastDisplayedPosition`.
-- **Zoom** changes seconds-per-pixel (visual increment per pixel).
-- Layers drawn on top: beat grid, loops, cues, intro/outro, end-of-track.
-- **VSync / PLL** optional for phase-locked smooth scrolling.
-
----
-
-## 6 — Closed-Source Products (Rekordbox, Serato)
-
-Public docs and DJ community sources (not source code):
-
-### Rekordbox
-
-- **Blue mode** — classic amplitude waveform (peaks/valleys, loud vs quiet).
-- **RGB mode** — red ≈ lows, yellow/green ≈ mids, blue ≈ highs ([Hot Cue DJ overview](https://reallychrism.substack.com/p/the-secret-language-of-waveforms)).
-- **3-Band mode** — separate frequency components (CDJ-3000); lows blue, mids amber, highs white.
-- Analysis runs in Rekordbox on import; CDJs read precomputed data from USB/network.
-- [Schematic Sound](https://schematicsound.com/2025/06/20/dj-waveform-colours/) notes Rekordbox may **normalize color balance** so structure remains visible on bass-heavy tracks — colors are a **guide**, not a spectrum analyzer.
-
-### Serato
-
-- [Serato support docs](https://support.serato.com/hc/en-us/articles/360001462076): main waveform is a **centered snapshot**; colors reflect **dominant frequencies** (red = low, lighter = high).
-- Separate **overview** strip for full-track navigation.
-- Cues shown as colored flags; zoom via +/- or scroll wheel.
-
-### What we cannot verify without reverse engineering
-
-- Exact filter topology and crossover frequencies.
-- Whether scrolling data uses peak, RMS, or hybrid.
-- Internal bit depth and downsampling strategy.
-
----
-
-## 7 — EQ and Waveform Display
-
-This is the most implementation-specific topic and **differs by product**.
-
-### 7.1 Mixxx — EQ **does** affect the waveform (selectively)
-
-**Files:** `src/waveform/renderers/waveformrenderersignalbase.cpp`, `waveformrendererfilteredsignal.cpp`, `waveformrendererrgb.cpp`
-
-Mechanism:
-
-1. Offline analysis produces **fixed** low/mid/high amplitudes per visual sample (using analysis filters at 600 Hz / 4000 Hz).
-2. At **render time**, `getGains()` reads deck EQ knob values from control objects:
-   - `[EqualizerRack1_DeckN_Effect1] parameter1/2/3` → low/mid/high **visual gain multipliers**.
-   - Kill buttons zero a band’s layer.
-3. Gated by `[Channel] filterWaveformEnable` — can be turned off.
-4. [Issue #14901](https://github.com/mixxxdj/mixxx/issues/14901) / [PR #14998](https://github.com/mixxxdj/mixxx/pull/14998): users requested **disable EQ influence** because cutting lows makes drops hard to see; preference added.
-
-Important nuances (from Mixxx developers):
-
-- Visualization EQ is a **1:1 mapping** to the three **analysis bands**, not a re-run of the audio EQ’s biquad/shelf curves.
-- Changing audio EQ crossover in preferences does **not** change analysis bands — they can mismatch.
-- **Filter** (quick effect) does **not** affect the waveform — only the 3-band EQ rack.
-- **Simple** waveform type ignores EQ for display.
-
-### 7.2 Rekordbox / Serato — EQ **does not** affect the waveform
-
-Community and Mixxx developer consensus ([mixxx#14901](https://github.com/mixxxdj/mixxx/issues/14901)):
-
-- Colors are from **one-time import analysis**.
-- Turning hardware or software EQ during performance changes **audio**, not the precomputed colors.
-- This makes structural landmarks (drops, breakdowns) stable while mixing.
-
-### 7.3 Design implications
-
-| Approach | Pros | Cons |
-|----------|------|------|
-| **Static analysis (Serato/Rekordbox)** | Stable landmarks; predictable mixing | Display diverges from heard audio after heavy EQ |
-| **EQ-scaled bands (Mixxx RGB)** | Display hints at current tonal balance | Can hide drops/cues when lows are cut; confusing if filter doesn’t affect display |
-| **Hybrid** | Static structure + subtle EQ tint | More complex; needs clear UX |
-
-**MVP:** **Static** waveform (colors from analysis only). **Post-MVP:** Mixxx-style EQ band scaling at **render time** (multiply low/mid/high by deck EQ knob values). Architecture must support this from day one (§8.6) even though MVP does not wire EQ knobs to the renderer.
+- **Peak** is the Mixar amplitude metric for overview and scrolling windows.
+- **MVP waveforms are static** with respect to EQ/filter knobs (colors from analysis only).
+- **Post-MVP:** optional EQ band scaling at **render time** (multiply low/mid/high by deck EQ knob values). Architecture must support this from day one (§8.6) even though MVP does not wire EQ knobs to the renderer.
 
 ---
 
@@ -274,7 +89,7 @@ Community and Mixxx developer consensus ([mixxx#14901](https://github.com/mixxxd
 
 - Entire track in ~2000–4000 samples.
 - Click to seek; shows cue markers.
-- Often uses **coarser** aggregation (Mixxx: average of peak strides).
+- Often uses **coarser** aggregation (e.g. average of peak strides).
 
 ### 8.3 Performance
 
@@ -302,7 +117,7 @@ Library access: `Library::get_track_waveform` / window APIs in Rust; Flutter FRB
 
 ### 8.6 EQ-aware rendering (future — architecture now, wiring later)
 
-Mirror Mixxx `getGains()`: stored peaks are **immutable**; EQ affects **display multipliers only**.
+Stored peaks are **immutable**; EQ affects **display multipliers only**.
 
 ```text
 struct WaveformDisplayGains {
@@ -392,7 +207,7 @@ Waveform data is **large at scale**. A naive “one BLOB per track in the main l
 
 Two common encoding strategies behave very differently:
 
-#### A — Fixed visual rate (Mixxx-style: 441 samples / second of audio)
+#### A — Fixed visual rate (441 samples / second of audio)
 
 Bytes per track ≈ `(duration_ms / 1000) × visual_rate × bytes_per_sample`.
 
@@ -400,7 +215,6 @@ Bytes per track ≈ `(duration_ms / 1000) × visual_rate × bytes_per_sample`.
 |----------|----------------------|-------------|---------------------------|
 | RGB mono (`low,mid,high` uint8) | 3 | **~555 KB** | **~5.3 GB** |
 | RGB stereo (L/R × 3 bands uint8) | 6 | **~1.1 MB** | **~10.5 GB** |
-| Mixxx full (L/R × 4 bands uint8) | 8 | **~1.5 MB** | **~14 GB** |
 | Overview only (3840 samples × 3) | — | **~11 KB** | **~110 MB** |
 
 A single **60 min** mix at 441/s mono RGB is **~4.8 MB** of scroll data alone.
@@ -421,11 +235,6 @@ Long tracks **lose temporal resolution** with a fixed cap (a 60 min track still 
 
 BLOB pages, indexes, and fragmentation add **~10–30%** on top of raw payload. Storing multi-MB blobs inline also increases **VACUUM / backup** cost and keeps the hot library DB on disk longer during analysis writes.
 
-### 9.2 What Mixxx does (reference)
-
-Mixxx stores waveform **analysis blobs in the library database** (via `AnalysisDAO`), at **441 visual samples/sec** with uint8 bands — so size scales with duration. Rendered overview **pixmaps** are cached separately in memory (`OverviewCache` / `QPixmapCache`), not re-read from raw bytes every paint.
-
-Takeaway: even Mixxx separates **persistent analysis bytes** from **cheap display cache**, and accepts per-track size scaling with duration.
 
 ### 9.3 Storage tiers (agreed for Mixar)
 
@@ -545,8 +354,8 @@ Analysis pipeline selects implementation from config / `WaveformAnalysisConfig`.
 | Channel layout | **Config** `mono` \| `stereo` | `channel_mode` column |
 | BLOB | **zstd** compressed | Decompress on read |
 | Filter | Modular trait; one default impl | Butterworth / Bessel selectable in config |
-| Colors | **Rekordbox RGB** | Red low, green mid, blue high |
-| EQ display | Static gains (= 1.0) | Future: Mixxx-style band multipliers (§8.6) |
+| Colors | **RGB spectral** | Red low, green mid, blue high |
+| EQ display | Static gains (= 1.0) | Future: band multipliers (§8.6) |
 
 ### 9.9 Versioning
 
@@ -561,7 +370,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | Aspect | Current implementation |
 |--------|------------------------|
 | Amplitude | **Peak** (`max(abs)`) per bucket per band |
-| Filters | One-pole IIR (~250 Hz / ~4000 Hz) — simpler than Mixxx |
+| Filters | One-pole IIR (~250 Hz / ~4000 Hz) |
 | Bands | low / mid / high `SpectralPeak` |
 | When computed | JIT via library overview / window APIs on deck load |
 | Cache | In-memory per path + bucket count |
@@ -593,13 +402,13 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 ### Phase C — EQ & overlays
 
 1. **MVP:** static waveform; `WaveformDisplayGains` wired to identity (§8.6).
-2. **Post-MVP:** Mixxx-style EQ band scaling at render time (no re-analysis).
+2. **Post-MVP:** EQ band scaling at render time (no re-analysis).
 3. **Beat grid overlay** on scrolling lanes (live, from library beat grid).
 
 ### Phase D — Not recommended for MVP
 
 - Real-time FFT in the render path.
-- Tying filter knob to waveform (inconsistent with Mixxx itself).
+- Tying filter knob to waveform (out of scope for MVP).
 - Claiming colors are mastering-accurate frequency balance.
 
 ---
@@ -613,7 +422,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | D3 | **Progressive UI** | L0 overview → L1 window detail → L2 ahead/behind buffers |
 | D4 | **Database** | Same `library.db`; `track_waveform` table |
 | D5 | **EQ → waveform MVP** | Static (gains = 1.0) |
-| D6 | **EQ → waveform future** | Mixxx-style band multipliers at render time; architecture in §8.6 |
+| D6 | **EQ → waveform future** | Band multipliers at render time; architecture in §8.6 |
 | D7 | **Overview size (O3)** | **Fixed** `OVERVIEW_SAMPLE_COUNT` (config constant; not duration-scaled) |
 | D8 | **Amplitude (O1, O2)** | **Peak** for MVP; `amplitude_mode` + future user pref for RMS |
 | D9 | **Band filters (O4)** | **Modular** trait; Butterworth / Bessel etc. via config |
@@ -627,7 +436,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | D17 | **L1 transition (O12)** | Resolve in prototype (hard swap vs crossfade) |
 | D18 | **L2 (O13)** | **Yes** — analyze ahead and behind playhead |
 | D19 | **Seek (O14)** | **Cancel** in-flight window jobs immediately |
-| D20 | **Colors (O15)** | **Rekordbox RGB** (red / green / blue) |
+| D20 | **Colors (O15)** | **RGB** (red / green / blue) |
 | D21 | **Beat grid (O17)** | **Live overlay** on scrolling lanes |
 | D22 | **Library UI (O18)** | **Decks only** for now |
 | D23 | **Rendering (O19)** | **Confirmed:** Rust library peak buffers; Flutter paints lanes (`CustomPainter`) |
@@ -650,31 +459,6 @@ All product decisions are locked (§12). Remaining items are **engineering choic
 ---
 
 ## 14 — References
-
-### Mixxx (primary open-source reference)
-
-| Resource | URL |
-|----------|-----|
-| Waveform analyzer | https://github.com/mixxxdj/mixxx/blob/main/src/analyzer/analyzerwaveform.cpp |
-| Waveform stride (peak + average store) | https://github.com/mixxxdj/mixxx/blob/main/src/analyzer/analyzerwaveform.h |
-| Waveform data types | https://github.com/mixxxdj/mixxx/blob/main/src/waveform/waveform.h |
-| EQ gain on render | https://github.com/mixxxdj/mixxx/blob/main/src/waveform/renderers/waveformrenderersignalbase.cpp |
-| Filtered renderer + kill | https://github.com/mixxxdj/mixxx/blob/main/src/waveform/renderers/waveformrendererfilteredsignal.cpp |
-| RMS analysis PR | https://github.com/mixxxdj/mixxx/pull/14325 |
-| Disable EQ on waveform PR | https://github.com/mixxxdj/mixxx/pull/14998 |
-| EQ waveform issue | https://github.com/mixxxdj/mixxx/issues/14901 |
-| Waveform types explanation | https://github.com/mixxxdj/manual/issues/603 |
-| Scrolling waveform 2.4 blog | https://mixxx.org/news/2024-02-23-improved-waveforms/ |
-
-### Closed-source / community
-
-| Resource | URL |
-|----------|-----|
-| Serato deck waveform area | https://support.serato.com/hc/en-us/articles/360001462076 |
-| Rekordbox waveform modes (community) | https://reallychrism.substack.com/p/the-secret-language-of-waveforms |
-| Rekordbox color accuracy (community) | https://schematicsound.com/2025/06/20/dj-waveform-colours/ |
-
-### This repo
 
 | Resource | Path |
 |----------|------|

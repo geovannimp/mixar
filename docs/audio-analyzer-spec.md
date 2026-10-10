@@ -1,6 +1,6 @@
 # Tech Spec — Audio Analyzer Crate
 
-Reference: main engine spec [`tech-spec.md`](tech-spec.md) §3, §10. Related crates: `codec`, `library`, `engine-dsp`.
+Reference: workspace layout [`DEVELOPER.md`](../DEVELOPER.md#high-level-architecture); library model [`tech-spec.md`](tech-spec.md) §5. Related crates: `codec`, `library`, `engine-dsp`.
 
 ## Table of Contents
 
@@ -8,7 +8,7 @@ Reference: main engine spec [`tech-spec.md`](tech-spec.md) §3, §10. Related cr
 - [2 — Objectives](#2--objectives)
 - [3 — Non-goals](#3--non-goals)
 - [4 — Relationship to Existing Code](#4--relationship-to-existing-code)
-- [5 — Backend Evaluation](#5--backend-evaluation)
+- [5 — Backend](#5--backend)
 - [6 — Architecture](#6--architecture)
 - [7 — Analysis Pipeline](#7--analysis-pipeline)
 - [8 — Core Types & API](#8--core-types--api)
@@ -29,7 +29,7 @@ Reference: main engine spec [`tech-spec.md`](tech-spec.md) §3, §10. Related cr
 - **Primary consumer:** `library` (`WritableLibrary::analyze_track`, folder sync, batch re-analysis).
 - **License compatibility:** Project is GPLv3; preferred backends must allow linking (MIT/Apache-2.0 OK).
 
-Analysis answers: *“What tempo, key, and beat positions does this track have?”* — the same problem space as Mixed In Key, Rekordbox analysis, and Serato auto-BPM.
+Analysis answers: *“What tempo, key, and beat positions does this track have?”*
 
 ---
 
@@ -94,84 +94,13 @@ Import / analyze_track
 
 ---
 
-## 5 — Backend Evaluation
+## 5 — Backend Evaluat## 5 — Backend
 
-> **Update (implementation):** the shipped backend is the **pure-Rust qm-dsp
-> port** (`analyzer-qmdsp`: complex-domain onset + `TempoTrackV2` for beats,
-> `GetKeyMode` for key). The legacy `analyzer-stratum`, `analyzer-rosa`,
-> `analyzer-beatthis`, the C++ `analyzer-qmdsp-ffi` oracle, and the
-> `analyzer-probe` comparator were removed. The evaluation below is retained for
-> history.
-
-### 5.1 Recommended primary: [stratum-dsp](https://docs.rs/stratum-dsp/latest/stratum_dsp/) 1.x
-
-Pure Rust, DJ-oriented, zero FFI in default build. MIT OR Apache-2.0.
-
-| Capability | Support | Notes |
-|------------|---------|-------|
-| BPM + confidence | Yes | Dual tempogram (FFT + autocorrelation), comb filterbank |
-| Key (musical) | Yes | Krumhansl–Kessler chroma templates; map stratum `Key` → musical string for library |
-| Key (Camelot, internal) | Yes | Backend-only; not persisted in library |
-| Beat grid | Yes | `BeatGrid { beats, bars, downbeats }` in seconds |
-| Tempo drift | Yes | HMM beat tracking with drift correction |
-| Grid stability metric | Yes | `grid_stability` on result |
-| Serde results | Yes | `AnalysisResult` serializable |
-| Documented DJ benchmark | Yes | ~87.7% within ±2 BPM, ~72.1% key exact match on 155 Beatport/ZipDJ tracks ([crate README](https://crates.io/crates/stratum-dsp)) |
-| Optional ML (ONNX) | Phase 2 feature | `ort` optional dependency |
-
-**Gaps vs ideal DJ stack:**
-
-- BPM accuracy below commercial Mixed In Key on vendor benchmarks (~98% ±2 BPM MIK vs ~88% stratum-dsp) — acceptable for MVP; ML feature may close gap.
-- No standalone **energy/loudness curve** or **phrase/section** labels (intro/drop) — not required for beat sync MVP.
-- **symphonia** dependency overlap with our `codec` crate — we decode once in `analyzer` and pass samples to avoid double policy drift.
-- Analysis expects **mono `f32`**, normalized; stereo must be downmixed upstream.
-
-**Verdict:** Default backend for Phase 1.
-
-### 5.2 Optional secondary: [oximedia-mir](https://crates.io/crates/oximedia-mir) 0.1.x
-
-Pure Rust MIR suite (Apache-2.0), part of the OxiMedia workspace.
-
-| Capability | Support | Notes |
-|------------|---------|-------|
-| Tempo / beat | Yes | Autocorrelation, comb filtering, DP beat tracker |
-| Downbeat | Yes | Stronger explicit downbeat/phrase path than stratum-dsp docs emphasize |
-| Key | Yes | Krumhansl–Schmuckler |
-| Chords, melody, structure, genre, mood | Yes | Feature-gated; broader than DJ MVP |
-| DJ validation / Camelot | Limited | Less DJ-specific; smaller community footprint |
-| Maturity | Early | ~0.1.x, fewer downloads |
-
-**Verdict:** Phase 2+ backend behind `analyzer-oximedia` for **downbeat/structure** features if stratum-dsp grid quality is insufficient on internal fixtures. Not default.
-
-### 5.3 Considered but not recommended for MVP
-
-| Library | Reason to defer |
-|---------|-----------------|
-| [bpm-analyzer](https://crates.io/crates/bpm-analyzer) | Real-time / CPAL capture focus; BPM only; no key/grid |
-| **aubio** (FFI) | C dependency, complicates CI and cross-compile |
-| **Essentia** (FFI) | Powerful but heavy C++ stack; licensing/build cost |
-| **librosa** (Python) | Out of process; not suitable for embedded library crate |
-
-### 5.4 Feature matrix (decision aid)
-
-| Feature | stratum-dsp | oximedia-mir | MVP need |
-|---------|-------------|--------------|----------|
-| BPM | ✓ | ✓ | **Required** |
-| Key (musical) | ✓ | ✓ | **Required** (library canonical form) |
-| Key (Camelot) | internal | — | UI may convert at display time; not stored |
-| Beat timestamps | ✓ | ✓ | **Required** |
-| Bar/downbeat grid | ✓ | ✓ | **Required** |
-| Confidence scores | ✓ | varies | **Required** |
-| Pure Rust, no FFI | ✓ | ✓ | **Required** |
-| ONNX refinement | optional | — | Phase 2 |
-| Chord/structure | — | ✓ | Defer |
-| Real-time tap tempo | — | — | `engine-dsp` |
+**Shipped backend:** pure-Rust qm-dsp port (`analyzer-qmdsp`: complex-domain onset + `TempoTrackV2` for beats, `GetKeyMode` for key). Historical evaluation of stratum-dsp / oximedia-mir / FFI options lives outside the repository.
 
 ---
 
-## 6 — Architecture
-
-### 6.1 Workspace layout
+## 6.1 Workspace layout
 
 ```text
 mixar/
@@ -602,7 +531,7 @@ Mitigations:
 2. Batch analyze API + progress callback.
 3. `LibraryConfig.analyze_on_import`.
 4. Optional tag write-back (lofty) for BPM/key.
-5. Internal benchmark suite vs tagged DJ fixtures (compare to MIK/Rekordbox exports).
+5. Internal benchmark suite vs tagged DJ fixtures.
 
 ### Phase 3 — Playback & extended MIR
 
@@ -631,7 +560,6 @@ Mitigations:
 
 ## References
 
-- [stratum-dsp docs](https://docs.rs/stratum-dsp/latest/stratum_dsp/) — BPM, key, beat grid, `analyze_audio`
-- [stratum-dsp crate](https://crates.io/crates/stratum-dsp) — benchmarks and feature flags
-- [oximedia-mir](https://crates.io/crates/oximedia-mir) — optional extended MIR backend
-- Project [`tech-spec.md`](tech-spec.md) §10 — library manager and `analyze_track`
+- Project [`tech-spec.md`](tech-spec.md) §5 — library manager and `analyze_track`
+- `crates/analyzer-qmdsp` — shipped beat/key backend
+- `crates/analyzer` — decode + analyze facade

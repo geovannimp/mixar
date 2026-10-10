@@ -91,10 +91,10 @@ engine.play(0)?;
 ## Documentation
 
 - [User guide — Performance pads](https://mixar.top/docs/users/performance-pads) — hot cues, loop roll, beat jump, sampler, stems, keyboard, key shift
-- [Technical spec](docs/tech-spec.md) — crates, threading, config, backends
+- [Technical spec](docs/tech-spec.md) — runtime contracts, threading, library model
 - [Deck spec](docs/deck-spec.md) — deck UI, mixer, pads, data model
 - [Set history](https://mixar.top/docs/developers/history) — session logging, XSPF storage, export, OBS live output
-- [Logging](DEVELOPER.md#application-logging) — log files and verbosity
+- [Developer guide](DEVELOPER.md) — crate map, logging, codecs, backends, CI/performance notes
 - [Waveforms](docs/dj-waveform-spec.md) and [analyzer](docs/audio-analyzer-spec.md)
 
 For external tools (e.g. OBS text sources), watch the active session file under `{appSupport}/history/*.xspf` — see [Live output & export](https://mixar.top/docs/developers/history/live-and-export#live-output-obs).

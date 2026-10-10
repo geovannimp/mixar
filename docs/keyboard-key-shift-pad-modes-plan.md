@@ -2,7 +2,7 @@
 
 > **Correction (#298, 2026-10-08):** The original plan (below, Tasks 2–6) assumed a
 > per-scale Keyboard model (`major` / `minor` / `pentatonic` degree tables) and a
-> fixed Key Shift layout. That model was wrong for Rekordbox. The shipped model is
+> fixed Key Shift layout. That model was wrong for the final page layout. The shipped model is
 > **chromatic and page-based**: slot 0 = pad 1 = root, page 2 `[0..+7]` default,
 > Keyboard root = the selected hot cue, and no scale state anywhere.
 >

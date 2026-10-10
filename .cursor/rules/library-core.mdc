@@ -6,7 +6,7 @@ alwaysApply: false
 
 # library-core Module Rules
 
-Reference: `docs/tech-spec.md` §10. Architecture overview: `README.md`.
+Reference: `docs/tech-spec.md` §5. Architecture overview: `DEVELOPER.md`.
 
 - **Role:** Defines the library trait boundary and shared types. No library storage I/O here (that lives in `library`).
 - **Key types:** `TrackId`, `CollectionEntryId`, `TrackMetadata`, `FileAudioSource`, `StreamAudioSource`, `AudioSource`, `StreamProvider`, `CollectionId`, `Collection`, `CollectionConfig` (`Folder { fs_path }` | `Playlist { sortable }`), `CollectionType`, `CollectionEntry`, `NewCollection`, `UpdateCollection`, `CollectionConfigUpdate`, `AnalyzeTrackOptions`, `LibraryConfig`, `ScanReport`, `LibraryError`.
