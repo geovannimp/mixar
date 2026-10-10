@@ -43,6 +43,25 @@ void main() {
     expect(identical(first, second), isTrue);
   });
 
+  test('updated with duration seeds playhead from positionMs', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    container
+        .read(engineUiProvider.notifier)
+        .apply(
+          const EngineEvt(
+            kind: EngineEvtKind.updated,
+            deckId: 0,
+            durationKnown: true,
+            durationMs: 10000,
+            positionMs: 2000,
+          ),
+        );
+
+    expect(container.read(deckPositionMsProvider(0)), 2000);
+  });
+
   test('updated unload removes playhead and slip shadow', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
