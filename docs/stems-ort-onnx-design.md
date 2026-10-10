@@ -3,7 +3,7 @@
 **Date:** 2026-09-22  
 **Status:** Approved (shipped path)  
 **Supersedes:** Burn HTDemucs path in `analyzer-stems`  
-**Related:** `docs/stems-storage-models-design.md`, `docs/stems-pad-mode-design.md`, `docs/ni-stem-mp4-cache-design.md`
+**Related:** `docs/stems-storage-models-design.md`, `docs/ni-stem-mp4-cache-design.md`
 
 ## Goal
 

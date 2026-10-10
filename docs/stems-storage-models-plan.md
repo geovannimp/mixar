@@ -95,5 +95,5 @@ fn clear_model_cache(&self) -> Result<(), String>
 
 ### Task 5: Docs + PR
 
-- [x] Touch `docs/stems-pad-mode-design.md` model/storage lines.
+- [x] Touch the model/storage lines in the stems design docs.
 - [ ] Push branch; open PR referencing #46.

@@ -2,8 +2,7 @@
 
 **Date:** 2026-09-21  
 **Status:** Approved (owner: skip per-section review; implement)  
-**Issue:** [geovannimp/mixar#46](https://github.com/geovannimp/mixar/issues/46)  
-**Depends on:** stems pad mode foundation (`docs/stems-pad-mode-design.md`, #380)  
+**Issues:** [#46](https://github.com/geovannimp/mixar/issues/46), [#380](https://github.com/geovannimp/mixar/issues/380) (stems pad mode foundation)  
 **Inference:** ORT + Mixxx HTDemucs ONNX — `docs/stems-ort-onnx-design.md`  
 **Cache format:** NI `.stem.mp4` — `docs/ni-stem-mp4-cache-design.md`
 

@@ -107,7 +107,7 @@ Common expectations across all products:
 | State sync | Partial | FRB `EngineTransport.subscribeEvents` → Riverpod; MIDI host → [#49](https://github.com/geovannimp/mixar/issues/49) |
 | Library UI | Implemented | FRB `LibraryTransport` for tracks / artwork / waveform peaks |
 | FX slots UI | Not implemented | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems pad mode | Implemented | Offline HTDemucs + pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46)); Stem EQ / Storage / realtime still open — `docs/stems-pad-mode-design.md` |
+| Stems pad mode | Implemented | Offline HTDemucs + pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46)); Stem EQ / Storage / realtime still open |
 | Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
 | Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
@@ -336,7 +336,7 @@ Current pad-mode controls are documented in the [user guide](https://mixar.top/d
 
 | Follow-up | Status |
 |-----------|--------|
-| Stem EQ, storage UI, and realtime separation | Open — [#46](https://github.com/geovannimp/mixar/issues/46); see [stems design](stems-pad-mode-design.md) |
+| Stem EQ, storage UI, and realtime separation | Open — [#46](https://github.com/geovannimp/mixar/issues/46) |
 | Slicer pad mode | Not implemented — [#60](https://github.com/geovannimp/mixar/issues/60) |
 
 ---
