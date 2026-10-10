@@ -82,6 +82,46 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     next[deckId] = touching;
     state = state.copyWith(jogTouching: next);
   }
+
+  /// Optimistic mirror before absolute play/pause; EngineEvt reconciles.
+  void setPlaying(int deckId, bool playing) {
+    if (state.isPlaying(deckId) == playing) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.playing);
+    next[deckId] = playing;
+    state = state.copyWith(playing: next);
+  }
+
+  /// Optimistic mirror before absolute setQuantize; EngineEvt reconciles.
+  void setQuantize(int deckId, bool enabled) {
+    if (state.quantizeFor(deckId) == enabled) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.quantize);
+    next[deckId] = enabled;
+    state = state.copyWith(quantize: next);
+  }
+
+  /// Optimistic mirror before absolute setSlip; EngineEvt reconciles.
+  void setSlipEnabled(int deckId, bool enabled) {
+    if (state.slipEnabledFor(deckId) == enabled) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.slipEnabled);
+    next[deckId] = enabled;
+    state = state.copyWith(slipEnabled: next);
+  }
+
+  /// Optimistic mirror before absolute setKeyLock; EngineEvt reconciles.
+  void setKeyLock(int deckId, bool enabled) {
+    if (state.keyLockFor(deckId) == enabled) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.keyLocks);
+    next[deckId] = enabled;
+    state = state.copyWith(keyLocks: next);
+  }
 }
 
 final engineUiProvider = NotifierProvider<EngineUi, EngineUiSnapshot>(
@@ -600,15 +640,32 @@ Future<void> loadPayloadToDeck(
   }
 }
 
-Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {
+/// Drive play/pause from an absolute desired state (never `!snapshot` after await).
+Future<void> setDeckPlaying(WidgetRef ref, int deckId, bool playing) async {
+  ref.read(engineUiProvider.notifier).setPlaying(deckId, playing);
   final engine = await ref.read(engineTransportProvider.future);
   if (engine == null) {
     return;
   }
-  if (ref.read(engineUiProvider).isPlaying(deckId)) {
-    await engine.pause(deckId: deckId);
+  await sendDeckPlaying(
+    deckId: deckId,
+    playing: playing,
+    play: engine.play,
+    pause: engine.pause,
+  );
+}
+
+/// Absolute play/pause dispatch — kept snapshot-free for dual-control races.
+Future<void> sendDeckPlaying({
+  required int deckId,
+  required bool playing,
+  required Future<void> Function({required int deckId}) play,
+  required Future<void> Function({required int deckId}) pause,
+}) async {
+  if (playing) {
+    await play(deckId: deckId);
   } else {
-    await engine.play(deckId: deckId);
+    await pause(deckId: deckId);
   }
 }
 
@@ -681,6 +738,7 @@ Future<void> setDeckTempoRange(
 }
 
 Future<void> setDeckKeyLock(WidgetRef ref, int deckId, bool enabled) async {
+  ref.read(engineUiProvider.notifier).setKeyLock(deckId, enabled);
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setKeyLock(deckId: deckId, enabled: enabled);
 }
@@ -700,11 +758,13 @@ Future<void> setMasterDeck(WidgetRef ref, int deckId) async {
 }
 
 Future<void> setDeckQuantize(WidgetRef ref, int deckId, bool enabled) async {
+  ref.read(engineUiProvider.notifier).setQuantize(deckId, enabled);
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setQuantize(deckId: deckId, enabled: enabled);
 }
 
 Future<void> setDeckSlip(WidgetRef ref, int deckId, bool enabled) async {
+  ref.read(engineUiProvider.notifier).setSlipEnabled(deckId, enabled);
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setSlip(deckId: deckId, enabled: enabled);
 }

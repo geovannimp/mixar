@@ -193,8 +193,8 @@ class _DeckKeyLockControl extends ConsumerWidget {
       keyColor: keyColor,
       keyLock: keyLock,
       enabled: hasTrack && engineRunning,
-      onToggle: () {
-        unawaited(_setKeyLock(context, ref, deckId, !keyLock));
+      onChanged: (enabled) {
+        unawaited(_setKeyLock(context, ref, deckId, enabled));
       },
     );
   }
@@ -205,7 +205,7 @@ class DeckKeyLockButton extends StatelessWidget {
   const new({
     required this.keyLabel,
     required this.keyLock,
-    required this.onToggle,
+    required this.onChanged,
     this.keyColor,
     this.enabled = true,
     super.key,
@@ -215,7 +215,9 @@ class DeckKeyLockButton extends StatelessWidget {
   final Color? keyColor;
   final bool keyLock;
   final bool enabled;
-  final VoidCallback onToggle;
+
+  /// Absolute desired key-lock state from the visible control.
+  final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +234,12 @@ class DeckKeyLockButton extends StatelessWidget {
         variant: .ghost,
         size: .xs,
         mainAxisSize: .min,
-        onPress: enabled ? onToggle : null,
+        onPress: enabled
+            ? () {
+                // Capture absolute intent from chrome; do not re-read later.
+                onChanged(!keyLock);
+              }
+            : null,
         semanticsLabel: tip,
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: Row(
