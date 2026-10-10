@@ -638,6 +638,7 @@ Future<void> loadPayloadOntoDeck(
 ) async {
   final generation = read(deckLoadGenerationProvider.notifier).begin(deckId);
   final loading = read(deckLoadInFlightProvider.notifier)..set(deckId, true);
+  read(libraryMessageProvider.notifier).clear();
   try {
     final transport = await read(deckLoadTransportProvider.future);
     if (transport == null) {
@@ -657,6 +658,8 @@ Future<void> loadPayloadOntoDeck(
     read(engineUiProvider.notifier)
       ..setDeckTrackPath(deckId, payload.path)
       ..setDeckTrackId(deckId, payload.trackId);
+  } catch (e) {
+    read(libraryMessageProvider.notifier).setError('$e');
   } finally {
     loading.set(deckId, false);
   }

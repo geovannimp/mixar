@@ -121,16 +121,29 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     _ => null,
   };
 
+  void _hydrateTrack(String? trackId) {
+    if (trackId == _hydratedTrackId) {
+      return;
+    }
+    _hydratedTrackId = trackId;
+    final library = ref.read(libraryTransportProvider).asData?.value;
+    if (library != null && trackId != null && trackId.isNotEmpty) {
+      unawaited(library.refreshTrack(trackId: trackId));
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual<String?>(
+      deckTrackIdProvider(widget.deckId),
+      (prev, next) => _hydrateTrack(next),
+      fireImmediately: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
-    if (trackId != _hydratedTrackId) {
-      _hydratedTrackId = trackId;
-      final library = ref.read(libraryTransportProvider).asData?.value;
-      if (library != null && trackId != null && trackId.isNotEmpty) {
-        unawaited(library.refreshTrack(trackId: trackId));
-      }
-    }
     final padMode = ref.watch(deckPadModeProvider(widget.deckId));
     final hotCues = ref.watch(deckHotCuesProvider(widget.deckId));
     final rustBanks = ref.watch(samplerBanksProvider).asData?.value ?? const [];

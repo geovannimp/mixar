@@ -161,6 +161,11 @@ Future<SaveAppSettingsResult> saveAppSettings(
         final trackId = ref.read(deckTrackIdProvider(deckId));
         if (trackId != null) {
           await engine.loadLibraryTrack(deckId: deckId, trackId: trackId);
+        } else {
+          final path = ref.read(engineUiProvider).trackPathFor(deckId);
+          if (path != null && path.isNotEmpty) {
+            await engine.loadPath(deckId: deckId, path: path);
+          }
         }
       }
     }

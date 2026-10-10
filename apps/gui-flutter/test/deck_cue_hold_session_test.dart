@@ -1,0 +1,64 @@
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/mixer/deck_cue_hold_session.dart';
+
+void main() {
+  test('end waits for begin and is ignored without successful begin', () async {
+    final session = DeckCueHoldSession();
+    final log = <String>[];
+    final beginStarted = Completer<void>();
+    final beginRelease = Completer<void>();
+
+    session
+      ..begin(() async {
+        log.add('begin-start');
+        beginStarted.complete();
+        await beginRelease.future;
+        log.add('begin-done');
+      })
+      ..end(() async {
+        log.add('end');
+      });
+
+    await beginStarted.future;
+    expect(log, ['begin-start']);
+
+    beginRelease.complete();
+    await session.drain();
+    expect(log, ['begin-start', 'begin-done', 'end']);
+  });
+
+  test('failed begin drops a following end', () async {
+    final session = DeckCueHoldSession();
+    final log = <String>[];
+
+    session
+      ..begin(() async {
+        log.add('begin');
+        throw StateError('begin failed');
+      })
+      ..end(() async {
+        log.add('end');
+      });
+
+    await session.drain();
+    expect(log, ['begin']);
+  });
+
+  test('disposeEnd awaits chained end', () async {
+    final session = DeckCueHoldSession();
+    final log = <String>[];
+    final beginRelease = Completer<void>();
+
+    session.begin(() async {
+      log.add('begin');
+      await beginRelease.future;
+    });
+    beginRelease.complete();
+    await session.disposeEnd(() async {
+      log.add('end');
+    });
+    expect(log, ['begin', 'end']);
+  });
+}

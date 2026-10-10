@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/deck_cue_button.dart';
+import 'package:gui_flutter/mixer/deck_cue_hold_session.dart';
 import 'package:gui_flutter/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/deck_track_info.dart';
@@ -16,6 +17,7 @@ import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart' show EngineTransport;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
@@ -78,23 +80,13 @@ class DeckPanel extends ConsumerWidget {
       },
     );
 
-    final cue = DeckCueButton(
-      disabled: transportDisabled,
-      onBeginHold: () {
-        unawaited(_engineCmd(context, () => beginDeckCueHold(ref, deckId)));
-      },
-      onEndHold: () {
-        unawaited(_engineCmd(context, () => endDeckCueHold(ref, deckId)));
-      },
-      onSetCue: () {
-        unawaited(_engineCmd(context, () => setDeckCuePoint(ref, deckId)));
-      },
-    );
     // Play/pause must not rebuild DeckTrackInfo / pads (artwork blink).
     final play = Expanded(
       child: _DeckPlayButton(deckId: deckId, disabled: transportDisabled),
     );
-    final cueWrap = Expanded(child: cue);
+    final cueWrap = Expanded(
+      child: _DeckCueControl(deckId: deckId, disabled: transportDisabled),
+    );
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -183,6 +175,66 @@ class DeckPanel extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Owns one ordered cue-hold session so begin/end never race.
+class _DeckCueControl extends ConsumerStatefulWidget {
+  const new({required this.deckId, required this.disabled});
+
+  final int deckId;
+  final bool disabled;
+
+  @override
+  ConsumerState<_DeckCueControl> createState() => _DeckCueControlState();
+}
+
+class _DeckCueControlState extends ConsumerState<_DeckCueControl> {
+  final _session = DeckCueHoldSession();
+  // Cached for dispose — Riverpod forbids ref.read after unmount.
+  EngineTransport? _engine;
+
+  void _beginHold() {
+    final deckId = widget.deckId;
+    _session.begin(
+      () => _engineCmd(context, () => beginDeckCueHold(ref, deckId)),
+    );
+  }
+
+  void _endHold() {
+    final deckId = widget.deckId;
+    _session.end(
+      () => _engineCmd(context, () => endDeckCueHold(ref, deckId)),
+    );
+  }
+
+  void _setCue() {
+    unawaited(
+      _engineCmd(context, () => setDeckCuePoint(ref, widget.deckId)),
+    );
+  }
+
+  @override
+  void dispose() {
+    final engine = _engine;
+    final deckId = widget.deckId;
+    unawaited(
+      _session.disposeEnd(() async {
+        await engine?.endCueHold(deckId: deckId);
+      }),
+    );
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _engine = ref.watch(engineTransportProvider).asData?.value;
+    return DeckCueButton(
+      disabled: widget.disabled,
+      onBeginHold: _beginHold,
+      onEndHold: _endHold,
+      onSetCue: _setCue,
     );
   }
 }
