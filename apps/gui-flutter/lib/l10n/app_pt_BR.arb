@@ -1,7 +1,7 @@
 {
   "@@locale": "pt_BR",
   "settingsTitle": "CONFIGURAÇÕES",
-  "settingsSubtitle": "Salvar reinicia o engine automaticamente se ele estiver em execução.",
+  "settingsSubtitle": "Salvar reinicia a engine automaticamente se ela estiver em execução.",
   "settingsLoading": "Carregando configurações…",
   "settingsCloseSemantics": "Fechar",
   "settingsSave": "Salvar",

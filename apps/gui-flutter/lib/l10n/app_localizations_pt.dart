@@ -14,7 +14,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsSubtitle =>
-      'Salvar reinicia o engine automaticamente se ele estiver em execução.';
+      'Salvar reinicia a engine automaticamente se ela estiver em execução.';
 
   @override
   String get settingsLoading => 'Carregando configurações…';
@@ -713,7 +713,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get settingsSubtitle =>
-      'Salvar reinicia o engine automaticamente se ele estiver em execução.';
+      'Salvar reinicia a engine automaticamente se ela estiver em execução.';
 
   @override
   String get settingsLoading => 'Carregando configurações…';
