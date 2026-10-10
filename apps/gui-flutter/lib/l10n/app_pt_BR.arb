@@ -3,5 +3,13 @@
   "settingsTitle": "CONFIGURAÇÕES",
   "@settingsTitle": {
     "description": "Settings page header title"
+  },
+  "settingsUiLanguageLabel": "Idioma",
+  "@settingsUiLanguageLabel": {
+    "description": "UI panel language preference field label"
+  },
+  "settingsLanguageSystemDefault": "Padrão do sistema",
+  "@settingsLanguageSystemDefault": {
+    "description": "Language select option that follows the OS locale"
   }
 }

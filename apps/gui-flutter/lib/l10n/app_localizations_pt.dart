@@ -11,6 +11,12 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsTitle => 'CONFIGURAÇÕES';
+
+  @override
+  String get settingsUiLanguageLabel => 'Idioma';
+
+  @override
+  String get settingsLanguageSystemDefault => 'Padrão do sistema';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -19,4 +25,10 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get settingsTitle => 'CONFIGURAÇÕES';
+
+  @override
+  String get settingsUiLanguageLabel => 'Idioma';
+
+  @override
+  String get settingsLanguageSystemDefault => 'Padrão do sistema';
 }

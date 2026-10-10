@@ -104,6 +104,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SETTINGS'**
   String get settingsTitle;
+
+  /// UI panel language preference field label
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get settingsUiLanguageLabel;
+
+  /// Language select option that follows the OS locale
+  ///
+  /// In en, this message translates to:
+  /// **'System default'**
+  String get settingsLanguageSystemDefault;
 }
 
 class _AppLocalizationsDelegate
