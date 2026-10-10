@@ -38,9 +38,7 @@ class _FakeDeckLoadTransport implements DeckLoadTransport {
 
 ProviderContainer _container(_FakeDeckLoadTransport fake) {
   return ProviderContainer(
-    overrides: [
-      deckLoadTransportProvider.overrideWith((ref) async => fake),
-    ],
+    overrides: [deckLoadTransportProvider.overrideWith((ref) async => fake)],
   );
 }
 

@@ -248,10 +248,7 @@ final deckLoadGenerationProvider =
 /// Narrow engine ops for deck load — production wraps [EngineTransport]; tests
 /// override [deckLoadTransportProvider] with a fake.
 abstract class DeckLoadTransport {
-  Future<void> loadLibraryTrack({
-    required int deckId,
-    required String trackId,
-  });
+  Future<void> loadLibraryTrack({required int deckId, required String trackId});
 
   Future<void> loadPath({required int deckId, required String path});
 }
@@ -653,9 +650,8 @@ Future<void> loadPayloadOntoDeck(
           transport.loadLibraryTrack(deckId: id, trackId: trackId),
       loadPath: (id, path) => transport.loadPath(deckId: id, path: path),
     );
-    if (!read(
-      deckLoadGenerationProvider.notifier,
-    ).isCurrent(deckId, generation)) {
+    if (!read(deckLoadGenerationProvider.notifier)
+        .isCurrent(deckId, generation)) {
       return;
     }
     read(engineUiProvider.notifier)
