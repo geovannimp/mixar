@@ -89,7 +89,7 @@ class SettingsLibraryPanel extends StatelessWidget {
         SettingsField(
           label: l10n.settingsLibraryAnalysisQuality,
           child: SettingsSelect(
-            dialogTitle: 'Analysis quality',
+            dialogTitle: l10n.settingsLibraryAnalysisQuality,
             value: draft.analysisDuration,
             options: [for (final (mode, _, _) in analysisModes) mode],
             labelBuilder: analysisLabel,
@@ -111,7 +111,7 @@ class SettingsLibraryPanel extends StatelessWidget {
               SettingsField(
                 label: l10n.settingsLibraryKeyDisplayMode,
                 child: SettingsSelect(
-                  dialogTitle: 'Key display mode',
+                  dialogTitle: l10n.settingsLibraryKeyDisplayMode,
                   value: draft.keyDisplayMode,
                   options: [for (final (mode, _, _) in keyDisplayModes) mode],
                   labelBuilder: keyDisplayLabel,
@@ -124,7 +124,7 @@ class SettingsLibraryPanel extends StatelessWidget {
               SettingsField(
                 label: l10n.settingsLibraryKeyColorMode,
                 child: SettingsSelect(
-                  dialogTitle: 'Key color mode',
+                  dialogTitle: l10n.settingsLibraryKeyColorMode,
                   value: draft.keyColorMode,
                   options: [for (final (mode, _, _) in keyColorModes) mode],
                   labelBuilder: keyColorLabel,
@@ -140,7 +140,7 @@ class SettingsLibraryPanel extends StatelessWidget {
         SettingsField(
           label: l10n.settingsLibraryStemFormat,
           child: SettingsSelect<String>(
-            dialogTitle: 'Stem format',
+            dialogTitle: l10n.settingsLibraryStemFormat,
             value: _normalizedStemsFormat(draft.stemsFormat),
             options: _stemsFormats,
             labelBuilder: stemsFormatLabel,
@@ -156,7 +156,7 @@ class SettingsLibraryPanel extends StatelessWidget {
         SettingsField(
           label: l10n.settingsLibraryTrackRowLayout,
           child: SettingsSelect<LibraryRowDensitySetting>(
-            dialogTitle: 'Track row layout',
+            dialogTitle: l10n.settingsLibraryTrackRowLayout,
             value: draft.libraryRowDensity,
             options: const [
               LibraryRowDensitySetting.comfortable,

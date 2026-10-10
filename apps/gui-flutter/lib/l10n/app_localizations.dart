@@ -279,11 +279,23 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get settingsUiLanguageLabel;
 
-  /// No description provided for @settingsLanguageSystemDefault.
+  /// No description provided for @settingsSystemDefault.
   ///
   /// In en, this message translates to:
   /// **'System default'**
-  String get settingsLanguageSystemDefault;
+  String get settingsSystemDefault;
+
+  /// No description provided for @settingsLanguageEn.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get settingsLanguageEn;
+
+  /// No description provided for @settingsLanguagePtBr.
+  ///
+  /// In en, this message translates to:
+  /// **'Português (Brasil)'**
+  String get settingsLanguagePtBr;
 
   /// No description provided for @settingsShowTooltips.
   ///

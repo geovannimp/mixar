@@ -102,7 +102,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsUiLanguageLabel => 'Language';
 
   @override
-  String get settingsLanguageSystemDefault => 'System default';
+  String get settingsSystemDefault => 'System default';
+
+  @override
+  String get settingsLanguageEn => 'English';
+
+  @override
+  String get settingsLanguagePtBr => 'Português (Brasil)';
 
   @override
   String get settingsShowTooltips => 'Show tooltips';

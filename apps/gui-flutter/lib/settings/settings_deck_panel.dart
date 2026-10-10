@@ -48,7 +48,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                     child: SettingsField(
                       label: l10n.settingsDeckTopJogMode,
                       child: SettingsSelect(
-                        dialogTitle: 'Top jog mode',
+                        dialogTitle: l10n.settingsDeckTopJogMode,
                         value: draft.defaultTopJogMode,
                         options: _jogModes,
                         labelBuilder: (m) => _jogLabel(l10n, m),
@@ -62,7 +62,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                     child: SettingsField(
                       label: l10n.settingsDeckOuterJogMode,
                       child: SettingsSelect(
-                        dialogTitle: 'Outer jog mode',
+                        dialogTitle: l10n.settingsDeckOuterJogMode,
                         value: draft.defaultOuterJogMode,
                         options: _jogModes,
                         labelBuilder: (m) => _jogLabel(l10n, m),
@@ -90,7 +90,7 @@ class SettingsDeckPanel extends ConsumerWidget {
               SettingsField(
                 label: l10n.settingsDeckDefaultTempoRange,
                 child: SettingsSelect(
-                  dialogTitle: 'Default tempo range',
+                  dialogTitle: l10n.settingsDeckDefaultTempoRange,
                   value: draft.defaultTempoRange,
                   options: _tempoRangeOptions(draft),
                   labelBuilder: formatTempoRange,
@@ -125,7 +125,7 @@ class SettingsDeckPanel extends ConsumerWidget {
               SettingsField(
                 label: l10n.settingsDeckSamplerPlayMode,
                 child: SettingsSelect(
-                  dialogTitle: 'Sampler play mode',
+                  dialogTitle: l10n.settingsDeckSamplerPlayMode,
                   value: draft.samplerPlayMode,
                   options: SamplerPlayModeSetting.values,
                   labelBuilder: (m) => switch (m) {
@@ -143,7 +143,7 @@ class SettingsDeckPanel extends ConsumerWidget {
               SettingsField(
                 label: l10n.settingsDeckSamplerStripRoute,
                 child: SettingsSelect(
-                  dialogTitle: 'Sampler strip route',
+                  dialogTitle: l10n.settingsDeckSamplerStripRoute,
                   value: draft.samplerStripRoute,
                   options: SamplerStripRouteSettingFrb.values,
                   labelBuilder: (m) => m == SamplerStripRouteSettingFrb.before
@@ -164,8 +164,9 @@ class SettingsDeckPanel extends ConsumerWidget {
                             ? l10n.settingsDeckDefaultSamplerBankA
                             : l10n.settingsDeckDefaultSamplerBankB,
                         child: SettingsSelect<String?>(
-                          dialogTitle:
-                              'Deck ${deck == 0 ? 'A' : 'B'} default sampler bank',
+                          dialogTitle: deck == 0
+                              ? l10n.settingsDeckDefaultSamplerBankA
+                              : l10n.settingsDeckDefaultSamplerBankB,
                           value: draft.deckDefaultSamplerBankId[deck],
                           options: _bankOptions(
                             banks,

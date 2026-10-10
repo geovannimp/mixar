@@ -58,7 +58,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                   SettingsField(
                     label: l10n.settingsAudioBackend,
                     child: SettingsSelect(
-                      dialogTitle: 'Backend',
+                      dialogTitle: l10n.settingsAudioBackend,
                       value: draft.backend,
                       options: backendOptions,
                       labelBuilder: (v) => v,
@@ -80,7 +80,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                     ? l10n.settingsAudioSampleRateLoading
                     : null,
                 child: SettingsSelect(
-                  dialogTitle: 'Sample rate',
+                  dialogTitle: l10n.settingsAudioSampleRate,
                   value: draft.sampleRate,
                   options: sampleRates,
                   enabled: !devicesAsync.isLoading && sampleRates.isNotEmpty,
@@ -92,7 +92,7 @@ class SettingsAudioPanel extends ConsumerWidget {
               SettingsField(
                 label: l10n.settingsAudioResamplerQuality,
                 child: SettingsSelect(
-                  dialogTitle: 'Resampler quality',
+                  dialogTitle: l10n.settingsAudioResamplerQuality,
                   value: draft.resamplerQuality,
                   options: _resamplerQualities,
                   labelBuilder: (v) => switch (v) {
@@ -280,7 +280,7 @@ class _BusRouteFields extends StatelessWidget {
     final deviceOptions = <OutputDevice>[
       OutputDevice(
         id: 'default',
-        name: l10n.settingsLanguageSystemDefault,
+        name: l10n.settingsSystemDefault,
         isDefault: true,
         maxChannels: 2,
         defaultSampleRates: Uint32List.fromList([48000]),
@@ -298,13 +298,13 @@ class _BusRouteFields extends StatelessWidget {
         SettingsField(
           label: l10n.settingsAudioDevice,
           child: SettingsSelect(
-            dialogTitle: 'Device',
+            dialogTitle: l10n.settingsAudioDevice,
             value: selectedId,
             options: [for (final device in deviceOptions) device.id],
             labelBuilder: (id) {
               final device = deviceOptions.firstWhere((d) => d.id == id);
               return device.isDefault
-                  ? l10n.settingsLanguageSystemDefault
+                  ? l10n.settingsSystemDefault
                   : device.name;
             },
             onChanged: (deviceId) => onChanged(
@@ -324,7 +324,7 @@ class _BusRouteFields extends StatelessWidget {
         SettingsField(
           label: l10n.settingsAudioChannelMode,
           child: SettingsSelect(
-            dialogTitle: 'Channel mode',
+            dialogTitle: l10n.settingsAudioChannelMode,
             value: route.mode,
             options: BusChannelMode.values,
             labelBuilder: (m) => m == BusChannelMode.stereo

@@ -103,7 +103,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsUiLanguageLabel => 'Idioma';
 
   @override
-  String get settingsLanguageSystemDefault => 'Padrão do sistema';
+  String get settingsSystemDefault => 'Padrão do sistema';
+
+  @override
+  String get settingsLanguageEn => 'English';
+
+  @override
+  String get settingsLanguagePtBr => 'Português (Brasil)';
 
   @override
   String get settingsShowTooltips => 'Mostrar dicas';

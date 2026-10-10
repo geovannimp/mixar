@@ -21,9 +21,9 @@ class SettingsUiPanel extends StatelessWidget {
     AppLocalizations l10n,
     UiLanguageSetting value,
   ) => switch (value) {
-    UiLanguageSetting.system => l10n.settingsLanguageSystemDefault,
-    UiLanguageSetting.en => 'English',
-    UiLanguageSetting.ptBr => 'Português (Brasil)',
+    UiLanguageSetting.system => l10n.settingsSystemDefault,
+    UiLanguageSetting.en => l10n.settingsLanguageEn,
+    UiLanguageSetting.ptBr => l10n.settingsLanguagePtBr,
   };
 
   static String _selectStyleLabel(
