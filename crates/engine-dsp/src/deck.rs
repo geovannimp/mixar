@@ -11,7 +11,7 @@ use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use stretch::{create_stretcher, TimeStretcher};
+use stretch::{create_stretcher, TimeStretcher, KEY_SHIFT_SEMITONE_LIMIT};
 
 /// Audio deck state
 #[derive(Debug, Clone, PartialEq)]
@@ -387,12 +387,19 @@ impl Deck {
         stretch::semitones_to_pitch(self.key_shift_semitones)
     }
 
-    /// Set the key-shift offset in semitones: clamps to `-16..=16` (covers the
-    /// pentatonic table's `+16`), non-finite → 0, and resets stretcher state so the
-    /// new pitch takes effect cleanly.
+    /// Set the key-shift offset in semitones: clamps to
+    /// [`KEY_SHIFT_SEMITONE_LIMIT`] (`±16`, shared with the engine control layer;
+    /// covers the pentatonic table's `+16`), non-finite → 0, and resets stretcher
+    /// state so the new pitch takes effect cleanly.
+    ///
+    /// The bound is independent of the stretcher's
+    /// [`MIN_PITCH_FACTOR`](stretch::MIN_PITCH_FACTOR)..=
+    /// [`MAX_PITCH_FACTOR`](stretch::MAX_PITCH_FACTOR) range, but the constant is
+    /// chosen so the worst-case pitch factor stays inside it — see
+    /// [`KEY_SHIFT_SEMITONE_LIMIT`].
     pub fn set_key_shift_semitones(&mut self, semitones: f32) -> Result<()> {
         let s = if semitones.is_finite() {
-            semitones.clamp(-16.0, 16.0)
+            semitones.clamp(-KEY_SHIFT_SEMITONE_LIMIT, KEY_SHIFT_SEMITONE_LIMIT)
         } else {
             0.0
         };

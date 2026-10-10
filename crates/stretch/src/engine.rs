@@ -6,6 +6,7 @@
 //! `pitch == 1.0` the resampler is bypassed so output is bit-identical to the
 //! plain keylock path.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use crate::{StretchPullStats, TimeStretcher};
@@ -22,8 +23,11 @@ use timestretch::engine::{
 /// Pitch factors within this of `1.0` bypass the resampler entirely.
 const PITCH_BYPASS_EPSILON: f64 = 1e-6;
 /// Pitch factor clamp range (matches the controller's tempo range).
-const MIN_PITCH_FACTOR: f64 = 0.25;
-const MAX_PITCH_FACTOR: f64 = 4.0;
+///
+/// Public so the key-shift semitone bound ([`crate::KEY_SHIFT_SEMITONE_LIMIT`])
+/// can be validated against it.
+pub const MIN_PITCH_FACTOR: f64 = 0.25;
+pub const MAX_PITCH_FACTOR: f64 = 4.0;
 /// Compact `carry` once the drained prefix passes this many samples.
 const CARRY_COMPACT_THRESHOLD: usize = 4096;
 
@@ -56,6 +60,9 @@ pub struct TimestretchStretcher {
     carry_head: usize,
     /// Capacity (samples) reserved for `carry` so the audio callback never grows it.
     carry_capacity: usize,
+    /// Resampler failures since construction (diagnostics; never on the audio
+    /// thread's hot path — a relaxed counter on the already-touched cacheline).
+    resampler_process_errors: AtomicU64,
 }
 
 impl TimestretchStretcher {
@@ -86,16 +93,26 @@ impl TimestretchStretcher {
         // One shared windowed-sinc prototype for both channels.
         let table = SincInterpTable::new_stream_default();
 
-        // Pre-size `carry` so `pull_pitched` never reallocates inside the audio
-        // callback. Worst case is the pitch-down overshoot (kernel half-span up
-        // to 80 at the 0.25 pitch floor) plus a couple of output buffers.
-        let carry_capacity = (max_block.saturating_mul(3).saturating_add(1024)).saturating_mul(2);
-
         // `pull_pitched` renders at most `engine_chunk.max(floor)` frames per
         // iteration, where `floor = half_span + 8` and `half_span` peaks at
         // `STREAM_SINC_MAX_HALF_TAPS`. Size the scratch buffers for that bound so
         // they never grow inside the audio callback.
         let scratch_frames = max_block.max(STREAM_SINC_MAX_HALF_TAPS + 8);
+
+        // Pre-size `carry` so `pull_pitched` never reallocates inside the audio
+        // callback. That loop runs until `carry` holds the caller's block, so the
+        // peak is one caller block plus one resampler emission
+        // (`4 × engine_frames + kernel tail` frames at the `MAX_PITCH_FACTOR`
+        // ceiling). Bound both in samples, with slack for the compaction
+        // threshold that is only drained after the copy.
+        let emission_samples = scratch_frames
+            .saturating_mul(4)
+            .saturating_add(512)
+            .saturating_mul(2);
+        let carry_capacity = max_block
+            .saturating_mul(2)
+            .saturating_add(emission_samples)
+            .saturating_add(1024);
 
         Ok(Self {
             sample_rate,
@@ -120,6 +137,7 @@ impl TimestretchStretcher {
             carry: Vec::with_capacity(carry_capacity),
             carry_head: 0,
             carry_capacity,
+            resampler_process_errors: AtomicU64::new(0),
         })
     }
 
@@ -233,6 +251,15 @@ impl TimestretchStretcher {
                     .process_into(&self.scratch_r, pitch, &mut self.resampled_r)
                     .is_err()
             {
+                // A sizing bug must not be invisible: count it cheaply and make
+                // it loud in debug builds. The audible result stays the
+                // zero-fill below — this never panics on the audio thread.
+                self.resampler_process_errors
+                    .fetch_add(1, Ordering::Relaxed);
+                debug_assert!(
+                    false,
+                    "pitch resampler rejected the render block (zero-fill follows)"
+                );
                 break;
             }
 
@@ -314,6 +341,10 @@ impl TimeStretcher for TimestretchStretcher {
         self.source.occupied_frames()
     }
 
+    fn resampler_process_errors(&self) -> u64 {
+        self.resampler_process_errors.load(Ordering::Relaxed)
+    }
+
     fn reset(&mut self) {
         self.processor.reset();
         self.controller.set_keylock(true);
@@ -375,6 +406,30 @@ mod tests {
         assert!(s.scratch_r.capacity() >= MAX_BLOCK);
         assert!(s.resampled_l.capacity() >= MAX_BLOCK * 4 + 512);
         assert!(s.resampled_r.capacity() >= MAX_BLOCK * 4 + 512);
+    }
+
+    /// `pull_pitched` loops until `carry` holds the caller's block, so the peak
+    /// is one caller block plus one resampler emission at the `MAX_PITCH_FACTOR`
+    /// ceiling. The reservation at construction must dominate that bound or the
+    /// audio callback reallocates mid-block.
+    #[test]
+    fn carry_capacity_dominates_the_worst_case() {
+        let s = TimestretchStretcher::new(48_000, MAX_BLOCK).expect("stretcher");
+        let scratch_frames = MAX_BLOCK.max(STREAM_SINC_MAX_HALF_TAPS + 8);
+        let worst_case_samples = MAX_BLOCK.saturating_mul(2).saturating_add(
+            scratch_frames
+                .saturating_mul(4)
+                .saturating_add(512)
+                .saturating_mul(2),
+        );
+        assert!(
+            s.carry.capacity() >= worst_case_samples,
+            "carry capacity {} below the {} worst case",
+            s.carry.capacity(),
+            worst_case_samples
+        );
+        assert!(s.carry_capacity >= worst_case_samples);
+        assert!(s.resampler_process_errors() == 0);
     }
 
     /// Exercises the pitched path at the +4× pitch ceiling: the reservation must

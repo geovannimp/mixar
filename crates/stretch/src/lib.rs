@@ -2,7 +2,7 @@
 
 mod engine;
 
-pub use engine::TimestretchStretcher;
+pub use engine::{TimestretchStretcher, MAX_PITCH_FACTOR, MIN_PITCH_FACTOR};
 
 use audio_core::Sample;
 
@@ -25,6 +25,13 @@ pub trait TimeStretcher: Send {
 
     /// Source frames buffered ahead of audible output (ring not yet consumed).
     fn queued_source_frames(&self) -> usize {
+        0
+    }
+
+    /// Resampler failures since construction (`0` for implementations without
+    /// a diagnostic counter). Non-zero on the deck stretcher means a sizing bug
+    /// is silently degrading audio.
+    fn resampler_process_errors(&self) -> u64 {
         0
     }
 
@@ -57,6 +64,14 @@ pub fn semitones_to_pitch(semitones: f32) -> f64 {
     f64::from(semitones).mul_add(1.0 / 12.0, 0.0).exp2()
 }
 
+/// Maximum session key-shift offset in semitones (deck clamp and pad tables).
+///
+/// Single bound shared by the deck (`set_key_shift_semitones` clamps to it) and
+/// the engine control layer, so the two cannot drift. At ±16 the pitch factor is
+/// ~2.52 / ~0.40, which stays inside [`MIN_PITCH_FACTOR`]..=[`MAX_PITCH_FACTOR`],
+/// so every shift the deck accepts is renderable.
+pub const KEY_SHIFT_SEMITONE_LIMIT: f32 = 16.0;
+
 /// Create the default realtime stretcher ([`timestretch`] WideKeylock profile).
 pub fn create_stretcher(
     sample_rate: u32,
@@ -66,4 +81,20 @@ pub fn create_stretcher(
         sample_rate,
         max_process_frames,
     )?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn key_shift_limit_maps_inside_the_stretcher_pitch_range() {
+        for semitones in [-KEY_SHIFT_SEMITONE_LIMIT, 0.0, KEY_SHIFT_SEMITONE_LIMIT] {
+            let pitch = semitones_to_pitch(semitones);
+            assert!(
+                pitch > MIN_PITCH_FACTOR && pitch < MAX_PITCH_FACTOR,
+                "{semitones} semitones → pitch {pitch} outside {MIN_PITCH_FACTOR}..={MAX_PITCH_FACTOR}"
+            );
+        }
+    }
 }

@@ -3,6 +3,12 @@ import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+/// Chevron size in the pagination bar (matches compact mixer chrome).
+const _kPaginationIconSize = 14.0;
+
+/// Muted foreground alpha when pagination is disabled.
+const _kPaginationDisabledAlpha = 0.4;
+
 /// Shared bottom-chrome pagination bar for the pad modes.
 ///
 /// Renders `‹  <label>  ›` with an optional [centerAccessory] beside the label
@@ -163,9 +169,11 @@ class _PadChromeButton extends StatelessWidget {
         child: ExcludeSemantics(
           child: Icon(
             icon,
-            size: 14,
+            size: _kPaginationIconSize,
             color: disabled
-                ? theme.colors.mutedForeground.withValues(alpha: 0.4)
+                ? theme.colors.mutedForeground.withValues(
+                    alpha: _kPaginationDisabledAlpha,
+                  )
                 : theme.colors.mutedForeground,
           ),
         ),

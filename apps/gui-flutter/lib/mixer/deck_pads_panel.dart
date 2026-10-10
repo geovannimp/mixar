@@ -131,7 +131,7 @@ class DeckPadsPanel extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(child: _modeBody(context)),
+        Expanded(child: _modeBody()),
       ],
     );
 
@@ -149,7 +149,7 @@ class DeckPadsPanel extends StatelessWidget {
     );
   }
 
-  Widget _modeBody(BuildContext context) {
+  Widget _modeBody() {
     return switch (padMode) {
       PadMode.hotCue => HotCuePads(
         hotCues: hotCues,

@@ -34,6 +34,8 @@ pub use mixer_lane::MixerLane;
 pub use sampler::{
     Sampler, SamplerPlayMode, SamplerSlotMeta, SamplerStripRoute, SAMPLER_SLOT_COUNT,
 };
+/// Shared session key-shift bound (also used by the engine control layer).
+pub use stretch::KEY_SHIFT_SEMITONE_LIMIT;
 pub use transport::DeckTransportEvent;
 
 /// DSP engine that manages all audio processing components

@@ -537,14 +537,14 @@ pub fn resolve_action(
             origin,
             pad_n_slot(&args)?,
             active,
-            pad_shift(&args),
+            pad_shift(&args)?,
             PadMode::Keyboard,
         ),
         "key_shift_pad" => resolve_pad_slot(
             origin,
             pad_n_slot(&args)?,
             active,
-            pad_shift(&args),
+            pad_shift(&args)?,
             PadMode::KeyShift,
         ),
         "trigger_sampler" => {
@@ -576,9 +576,14 @@ fn pad_n_slot(args: &crate::action_id::ActionArgs) -> Option<u8> {
     u8::try_from(n.checked_sub(1)?).ok()
 }
 
-/// Optional `shift` bank selector (defaults to `false`).
-fn pad_shift(args: &crate::action_id::ActionArgs) -> bool {
-    args.optional_bool("shift").ok().flatten().unwrap_or(false)
+/// Optional `shift` bank selector (defaults to `false` when omitted).
+///
+/// A malformed `shift` arg is treated as a mapping error (returns `None` upstream).
+fn pad_shift(args: &crate::action_id::ActionArgs) -> Option<bool> {
+    match args.optional_bool("shift").ok()? {
+        Some(v) => Some(v),
+        None => Some(false),
+    }
 }
 
 /// Named pad leaves publish the mode-specific press/release pair (Pioneer note banks).

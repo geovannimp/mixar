@@ -601,6 +601,60 @@ fn keyboard_shift_bank_deletes_root_hot_cue() {
 }
 
 #[test]
+fn keyboard_release_falls_back_to_the_pressed_pad_semitone_after_page_change() {
+    let (session, _library, _dir) = library_session_with_root_hot_cue();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    publish(
+        &session,
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::Keyboard,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+
+    // Hold slots 2 and 3 on the default page (`0…+7`) → +2 then +3. Wait for
+    // each mirror before publishing the next command (the bus is async).
+    for (slot, expected) in [(2u8, 2.0f32), (3, 3.0)] {
+        publish(
+            &session,
+            Kind::KeyboardPadPress,
+            &CmdBody::KeyboardPadPress { slot, shift: false },
+        );
+        let shift = key_shift_of(&next_deck_updated(&evt));
+        assert!(
+            (shift - expected).abs() < 1e-6,
+            "press slot {slot} expected {expected}, got {shift}"
+        );
+    }
+
+    // Switch pages mid-hold. The still-held pads keep the semitone they were
+    // pressed with; only newly pressed pads see the new page.
+    publish(
+        &session,
+        Kind::SetKeyboardPage,
+        &CmdBody::SetKeyboardPage { page: 1 },
+    );
+    let page = keyboard_page_of(&next_deck_updated(&evt));
+    assert_eq!(page, 1);
+
+    // Releasing the top pad falls back to slot 2's captured +2, not page 1's +10.
+    publish(
+        &session,
+        Kind::KeyboardPadRelease,
+        &CmdBody::KeyboardPadRelease { slot: 3 },
+    );
+    assert!(
+        (key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6,
+        "release must fall back to the semitone captured at press time"
+    );
+}
+
+#[test]
 fn mode_switch_clears_held_keyboard_state() {
     let (session, _library, _dir) = library_session_with_root_hot_cue();
     let evt = session

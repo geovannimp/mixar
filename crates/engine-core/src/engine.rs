@@ -20,9 +20,7 @@ use engine_api::{
     DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, EvtBody, Kind, LoopRegion, Origin, PadMode,
     SamplerStatus, SyncMode,
 };
-use engine_dsp::DeckEqGains;
-use engine_dsp::DeckState;
-use engine_dsp::DspEngine;
+use engine_dsp::{DeckEqGains, DeckState, DspEngine, KEY_SHIFT_SEMITONE_LIMIT};
 use library::{LibraryBus, LibraryManager, PreparedTrackPlayback};
 use library_core::{AudioSource, FileAudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
@@ -761,12 +759,13 @@ impl Engine {
         deck.set_key_lock(enabled)
     }
 
-    /// Set the session key-shift offset in semitones (`-16..=16`).
+    /// Set the session key-shift offset in semitones
+    /// (`±KEY_SHIFT_SEMITONE_LIMIT`).
     ///
     /// Out-of-range values are clamped; non-finite values become `0`.
     pub fn set_deck_key_shift(&mut self, deck_id: usize, semitones: f32) -> Result<()> {
         let s = if semitones.is_finite() {
-            semitones.clamp(-16.0, 16.0)
+            semitones.clamp(-KEY_SHIFT_SEMITONE_LIMIT, KEY_SHIFT_SEMITONE_LIMIT)
         } else {
             0.0
         };
@@ -775,7 +774,7 @@ impl Engine {
                 .deck_control
                 .get_mut(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-            control.key_shift_semitones = s;
+            control.pitch_pad.key_shift_semitones = s;
         }
         if let Some(dsp_engine) = self.dsp_engine.as_ref() {
             let mut dsp = dsp_engine.lock().unwrap();
@@ -794,7 +793,7 @@ impl Engine {
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.keyboard_page = page.clamp(1, crate::pads::KEYBOARD_PAGE_COUNT);
+        control.pitch_pad.keyboard_page = page.clamp(1, crate::pads::KEYBOARD_PAGE_COUNT);
         Ok(())
     }
 
@@ -806,7 +805,7 @@ impl Engine {
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.key_shift_page = page.clamp(1, crate::pads::KEY_SHIFT_PAGE_COUNT);
+        control.pitch_pad.key_shift_page = page.clamp(1, crate::pads::KEY_SHIFT_PAGE_COUNT);
         Ok(())
     }
 
@@ -819,7 +818,8 @@ impl Engine {
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.keyboard_root_hot_cue = slot.min((crate::pads::HOT_CUE_SLOT_COUNT - 1) as u8);
+        control.pitch_pad.keyboard_root_hot_cue =
+            slot.min((crate::pads::HOT_CUE_SLOT_COUNT - 1) as u8);
         Ok(())
     }
 
@@ -1617,7 +1617,10 @@ impl Engine {
                 .deck_control
                 .get(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-            (control.key_shift_page, control.key_shift_semitones)
+            (
+                control.pitch_pad.key_shift_page,
+                control.pitch_pad.key_shift_semitones,
+            )
         };
         if shift {
             return match slot {
@@ -1673,12 +1676,12 @@ impl Engine {
                 .get(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
             (
-                control.keyboard_page,
-                !control.keyboard_held.iter().any(|held| *held),
-                control.key_shift_semitones,
+                control.pitch_pad.keyboard_page,
+                !control.pitch_pad.keyboard_held.iter().any(|held| *held),
+                control.pitch_pad.key_shift_semitones,
                 control
                     .hot_cues
-                    .get(usize::from(control.keyboard_root_hot_cue))
+                    .get(usize::from(control.pitch_pad.keyboard_root_hot_cue))
                     .copied()
                     .flatten(),
             )
@@ -1693,9 +1696,10 @@ impl Engine {
                     if first_press {
                         // Snapshot whatever was latched (e.g. a Key Shift pad) so
                         // the momentary Keyboard bank can put it back on release.
-                        control.keyboard_restore_semitones = Some(current_shift);
+                        control.pitch_pad.keyboard_restore_semitones = Some(current_shift);
                     }
-                    control.keyboard_held[slot_i] = true;
+                    control.pitch_pad.keyboard_held[slot_i] = true;
+                    control.pitch_pad.keyboard_held_semitones[slot_i] = Some(f32::from(s));
                 }
                 if let Some(position_ms) = root_position {
                     self.trigger_deck_hot_cue(deck_id, position_ms)?;
@@ -1724,30 +1728,38 @@ impl Engine {
                 .deck_control
                 .get_mut(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-            let was_held = control.keyboard_held.get(slot_i).copied().unwrap_or(false);
+            let was_held = control
+                .pitch_pad
+                .keyboard_held
+                .get(slot_i)
+                .copied()
+                .unwrap_or(false);
             if was_held {
-                control.keyboard_held[slot_i] = false;
+                control.pitch_pad.keyboard_held[slot_i] = false;
+                control.pitch_pad.keyboard_held_semitones[slot_i] = None;
             }
             let fallback = control
+                .pitch_pad
                 .keyboard_held
                 .iter()
                 .enumerate()
                 .filter(|(_, held)| **held)
-                .find_map(|(index, _)| {
-                    match crate::pads::keyboard_page_action(control.keyboard_page, index as u8) {
-                        crate::pads::PitchPadAction::Semitone(s) => Some(f32::from(s)),
-                        _ => None,
-                    }
-                });
+                .find_map(|(index, _)| control.pitch_pad.keyboard_held_semitones[index]);
             match (was_held, fallback) {
                 (true, Some(semitones)) => Some(semitones),
                 (true, None) => {
                     seek_back = control
                         .hot_cues
-                        .get(usize::from(control.keyboard_root_hot_cue))
+                        .get(usize::from(control.pitch_pad.keyboard_root_hot_cue))
                         .copied()
                         .flatten();
-                    Some(control.keyboard_restore_semitones.take().unwrap_or(0.0))
+                    Some(
+                        control
+                            .pitch_pad
+                            .keyboard_restore_semitones
+                            .take()
+                            .unwrap_or(0.0),
+                    )
                 }
                 (false, _) => None,
             }
@@ -1764,7 +1776,7 @@ impl Engine {
     fn keyboard_page(&self, deck_id: usize) -> Result<u8> {
         self.deck_control
             .get(deck_id)
-            .map(|control| control.keyboard_page)
+            .map(|control| control.pitch_pad.keyboard_page)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))
     }
 
@@ -1818,11 +1830,18 @@ impl Engine {
             // state: the held pad's release is routed to the new mode's release
             // handler, so restore the pre-press shift now (and update the DSP deck
             // below) before clearing the held bookkeeping.
-            let held = control.keyboard_held.iter().any(|held| *held);
-            let restore = held.then(|| control.keyboard_restore_semitones.take().unwrap_or(0.0));
+            let held = control.pitch_pad.keyboard_held.iter().any(|held| *held);
+            let restore = held.then(|| {
+                control
+                    .pitch_pad
+                    .keyboard_restore_semitones
+                    .take()
+                    .unwrap_or(0.0)
+            });
             control.pad_mode = mode;
-            control.keyboard_held = [false; 8];
-            control.keyboard_restore_semitones = None;
+            control.pitch_pad.keyboard_held = [false; 8];
+            control.pitch_pad.keyboard_held_semitones = [None; 8];
+            control.pitch_pad.keyboard_restore_semitones = None;
             restore
         };
         if let Some(semitones) = restore {
@@ -2379,10 +2398,10 @@ fn deck_snapshot_from_dsp(
         speed: deck.speed(),
         tempo_range: deck.tempo_range(),
         key_lock: deck.key_lock(),
-        key_shift: control.key_shift_semitones,
-        keyboard_page: control.keyboard_page,
-        key_shift_page: control.key_shift_page,
-        keyboard_root_hot_cue: control.keyboard_root_hot_cue,
+        key_shift: control.pitch_pad.key_shift_semitones,
+        keyboard_page: control.pitch_pad.keyboard_page,
+        key_shift_page: control.pitch_pad.key_shift_page,
+        keyboard_root_hot_cue: control.pitch_pad.keyboard_root_hot_cue,
         eq: DeckEq {
             low: crate::control_norm::strip_db_to_norm(eq.low_db),
             mid: crate::control_norm::strip_db_to_norm(eq.mid_db),

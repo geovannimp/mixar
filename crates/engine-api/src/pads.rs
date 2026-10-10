@@ -27,14 +27,12 @@ pub const KEYBOARD_PAGE_COUNT: u8 = 4;
 /// Number of Key Shift semitone pages (includes the Reset/Up/Down/Sync utility page).
 pub const KEY_SHIFT_PAGE_COUNT: u8 = 5;
 
-/// Default Keyboard / Key Shift semitone page (`0…+7`), index 2 in both tables.
+/// Default Keyboard / Key Shift semitone page (`0…+7`): 1-based page number 2.
 pub const DEFAULT_PITCH_PAGE: u8 = 2;
 
-/// Rekordbox DDJ-400 footnote *6 Keyboard page table; slot 0 = pad 1 = MIDI offset 0.
-///
-/// Keyboard is pitch-only: four pages, no Reset/Up/Down/Sync utility page.
+/// Shared pitch-only pages 1–4 (Keyboard and Key Shift).
 #[rustfmt::skip]
-const KEYBOARD_PAGES: [[PitchPadAction; 8]; 4] = [
+const PITCH_PAGES_BASE: [[PitchPadAction; 8]; 4] = [
     // PAGE 1 — label "+8…+12"
     [
         PitchPadAction::Semitone(8), PitchPadAction::Semitone(9),
@@ -65,46 +63,30 @@ const KEYBOARD_PAGES: [[PitchPadAction; 8]; 4] = [
     ],
 ];
 
+/// Rekordbox DDJ-400 footnote *6 Keyboard page table; slot 0 = pad 1 = MIDI offset 0.
+const KEYBOARD_PAGES: [[PitchPadAction; 8]; 4] = PITCH_PAGES_BASE;
+
+/// Key Shift page 5 — Reset / Up / Down / Sync utility bank.
+#[rustfmt::skip]
+const KEY_SHIFT_UTIL_PAGE: [PitchPadAction; 8] = [
+    PitchPadAction::KeyReset,
+    PitchPadAction::SemitoneDown,
+    PitchPadAction::Semitone(-5),
+    PitchPadAction::Semitone(-12),
+    PitchPadAction::KeySync,
+    PitchPadAction::SemitoneUp,
+    PitchPadAction::Semitone(7),
+    PitchPadAction::Semitone(12),
+];
+
 /// Rekordbox DDJ-400 footnote *6 Key Shift page table; slot 0 = pad 1 = MIDI offset 0.
-///
-/// Key Shift shares pages 1–4 with Keyboard and adds the utility page as page 5.
 #[rustfmt::skip]
 const KEY_SHIFT_PAGES: [[PitchPadAction; 8]; 5] = [
-    // PAGE 1 — label "+8…+12"
-    [
-        PitchPadAction::Semitone(8), PitchPadAction::Semitone(9),
-        PitchPadAction::Semitone(10), PitchPadAction::Semitone(11),
-        PitchPadAction::Semitone(12), PitchPadAction::None,
-        PitchPadAction::None, PitchPadAction::None,
-    ],
-    // PAGE 2 (default) — label "0…+7"
-    [
-        PitchPadAction::Semitone(0), PitchPadAction::Semitone(1),
-        PitchPadAction::Semitone(2), PitchPadAction::Semitone(3),
-        PitchPadAction::Semitone(4), PitchPadAction::Semitone(5),
-        PitchPadAction::Semitone(6), PitchPadAction::Semitone(7),
-    ],
-    // PAGE 3 — label "-1…-8"
-    [
-        PitchPadAction::Semitone(-8), PitchPadAction::Semitone(-7),
-        PitchPadAction::Semitone(-6), PitchPadAction::Semitone(-5),
-        PitchPadAction::Semitone(-4), PitchPadAction::Semitone(-3),
-        PitchPadAction::Semitone(-2), PitchPadAction::Semitone(-1),
-    ],
-    // PAGE 4 — label "-9…-12"
-    [
-        PitchPadAction::None, PitchPadAction::None,
-        PitchPadAction::None, PitchPadAction::None,
-        PitchPadAction::Semitone(-12), PitchPadAction::Semitone(-11),
-        PitchPadAction::Semitone(-10), PitchPadAction::Semitone(-9),
-    ],
-    // PAGE 5 — label "UTIL"
-    [
-        PitchPadAction::KeyReset, PitchPadAction::SemitoneDown,
-        PitchPadAction::Semitone(-5), PitchPadAction::Semitone(-12),
-        PitchPadAction::KeySync, PitchPadAction::SemitoneUp,
-        PitchPadAction::Semitone(7), PitchPadAction::Semitone(12),
-    ],
+    PITCH_PAGES_BASE[0],
+    PITCH_PAGES_BASE[1],
+    PITCH_PAGES_BASE[2],
+    PITCH_PAGES_BASE[3],
+    KEY_SHIFT_UTIL_PAGE,
 ];
 
 /// Keyboard page action for `slot` (`0..=7`) on `page` (clamped to `1..=4`).

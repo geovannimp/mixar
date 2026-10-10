@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
+import 'package:gui_flutter/mixer/pads/key_shift_pads.dart';
+import 'package:gui_flutter/mixer/pads/keyboard_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
@@ -29,6 +31,8 @@ void main() {
     String? activeBankId = 'bank-1',
     void Function(PadMode mode)? onPadMode,
     void Function(int slot, bool shift)? onHotCuePress,
+    void Function(int slot)? onKeyboardPress,
+    void Function(int slot)? onKeyShiftPress,
   }) async {
     var mode = padMode;
     final cues = List<DeckHotCue>.from(hotCues);
@@ -83,8 +87,8 @@ void main() {
                     onSamplerRelease: (_) {},
                     onSelectBank: (id) => setState(() => bankId = id),
                     onSaveBank: (_, _, _) {},
-                    onKeyShiftPress: (_) {},
-                    onKeyboardPress: (_) {},
+                    onKeyShiftPress: onKeyShiftPress ?? (_) {},
+                    onKeyboardPress: onKeyboardPress ?? (_) {},
                     onKeyboardRelease: (_) {},
                     hasTrack: hasTrack,
                     disabled: disabled,
@@ -139,6 +143,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Bank 2'), findsOneWidget);
     expect(find.text('hold'), findsOneWidget);
+  });
+
+  testWidgets('keyboard and key shift tabs render their own pad grids', (
+    tester,
+  ) async {
+    final pressed = <int>[];
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      padMode: PadMode.keyboard,
+      onKeyboardPress: pressed.add,
+    );
+
+    expect(find.byType(KeyboardPads), findsOneWidget);
+    expect(find.byType(KeyShiftPads), findsNothing);
+    // Default page is the `0…+7` range, with hot cue 1 showing as the root.
+    expect(find.text('0…+7'), findsOneWidget);
+    expect(find.text('HC 1'), findsOneWidget);
+
+    // A pad hold forwards the pressed slot to the host.
+    await tester.tap(find.text('+1'));
+    await tester.pumpAndSettle();
+    expect(pressed, [1]);
+
+    await tester.tap(find.text('SHIFT'));
+    await tester.pumpAndSettle();
+    expect(find.byType(KeyShiftPads), findsOneWidget);
+    expect(find.byType(KeyboardPads), findsNothing);
+    expect(find.text('0…+7'), findsOneWidget);
+    // The root chip belongs to the Keyboard grid only.
+    expect(find.text('HC 1'), findsNothing);
   });
 
   testWidgets('pad actions stay disabled without a track', (tester) async {

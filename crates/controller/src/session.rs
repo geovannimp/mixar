@@ -168,8 +168,11 @@ impl MappingSession {
         let i = (deck as usize).min(3);
         let mode_changed = self.snapshot.pad_mode[i] != mode;
         self.snapshot.pad_mode[i] = mode;
+        if !mode_changed {
+            return;
+        }
         let section = format!("deck_{}", deck + 1);
-        // Mode-page LEDs: force-resend so a page switch always repaints.
+        // Mode-page LEDs: force-resend only when the mode actually changes.
         self.output_state
             .remove(&format!("{section}.pad_mode_keyboard"));
         self.output_state
@@ -186,11 +189,6 @@ impl MappingSession {
             mode == PadMode::KeyShift,
             midi,
         );
-        // Only repaint the pad bank on an actual mode change: a repeat mirror of
-        // the same mode must not force-resend all eight pad LEDs.
-        if !mode_changed {
-            return;
-        }
         match mode {
             PadMode::HotCue => self.refresh_hot_cue_leds(deck, midi),
             PadMode::Keyboard | PadMode::KeyShift => self.refresh_key_shift_leds(deck, midi),
@@ -260,7 +258,7 @@ impl MappingSession {
         });
         for (slot, action) in actions.iter().enumerate() {
             let alias = format!("{alias_prefix}_{}", slot + 1);
-            let active = matches!(action, PitchPadAction::Semitone(s) if f32::from(*s) == shift);
+            let active = matches!(action, PitchPadAction::Semitone(s) if (f32::from(*s) - shift).abs() < 0.5);
             self.output_state.remove(&format!("{section}.{alias}"));
             self.apply_output_signal(&section, &alias, active, midi);
         }

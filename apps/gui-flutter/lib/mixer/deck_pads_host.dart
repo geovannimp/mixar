@@ -75,6 +75,31 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     );
   }
 
+  /// Step the page bar of whichever pad mode owns it, wrapping at both ends.
+  ///
+  /// Keyboard and Key Shift keep independent pages, so only the active mode's
+  /// value moves; [direction] is `-1` for previous and `1` for next.
+  void _stepPage(
+    int direction,
+    PadMode mode,
+    int keyboardPage,
+    int keyShiftPage,
+  ) {
+    final keyShift = mode == PadMode.keyShift;
+    final page = keyShift ? keyShiftPage : keyboardPage;
+    final count = keyShift ? kKeyShiftPageCount : kKeyboardPageCount;
+    final next = direction < 0
+        ? (page <= 1 ? count : page - 1)
+        : (page >= count ? 1 : page + 1);
+    unawaited(
+      _run(
+        (engine) => keyShift
+            ? engine.setKeyShiftPage(deckId: widget.deckId, page: next)
+            : engine.setKeyboardPage(deckId: widget.deckId, page: next),
+      ),
+    );
+  }
+
   List<SamplerSlot> _slotsFromChrome(List<rust.SamplerSlotChrome> chrome) {
     return [
       for (var i = 0; i < 8; i++)
@@ -277,32 +302,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           ),
         );
       },
-      onPrevPage: () {
-        final keyShift = padMode == PadMode.keyShift;
-        final page = keyShift ? keyShiftPage : keyboardPage;
-        final count = keyShift ? kKeyShiftPageCount : kKeyboardPageCount;
-        final prev = page <= 1 ? count : page - 1;
-        unawaited(
-          _run(
-            (engine) => keyShift
-                ? engine.setKeyShiftPage(deckId: widget.deckId, page: prev)
-                : engine.setKeyboardPage(deckId: widget.deckId, page: prev),
-          ),
-        );
-      },
-      onNextPage: () {
-        final keyShift = padMode == PadMode.keyShift;
-        final page = keyShift ? keyShiftPage : keyboardPage;
-        final count = keyShift ? kKeyShiftPageCount : kKeyboardPageCount;
-        final next = page >= count ? 1 : page + 1;
-        unawaited(
-          _run(
-            (engine) => keyShift
-                ? engine.setKeyShiftPage(deckId: widget.deckId, page: next)
-                : engine.setKeyboardPage(deckId: widget.deckId, page: next),
-          ),
-        );
-      },
+      onPrevPage: () => _stepPage(-1, padMode, keyboardPage, keyShiftPage),
+      onNextPage: () => _stepPage(1, padMode, keyboardPage, keyShiftPage),
       onKeyShiftPress: (slot) {
         unawaited(
           _run(

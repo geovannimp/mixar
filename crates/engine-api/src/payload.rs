@@ -51,7 +51,7 @@ pub enum PadMode {
 
 /// Default Keyboard / Key Shift semitone page (Rekordbox DDJ-400 footnote *6).
 pub fn default_pitch_page() -> u8 {
-    2
+    crate::pads::DEFAULT_PITCH_PAGE
 }
 
 /// Jog platter policy for top (touched) or outer (untouched) turns.
