@@ -295,5 +295,101 @@ void main() {
         123,
       );
     });
+
+    test(
+      'metadata trackUpdated does not thrash reload while list is AsyncError',
+      () async {
+        var trackLoads = 0;
+        final container = ProviderContainer(
+          overrides: [
+            collectionsProvider.overrideWith((ref) async => [_collection()]),
+            overrideCollectionTracks((ref) async {
+              trackLoads++;
+              throw StateError('db down');
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await expectLater(
+          container.read(collectionTracksProvider.future),
+          throwsA(isA<StateError>()),
+        );
+        expect(trackLoads, 1);
+        expect(container.read(collectionTracksProvider).hasError, isTrue);
+
+        container.read(libraryEvtDispatchProvider)(
+          LibraryEvt(
+            kind: LibraryEvtKind.trackUpdated,
+            track: _track(id: 'a', bpm: 128),
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(trackLoads, 1);
+        expect(container.read(collectionTracksProvider).hasError, isTrue);
+      },
+    );
+
+    test(
+      'BPM-changing trackUpdated reorders libraryTableTracks via sort',
+      () async {
+        final seed = [
+          _track(id: 'a', bpm: 100),
+          _track(id: 'b', bpm: 120),
+          _track(id: 'c', bpm: 140),
+        ];
+        final container = ProviderContainer(
+          overrides: [
+            collectionsProvider.overrideWith(
+              (ref) async => [_collection(trackCount: 3)],
+            ),
+            overrideCollectionTracksValue(seed),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await container.read(collectionsProvider.future);
+        await container.read(collectionTracksProvider.future);
+        container
+            .read(librarySortProvider.notifier)
+            .setField(LibrarySortField.bpm);
+
+        expect(
+          container
+              .read(libraryTableTracksProvider)
+              .requireValue
+              .map((t) => t.id)
+              .toList(),
+          ['a', 'b', 'c'],
+        );
+
+        container.read(libraryEvtDispatchProvider)(
+          LibraryEvt(
+            kind: LibraryEvtKind.trackUpdated,
+            track: _track(id: 'c', bpm: 90),
+          ),
+        );
+        await pumpEventQueue();
+
+        // Provider keeps membership order; the table provider re-sorts.
+        expect(
+          container
+              .read(collectionTracksProvider)
+              .requireValue
+              .map((t) => t.id)
+              .toList(),
+          ['a', 'b', 'c'],
+        );
+        expect(
+          container
+              .read(libraryTableTracksProvider)
+              .requireValue
+              .map((t) => t.id)
+              .toList(),
+          ['c', 'a', 'b'],
+        );
+      },
+    );
   });
 }

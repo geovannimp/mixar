@@ -56,7 +56,7 @@ final activeCollectionIdProvider = Provider<String?>((ref) {
 /// Membership/structural changes (missing track payload, or id not in the
 /// list) invalidate and reload. Chatty bursts coalesce to one microtask flush.
 class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
-  final Map<String, LibraryTrackSummary> _pendingPatches = {};
+  Map<String, LibraryTrackSummary> _pendingPatches = {};
   bool _pendingStructuralInvalidate = false;
   bool _flushScheduled = false;
 
@@ -72,18 +72,26 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
 
   /// Apply a [LibraryEvtKind.trackUpdated] / [LibraryEvtKind.trackAnalyzed] row.
   void scheduleTrackRowEvent(LibraryTrackSummary? track) {
+    var queued = false;
     if (track == null) {
+      // Membership/structural signal with no row payload.
       _pendingStructuralInvalidate = true;
+      queued = true;
     } else {
       final current = state.asData?.value;
-      final inList = current != null && current.any((t) => t.id == track.id);
-      if (inList) {
+      if (current == null) {
+        // Loading or errored: no list to patch. Skip metadata events so a
+        // failing reload + chatty analyze cannot invalidateSelf in a loop.
+        // A later successful load reads the already-written SQLite row.
+      } else if (current.any((t) => t.id == track.id)) {
         _pendingPatches[track.id] = track;
+        queued = true;
       } else {
         _pendingStructuralInvalidate = true;
+        queued = true;
       }
     }
-    if (_flushScheduled) {
+    if (!queued || _flushScheduled) {
       return;
     }
     _flushScheduled = true;
@@ -95,9 +103,9 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
 
   void _flush() {
     final structural = _pendingStructuralInvalidate;
-    final patches = Map<String, LibraryTrackSummary>.from(_pendingPatches);
+    final patches = _pendingPatches;
     _pendingStructuralInvalidate = false;
-    _pendingPatches.clear();
+    _pendingPatches = {};
 
     if (structural) {
       ref
@@ -110,9 +118,8 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     }
     final current = state.asData?.value;
     if (current == null) {
-      ref
-        ..invalidateSelf()
-        ..invalidate(collectionsProvider);
+      // List disappeared before flush (reload/error); drop patches rather
+      // than kick another invalidate that could thrash on persistent failure.
       return;
     }
     state = AsyncData([for (final t in current) patches[t.id] ?? t]);
@@ -125,6 +132,12 @@ final collectionTracksProvider =
     );
 
 /// Test override that supplies a custom load while keeping patch/coalesce.
+///
+/// Narrowed fidelity: does **not** watch [activeCollectionIdProvider], so a
+/// collection switch will not rebuild the seed. Structural [_flush] may still
+/// invalidate [collectionsProvider] even when [_load] never reads it. Prefer
+/// the real [CollectionTracks] (or a transport fake) when exercising
+/// collection-switch behaviour.
 @visibleForTesting
 class SeededCollectionTracks extends CollectionTracks {
   SeededCollectionTracks(this._load);
@@ -502,6 +515,7 @@ bool _stemsStillRunning(Ref ref, String trackId) {
 }
 
 /// Same path as [libraryEventsBootstrapProvider]; exposed for unit tests.
+@visibleForTesting
 final libraryEvtDispatchProvider = Provider<void Function(LibraryEvt)>((ref) {
   return (evt) => handleLibraryEvt(ref, evt);
 });
