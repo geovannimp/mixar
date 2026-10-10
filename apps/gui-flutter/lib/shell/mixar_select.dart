@@ -1,13 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Sides of the [MixarSelect] border stroke.
 enum MixarBorderSide { top, right, bottom, left }
 
-/// Mixar select / dropdown over [ShadSelect].
+/// Mixar select / dropdown over [ShadSelect], or a dialog when mobile style.
 class MixarSelect<T> extends StatefulWidget {
   const new({
     required this.value,
@@ -22,6 +29,8 @@ class MixarSelect<T> extends StatefulWidget {
     this.borderRadius,
     this.borderColor,
     this.borderSides,
+    this.style,
+    this.dialogTitle,
   });
 
   final T value;
@@ -38,6 +47,12 @@ class MixarSelect<T> extends StatefulWidget {
   /// Sides painted with [borderColor]; `null` paints every side.
   final Set<MixarBorderSide>? borderSides;
 
+  /// Force presentation; `null` reads the saved settings style.
+  final SelectStyleSetting? style;
+
+  /// Title shown above options in the mobile dialog.
+  final String? dialogTitle;
+
   @override
   State<MixarSelect<T>> createState() => _MixarSelectState<T>();
 }
@@ -49,10 +64,141 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
     scheduleMicrotask(() => _pointerSelection = false);
   }
 
+  Future<void> _openMobilePicker() async {
+    if (!widget.enabled) return;
+    final selected = await showMixarDialog<T>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = dialogContext.theme;
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                widget.dialogTitle ?? 'Select',
+                style: theme.typography.body.md.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (final option in widget.options)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: AppButton(
+                    variant: option == widget.value
+                        ? MixarButtonVariant.primary
+                        : MixarButtonVariant.outline,
+                    onPress: () => Navigator.of(dialogContext).pop(option),
+                    child: widget.subtitleBuilder == null
+                        ? Text(widget.labelBuilder(option))
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(widget.labelBuilder(option)),
+                              Text(
+                                widget.subtitleBuilder!(option),
+                                style: theme.typography.body.xs.copyWith(
+                                  color: theme.colors.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected == null || !mounted) return;
+    widget.onChanged(selected);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
+    final override = widget.style;
+    if (override != null) {
+      return _buildForStyle(effectiveSelectStyle(override));
+    }
+    return Consumer(
+      builder: (context, ref, _) {
+        final setting = ref.watch(selectStyleSettingProvider);
+        return _buildForStyle(effectiveSelectStyle(setting));
+      },
+    );
+  }
 
+  Widget _buildForStyle(SelectStyleSetting style) {
+    final theme = context.theme;
+    if (style == SelectStyleSetting.mobile) {
+      return _buildMobileTrigger(theme);
+    }
+    return _buildDesktopSelect(theme);
+  }
+
+  Widget _buildMobileTrigger(MixarThemeData theme) {
+    final radius =
+        widget.borderRadius ?? const BorderRadius.all(Radius.circular(6));
+    final color = widget.borderColor ?? theme.colors.border;
+    final painted = widget.borderSides;
+    BorderSide side(MixarBorderSide side) {
+      final draw = painted?.contains(side) ?? true;
+      return draw
+          ? BorderSide(color: color, width: theme.style.borderWidth)
+          : BorderSide.none;
+    }
+
+    final label = widget.labelBuilder(widget.value);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fill = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : null;
+        return SizedBox(
+          width: fill,
+          child: MTappable(
+            onPress: widget.enabled ? _openMobilePicker : null,
+            semanticsLabel: label,
+            builder: (context, state) {
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colors.background,
+                  borderRadius: radius is BorderRadius
+                      ? radius
+                      : BorderRadius.circular(6),
+                  border: Border(
+                    top: side(MixarBorderSide.top),
+                    right: side(MixarBorderSide.right),
+                    bottom: side(MixarBorderSide.bottom),
+                    left: side(MixarBorderSide.left),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    label,
+                    style: theme.typography.body.sm.copyWith(
+                      color: widget.enabled
+                          ? theme.colors.foreground
+                          : theme.colors.mutedForeground,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopSelect(MixarThemeData theme) {
     Widget buildOption(T option) {
       final child = widget.subtitleBuilder == null
           ? Text(widget.labelBuilder(option))

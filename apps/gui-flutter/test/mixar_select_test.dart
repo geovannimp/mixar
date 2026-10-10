@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_select.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -13,6 +14,8 @@ void main() {
     WidgetTester tester, {
     required String value,
     required void Function(String) onChanged,
+    SelectStyleSetting style = SelectStyleSetting.desktop,
+    String? dialogTitle,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -28,6 +31,8 @@ void main() {
                 options: const ['low', 'medium', 'high'],
                 labelBuilder: (option) => option,
                 onChanged: onChanged,
+                style: style,
+                dialogTitle: dialogTitle,
               ),
             ),
           ),
@@ -111,5 +116,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(optionFill(tester, 'high'), theme.colors.selection);
+  });
+
+  testWidgets('desktop style still uses ShadSelect', (tester) async {
+    await pumpSelect(
+      tester,
+      value: 'low',
+      onChanged: (_) {},
+      style: SelectStyleSetting.desktop,
+    );
+    expect(find.byType(ShadSelect<String>), findsOneWidget);
+  });
+
+  testWidgets('mobile style opens a dialog of options and selects', (
+    tester,
+  ) async {
+    String? selected;
+    await pumpSelect(
+      tester,
+      value: 'low',
+      onChanged: (next) => selected = next,
+      style: SelectStyleSetting.mobile,
+      dialogTitle: 'Quality',
+    );
+
+    expect(find.byType(ShadSelect<String>), findsNothing);
+    await tester.tap(find.text('low'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quality'), findsOneWidget);
+    expect(find.text('medium'), findsOneWidget);
+    await tester.tap(find.text('medium'));
+    await tester.pumpAndSettle();
+
+    expect(selected, 'medium');
+    expect(find.text('Quality'), findsNothing);
   });
 }
