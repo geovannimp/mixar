@@ -1,0 +1,7 @@
+{
+  "@@locale": "en",
+  "settingsTitle": "SETTINGS",
+  "@settingsTitle": {
+    "description": "Settings page header title"
+  }
+}
