@@ -205,10 +205,14 @@ void main() {
       dialogTitle: 'Quality',
     );
 
-    final select = find.byType(ShadSelect<String>);
-    await tester.tap(select);
-    await tester.pump(); // dialog route starts; _isOpening is true
-    await tester.tap(select, warnIfMissed: false);
+    final open = tester.widget<ShadSelect<String>>(
+      find.byType(ShadSelect<String>),
+    ).onPressed;
+    expect(open, isNotNull);
+    // Two opens in the same turn: the second must hit `_isOpening` and no-op
+    // (both run synchronously until the first `await showMixarDialog`).
+    open!();
+    open();
     await tester.pumpAndSettle();
 
     expect(find.text('Quality'), findsOneWidget);
