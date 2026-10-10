@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 804620510;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2090406206;
 
 // Section: executor
 
@@ -6893,6 +6893,39 @@ fn wire__crate__api__settings__select_style_setting_default_impl(
         },
     )
 }
+fn wire__crate__api__settings__ui_language_setting_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ui_language_setting_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Ok::<_, ()>(crate::api::settings::UiLanguageSetting::default())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 
 // Section: related_funcs
 
@@ -7214,6 +7247,8 @@ impl SseDecode for crate::api::settings::AppSettings {
             <crate::api::settings::SelectStyleSetting>::sse_decode(deserializer);
         let mut var_dimPlayedTracks = <bool>::sse_decode(deserializer);
         let mut var_stemsFormat = <String>::sse_decode(deserializer);
+        let mut var_uiLanguage =
+            <crate::api::settings::UiLanguageSetting>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -7247,6 +7282,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             select_style: var_selectStyle,
             dim_played_tracks: var_dimPlayedTracks,
             stems_format: var_stemsFormat,
+            ui_language: var_uiLanguage,
         };
     }
 }
@@ -8665,6 +8701,19 @@ impl SseDecode for u8 {
     }
 }
 
+impl SseDecode for crate::api::settings::UiLanguageSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::UiLanguageSetting::System,
+            1 => crate::api::settings::UiLanguageSetting::En,
+            2 => crate::api::settings::UiLanguageSetting::PtBr,
+            _ => unreachable!("Invalid variant for UiLanguageSetting: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for () {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
@@ -9465,6 +9514,12 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
+        134 => wire__crate__api__settings__ui_language_setting_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -9733,6 +9788,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.select_style.into_into_dart().into_dart(),
             self.dim_played_tracks.into_into_dart().into_dart(),
             self.stems_format.into_into_dart().into_dart(),
+            self.ui_language.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -10801,6 +10857,28 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::engine::SyncMode>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::UiLanguageSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::System => 0.into_dart(),
+            Self::En => 1.into_dart(),
+            Self::PtBr => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::UiLanguageSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::UiLanguageSetting>
+    for crate::api::settings::UiLanguageSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::UiLanguageSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::WaveformDisplayModeSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -11120,6 +11198,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <crate::api::settings::SelectStyleSetting>::sse_encode(self.select_style, serializer);
         <bool>::sse_encode(self.dim_played_tracks, serializer);
         <String>::sse_encode(self.stems_format, serializer);
+        <crate::api::settings::UiLanguageSetting>::sse_encode(self.ui_language, serializer);
     }
 }
 
@@ -12262,6 +12341,23 @@ impl SseEncode for u8 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_u8(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::settings::UiLanguageSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::UiLanguageSetting::System => 0,
+                crate::api::settings::UiLanguageSetting::En => 1,
+                crate::api::settings::UiLanguageSetting::PtBr => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

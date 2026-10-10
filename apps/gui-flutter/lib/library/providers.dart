@@ -531,26 +531,7 @@ Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
   if (payload == null) {
     return;
   }
-
-  final loading = ref.read(deckLoadInFlightProvider.notifier);
-  loading.set(deckId, true);
-  try {
-    final engine = await ref.read(engineTransportProvider.future);
-    if (engine == null) {
-      return;
-    }
-    await applyTrackDrop(
-      deckId: deckId,
-      payload: payload,
-      loadLibraryTrack: (id, trackId) =>
-          engine.loadLibraryTrack(deckId: id, trackId: trackId),
-      loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
-    );
-    ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, payload.path);
-    ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
-  } finally {
-    loading.set(deckId, false);
-  }
+  await loadPayloadOntoDeck(ref.read, deckId, payload);
 }
 
 /// Long-lived `subscribeEvents` while transport is open; watch from library UI.

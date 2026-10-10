@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/jog_ticks.dart';
@@ -265,6 +266,58 @@ class DeckLoadInFlight extends Notifier<Map<int, int>> {
 
 final deckLoadInFlightProvider =
     NotifierProvider<DeckLoadInFlight, Map<int, int>>(DeckLoadInFlight.new);
+
+/// Per-deck monotonic load generation. Stale UI chrome commits check this.
+class DeckLoadGeneration extends Notifier<Map<int, int>> {
+  @override
+  Map<int, int> build() => const {};
+
+  /// Begin a load attempt; returns its generation token.
+  int begin(int deckId) {
+    final next = (state[deckId] ?? 0) + 1;
+    state = {...state, deckId: next};
+    return next;
+  }
+
+  bool isCurrent(int deckId, int generation) => state[deckId] == generation;
+}
+
+final deckLoadGenerationProvider =
+    NotifierProvider<DeckLoadGeneration, Map<int, int>>(DeckLoadGeneration.new);
+
+/// Narrow engine ops for deck load — production wraps [EngineTransport]; tests
+/// override [deckLoadTransportProvider] with a fake.
+abstract class DeckLoadTransport {
+  Future<void> loadLibraryTrack({required int deckId, required String trackId});
+
+  Future<void> loadPath({required int deckId, required String path});
+}
+
+class _EngineDeckLoadTransport implements DeckLoadTransport {
+  new(this._engine);
+
+  final EngineTransport _engine;
+
+  @override
+  Future<void> loadLibraryTrack({
+    required int deckId,
+    required String trackId,
+  }) => _engine.loadLibraryTrack(deckId: deckId, trackId: trackId);
+
+  @override
+  Future<void> loadPath({required int deckId, required String path}) =>
+      _engine.loadPath(deckId: deckId, path: path);
+}
+
+final deckLoadTransportProvider = FutureProvider<DeckLoadTransport?>((
+  ref,
+) async {
+  final engine = await ref.watch(engineTransportProvider.future);
+  if (engine == null) {
+    return null;
+  }
+  return _EngineDeckLoadTransport(engine);
+});
 
 final ProviderFamily<bool, int> deckLoadingProvider =
     Provider.family<bool, int>(
@@ -614,31 +667,46 @@ final engineEventsBootstrapProvider = Provider<void>((ref) {
   }
 });
 
-Future<void> loadPayloadToDeck(
-  WidgetRef ref,
+/// Shared deck-load path (UI drop/keyboard + MIDI).
+///
+/// Uses [deckLoadGenerationProvider] so a superseded attempt does not
+/// overwrite chrome after a newer load wins.
+Future<void> loadPayloadOntoDeck(
+  T Function<T>(ProviderListenable<T> provider) read,
   int deckId,
   TrackDragPayload payload,
 ) async {
-  final loading = ref.read(deckLoadInFlightProvider.notifier);
-  loading.set(deckId, true);
+  final generation = read(deckLoadGenerationProvider.notifier).begin(deckId);
+  final loading = read(deckLoadInFlightProvider.notifier)..set(deckId, true);
   try {
-    final engine = await ref.read(engineTransportProvider.future);
-    if (engine == null) {
+    final transport = await read(deckLoadTransportProvider.future);
+    if (transport == null) {
       return;
     }
     await applyTrackDrop(
       deckId: deckId,
       payload: payload,
       loadLibraryTrack: (id, trackId) =>
-          engine.loadLibraryTrack(deckId: id, trackId: trackId),
-      loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
+          transport.loadLibraryTrack(deckId: id, trackId: trackId),
+      loadPath: (id, path) => transport.loadPath(deckId: id, path: path),
     );
-    ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, payload.path);
-    ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
+    if (!read(deckLoadGenerationProvider.notifier)
+        .isCurrent(deckId, generation)) {
+      return;
+    }
+    read(engineUiProvider.notifier)
+      ..setDeckTrackPath(deckId, payload.path)
+      ..setDeckTrackId(deckId, payload.trackId);
   } finally {
     loading.set(deckId, false);
   }
 }
+
+Future<void> loadPayloadToDeck(
+  WidgetRef ref,
+  int deckId,
+  TrackDragPayload payload,
+) => loadPayloadOntoDeck(ref.read, deckId, payload);
 
 /// Drive play/pause from an absolute desired state (never `!snapshot` after await).
 Future<void> setDeckPlaying(WidgetRef ref, int deckId, bool playing) async {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -25,14 +26,12 @@ import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import 'support/mixar_material_app.dart';
@@ -153,9 +152,8 @@ void main() {
           ..._settingsOverrides(settings),
           ...extraOverrides,
         ],
-        child: MaterialApp(
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: const AppShell(appTitle: 'Mixar'),
         ),
       ),
@@ -270,7 +268,7 @@ void main() {
 
     Future<void> press(Finder button) async {
       // Deck chrome can sit above the narrow mixer header in the fixed deck
-      // row; drive the Forui button directly so the toggle still verifies.
+      // row; drive the MixerButton directly so the toggle still verifies.
       tester.widget<MixerButton>(button).onPress?.call();
       await tester.pumpAndSettle();
     }
@@ -323,9 +321,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: _settingsOverrides(),
-        child: MaterialApp(
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: const SizedBox(width: 1400, height: 900, child: SettingsPage()),
         ),
       ),
