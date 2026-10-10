@@ -171,7 +171,7 @@
   "settingsStorageClearWaveformOk": "Cache de formas de onda limpo",
   "settingsControllersDescription": "Mapeamentos MIDI e hardware conectado. Confie em um dispositivo para ativá-lo automaticamente ao conectar depois de Salvar.",
   "settingsControllersMappingsTitle": "Mapeamentos",
-  "settingsControllersMappingsDescription": "Armazenados nos dados do app. A semente copia mapas empacotados quando faltam; Atualizar sobrescreve a partir do pacote do app.",
+  "settingsControllersMappingsDescription": "Armazenados nos dados do app. Mapas incluídos são copiados quando faltam; Atualizar sobrescreve a partir do pacote do app.",
   "settingsControllersUpdateAll": "Atualizar todos",
   "settingsControllersNoMappings": "Ainda não há mapeamentos nos dados do app.",
   "settingsControllersMidiPortsTitle": "Portas MIDI",

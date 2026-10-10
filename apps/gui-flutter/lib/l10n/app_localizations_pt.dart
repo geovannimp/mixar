@@ -508,7 +508,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsControllersMappingsDescription =>
-      'Armazenados nos dados do app. A semente copia mapas empacotados quando faltam; Atualizar sobrescreve a partir do pacote do app.';
+      'Armazenados nos dados do app. Mapas incluídos são copiados quando faltam; Atualizar sobrescreve a partir do pacote do app.';
 
   @override
   String get settingsControllersUpdateAll => 'Atualizar todos';
@@ -1207,7 +1207,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get settingsControllersMappingsDescription =>
-      'Armazenados nos dados do app. A semente copia mapas empacotados quando faltam; Atualizar sobrescreve a partir do pacote do app.';
+      'Armazenados nos dados do app. Mapas incluídos são copiados quando faltam; Atualizar sobrescreve a partir do pacote do app.';
 
   @override
   String get settingsControllersUpdateAll => 'Atualizar todos';
