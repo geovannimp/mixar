@@ -96,7 +96,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUiDescription =>
-      'Chrome and hover tips for the desktop app.';
+      'Chrome, hover tips, and control presentation.';
 
   @override
   String get settingsUiLanguageLabel => 'Language';
@@ -106,6 +106,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsShowTooltips => 'Show tooltips';
+
+  @override
+  String get settingsUiSelectStyle => 'Select style';
+
+  @override
+  String get settingsUiSelectStyleAuto => 'Auto';
+
+  @override
+  String get settingsUiSelectStyleDesktop => 'Desktop';
+
+  @override
+  String get settingsUiSelectStyleMobile => 'Mobile';
+
+  @override
+  String get settingsUiSelectStyleAutoSubtitle =>
+      'Platform default — desktop OS uses popovers, phones use dialogs.';
+
+  @override
+  String get settingsUiSelectStyleDesktopSubtitle =>
+      'Anchored popovers for selects and ⋯ menus.';
+
+  @override
+  String get settingsUiSelectStyleMobileSubtitle =>
+      'Open selects and ⋯ menus in a dialog.';
 
   @override
   String get settingsAudioDescription => 'Engine output and buses.';

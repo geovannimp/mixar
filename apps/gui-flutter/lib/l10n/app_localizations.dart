@@ -270,7 +270,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiDescription.
   ///
   /// In en, this message translates to:
-  /// **'Chrome and hover tips for the desktop app.'**
+  /// **'Chrome, hover tips, and control presentation.'**
   String get settingsUiDescription;
 
   /// No description provided for @settingsUiLanguageLabel.
@@ -290,6 +290,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show tooltips'**
   String get settingsShowTooltips;
+
+  /// No description provided for @settingsUiSelectStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select style'**
+  String get settingsUiSelectStyle;
+
+  /// No description provided for @settingsUiSelectStyleAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get settingsUiSelectStyleAuto;
+
+  /// No description provided for @settingsUiSelectStyleDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop'**
+  String get settingsUiSelectStyleDesktop;
+
+  /// No description provided for @settingsUiSelectStyleMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile'**
+  String get settingsUiSelectStyleMobile;
+
+  /// No description provided for @settingsUiSelectStyleAutoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform default — desktop OS uses popovers, phones use dialogs.'**
+  String get settingsUiSelectStyleAutoSubtitle;
+
+  /// No description provided for @settingsUiSelectStyleDesktopSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Anchored popovers for selects and ⋯ menus.'**
+  String get settingsUiSelectStyleDesktopSubtitle;
+
+  /// No description provided for @settingsUiSelectStyleMobileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open selects and ⋯ menus in a dialog.'**
+  String get settingsUiSelectStyleMobileSubtitle;
 
   /// No description provided for @settingsAudioDescription.
   ///

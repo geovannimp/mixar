@@ -97,7 +97,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiDescription =>
-      'Chrome e dicas ao passar o mouse no app desktop.';
+      'Chrome, dicas ao passar o mouse e apresentação dos controles.';
 
   @override
   String get settingsUiLanguageLabel => 'Idioma';
@@ -107,6 +107,30 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsShowTooltips => 'Mostrar dicas';
+
+  @override
+  String get settingsUiSelectStyle => 'Estilo de seleção';
+
+  @override
+  String get settingsUiSelectStyleAuto => 'Automático';
+
+  @override
+  String get settingsUiSelectStyleDesktop => 'Desktop';
+
+  @override
+  String get settingsUiSelectStyleMobile => 'Mobile';
+
+  @override
+  String get settingsUiSelectStyleAutoSubtitle =>
+      'Padrão da plataforma — SO desktop usa popovers, celulares usam diálogos.';
+
+  @override
+  String get settingsUiSelectStyleDesktopSubtitle =>
+      'Popovers ancorados para seletores e menus ⋯.';
+
+  @override
+  String get settingsUiSelectStyleMobileSubtitle =>
+      'Abre seletores e menus ⋯ em um diálogo.';
 
   @override
   String get settingsAudioDescription => 'Saída do engine e barramentos.';
@@ -796,7 +820,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get settingsUiDescription =>
-      'Chrome e dicas ao passar o mouse no app desktop.';
+      'Chrome, dicas ao passar o mouse e apresentação dos controles.';
 
   @override
   String get settingsUiLanguageLabel => 'Idioma';
@@ -806,6 +830,30 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get settingsShowTooltips => 'Mostrar dicas';
+
+  @override
+  String get settingsUiSelectStyle => 'Estilo de seleção';
+
+  @override
+  String get settingsUiSelectStyleAuto => 'Automático';
+
+  @override
+  String get settingsUiSelectStyleDesktop => 'Desktop';
+
+  @override
+  String get settingsUiSelectStyleMobile => 'Mobile';
+
+  @override
+  String get settingsUiSelectStyleAutoSubtitle =>
+      'Padrão da plataforma — SO desktop usa popovers, celulares usam diálogos.';
+
+  @override
+  String get settingsUiSelectStyleDesktopSubtitle =>
+      'Popovers ancorados para seletores e menus ⋯.';
+
+  @override
+  String get settingsUiSelectStyleMobileSubtitle =>
+      'Abre seletores e menus ⋯ em um diálogo.';
 
   @override
   String get settingsAudioDescription => 'Saída do engine e barramentos.';
