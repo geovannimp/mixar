@@ -138,47 +138,53 @@ class MixarSelect<T> extends StatefulWidget {
 
 class _MixarSelectState<T> extends State<MixarSelect<T>> {
   bool _pointerSelection = false;
+  bool _isOpening = false;
 
   void _resetPointerSelection() {
     scheduleMicrotask(() => _pointerSelection = false);
   }
 
   Future<void> _openMobilePicker() async {
-    if (!widget.enabled) return;
-    final selected = await showMixarDialog<T>(
-      context: context,
-      builder: (dialogContext) {
-        final theme = dialogContext.theme;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                widget.dialogTitle ?? 'Select',
-                style: theme.typography.body.md.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              for (final option in widget.options)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: _MobileSelectOption(
-                    label: widget.labelBuilder(option),
-                    subtitle: widget.subtitleBuilder?.call(option),
-                    selected: option == widget.value,
-                    onPress: () => Navigator.of(dialogContext).pop(option),
+    if (!widget.enabled || _isOpening) return;
+    _isOpening = true;
+    try {
+      final selected = await showMixarDialog<T>(
+        context: context,
+        builder: (dialogContext) {
+          final theme = dialogContext.theme;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  widget.dialogTitle ?? 'Select',
+                  style: theme.typography.body.md.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-            ],
-          ),
-        );
-      },
-    );
-    if (selected == null || !mounted) return;
-    widget.onChanged(selected);
+                const SizedBox(height: 12),
+                for (final option in widget.options)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _MobileSelectOption(
+                      label: widget.labelBuilder(option),
+                      subtitle: widget.subtitleBuilder?.call(option),
+                      selected: option == widget.value,
+                      onPress: () => Navigator.of(dialogContext).pop(option),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+      if (selected == null || !mounted) return;
+      widget.onChanged(selected);
+    } finally {
+      _isOpening = false;
+    }
   }
 
   @override

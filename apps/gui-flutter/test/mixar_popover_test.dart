@@ -10,6 +10,50 @@ import 'package:material_ui/material_ui.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
+  Future<MixarOverlayController?> pumpMenuAnchor(
+    WidgetTester tester, {
+    SelectStyleSetting style = SelectStyleSetting.mobile,
+    bool captureController = false,
+  }) async {
+    final theme = MixarThemeData.dark();
+    MixarOverlayController? menuController;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: MixarMenuAnchor(
+              style: style,
+              menuBuilder: (context, controller) => MixarMenuBody(
+                groups: [
+                  MixarMenuGroup(
+                    children: [
+                      MixarMenuItem(
+                        title: const Text('Analyze tracks…'),
+                        onPress: controller.hide,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              childBuilder: (context, controller) {
+                if (captureController) {
+                  menuController = controller;
+                }
+                return GestureDetector(
+                  onTap: controller.toggle,
+                  child: const Text('Open menu'),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    return menuController;
+  }
+
   testWidgets('MixarPopover toggles overlay content', (tester) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -127,36 +171,7 @@ void main() {
   });
 
   testWidgets('MixarMenuAnchor mobile style opens a dialog', (tester) async {
-    final theme = MixarThemeData.dark();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: Center(
-            child: MixarMenuAnchor(
-              style: SelectStyleSetting.mobile,
-              menuBuilder: (context, controller) => MixarMenuBody(
-                groups: [
-                  MixarMenuGroup(
-                    children: [
-                      MixarMenuItem(
-                        title: const Text('Analyze tracks…'),
-                        onPress: controller.hide,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              childBuilder: (context, controller) => GestureDetector(
-                onTap: controller.toggle,
-                child: const Text('Open menu'),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    await pumpMenuAnchor(tester);
 
     await tester.tap(find.text('Open menu'));
     await tester.pumpAndSettle();
@@ -170,45 +185,15 @@ void main() {
   testWidgets('MixarMenuAnchor mobile barrier dismiss clears isShowing', (
     tester,
   ) async {
-    final theme = MixarThemeData.dark();
-    late MixarOverlayController menuController;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: Center(
-            child: MixarMenuAnchor(
-              style: SelectStyleSetting.mobile,
-              menuBuilder: (context, controller) => MixarMenuBody(
-                groups: [
-                  MixarMenuGroup(
-                    children: [
-                      MixarMenuItem(
-                        title: const Text('Analyze tracks…'),
-                        onPress: controller.hide,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              childBuilder: (context, controller) {
-                menuController = controller;
-                return GestureDetector(
-                  onTap: controller.toggle,
-                  child: const Text('Open menu'),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
+    final menuController = await pumpMenuAnchor(
+      tester,
+      captureController: true,
     );
 
     await tester.tap(find.text('Open menu'));
     await tester.pumpAndSettle();
     expect(find.text('Analyze tracks…'), findsOneWidget);
-    expect(menuController.isShowing, isTrue);
+    expect(menuController!.isShowing, isTrue);
 
     // Barrier dismiss (same corner tap as mixar_dialog_test).
     await tester.tapAt(const Offset(8, 8));
@@ -220,39 +205,9 @@ void main() {
   testWidgets(
     'MixarMenuAnchor mobile hide then show waits for dialog to finish',
     (tester) async {
-      final theme = MixarThemeData.dark();
-      late MixarOverlayController menuController;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
-          home: Scaffold(
-            body: Center(
-              child: MixarMenuAnchor(
-                style: SelectStyleSetting.mobile,
-                menuBuilder: (context, controller) => MixarMenuBody(
-                  groups: [
-                    MixarMenuGroup(
-                      children: [
-                        MixarMenuItem(
-                          title: const Text('Analyze tracks…'),
-                          onPress: controller.hide,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                childBuilder: (context, controller) {
-                  menuController = controller;
-                  return GestureDetector(
-                    onTap: controller.toggle,
-                    child: const Text('Open menu'),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
+      final menuController = await pumpMenuAnchor(
+        tester,
+        captureController: true,
       );
 
       await tester.tap(find.text('Open menu'));
@@ -261,7 +216,7 @@ void main() {
 
       // Rapid hide → show while the first dialog is still dismissing must not
       // stack a second route.
-      menuController.hide();
+      menuController!.hide();
       menuController.show();
       await tester.pump();
       expect(find.text('Analyze tracks…'), findsOneWidget);
