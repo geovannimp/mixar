@@ -1,3 +1,5 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
@@ -9,8 +11,10 @@ import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_select.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -103,21 +107,68 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('mode tabs switch grids', (tester) async {
+  testWidgets('mode select switches grids', (tester) async {
     await pumpPanel(tester, hasTrack: true);
 
-    expect(find.text('CUE'), findsOneWidget);
+    expect(find.byType(MixarSelect<PadMode>), findsOneWidget);
+    expect(find.text('Cue'), findsOneWidget);
     expect(find.text('0:12.5'), findsOneWidget);
 
-    await tester.tap(find.text('JUMP'));
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Jump').last);
     await tester.pumpAndSettle();
     expect(find.text('+1'), findsOneWidget);
     expect(find.text('0:12.5'), findsNothing);
 
-    await tester.tap(find.text('SAMPLE'));
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
     expect(find.text('Bank 1'), findsOneWidget);
     expect(find.text('Kick'), findsOneWidget);
+  });
+
+  testWidgets('pad mode selector border matches panel radius', (tester) async {
+    await pumpPanel(tester, hasTrack: true);
+    final selectFinder = find.byType(ShadSelect<PadMode>);
+    final decoration = tester
+        .widget<ShadDecorator>(
+          find
+              .descendant(
+                of: selectFinder,
+                matching: find.byType(ShadDecorator),
+              )
+              .first,
+        )
+        .decoration;
+    final panelBorder = tester
+        .widgetList<DecoratedBox>(
+          find.ancestor(of: selectFinder, matching: find.byType(DecoratedBox)),
+        )
+        .map((widget) => widget.decoration)
+        .whereType<BoxDecoration>()
+        .firstWhere((decoration) => decoration.borderRadius != null);
+
+    final theme = MixarThemeData.dark();
+    final panelSurface = Color.alphaBlend(
+      theme.colors.background.withValues(alpha: 0.8),
+      theme.colors.card,
+    );
+    final expectedBorderColor = Color.alphaBlend(
+      theme.colors.border,
+      panelSurface,
+    );
+    expect(decoration?.border?.top?.color, expectedBorderColor);
+    expect(decoration?.border?.right?.color, expectedBorderColor);
+    expect(decoration?.border?.bottom?.color, expectedBorderColor);
+    // The left edge is the tab rail's divider; the selector must not stroke it.
+    expect(decoration?.border?.toBorder().left, BorderSide.none);
+
+    final panelRadius = panelBorder.borderRadius! as BorderRadius;
+    final expectedRadius = BorderRadius.only(topRight: panelRadius.topRight);
+    expect(decoration?.border?.radius, expectedRadius);
+    expect(decoration?.secondaryFocusedBorder?.radius, expectedRadius);
   });
 
   testWidgets('hot cue press on empty slot reports the pad', (tester) async {
@@ -136,7 +187,9 @@ void main() {
 
   testWidgets('sampler bank next cycles active bank', (tester) async {
     await pumpPanel(tester, hasTrack: true);
-    await tester.tap(find.text('SAMPLE'));
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.bySemanticsLabel('Next sampler bank'));
@@ -145,7 +198,8 @@ void main() {
     expect(find.text('hold'), findsOneWidget);
   });
 
-  testWidgets('keyboard and key shift tabs render their own pad grids', (
+  /// keep main's Keyboard / Key Shift coverage, driven through the dropdown
+  testWidgets('keyboard and key shift select renders their own pad grids', (
     tester,
   ) async {
     final pressed = <int>[];
@@ -167,7 +221,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(pressed, [1]);
 
-    await tester.tap(find.text('SHIFT'));
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Shift').last);
     await tester.pumpAndSettle();
     expect(find.byType(KeyShiftPads), findsOneWidget);
     expect(find.byType(KeyboardPads), findsNothing);
@@ -176,30 +232,74 @@ void main() {
     expect(find.text('HC 1'), findsNothing);
   });
 
-  testWidgets('pad actions stay disabled without a track', (tester) async {
+  testWidgets('pad mode can change without a track', (tester) async {
     await pumpPanel(tester, hasTrack: false);
 
-    await tester.tap(find.text('2'));
+    await tester.tap(find.byType(MixarSelect<PadMode>));
     await tester.pumpAndSettle();
-    expect(find.text('0:01.0'), findsNothing);
-
-    await tester.tap(find.text('ROLL'));
+    await tester.tap(find.text('Roll').last);
     await tester.pumpAndSettle();
     expect(find.text('roll'), findsWidgets);
   });
 
-  testWidgets('disabled panel blocks mode tabs and pad actions', (
+  testWidgets('pad actions stay disabled without a track', (tester) async {
+    await pumpPanel(tester, hasTrack: false);
+
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Roll').last);
+    await tester.pumpAndSettle();
+    expect(find.text('roll'), findsWidgets);
+  });
+
+  testWidgets('disabled panel blocks mode selection and pad actions', (
     tester,
   ) async {
     await pumpPanel(tester, hasTrack: true, disabled: true);
 
-    await tester.tap(find.text('JUMP'));
+    await tester.tap(find.byType(MixarSelect<PadMode>));
     await tester.pumpAndSettle();
-    expect(find.text('+1'), findsNothing);
+    expect(find.text('Jump'), findsNothing);
     expect(find.text('0:12.5'), findsOneWidget);
 
     await tester.tap(find.text('2'));
     await tester.pumpAndSettle();
     expect(find.text('0:01.0'), findsNothing);
+  });
+
+  testWidgets('pointer selection does not leave pad mode select focused', (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    final select = find.byType(ShadSelect<PadMode>);
+
+    await tester.tap(select, kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Roll').last, kind: PointerDeviceKind.mouse);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.state<ShadSelectState<PadMode>>(select).focusNode.hasFocus,
+      isFalse,
+    );
+  });
+
+  testWidgets('keyboard selection keeps pad mode select focused', (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    final select = find.byType(ShadSelect<PadMode>);
+    final state = tester.state<ShadSelectState<PadMode>>(select);
+
+    state.focusNode.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+
+    expect(find.text('roll'), findsWidgets);
+    expect(state.focusNode.hasFocus, isTrue);
   });
 }
