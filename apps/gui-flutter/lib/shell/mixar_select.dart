@@ -187,72 +187,8 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
 
   Widget _buildForStyle(SelectStyleSetting style) {
     final theme = context.theme;
-    if (style == SelectStyleSetting.mobile) {
-      return _buildMobileTrigger(theme);
-    }
-    return _buildDesktopSelect(theme);
-  }
+    final mobile = style == SelectStyleSetting.mobile;
 
-  Widget _buildMobileTrigger(MixarThemeData theme) {
-    final radius =
-        widget.borderRadius ?? const BorderRadius.all(Radius.circular(6));
-    final color = widget.borderColor ?? theme.colors.border;
-    final painted = widget.borderSides;
-    BorderSide side(MixarBorderSide side) {
-      final draw = painted?.contains(side) ?? true;
-      return draw
-          ? BorderSide(color: color, width: theme.style.borderWidth)
-          : BorderSide.none;
-    }
-
-    final label = widget.labelBuilder(widget.value);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final fill = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : null;
-        return SizedBox(
-          width: fill,
-          child: MTappable(
-            onPress: widget.enabled ? _openMobilePicker : null,
-            semanticsLabel: label,
-            builder: (context, state) {
-              return DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.colors.background,
-                  borderRadius: radius is BorderRadius
-                      ? radius
-                      : BorderRadius.circular(6),
-                  border: Border(
-                    top: side(MixarBorderSide.top),
-                    right: side(MixarBorderSide.right),
-                    bottom: side(MixarBorderSide.bottom),
-                    left: side(MixarBorderSide.left),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  child: Text(
-                    label,
-                    style: theme.typography.body.sm.copyWith(
-                      color: widget.enabled
-                          ? theme.colors.foreground
-                          : theme.colors.mutedForeground,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDesktopSelect(MixarThemeData theme) {
     Widget buildOption(T option) {
       final child = widget.subtitleBuilder == null
           ? Text(widget.labelBuilder(option))
@@ -293,22 +229,30 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
           placeholder: widget.placeholder,
           minWidth: fill,
           decoration: _borderDecoration(theme),
-          onChanged: (next) {
-            if (next == null) return;
-            final pointerSelection = _pointerSelection;
-            _pointerSelection = false;
-            widget.onChanged(next);
-            if (pointerSelection && widget.unfocusAfterPointerSelection) {
-              scheduleMicrotask(() {
-                if (mounted) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                }
-              });
-            }
-          },
+          // Same closed chrome; mobile only replaces the open behavior.
+          onPressed: mobile && widget.enabled ? _openMobilePicker : null,
+          onChanged: mobile
+              ? null
+              : (next) {
+                  if (next == null) return;
+                  final pointerSelection = _pointerSelection;
+                  _pointerSelection = false;
+                  widget.onChanged(next);
+                  if (pointerSelection &&
+                      widget.unfocusAfterPointerSelection) {
+                    scheduleMicrotask(() {
+                      if (mounted) {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                      }
+                    });
+                  }
+                },
           selectedOptionBuilder: (context, selected) =>
               Text(widget.labelBuilder(selected)),
-          options: [for (final option in widget.options) buildOption(option)],
+          // Popover options unused when [onPressed] opens the dialog.
+          options: mobile
+              ? const <Widget>[]
+              : [for (final option in widget.options) buildOption(option)],
         );
       },
     );

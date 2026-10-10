@@ -135,8 +135,9 @@ void main() {
       dialogTitle: 'Quality',
     );
 
-    expect(find.byType(ShadSelect<String>), findsNothing);
-    await tester.tap(find.text('low'));
+    // Closed chrome stays ShadSelect; only open behavior changes.
+    expect(find.byType(ShadSelect<String>), findsOneWidget);
+    await tester.tap(find.byType(ShadSelect<String>));
     await tester.pumpAndSettle();
 
     expect(find.text('Quality'), findsOneWidget);
@@ -182,7 +183,8 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Mobile'));
+    expect(find.byType(ShadSelect<String>), findsOneWidget);
+    await tester.tap(find.byType(ShadSelect<String>));
     await tester.pumpAndSettle();
 
     final subtitle = tester.widget<Text>(find.text('Dialog picker'));
