@@ -4,17 +4,21 @@ import 'dart:async';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 typedef GetTrackHandler = Future<LibraryTrackSummary?> Function(String trackId);
+typedef ListCollectionEntriesHandler =
+    Future<List<LibraryTrackSummary>> Function(String collectionId);
 
 /// Minimal [LibraryTransport] fake: override getTrack / list / events as needed.
 class FakeLibraryTransport implements LibraryTransport {
   FakeLibraryTransport({
     this.getTrackHandler,
+    this.listCollectionEntriesHandler,
     this.entries = const [],
     this.collections = const [],
     StreamController<LibraryEvt>? events,
   }) : _events = events ?? StreamController<LibraryEvt>.broadcast();
 
   GetTrackHandler? getTrackHandler;
+  ListCollectionEntriesHandler? listCollectionEntriesHandler;
   List<LibraryTrackSummary> entries;
   List<LibraryCollectionSummary> collections;
   final StreamController<LibraryEvt> _events;
@@ -22,18 +26,23 @@ class FakeLibraryTransport implements LibraryTransport {
   final List<String> listCollectionEntriesCalls = [];
   int outstandingGetTracks = 0;
   int maxOutstandingGetTracks = 0;
+  var _disposed = false;
 
   StreamController<LibraryEvt> get events => _events;
 
   @override
   void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
     if (!_events.isClosed) {
       unawaited(_events.close());
     }
   }
 
   @override
-  bool get isDisposed => _events.isClosed;
+  bool get isDisposed => _disposed || _events.isClosed;
 
   @override
   Future<LibraryTrackSummary?> getTrack({required String trackId}) {
@@ -45,18 +54,23 @@ class FakeLibraryTransport implements LibraryTransport {
     // Avoid `async` + `return future` + `finally`: Dart runs that finally before
     // the returned future completes, which under-counts concurrency.
     final handler = getTrackHandler;
-    final result = handler != null
-        ? handler(trackId)
-        : Future<LibraryTrackSummary?>.value(
-            LibraryTrackSummary(
-              id: trackId,
-              displayName: trackId,
-              path: '/$trackId.flac',
-            ),
-          );
-    return result.whenComplete(() {
+    try {
+      final result = handler != null
+          ? handler(trackId)
+          : Future<LibraryTrackSummary?>.value(
+              LibraryTrackSummary(
+                id: trackId,
+                displayName: trackId,
+                path: '/$trackId.flac',
+              ),
+            );
+      return result.whenComplete(() {
+        outstandingGetTracks--;
+      });
+    } catch (_) {
       outstandingGetTracks--;
-    });
+      rethrow;
+    }
   }
 
   @override
@@ -64,6 +78,10 @@ class FakeLibraryTransport implements LibraryTransport {
     required String collectionId,
   }) async {
     listCollectionEntriesCalls.add(collectionId);
+    final handler = listCollectionEntriesHandler;
+    if (handler != null) {
+      return handler(collectionId);
+    }
     return entries;
   }
 

@@ -33,8 +33,12 @@ void main() {
 
     await container.read(libraryTransportProvider.future);
     // Bootstrap only attaches subscribeEvents once transport is AsyncData.
+    // Provider<void> is sync: listening after invalidate means the subscription
+    // is live before we emit events below.
     container.invalidate(libraryEventsBootstrapProvider);
     container.listen(libraryEventsBootstrapProvider, (_, __) {});
+    // Touch the provider so a silent build failure would surface here.
+    container.read(libraryEventsBootstrapProvider);
 
     await container.read(collectionsProvider.future);
     expect(container.read(activeCollectionIdProvider), _collection.id);
@@ -91,6 +95,9 @@ void main() {
     },
   );
 
+  // Characterization: current handler has no debounce/coalesce and ignores
+  // evt.track payloads (full re-list only). Update this assertion when #463
+  // lands patch/coalesce behavior.
   test('burst of trackUpdated events does not coalesce list reloads', () async {
     final fake = FakeLibraryTransport(
       collections: const [_collection],
@@ -100,8 +107,7 @@ void main() {
 
     final before = fake.listCollectionEntriesCalls.length;
 
-    // Space events so each invalidate can complete a reload. App-level
-    // handler has no debounce/coalesce (#463 may add patch/coalesce later).
+    // Space events so each invalidate can complete a reload.
     fake.events.add(
       const LibraryEvt(kind: LibraryEvtKind.trackUpdated, trackId: 't1'),
     );
@@ -128,4 +134,34 @@ void main() {
     // Payload on the event is ignored today — list re-fetch keeps fake.entries.
     expect(tracks.single.title, 'Track');
   });
+
+  test(
+    'trackUpdated reload failure surfaces on collectionTracksProvider',
+    () async {
+      var shouldFail = false;
+      final fake = FakeLibraryTransport(
+        collections: const [_collection],
+        entries: const [_track],
+        listCollectionEntriesHandler: (id) async {
+          if (shouldFail) {
+            throw StateError('list failed');
+          }
+          return const [_track];
+        },
+      );
+      final container = await boot(fake);
+
+      shouldFail = true;
+      fake.events.add(
+        const LibraryEvt(kind: LibraryEvtKind.trackUpdated, trackId: 't1'),
+      );
+      await pumpEventQueue();
+
+      await expectLater(
+        container.read(collectionTracksProvider.future),
+        throwsA(isA<StateError>()),
+      );
+      expect(container.read(collectionTracksProvider).hasError, isTrue);
+    },
+  );
 }
