@@ -30,13 +30,16 @@ class DeckCueHoldSession {
   }
 
   /// Enqueue [end] only after a successful begin; otherwise no-op.
+  ///
+  /// Engine end failures keep `_began` true so a later [end]/[disposeEnd]
+  /// can retry, and reset `_chain` so the session stays usable.
   void end(Future<void> Function() end) {
     final step = _chain.then((_) async {
       if (!_began) {
         return;
       }
-      _began = false;
       await end();
+      _began = false;
     });
     _chain = step.catchError((Object _) {});
   }
@@ -44,17 +47,24 @@ class DeckCueHoldSession {
   /// Schedule end (if hold began) and wait for the session to drain.
   ///
   /// Unlike [end], errors from [end] propagate to the caller so dispose can
-  /// observe a failed engine endCueHold.
+  /// observe a failed engine endCueHold. The session remains usable afterward:
+  /// `_chain` is reset, and `_began` stays true when end fails so a retry can
+  /// still release the engine hold.
   Future<void> disposeEnd(Future<void> Function() end) async {
     final step = _chain.then((_) async {
       if (!_began) {
         return;
       }
-      _began = false;
       await end();
+      _began = false;
     });
     _chain = step;
-    await _chain;
+    try {
+      await _chain;
+    } catch (_) {
+      _chain = Future<void>.value();
+      rethrow;
+    }
   }
 
   /// Wait until queued begin/end steps settle (tests / callers).

@@ -199,13 +199,9 @@ class _DeckCueControlState extends ConsumerState<_DeckCueControl> {
   @override
   void initState() {
     super.initState();
-    _engineListen = ref.listenManual(
-      engineTransportProvider,
-      (prev, next) {
-        _engine = next.asData?.value;
-      },
-      fireImmediately: true,
-    );
+    _engineListen = ref.listenManual(engineTransportProvider, (prev, next) {
+      _engine = next.asData?.value;
+    }, fireImmediately: true);
   }
 
   void _beginHold() {
@@ -228,12 +224,16 @@ class _DeckCueControlState extends ConsumerState<_DeckCueControl> {
   void dispose() {
     final engine = _engine;
     final deckId = widget.deckId;
+    // Fire-and-forget: dispose cannot await. Engine transport is kept alive
+    // for the app session, so this endCueHold should still land.
     unawaited(
       _session
           .disposeEnd(() async {
             await engine?.endCueHold(deckId: deckId);
           })
-          .catchError((Object _) {}),
+          .catchError((Object e) {
+            debugPrint('DeckCueControl: endCueHold failed during dispose: $e');
+          }),
     );
     _engineListen?.close();
     super.dispose();

@@ -659,7 +659,13 @@ Future<void> loadPayloadOntoDeck(
       ..setDeckTrackPath(deckId, payload.path)
       ..setDeckTrackId(deckId, payload.trackId);
   } catch (e) {
+    // Superseded attempts must not sticky-banner or toast over a newer load.
+    if (!read(deckLoadGenerationProvider.notifier)
+        .isCurrent(deckId, generation)) {
+      return;
+    }
     read(libraryMessageProvider.notifier).setError('$e');
+    rethrow;
   } finally {
     loading.set(deckId, false);
   }

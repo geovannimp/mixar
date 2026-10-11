@@ -35,6 +35,7 @@ class DeckPadsHost extends ConsumerStatefulWidget {
 class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
   String? _hydratedTrackId;
   ProviderSubscription<String?>? _trackIdListen;
+  ProviderSubscription<AsyncValue<LibraryTransport>>? _libraryListen;
 
   rust.EngineTransport? get _engine =>
       ref.read(engineTransportProvider).asData?.value;
@@ -126,12 +127,15 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     if (trackId == _hydratedTrackId) {
       return;
     }
-    _hydratedTrackId = trackId;
     final library = ref.read(libraryTransportProvider).asData?.value;
-    if (library != null && trackId != null && trackId.isNotEmpty) {
-      unawaited(
-        library.refreshTrack(trackId: trackId).catchError(_toastError),
-      );
+    if (library == null) {
+      // Library not ready yet; leave `_hydratedTrackId` unset so a later
+      // library-ready retry (or trackId change) can still hydrate.
+      return;
+    }
+    _hydratedTrackId = trackId;
+    if (trackId != null && trackId.isNotEmpty) {
+      unawaited(library.refreshTrack(trackId: trackId).catchError(_toastError));
     }
   }
 
@@ -143,11 +147,20 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       (prev, next) => _hydrateTrack(next),
       fireImmediately: true,
     );
+    _libraryListen = ref.listenManual<AsyncValue<LibraryTransport>>(
+      libraryTransportProvider,
+      (prev, next) {
+        if (next.asData?.value != null) {
+          _hydrateTrack(ref.read(deckTrackIdProvider(widget.deckId)));
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
     _trackIdListen?.close();
+    _libraryListen?.close();
     super.dispose();
   }
 

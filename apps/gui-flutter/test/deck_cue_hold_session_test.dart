@@ -72,6 +72,14 @@ void main() {
       }),
       throwsA(isA<StateError>()),
     );
+
+    // `_began` stays true on failure so a later end can still release.
+    final log = <String>[];
+    session.end(() async {
+      log.add('end-retry');
+    });
+    await session.drain();
+    expect(log, ['end-retry']);
   });
 
   test('disposeEnd is a no-op without prior begin', () async {
