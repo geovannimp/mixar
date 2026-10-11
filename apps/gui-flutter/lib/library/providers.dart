@@ -71,8 +71,17 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     _trackIds = {for (final t in tracks) t.id};
   }
 
+  /// Drop any coalesced burst queued before this rebuild. A later microtask
+  /// `_flush` becomes a no-op; the fresh load (or a new event) is authoritative.
+  void _clearPendingBurst() {
+    _pendingPatches = {};
+    _pendingStructuralInvalidate = false;
+    _pendingForCollectionId = null;
+  }
+
   @override
   Future<List<LibraryTrackSummary>> build() async {
+    _clearPendingBurst();
     final id = ref.watch(activeCollectionIdProvider);
     if (id == null) {
       _setTrackIds(const []);
@@ -179,6 +188,7 @@ class SeededCollectionTracks extends CollectionTracks {
 
   @override
   Future<List<LibraryTrackSummary>> build() async {
+    _clearPendingBurst();
     // Subscribe even if [_load] ignores the id, matching production rebuilds.
     ref.watch(activeCollectionIdProvider);
     final tracks = await _load(ref);

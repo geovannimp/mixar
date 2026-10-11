@@ -536,6 +536,43 @@ void main() {
       },
     );
 
+    test('rebuild clears a pending patch so the fresh load wins', () async {
+      var trackLoads = 0;
+      final container = ProviderContainer(
+        overrides: [
+          collectionsProvider.overrideWith((ref) async => [_collection()]),
+          overrideCollectionTracks((ref) async {
+            trackLoads++;
+            // Second load simulates SQLite already written to 140.
+            return [_track(id: 'a', bpm: trackLoads == 1 ? 120 : 140)];
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(collectionsProvider.future);
+      await container.read(collectionTracksProvider.future);
+      expect(trackLoads, 1);
+
+      container.read(libraryEvtDispatchProvider)(
+        LibraryEvt(
+          kind: LibraryEvtKind.trackUpdated,
+          track: _track(id: 'a', bpm: 128),
+        ),
+      );
+      // Same-collection invalidate before the coalesced flush (e.g. detail
+      // dialog save). Pending burst must not overwrite the reloaded row.
+      container.invalidate(collectionTracksProvider);
+      await pumpEventQueue();
+      await container.read(collectionTracksProvider.future);
+
+      expect(trackLoads, 2);
+      expect(
+        container.read(collectionTracksProvider).requireValue.single.bpm,
+        140,
+      );
+    });
+
     test(
       'scheduled flush is a no-op after the container is disposed',
       () async {
