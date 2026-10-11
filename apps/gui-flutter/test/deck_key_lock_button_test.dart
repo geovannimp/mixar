@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/deck_track_info.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
@@ -17,7 +18,7 @@ void main() {
     WidgetTester tester, {
     required bool keyLock,
     bool enabled = true,
-    VoidCallback? onToggle,
+    ValueChanged<bool>? onChanged,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -33,7 +34,7 @@ void main() {
               keyLabel: 'F#m',
               keyLock: keyLock,
               enabled: enabled,
-              onToggle: onToggle ?? () {},
+              onChanged: onChanged ?? (_) {},
             ),
           ),
         ),
@@ -55,30 +56,32 @@ void main() {
     expect(find.byIcon(LucideIcons.lock), findsNothing);
   });
 
-  testWidgets('whole button toggles when enabled', (tester) async {
-    var taps = 0;
-    await pumpButton(tester, keyLock: false, onToggle: () => taps++);
+  testWidgets('whole button emits absolute desired key lock', (tester) async {
+    final desired = <bool>[];
+    await pumpButton(tester, keyLock: false, onChanged: desired.add);
 
-    await tester.tap(find.text('F#m'));
+    // Tap MixerButton chrome (not Text / Icon children alone).
+    await tester.tap(find.byType(MixerButton));
     await tester.pumpAndSettle();
-    expect(taps, 1);
+    expect(desired, [true]);
 
-    await tester.tap(find.byIcon(LucideIcons.lockOpen));
+    await pumpButton(tester, keyLock: true, onChanged: desired.add);
+    await tester.tap(find.byType(MixerButton));
     await tester.pumpAndSettle();
-    expect(taps, 2);
+    expect(desired, [true, false]);
   });
 
-  testWidgets('disabled button does not toggle', (tester) async {
-    var taps = 0;
+  testWidgets('disabled button does not emit', (tester) async {
+    final desired = <bool>[];
     await pumpButton(
       tester,
       keyLock: false,
       enabled: false,
-      onToggle: () => taps++,
+      onChanged: desired.add,
     );
 
     await tester.tap(find.text('F#m'));
     await tester.pumpAndSettle();
-    expect(taps, 0);
+    expect(desired, isEmpty);
   });
 }
