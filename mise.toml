@@ -6,6 +6,7 @@ idiomatic_version_file_enable_tools = ["node", "rust"]
 [tools]
 flutter = { version = "3.47.0", postinstall = "dart pub global activate dashmonx" }
 ninja = "1.13.2"
+"npm:@colbymchenry/codegraph" = "latest"
 
 # dart pub global binaries (e.g. dashmonx from flutter postinstall)
 [env]
