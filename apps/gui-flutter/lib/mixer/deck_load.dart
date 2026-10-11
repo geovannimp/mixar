@@ -7,7 +7,8 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/app_notice.dart';
 
-typedef _Read = T Function<T>(ProviderListenable<T> provider);
+/// Compatible with `Ref.read` / `WidgetRef.read` / `ProviderContainer.read`.
+typedef DeckLoadRead = T Function<T>(ProviderListenable<T> provider);
 
 /// MIDI / controller load: the active list's focused row → deck.
 ///
@@ -80,7 +81,7 @@ Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
 /// Uses [deckLoadGenerationProvider] so a superseded attempt does not
 /// overwrite chrome after a newer load wins.
 Future<void> loadPayloadOntoDeck(
-  _Read read,
+  DeckLoadRead read,
   int deckId,
   TrackDragPayload payload,
 ) async {

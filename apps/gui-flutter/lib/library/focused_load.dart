@@ -55,14 +55,15 @@ class PendingFocusedDeckLoadRequest {
 }
 
 class PendingFocusedDeckLoad extends Notifier<PendingFocusedDeckLoadRequest?> {
-  var _seq = 0;
+  /// Process-wide so seq does not restart after provider recreation/hot reload.
+  static var _globalSeq = 0;
 
   @override
   PendingFocusedDeckLoadRequest? build() => null;
 
   void request(int deckId) {
-    _seq += 1;
-    state = PendingFocusedDeckLoadRequest(deckId: deckId, seq: _seq);
+    _globalSeq += 1;
+    state = PendingFocusedDeckLoadRequest(deckId: deckId, seq: _globalSeq);
   }
 
   void clear() => state = null;
