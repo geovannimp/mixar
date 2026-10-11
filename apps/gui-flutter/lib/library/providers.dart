@@ -60,14 +60,28 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
   bool _pendingStructuralInvalidate = false;
   bool _flushScheduled = false;
 
+  /// Active collection when the pending burst was first queued. Dropped on
+  /// flush if the user switched collections before the microtask ran.
+  String? _pendingForCollectionId;
+
+  /// Membership set for O(1) patch vs structural decisions.
+  Set<String> _trackIds = {};
+
+  void _setTrackIds(List<LibraryTrackSummary> tracks) {
+    _trackIds = {for (final t in tracks) t.id};
+  }
+
   @override
   Future<List<LibraryTrackSummary>> build() async {
     final id = ref.watch(activeCollectionIdProvider);
     if (id == null) {
+      _setTrackIds(const []);
       return const [];
     }
     final transport = await ref.watch(libraryTransportProvider.future);
-    return transport.listCollectionEntries(collectionId: id);
+    final tracks = await transport.listCollectionEntries(collectionId: id);
+    _setTrackIds(tracks);
+    return tracks;
   }
 
   /// Apply a [LibraryEvtKind.trackUpdated] / [LibraryEvtKind.trackAnalyzed] row.
@@ -83,7 +97,7 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
         // Loading or errored: no list to patch. Skip metadata events so a
         // failing reload + chatty analyze cannot invalidateSelf in a loop.
         // A later successful load reads the already-written SQLite row.
-      } else if (current.any((t) => t.id == track.id)) {
+      } else if (_trackIds.contains(track.id)) {
         _pendingPatches[track.id] = track;
         queued = true;
       } else {
@@ -91,7 +105,11 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
         queued = true;
       }
     }
-    if (!queued || _flushScheduled) {
+    if (!queued) {
+      return;
+    }
+    _pendingForCollectionId ??= ref.read(activeCollectionIdProvider);
+    if (_flushScheduled) {
       return;
     }
     _flushScheduled = true;
@@ -107,8 +125,16 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
   void _flush() {
     final structural = _pendingStructuralInvalidate;
     final patches = _pendingPatches;
+    final scheduledFor = _pendingForCollectionId;
     _pendingStructuralInvalidate = false;
     _pendingPatches = {};
+    _pendingForCollectionId = null;
+
+    // Collection switched before flush: drop the burst. The new list load
+    // (or a later event) picks up SQLite state for the active collection.
+    if (scheduledFor != ref.read(activeCollectionIdProvider)) {
+      return;
+    }
 
     if (structural) {
       ref
@@ -125,7 +151,9 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
       // than kick another invalidate that could thrash on persistent failure.
       return;
     }
-    state = AsyncData([for (final t in current) patches[t.id] ?? t]);
+    final next = [for (final t in current) patches[t.id] ?? t];
+    _setTrackIds(next);
+    state = AsyncData(next);
   }
 }
 
@@ -137,8 +165,10 @@ final collectionTracksProvider =
 /// Test override that supplies a custom load while keeping patch/coalesce.
 ///
 /// Watches [activeCollectionIdProvider] so a collection switch rebuilds like
-/// production. Structural [_flush] may still invalidate [collectionsProvider]
-/// even when [_load] never reads it. Tests that count loads should await
+/// production — callers must also override [collectionsProvider] (or
+/// [activeCollectionIdProvider]) so that watch does not open a real DB.
+/// Structural [_flush] still invalidates [collectionsProvider] for production
+/// parity (track counts); seeded tests that count loads should await
 /// [collectionsProvider] first so the active id is stable before the first
 /// track load.
 @visibleForTesting
@@ -148,10 +178,12 @@ class SeededCollectionTracks extends CollectionTracks {
   final Future<List<LibraryTrackSummary>> Function(Ref ref) _load;
 
   @override
-  Future<List<LibraryTrackSummary>> build() {
+  Future<List<LibraryTrackSummary>> build() async {
     // Subscribe even if [_load] ignores the id, matching production rebuilds.
     ref.watch(activeCollectionIdProvider);
-    return _load(ref);
+    final tracks = await _load(ref);
+    _setTrackIds(tracks);
+    return tracks;
   }
 }
 
@@ -524,7 +556,12 @@ bool _stemsStillRunning(Ref ref, String trackId) {
 /// Same path as [libraryEventsBootstrapProvider]; exposed for unit tests.
 @visibleForTesting
 final libraryEvtDispatchProvider = Provider<void Function(LibraryEvt)>((ref) {
-  return (evt) => handleLibraryEvt(ref, evt);
+  return (evt) {
+    if (!ref.mounted) {
+      return;
+    }
+    handleLibraryEvt(ref, evt);
+  };
 });
 
 /// Apply a library egress event to Riverpod state

@@ -489,6 +489,54 @@ void main() {
     );
 
     test(
+      'drops a pending patch burst when the active collection changes',
+      () async {
+        var trackLoads = 0;
+        final container = ProviderContainer(
+          overrides: [
+            collectionsProvider.overrideWith(
+              (ref) async => [
+                _collection(id: 'col-1'),
+                _collection(id: 'col-2'),
+              ],
+            ),
+            overrideCollectionTracks((ref) async {
+              trackLoads++;
+              final id = ref.watch(activeCollectionIdProvider);
+              return [_track(id: id == 'col-2' ? 'b' : 'a', bpm: 120)];
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await container.read(collectionsProvider.future);
+        await container.read(collectionTracksProvider.future);
+        expect(trackLoads, 1);
+
+        container.read(libraryEvtDispatchProvider)(
+          LibraryEvt(
+            kind: LibraryEvtKind.trackUpdated,
+            track: _track(id: 'a', bpm: 128),
+          ),
+        );
+        // Switch before the coalesced microtask flush runs.
+        container.read(selectedCollectionIdProvider.notifier).set('col-2');
+        await pumpEventQueue();
+        await container.read(collectionTracksProvider.future);
+
+        expect(trackLoads, 2);
+        expect(
+          container.read(collectionTracksProvider).requireValue.single.id,
+          'b',
+        );
+        expect(
+          container.read(collectionTracksProvider).requireValue.single.bpm,
+          120,
+        );
+      },
+    );
+
+    test(
       'scheduled flush is a no-op after the container is disposed',
       () async {
         final seed = _track(id: 'a', bpm: 120);
@@ -498,6 +546,12 @@ void main() {
             overrideCollectionTracksValue([seed]),
           ],
         );
+        var disposed = false;
+        addTearDown(() {
+          if (!disposed) {
+            container.dispose();
+          }
+        });
 
         await container.read(collectionsProvider.future);
         await container.read(collectionTracksProvider.future);
@@ -507,6 +561,7 @@ void main() {
             track: _track(id: 'a', bpm: 128),
           ),
         );
+        disposed = true;
         container.dispose();
         await pumpEventQueue();
       },

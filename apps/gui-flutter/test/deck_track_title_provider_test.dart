@@ -22,6 +22,8 @@ void main() {
         libraryTableTracksProvider.overrideWith(
           (ref) => const AsyncData([table]),
         ),
+        // SeededCollectionTracks watches activeCollectionId → collections.
+        collectionsProvider.overrideWith((ref) async => const []),
         overrideCollectionTracksValue(const <LibraryTrackSummary>[]),
         driveResolvedByPathProvider.overrideWith(
           (ref) async => const <String, LibraryTrackSummary>{},
@@ -41,6 +43,7 @@ void main() {
         libraryTableTracksProvider.overrideWith(
           (ref) => const AsyncData(<LibraryTrackSummary>[]),
         ),
+        collectionsProvider.overrideWith((ref) async => const []),
         overrideCollectionTracksValue(const <LibraryTrackSummary>[]),
         driveResolvedByPathProvider.overrideWith(
           (ref) async => const <String, LibraryTrackSummary>{},

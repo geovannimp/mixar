@@ -39,9 +39,22 @@ void main() {
 
   setUp(() async {
     container = ProviderContainer(
-      overrides: [overrideCollectionTracksValue(tracks)],
+      overrides: [
+        collectionsProvider.overrideWith(
+          (ref) async => [
+            const LibraryCollectionSummary(
+              id: 'col-1',
+              name: 'Collection',
+              kind: 'playlist',
+              trackCount: 3,
+            ),
+          ],
+        ),
+        overrideCollectionTracksValue(tracks),
+      ],
     );
     addTearDown(container.dispose);
+    await container.read(collectionsProvider.future);
     await container.read(collectionTracksProvider.future);
   });
 
