@@ -113,6 +113,10 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   int? _pendingScrollIndex;
   bool _scrollScheduled = false;
 
+  /// Coalesce scroll-listener storms to at most one visible-range emit per
+  /// frame so artwork prefetch does not spam ensureLoaded.
+  bool _visibleRangeScheduled = false;
+
   /// Track the focused row is pinned to by id, not by index. A re-sort or a
   /// filter change reorders the list underneath the focus, and without this the
   /// highlighted row would silently jump to whatever now sits at the old index.
@@ -169,8 +173,23 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   }
 
   /// Row height is constant per density, so the visible window is plain offset
-  /// arithmetic.
+  /// arithmetic. Scroll listeners can fire many times per frame; coalesce to
+  /// one emit with the latest window.
   void _requestVisibleRange() {
+    if (_visibleRangeScheduled) {
+      return;
+    }
+    _visibleRangeScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _visibleRangeScheduled = false;
+      if (!mounted) {
+        return;
+      }
+      _emitVisibleRange();
+    });
+  }
+
+  void _emitVisibleRange() {
     if (_items.isEmpty || !_scroll.hasClients) {
       return;
     }

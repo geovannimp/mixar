@@ -27,7 +27,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 const _artworkThumbSize = 64.0;
 
 /// Artwork + title/artist/key stacked over remaining time and overview.
-class DeckTrackInfo extends ConsumerWidget {
+class DeckTrackInfo extends ConsumerStatefulWidget {
   const new({
     required this.deckId,
     required this.hasTrack,
@@ -40,17 +40,43 @@ class DeckTrackInfo extends ConsumerWidget {
   final String? title;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final trackId = ref.watch(deckTrackIdProvider(deckId));
-    if (trackId != null) {
-      unawaited(
-        ref.read(artworkCacheProvider.notifier).ensureLoaded([trackId]),
-      );
-    }
+  ConsumerState<DeckTrackInfo> createState() => _DeckTrackInfoState();
+}
+
+class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
+  ProviderSubscription<String?>? _trackIdSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Prefetch on track load / swap only — not on every rebuild (playhead,
+    // settings, etc.). fireImmediately covers the already-loaded deck case.
+    _trackIdSub = ref.listenManual<String?>(
+      deckTrackIdProvider(widget.deckId),
+      (prev, next) {
+        if (next != null) {
+          unawaited(
+            ref.read(artworkCacheProvider.notifier).ensureLoaded([next]),
+          );
+        }
+      },
+      fireImmediately: true,
+    );
+  }
+
+  @override
+  void dispose() {
+    _trackIdSub?.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final artwork = trackId == null
         ? null
         : ref.watch(artworkCacheProvider.select((m) => m[trackId]));
-    final lib = ref.watch(deckLibraryTrackProvider(deckId));
+    final lib = ref.watch(deckLibraryTrackProvider(widget.deckId));
     final artist = lib?.artist;
     final keyMode = keyModeFromSettings(
       ref
@@ -68,7 +94,7 @@ class DeckTrackInfo extends ConsumerWidget {
             orElse: () => KeyColorModeSetting.off,
           ),
     );
-    final skeleton = ref.watch(deckSkeletonProvider(deckId));
+    final skeleton = ref.watch(deckSkeletonProvider(widget.deckId));
 
     return MCard(
       clipBehavior: .antiAlias,
@@ -83,7 +109,10 @@ class DeckTrackInfo extends ConsumerWidget {
                 // size cannot expand the row (previously the card overflowed).
                 SizedBox.square(
                   dimension: _artworkThumbSize,
-                  child: _ArtworkThumb(bytes: artwork, hasTrack: hasTrack),
+                  child: _ArtworkThumb(
+                    bytes: artwork,
+                    hasTrack: widget.hasTrack,
+                  ),
                 ),
                 const MDivider(axis: .vertical, padding: .zero),
                 Expanded(
@@ -97,8 +126,8 @@ class DeckTrackInfo extends ConsumerWidget {
                           children: [
                             Expanded(
                               child: _DeckTitleArtist(
-                                hasTrack: hasTrack,
-                                title: title,
+                                hasTrack: widget.hasTrack,
+                                title: widget.title,
                                 artist: artist,
                                 skeleton: skeleton,
                               ),
@@ -106,8 +135,8 @@ class DeckTrackInfo extends ConsumerWidget {
                             // Harmonic ref flips on play/pause — keep it off the
                             // parent so artwork / title do not rebuild.
                             _DeckKeyLockControl(
-                              deckId: deckId,
-                              hasTrack: hasTrack,
+                              deckId: widget.deckId,
+                              hasTrack: widget.hasTrack,
                               rawKey: lib?.key,
                               keyMode: keyMode,
                               keyColorMode: keyColorMode,
@@ -117,8 +146,8 @@ class DeckTrackInfo extends ConsumerWidget {
                         // Playhead ticks must not rebuild artwork / title / key.
                         RepaintBoundary(
                           child: _DeckTimeRow(
-                            deckId: deckId,
-                            hasTrack: hasTrack,
+                            deckId: widget.deckId,
+                            hasTrack: widget.hasTrack,
                           ),
                         ),
                       ],
@@ -129,7 +158,9 @@ class DeckTrackInfo extends ConsumerWidget {
             ),
           ),
           const MDivider(padding: .zero),
-          RepaintBoundary(child: OverviewStrip(deckId: deckId, height: 36)),
+          RepaintBoundary(
+            child: OverviewStrip(deckId: widget.deckId, height: 36),
+          ),
         ],
       ),
     );
