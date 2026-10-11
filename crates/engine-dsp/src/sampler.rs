@@ -243,9 +243,14 @@ impl Sampler {
     }
 
     /// Stop voices for a slot (hold / loop release).
+    ///
+    /// One-shot voices ignore release so the sample plays to completion.
     pub fn end(&mut self, slot: usize) -> Result<()> {
         if slot >= SAMPLER_SLOT_COUNT {
             return Err(anyhow::anyhow!("Invalid sampler slot: {slot}"));
+        }
+        if self.play_mode == SamplerPlayMode::Oneshot {
+            return Ok(());
         }
         for voice in &mut self.voices {
             if voice.active && voice.slot == slot {
@@ -403,6 +408,21 @@ mod tests {
         let mut output = vec![0.0; 1024];
         sampler.render(512, &mut output);
         assert!(output.iter().all(|&s| s.abs() < 1e-6));
+    }
+
+    #[test]
+    fn oneshot_end_keeps_voice() {
+        let mut sampler = Sampler::new(48_000, 512, "medium");
+        assert_eq!(sampler.play_mode(), SamplerPlayMode::Oneshot);
+        let audio = test_audio(vec![1.0; 4096], 48_000);
+        sampler
+            .assign_slot(0, audio, "hit".into(), 48_000, "medium", None)
+            .unwrap();
+        sampler.trigger(0).unwrap();
+        sampler.end(0).unwrap();
+        let mut output = vec![0.0; 1024];
+        sampler.render(512, &mut output);
+        assert!(output.iter().any(|&s| s.abs() > 1e-6));
     }
 
     #[test]
