@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/deck_track_info.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
@@ -59,12 +60,13 @@ void main() {
     final desired = <bool>[];
     await pumpButton(tester, keyLock: false, onChanged: desired.add);
 
-    await tester.tap(find.text('F#m'));
+    // Tap MixerButton chrome (not Text / Icon children alone).
+    await tester.tap(find.byType(MixerButton));
     await tester.pumpAndSettle();
     expect(desired, [true]);
 
     await pumpButton(tester, keyLock: true, onChanged: desired.add);
-    await tester.tap(find.byIcon(LucideIcons.lock));
+    await tester.tap(find.byType(MixerButton));
     await tester.pumpAndSettle();
     expect(desired, [true, false]);
   });
