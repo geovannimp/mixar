@@ -77,10 +77,15 @@ void main() {
       ),
     );
     final decoration = decorated.decoration as BoxDecoration;
-    expect(decoration.border, Border.all(color: override, width: base.style.borderWidth));
+    expect(
+      decoration.border,
+      Border.all(color: override, width: base.style.borderWidth),
+    );
   });
 
-  testWidgets('MCard insets children inside the hairline border', (tester) async {
+  testWidgets('MCard insets children inside the hairline border', (
+    tester,
+  ) async {
     final base = MixarThemeData.dark();
     const childKey = ValueKey('m-card-child');
     await tester.pumpWidget(
@@ -90,9 +95,7 @@ void main() {
         home: const Scaffold(
           body: Align(
             alignment: Alignment.topLeft,
-            child: MCard(
-              child: SizedBox(key: childKey, width: 40, height: 40),
-            ),
+            child: MCard(child: SizedBox(key: childKey, width: 40, height: 40)),
           ),
         ),
       ),

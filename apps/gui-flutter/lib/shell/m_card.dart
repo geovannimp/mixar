@@ -39,10 +39,7 @@ class MCard extends StatelessWidget {
       ),
       // Inset so edge-flush fills (cover art, waveforms) cannot paint over the
       // hairline — DecoratedBox draws the stroke behind its child.
-      child: Padding(
-        padding: EdgeInsets.all(borderW),
-        child: content,
-      ),
+      child: Padding(padding: EdgeInsets.all(borderW), child: content),
     );
   }
 }

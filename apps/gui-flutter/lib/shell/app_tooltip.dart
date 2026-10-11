@@ -71,10 +71,7 @@ class AppTooltip extends ConsumerWidget {
               style: typography.body.sm.copyWith(color: _tipForeground),
             ),
             const SizedBox(height: 2),
-            Text(
-              detail,
-              style: typography.body.xs.copyWith(color: _tipMuted),
-            ),
+            Text(detail, style: typography.body.xs.copyWith(color: _tipMuted)),
           ],
         );
       },
