@@ -25,10 +25,7 @@ void main() {
       },
     );
 
-    expect(loads, [
-      'path:0:/music/drive-track.wav',
-      'lib:1:lib-1',
-    ]);
+    expect(loads, ['path:0:/music/drive-track.wav', 'lib:1:lib-1']);
   });
 
   test('empty path-only decks are skipped', () async {
