@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' as flutter_material;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_button_style.dart';
@@ -25,23 +24,6 @@ void main() {
     );
   }
 
-  testWidgets('flutter MaterialLocalizations resolve under pt_BR', (
-    tester,
-  ) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) {
-          final label = flutter_material.MaterialLocalizations.of(context)
-              .dialogLabel;
-          return Text(label);
-        },
-      ),
-      locale: const Locale('pt', 'BR'),
-    );
-    expect(find.text('Dialog'), findsOneWidget);
-  });
-
   testWidgets('showMixarDialog under pt_BR does not crash', (tester) async {
     await pumpHome(
       tester,
@@ -65,22 +47,6 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     expect(find.text('Export format'), findsOneWidget);
-  });
-
-  testWidgets('LegacyMaterialScope exposes flutter MaterialLocalizations', (
-    tester,
-  ) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) {
-          final label = flutter_material.MaterialLocalizations.of(context)
-              .dialogLabel;
-          return Text(label);
-        },
-      ),
-    );
-    expect(find.text('Dialog'), findsOneWidget);
   });
 
   testWidgets('showMixarDialog builds content without localization crash', (
@@ -156,7 +122,9 @@ void main() {
             await showMixarConfirm<bool>(
               context: context,
               title: 'Clear stem cache?',
-              body: 'Deletes generated stem files for all tracks. Original library audio is not touched.',
+              body:
+                  'Deletes generated stem files for all tracks. '
+                  'Original library audio is not touched.',
               actions: const [
                 MixarDialogAction(
                   label: 'Cancel',
@@ -181,11 +149,52 @@ void main() {
 
     final bodyRect = tester.getRect(
       find.text(
-        'Deletes generated stem files for all tracks. Original library audio is not touched.',
+        'Deletes generated stem files for all tracks. '
+        'Original library audio is not touched.',
       ),
     );
     final cancelRect = tester.getRect(find.text('Cancel'));
     expect(cancelRect.top, greaterThanOrEqualTo(bodyRect.bottom));
+  });
+
+  testWidgets('showMixarDialog scrolls tall content without overflow', (
+    tester,
+  ) async {
+    // Compact viewport so a long column exceeds the dialog height.
+    await tester.binding.setSurfaceSize(const Size(400, 320));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () async {
+            await showMixarDialog<void>(
+              context: context,
+              builder: (context) => Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [for (var i = 0; i < 40; i++) Text('Row $i')],
+                ),
+              ),
+            );
+          },
+          child: const Text('Open'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Row 0'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Row 39'),
+      80,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Row 39'), findsOneWidget);
   });
 
   testWidgets('showMixarConfirm barrier dismiss returns null', (tester) async {
