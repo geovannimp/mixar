@@ -41,7 +41,12 @@ class DeckCueHoldSession {
       await end();
       _began = false;
     });
-    _chain = step.catchError((Object _) {});
+    _chain = step.catchError((Object _) {
+      // Keep `_began` true (end did not finish) and clear any stale latch so
+      // a later end/disposeEnd can retry. Caller UI already toasted via
+      // `_engineCmd` when that wrapper is used.
+      _beginQueued = false;
+    });
   }
 
   /// Schedule end (if hold began) and wait for the session to drain.
@@ -62,6 +67,9 @@ class DeckCueHoldSession {
     try {
       await _chain;
     } catch (_) {
+      // Keep the session reusable: clear the rejected chain and any stale
+      // begin-queued latch. `_began` stays true so a later end can retry.
+      _beginQueued = false;
       _chain = Future<void>.value();
       rethrow;
     }
