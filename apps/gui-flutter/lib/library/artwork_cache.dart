@@ -57,18 +57,17 @@ class ArtworkCache extends Notifier<Map<String, Uint8List?>> {
       // Prefetch is unawaited: catch Exception and Error so one bad id
       // cannot abort later batches. Store null sentinel so scroll/deck
       // ensureLoaded stops retrying (#461). Recovery is eviction from the
-      // 300-entry map — not per-frame refetch.
+      // 300-entry map — not per-frame refetch. Report both Exception
+      // (FRB/I/O) and Error so failures are not silent in logs.
       _store(id, null);
-      if (error is Error) {
-        FlutterError.reportError(
-          FlutterErrorDetails(
-            exception: error,
-            stack: stack,
-            library: 'artwork_cache',
-            context: ErrorDescription('loading artwork for $id'),
-          ),
-        );
-      }
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'artwork_cache',
+          context: ErrorDescription('loading artwork for $id'),
+        ),
+      );
     } finally {
       _inFlight.remove(id);
     }

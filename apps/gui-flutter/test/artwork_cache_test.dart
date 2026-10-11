@@ -105,10 +105,19 @@ void main() {
       );
       final cache = env.container.read(artworkCacheProvider.notifier);
 
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = (details) {
+        previous?.call(details);
+        reported.add(details);
+      };
+      addTearDown(() => FlutterError.onError = previous);
+
       await cache.ensureLoaded(['a']);
       expect(env.container.read(artworkCacheProvider).containsKey('a'), isTrue);
       expect(env.container.read(artworkCacheProvider)['a'], isNull);
       expect(env.fake.getTrackCalls, ['a']);
+      expect(reported, isNotEmpty, reason: 'Exceptions must be reported');
 
       await cache.ensureLoaded(['a']);
       expect(env.fake.getTrackCalls, ['a'], reason: 'failed id must not retry');
