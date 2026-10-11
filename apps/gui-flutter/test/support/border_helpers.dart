@@ -19,10 +19,7 @@ Border borderOf(WidgetTester tester, Finder finder) {
     return border! as Border;
   }
   if (widget is Container) {
-    for (final decoration in [
-      widget.foregroundDecoration,
-      widget.decoration,
-    ]) {
+    for (final decoration in [widget.foregroundDecoration, widget.decoration]) {
       if (decoration is BoxDecoration && decoration.border is Border) {
         return decoration.border! as Border;
       }
