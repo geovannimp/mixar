@@ -1,7 +1,7 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
+import 'package:flutter_riverpod/misc.dart'
+    show FutureProviderFamily, ProviderFamily;
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/jog_ticks.dart';
@@ -11,12 +11,11 @@ import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 import 'package:gui_flutter/src/rust/api/library.dart'
     show LibraryTrackSummary, SavedLoopInfo;
-import 'package:riverpod/src/providers/future_provider.dart';
-import 'package:riverpod/src/providers/provider.dart';
 
 /// Bool deck mirrors that use optimistic absolute cmds + generation rollback.
 enum OptimisticDeckBoolField { playing, quantize, slip, keyLock }
@@ -700,63 +699,13 @@ final engineEventsBootstrapProvider = Provider<void>((ref) {
       ref.read(engineUiProvider.notifier).apply(evt);
       if (evt.kind == EngineEvtKind.error) {
         ref
-            .read(libraryMessageProvider.notifier)
+            .read(appNoticeProvider.notifier)
             .setError(evt.message ?? 'Engine error');
       }
     });
     ref.onDispose(sub.cancel);
   }
 });
-
-/// Shared deck-load path (UI drop/keyboard + MIDI).
-///
-/// Uses [deckLoadGenerationProvider] so a superseded attempt does not
-/// overwrite chrome after a newer load wins.
-Future<void> loadPayloadOntoDeck(
-  T Function<T>(ProviderListenable<T> provider) read,
-  int deckId,
-  TrackDragPayload payload,
-) async {
-  final generation = read(deckLoadGenerationProvider.notifier).begin(deckId);
-  final loading = read(deckLoadInFlightProvider.notifier)..set(deckId, true);
-  read(libraryMessageProvider.notifier).clear();
-  try {
-    final transport = await read(deckLoadTransportProvider.future);
-    if (transport == null) {
-      return;
-    }
-    await applyTrackDrop(
-      deckId: deckId,
-      payload: payload,
-      loadLibraryTrack: (id, trackId) =>
-          transport.loadLibraryTrack(deckId: id, trackId: trackId),
-      loadPath: (id, path) => transport.loadPath(deckId: id, path: path),
-    );
-    if (!read(deckLoadGenerationProvider.notifier)
-        .isCurrent(deckId, generation)) {
-      return;
-    }
-    read(engineUiProvider.notifier)
-      ..setDeckTrackPath(deckId, payload.path)
-      ..setDeckTrackId(deckId, payload.trackId);
-  } catch (e) {
-    // Superseded attempts must not sticky-banner or toast over a newer load.
-    if (!read(deckLoadGenerationProvider.notifier)
-        .isCurrent(deckId, generation)) {
-      return;
-    }
-    read(libraryMessageProvider.notifier).setError('$e');
-    rethrow;
-  } finally {
-    loading.set(deckId, false);
-  }
-}
-
-Future<void> loadPayloadToDeck(
-  WidgetRef ref,
-  int deckId,
-  TrackDragPayload payload,
-) => loadPayloadOntoDeck(ref.read, deckId, payload);
 
 /// Drive play/pause from an absolute desired state (never `!snapshot` after await).
 Future<void> setDeckPlaying(WidgetRef ref, int deckId, bool playing) async {
@@ -1017,16 +966,4 @@ Future<void> unloadDeck(WidgetRef ref, int deckId) async {
   await engine.unload(deckId: deckId);
   ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, null);
   ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, null);
-}
-
-Future<void> pickTrackForDeck(WidgetRef ref, int deckId) async {
-  final result = await FilePicker.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: supportedAudioExtensions,
-  );
-  final path = result?.files.single.path;
-  if (path == null || path.isEmpty) {
-    return;
-  }
-  await loadPayloadToDeck(ref, deckId, payloadFromOsPath(path));
 }

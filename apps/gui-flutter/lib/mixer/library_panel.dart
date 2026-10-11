@@ -56,124 +56,103 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
     ref.watch(historySettingsBootstrapProvider);
     ref.watch(librarySettingsBootstrapProvider);
     final theme = context.theme;
-    final message = ref.watch(libraryMessageProvider);
     final tab = ref.watch(librarySourceTabProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (message != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: Text(
-              message,
-              style: theme.typography.body.sm.copyWith(
-                color: theme.colors.destructive,
+    // Invisible chrome; keep a grab hit-area (was FResizable divider:none).
+    return PaneTheme(
+      data: const PaneThemeData(
+        resizerColor: Color(0x00000000),
+        resizerHoverColor: Color(0x00000000),
+        resizerFocusedColor: Color(0x00000000),
+        resizerThickness: 0,
+        resizerHitTestThickness: 8,
+      ),
+      child: MultiPane(
+        direction: Axis.horizontal,
+        controller: _controller,
+        paneBuilder: (context, id, _) => switch (id) {
+          // Flush sidebar: no margin or rounded chrome, only a right
+          // border separating it from the track table. The border is a
+          // foreground decoration so it stays continuous across the tab
+          // bar. The sidebar and content share the `secondary` chrome
+          // fill, which sits against the list's `card` surface.
+          'sidebar' => DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: BoxDecoration(
+              border: Border(
+                right: BorderSide(
+                  color: theme.colors.border,
+                  width: theme.style.borderWidth,
+                ),
+              ),
+            ),
+            child: ColoredBox(
+              color: theme.colors.secondary,
+              child: MTabs(
+                expands: true,
+                spacing: 4,
+                barBottomBorder: BorderSide(
+                  color: theme.colors.border,
+                  width: theme.style.borderWidth,
+                ),
+                index: switch (tab) {
+                  LibrarySourceTab.collections => 0,
+                  LibrarySourceTab.drive => 1,
+                  LibrarySourceTab.history => 2,
+                },
+                onChange: (index) {
+                  ref.read(librarySourceTabProvider.notifier).set(
+                    switch (index) {
+                      1 => LibrarySourceTab.drive,
+                      2 => LibrarySourceTab.history,
+                      _ => LibrarySourceTab.collections,
+                    },
+                  );
+                },
+                children: [
+                  MTabEntry(
+                    label: AppTooltip(
+                      tip: 'Collections',
+                      child: Semantics(
+                        label: 'Collections',
+                        child: const Icon(LucideIcons.library, size: 16),
+                      ),
+                    ),
+                    child: const CollectionsPane(),
+                  ),
+                  MTabEntry(
+                    label: AppTooltip(
+                      tip: 'Drive',
+                      child: Semantics(
+                        label: 'Drive',
+                        child: const Icon(LucideIcons.hardDrive, size: 16),
+                      ),
+                    ),
+                    child: const DrivePane(),
+                  ),
+                  MTabEntry(
+                    label: AppTooltip(
+                      tip: 'History',
+                      child: Semantics(
+                        label: 'History',
+                        child: const Icon(LucideIcons.history, size: 16),
+                      ),
+                    ),
+                    child: const HistoryPane(),
+                  ),
+                ],
               ),
             ),
           ),
-        Expanded(
-          // Invisible chrome; keep a grab hit-area (was FResizable divider:none).
-          child: PaneTheme(
-            data: const PaneThemeData(
-              resizerColor: Color(0x00000000),
-              resizerHoverColor: Color(0x00000000),
-              resizerFocusedColor: Color(0x00000000),
-              resizerThickness: 0,
-              resizerHitTestThickness: 8,
-            ),
-            child: MultiPane(
-              direction: Axis.horizontal,
-              controller: _controller,
-              paneBuilder: (context, id, _) => switch (id) {
-                // Flush sidebar: no margin or rounded chrome, only a right
-                // border separating it from the track table. The border is a
-                // foreground decoration so it stays continuous across the tab
-                // bar. The sidebar and content share the `secondary` chrome
-                // fill, which sits against the list's `card` surface.
-                'sidebar' => DecoratedBox(
-                  position: DecorationPosition.foreground,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(
-                        color: theme.colors.border,
-                        width: theme.style.borderWidth,
-                      ),
-                    ),
-                  ),
-                  child: ColoredBox(
-                    color: theme.colors.secondary,
-                    child: MTabs(
-                      expands: true,
-                      spacing: 4,
-                      barBottomBorder: BorderSide(
-                        color: theme.colors.border,
-                        width: theme.style.borderWidth,
-                      ),
-                      index: switch (tab) {
-                        LibrarySourceTab.collections => 0,
-                        LibrarySourceTab.drive => 1,
-                        LibrarySourceTab.history => 2,
-                      },
-                      onChange: (index) {
-                        ref.read(librarySourceTabProvider.notifier).set(
-                          switch (index) {
-                            1 => LibrarySourceTab.drive,
-                            2 => LibrarySourceTab.history,
-                            _ => LibrarySourceTab.collections,
-                          },
-                        );
-                      },
-                      children: [
-                        MTabEntry(
-                          label: AppTooltip(
-                            tip: 'Collections',
-                            child: Semantics(
-                              label: 'Collections',
-                              child: const Icon(LucideIcons.library, size: 16),
-                            ),
-                          ),
-                          child: const CollectionsPane(),
-                        ),
-                        MTabEntry(
-                          label: AppTooltip(
-                            tip: 'Drive',
-                            child: Semantics(
-                              label: 'Drive',
-                              child: const Icon(
-                                LucideIcons.hardDrive,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                          child: const DrivePane(),
-                        ),
-                        MTabEntry(
-                          label: AppTooltip(
-                            tip: 'History',
-                            child: Semantics(
-                              label: 'History',
-                              child: const Icon(LucideIcons.history, size: 16),
-                            ),
-                          ),
-                          child: const HistoryPane(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                'content' => ColoredBox(
-                  color: theme.colors.secondary,
-                  child: tab == LibrarySourceTab.history
-                      ? const HistoryDetailPane()
-                      : const TrackListPane(),
-                ),
-                _ => const SizedBox.shrink(),
-              },
-            ),
+          'content' => ColoredBox(
+            color: theme.colors.secondary,
+            child: tab == LibrarySourceTab.history
+                ? const HistoryDetailPane()
+                : const TrackListPane(),
           ),
-        ),
-      ],
+          _ => const SizedBox.shrink(),
+        },
+      ),
     );
   }
 }

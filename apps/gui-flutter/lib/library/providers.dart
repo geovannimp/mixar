@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/history_refresh.dart';
-import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
@@ -421,21 +421,6 @@ final stemGeneratingTrackIdsProvider =
       StemGeneratingTrackIds.new,
     );
 
-class LibraryMessage extends Notifier<String?> {
-  @override
-  String? build() => null;
-
-  void clear() => state = null;
-
-  void setError(String message) => state = message;
-
-  void setNotice(String? message) => state = message;
-}
-
-final libraryMessageProvider = NotifierProvider<LibraryMessage, String?>(
-  LibraryMessage.new,
-);
-
 class LibraryAnalysisEpoch extends Notifier<int> {
   @override
   int build() => 0;
@@ -627,9 +612,7 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
         ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
       }
     case LibraryEvtKind.error:
-      ref
-          .read(libraryMessageProvider.notifier)
-          .setError(evt.message ?? 'Error');
+      ref.read(appNoticeProvider.notifier).setError(evt.message ?? 'Error');
       if (evt.trackId != null) {
         ref.read(analyzingTrackIdsProvider.notifier).clearIf(evt.trackId);
         ref
@@ -640,7 +623,7 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
         ref.read(analyzingTrackIdsProvider.notifier).clear();
       }
     case LibraryEvtKind.notice:
-      ref.read(libraryMessageProvider.notifier).setNotice(evt.message);
+      ref.read(appNoticeProvider.notifier).setNotice(evt.message);
     case LibraryEvtKind.hotCuesChanged:
       final trackId = evt.trackId;
       if (trackId != null) {
@@ -665,24 +648,11 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
     case LibraryEvtKind.load:
       final deck = evt.deck;
       if (deck != null) {
-        unawaited(loadFocusedRowToDeck(ref, deck));
+        ref.read(pendingFocusedDeckLoadProvider.notifier).request(deck);
       }
     case LibraryEvtKind.historySessionUpdated:
       ref.read(historyRefreshTickProvider.notifier).bump();
   }
-}
-
-/// MIDI / controller load: the active list's focused row → deck.
-///
-/// The focused payload is published by [TrackListView], so this works for the
-/// library list and the history list alike without knowing which is on screen.
-Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
-  final focused = ref.read(focusedTrackPayloadProvider);
-  final payload = focused.owner == null ? null : focused.payload;
-  if (payload == null) {
-    return;
-  }
-  await loadPayloadOntoDeck(ref.read, deckId, payload);
 }
 
 /// Long-lived `subscribeEvents` while transport is open; watch from library UI.
@@ -698,13 +668,13 @@ final libraryEventsBootstrapProvider = Provider<void>((ref) {
 
 Future<void> analyzeTrackAction(WidgetRef ref, String trackId) async {
   ref.read(analyzingTrackIdsProvider.notifier).add(trackId);
-  ref.read(libraryMessageProvider.notifier).clear();
+  ref.read(appNoticeProvider.notifier).clear();
   try {
     final transport = await ref.read(libraryTransportProvider.future);
     await transport.analyzeTrack(trackId: trackId, force: false);
   } catch (e) {
     ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
-    ref.read(libraryMessageProvider.notifier).setError('$e');
+    ref.read(appNoticeProvider.notifier).setError('$e');
   }
 }
 
@@ -714,22 +684,22 @@ Future<void> analyzeTrackAction(WidgetRef ref, String trackId) async {
 /// more expensive than analysis, so it is opt-in per track. Server-side this
 /// no-ops when a valid stem cache already exists.
 Future<void> generateStemsAction(WidgetRef ref, String trackId) async {
-  ref.read(libraryMessageProvider.notifier).clear();
+  ref.read(appNoticeProvider.notifier).clear();
   try {
     final transport = await ref.read(libraryTransportProvider.future);
     await transport.generateStems(trackId: trackId);
   } catch (e) {
-    ref.read(libraryMessageProvider.notifier).setError('$e');
+    ref.read(appNoticeProvider.notifier).setError('$e');
   }
 }
 
 Future<void> refreshTrackAction(WidgetRef ref, String trackId) async {
-  ref.read(libraryMessageProvider.notifier).clear();
+  ref.read(appNoticeProvider.notifier).clear();
   try {
     final transport = await ref.read(libraryTransportProvider.future);
     await transport.refreshTrack(trackId: trackId);
   } catch (e) {
-    ref.read(libraryMessageProvider.notifier).setError('$e');
+    ref.read(appNoticeProvider.notifier).setError('$e');
   }
 }
 

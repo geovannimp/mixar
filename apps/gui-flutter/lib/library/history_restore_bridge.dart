@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 
 /// Prompt to restore the previous session on launch (inside idle window).
@@ -63,7 +64,7 @@ class _HistoryRestoreBridgeState extends ConsumerState<HistoryRestoreBridge> {
       invalidateHistory(ref);
     } catch (e) {
       if (mounted) {
-        ref.read(libraryMessageProvider.notifier).setError('$e');
+        ref.read(appNoticeProvider.notifier).setError('$e');
       }
     }
   }

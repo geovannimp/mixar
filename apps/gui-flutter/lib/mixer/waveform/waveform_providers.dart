@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart'
+    show FutureProviderFamily, ProviderFamily;
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
@@ -6,8 +8,6 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'package:riverpod/src/providers/future_provider.dart';
-import 'package:riverpod/src/providers/provider.dart';
 
 final FutureProviderFamily<List<SpectralPeak>, String>
 waveformOverviewProvider = FutureProvider.family<List<SpectralPeak>, String>((

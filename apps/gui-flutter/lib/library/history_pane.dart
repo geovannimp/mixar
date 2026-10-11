@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -152,14 +153,14 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
 
   Future<void> _newSession() async {
     setState(() => _creating = true);
-    ref.read(libraryMessageProvider.notifier).clear();
+    ref.read(appNoticeProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
       await transport.historyNewSession();
       invalidateHistory(ref);
     } catch (e) {
       if (mounted) {
-        ref.read(libraryMessageProvider.notifier).setError('$e');
+        ref.read(appNoticeProvider.notifier).setError('$e');
       }
     } finally {
       if (mounted) {
@@ -169,14 +170,14 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
   }
 
   Future<void> _resumeSession() async {
-    ref.read(libraryMessageProvider.notifier).clear();
+    ref.read(appNoticeProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
       await transport.historyResumeSession();
       invalidateHistory(ref);
     } catch (e) {
       if (mounted) {
-        ref.read(libraryMessageProvider.notifier).setError('$e');
+        ref.read(appNoticeProvider.notifier).setError('$e');
       }
     }
   }

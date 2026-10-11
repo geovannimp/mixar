@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/library_list_chrome.dart';
@@ -15,7 +16,6 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
-import 'package:riverpod/src/framework.dart';
 
 import 'helpers/collection_tracks_override.dart';
 import 'support/border_helpers.dart';

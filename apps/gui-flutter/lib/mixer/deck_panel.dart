@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/deck_cue_button.dart';
 import 'package:gui_flutter/mixer/deck_cue_hold_session.dart';
+import 'package:gui_flutter/mixer/deck_load.dart';
 import 'package:gui_flutter/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/deck_track_info.dart';
