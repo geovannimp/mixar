@@ -5,9 +5,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/deck_load.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+
+/// Whether a drag is currently over this deck's [TrackDropZone].
+///
+/// The drop target stays deck-wide; the track-info card reads this to paint
+/// the hover chrome without lighting up the whole deck.
+class DeckDropHover extends InheritedWidget {
+  const new({required this.active, required super.child, super.key});
+
+  final bool active;
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<DeckDropHover>()?.active ??
+      false;
+
+  @override
+  bool updateShouldNotify(DeckDropHover oldWidget) =>
+      active != oldWidget.active;
+}
 
 /// Deck drop target: in-app [TrackDragPayload] plus OS `fileUri` audio files.
 class TrackDropZone extends ConsumerStatefulWidget {
@@ -25,27 +42,17 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final engine = ref.watch(engineTransportProvider).asData?.value;
     final running = ref.watch(engineRunningProvider);
     final enabled = engine != null && running;
 
-    final highlighted = DecoratedBox(
-      decoration: BoxDecoration(
-        boxShadow: _over && enabled
-            ? [
-                BoxShadow(
-                  color: theme.colors.primary.withValues(alpha: 0.55),
-                  spreadRadius: 2,
-                ),
-              ]
-            : null,
-      ),
+    final content = DeckDropHover(
+      active: _over && enabled,
       child: widget.child,
     );
 
     if (!enabled) {
-      return highlighted;
+      return content;
     }
 
     return DropRegion(
@@ -64,7 +71,7 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
         setState(() => _over = false);
         _performDrop(event);
       },
-      child: highlighted,
+      child: content,
     );
   }
 

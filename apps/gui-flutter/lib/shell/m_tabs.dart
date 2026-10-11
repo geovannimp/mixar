@@ -3,10 +3,15 @@ import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Minimum size of a single tab header (it is a square).
-const kMTabHeaderMinSize = 28.0;
+///
+/// Sized to the former padded bar (28 + 4×2) so zero inset padding still keeps
+/// the library header / filter row at 36px and the selected chip fills flush.
+const kMTabHeaderMinSize = 36.0;
 
 /// Padding between the tab bar's edge and the header strip.
-const kMTabBarPadding = 4.0;
+///
+/// Zero keeps the selected chip flush with the bar border (square chrome).
+const kMTabBarPadding = 0.0;
 
 /// Minimum height of a horizontal tab bar: the header minimum plus the two
 /// paddings. The 1px border is painted inside the box (a bare [DecoratedBox]
@@ -221,26 +226,36 @@ class _TabBar extends StatelessWidget {
           )
         : labels;
 
-    // The bar's own fill colour doubles as its border, so only the caller's
-    // bottom border (if any) is visible.
+    // Outer edges match the muted fill so they don't double the parent card
+    // stroke. Horizontal bars expose [barBottomBorder]; vertical bars always
+    // paint a hairline on the trailing edge to separate the rail from content.
     final flush = BorderSide(
       color: theme.colors.muted,
+      width: theme.style.borderWidth,
+    );
+    // Opaque blend onto background — a raw translucent border over the muted
+    // rail fill reads brighter than hairlines on the content surface.
+    final hairline = BorderSide(
+      color: Color.alphaBlend(theme.colors.border, theme.colors.background),
       width: theme.style.borderWidth,
     );
     // Force the theme hairline on a caller's bottom border: the width is part
     // of the bar's alignment contract, so a wider side would misalign the rows.
     final bottom =
         barBottomBorder?.copyWith(width: theme.style.borderWidth) ?? flush;
+    // [kMTabBarPadding] is currently 0 — selected chip sits flush with the bar.
     return DecoratedBox(
       key: kMTabBarKey,
       decoration: BoxDecoration(
         color: theme.colors.muted,
-        border: Border(top: flush, left: flush, right: flush, bottom: bottom),
+        border: Border(
+          top: flush,
+          left: flush,
+          right: horizontal ? flush : hairline,
+          bottom: horizontal ? bottom : flush,
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(kMTabBarPadding),
-        child: strip,
-      ),
+      child: strip,
     );
   }
 

@@ -178,4 +178,24 @@ void main() {
     // The bar's floor height is the constant consumers align to.
     expect(tester.getSize(find.byKey(kMTabBarKey)).height, kMTabBarMinHeight);
   });
+
+  testWidgets('vertical tab bar paints a hairline on the trailing edge', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpTabs(
+      tester,
+      direction: Axis.vertical,
+      children: const [
+        MTabEntry(label: Text('A'), child: Text('pane-a')),
+        MTabEntry(label: Text('B'), child: Text('pane-b')),
+      ],
+    );
+
+    expect(
+      barBorder(tester).right.color,
+      Color.alphaBlend(theme.colors.border, theme.colors.background),
+    );
+    expect(barBorder(tester).right.width, theme.style.borderWidth);
+  });
 }

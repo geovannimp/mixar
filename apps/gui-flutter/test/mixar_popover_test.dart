@@ -106,10 +106,10 @@ void main() {
     expect(tester.getSize(panel).width, 200);
   });
 
-  testWidgets('MixarMenuPanel clips row fills to its rounded border', (
+  testWidgets('MixarMenuPanel clips row fills to its border radius', (
     tester,
   ) async {
-    // A full-bleed hover fill must not square off the panel's rounded corner.
+    // A full-bleed hover fill must not bleed past the panel outline.
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromMixar(MixarThemeData.dark()),

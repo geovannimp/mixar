@@ -1,18 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// Border radius scale (Forui desktop defaults).
+/// Border radius scale — square chrome; [pill] only for tiny status chips.
 @immutable
 class MixarBorderRadius {
   const new({
-    this.xs2 = const BorderRadius.all(Radius.circular(4)),
-    this.xs = const BorderRadius.all(Radius.circular(6)),
-    this.sm = const BorderRadius.all(Radius.circular(8)),
-    this.md = const BorderRadius.all(Radius.circular(10)),
-    this.lg = const BorderRadius.all(Radius.circular(14)),
-    this.xl = const BorderRadius.all(Radius.circular(18)),
-    this.xl2 = const BorderRadius.all(Radius.circular(22)),
-    this.xl3 = const BorderRadius.all(Radius.circular(26)),
+    this.xs2 = BorderRadius.zero,
+    this.xs = BorderRadius.zero,
+    this.sm = BorderRadius.zero,
+    this.md = BorderRadius.zero,
+    this.lg = BorderRadius.zero,
+    this.xl = BorderRadius.zero,
+    this.xl2 = BorderRadius.zero,
+    this.xl3 = BorderRadius.zero,
     this.pill = const BorderRadius.all(Radius.circular(100)),
   });
 

@@ -28,6 +28,10 @@ ThemeData materialUiThemeFromMixar(
     labelSmall: body.xs2,
   );
 
+  final square = RoundedRectangleBorder(
+    borderRadius: theme.style.borderRadius.md,
+  );
+
   return ThemeData(
     colorScheme: ColorScheme(
       brightness: c.brightness,
@@ -51,5 +55,8 @@ ThemeData materialUiThemeFromMixar(
     splashFactory: NoSplash.splashFactory,
     useMaterial3: true,
     scaffoldBackgroundColor: scaffoldBackgroundColor,
+    cardTheme: CardThemeData(shape: square),
+    dialogTheme: DialogThemeData(shape: square),
+    bottomSheetTheme: BottomSheetThemeData(shape: square),
   );
 }

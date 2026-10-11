@@ -24,11 +24,20 @@ class AppTooltip extends ConsumerWidget {
 
   static const Set<HintTrigger> _triggers = {HintTrigger.hover};
   static const _wait = Duration(milliseconds: 400);
+
+  /// Classic white tip on dark booth chrome — square corners, dark ink.
+  static const _tipBackground = Color(0xFFFFFFFF);
+  static const _tipForeground = Color(0xFF18181B);
+  static const _tipMuted = Color(0xFF71717A);
+
   static const _theme = HintThemeData(
     preset: HintPreset.minimal,
     maxWidth: 280,
     borderWidth: 0,
     borderColor: Color(0x00000000),
+    borderRadius: BorderRadius.zero,
+    backgroundColor: _tipBackground,
+    foregroundColor: _tipForeground,
     transition: HintTransition.fade,
   );
 
@@ -46,21 +55,25 @@ class AppTooltip extends ConsumerWidget {
       waitDuration: _wait,
       theme: _theme,
       contentBuilder: (context) {
+        final typography = context.theme.typography;
         if (detail == null || detail.isEmpty) {
-          return Text(tip);
+          return Text(
+            tip,
+            style: typography.body.sm.copyWith(color: _tipForeground),
+          );
         }
-        final theme = context.theme;
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(tip),
+            Text(
+              tip,
+              style: typography.body.sm.copyWith(color: _tipForeground),
+            ),
             const SizedBox(height: 2),
             Text(
               detail,
-              style: theme.typography.body.xs.copyWith(
-                color: theme.colors.mutedForeground,
-              ),
+              style: typography.body.xs.copyWith(color: _tipMuted),
             ),
           ],
         );

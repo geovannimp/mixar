@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
+import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
@@ -72,6 +73,7 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final artwork = trackId == null
         ? null
@@ -95,9 +97,15 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
           ),
     );
     final skeleton = ref.watch(deckSkeletonProvider(widget.deckId));
+    final dropHover = DeckDropHover.of(context);
 
+    // Drop target stays deck-wide; only this card takes the hover chrome.
+    // In-bounds border (not an outward glow) so ClipRect cannot eat an edge.
     return MCard(
       clipBehavior: .antiAlias,
+      borderColor: dropHover
+          ? theme.colors.primary.withValues(alpha: 0.85)
+          : null,
       child: Column(
         mainAxisSize: .min,
         children: [
@@ -105,8 +113,8 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
             child: Row(
               crossAxisAlignment: .stretch,
               children: [
-                // Square cover. Fixed size so a large decoded image's intrinsic
-                // size cannot expand the row (previously the card overflowed).
+                // Square cover. Fixed size so a large decoded image's
+                // intrinsic size cannot expand the row.
                 SizedBox.square(
                   dimension: _artworkThumbSize,
                   child: _ArtworkThumb(
@@ -132,8 +140,8 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
                                 skeleton: skeleton,
                               ),
                             ),
-                            // Harmonic ref flips on play/pause — keep it off the
-                            // parent so artwork / title do not rebuild.
+                            // Harmonic ref flips on play/pause — keep it off
+                            // the parent so artwork / title do not rebuild.
                             _DeckKeyLockControl(
                               deckId: widget.deckId,
                               hasTrack: widget.hasTrack,
@@ -157,7 +165,11 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
               ],
             ),
           ),
-          const MDivider(padding: .zero),
+          MDivider(
+            padding: .zero,
+            color: theme.colors.border,
+            thickness: theme.style.borderWidth,
+          ),
           RepaintBoundary(
             child: OverviewStrip(deckId: widget.deckId, height: 36),
           ),

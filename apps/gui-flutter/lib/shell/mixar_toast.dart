@@ -83,7 +83,7 @@ class _MixarToastChrome extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: theme.style.borderRadius.md,
           border: Border.all(color: border, width: theme.style.borderWidth),
         ),
         child: Padding(
