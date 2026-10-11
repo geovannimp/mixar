@@ -59,19 +59,19 @@ void main() {
         .widgetList<Container>(
           find.ancestor(of: find.text(label), matching: find.byType(Container)),
         )
-        .where(
-          (c) =>
-              c.decoration is BoxDecoration &&
-              (c.decoration! as BoxDecoration).color != null,
-        )
+        .where((c) {
+          final decoration = c.decoration;
+          return decoration is BoxDecoration && decoration.color != null;
+        })
         .toList();
     expect(
       containers,
       isNotEmpty,
       reason: 'no decorated option row found for "$label"',
     );
-    final decoration = containers.first.decoration! as BoxDecoration;
-    return decoration.color!;
+    final decoration = containers.first.decoration;
+    expect(decoration, isA<BoxDecoration>());
+    return (decoration! as BoxDecoration).color!;
   }
 
   testWidgets('the selected option uses the Mixar selection tint, not a solid '

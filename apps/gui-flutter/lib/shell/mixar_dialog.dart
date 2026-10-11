@@ -1,11 +1,9 @@
-import 'package:flutter/material.dart' as material;
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
-import 'package:gui_flutter/shell/legacy_material_scope.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
-import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
-/// Wolt medium breakpoint — dialog above, bottom sheet below.
+/// Narrow width → bottom-anchored sheet; otherwise centered dialog.
 const mixarDialogBreakpoint = 768.0;
 
 class MixarDialogAction<T> {
@@ -20,55 +18,70 @@ class MixarDialogAction<T> {
   final MixarButtonVariant variant;
 }
 
-WoltModalType mixarModalTypeBuilder(BuildContext context) {
-  final theme = context.theme;
-  final side = BorderSide(
-    color: theme.colors.border,
-    width: theme.style.borderWidth,
-  );
-  final width = MediaQuery.sizeOf(context).width;
-  // A hairline border on the sheet shape so the dialog reads as a panel instead
-  // of blending into the dimmed backdrop.
-  return width < mixarDialogBreakpoint
-      ? WoltBottomSheetType(
-          shapeBorder: RoundedRectangleBorder(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            side: side,
-          ),
-        )
-      : WoltDialogType(
-          shapeBorder: RoundedRectangleBorder(
-            borderRadius: const BorderRadius.all(Radius.circular(16)),
-            side: side,
-          ),
-        );
+bool _isCompactDialog(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < mixarDialogBreakpoint;
+
+BoxConstraints _mixarDialogConstraints(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  if (size.width < mixarDialogBreakpoint) {
+    return BoxConstraints(minWidth: size.width, maxWidth: size.width);
+  }
+  return const BoxConstraints(maxWidth: 512);
 }
 
-Future<T?> _showMixarModal<T>({
+BorderRadius _mixarDialogRadius(BuildContext context) {
+  if (_isCompactDialog(context)) {
+    return const BorderRadius.vertical(top: Radius.circular(16));
+  }
+  return const BorderRadius.all(Radius.circular(16));
+}
+
+ShadDialog _mixarDialogShell({
   required BuildContext context,
-  required List<SliverWoltModalSheetPage> Function(BuildContext)
-  pageListBuilder,
+  Widget? child,
+  Widget? title,
+  Widget? description,
+  List<Widget> actions = const [],
+  EdgeInsetsGeometry padding = EdgeInsets.zero,
+  double gap = 0,
 }) {
-  // wolt_modal_sheet reads package:flutter/material MaterialLocalizations;
-  // belt-and-suspenders with LegacyMaterialScope for the modal subtree.
-  return WoltModalSheet.show<T>(
-    context: context,
-    modalTypeBuilder: mixarModalTypeBuilder,
-    barrierDismissible: true,
-    modalDecorator: (child) {
-      return material.Localizations.override(
-        context: context,
-        delegates: const [
-          LegacyMaterialScope.flutterMaterialLocalizationsDelegate,
-        ],
-        child: child,
-      );
-    },
-    pageListBuilder: pageListBuilder,
+  final theme = context.theme;
+  return ShadDialog(
+    title: title,
+    description: description,
+    actions: actions,
+    padding: padding,
+    gap: gap,
+    // Tall form/picker bodies (collections, pads, selects) must scroll.
+    scrollable: true,
+    backgroundColor: theme.colors.card,
+    radius: _mixarDialogRadius(context),
+    border: Border.all(
+      color: theme.colors.border,
+      width: theme.style.borderWidth,
+    ),
+    shadows: const [],
+    constraints: _mixarDialogConstraints(context),
+    alignment: _isCompactDialog(context)
+        ? Alignment.bottomCenter
+        : Alignment.center,
+    removeBorderRadiusWhenTiny: false,
+    expandActionsWhenTiny: false,
+    actionsAxis: Axis.horizontal,
+    actionsMainAxisSize: MainAxisSize.min,
+    actionsMainAxisAlignment: MainAxisAlignment.end,
+    titleStyle: theme.typography.body.md.copyWith(fontWeight: FontWeight.w700),
+    descriptionStyle: theme.typography.body.sm.copyWith(
+      color: theme.colors.foreground,
+    ),
+    titleTextAlign: TextAlign.start,
+    descriptionTextAlign: TextAlign.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    child: child,
   );
 }
 
-/// Confirmation with Wolt page title + in-flow actions (not stickyActionBar).
+/// Confirmation with title + in-flow actions.
 Future<T?> showMixarConfirm<T>({
   required BuildContext context,
   required String title,
@@ -76,47 +89,25 @@ Future<T?> showMixarConfirm<T>({
   String? body,
 }) {
   assert(actions.isNotEmpty, 'showMixarConfirm requires at least one action');
-  return _showMixarModal<T>(
+  return showShadDialog<T>(
     context: context,
-    pageListBuilder: (modalContext) {
-      final theme = modalContext.theme;
-      return [
-        WoltModalSheetPage(
-          hasSabGradient: false,
-          isTopBarLayerAlwaysVisible: true,
-          topBarTitle: Text(
-            title,
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+    builder: (modalContext) {
+      return _mixarDialogShell(
+        context: modalContext,
+        padding: const EdgeInsets.all(16),
+        gap: 16,
+        title: Text(title),
+        description: body == null ? null : Text(body),
+        actions: [
+          for (final action in actions)
+            AppButton(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 16,
-              children: [
-                if (body != null) Text(body, style: theme.typography.body.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  spacing: 8,
-                  children: [
-                    for (final action in actions)
-                      AppButton(
-                        mainAxisSize: MainAxisSize.min,
-                        variant: action.variant,
-                        onPress: () =>
-                            Navigator.of(modalContext).pop(action.value),
-                        child: Text(action.label),
-                      ),
-                  ],
-                ),
-              ],
+              variant: action.variant,
+              onPress: () => Navigator.of(modalContext).pop(action.value),
+              child: Text(action.label),
             ),
-          ),
-        ),
-      ];
+        ],
+      );
     },
   );
 }
@@ -126,14 +117,13 @@ Future<T?> showMixarDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
 }) {
-  return _showMixarModal<T>(
+  return showShadDialog<T>(
     context: context,
-    pageListBuilder: (modalContext) => [
-      WoltModalSheetPage(
-        hasTopBarLayer: false,
-        hasSabGradient: false,
+    builder: (modalContext) {
+      return _mixarDialogShell(
+        context: modalContext,
         child: builder(modalContext),
-      ),
-    ],
+      );
+    },
   );
 }

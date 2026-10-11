@@ -23,6 +23,7 @@ class _MobileSelectOption extends StatelessWidget {
     required this.selected,
     required this.onPress,
     this.subtitle,
+    super.key,
   });
 
   final String label;
@@ -93,6 +94,9 @@ class _MobileSelectOption extends StatelessWidget {
 }
 
 /// Mixar select / dropdown over [ShadSelect], or a dialog when mobile style.
+///
+/// [options] must be unique under `==` — mobile rows use [ValueKey] of each
+/// entry, and duplicate keys confuse Flutter's element reuse.
 class MixarSelect<T> extends StatefulWidget {
   const new({
     required this.value,
@@ -112,6 +116,8 @@ class MixarSelect<T> extends StatefulWidget {
   });
 
   final T value;
+
+  /// Menu / dialog entries; keep values unique under `==` for stable keys.
   final List<T> options;
   final String Function(T value) labelBuilder;
   final String Function(T value)? subtitleBuilder;
@@ -168,6 +174,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: _MobileSelectOption(
+                      key: ValueKey(option),
                       label: widget.labelBuilder(option),
                       subtitle: widget.subtitleBuilder?.call(option),
                       selected: option == widget.value,

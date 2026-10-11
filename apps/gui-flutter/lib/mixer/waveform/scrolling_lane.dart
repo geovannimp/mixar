@@ -112,7 +112,6 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
-    final enginePosMs = ref.watch(deckPositionMsProvider(widget.deckId));
     final slipOn = ref.watch(deckSlipEnabledProvider(widget.deckId));
     final slipShadowMs = ref.watch(deckSlipShadowMsProvider(widget.deckId));
     final strip = trackId == null || durationMs <= 0
@@ -138,9 +137,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         ? null
         : ref.watch(stripCuePictureProvider((trackId, durationMs)));
 
-    // When not interpolating (pause / vinyl touch), drive the lane from the
-    // engine playhead every build so jog Position updates cannot be missed.
+    // Do not watch deckPositionMsProvider here — ~30Hz Position ticks would
+    // rebuild LayoutBuilder/Listener/Stack. Seed pause/vinyl on play/jog
+    // rebuilds; ongoing ticks drive _playhead via ref.listen below.
     if (!advancing && !_scrubbing && durationMs > 0) {
+      final enginePosMs = ref.read(deckPositionMsProvider(widget.deckId));
       final v = (enginePosMs / durationMs).clamp(0.0, 1.0);
       if ((_playhead.value - v).abs() > 1e-12) {
         _playhead.value = v;
@@ -149,6 +150,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
 
     _syncPlayback(playing: advancing, durationMs: durationMs, speed: speed);
 
+    // Pause/vinyl always snaps; advancing only snaps large seeks / corrects drift.
     ref.listen(deckPositionMsProvider(widget.deckId), (prev, next) {
       if (_scrubbing || durationMs <= 0) {
         return;

@@ -17,7 +17,16 @@ import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 import 'package:gui_flutter/src/rust/api/library.dart'
     show LibraryTrackSummary, SavedLoopInfo;
 
+/// Bool deck mirrors that use optimistic absolute cmds + generation rollback.
+enum OptimisticDeckBoolField { playing, quantize, slip, keyLock }
+
 class EngineUi extends Notifier<EngineUiSnapshot> {
+  /// Per-field / per-deck generation so rollback only runs while our write owns
+  /// the mirror. EngineEvt bumps the token and wins over a failed send.
+  final Map<OptimisticDeckBoolField, Map<int, int>> _optimisticGen = {
+    for (final field in OptimisticDeckBoolField.values) field: <int, int>{},
+  };
+
   @override
   EngineUiSnapshot build() => EngineUiSnapshot.empty;
 
@@ -49,7 +58,39 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
             .read(deckSlipShadowsProvider.notifier)
             .put(id, evt.slipShadowPositionMs!);
       }
+      // External absolute state supersedes in-flight optimistic ownership.
+      if (evt.playing != null) {
+        _invalidateOptimistic(OptimisticDeckBoolField.playing, id);
+      }
+      if (evt.quantize != null) {
+        _invalidateOptimistic(OptimisticDeckBoolField.quantize, id);
+      }
+      if (evt.slipEnabled != null) {
+        _invalidateOptimistic(OptimisticDeckBoolField.slip, id);
+      }
+      if (evt.keyLock != null) {
+        _invalidateOptimistic(OptimisticDeckBoolField.keyLock, id);
+      }
     }
+  }
+
+  /// Claim ownership after an optimistic mirror write; returns a generation.
+  int claimOptimistic(OptimisticDeckBoolField field, int deckId) {
+    final map = _optimisticGen[field]!;
+    final next = (map[deckId] ?? 0) + 1;
+    map[deckId] = next;
+    return next;
+  }
+
+  bool isOptimisticCurrent(
+    OptimisticDeckBoolField field,
+    int deckId,
+    int generation,
+  ) => (_optimisticGen[field]![deckId] ?? 0) == generation;
+
+  void _invalidateOptimistic(OptimisticDeckBoolField field, int deckId) {
+    final map = _optimisticGen[field]!;
+    map[deckId] = (map[deckId] ?? 0) + 1;
   }
 
   void setRunning(bool running) => state = state.copyWith(running: running);
@@ -81,6 +122,46 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     final next = Map<int, bool>.from(state.jogTouching);
     next[deckId] = touching;
     state = state.copyWith(jogTouching: next);
+  }
+
+  /// Optimistic mirror before absolute play/pause; EngineEvt reconciles.
+  void setPlaying(int deckId, bool playing) {
+    if (state.isPlaying(deckId) == playing) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.playing);
+    next[deckId] = playing;
+    state = state.copyWith(playing: next);
+  }
+
+  /// Optimistic mirror before absolute setQuantize; EngineEvt reconciles.
+  void setQuantize(int deckId, bool enabled) {
+    if (state.quantizeFor(deckId) == enabled) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.quantize);
+    next[deckId] = enabled;
+    state = state.copyWith(quantize: next);
+  }
+
+  /// Optimistic mirror before absolute setSlip; EngineEvt reconciles.
+  void setSlipEnabled(int deckId, bool enabled) {
+    if (state.slipEnabledFor(deckId) == enabled) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.slipEnabled);
+    next[deckId] = enabled;
+    state = state.copyWith(slipEnabled: next);
+  }
+
+  /// Optimistic mirror before absolute setKeyLock; EngineEvt reconciles.
+  void setKeyLock(int deckId, bool enabled) {
+    if (state.keyLockFor(deckId) == enabled) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.keyLocks);
+    next[deckId] = enabled;
+    state = state.copyWith(keyLocks: next);
   }
 }
 
@@ -626,16 +707,98 @@ final engineEventsBootstrapProvider = Provider<void>((ref) {
   }
 });
 
-Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  if (engine == null) {
-    return;
-  }
-  if (ref.read(engineUiProvider).isPlaying(deckId)) {
-    await engine.pause(deckId: deckId);
+/// Drive play/pause from an absolute desired state (never `!snapshot` after await).
+Future<void> setDeckPlaying(WidgetRef ref, int deckId, bool playing) async {
+  await _withOptimisticDeckBool(
+    ref: ref,
+    deckId: deckId,
+    field: OptimisticDeckBoolField.playing,
+    desired: playing,
+    read: (snap) => snap.isPlaying(deckId),
+    write: (ui, value) => ui.setPlaying(deckId, value),
+    send: (engine) => sendDeckPlaying(
+      deckId: deckId,
+      playing: playing,
+      play: engine.play,
+      pause: engine.pause,
+    ),
+  );
+}
+
+/// Absolute play/pause dispatch — kept snapshot-free for dual-control races.
+Future<void> sendDeckPlaying({
+  required int deckId,
+  required bool playing,
+  required Future<void> Function({required int deckId}) play,
+  required Future<void> Function({required int deckId}) pause,
+}) async {
+  if (playing) {
+    await play(deckId: deckId);
   } else {
-    await engine.play(deckId: deckId);
+    await pause(deckId: deckId);
   }
+}
+
+/// Optimistic absolute bool cmd: mirror first, roll back if transport is
+/// missing or the send fails — unless an intervening EngineEvt invalidated
+/// our generation (MIDI dual-control), including when it set the same value.
+///
+/// If ownership is lost while awaiting the transport, skip [send] so a stale
+/// UI intent cannot override a newer absolute controller/EngineEvt state.
+@visibleForTesting
+Future<void> runOptimisticDeckBool<T extends Object>({
+  required bool previous,
+  required bool desired,
+  required void Function(bool value) write,
+  required int Function() claim,
+  required bool Function(int generation) stillOurs,
+  required Future<T?> Function() resolveEngine,
+  required Future<void> Function(T engine) send,
+}) async {
+  write(desired);
+  final generation = claim();
+  try {
+    final engine = await resolveEngine();
+    if (engine == null) {
+      if (stillOurs(generation)) {
+        write(previous);
+      }
+      return;
+    }
+    if (!stillOurs(generation)) {
+      return;
+    }
+    await send(engine);
+  } on Object {
+    if (stillOurs(generation)) {
+      write(previous);
+    }
+    rethrow;
+  }
+}
+
+Future<void> _withOptimisticDeckBool({
+  required WidgetRef ref,
+  required int deckId,
+  required OptimisticDeckBoolField field,
+  required bool desired,
+  required bool Function(EngineUiSnapshot snap) read,
+  required void Function(EngineUi ui, bool value) write,
+  required Future<void> Function(EngineTransport engine) send,
+}) async {
+  final previous = read(ref.read(engineUiProvider));
+  await runOptimisticDeckBool<EngineTransport>(
+    previous: previous,
+    desired: desired,
+    write: (value) => write(ref.read(engineUiProvider.notifier), value),
+    claim: () =>
+        ref.read(engineUiProvider.notifier).claimOptimistic(field, deckId),
+    stillOurs: (generation) => ref
+        .read(engineUiProvider.notifier)
+        .isOptimisticCurrent(field, deckId, generation),
+    resolveEngine: () => ref.read(engineTransportProvider.future),
+    send: send,
+  );
 }
 
 Future<void> setDeckVolume(WidgetRef ref, int deckId, double volume) async {
@@ -707,8 +870,15 @@ Future<void> setDeckTempoRange(
 }
 
 Future<void> setDeckKeyLock(WidgetRef ref, int deckId, bool enabled) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.setKeyLock(deckId: deckId, enabled: enabled);
+  await _withOptimisticDeckBool(
+    ref: ref,
+    deckId: deckId,
+    field: OptimisticDeckBoolField.keyLock,
+    desired: enabled,
+    read: (snap) => snap.keyLockFor(deckId),
+    write: (ui, value) => ui.setKeyLock(deckId, value),
+    send: (engine) => engine.setKeyLock(deckId: deckId, enabled: enabled),
+  );
 }
 
 Future<void> toggleDeckSync(
@@ -726,13 +896,27 @@ Future<void> setMasterDeck(WidgetRef ref, int deckId) async {
 }
 
 Future<void> setDeckQuantize(WidgetRef ref, int deckId, bool enabled) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.setQuantize(deckId: deckId, enabled: enabled);
+  await _withOptimisticDeckBool(
+    ref: ref,
+    deckId: deckId,
+    field: OptimisticDeckBoolField.quantize,
+    desired: enabled,
+    read: (snap) => snap.quantizeFor(deckId),
+    write: (ui, value) => ui.setQuantize(deckId, value),
+    send: (engine) => engine.setQuantize(deckId: deckId, enabled: enabled),
+  );
 }
 
 Future<void> setDeckSlip(WidgetRef ref, int deckId, bool enabled) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.setSlip(deckId: deckId, enabled: enabled);
+  await _withOptimisticDeckBool(
+    ref: ref,
+    deckId: deckId,
+    field: OptimisticDeckBoolField.slip,
+    desired: enabled,
+    read: (snap) => snap.slipEnabledFor(deckId),
+    write: (ui, value) => ui.setSlipEnabled(deckId, value),
+    send: (engine) => engine.setSlip(deckId: deckId, enabled: enabled),
+  );
 }
 
 Future<void> beginDeckCueHold(WidgetRef ref, int deckId) async {

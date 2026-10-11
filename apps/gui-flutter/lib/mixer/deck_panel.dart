@@ -120,10 +120,12 @@ class DeckPanel extends ConsumerWidget {
               quantize: quantize,
               disabled: loadDisabled,
               onPress: () {
+                // Absolute desired state from visible chrome (never re-invert later).
+                final enabled = !quantize;
                 unawaited(
                   _engineCmd(
                     context,
-                    () => setDeckQuantize(ref, deckId, !quantize),
+                    () => setDeckQuantize(ref, deckId, enabled),
                   ),
                 );
               },
@@ -133,8 +135,9 @@ class DeckPanel extends ConsumerWidget {
               slip: slip,
               disabled: loadDisabled,
               onPress: () {
+                final enabled = !slip;
                 unawaited(
-                  _engineCmd(context, () => setDeckSlip(ref, deckId, !slip)),
+                  _engineCmd(context, () => setDeckSlip(ref, deckId, enabled)),
                 );
               },
             ),
@@ -207,7 +210,8 @@ class _DeckPlayButton extends ConsumerWidget {
         onPress: disabled
             ? null
             : () {
-                unawaited(_togglePlay(context, ref, deckId));
+                final wantPlaying = !playing;
+                unawaited(_setPlaying(context, ref, deckId, wantPlaying));
               },
         semanticsLabel: playLabel,
         child: Icon(
@@ -347,10 +351,11 @@ Future<void> _engineCmd(
   }
 }
 
-Future<void> _togglePlay(
+Future<void> _setPlaying(
   BuildContext context,
   WidgetRef ref,
   int deckId,
+  bool playing,
 ) async {
-  await _engineCmd(context, () => toggleDeckPlay(ref, deckId));
+  await _engineCmd(context, () => setDeckPlaying(ref, deckId, playing));
 }

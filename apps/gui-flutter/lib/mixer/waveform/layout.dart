@@ -1,8 +1,5 @@
+// Doc comment reference only — layout helpers do not construct controllers.
 import 'package:flutter/animation.dart' show AnimationController;
-import 'package:flutter/cupertino.dart' show AnimationController;
-import 'package:flutter/material.dart' show AnimationController;
-import 'package:flutter/widgets.dart' show AnimationController;
-import 'package:material_ui/material_ui.dart' show AnimationController;
 
 const kWaveformVisibleMs = 24000;
 const kWaveformBufferRatio = 1.0;

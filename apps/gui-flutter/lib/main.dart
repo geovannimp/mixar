@@ -8,7 +8,6 @@ import 'package:gui_flutter/settings/ui_language.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/desktop_chrome.dart';
-import 'package:gui_flutter/shell/legacy_material_scope.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/shad_theme.dart';
@@ -91,14 +90,12 @@ class Application extends ConsumerWidget {
       builder: (context, child) {
         final dark = Theme.brightnessOf(context) == Brightness.dark;
         final data = dark ? MixarThemeData.dark() : MixarThemeData.light();
-        return LegacyMaterialScope(
-          child: DesktopChrome(
-            child: MixarTheme(
-              data: data,
-              child: ShadTheme(
-                data: dark ? _shadDark : _shadLight,
-                child: child!,
-              ),
+        return DesktopChrome(
+          child: MixarTheme(
+            data: data,
+            child: ShadTheme(
+              data: dark ? _shadDark : _shadLight,
+              child: child!,
             ),
           ),
         );
