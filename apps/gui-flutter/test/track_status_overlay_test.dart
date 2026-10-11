@@ -17,6 +17,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'helpers/collection_tracks_override.dart';
 import 'support/mixar_material_app.dart';
 
 // Both widget types are used elsewhere in the app (m_tabs.dart renders
@@ -78,7 +79,7 @@ void main() {
       ProviderScope(
         overrides: [
           collectionsProvider.overrideWith((ref) async => [collection]),
-          collectionTracksProvider.overrideWith((ref) async => [track, trackB]),
+          overrideCollectionTracksValue([track, trackB]),
           libraryEventsBootstrapProvider.overrideWith((ref) {}),
           appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
         ],

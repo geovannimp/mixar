@@ -17,6 +17,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
 import 'package:riverpod/src/framework.dart';
 
+import 'helpers/collection_tracks_override.dart';
 import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
 
@@ -33,7 +34,7 @@ void main() {
 
   List<Override> overrides() => [
     collectionsProvider.overrideWith((ref) async => [collection]),
-    collectionTracksProvider.overrideWith((ref) async => const []),
+    overrideCollectionTracksValue(const []),
     historySessionsProvider.overrideWith((ref) async => const []),
     historyCanResumeProvider.overrideWith((ref) async => false),
     libraryEventsBootstrapProvider.overrideWith((ref) {}),

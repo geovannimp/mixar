@@ -21,6 +21,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import 'helpers/collection_tracks_override.dart';
 import 'support/mixar_material_app.dart';
 
 /// The row element whose text is [label], for the row-height assertions.
@@ -91,7 +92,7 @@ void main() {
         key: ValueKey(pumpCount++),
         overrides: [
           collectionsProvider.overrideWith((ref) async => [collection]),
-          collectionTracksProvider.overrideWith((ref) async => tracks),
+          overrideCollectionTracksValue(tracks),
           libraryEventsBootstrapProvider.overrideWith((ref) {}),
           appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
           if (stubEngine)
@@ -810,7 +811,7 @@ void main() {
         key: ValueKey(mode),
         overrides: [
           collectionsProvider.overrideWith((ref) async => [collection]),
-          collectionTracksProvider.overrideWith((ref) async => [keyedTrack]),
+          overrideCollectionTracksValue([keyedTrack]),
           libraryEventsBootstrapProvider.overrideWith((ref) {}),
           appSettingsProvider.overrideWith(
             (ref) async => copyAppSettings(

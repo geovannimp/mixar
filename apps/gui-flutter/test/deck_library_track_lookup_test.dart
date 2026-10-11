@@ -4,6 +4,8 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
+import 'helpers/collection_tracks_override.dart';
+
 void main() {
   test('libraryTrackById helper matches by id', () {
     const tracks = [
@@ -44,9 +46,9 @@ void main() {
         libraryTableTracksProvider.overrideWith(
           (ref) => const AsyncData([table]),
         ),
-        collectionTracksProvider.overrideWith(
-          (ref) async => const <LibraryTrackSummary>[],
-        ),
+        // SeededCollectionTracks watches activeCollectionId → collections.
+        collectionsProvider.overrideWith((ref) async => const []),
+        overrideCollectionTracksValue(const <LibraryTrackSummary>[]),
         driveResolvedByPathProvider.overrideWith(
           (ref) async => const <String, LibraryTrackSummary>{},
         ),
@@ -73,9 +75,8 @@ void main() {
           libraryTableTracksProvider.overrideWith(
             (ref) => const AsyncData(<LibraryTrackSummary>[]),
           ),
-          collectionTracksProvider.overrideWith(
-            (ref) async => const <LibraryTrackSummary>[],
-          ),
+          collectionsProvider.overrideWith((ref) async => const []),
+          overrideCollectionTracksValue(const <LibraryTrackSummary>[]),
           driveResolvedByPathProvider.overrideWith(
             (ref) async => const <String, LibraryTrackSummary>{},
           ),
