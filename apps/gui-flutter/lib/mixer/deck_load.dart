@@ -100,9 +100,8 @@ Future<void> loadPayloadOntoDeck(
           transport.loadLibraryTrack(deckId: id, trackId: trackId),
       loadPath: (id, path) => transport.loadPath(deckId: id, path: path),
     );
-    if (!read(
-      deckLoadGenerationProvider.notifier,
-    ).isCurrent(deckId, generation)) {
+    if (!read(deckLoadGenerationProvider.notifier)
+        .isCurrent(deckId, generation)) {
       return;
     }
     read(engineUiProvider.notifier)
