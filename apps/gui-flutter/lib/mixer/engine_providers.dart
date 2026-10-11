@@ -719,6 +719,7 @@ Future<void> loadPayloadOntoDeck(
 ) async {
   final generation = read(deckLoadGenerationProvider.notifier).begin(deckId);
   final loading = read(deckLoadInFlightProvider.notifier)..set(deckId, true);
+  read(libraryMessageProvider.notifier).clear();
   try {
     final transport = await read(deckLoadTransportProvider.future);
     if (transport == null) {
@@ -738,6 +739,14 @@ Future<void> loadPayloadOntoDeck(
     read(engineUiProvider.notifier)
       ..setDeckTrackPath(deckId, payload.path)
       ..setDeckTrackId(deckId, payload.trackId);
+  } catch (e) {
+    // Superseded attempts must not sticky-banner or toast over a newer load.
+    if (!read(deckLoadGenerationProvider.notifier)
+        .isCurrent(deckId, generation)) {
+      return;
+    }
+    read(libraryMessageProvider.notifier).setError('$e');
+    rethrow;
   } finally {
     loading.set(deckId, false);
   }
