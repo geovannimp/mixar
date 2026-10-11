@@ -34,6 +34,8 @@ class DeckPadsHost extends ConsumerStatefulWidget {
 
 class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
   String? _hydratedTrackId;
+  ProviderSubscription<String?>? _trackIdListen;
+  ProviderSubscription<AsyncValue<LibraryTransport>>? _libraryListen;
 
   rust.EngineTransport? get _engine =>
       ref.read(engineTransportProvider).asData?.value;
@@ -121,16 +123,49 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     _ => null,
   };
 
+  void _hydrateTrack(String? trackId) {
+    if (trackId == _hydratedTrackId) {
+      return;
+    }
+    final library = ref.read(libraryTransportProvider).asData?.value;
+    if (library == null) {
+      // Library not ready yet; leave `_hydratedTrackId` unset so a later
+      // library-ready retry (or trackId change) can still hydrate.
+      return;
+    }
+    _hydratedTrackId = trackId;
+    if (trackId != null && trackId.isNotEmpty) {
+      unawaited(library.refreshTrack(trackId: trackId).catchError(_toastError));
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _trackIdListen = ref.listenManual<String?>(
+      deckTrackIdProvider(widget.deckId),
+      (prev, next) => _hydrateTrack(next),
+      fireImmediately: true,
+    );
+    _libraryListen = ref.listenManual<AsyncValue<LibraryTransport>>(
+      libraryTransportProvider,
+      (prev, next) {
+        if (next.asData?.value != null) {
+          _hydrateTrack(ref.read(deckTrackIdProvider(widget.deckId)));
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _trackIdListen?.close();
+    _libraryListen?.close();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
-    if (trackId != _hydratedTrackId) {
-      _hydratedTrackId = trackId;
-      final library = ref.read(libraryTransportProvider).asData?.value;
-      if (library != null && trackId != null && trackId.isNotEmpty) {
-        unawaited(library.refreshTrack(trackId: trackId));
-      }
-    }
     final padMode = ref.watch(deckPadModeProvider(widget.deckId));
     final hotCues = ref.watch(deckHotCuesProvider(widget.deckId));
     final rustBanks = ref.watch(samplerBanksProvider).asData?.value ?? const [];

@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
+import 'package:flutter_riverpod/misc.dart'
+    show FutureProviderFamily, ProviderListenable;
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
@@ -123,6 +124,30 @@ class SaveAppSettingsResult {
   final bool trustedControllersChanged;
 }
 
+/// Reload decks after [EngineTransport.restartFromSettings].
+///
+/// Library tracks prefer [deckTrackIdProvider]; path-only loads fall back to
+/// `engineUiProvider.trackPathFor`.
+Future<void> reloadDecksAfterSettingsRestart(
+  T Function<T>(ProviderListenable<T> provider) read, {
+  required Future<void> Function({required int deckId, required String trackId})
+  loadLibraryTrack,
+  required Future<void> Function({required int deckId, required String path})
+  loadPath,
+}) async {
+  for (var deckId = 0; deckId < 2; deckId++) {
+    final trackId = read(deckTrackIdProvider(deckId));
+    if (trackId != null) {
+      await loadLibraryTrack(deckId: deckId, trackId: trackId);
+    } else {
+      final path = read(engineUiProvider).trackPathFor(deckId);
+      if (path != null && path.isNotEmpty) {
+        await loadPath(deckId: deckId, path: path);
+      }
+    }
+  }
+}
+
 Future<SaveAppSettingsResult> saveAppSettings(
   WidgetRef ref,
   AppSettings draft,
@@ -157,12 +182,11 @@ Future<SaveAppSettingsResult> saveAppSettings(
     final engine = await ref.read(engineTransportProvider.future);
     if (engine != null && await engine.isRunning()) {
       await engine.restartFromSettings();
-      for (var deckId = 0; deckId < 2; deckId++) {
-        final trackId = ref.read(deckTrackIdProvider(deckId));
-        if (trackId != null) {
-          await engine.loadLibraryTrack(deckId: deckId, trackId: trackId);
-        }
-      }
+      await reloadDecksAfterSettingsRestart(
+        ref.read,
+        loadLibraryTrack: engine.loadLibraryTrack,
+        loadPath: engine.loadPath,
+      );
     }
   } catch (e) {
     applyError = '$e';
