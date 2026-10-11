@@ -42,6 +42,16 @@ class PendingFocusedDeckLoadRequest {
 
   final int deckId;
   final int seq;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PendingFocusedDeckLoadRequest &&
+          deckId == other.deckId &&
+          seq == other.seq;
+
+  @override
+  int get hashCode => Object.hash(deckId, seq);
 }
 
 class PendingFocusedDeckLoad extends Notifier<PendingFocusedDeckLoadRequest?> {

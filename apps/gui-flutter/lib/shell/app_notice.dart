@@ -28,7 +28,7 @@ class AppNoticeNotifier extends Notifier<AppNotice?> {
   }
 
   void setNotice(String? message) {
-    if (message == null) {
+    if (message == null || message.isEmpty) {
       state = null;
       return;
     }

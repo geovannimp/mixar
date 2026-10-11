@@ -8,13 +8,18 @@ import 'package:gui_flutter/shell/mixar_toast.dart';
 /// Durations / variants:
 /// - [AppNoticeKind.error] → destructive, default 5s
 /// - [AppNoticeKind.notice] → primary, 4s
-class AppNoticeBridge extends ConsumerWidget {
+class AppNoticeBridge extends ConsumerStatefulWidget {
   const new({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppNoticeBridge> createState() => _AppNoticeBridgeState();
+}
+
+class _AppNoticeBridgeState extends ConsumerState<AppNoticeBridge> {
+  @override
+  Widget build(BuildContext context) {
     ref.listen<AppNotice?>(appNoticeProvider, (prev, next) {
-      if (next == null) {
+      if (!mounted || next == null) {
         return;
       }
       final error = next.kind == AppNoticeKind.error;
