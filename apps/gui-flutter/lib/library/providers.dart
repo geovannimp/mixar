@@ -97,6 +97,9 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     _flushScheduled = true;
     scheduleMicrotask(() {
       _flushScheduled = false;
+      if (!ref.mounted) {
+        return;
+      }
       _flush();
     });
   }
@@ -133,11 +136,11 @@ final collectionTracksProvider =
 
 /// Test override that supplies a custom load while keeping patch/coalesce.
 ///
-/// Narrowed fidelity: does **not** watch [activeCollectionIdProvider], so a
-/// collection switch will not rebuild the seed. Structural [_flush] may still
-/// invalidate [collectionsProvider] even when [_load] never reads it. Prefer
-/// the real [CollectionTracks] (or a transport fake) when exercising
-/// collection-switch behaviour.
+/// Watches [activeCollectionIdProvider] so a collection switch rebuilds like
+/// production. Structural [_flush] may still invalidate [collectionsProvider]
+/// even when [_load] never reads it. Tests that count loads should await
+/// [collectionsProvider] first so the active id is stable before the first
+/// track load.
 @visibleForTesting
 class SeededCollectionTracks extends CollectionTracks {
   SeededCollectionTracks(this._load);
@@ -145,7 +148,11 @@ class SeededCollectionTracks extends CollectionTracks {
   final Future<List<LibraryTrackSummary>> Function(Ref ref) _load;
 
   @override
-  Future<List<LibraryTrackSummary>> build() => _load(ref);
+  Future<List<LibraryTrackSummary>> build() {
+    // Subscribe even if [_load] ignores the id, matching production rebuilds.
+    ref.watch(activeCollectionIdProvider);
+    return _load(ref);
+  }
 }
 
 class TrackFilter extends Notifier<String> {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -55,8 +57,10 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await container.read(collectionTracksProvider.future);
+      // Resolve collections first so SeededCollectionTracks' active-id watch
+      // does not rebuild the seed after the first track load.
       await container.read(collectionsProvider.future);
+      await container.read(collectionTracksProvider.future);
       expect(trackLoads, 1);
       expect(collectionLoads, 1);
 
@@ -90,6 +94,7 @@ void main() {
         );
         addTearDown(container.dispose);
 
+        await container.read(collectionsProvider.future);
         await container.read(collectionTracksProvider.future);
         container.read(analyzingTrackIdsProvider.notifier).add('a');
 
@@ -130,8 +135,8 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        await container.read(collectionTracksProvider.future);
         await container.read(collectionsProvider.future);
+        await container.read(collectionTracksProvider.future);
         expect(trackLoads, 1);
         expect(collectionLoads, 1);
 
@@ -168,6 +173,7 @@ void main() {
         );
         addTearDown(container.dispose);
 
+        await container.read(collectionsProvider.future);
         await container.read(collectionTracksProvider.future);
         container.read(analyzingTrackIdsProvider.notifier).add('a');
 
@@ -203,8 +209,10 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await container.read(collectionTracksProvider.future);
       await container.read(collectionsProvider.future);
+      await container.read(collectionTracksProvider.future);
+      expect(trackLoads, 1);
+      expect(collectionLoads, 1);
 
       container.read(libraryEvtDispatchProvider)(
         const LibraryEvt(kind: LibraryEvtKind.trackUpdated, trackId: 'a'),
@@ -238,8 +246,10 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        await container.read(collectionTracksProvider.future);
         await container.read(collectionsProvider.future);
+        await container.read(collectionTracksProvider.future);
+        expect(trackLoads, 1);
+        expect(collectionLoads, 1);
 
         container.read(libraryEvtDispatchProvider)(
           LibraryEvt(kind: LibraryEvtKind.trackUpdated, track: other),
@@ -267,6 +277,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
+      await container.read(collectionsProvider.future);
       await container.read(collectionTracksProvider.future);
       final dispatch = container.read(libraryEvtDispatchProvider);
       dispatch(
@@ -311,6 +322,7 @@ void main() {
         );
         addTearDown(container.dispose);
 
+        await container.read(collectionsProvider.future);
         await expectLater(
           container.read(collectionTracksProvider.future),
           throwsA(isA<StateError>()),
@@ -328,6 +340,51 @@ void main() {
 
         expect(trackLoads, 1);
         expect(container.read(collectionTracksProvider).hasError, isTrue);
+      },
+    );
+
+    test(
+      'metadata trackUpdated during AsyncLoading is dropped without thrash',
+      () async {
+        var trackLoads = 0;
+        final gate = Completer<List<LibraryTrackSummary>>();
+        final seed = _track(id: 'a', bpm: 120);
+        final container = ProviderContainer(
+          overrides: [
+            collectionsProvider.overrideWith((ref) async => [_collection()]),
+            overrideCollectionTracks((ref) async {
+              trackLoads++;
+              return gate.future;
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await container.read(collectionsProvider.future);
+        final load = container.read(collectionTracksProvider.future);
+        await pumpEventQueue();
+        expect(trackLoads, 1);
+        expect(container.read(collectionTracksProvider).isLoading, isTrue);
+
+        container.read(libraryEvtDispatchProvider)(
+          LibraryEvt(
+            kind: LibraryEvtKind.trackUpdated,
+            track: _track(id: 'a', bpm: 128),
+          ),
+        );
+        await pumpEventQueue();
+
+        // Dropped while loading: no invalidate/reload thrash.
+        expect(trackLoads, 1);
+        expect(container.read(collectionTracksProvider).isLoading, isTrue);
+
+        gate.complete([seed]);
+        await load;
+        expect(trackLoads, 1);
+        expect(
+          container.read(collectionTracksProvider).requireValue.single.bpm,
+          120,
+        );
       },
     );
 
@@ -389,6 +446,69 @@ void main() {
               .toList(),
           ['c', 'a', 'b'],
         );
+      },
+    );
+
+    test(
+      'seeded override rebuilds when the active collection changes',
+      () async {
+        var trackLoads = 0;
+        final container = ProviderContainer(
+          overrides: [
+            collectionsProvider.overrideWith(
+              (ref) async => [
+                _collection(id: 'col-1'),
+                _collection(id: 'col-2'),
+              ],
+            ),
+            overrideCollectionTracks((ref) async {
+              trackLoads++;
+              final id = ref.watch(activeCollectionIdProvider);
+              return [_track(id: id ?? 'none')];
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await container.read(collectionsProvider.future);
+        await container.read(collectionTracksProvider.future);
+        expect(trackLoads, 1);
+        expect(
+          container.read(collectionTracksProvider).requireValue.single.id,
+          'col-1',
+        );
+
+        container.read(selectedCollectionIdProvider.notifier).set('col-2');
+        await container.read(collectionTracksProvider.future);
+        expect(trackLoads, 2);
+        expect(
+          container.read(collectionTracksProvider).requireValue.single.id,
+          'col-2',
+        );
+      },
+    );
+
+    test(
+      'scheduled flush is a no-op after the container is disposed',
+      () async {
+        final seed = _track(id: 'a', bpm: 120);
+        final container = ProviderContainer(
+          overrides: [
+            collectionsProvider.overrideWith((ref) async => [_collection()]),
+            overrideCollectionTracksValue([seed]),
+          ],
+        );
+
+        await container.read(collectionsProvider.future);
+        await container.read(collectionTracksProvider.future);
+        container.read(libraryEvtDispatchProvider)(
+          LibraryEvt(
+            kind: LibraryEvtKind.trackUpdated,
+            track: _track(id: 'a', bpm: 128),
+          ),
+        );
+        container.dispose();
+        await pumpEventQueue();
       },
     );
   });
