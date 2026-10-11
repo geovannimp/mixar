@@ -1,9 +1,5 @@
-<<<<<<< HEAD
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/l10n/kit_localizations.dart';
-import 'package:gui_flutter/shell/legacy_material_scope.dart';
-=======
->>>>>>> f1bf1836 (refactor(gui-flutter): replace wolt_modal_sheet with Shad dialogs)
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/shad_theme.dart';

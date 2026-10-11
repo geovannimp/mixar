@@ -94,6 +94,9 @@ class _MobileSelectOption extends StatelessWidget {
 }
 
 /// Mixar select / dropdown over [ShadSelect], or a dialog when mobile style.
+///
+/// [options] must be unique under `==` — mobile rows use [ValueKey] of each
+/// entry, and duplicate keys confuse Flutter's element reuse.
 class MixarSelect<T> extends StatefulWidget {
   const new({
     required this.value,
@@ -113,6 +116,8 @@ class MixarSelect<T> extends StatefulWidget {
   });
 
   final T value;
+
+  /// Menu / dialog entries; keep values unique under `==` for stable keys.
   final List<T> options;
   final String Function(T value) labelBuilder;
   final String Function(T value)? subtitleBuilder;

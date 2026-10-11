@@ -157,6 +157,46 @@ void main() {
     expect(cancelRect.top, greaterThanOrEqualTo(bodyRect.bottom));
   });
 
+  testWidgets('showMixarDialog scrolls tall content without overflow', (
+    tester,
+  ) async {
+    // Compact viewport so a long column exceeds the dialog height.
+    await tester.binding.setSurfaceSize(const Size(400, 320));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () async {
+            await showMixarDialog<void>(
+              context: context,
+              builder: (context) => Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [for (var i = 0; i < 40; i++) Text('Row $i')],
+                ),
+              ),
+            );
+          },
+          child: const Text('Open'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Row 0'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Row 39'),
+      80,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Row 39'), findsOneWidget);
+  });
+
   testWidgets('showMixarConfirm barrier dismiss returns null', (tester) async {
     String? result = 'unset';
     await pumpHome(

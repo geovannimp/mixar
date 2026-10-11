@@ -52,8 +52,8 @@ ShadDialog _mixarDialogShell({
     actions: actions,
     padding: padding,
     gap: gap,
-    // Content-owned dialogs size to their child; confirmations are short.
-    scrollable: false,
+    // Tall form/picker bodies (collections, pads, selects) must scroll.
+    scrollable: true,
     backgroundColor: theme.colors.card,
     radius: _mixarDialogRadius(context),
     border: Border.all(
