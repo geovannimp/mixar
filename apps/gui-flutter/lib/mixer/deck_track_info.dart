@@ -122,7 +122,12 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
                     hasTrack: widget.hasTrack,
                   ),
                 ),
-                const MDivider(axis: .vertical, padding: .zero),
+                MDivider(
+                  axis: .vertical,
+                  padding: .zero,
+                  color: theme.colors.border,
+                  thickness: theme.style.borderWidth,
+                ),
                 Expanded(
                   child: Padding(
                     padding: const .symmetric(horizontal: 8, vertical: 4),

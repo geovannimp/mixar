@@ -4,21 +4,17 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Minimum size of a single tab header (it is a square).
 ///
-/// Sized to the former padded bar (28 + 4×2) so zero inset padding still keeps
-/// the library header / filter row at 36px and the selected chip fills flush.
+/// Keeps the library header / filter row at 36px with the selected chip flush
+/// to the bar edge (square chrome — no inset padding).
 const kMTabHeaderMinSize = 36.0;
 
-/// Padding between the tab bar's edge and the header strip.
+/// Minimum height of a horizontal tab bar (= [kMTabHeaderMinSize]).
 ///
-/// Zero keeps the selected chip flush with the bar border (square chrome).
-const kMTabBarPadding = 0.0;
-
-/// Minimum height of a horizontal tab bar: the header minimum plus the two
-/// paddings. The 1px border is painted inside the box (a bare [DecoratedBox]
-/// does not inset its child), so it does not add to this. A label taller than
+/// The hairline is painted via [Container.foregroundDecoration] so it does not
+/// enlarge the box or get covered by the selected chip. A label taller than
 /// [kMTabHeaderMinSize] grows the bar past this value — it is a floor, so align
 /// with a `minHeight` unless the consumer deliberately pins a height.
-const double kMTabBarMinHeight = kMTabHeaderMinSize + kMTabBarPadding * 2;
+const double kMTabBarMinHeight = kMTabHeaderMinSize;
 
 /// Identifies the tab bar's painted surface, so callers and tests can find it
 /// without matching on its fill colour (which is shared with other tokens).
@@ -233,8 +229,9 @@ class _TabBar extends StatelessWidget {
       color: theme.colors.muted,
       width: theme.style.borderWidth,
     );
-    // Opaque blend onto background — a raw translucent border over the muted
-    // rail fill reads brighter than hairlines on the content surface.
+    // Blend onto background (not muted): opaque border-over-muted reads too
+    // bright next to content-surface hairlines. Background match was chosen
+    // after a visual pass — keep it even though the rail fill is muted.
     final hairline = BorderSide(
       color: Color.alphaBlend(theme.colors.border, theme.colors.background),
       width: theme.style.borderWidth,
@@ -243,18 +240,18 @@ class _TabBar extends StatelessWidget {
     // of the bar's alignment contract, so a wider side would misalign the rows.
     final bottom =
         barBottomBorder?.copyWith(width: theme.style.borderWidth) ?? flush;
-    // [kMTabBarPadding] is currently 0 — selected chip sits flush with the bar.
-    return DecoratedBox(
+    final border = Border(
+      top: flush,
+      left: flush,
+      right: horizontal ? flush : hairline,
+      bottom: horizontal ? bottom : flush,
+    );
+    // Foreground border stays above the selected chip (flush headers would
+    // otherwise paint over the hairline — same DecoratedBox under-fill issue).
+    return Container(
       key: kMTabBarKey,
-      decoration: BoxDecoration(
-        color: theme.colors.muted,
-        border: Border(
-          top: flush,
-          left: flush,
-          right: horizontal ? flush : hairline,
-          bottom: horizontal ? bottom : flush,
-        ),
-      ),
+      decoration: BoxDecoration(color: theme.colors.muted),
+      foregroundDecoration: BoxDecoration(border: border),
       child: strip,
     );
   }
