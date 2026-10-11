@@ -113,16 +113,41 @@ void main() {
       expect(container.read(engineUiProvider).slipEnabledFor(0), isTrue);
       expect(container.read(engineUiProvider).keyLockFor(0), isTrue);
     });
+
+    test('EngineEvt invalidates optimistic ownership even at same value', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+
+      ui.setPlaying(0, true);
+      final gen = ui.claimOptimistic(OptimisticDeckBoolField.playing, 0);
+      expect(
+        ui.isOptimisticCurrent(OptimisticDeckBoolField.playing, 0, gen),
+        isTrue,
+      );
+
+      // MIDI confirms the same absolute play state.
+      ui.apply(
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
+      );
+      expect(
+        ui.isOptimisticCurrent(OptimisticDeckBoolField.playing, 0, gen),
+        isFalse,
+      );
+      expect(container.read(engineUiProvider).isPlaying(0), isTrue);
+    });
   });
 
   group('runOptimisticDeckBool', () {
     test('rolls back when engine is null', () async {
       var value = false;
+      var gen = 0;
       await runOptimisticDeckBool<Object>(
         previous: false,
         desired: true,
         write: (next) => value = next,
-        readCurrent: () => value,
+        claim: () => ++gen,
+        stillOurs: (generation) => generation == gen,
         resolveEngine: () async => null,
         send: (_) async {},
       );
@@ -131,6 +156,7 @@ void main() {
 
     test('rolls back and rethrows when send fails', () async {
       var value = false;
+      var gen = 0;
       final writes = <bool>[];
       await expectLater(
         runOptimisticDeckBool<Object>(
@@ -140,7 +166,8 @@ void main() {
             value = next;
             writes.add(next);
           },
-          readCurrent: () => value,
+          claim: () => ++gen,
+          stillOurs: (generation) => generation == gen,
           resolveEngine: () async => Object(),
           send: (_) async => throw StateError('boom'),
         ),
@@ -152,6 +179,7 @@ void main() {
 
     test('does not clobber when MIDI moved mirror before failure', () async {
       var value = false;
+      var gen = 0;
       final writes = <bool>[];
       await expectLater(
         runOptimisticDeckBool<Object>(
@@ -161,11 +189,13 @@ void main() {
             value = next;
             writes.add(next);
           },
-          readCurrent: () => value,
+          claim: () => ++gen,
+          stillOurs: (generation) => generation == gen,
           resolveEngine: () async => Object(),
           send: (_) async {
-            // MIDI absolute pause landed; skip rollback write.
+            // MIDI absolute pause landed; invalidate our generation.
             value = false;
+            gen++;
             throw StateError('boom');
           },
         ),
@@ -173,6 +203,63 @@ void main() {
       );
       expect(writes, [true]);
       expect(value, isFalse);
+    });
+
+    test(
+      'keeps EngineEvt value when MIDI confirms desired then send fails',
+      () async {
+        var value = false;
+        var gen = 0;
+        final writes = <bool>[];
+        await expectLater(
+          runOptimisticDeckBool<Object>(
+            previous: false,
+            desired: true,
+            write: (next) {
+              value = next;
+              writes.add(next);
+            },
+            claim: () => ++gen,
+            stillOurs: (generation) => generation == gen,
+            resolveEngine: () async => Object(),
+            send: (_) async {
+              // MIDI/EngineEvt set the same absolute true and took ownership.
+              value = true;
+              gen++;
+              throw StateError('boom');
+            },
+          ),
+          throwsStateError,
+        );
+        // No rollback write — EngineEvt already owns the mirror at desired.
+        expect(writes, [true]);
+        expect(value, isTrue);
+      },
+    );
+
+    test('null engine after EngineEvt same-value does not roll back', () async {
+      var value = false;
+      var gen = 0;
+      final writes = <bool>[];
+      await runOptimisticDeckBool<Object>(
+        previous: false,
+        desired: true,
+        write: (next) {
+          value = next;
+          writes.add(next);
+        },
+        claim: () => ++gen,
+        stillOurs: (generation) => generation == gen,
+        resolveEngine: () async {
+          // EngineEvt confirmed desired, then transport disappeared.
+          value = true;
+          gen++;
+          return null;
+        },
+        send: (_) async {},
+      );
+      expect(writes, [true]);
+      expect(value, isTrue);
     });
   });
 }
