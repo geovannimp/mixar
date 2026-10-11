@@ -268,6 +268,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     if (payload == null) {
       return;
     }
+    // Errors surface via libraryMessageProvider inside loadPayloadOntoDeck.
     unawaited(
       loadPayloadToDeck(ref, deckId, payload).catchError((Object _) {}),
     );

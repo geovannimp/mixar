@@ -147,4 +147,29 @@ void main() {
 
     expect(log, ['begin-1', 'end']);
   });
+
+  test('second end/disposeEnd is ignored while end is queued', () async {
+    final session = DeckCueHoldSession()..begin(() async {});
+    await session.drain();
+
+    final log = <String>[];
+    final endRelease = Completer<void>();
+    session
+      ..end(() async {
+        log.add('end');
+        await endRelease.future;
+      })
+      // Child onEndHold + parent disposeEnd during unmount.
+      ..end(() async {
+        log.add('end-dup');
+      });
+    final disposeFuture = session.disposeEnd(() async {
+      log.add('dispose-end');
+    });
+    endRelease.complete();
+    await disposeFuture;
+    await session.drain();
+
+    expect(log, ['end']);
+  });
 }
