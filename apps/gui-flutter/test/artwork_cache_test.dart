@@ -136,7 +136,10 @@ void main() {
 
     final reported = <FlutterErrorDetails>[];
     final previous = FlutterError.onError;
-    FlutterError.onError = reported.add;
+    FlutterError.onError = (details) {
+      previous?.call(details);
+      reported.add(details);
+    };
     addTearDown(() => FlutterError.onError = previous);
 
     await cache.ensureLoaded(['bad', 'ok']);
@@ -144,6 +147,42 @@ void main() {
     expect(env.container.read(artworkCacheProvider)['ok'], bytes);
     expect(env.fake.getTrackCalls, ['bad', 'ok']);
     expect(reported, isNotEmpty, reason: 'Errors must be reported');
+  });
+
+  test('evicted failure sentinel can be refetched', () async {
+    var shouldFail = true;
+    final env = boot(
+      FakeLibraryTransport(
+        getTrackHandler: (id) async {
+          if (id == 'fail' && shouldFail) {
+            throw Exception('boom');
+          }
+          return LibraryTrackSummary(
+            id: id,
+            displayName: id,
+            path: '/$id.flac',
+            artwork: Uint8List.fromList([1]),
+          );
+        },
+      ),
+    );
+    final cache = env.container.read(artworkCacheProvider.notifier);
+
+    await cache.ensureLoaded(['fail']);
+    expect(env.container.read(artworkCacheProvider)['fail'], isNull);
+    expect(env.fake.getTrackCalls, ['fail']);
+
+    // Push the sentinel out via FIFO eviction, then allow refetch.
+    await cache.ensureLoaded([for (var i = 0; i < 300; i++) 'id$i']);
+    expect(
+      env.container.read(artworkCacheProvider).containsKey('fail'),
+      isFalse,
+    );
+
+    shouldFail = false;
+    await cache.ensureLoaded(['fail']);
+    expect(env.fake.getTrackCalls.where((id) => id == 'fail').length, 2);
+    expect(env.container.read(artworkCacheProvider)['fail'], isNotNull);
   });
 
   test('inflight ensureLoaded dedupes getTrack for the same id', () async {

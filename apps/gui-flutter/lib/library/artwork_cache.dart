@@ -40,8 +40,7 @@ class ArtworkCache extends Notifier<Map<String, Uint8List?>> {
     }
   }
 
-  /// I/O seam so unit tests can fake getTrack without a Rust LibraryTransport.
-  Future<Uint8List?> loadArtwork(String id) async {
+  Future<Uint8List?> _loadArtwork(String id) async {
     final transport = await ref.read(libraryTransportProvider.future);
     final track = await transport.getTrack(trackId: id);
     return track?.artwork;
@@ -52,12 +51,13 @@ class ArtworkCache extends Notifier<Map<String, Uint8List?>> {
     // Do not gate on [_wanted] here: a later ensureLoaded replaces that set
     // and would drop claimed ids. _inFlight already coalesces duplicates.
     try {
-      final bytes = await loadArtwork(id);
+      final bytes = await _loadArtwork(id);
       _store(id, bytes);
     } on Object catch (error, stack) {
       // Prefetch is unawaited: catch Exception and Error so one bad id
-      // cannot abort later batches. Sentinel-cache first so a throwing
-      // FlutterError.onError cannot leave the id uncached (retry storm).
+      // cannot abort later batches. Store null sentinel so scroll/deck
+      // ensureLoaded stops retrying (#461). Recovery is eviction from the
+      // 300-entry map — not per-frame refetch.
       _store(id, null);
       if (error is Error) {
         FlutterError.reportError(
@@ -78,8 +78,9 @@ class ArtworkCache extends Notifier<Map<String, Uint8List?>> {
     final next = Map<String, Uint8List?>.of(state)..[id] = bytes;
     if (next.length > _maxEntries) {
       final drop = next.length - _maxEntries;
-      // Prefer dropping non-wanted; if still short, drop other wanted keys
-      // (never the entry just stored) so the hard cap cannot overshoot.
+      // Prefer dropping non-wanted (latest visible window). If every key is
+      // still wanted, fall back to oldest wanted (insertion FIFO) so the
+      // hard cap never overshoots — accepted trade-off vs placeholder flash.
       final nonWanted = [
         for (final k in next.keys)
           if (k != id && !_wanted.contains(k)) k,
