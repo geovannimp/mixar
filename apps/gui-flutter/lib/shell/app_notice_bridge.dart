@@ -16,9 +16,12 @@ class AppNoticeBridge extends ConsumerStatefulWidget {
 }
 
 class _AppNoticeBridgeState extends ConsumerState<AppNoticeBridge> {
+  ProviderSubscription<AppNotice?>? _listen;
+
   @override
-  Widget build(BuildContext context) {
-    ref.listen<AppNotice?>(appNoticeProvider, (prev, next) {
+  void initState() {
+    super.initState();
+    _listen = ref.listenManual<AppNotice?>(appNoticeProvider, (prev, next) {
       if (!mounted || next == null) {
         return;
       }
@@ -34,6 +37,14 @@ class _AppNoticeBridgeState extends ConsumerState<AppNoticeBridge> {
         title: Text(next.message),
       );
     });
-    return const SizedBox.shrink();
   }
+
+  @override
+  void dispose() {
+    _listen?.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

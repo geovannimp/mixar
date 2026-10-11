@@ -12,6 +12,17 @@ class AppNotice {
   final AppNoticeKind kind;
   final String message;
   final int seq;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppNotice &&
+          kind == other.kind &&
+          message == other.message &&
+          seq == other.seq;
+
+  @override
+  int get hashCode => Object.hash(kind, message, seq);
 }
 
 class AppNoticeNotifier extends Notifier<AppNotice?> {

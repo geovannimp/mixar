@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
@@ -26,11 +24,11 @@ final focusedDeckLoadBootstrapProvider = Provider<void>((ref) {
     while (queued != null) {
       final req = queued!;
       queued = null;
-      final current = ref.read(pendingFocusedDeckLoadProvider);
-      if (current?.seq == req.seq) {
-        ref.read(pendingFocusedDeckLoadProvider.notifier).clear();
-      }
       try {
+        final current = ref.read(pendingFocusedDeckLoadProvider);
+        if (current?.seq == req.seq) {
+          ref.read(pendingFocusedDeckLoadProvider.notifier).clear();
+        }
         await loadFocusedRowToDeck(ref, req.deckId);
       } catch (e) {
         ref.read(appNoticeProvider.notifier).setError('$e');
@@ -121,6 +119,7 @@ Future<void> loadPayloadToDeck(
 Future<void> pickTrackForDeck(WidgetRef ref, int deckId) async {
   final result = await FilePicker.pickFiles(
     type: FileType.custom,
+    allowMultiple: false,
     allowedExtensions: supportedAudioExtensions,
   );
   final path = result?.files.firstOrNull?.path;
