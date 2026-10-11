@@ -26,7 +26,8 @@ class AppNotice {
 }
 
 class AppNoticeNotifier extends Notifier<AppNotice?> {
-  var _seq = 0;
+  /// Process-wide so seq does not restart after provider recreation/hot reload.
+  static var _globalSeq = 0;
 
   @override
   AppNotice? build() => null;
@@ -34,8 +35,12 @@ class AppNoticeNotifier extends Notifier<AppNotice?> {
   void clear() => state = null;
 
   void setError(String message) {
-    _seq += 1;
-    state = AppNotice(kind: AppNoticeKind.error, message: message, seq: _seq);
+    _globalSeq += 1;
+    state = AppNotice(
+      kind: AppNoticeKind.error,
+      message: message,
+      seq: _globalSeq,
+    );
   }
 
   void setNotice(String? message) {
@@ -43,8 +48,12 @@ class AppNoticeNotifier extends Notifier<AppNotice?> {
       state = null;
       return;
     }
-    _seq += 1;
-    state = AppNotice(kind: AppNoticeKind.notice, message: message, seq: _seq);
+    _globalSeq += 1;
+    state = AppNotice(
+      kind: AppNoticeKind.notice,
+      message: message,
+      seq: _globalSeq,
+    );
   }
 }
 

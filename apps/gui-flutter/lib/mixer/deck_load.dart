@@ -27,9 +27,12 @@ final focusedDeckLoadBootstrapProvider = Provider<void>((ref) {
       queued = null;
       try {
         final current = ref.read(pendingFocusedDeckLoadProvider);
-        if (current?.seq == req.seq) {
-          ref.read(pendingFocusedDeckLoadProvider.notifier).clear();
+        // Last-wins: skip a dequeued request already superseded in the
+        // provider (a newer listen updated state + [queued]).
+        if (current?.seq != req.seq) {
+          continue;
         }
+        ref.read(pendingFocusedDeckLoadProvider.notifier).clear();
         await loadFocusedRowToDeck(ref, req.deckId);
       } catch (e) {
         ref.read(appNoticeProvider.notifier).setError('$e');
