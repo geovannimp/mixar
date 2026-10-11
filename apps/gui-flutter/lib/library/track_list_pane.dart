@@ -155,7 +155,8 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
   }
 
   /// Artwork prefetch for the visible window; row height is constant per
-  /// density, so the window is plain offset arithmetic.
+  /// density, so the window is plain offset arithmetic. Visible-range emits
+  /// are already coalesced to once per frame in [TrackListView].
   void _prefetchArtwork(int first, int last) {
     final tracks = ref.read(libraryTableTracksProvider).asData?.value;
     if (tracks == null) {
@@ -168,7 +169,7 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
     if (visible.isEmpty) {
       return;
     }
-    ref.read(artworkCacheProvider.notifier).ensureLoaded(visible);
+    unawaited(ref.read(artworkCacheProvider.notifier).ensureLoaded(visible));
   }
 }
 

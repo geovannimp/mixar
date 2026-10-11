@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
@@ -94,41 +94,57 @@ void main() {
   });
 
   test(
-    'getTrack failure is not cached and retries on next ensureLoaded',
+    'getTrack failure stores null and second ensureLoaded does not refetch',
     () async {
-      var shouldFail = true;
       final env = boot(
         FakeLibraryTransport(
           getTrackHandler: (id) async {
-            if (shouldFail) {
-              throw StateError('boom');
-            }
-            return LibraryTrackSummary(
-              id: id,
-              displayName: id,
-              path: '/$id.flac',
-              artwork: Uint8List.fromList([9]),
-            );
+            throw Exception('boom');
           },
         ),
       );
       final cache = env.container.read(artworkCacheProvider.notifier);
 
       await cache.ensureLoaded(['a']);
-      expect(
-        env.container.read(artworkCacheProvider).containsKey('a'),
-        isFalse,
-      );
+      expect(env.container.read(artworkCacheProvider).containsKey('a'), isTrue);
+      expect(env.container.read(artworkCacheProvider)['a'], isNull);
+      expect(env.fake.getTrackCalls, ['a']);
 
-      shouldFail = false;
       await cache.ensureLoaded(['a']);
-      expect(
-        env.container.read(artworkCacheProvider)['a'],
-        Uint8List.fromList([9]),
-      );
-      expect(env.fake.getTrackCalls, ['a', 'a']);
+      expect(env.fake.getTrackCalls, ['a'], reason: 'failed id must not retry');
     },
   );
+
+  test('Error on one id still loads later ids and reports', () async {
+    final bytes = Uint8List.fromList([9]);
+    final env = boot(
+      FakeLibraryTransport(
+        getTrackHandler: (id) async {
+          if (id == 'bad') {
+            throw StateError('boom');
+          }
+          return LibraryTrackSummary(
+            id: id,
+            displayName: id,
+            path: '/$id.flac',
+            artwork: bytes,
+          );
+        },
+      ),
+    );
+    final cache = env.container.read(artworkCacheProvider.notifier);
+
+    final reported = <FlutterErrorDetails>[];
+    final previous = FlutterError.onError;
+    FlutterError.onError = reported.add;
+    addTearDown(() => FlutterError.onError = previous);
+
+    await cache.ensureLoaded(['bad', 'ok']);
+    expect(env.container.read(artworkCacheProvider)['bad'], isNull);
+    expect(env.container.read(artworkCacheProvider)['ok'], bytes);
+    expect(env.fake.getTrackCalls, ['bad', 'ok']);
+    expect(reported, isNotEmpty, reason: 'Errors must be reported');
+  });
 
   test('inflight ensureLoaded dedupes getTrack for the same id', () async {
     final gate = Completer<LibraryTrackSummary?>();
@@ -148,6 +164,52 @@ void main() {
     await Future.wait([first, second]);
     expect(env.fake.getTrackCalls, ['a']);
   });
+
+  test(
+    'concurrent ensureLoaded with different ids still loads claimed ids',
+    () async {
+      final gates = <String, Completer<LibraryTrackSummary?>>{};
+      final env = boot(
+        FakeLibraryTransport(
+          getTrackHandler: (id) {
+            final gate = gates.putIfAbsent(id, Completer.new);
+            return gate.future;
+          },
+        ),
+      );
+      final cache = env.container.read(artworkCacheProvider.notifier);
+
+      // A claims x,y then B replaces _wanted with y,z — x must still load.
+      final first = cache.ensureLoaded(['x', 'y']);
+      await pumpEventQueue();
+      final second = cache.ensureLoaded(['y', 'z']);
+      await pumpEventQueue();
+
+      expect(env.fake.getTrackCalls.toSet(), {'x', 'y', 'z'});
+      expect(
+        env.fake.getTrackCalls.where((id) => id == 'y').length,
+        1,
+        reason: 'y must stay coalesced while in flight',
+      );
+
+      for (final id in ['x', 'y', 'z']) {
+        gates[id]!.complete(
+          LibraryTrackSummary(
+            id: id,
+            displayName: id,
+            path: '/$id.flac',
+            artwork: Uint8List.fromList([1]),
+          ),
+        );
+      }
+      await Future.wait([first, second]);
+
+      final state = env.container.read(artworkCacheProvider);
+      expect(state['x'], isNotNull);
+      expect(state['y'], isNotNull);
+      expect(state['z'], isNotNull);
+    },
+  );
 
   test('ensureLoaded batches at most 3 concurrent getTrack calls', () async {
     final gates = <String, Completer<LibraryTrackSummary?>>{
@@ -195,5 +257,21 @@ void main() {
     expect(map.containsKey('fresh'), isTrue);
     expect(map.length, 300);
     expect(map.containsKey('id0'), isFalse);
+  });
+
+  test('eviction falls back to wanted entries to keep the hard cap', () async {
+    final env = boot(FakeLibraryTransport());
+    final cache = env.container.read(artworkCacheProvider.notifier);
+
+    await cache.ensureLoaded([for (var i = 0; i < 300; i++) 'id$i']);
+    expect(env.container.read(artworkCacheProvider).length, 300);
+
+    // Keep every filled id wanted so non-wanted victims are empty.
+    await cache.ensureLoaded([for (var i = 0; i < 300; i++) 'id$i', 'id300']);
+    final state = env.container.read(artworkCacheProvider);
+    expect(state.containsKey('id300'), isTrue);
+    expect(state.length, 300);
+    // Insertion-order FIFO among wanted: oldest keys drop first.
+    expect(state.containsKey('id0'), isFalse);
   });
 }
