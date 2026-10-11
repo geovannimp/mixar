@@ -784,6 +784,9 @@ Future<void> sendDeckPlaying({
 /// Optimistic absolute bool cmd: mirror first, roll back if transport is
 /// missing or the send fails — unless an intervening EngineEvt invalidated
 /// our generation (MIDI dual-control), including when it set the same value.
+///
+/// If ownership is lost while awaiting the transport, skip [send] so a stale
+/// UI intent cannot override a newer absolute controller/EngineEvt state.
 @visibleForTesting
 Future<void> runOptimisticDeckBool<T extends Object>({
   required bool previous,
@@ -802,6 +805,9 @@ Future<void> runOptimisticDeckBool<T extends Object>({
       if (stillOurs(generation)) {
         write(previous);
       }
+      return;
+    }
+    if (!stillOurs(generation)) {
       return;
     }
     await send(engine);

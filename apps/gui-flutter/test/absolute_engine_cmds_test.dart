@@ -261,5 +261,27 @@ void main() {
       expect(writes, [true]);
       expect(value, isTrue);
     });
+
+    test('skips send when EngineEvt supersedes during resolve', () async {
+      var value = false;
+      var gen = 0;
+      final sends = <Object>[];
+      await runOptimisticDeckBool<Object>(
+        previous: false,
+        desired: true,
+        write: (next) => value = next,
+        claim: () => ++gen,
+        stillOurs: (generation) => generation == gen,
+        resolveEngine: () async {
+          // MIDI pause landed while awaiting transport; drop stale UI send.
+          value = false;
+          gen++;
+          return Object();
+        },
+        send: (engine) async => sends.add(engine),
+      );
+      expect(sends, isEmpty);
+      expect(value, isFalse);
+    });
   });
 }
