@@ -14,6 +14,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
 const _durationMs = 100000;
@@ -121,6 +122,7 @@ Future<ProviderContainer> _pumpLane(
   required WaveformStrip strip,
   bool jogTouching = false,
   int positionMs = 0,
+  FakeEngineTransport? engine,
 }) async {
   debugOverrideDesktopWindow = false;
   addTearDown(() => debugOverrideDesktopWindow = null);
@@ -135,6 +137,8 @@ Future<ProviderContainer> _pumpLane(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        if (engine != null)
+          engineTransportProvider.overrideWith((ref) async => engine),
         engineUiProvider.overrideWith(
           () => _SeededEngineUi(playing: playing, jogTouching: jogTouching),
         ),
@@ -313,4 +317,46 @@ void main() {
     );
     expect(_stripPositioned(tester).left, closeTo(_expectedLeft(12000), 0.5));
   });
+
+  testWidgets(
+    'scrub move seeks are throttled to 32ms; pointer up always seeks',
+    (tester) async {
+      final engine = FakeEngineTransport();
+      await _pumpLane(
+        tester,
+        playing: false,
+        positionMs: 50000,
+        strip: _strip(),
+        engine: engine,
+      );
+
+      final center = tester.getCenter(find.byType(ScrollingLane));
+      final gesture = await tester.startGesture(center);
+      await tester.pump();
+
+      // Several moves inside one throttle window → one seek.
+      await gesture.moveBy(const Offset(-10, 0));
+      await tester.pump();
+      await gesture.moveBy(const Offset(-10, 0));
+      await tester.pump();
+      await gesture.moveBy(const Offset(-10, 0));
+      await tester.pump();
+      expect(engine.seeks.length, 1);
+
+      // ScrollingLane throttles with a wall-clock Stopwatch; escape FakeAsync.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 40)),
+      );
+      await gesture.moveBy(const Offset(-10, 0));
+      await tester.pump();
+      // Drain fire-and-forget _seek → seekDeck microtasks before asserting.
+      await tester.pump();
+      expect(engine.seeks.length, 2);
+
+      await gesture.up();
+      await tester.pump();
+      expect(engine.seeks.length, 3);
+      expect(engine.seeks.every((s) => s.$1 == 0), isTrue);
+    },
+  );
 }
