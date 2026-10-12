@@ -18,7 +18,7 @@
   --accent: #0f766e;
   --accent-hover: #115e59;
   --accent-dim: rgba(15, 118, 110, 0.1);
-  --deck-a: #16a34a;
+  --deck-a: #059669;
   --deck-b: #0284c7;
   --warn: #fbbf24;
   /* NI Stems slot colors written into the .stem.mp4 STEM atom (fixed metadata,
@@ -48,7 +48,7 @@
   --accent: #2dd4bf;
   --accent-hover: #5eead4;
   --accent-dim: rgba(45, 212, 191, 0.12);
-  --deck-a: #4ade80;
+  --deck-a: #34d399;
   --deck-b: #38bdf8;
   --header-bg: rgba(9, 9, 11, 0.85);
   --screenshot-shadow:

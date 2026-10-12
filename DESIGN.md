@@ -5,7 +5,7 @@ colors:
   accent: "#0d9488"
   accent-hover: "#0f766e"
   accent-dim: "rgba(13, 148, 136, 0.1)"
-  deck-a: "#16a34a"
+  deck-a: "#059669"
   deck-b: "#0284c7"
   stem-drums: "#009e73"
   stem-bass: "#d55e00"
@@ -106,14 +106,14 @@ components:
 
 **Creative North Star: "The Open Deck"**
 
-Mixar looks like what it is: open, performance-ready DJ software with nothing hidden behind a paywall. The visual system is restrained zinc neutrals, a single teal accent for action and live state, and deck identity colors (green / blue on marketing surfaces) that echo the booth without turning the UI into a light show. Density is comfortable — readable type, generous section rhythm, panels that breathe — while interactive elements feel tactile through soft hover lift and crisp square chrome.
+Mixar looks like what it is: open, performance-ready DJ software with nothing hidden behind a paywall. The visual system is restrained zinc neutrals, a single teal accent for action and live state, and deck identity colors (emerald / blue on marketing surfaces) that echo the booth without turning the UI into a light show. Density is comfortable — readable type, generous section rhythm, panels that breathe — while interactive elements feel tactile through soft hover lift and crisp square chrome.
 
 The marketing site (`apps/website`) is the most fully custom expression of this world: Outfit body, Space Grotesk headings, CSS token themes with light/dark via `data-theme`. The desktop app (`apps/gui-flutter`) uses **MixarTheme** light/dark tokens (with an intentional **ShadTheme** bridge for Shad/Material widgets) plus domain-specific performance colors (fader accents, VU segments, cue amber). Shared brand commitments: Mixar logo (inverted on dark), teal as the primary interactive signal, honest "in development" status when applicable, and deck semantics that must stay distinguishable under pressure.
 
 **Key Characteristics:**
 
 - Neutral zinc surfaces with hairline borders; color earns its place
-- Teal accent for primary actions and brand signal; deck green/blue for dual-deck semantics on web
+- Teal accent for primary actions and brand signal; deck emerald/blue for dual-deck semantics on web
 - Square chrome (buttons, inputs, cards, menus, dialogs, marketing CTAs); pills reserved for tiny status chips
 - Outfit + Space Grotesk on web; tabular figures for BPM/time via OpenType features
 - Soft hover lift on CTAs; scroll reveals respect `prefers-reduced-motion`
@@ -131,7 +131,7 @@ A zinc-forward palette with one confident teal accent and semantic deck hues —
 
 ### Secondary
 
-- **Deck A Green** (#16a34a light / #4ade80 dark): Marketing feature tiles and deck-A semantic highlights on the website.
+- **Deck A Emerald** (#059669 light / #34d399 dark): Marketing feature tiles, app brand primary, and deck-A semantic highlights — same emerald family as booth live chrome (Q / drop-hover).
 - **Deck B Sky** (#0284c7 light / #38bdf8 dark): Marketing feature tiles and deck-B semantic highlights on the website.
 
 ### Stems
@@ -159,14 +159,14 @@ Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom 
 ### App-specific (Flutter / MixarTheme)
 
 - **MixarTheme semantic tokens** (`background`, `foreground`, `mutedForeground`, `border`, `primary`): Base app chrome — do not override with raw hex in widgets; read from `context.theme.colors`. Shad widgets consume the bridged `ShadTheme` built from the same Mixar palette.
-- **Fader Deck A sky** (#38bdf8 grip): Vertical/horizontal fader accent for Deck A in the app (differs from web deck-a green — align in a future pass).
+- **Fader Deck A sky** (#38bdf8 grip): Vertical/horizontal fader accent for Deck A in the app (differs from web/app deck-a emerald — align in a future pass).
 - **Fader Deck B rose** (#fb7185 grip): Fader accent for Deck B in the app.
 - **Cue Amber** (#FCD34D / ring #F59E0B @ 40%): Headphone cue / PFL active state.
 - **VU ladder:** green → amber → red segments for level meters.
 
 ### Named Rules
 
-**The One Signal Rule.** Teal is the only brand accent on a given marketing viewport. Deck green/blue appear as semantic labels, not competing primaries.
+**The One Signal Rule.** Teal is the only brand accent on a given marketing viewport. Deck emerald/blue appear as semantic labels, not competing primaries.
 
 **The Honest Status Rule.** Development and roadmap states use muted opacity or amber dev badges — never fake "available" styling for unreleased platforms.
 
@@ -295,8 +295,8 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 ### Don't:
 
 - **Don't** add drop shadows to feature cards or section backgrounds — borders and tonal layers carry depth.
-- **Don't** use deck green/blue as page-level accents; they are semantic deck identifiers only (on web).
+- **Don't** use deck emerald/blue as page-level accents; they are semantic deck identifiers only (on web).
 - **Don't** fabricate social proof, star counts, or "available now" platform badges.
-- **Don't** mix marketing deck colors (green/blue) into app fader tokens without an explicit alignment pass — surfaces currently differ.
+- **Don't** mix marketing deck colors (emerald/blue) into app fader tokens without an explicit alignment pass — surfaces currently differ.
 - **Don't** hide the in-development status on the landing hero until a real release ships.
 - **Don't** reintroduce soft radii on chrome (buttons, cards, menus, dialogs, toasts, marketing CTAs) — square is the system; pills stay for tiny status chips only.

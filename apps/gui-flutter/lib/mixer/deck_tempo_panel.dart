@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/mixer/mixer_live_color.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
@@ -179,7 +180,7 @@ class DeckTempoPanel extends StatelessWidget {
                           maxLines: 1,
                           style: theme.typography.body.xs.copyWith(
                             color: isMaster
-                                ? const Color(0xe634d399) // emerald-400
+                                ? kMixerLiveOn
                                 : theme.colors.mutedForeground,
                             fontWeight: .w600,
                             fontSize: 9,
