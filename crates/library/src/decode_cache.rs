@@ -99,6 +99,8 @@ impl DecodeCache {
     }
 
     fn touch(&mut self, id: &TrackId) {
+        // ponytail: O(n) scan/remove is fine while DEFAULT_MAX_ENTRIES is tiny.
+        // Upgrade to an intrusive/index map if the entry cap grows large.
         if let Some(pos) = self.order.iter().position(|x| x == id) {
             if let Some(moved) = self.order.remove(pos) {
                 self.order.push_back(moved);

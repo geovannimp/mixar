@@ -419,6 +419,8 @@ pub fn ensure_track_stems_with_progress(
     }
 
     report("decode", None);
+    // Double-checked cache: decode off the library lock. A racing miss may decode
+    // twice; re-get before insert drops the duplicate Arc.
     let cached = {
         let lib = LibraryManager::lock_library(library)?;
         let mut cache = LibraryManager::lock_decode_cache(&lib.decode_cache)?;

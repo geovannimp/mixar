@@ -836,6 +836,9 @@ impl LibraryManager {
                 message: "waveform bucket count is out of range".into(),
             });
         }
+        // Double-checked cache: decode off the library lock so UI/DB work can
+        // proceed. A racing miss may decode twice; re-get before insert drops the
+        // duplicate Arc. Upgrade to single-flight if wasted decode becomes costly.
         let cached = {
             let lib = Self::lock_library(library)?;
             let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
@@ -1000,6 +1003,9 @@ impl LibraryManager {
             }
         }
 
+        // Double-checked cache: decode off the library lock so artwork/DB reads
+        // can proceed. A racing miss may decode twice; re-get before insert drops
+        // the duplicate Arc. Upgrade to single-flight if wasted decode becomes costly.
         let cached = {
             let lib = Self::lock_library(library)?;
             let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
@@ -1009,7 +1015,6 @@ impl LibraryManager {
         let audio = if let Some(cached) = cached {
             cached
         } else {
-            // Decode without holding LibraryManager so artwork/DB reads can proceed.
             let loaded = Arc::new(source.load().map_err(|e| LibraryError::Backend {
                 backend: "library",
                 message: format!("failed to decode track for playback: {e}"),
