@@ -664,6 +664,9 @@ final libraryEventsBootstrapProvider = Provider<void>((ref) {
         handleLibraryEvt(ref, evt);
       },
       onError: (Object e, StackTrace _) {
+        if (!ref.mounted) {
+          return;
+        }
         ref.read(appNoticeProvider.notifier).setError('$e');
       },
     );

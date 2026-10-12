@@ -705,6 +705,9 @@ final engineEventsBootstrapProvider = Provider<void>((ref) {
         }
       },
       onError: (Object e, StackTrace _) {
+        if (!ref.mounted) {
+          return;
+        }
         ref.read(appNoticeProvider.notifier).setError('$e');
       },
     );
