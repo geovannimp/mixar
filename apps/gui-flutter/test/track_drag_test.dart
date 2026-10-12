@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
@@ -45,10 +46,11 @@ void main() {
     });
   });
 
-  group('payloadFromLibraryTrack', () {
-    test('library id uses load-library source', () {
-      final payload = payloadFromLibraryTrack(
+  group('payloadFromListTrack', () {
+    test('library row uses load-library source', () {
+      final payload = payloadFromListTrack(
         _track(id: 't1', path: '/lib/a.wav', title: 'Alpha'),
+        inLibrary: true,
       );
       expect(payload.source, TrackDragSource.library);
       expect(payload.trackId, 't1');
@@ -57,9 +59,10 @@ void main() {
       expect(trackLoadKind(payload), TrackLoadKind.library);
     });
 
-    test('drive file with id==path uses filesystem load', () {
-      final payload = payloadFromLibraryTrack(
+    test('drive file uses filesystem load when not in library', () {
+      final payload = payloadFromListTrack(
         _track(id: '/tmp/x.wav', path: '/tmp/x.wav', displayName: 'x.wav'),
+        inLibrary: false,
       );
       expect(payload.source, TrackDragSource.filesystem);
       expect(payload.trackId, isNull);
@@ -67,15 +70,17 @@ void main() {
     });
 
     test('missing title uses displayName', () {
-      final payload = payloadFromLibraryTrack(
+      final payload = payloadFromListTrack(
         _track(id: 't1', path: '/lib/a.wav', displayName: 'a.wav'),
+        inLibrary: true,
       );
       expect(payload.title, 'a.wav');
     });
 
     test('empty title and displayName uses file name', () {
-      final payload = payloadFromLibraryTrack(
+      final payload = payloadFromListTrack(
         _track(id: 't1', path: '/lib/untitled.wav', title: '', displayName: ''),
+        inLibrary: true,
       );
       expect(payload.title, 'untitled.wav');
     });
