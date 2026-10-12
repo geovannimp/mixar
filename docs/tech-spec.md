@@ -122,7 +122,7 @@ impl Engine {
 /// Factory for listing and creating backends without an engine.
 pub struct AudioBackend;
 impl AudioBackend {
-    pub fn list_names() -> Vec<String>; // e.g. ["null", "miniaudio", "cpal"]
+    pub fn list_names() -> Vec<String>; // e.g. ["null", "cpal"]
     pub fn new(name: &str) -> anyhow::Result<Box<dyn audio_core::AudioBackend>>;
 }
 ```
@@ -165,7 +165,7 @@ engine.load_prepared_track(0, prepared)?;
 
 #### Consumer (audio callback)
 
-- Implemented by the backend (`cpal` / `miniaudio` / `null`). The backend’s real-time callback invokes `AudioCallback::render`.
+- Implemented by the backend (`cpal` / `null`). The backend’s real-time callback invokes `AudioCallback::render`.
 - `ConsumerCallback` pops samples from the ring buffer into the device output buffer. On underrun it writes silence.
 - **No heap allocations, no mutexes, no blocking** in the callback path.
 
@@ -192,7 +192,7 @@ Config is loaded via `EngineConfig::from_toml_file` / `to_toml_file`. Fields map
 sample_rate = 48000
 buffer_size = 512
 low_latency = false
-backend = "auto"            # "auto", "cpal", "miniaudio", or "null"
+backend = "auto"            # "auto", "cpal", or "null"
 
 [[devices]]
 name = "Focusrite USB"
@@ -202,8 +202,8 @@ id = "hw:1,0"
 # BusConfig fields: id, name, device, channels (see audio-core)
 ```
 
-- `backend = "auto"` tries CPAL first (when compiled in), then miniaudio, then falls back to null.
-- Valid backend names: `"auto"`, `"cpal"`, `"miniaudio"`, `"null"`.
+- `backend = "auto"` tries CPAL first (when compiled in), then falls back to null.
+- Valid backend names: `"auto"`, `"cpal"`, `"null"`.
 - `backend-cpal` is an optional Cargo feature on `engine-core` (enabled by default).
 
 See [`README.md`](../README.md) for a minimal embed example.

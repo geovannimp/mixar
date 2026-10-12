@@ -10,7 +10,6 @@ mixar/
 │  ├─ engine-api/         # shared engine command/event contracts (MessagePack omnibus)
 │  ├─ audio-core/         # shared traits/types: AudioBackend, AudioSource, StreamParams, DeviceId
 │  ├─ backend-null/       # deterministic backend for tests and CI
-│  ├─ backend-miniaudio/  # miniaudio implementation
 │  ├─ backend-cpal/       # CPAL implementation (native PipeWire on Linux when available)
 │  ├─ engine-core/        # engine lifecycle, config, producer thread, track loading
 │  │  ├─ lib.rs           # module declarations and public re-exports
@@ -112,7 +111,6 @@ All backends are compiled into the binary (subject to Cargo features) and chosen
 | Backend | Role |
 | --- | --- |
 | `backend-cpal` | Default path. Native PipeWire on Linux when available. Optional `backend-cpal` feature on `engine-core` (default-on). Preferred under `backend = "auto"`. |
-| `backend-miniaudio` | Cross-platform fallback under `"auto"` when CPAL is unavailable. |
 | `backend-null` | Deterministic timing for tests/CI; no real device. |
 
 There is no `backend-pipewire` crate. Platform-native exclusive backends (ASIO / WASAPI exclusive / CoreAudio low-latency): [#453](https://github.com/geovannimp/mixar/issues/453).

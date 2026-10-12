@@ -7,9 +7,6 @@ pub fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBac
             let backend = backend_null::NullBackend::new();
             Ok(Box::new(backend))
         }
-        "miniaudio" => Err(anyhow::anyhow!(
-            "miniaudio backend is not implemented yet; use cpal or null"
-        )),
         "cpal" => {
             #[cfg(feature = "backend-cpal")]
             {
