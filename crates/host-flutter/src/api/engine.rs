@@ -547,7 +547,6 @@ impl EngineTransport {
             evt_forwarder: Mutex::new(None),
             history_worker: Mutex::new(Some(history_worker)),
             deck_load_generation: std::array::from_fn(|_| AtomicU64::new(0)),
-
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
             let _ = transport.apply_host_settings(target, top, outer);
