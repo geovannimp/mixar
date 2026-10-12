@@ -525,22 +525,29 @@ impl EngineTransport {
                 return Err(e.to_string());
             }
         };
+        let history_worker = match HistoryWorker::start(&buses, library_arc.clone()) {
+            Ok(worker) => EngineHistoryWorker(worker),
+            Err(e) => {
+                drop(worker);
+                if let Ok(mut guard) = engine.lock() {
+                    if let Some(eng) = guard.as_mut() {
+                        let _ = eng.stop();
+                    }
+                }
+                return Err(format!("history worker failed to start: {e}"));
+            }
+        };
         let transport = Self {
             worker,
             engine,
             buses: buses.clone(),
-            library: library_arc.clone(),
+            library: library_arc,
             library_cmd_bus: library_transport.cmd_bus(),
             sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
             evt_forwarder: Mutex::new(None),
-            history_worker: Mutex::new(match HistoryWorker::start(&buses, library_arc) {
-                Ok(worker) => Some(EngineHistoryWorker(worker)),
-                Err(e) => {
-                    eprintln!("history worker failed to start: {e}");
-                    None
-                }
-            }),
+            history_worker: Mutex::new(Some(history_worker)),
             deck_load_generation: std::array::from_fn(|_| AtomicU64::new(0)),
+
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
             let _ = transport.apply_host_settings(target, top, outer);
