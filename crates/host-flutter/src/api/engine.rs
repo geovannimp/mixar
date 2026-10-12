@@ -514,7 +514,7 @@ impl EngineTransport {
         engine.set_buses(buses.clone());
         engine.start().map_err(|e| e.to_string())?;
         let engine = Arc::new(Mutex::new(Some(engine)));
-        let worker = match spawn_engine_worker(Arc::clone(&engine)) {
+        let engine_worker = match spawn_engine_worker(Arc::clone(&engine)) {
             Ok(worker) => worker,
             Err(e) => {
                 if let Ok(mut guard) = engine.lock() {
@@ -528,7 +528,8 @@ impl EngineTransport {
         let history_worker = match HistoryWorker::start(&buses, library_arc.clone()) {
             Ok(worker) => EngineHistoryWorker(worker),
             Err(e) => {
-                drop(worker);
+                // Tear down the already-running engine worker before failing start.
+                drop(engine_worker);
                 if let Ok(mut guard) = engine.lock() {
                     if let Some(eng) = guard.as_mut() {
                         let _ = eng.stop();
@@ -538,7 +539,7 @@ impl EngineTransport {
             }
         };
         let transport = Self {
-            worker,
+            worker: engine_worker,
             engine,
             buses: buses.clone(),
             library: library_arc,
