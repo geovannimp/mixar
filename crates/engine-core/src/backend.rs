@@ -38,8 +38,7 @@ pub fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBac
             }
             #[cfg(not(feature = "backend-cpal"))]
             Err(anyhow::anyhow!(
-                "auto backend: no real audio backend available (CPAL not compiled in). \
-                 Build with default features / enable 'backend-cpal', or set backend = \"null\" for tests."
+                "auto backend: no real audio backend available (CPAL not compiled in). Build with default features / enable 'backend-cpal', or set backend = \"null\" for tests."
             ))
         }
         _ => Err(anyhow::anyhow!("Unknown backend: {}", backend_name)),
@@ -107,6 +106,8 @@ mod tests {
     }
 
     /// `auto` must open a real backend or error — never silent null (GUI would look "running" with no sound).
+    /// Gated: without CPAL the Err path is covered by `test_auto_errors_without_real_backend`.
+    #[cfg(feature = "backend-cpal")]
     #[test]
     fn test_auto_never_falls_back_to_null() {
         match create_backend("auto") {
