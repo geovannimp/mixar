@@ -210,8 +210,8 @@ class _TabBar extends StatelessWidget {
                     child: DecoratedBox(
                       key: const ValueKey('m-tabs-indicator'),
                       decoration: BoxDecoration(
-                        // Soft solid teal — matches deck Play while playing.
-                        color: theme.colors.accentTint,
+                        // Soft emerald — same [selection] as library rows / menus.
+                        color: theme.colors.selection,
                         borderRadius: theme.style.borderRadius.md,
                       ),
                     ),
@@ -286,9 +286,10 @@ class _TabHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Selected chrome matches deck Play: accent icon + soft accentTint fill.
+    // Selected chrome stays on the emerald brand scale (not teal accent) so
+    // tabs, library rows, and + chips read as one palette.
     final foreground = selected
-        ? theme.colors.accent
+        ? theme.colors.primary
         : theme.colors.mutedForeground;
 
     Widget header = MTappable(
@@ -297,7 +298,7 @@ class _TabHeader extends StatelessWidget {
       builder: (context, state) {
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: paintSelected && selected ? theme.colors.accentTint : null,
+            color: paintSelected && selected ? theme.colors.selection : null,
             borderRadius: theme.style.borderRadius.md,
           ),
           child: ConstrainedBox(

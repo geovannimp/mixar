@@ -70,11 +70,12 @@ class MixarColors {
     muted: Color(0xFF121216),
     mutedForeground: Color(0xFFA1A1AA),
     accent: MixarTeal.s400,
-    // Soft solid selection — emerald-950, same token on every surface.
-    selection: MixarEmerald.s950,
+    // Soft solid selection — emerald-900. Same fill for tabs, library rows,
+    // menus, and + chips so the booth chrome stays on one emerald ladder.
+    selection: MixarEmerald.s900,
     selectionForeground: Color(0xFFF4F4F5),
-    primaryTint: MixarEmerald.s950,
-    primaryDim: MixarEmerald.s600,
+    primaryTint: MixarEmerald.s900,
+    primaryDim: MixarEmerald.s500,
     accentTint: MixarTeal.s950,
     cueTint: MixarAmber.s950,
     destructive: Color(0xFFFF6467),
@@ -104,13 +105,13 @@ class MixarColors {
   /// Text/icon colour drawn over [selection].
   final Color selectionForeground;
 
-  /// Softest emerald fill (selected chips, mapping "on", soft brand wash).
+  /// Soft emerald fill (mapping "on", Q wash) — same step as [selection] in dark.
   final Color primaryTint;
 
-  /// Calmer emerald for filled accents (knob arcs) without raw [primary] neon.
+  /// Mid emerald for calmer accents (knob arcs) without raw [primary] neon.
   final Color primaryDim;
 
-  /// Softest teal fill (Play while playing, selected tab chip).
+  /// Softest teal fill (Play while playing only — transport, not library chrome).
   final Color accentTint;
 
   /// Softest amber fill (Cue while auditioning).

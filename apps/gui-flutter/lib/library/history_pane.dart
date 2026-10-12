@@ -49,10 +49,9 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: theme.style.borderRadius.sm,
-                      border: Border.all(color: colors.primaryDim),
-                      color: state.hovered
-                          ? colors.primaryTint
-                          : colors.selection,
+                      // Same emerald-400 as selected-tab icons / row accent bar.
+                      border: Border.all(color: colors.primary),
+                      color: colors.selection,
                     ),
                     child: _creating
                         ? const MLoader(size: MLoaderSize.sm)
