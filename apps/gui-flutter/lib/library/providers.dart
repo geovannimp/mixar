@@ -684,11 +684,17 @@ Future<void> analyzeTrackAction(WidgetRef ref, String trackId) async {
 /// more expensive than analysis, so it is opt-in per track. Server-side this
 /// no-ops when a valid stem cache already exists.
 Future<void> generateStemsAction(WidgetRef ref, String trackId) async {
+  ref
+      .read(stemGeneratingTrackIdsProvider.notifier)
+      .setGenerating(trackId, true);
   ref.read(appNoticeProvider.notifier).clear();
   try {
     final transport = await ref.read(libraryTransportProvider.future);
     await transport.generateStems(trackId: trackId);
   } catch (e) {
+    ref
+        .read(stemGeneratingTrackIdsProvider.notifier)
+        .setGenerating(trackId, false);
     ref.read(appNoticeProvider.notifier).setError('$e');
   }
 }
