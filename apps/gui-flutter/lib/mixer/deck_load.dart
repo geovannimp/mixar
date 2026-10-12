@@ -126,7 +126,11 @@ Future<void> loadPayloadOntoDeck(
       // Caller unmounted while the engine load was in flight.
     }
   } finally {
-    loading.set(deckId, false);
+    try {
+      loading.set(deckId, false);
+    } on Object {
+      // Caller unmounted while the engine load was in flight.
+    }
   }
 }
 
