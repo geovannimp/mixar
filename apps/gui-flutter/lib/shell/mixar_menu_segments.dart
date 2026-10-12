@@ -33,7 +33,7 @@ class MixarMenuSegment {
   final Color? color;
 }
 
-/// A segmented group of menu cells: one bordered, rounded track split by
+/// A segmented group of menu cells: one bordered square track split by
 /// hairlines, matching the shuffle/repeat button groups. Full width, so
 /// segments stay vertically aligned with the text actions around them.
 class MixarMenuSegments extends StatelessWidget {

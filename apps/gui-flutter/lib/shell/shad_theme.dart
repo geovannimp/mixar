@@ -1,6 +1,33 @@
+import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+
+/// Select menu opens by growing height from the top edge.
+///
+/// `Align.heightFactor` alone under unbounded overlay width collapses to the
+/// child's intrinsic width and shifts the follower. `widthFactor: 1` keeps the
+/// select's laid-out width so the portal anchor stays aligned.
+final _mixarSelectOpenEffects = <AnimateEffect<dynamic>>[
+  CustomEffect(
+    duration: const Duration(milliseconds: 160),
+    curve: Curves.easeOutCubic,
+    builder: (context, value, child) {
+      return ClipRect(
+        child: Align(
+          alignment: Alignment.topCenter,
+          heightFactor: value.clamp(0.0, 1.0),
+          widthFactor: 1,
+          child: child,
+        ),
+      );
+    },
+  ),
+  const FadeEffect(
+    duration: Duration(milliseconds: 120),
+    curve: Curves.easeOut,
+  ),
+];
 
 /// Map Mixar tokens into [ShadThemeData] so shadcn widgets match chrome.
 ///
@@ -43,6 +70,10 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
         color: c.selectionForeground,
       ),
       selectedIconColor: c.selectionForeground,
+    ),
+    selectTheme: ShadSelectTheme(
+      effects: _mixarSelectOpenEffects,
+      popoverReverseDuration: const Duration(milliseconds: 120),
     ),
   );
 }

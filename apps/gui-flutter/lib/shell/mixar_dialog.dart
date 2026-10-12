@@ -30,10 +30,7 @@ BoxConstraints _mixarDialogConstraints(BuildContext context) {
 }
 
 BorderRadius _mixarDialogRadius(BuildContext context) {
-  if (_isCompactDialog(context)) {
-    return const BorderRadius.vertical(top: Radius.circular(16));
-  }
-  return const BorderRadius.all(Radius.circular(16));
+  return context.theme.style.borderRadius.lg;
 }
 
 ShadDialog _mixarDialogShell({
