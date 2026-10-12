@@ -210,7 +210,8 @@ class _TabBar extends StatelessWidget {
                     child: DecoratedBox(
                       key: const ValueKey('m-tabs-indicator'),
                       decoration: BoxDecoration(
-                        color: theme.colors.primaryTint,
+                        // Soft wash matches deck Play while playing.
+                        color: theme.colors.accent.withValues(alpha: 0.08),
                         borderRadius: theme.style.borderRadius.md,
                       ),
                     ),
@@ -285,8 +286,9 @@ class _TabHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Selected chrome matches deck Play: accent icon + soft accent wash.
     final foreground = selected
-        ? theme.colors.primaryDim
+        ? theme.colors.accent
         : theme.colors.mutedForeground;
 
     Widget header = MTappable(
@@ -295,7 +297,9 @@ class _TabHeader extends StatelessWidget {
       builder: (context, state) {
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: paintSelected && selected ? theme.colors.primaryTint : null,
+            color: paintSelected && selected
+                ? theme.colors.accent.withValues(alpha: 0.08)
+                : null,
             borderRadius: theme.style.borderRadius.md,
           ),
           child: ConstrainedBox(
