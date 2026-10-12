@@ -56,7 +56,7 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
       border: c.border,
       input: c.border,
       ring: c.primary,
-      selection: c.primary.withValues(alpha: 0.35),
+      selection: c.selection,
     ),
     textTheme: ShadTextTheme(family: MixarFonts.outfit),
     radius: theme.style.borderRadius.md,

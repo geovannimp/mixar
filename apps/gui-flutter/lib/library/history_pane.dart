@@ -49,12 +49,10 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: theme.style.borderRadius.sm,
-                      border: Border.all(
-                        color: colors.primary.withValues(alpha: 0.35),
-                      ),
-                      color: colors.primary.withValues(
-                        alpha: state.hovered ? 0.20 : 0.12,
-                      ),
+                      border: Border.all(color: colors.primaryDim),
+                      color: state.hovered
+                          ? colors.primaryTint
+                          : colors.selection,
                     ),
                     child: _creating
                         ? const MLoader(size: MLoaderSize.sm)

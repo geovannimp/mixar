@@ -286,10 +286,8 @@ class _DeckPlayButton extends ConsumerWidget {
               ? theme.colors.accent
               : theme.colors.border;
           final fg = accented ? theme.colors.accent : theme.colors.foreground;
-          // Soft accent wash only while playing — hover stays outline-only.
-          final fill = playing
-              ? theme.colors.accent.withValues(alpha: 0.08)
-              : theme.colors.card;
+          // Soft solid teal only while playing — hover stays outline-only.
+          final fill = playing ? theme.colors.accentTint : theme.colors.card;
           return Opacity(
             opacity: state.disabled ? 0.5 : 1,
             child: DecoratedBox(
@@ -379,7 +377,7 @@ class _QuantizeButton extends StatelessWidget {
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        backgroundColor: on ? kMixerLiveFill : null,
+        backgroundColor: on ? theme.colors.primaryTint : null,
         child: Text(
           'Q',
           style: TextStyle(

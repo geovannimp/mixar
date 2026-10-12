@@ -4,8 +4,13 @@ description: Open-source DJ software — honest performance tools on neutral zin
 colors:
   accent: "#0d9488"
   accent-hover: "#0f766e"
-  accent-dim: "rgba(13, 148, 136, 0.1)"
+  accent-tint: "#f0fdfa"
   deck-a: "#059669"
+  emerald-50: "#ecfdf5"
+  emerald-100: "#d1fae5"
+  emerald-400: "#34d399"
+  emerald-600: "#059669"
+  emerald-950: "#022c22"
   deck-b: "#0284c7"
   stem-drums: "#009e73"
   stem-bass: "#d55e00"
@@ -125,13 +130,14 @@ A zinc-forward palette with one confident teal accent and semantic deck hues —
 
 ### Primary
 
-- **Live Teal** (#0d9488 light / #2dd4bf dark): Primary CTAs, section icons, accent bullets, links-in-context on marketing. The "go" color — use for one clear action per viewport when possible.
-- **Teal Depth** (#0f766e light / #5eead4 dark): Hover and pressed states on primary buttons.
-- **Teal Mist** (rgba accent @ 10–12%): Badge fills, icon tile backgrounds, subtle gradient washes (e.g. developer CTA panel).
+- **Live Teal** (#0d9488 / teal-600 light · #2dd4bf / teal-400 dark): Primary CTAs, section icons, accent bullets, links-in-context on marketing. The "go" color — use for one clear action per viewport when possible.
+- **Teal Depth** (#0f766e / teal-700 light · #5eead4 / teal-300 dark): Hover and pressed states on primary buttons.
+- **Teal Tint** (#f0fdfa / teal-50 light · #042f2e / teal-950 dark): Soft solid accent fills (Play while playing, selected tab chip). Never invent this with alpha over the surface.
 
 ### Secondary
 
-- **Deck A Emerald** (#059669 light / #34d399 dark): Marketing feature tiles, app brand primary, and deck-A semantic highlights — same emerald family as booth live chrome (Q / drop-hover).
+- **Deck A Emerald** (#059669 / emerald-600 light · #34d399 / emerald-400 dark): Marketing feature tiles, app brand primary, and deck-A semantic highlights — same emerald family as booth live chrome (Q / drop-hover).
+- **Emerald Tint** (#ecfdf5 / emerald-50–100 light · #022c22 / emerald-950 dark): Soft solid selection fills (library rows, menus, mapping chips). Same token on every surface.
 - **Deck B Sky** (#0284c7 light / #38bdf8 dark): Marketing feature tiles and deck-B semantic highlights on the website.
 
 ### Stems
@@ -145,7 +151,7 @@ Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom 
 
 ### Tertiary
 
-- **Dev Amber** (amber-400 family at ~12–15% opacity): "In development" and cautionary status badges only — not a general warning color.
+- **Dev Amber** (amber-100 / amber-950 soft fills; amber-300 labels): "In development", cue audition wash, and cautionary status — solid scale steps, not alpha washes.
 
 ### Neutral
 
@@ -158,13 +164,15 @@ Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom 
 
 ### App-specific (Flutter / MixarTheme)
 
-- **MixarTheme semantic tokens** (`background`, `foreground`, `mutedForeground`, `border`, `primary`): Base app chrome — do not override with raw hex in widgets; read from `context.theme.colors`. Shad widgets consume the bridged `ShadTheme` built from the same Mixar palette.
+- **MixarTheme semantic tokens** (`background`, `foreground`, `mutedForeground`, `border`, `primary`, `selection`, `primaryTint`, `accentTint`, `cueTint`): Base app chrome — do not override with raw hex in widgets; read from `context.theme.colors`. Solid scales live in `mixar_palette.dart` (emerald / teal / amber 50–950).
 - **Fader Deck A sky** (#38bdf8 grip): Vertical/horizontal fader accent for Deck A in the app (differs from web/app deck-a emerald — align in a future pass).
 - **Fader Deck B rose** (#fb7185 grip): Fader accent for Deck B in the app.
-- **Cue Amber** (#FCD34D / ring #F59E0B @ 40%): Headphone cue / PFL active state.
+- **Cue Amber** (#FCD34D / amber-300 · ring #D97706 / amber-600): Headphone cue / PFL active state.
 - **VU ladder:** green → amber → red segments for level meters.
 
 ### Named Rules
+
+**The Solid Palette Rule.** Fills, icons, and borders come from named scale steps (emerald-100, teal-950, …). Do not `alphaBlend` or `withValues(alpha:)` a brand colour onto a surface to invent a wash — that drifts by base colour and leaves the palette. Alpha is reserved for true see-through chrome (dialog scrims, panels that must show the deck behind them).
 
 **The One Signal Rule.** Teal is the only brand accent on a given marketing viewport. Deck emerald/blue appear as semantic labels, not competing primaries.
 

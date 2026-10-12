@@ -124,11 +124,11 @@ class DeckLoopPanel extends StatelessWidget {
       fontWeight: FontWeight.w700,
     );
     const buttonPad = EdgeInsets.symmetric(horizontal: 12, vertical: 14);
-    final borderColor = active
-        ? theme.colors.primary.withValues(alpha: 0.45)
-        : theme.colors.border;
+    final borderColor = active ? theme.colors.primaryDim : theme.colors.border;
+    // Active: solid emerald tint. Idle: translucent scrim so the deck shows
+    // through — one of the few intentional alpha fills.
     final fillColor = active
-        ? theme.colors.primary.withValues(alpha: 0.12)
+        ? theme.colors.primaryTint
         : theme.colors.background.withValues(alpha: 0.8);
 
     MixarButtonVariant activeVariant(bool lit) =>

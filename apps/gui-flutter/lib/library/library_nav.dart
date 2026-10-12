@@ -4,13 +4,9 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Selected fill shared by library sidebar rows and track/history list rows.
 ///
-/// Blended over [MixarColors.card] so the opaque colour matches on both the
-/// sidebar (`secondary`) and the list surface (`card`) — a raw alpha wash
-/// over each base reads as two different greens.
-Color librarySelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
-  theme.colors.primary.withValues(alpha: 0.14),
-  theme.colors.card,
-);
+/// Solid [MixarColors.selection] (emerald-100 / emerald-950) — same on every
+/// surface, no alphaBlend that drifts with the base.
+Color librarySelectedRowColor(MixarThemeData theme) => theme.colors.selection;
 
 /// Uppercase sidebar section label (Tauri `LibraryPaneHeader`).
 class LibraryPaneLabel extends StatelessWidget {
@@ -62,7 +58,7 @@ class LibraryNavRow extends StatelessWidget {
       final fill = selected
           ? librarySelectedRowColor(theme)
           : hovered
-          ? colors.foreground.withValues(alpha: 0.05)
+          ? colors.card
           : null;
       return DecoratedBox(
         decoration: BoxDecoration(
