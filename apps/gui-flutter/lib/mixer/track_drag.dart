@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:gui_flutter/src/rust/api/library.dart';
-
 /// Matches `codec` `SUPPORTED_AUDIO_EXTENSIONS`.
 const supportedAudioExtensions = [
   'mp3',
@@ -95,19 +93,6 @@ TrackDragPayload payloadFromOsPath(String path) {
     source: TrackDragSource.filesystem,
     path: path,
     title: fileNameFromPath(path),
-  );
-}
-
-TrackDragPayload payloadFromLibraryTrack(LibraryTrackSummary track) {
-  final inLibrary = track.id != track.path;
-  final title = (track.title?.isNotEmpty ?? false)
-      ? track.title!
-      : track.displayName;
-  return TrackDragPayload(
-    source: inLibrary ? TrackDragSource.library : TrackDragSource.filesystem,
-    trackId: inLibrary ? track.id : null,
-    path: track.path,
-    title: trackDisplayTitle(title: title, path: track.path),
   );
 }
 
