@@ -421,8 +421,8 @@ pub fn ensure_track_stems_with_progress(
     report("decode", None);
     let cached = {
         let lib = LibraryManager::lock_library(library)?;
-        let cache = LibraryManager::lock_decode_cache(&lib.decode_cache)?;
-        cache.get(id).cloned()
+        let mut cache = LibraryManager::lock_decode_cache(&lib.decode_cache)?;
+        cache.get(id)
     };
 
     let audio = if let Some(cached) = cached {
@@ -443,10 +443,9 @@ pub fn ensure_track_stems_with_progress(
         let lib = LibraryManager::lock_library(library)?;
         let mut cache = LibraryManager::lock_decode_cache(&lib.decode_cache)?;
         if let Some(existing) = cache.get(id) {
-            Arc::clone(existing)
+            existing
         } else {
-            cache.insert(id.clone(), Arc::clone(&loaded));
-            loaded
+            cache.insert(id.clone(), loaded)
         }
     };
 
