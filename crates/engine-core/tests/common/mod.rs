@@ -98,15 +98,16 @@ pub fn source_with_bpm(id: &str, bpm: f64) -> AudioSource {
 pub fn wait_engine_hot_cue_count(session: &EngineSession, deck_id: usize, count: usize) {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
-        let ok = session
+        let len = session
             .with_engine(|engine| {
                 Ok(engine
                     .deck_snapshot(deck_id)
-                    .map(|s| s.hot_cues.len() == count)
-                    .unwrap_or(false))
+                    .expect("deck snapshot")
+                    .hot_cues
+                    .len())
             })
-            .unwrap_or(false);
-        if ok {
+            .expect("engine available");
+        if len == count {
             return;
         }
         std::thread::sleep(Duration::from_millis(10));
