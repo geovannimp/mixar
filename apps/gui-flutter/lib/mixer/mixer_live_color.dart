@@ -1,11 +1,8 @@
 import 'package:flutter/widgets.dart';
 
-/// Solid emerald-400 — same hue as [MixarColors.dark.primary] / website
-/// `--deck-a` (dark). Booth chrome uses the alpha variants below.
-const kMixerEmerald = Color(0xFF34D399);
-
 /// Emerald “live/on” signal shared by headphone cue, quantize, and deck drop
 /// hover — keep these in lockstep so booth chrome reads as one system.
+/// Hue matches MixarColors.dark.primary / website `--deck-a` (emerald-400).
 const kMixerLiveOn = Color(0xbf34d399); // emerald-400 @ ~75%
 const kMixerLiveFill = Color(0x1c34d399); // emerald-400 @ ~11%
 

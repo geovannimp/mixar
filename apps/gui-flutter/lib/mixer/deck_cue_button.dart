@@ -55,10 +55,11 @@ class _DeckCueButtonState extends State<DeckCueButton> {
   void _up() {
     final timer = _holdTimer;
     _holdTimer = null;
-    if (_pressed && mounted) {
-      setState(() => _pressed = false);
-    } else {
+    if (_pressed) {
       _pressed = false;
+      if (mounted) {
+        setState(() {});
+      }
     }
     if (timer != null && timer.isActive) {
       timer.cancel();
