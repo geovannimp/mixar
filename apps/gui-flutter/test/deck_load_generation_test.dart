@@ -14,9 +14,6 @@ TrackDragPayload _payload(String id) => TrackDragPayload(
 );
 
 class _FakeDeckLoadTransport implements DeckLoadTransport {
-  new(this._gates);
-
-  final Map<String, Completer<void>> _gates;
   final List<String> loads = [];
 
   @override
@@ -25,10 +22,6 @@ class _FakeDeckLoadTransport implements DeckLoadTransport {
     required String trackId,
   }) async {
     loads.add(trackId);
-    final gate = _gates[trackId];
-    if (gate != null) {
-      await gate.future;
-    }
   }
 
   @override
@@ -37,20 +30,12 @@ class _FakeDeckLoadTransport implements DeckLoadTransport {
   }
 }
 
-ProviderContainer _container(_FakeDeckLoadTransport fake) {
-  return ProviderContainer(
-    overrides: [deckLoadTransportProvider.overrideWith((ref) async => fake)],
-  );
-}
-
 void main() {
   test('A-then-B commits chrome for the latest load', () async {
-    final gates = <String, Completer<void>>{
-      'A': Completer<void>()..complete(),
-      'B': Completer<void>()..complete(),
-    };
-    final fake = _FakeDeckLoadTransport(gates);
-    final container = _container(fake);
+    final fake = _FakeDeckLoadTransport();
+    final container = ProviderContainer(
+      overrides: [deckLoadTransportProvider.overrideWith((ref) async => fake)],
+    );
     addTearDown(container.dispose);
 
     await loadPayloadOntoDeck(container.read, 0, _payload('A'));
@@ -62,30 +47,33 @@ void main() {
     expect(fake.loads, ['A', 'B']);
   });
 
-  test('B-supersedes-A ignores stale chrome commit from A', () async {
-    final gateA = Completer<void>();
-    final gates = <String, Completer<void>>{
-      'A': gateA,
-      'B': Completer<void>()..complete(),
-    };
-    final fake = _FakeDeckLoadTransport(gates);
-    final container = _container(fake);
+  test('B-supersedes-A skips transport for superseded A', () async {
+    final gate = Completer<void>();
+    final fake = _FakeDeckLoadTransport();
+    final container = ProviderContainer(
+      overrides: [
+        deckLoadTransportProvider.overrideWith((ref) async {
+          await gate.future;
+          return fake;
+        }),
+      ],
+    );
     addTearDown(container.dispose);
 
     final loadA = loadPayloadOntoDeck(container.read, 0, _payload('A'));
-    // Let A reach its gated engine load before B starts.
+    // A is blocked on transport resolution before any engine call.
     await Future<void>.delayed(Duration.zero);
-    expect(fake.loads, ['A']);
+    expect(fake.loads, isEmpty);
 
-    await loadPayloadOntoDeck(container.read, 0, _payload('B'));
-    expect(container.read(engineUiProvider).trackIdFor(0), 'B');
+    final loadB = loadPayloadOntoDeck(container.read, 0, _payload('B'));
+    await Future<void>.delayed(Duration.zero);
 
-    gateA.complete();
-    await loadA;
+    gate.complete();
+    await Future.wait([loadA, loadB]);
 
     final ui = container.read(engineUiProvider);
     expect(ui.trackIdFor(0), 'B');
     expect(ui.trackPathFor(0), '/tmp/B.wav');
-    expect(fake.loads, ['A', 'B']);
+    expect(fake.loads, ['B']);
   });
 }
