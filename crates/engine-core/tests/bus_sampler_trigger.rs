@@ -5,8 +5,10 @@ mod common;
 use common::{recv_evt_kind, short_tone_fixture};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, PadMode};
 use engine_core::{EngineConfig, EngineSession};
+use library::{LibraryConfig, LibraryManager};
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
 use omnibus::Filter;
+use std::sync::{Arc, Mutex};
 
 fn sample_source() -> AudioSource {
     AudioSource::File(FileAudioSource::new(
@@ -31,6 +33,42 @@ fn null_session_with_sample() -> EngineSession {
         })
         .expect("assign");
     session
+}
+
+#[test]
+fn assign_sampler_path_via_bus_assigns_slot() {
+    let library = Arc::new(Mutex::new(
+        LibraryManager::open_in_memory(LibraryConfig::default()).expect("library"),
+    ));
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new_with_library(config, library).expect("session");
+    session.with_engine(|engine| engine.start()).expect("start");
+
+    let path = short_tone_fixture().to_string_lossy().into_owned();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::AssignSampler,
+            encode_cmd_body(&CmdBody::AssignSampler { slot: 1, path }).unwrap(),
+        )
+        .expect("assign");
+
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let assigned = session
+        .with_engine(|engine| Ok(engine.sampler_slot_assigned(0, 1)))
+        .expect("query");
+    assert!(
+        assigned,
+        "AssignSampler must load pad slot 1 off the engine lock"
+    );
 }
 
 #[test]

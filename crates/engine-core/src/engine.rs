@@ -22,7 +22,7 @@ use engine_api::{
 };
 use engine_dsp::{DeckEqGains, DeckState, DspEngine, KEY_SHIFT_SEMITONE_LIMIT};
 use library::{LibraryBus, LibraryManager, PreparedTrackPlayback};
-use library_core::{AudioSource, FileAudioSource, LoadableAudio, TrackId, TrackMetadata};
+use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
@@ -1199,41 +1199,6 @@ impl Engine {
         dsp.sampler_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
             .assign_slot(slot, audio, label, sample_rate, &quality, loudness_lufs)
-    }
-
-    /// Decode a filesystem path into a sampler pad slot.
-    ///
-    /// ponytail: bus MIDI path decodes under the engine mutex (O(file) stall).
-    /// Flutter host prepares via [`Self::assign_prepared_sampler`] instead.
-    pub fn assign_sampler_from_path(
-        &mut self,
-        deck_id: usize,
-        slot: u8,
-        path: String,
-    ) -> Result<()> {
-        let source = AudioSource::File(FileAudioSource::from_path(&path));
-        let label = sampler_slot_label(&source);
-        self.assign_sampler_slot(deck_id, slot as usize, source, label, None)
-    }
-
-    /// Decode a library track into a sampler pad slot.
-    ///
-    /// ponytail: bus MIDI path prepares under the engine mutex (O(file) stall).
-    /// Flutter host prepares via [`Self::assign_prepared_sampler`] instead.
-    pub fn assign_sampler_from_track(
-        &mut self,
-        deck_id: usize,
-        slot: u8,
-        track_id: String,
-    ) -> Result<()> {
-        let library = self
-            .library
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Engine has no attached LibraryManager"))?;
-        let prepared =
-            LibraryManager::prepare_track_for_playback(library.as_ref(), &TrackId::new(track_id))
-                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        self.assign_prepared_sampler(deck_id, slot as usize, prepared)
     }
 
     /// Clear a sampler pad slot on a deck.
