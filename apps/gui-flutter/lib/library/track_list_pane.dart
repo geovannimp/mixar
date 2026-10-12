@@ -271,58 +271,60 @@ List<Widget> trackRowExtraMenuItems(
 }
 
 /// Sort field + direction, as one menu button next to the filter.
+///
+/// One click selects a field (ascending); another click on the active field
+/// flips direction, like a table column header.
 class _SortMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = context.theme;
     final (field, ascending) = ref.watch(librarySortProvider);
     return MixarMenuAnchor(
-      // The default 200px is too narrow for "Sort by Artist" at body.sm: the
-      // label wraps and the row doubles in height.
-      minWidth: 220,
+      // Field labels are short, but keep headroom so an arrow + accent row
+      // never wraps under body.sm.
+      minWidth: 160,
       menuBuilder: (context, handle) => MixarMenuBody(
         groups: [
           MixarMenuGroup(
             children: [
               for (final option in LibrarySortField.values)
                 MixarMenuItem(
-                  // `title`, not `child`: `child` skips the row padding, which
-                  // would leave these rows a different height from the padded
-                  // direction item below.
+                  // `title`, not `child`: `child` skips the row padding.
                   title: Row(
                     children: [
                       Expanded(
                         // One line per row: a wrapped label doubles the row
                         // height and breaks the menu's rhythm.
                         child: Text(
-                          'Sort by ${option.label}',
+                          option.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: option == field
+                                ? theme.colors.primary
+                                : theme.colors.foreground,
+                            fontWeight: option == field
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
                         ),
                       ),
                       if (option == field)
                         Icon(
-                          LucideIcons.check,
+                          // Points the way the list reads: A→Z / low→high is ↓.
+                          ascending
+                              ? LucideIcons.arrowDown
+                              : LucideIcons.arrowUp,
                           size: 14,
-                          color: context.theme.colors.primary,
+                          color: theme.colors.primary,
                         ),
                     ],
                   ),
                   onPress: () {
                     handle.hide();
-                    ref.read(librarySortProvider.notifier).setField(option);
+                    ref.read(librarySortProvider.notifier).select(option);
                   },
                 ),
-            ],
-          ),
-          MixarMenuGroup(
-            children: [
-              MixarMenuItem(
-                title: Text(ascending ? 'Ascending' : 'Descending'),
-                onPress: () {
-                  handle.hide();
-                  ref.read(librarySortProvider.notifier).toggleDirection();
-                },
-              ),
             ],
           ),
         ],
@@ -353,14 +355,14 @@ class _SortMenu extends ConsumerWidget {
                   field.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: context.theme.typography.body.xs.copyWith(
+                  style: theme.typography.body.xs.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               const SizedBox(width: 4),
               Icon(
-                ascending ? LucideIcons.arrowUp : LucideIcons.arrowDown,
+                ascending ? LucideIcons.arrowDown : LucideIcons.arrowUp,
                 size: 12,
               ),
             ],
