@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::recv_evt_where;
+use common::{recv_evt_where, wait_engine_hot_cue_count};
 use engine_api::{
     decode_evt_body as decode_engine_evt, encode_cmd_body, CmdBody, EvtBody as EngineEvtBody, Kind,
     Origin,
@@ -54,6 +54,71 @@ fn recv_lib_kind(sub: &library::EvtReceiver, kind: LibKind) -> library::Evt {
         }
     }
     panic!("timeout waiting for library evt kind {kind:?}");
+}
+
+/// Buses attached, but no library worker → SaveHotCue never yields HotCuesChanged.
+/// Engine memory must stay empty until that ack (audit #5).
+#[test]
+fn save_hot_cue_does_not_commit_memory_before_library_ack() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("song.wav");
+    write_tiny_wav(&wav);
+
+    let mut library = library::LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let buses = library::LibraryBuses::new();
+    library.set_buses(buses.clone());
+    let library = std::sync::Arc::new(std::sync::Mutex::new(library));
+    // Same cmd bus the engine publishes to; no worker drains it.
+
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new_with_library_bus(config, library.clone(), buses.cmd_bus())
+        .expect("engine session");
+    session.with_engine(|engine| engine.start()).expect("start");
+
+    let track_id = {
+        let mut lib = library.lock().unwrap();
+        let folder = lib
+            .add_collection(&NewCollection::folder(dir.path()))
+            .unwrap();
+        lib.sync_collection(Some(&folder.id)).unwrap();
+        let tracks = lib.list_collection_tracks(&folder.id).unwrap();
+        tracks[0].id().clone()
+    };
+
+    session
+        .with_engine(|engine| {
+            engine.load_track(
+                0,
+                AudioSource::File(FileAudioSource::new(
+                    track_id.clone(),
+                    wav.clone(),
+                    TrackMetadata {
+                        bpm: Some(120.0),
+                        ..Default::default()
+                    },
+                )),
+            )?;
+            engine.seek_deck(0, 620)?;
+            engine.save_deck_hot_cue(0, 0)?;
+            Ok(())
+        })
+        .expect("save without worker");
+
+    // Let the control thread tick (subscribed to library evt) with nothing to apply.
+    std::thread::sleep(Duration::from_millis(80));
+    session
+        .with_engine(|engine| {
+            let snap = engine.deck_snapshot(0).expect("snapshot");
+            assert!(
+                snap.hot_cues.is_empty(),
+                "engine memory must not commit hot cues before library HotCuesChanged"
+            );
+            Ok(())
+        })
+        .expect("still empty after control ticks");
 }
 
 #[test]
@@ -205,6 +270,7 @@ fn hot_cue_pad_press_saves_then_triggers() {
         other => panic!("unexpected: {other:?}"),
     }
 
+    wait_engine_hot_cue_count(&session, 0, 1);
     session
         .with_engine(|engine| {
             let snap = engine.deck_snapshot(0).expect("snapshot");
@@ -289,6 +355,7 @@ fn hot_cue_pad_press_saves_then_triggers() {
         }
         other => panic!("unexpected: {other:?}"),
     }
+    wait_engine_hot_cue_count(&session, 0, 0);
 }
 
 #[test]

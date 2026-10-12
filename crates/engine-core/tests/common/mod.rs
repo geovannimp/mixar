@@ -23,6 +23,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use engine_api::{Kind, Origin};
+use engine_core::EngineSession;
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
 
 /// Event type carried by the engine's evt bus.
@@ -91,4 +92,25 @@ pub fn source_with_bpm(id: &str, bpm: f64) -> AudioSource {
             ..Default::default()
         },
     ))
+}
+
+/// Wait until `deck_id` engine memory reports `count` hot cues (library ack).
+pub fn wait_engine_hot_cue_count(session: &EngineSession, deck_id: usize, count: usize) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < deadline {
+        let len = session
+            .with_engine(|engine| {
+                Ok(engine
+                    .deck_snapshot(deck_id)
+                    .expect("deck snapshot")
+                    .hot_cues
+                    .len())
+            })
+            .expect("engine available");
+        if len == count {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    panic!("timeout waiting for engine deck {deck_id} hot_cues.len() == {count}");
 }

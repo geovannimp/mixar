@@ -9,6 +9,9 @@ use engine_api::{
     decode_cmd_body, encode_evt_body, CmdBody, DeckSnapshot, EqBand, EvtBody, Kind, Origin,
 };
 use library::{LibraryManager, PreparedTrackPlayback};
+use library_api::{
+    decode_evt_body as decode_library_evt_body, EvtBody as LibraryEvtBody, Kind as LibraryKind,
+};
 use library_core::TrackId;
 use omnibus::Event;
 use std::path::Path;
@@ -147,6 +150,10 @@ fn control_thread_loop(
             return;
         }
     };
+    // Best-effort at control-thread start: subscribe to library HotCuesChanged so
+    // deck_control.hot_cues commits only after DB ack. Hosts attach buses before
+    // spawn; no retry if subscribe fails or library has no buses.
+    let library_evt_rx = library_evt_receiver(&engine);
     let _ = ready.send(Ok(()));
     let mut peak_hold = PeakHoldState::new();
 
@@ -156,7 +163,80 @@ fn control_thread_loop(
             Ok(None) => {}
             Err(_) => break,
         }
+        if let Some(lib_rx) = library_evt_rx.as_ref() {
+            drain_library_evt(lib_rx, &engine, &evt_bus, &revision);
+        }
         tick(&engine, &evt_bus, &revision, &mut peak_hold);
+    }
+}
+
+fn library_evt_receiver(engine: &Arc<Mutex<Option<Engine>>>) -> Option<library::EvtReceiver> {
+    let guard = engine.lock().ok()?;
+    let eng = guard.as_ref()?;
+    let library = eng.library_manager()?;
+    let buses = {
+        let lib = match library.lock() {
+            Ok(lib) => lib,
+            Err(_) => {
+                tracing::warn!("library lock poisoned; hot cue library evt sync disabled");
+                return None;
+            }
+        };
+        // No buses → engine has no performance-persist path; stay quiet.
+        lib.buses()?
+    };
+    match buses.subscribe_evt_all() {
+        Ok(rx) => Some(rx),
+        Err(err) => {
+            tracing::warn!(
+                error = %err,
+                "failed to subscribe to library evt; hot cue ack sync disabled"
+            );
+            None
+        }
+    }
+}
+
+fn drain_library_evt(
+    rx: &library::EvtReceiver,
+    engine: &Arc<Mutex<Option<Engine>>>,
+    evt_bus: &EngineBus,
+    revision: &AtomicU64,
+) {
+    // omnibus `recv` is non-blocking (`try_recv`); drains only queued events.
+    while let Ok(Some(event)) = rx.recv() {
+        handle_library_evt(event.as_ref(), engine, evt_bus, revision);
+    }
+}
+
+fn handle_library_evt(
+    event: &omnibus::Event<library_api::Origin, LibraryKind, Arc<[u8]>>,
+    engine: &Arc<Mutex<Option<Engine>>>,
+    evt_bus: &EngineBus,
+    revision: &AtomicU64,
+) {
+    if *event.kind() != LibraryKind::HotCuesChanged {
+        return;
+    }
+    let (track_id, hot_cues) = match decode_library_evt_body(event.payload()) {
+        Ok(LibraryEvtBody::HotCuesChanged { track_id, hot_cues }) => (track_id, hot_cues),
+        Ok(_) => {
+            tracing::warn!("HotCuesChanged kind with mismatched library evt body");
+            return;
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, "failed to decode library HotCuesChanged");
+            return;
+        }
+    };
+    if let Err(err) = with_engine_mut(engine, |eng| {
+        let changed = eng.apply_track_hot_cues(&track_id, &hot_cues);
+        for deck_id in changed {
+            publish_deck_updated(evt_bus, revision, eng, deck_id)?;
+        }
+        Ok(())
+    }) {
+        tracing::warn!(error = %err, "failed to apply HotCuesChanged / publish DeckUpdated");
     }
 }
 

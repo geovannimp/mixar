@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture, TestReceiver};
+use common::{recv_evt_kind, short_tone_fixture, wait_engine_hot_cue_count, TestReceiver};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, PadMode};
 use engine_core::{
     key_shift_page_action, key_shift_page_next, key_shift_page_prev, keyboard_page_action,
@@ -114,6 +114,8 @@ fn library_session_with_root_hot_cue() -> (EngineSession, LibrarySession, tempfi
             Ok(())
         })
         .expect("load + hot cue");
+    // Save only publishes the library cmd; memory commits on HotCuesChanged.
+    wait_engine_hot_cue_count(&session, 0, 1);
 
     (session, library_session, dir)
 }
@@ -590,12 +592,14 @@ fn keyboard_shift_bank_deletes_root_hot_cue() {
     );
     let _ = next_deck_updated(&evt);
 
+    // Delete publishes library cmd; engine memory clears on HotCuesChanged ack.
+    wait_engine_hot_cue_count(&session, 0, 0);
     let snap = session
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
         .expect("snapshot call");
     assert!(
         snap.hot_cues.is_empty(),
-        "shift+pad 1 must delete hot cue 0, got {:?}",
+        "shift+pad 1 must delete hot cue 0 after library ack, got {:?}",
         snap.hot_cues
     );
 }
