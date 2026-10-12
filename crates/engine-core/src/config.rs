@@ -30,7 +30,7 @@ pub struct EngineConfig {
     pub buffer_size: u32,
     /// Low latency hint
     pub low_latency: bool,
-    /// Backend to use ("auto", "cpal", "miniaudio", "null")
+    /// Backend to use ("auto", "cpal", "null")
     pub backend: String,
     /// Bus configurations
     pub buses: Vec<BusConfig>,

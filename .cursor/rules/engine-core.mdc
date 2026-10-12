@@ -22,4 +22,4 @@ Reference: `docs/tech-spec.md` §4.2, §5, §6. Architecture overview: `README.m
 - **Config:** TOML via `EngineConfig::from_toml_file` / `to_toml_file`. Fields include `sample_rate`, `buffer_size`, `low_latency`, `backend`, buses/devices, optional advanced/audio sections.
 - **Threading:** Producer thread (engine-controlled) runs DSP and writes interleaved stereo to a lock-free ring buffer. Consumer is the backend audio callback (`ConsumerCallback`). No allocations in the callback path.
 - **Ring buffer:** Preallocate; buffer at least N × frames_per_buffer (current multiplier is higher than the minimum N ≥ 8) to tolerate producer jitter.
-- **Backend selection:** Runtime choice via config (`auto` / `cpal` / `miniaudio` / `null`). All backends compiled in; no dynamic loading. Use `AudioBackend::list_names()` / `AudioBackend::new(name)` for discovery before constructing an engine.
+- **Backend selection:** Runtime choice via config (`auto` / `cpal` / `null`). All backends compiled in; no dynamic loading. Use `AudioBackend::list_names()` / `AudioBackend::new(name)` for discovery before constructing an engine.

@@ -18,7 +18,7 @@ Linux is the primary development platform. The app is under active development a
 - Hot cues, loops, performance pads, sampler, and beat sync
 - Library with folder collections, track metadata, and offline analysis (BPM, key, loudness, artwork)
 - MIDI controller mappings
-- Runtime-selectable audio backends: CPAL (PipeWire on Linux when available), miniaudio, or `null` for tests
+- Runtime-selectable audio backends: CPAL (PipeWire on Linux when available), or `null` for tests
 
 The desktop UI is **Flutter** (`apps/gui-flutter`), bridged to Rust via flutter_rust_bridge (`crates/host-flutter`).
 
@@ -63,7 +63,7 @@ Library / AudioSource
    Engine → decks + mixer (engine-dsp)
         │
         ▼
-Producer thread ──► ring buffer ──► audio callback (CPAL / miniaudio / null)
+Producer thread ──► ring buffer ──► audio callback (CPAL / null)
 ```
 
 Hosts talk to the engine and library over MessagePack buses (`engine-api`, `library-api`), not by calling `Engine` from the UI thread. Flutter uses FRB transports (`EngineTransport`, `LibraryTransport`, `ControllerTransport`).
@@ -75,7 +75,7 @@ mixar/
 └─ samples/            # Local demo audio
 ```
 
-Default engine config is 48 kHz, 512-frame buffers. Backends are compiled in and chosen at runtime (`auto` / `cpal` / `miniaudio` / `null`).
+Default engine config is 48 kHz, 512-frame buffers. Backends are compiled in and chosen at runtime (`auto` / `cpal` / `null`).
 
 To embed the engine without a GUI:
 

@@ -21,7 +21,6 @@ library = { path = "../library" }
 library-api = { path = "../library-api" }
 resampler = { path = "../resampler" }
 backend-null = { path = "../backend-null" }
-backend-miniaudio = { path = "../backend-miniaudio" }
 backend-cpal = { path = "../backend-cpal", optional = true }
 rtrb = "0.4.0"
 anyhow.workspace = true

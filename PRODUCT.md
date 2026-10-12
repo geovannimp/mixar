@@ -16,7 +16,7 @@ Mixar is open-source DJ software: dual decks, a mixer, a track library, and perf
 
 ## Positioning
 
-A modular Rust audio engine with runtime-selectable backends (CPAL/PipeWire on Linux, miniaudio, null for tests), a headless producer-thread + lock-free ring-buffer architecture, and a Flutter desktop host — shipped as GPL-3.0 software with no features hidden behind a paywall. Cross-platform (desktop and mobile) is a first-class product goal, not a port of a desktop-only app.
+A modular Rust audio engine with runtime-selectable backends (CPAL/PipeWire on Linux, null for tests), a headless producer-thread + lock-free ring-buffer architecture, and a Flutter desktop host — shipped as GPL-3.0 software with no features hidden behind a paywall. Cross-platform (desktop and mobile) is a first-class product goal, not a port of a desktop-only app.
 
 ## Operating Context
 

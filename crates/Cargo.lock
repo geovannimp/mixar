@@ -471,15 +471,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "backend-miniaudio"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "audio-core 0.1.0",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "backend-null"
 version = "0.1.0"
 dependencies = [
@@ -1337,7 +1328,6 @@ dependencies = [
  "anyhow",
  "audio-core 0.1.0",
  "backend-cpal",
- "backend-miniaudio",
  "backend-null",
  "engine-api",
  "engine-dsp",
