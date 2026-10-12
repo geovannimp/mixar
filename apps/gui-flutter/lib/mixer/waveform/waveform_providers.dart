@@ -9,19 +9,16 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
-final FutureProviderFamily<List<SpectralPeak>, String>
-waveformOverviewProvider = FutureProvider.family<List<SpectralPeak>, String>((
-  ref,
-  trackId,
-) async {
-  ref.watch(libraryAnalysisEpochProvider);
-  final lib = await ref.watch(libraryTransportProvider.future);
-  final packed = await lib.getWaveformOverview(trackId: trackId);
-  if (packed == null) {
-    return const [];
-  }
-  return decodeRgbPeaks(packed.rgb);
-});
+final waveformOverviewProvider = FutureProvider.autoDispose
+    .family<List<SpectralPeak>, String>((ref, trackId) async {
+      ref.watch(libraryAnalysisEpochProvider);
+      final lib = await ref.watch(libraryTransportProvider.future);
+      final packed = await lib.getWaveformOverview(trackId: trackId);
+      if (packed == null) {
+        return const [];
+      }
+      return decodeRgbPeaks(packed.rgb);
+    });
 
 final FutureProviderFamily<BeatGridData?, String> beatGridFetchProvider =
     FutureProvider.family<BeatGridData?, String>((ref, trackId) async {

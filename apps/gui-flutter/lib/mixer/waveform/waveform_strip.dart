@@ -201,14 +201,14 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
   }
 }
 
+// autoDispose so unloading a deck releases the strip and its
+// waveformOverviewProvider watch (otherwise every loaded track pins peaks).
 final NotifierProviderFamily<
   WaveformStripNotifier,
   WaveformStrip?,
   (String, int)
 >
-waveformStripProvider =
-    NotifierProvider.family<
-      WaveformStripNotifier,
-      WaveformStrip?,
-      (String, int)
-    >(WaveformStripNotifier.new);
+waveformStripProvider = NotifierProvider.autoDispose
+    .family<WaveformStripNotifier, WaveformStrip?, (String, int)>(
+      WaveformStripNotifier.new,
+    );
