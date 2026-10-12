@@ -9,7 +9,6 @@ colors:
   teal-100: "#ccfbf1"
   teal-400: "#2dd4bf"
   teal-600: "#0d9488"
-  teal-900: "#134e4a"
   teal-950: "#042f2e"
   deck-a: "#0284c7"
   deck-b: "#e11d48"
@@ -133,7 +132,7 @@ A zinc-forward palette with one confident teal accent and semantic deck hues —
 
 - **Live Teal** (#0d9488 / teal-600 light · #2dd4bf / teal-400 dark): Primary CTAs, app brand primary, section icons, accent bullets, links-in-context, booth live chrome (Q / drop-hover). The "go" color — one clear action per viewport when possible.
 - **Teal Depth** (#0f766e / teal-700 light · #5eead4 / teal-300 dark): Hover and pressed states on primary buttons.
-- **Teal Tint** (#f0fdfa–#ccfbf1 / teal-50–100 light · #134e4a–#042f2e / teal-900–950 dark): Soft solid fills (selection rows, Play while playing, selected tabs, mapping chips). Never invent this with alpha over the surface. There is no emerald / green brand ladder.
+- **Teal Tint** (#f0fdfa–#ccfbf1 / teal-50–100 light · #042f2e / teal-950 dark): Soft solid fills (selection rows, Play while playing, selected tabs, mapping chips). Never invent this with alpha over the surface. There is no emerald / green brand ladder.
 
 ### Secondary
 

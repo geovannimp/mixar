@@ -70,10 +70,11 @@ class MixarColors {
     muted: Color(0xFF121216),
     mutedForeground: Color(0xFFA1A1AA),
     accent: MixarTeal.s400,
-    // Soft solid selection — teal-900. Same fill for tabs, library rows, menus.
-    selection: MixarTeal.s900,
+    // Soft solid selection — teal-950. Same deeper fill for tabs, library
+    // rows, and menus so selected chrome stays quiet against the booth.
+    selection: MixarTeal.s950,
     selectionForeground: Color(0xFFF4F4F5),
-    primaryTint: MixarTeal.s900,
+    primaryTint: MixarTeal.s950,
     primaryDim: MixarTeal.s500,
     accentTint: MixarTeal.s950,
     cueTint: MixarAmber.s950,
