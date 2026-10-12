@@ -62,9 +62,9 @@ class _SettingsNavItem extends StatelessWidget {
       onPress: onPress,
       builder: (context, state) {
         final fill = selected
-            ? colors.primary.withValues(alpha: 0.10)
+            ? colors.selection
             : state.hovered
-            ? colors.foreground.withValues(alpha: 0.05)
+            ? colors.card
             : null;
         return DecoratedBox(
           decoration: BoxDecoration(

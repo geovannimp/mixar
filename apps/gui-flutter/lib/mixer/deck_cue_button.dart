@@ -101,8 +101,8 @@ class _DeckCueButtonState extends State<DeckCueButton> {
     final accented = _accented;
     final borderColor = accented ? kMixerCueOn : theme.colors.border;
     final fg = accented ? kMixerCueOn : theme.colors.foreground;
-    // Soft amber wash only while auditioning — hover stays outline-only.
-    final fill = _auditioning ? kMixerCueFill : theme.colors.card;
+    // Soft solid amber only while auditioning — hover stays outline-only.
+    final fill = _auditioning ? theme.colors.cueTint : theme.colors.card;
 
     return Semantics(
       button: true,
