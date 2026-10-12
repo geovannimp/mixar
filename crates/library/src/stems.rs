@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use audio_core::LoadedAudio;
 use library_core::{Library, LibraryError, LoadableAudio, Result, TrackId};
@@ -72,14 +72,6 @@ impl TrackStemsInfo {
 /// Model id from a `{model}/{ep}` tag: stems are interchangeable across EPs.
 fn model_id(backend: &str) -> &str {
     backend.split_once('/').map_or(backend, |(model, _)| model)
-}
-
-fn now_iso() -> String {
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("{secs}")
 }
 
 /// Stable FNV-1a 64-bit (local cache keys; not a crypto hash).
@@ -349,7 +341,7 @@ fn generate_stem_files(
             format: format.to_string(),
             sample_rate: mux_rate as i32,
             path: final_path,
-            generated_at: now_iso(),
+            generated_at: crate::unix_secs_string(),
         })
     }
 
