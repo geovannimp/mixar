@@ -7,6 +7,7 @@ import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/mixer/mixer_live_color.dart';
 import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
@@ -103,9 +104,7 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
     // In-bounds border (not an outward glow) so ClipRect cannot eat an edge.
     return MCard(
       clipBehavior: .antiAlias,
-      borderColor: dropHover
-          ? theme.colors.primary.withValues(alpha: 0.85)
-          : null,
+      borderColor: dropHover ? kMixerLiveOn : null,
       child: Column(
         mainAxisSize: .min,
         children: [

@@ -8,6 +8,7 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/master_strip.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/mixer/mixer_live_color.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -351,7 +352,6 @@ class _MixerCueFooter extends StatelessWidget {
       return const SizedBox(height: _columnFooterHeight);
     }
     final theme = context.theme;
-    const cueOn = Color(0xbf34d399); // emerald-400 @ ~75%
     return SizedBox(
       height: _columnFooterHeight,
       child: Center(
@@ -367,7 +367,7 @@ class _MixerCueFooter extends StatelessWidget {
             child: Icon(
               LucideIcons.headphones,
               size: 14,
-              color: cue ? cueOn : theme.colors.mutedForeground,
+              color: cue ? kMixerLiveOn : theme.colors.mutedForeground,
             ),
           ),
         ),

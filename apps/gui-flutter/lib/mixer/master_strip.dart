@@ -4,13 +4,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/mixer/mixer_live_color.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
-
-const _cueOn = Color(0xFFFCD34D); // amber-300
-const _cueRing = Color(0x66F59E0B); // amber-500/40
 
 /// Master bus: Cue/Mst mix and master cue.
 class MasterStrip extends ConsumerWidget {
@@ -37,7 +35,7 @@ class MasterStrip extends ConsumerWidget {
             step: 0.01,
             disabled: !previewEnabled,
             accentColor: theme.colors.mutedForeground,
-            ringColor: _cueRing,
+            ringColor: kMixerCueBorder,
             onValueChange: (mix) {
               unawaited(_cueCmd(context, () => setCueMix(ref, mix)));
             },
@@ -61,7 +59,7 @@ class MasterStrip extends ConsumerWidget {
                 fontWeight: .w600,
                 letterSpacing: 0.6,
                 fontSize: 9,
-                color: masterCue ? _cueOn : theme.colors.mutedForeground,
+                color: masterCue ? kMixerCueOn : theme.colors.mutedForeground,
               ),
             ),
           ),

@@ -1,14 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/mixer/mixer_live_color.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
-/// Cue amber — same tokens as master PFL (`master_strip.dart` / DESIGN.md).
-const _cueOn = Color(0xFFFCD34D); // amber-300
-const _cueBorder = Color(0x66F59E0B); // amber-500/40
-const _cueFill = Color(0x28F59E0B); // amber-500/16
-
-/// Hold to audition cue; tap (under [_holdThreshold]) sets the cue point.
+/// Hold to audition cue; a short tap sets the cue point.
+///
+/// Chrome matches deck Play: card + hairline at rest; amber border/label on
+/// hover, press, and while auditioning.
 class DeckCueButton extends StatefulWidget {
   const new({
     required this.disabled,
@@ -32,21 +31,35 @@ class _DeckCueButtonState extends State<DeckCueButton> {
 
   Timer? _holdTimer;
   var _auditioning = false;
+  var _hovered = false;
+  var _pressed = false;
+
+  bool get _accented =>
+      !widget.disabled && (_hovered || _pressed || _auditioning);
 
   void _down() {
     if (widget.disabled || _holdTimer != null || _auditioning) {
       return;
     }
+    setState(() => _pressed = true);
     _holdTimer = Timer(_holdThreshold, () {
       _holdTimer = null;
       _auditioning = true;
       widget.onBeginHold();
+      if (mounted) {
+        setState(() {});
+      }
     });
   }
 
   void _up() {
     final timer = _holdTimer;
     _holdTimer = null;
+    if (_pressed && mounted) {
+      setState(() => _pressed = false);
+    } else {
+      _pressed = false;
+    }
     if (timer != null && timer.isActive) {
       timer.cancel();
       if (!widget.disabled) {
@@ -57,6 +70,9 @@ class _DeckCueButtonState extends State<DeckCueButton> {
     if (_auditioning) {
       _auditioning = false;
       widget.onEndHold();
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -81,34 +97,50 @@ class _DeckCueButtonState extends State<DeckCueButton> {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final enabled = !widget.disabled;
+    final accented = _accented;
+    final borderColor = accented ? kMixerCueOn : theme.colors.border;
+    final fg = accented ? kMixerCueOn : theme.colors.foreground;
+    // Soft amber wash only while auditioning — hover stays outline-only.
+    final fill = _auditioning ? kMixerCueFill : theme.colors.card;
+
     return Semantics(
       button: true,
       enabled: enabled,
       label: 'Cue',
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: enabled ? (_) => _down() : null,
-        onPointerUp: enabled ? (_) => _up() : null,
-        onPointerCancel: enabled ? (_) => _up() : null,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 36, minWidth: 64),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: enabled
-                  ? _cueFill
-                  : theme.colors.secondary.withValues(alpha: 0.35),
-              border: Border.all(
-                color: enabled ? _cueBorder : theme.colors.border,
-              ),
-              borderRadius: theme.style.borderRadius.md,
-            ),
-            child: Center(
-              child: Text(
-                'Cue',
-                style: theme.typography.body.sm.copyWith(
-                  color: enabled ? _cueOn : theme.colors.mutedForeground,
-                  fontWeight: .w700,
-                  letterSpacing: 0.4,
+      child: MouseRegion(
+        onEnter: enabled ? (_) => setState(() => _hovered = true) : null,
+        onExit: (_) {
+          if (_hovered) {
+            setState(() => _hovered = false);
+          }
+        },
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: enabled ? (_) => _down() : null,
+          onPointerUp: enabled ? (_) => _up() : null,
+          onPointerCancel: enabled ? (_) => _up() : null,
+          child: Opacity(
+            opacity: enabled ? 1 : 0.5,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 36, minWidth: 64),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: fill,
+                  border: Border.all(
+                    color: borderColor,
+                    width: theme.style.borderWidth,
+                  ),
+                  borderRadius: theme.style.borderRadius.md,
+                ),
+                child: Center(
+                  child: Text(
+                    'Cue',
+                    style: theme.typography.body.sm.copyWith(
+                      color: fg,
+                      fontWeight: .w700,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
                 ),
               ),
             ),

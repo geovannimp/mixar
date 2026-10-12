@@ -11,11 +11,13 @@ import 'package:gui_flutter/mixer/deck_track_info.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/mixer/mixer_live_color.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show EngineTransport;
@@ -265,11 +267,12 @@ class _DeckPlayButton extends ConsumerWidget {
     final theme = context.theme;
     final playing = ref.watch(deckPlayingProvider(deckId));
     final playLabel = playing ? 'Pause' : 'Play';
+    // Outline transport chrome (website stem play parity): hairline + fg at
+    // rest; accent border/icon on hover, press, and while playing.
     return AppTooltip(
       tip: playLabel,
-      child: MixerButton(
-        variant: .secondary,
-        backgroundColor: theme.colors.primaryTint,
+      child: MTappable(
+        selected: playing,
         onPress: disabled
             ? null
             : () {
@@ -277,10 +280,44 @@ class _DeckPlayButton extends ConsumerWidget {
                 unawaited(_setPlaying(context, ref, deckId, wantPlaying));
               },
         semanticsLabel: playLabel,
-        child: Icon(
-          playing ? LucideIcons.pause600 : LucideIcons.play600,
-          color: theme.colors.primaryDim,
-        ),
+        builder: (context, state) {
+          final accented = state.active;
+          final borderColor = accented
+              ? theme.colors.accent
+              : theme.colors.border;
+          final fg = accented ? theme.colors.accent : theme.colors.foreground;
+          // Soft accent wash only while playing — hover stays outline-only.
+          final fill = playing
+              ? theme.colors.accent.withValues(alpha: 0.08)
+              : theme.colors.card;
+          return Opacity(
+            opacity: state.disabled ? 0.5 : 1,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: fill,
+                border: Border.all(
+                  color: borderColor,
+                  width: theme.style.borderWidth,
+                ),
+                borderRadius: theme.style.borderRadius.md,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 36),
+                child: Center(
+                  // Optical nudge for the play triangle (site translate-x-px).
+                  child: Transform.translate(
+                    offset: playing ? Offset.zero : const Offset(1, 0),
+                    child: Icon(
+                      playing ? LucideIcons.pause : LucideIcons.play,
+                      size: 18,
+                      color: fg,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -329,9 +366,6 @@ class _QuantizeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    // Same emerald as mixer headphone cue (`mixer_strip.dart`).
-    const cueOn = Color.fromARGB(191, 52, 211, 153);
-    const cueFill = Color.fromARGB(28, 52, 211, 153); // emerald-400 @ ~25%
     final on = quantize && !disabled;
     final tip = quantize ? 'Quantize on' : 'Quantize off';
     return AppTooltip(
@@ -345,12 +379,12 @@ class _QuantizeButton extends StatelessWidget {
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        backgroundColor: on ? cueFill : null,
+        backgroundColor: on ? kMixerLiveFill : null,
         child: Text(
           'Q',
           style: TextStyle(
             fontWeight: .w600,
-            color: on ? cueOn : theme.colors.mutedForeground,
+            color: on ? kMixerLiveOn : theme.colors.mutedForeground,
           ),
         ),
       ),
