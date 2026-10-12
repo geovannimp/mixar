@@ -1237,8 +1237,7 @@ impl EngineTransport {
 
     fn is_current_deck_load(&self, deck_id: u16, generation: u64) -> bool {
         let idx = usize::from(deck_id);
-        idx < NUM_DECKS
-            && self.deck_load_generation[idx].load(Ordering::Acquire) == generation
+        idx < NUM_DECKS && self.deck_load_generation[idx].load(Ordering::Acquire) == generation
     }
 
     fn load_prepared(
