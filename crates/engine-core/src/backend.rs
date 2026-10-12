@@ -31,9 +31,7 @@ pub fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBac
                         tracing::info!("Using CPAL backend");
                         Ok(Box::new(backend))
                     }
-                    Err(e) => Err(anyhow::anyhow!(
-                        "auto backend: failed to initialize CPAL: {e}"
-                    )),
+                    Err(e) => Err(e.context("auto backend: failed to initialize CPAL")),
                 }
             }
             #[cfg(not(feature = "backend-cpal"))]
@@ -107,6 +105,7 @@ mod tests {
 
     /// `auto` must open a real backend or error — never silent null (GUI would look "running" with no sound).
     /// Gated: without CPAL the Err path is covered by `test_auto_errors_without_real_backend`.
+    /// Ok is only exercised on hosts where CPAL can open a device; headless CI typically hits Err.
     #[cfg(feature = "backend-cpal")]
     #[test]
     fn test_auto_never_falls_back_to_null() {
