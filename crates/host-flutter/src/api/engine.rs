@@ -514,7 +514,7 @@ impl EngineTransport {
         engine.set_buses(buses.clone());
         engine.start().map_err(|e| e.to_string())?;
         let engine = Arc::new(Mutex::new(Some(engine)));
-        let worker = match spawn_engine_worker(Arc::clone(&engine)) {
+        let engine_worker = match spawn_engine_worker(Arc::clone(&engine)) {
             Ok(worker) => worker,
             Err(e) => {
                 if let Ok(mut guard) = engine.lock() {
@@ -525,21 +525,28 @@ impl EngineTransport {
                 return Err(e.to_string());
             }
         };
+        let history_worker = match HistoryWorker::start(&buses, library_arc.clone()) {
+            Ok(worker) => EngineHistoryWorker(worker),
+            Err(e) => {
+                // Tear down the already-running engine worker before failing start.
+                drop(engine_worker);
+                if let Ok(mut guard) = engine.lock() {
+                    if let Some(eng) = guard.as_mut() {
+                        let _ = eng.stop();
+                    }
+                }
+                return Err(format!("history worker failed to start: {e}"));
+            }
+        };
         let transport = Self {
-            worker,
+            worker: engine_worker,
             engine,
             buses: buses.clone(),
-            library: library_arc.clone(),
+            library: library_arc,
             library_cmd_bus: library_transport.cmd_bus(),
             sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
             evt_forwarder: Mutex::new(None),
-            history_worker: Mutex::new(match HistoryWorker::start(&buses, library_arc) {
-                Ok(worker) => Some(EngineHistoryWorker(worker)),
-                Err(e) => {
-                    eprintln!("history worker failed to start: {e}");
-                    None
-                }
-            }),
+            history_worker: Mutex::new(Some(history_worker)),
             deck_load_generation: std::array::from_fn(|_| AtomicU64::new(0)),
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
