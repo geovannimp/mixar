@@ -14,6 +14,15 @@ void main() {
     expect(formatDeckKey('unknown', KeyDisplayMode.camelot), 'unknown');
   });
 
+  test('flat spellings normalize to sharp Camelot slots', () {
+    expect(musicalToCamelot('Bb'), musicalToCamelot('A#'));
+    expect(musicalToCamelot('Ebm'), musicalToCamelot('D#m'));
+    expect(camelotSlotForKey('Bb'), camelotSlotForKey('A#'));
+    expect(camelotSlotForKey('Ebm'), camelotSlotForKey('D#m'));
+    expect(formatDeckKey('Bb', KeyDisplayMode.camelot), '6B');
+    expect(colorForKey('Bb', KeyColorMode.absolute), isNotNull);
+  });
+
   test('absolute mode shares hue on circle of fifths wedge', () {
     final cMajor = colorForKey('C', KeyColorMode.absolute)!;
     final aMinor = colorForKey('Am', KeyColorMode.absolute)!;
@@ -40,6 +49,15 @@ void main() {
     expect(transposeKey(null, 2), isNull);
     expect(transposeKey('  ', 2), isNull);
     expect(transposeKey('unknown', 2), isNull);
+  });
+
+  test('transposeKey accepts flats and preserves spelling on zero shift', () {
+    expect(transposeKey('Db', 2), transposeKey('C#', 2));
+    expect(transposeKey('Ebm', 2), transposeKey('D#m', 2));
+    expect(transposeKey('Bb', 0), 'Bb');
+    expect(transposeKey('8B', 0), 'C');
+    expect(transposeKey('8A', 0), 'Am');
+    expect(deckSoundingKeyLabel('Bb', 0, KeyDisplayMode.musical), 'Bb');
   });
 
   test('deckSoundingKeyLabel applies the session key shift', () {

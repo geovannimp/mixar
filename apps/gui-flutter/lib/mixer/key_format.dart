@@ -45,9 +45,25 @@ const kMinorKeys = [
 
 const _camelotOffset = 7;
 
+/// Flat → sharp spellings used by [kMajorKeys] / [kMinorKeys].
+const _flatToSharp = {
+  'Db': 'C#',
+  'Eb': 'D#',
+  'Gb': 'F#',
+  'Ab': 'G#',
+  'Bb': 'A#',
+  'Dbm': 'C#m',
+  'Ebm': 'D#m',
+  'Gbm': 'F#m',
+  'Abm': 'G#m',
+  'Bbm': 'A#m',
+};
+
+String _sharpSpell(String key) => _flatToSharp[key] ?? key;
+
 /// Musical → Camelot (`C` → `8B`, `Am` → `8A`).
 String? musicalToCamelot(String key) {
-  final trimmed = key.trim();
+  final trimmed = _sharpSpell(key.trim());
   final major = kMajorKeys.indexOf(trimmed);
   if (major >= 0) {
     return '${(major + _camelotOffset) % 12 + 1}B';
@@ -216,7 +232,11 @@ String? transposeKey(String? key, int semitones) {
   if (trimmed == null || trimmed.isEmpty) {
     return null;
   }
-  final musical = camelotToMusical(trimmed) ?? trimmed;
+  final fromCamelot = camelotToMusical(trimmed);
+  final sourceSpelling = fromCamelot ?? trimmed;
+  // Sharp-normalize for pitch-class lookup only — flats stay flats when the
+  // shift is a no-op so deck labels match library musical spelling.
+  final musical = _sharpSpell(sourceSpelling);
   final majorIndex = kMajorKeys.indexOf(musical);
   final minorIndex = kMinorKeys.indexOf(musical);
   final bool minor;
@@ -229,6 +249,10 @@ String? transposeKey(String? key, int semitones) {
     pitch = _minorPitchClasses[minorIndex];
   } else {
     return null;
+  }
+  if (semitones % 12 == 0) {
+    // Musical spelling: Camelot inputs already resolved into sourceSpelling.
+    return sourceSpelling;
   }
   final shifted = ((pitch + semitones) % 12 + 12) % 12;
   final table = minor ? _minorPitchClasses : _majorPitchClasses;
