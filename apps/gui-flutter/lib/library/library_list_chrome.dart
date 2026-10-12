@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
@@ -20,12 +21,9 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 /// Kept out of `track_list_pane.dart` so the history list renders the same
 /// chips and BPM/key group rather than a second, drifting copy.
 
-/// Focused-row fill: the selection tint blended over the list surface so it
-/// reads as a lighter shade of the row rather than a separate grey.
-Color libraryListSelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
-  theme.colors.primary.withValues(alpha: 0.14),
-  theme.colors.card,
-);
+/// Focused-row fill — same token as sidebar [librarySelectedRowColor].
+Color libraryListSelectedRowColor(MixarThemeData theme) =>
+    librarySelectedRowColor(theme);
 
 /// Horizontal gap between a list row's layout groups.
 const kRowGutter = 8.0;

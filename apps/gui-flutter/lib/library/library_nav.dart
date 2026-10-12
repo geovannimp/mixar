@@ -2,6 +2,16 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
+/// Selected fill shared by library sidebar rows and track/history list rows.
+///
+/// Blended over [MixarColors.card] so the opaque colour matches on both the
+/// sidebar (`secondary`) and the list surface (`card`) — a raw alpha wash
+/// over each base reads as two different greens.
+Color librarySelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
+  theme.colors.primary.withValues(alpha: 0.14),
+  theme.colors.card,
+);
+
 /// Uppercase sidebar section label (Tauri `LibraryPaneHeader`).
 class LibraryPaneLabel extends StatelessWidget {
   const new(this.text, {super.key});
@@ -50,7 +60,7 @@ class LibraryNavRow extends StatelessWidget {
 
     Widget row({required bool hovered}) {
       final fill = selected
-          ? colors.primary.withValues(alpha: 0.10)
+          ? librarySelectedRowColor(theme)
           : hovered
           ? colors.foreground.withValues(alpha: 0.05)
           : null;
