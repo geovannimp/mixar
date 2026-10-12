@@ -86,6 +86,17 @@
      cap on this, so the docs menu + prose column keeps the same measure. */
   --max-width-content: 70rem;
   --spacing-section: clamp(2rem, 5vw, 4rem);
+  /* Square chrome — sm/md/lg/xl/2xl… flatten to 0; keep --radius-full for
+     tiny status chips / badges only (DESIGN.md Shapes). */
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
+  --radius: 0;
 }
 
 @layer base {
