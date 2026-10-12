@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
@@ -202,9 +203,12 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
 
 // autoDispose so unloading a deck releases the strip and its
 // waveformOverviewProvider watch (otherwise every loaded track pins peaks).
-final waveformStripProvider =
-    NotifierProvider.autoDispose.family<
-      WaveformStripNotifier,
-      WaveformStrip?,
-      (String, int)
-    >(WaveformStripNotifier.new);
+final NotifierProviderFamily<
+  WaveformStripNotifier,
+  WaveformStrip?,
+  (String, int)
+>
+waveformStripProvider = NotifierProvider.autoDispose
+    .family<WaveformStripNotifier, WaveformStrip?, (String, int)>(
+      WaveformStripNotifier.new,
+    );
