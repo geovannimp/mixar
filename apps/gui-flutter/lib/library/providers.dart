@@ -847,9 +847,14 @@ class LibrarySort extends Notifier<(LibrarySortField, bool)> {
   @override
   (LibrarySortField, bool) build() => (LibrarySortField.title, true);
 
-  void setField(LibrarySortField field) => state = (field, state.$2);
-
-  void toggleDirection() => state = (state.$1, !state.$2);
+  /// Table-header style: a new field sorts ascending; the active field toggles.
+  void select(LibrarySortField field) {
+    if (state.$1 == field) {
+      state = (field, !state.$2);
+    } else {
+      state = (field, true);
+    }
+  }
 }
 
 final librarySortProvider =

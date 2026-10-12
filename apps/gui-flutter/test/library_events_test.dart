@@ -410,7 +410,7 @@ void main() {
         await container.read(collectionTracksProvider.future);
         container
             .read(librarySortProvider.notifier)
-            .setField(LibrarySortField.bpm);
+            .select(LibrarySortField.bpm);
 
         expect(
           container

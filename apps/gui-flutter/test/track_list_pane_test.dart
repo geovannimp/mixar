@@ -255,15 +255,46 @@ void main() {
       't1',
     );
 
+    Finder sortOption(String label) => find.descendant(
+      of: find.byType(MixarMenuItem),
+      matching: find.text(label),
+    );
+
     await tester.tap(find.bySemanticsLabel(RegExp('Sort tracks')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sort by BPM'));
+    expect(find.text('Ascending'), findsNothing);
+    expect(find.text('Descending'), findsNothing);
+    await tester.tap(sortOption('BPM'));
     await tester.pumpAndSettle();
 
     // 90 < 128, so the ascending default puts track B first.
-    final sorted = container.read(libraryTableTracksProvider).asData!.value;
+    var sorted = container.read(libraryTableTracksProvider).asData!.value;
     expect(sorted.map((t) => t.id), ['t2', 't1']);
     expect(find.text('Other Track'), findsOneWidget);
+    // Arrow points the way the list reads: A→Z / low→high is ↓, Z→A is ↑.
+    final sortButton = find.bySemanticsLabel(RegExp('Sort tracks'));
+    expect(
+      find.descendant(
+        of: sortButton,
+        matching: find.byIcon(LucideIcons.arrowDown),
+      ),
+      findsOneWidget,
+    );
+
+    // Second click on the active field flips direction, like a column header.
+    await tester.tap(sortButton);
+    await tester.pumpAndSettle();
+    await tester.tap(sortOption('BPM'));
+    await tester.pumpAndSettle();
+    sorted = container.read(libraryTableTracksProvider).asData!.value;
+    expect(sorted.map((t) => t.id), ['t1', 't2']);
+    expect(
+      find.descendant(
+        of: sortButton,
+        matching: find.byIcon(LucideIcons.arrowUp),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -689,7 +720,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final items = find.byType(MixarMenuItem);
-    expect(items, findsNWidgets(6));
+    // One row per field — direction lives on the active row, not a second group.
+    expect(items, findsNWidgets(LibrarySortField.values.length));
     final heights = <double>[];
     for (var i = 0; i < items.evaluate().length; i++) {
       heights.add(tester.getSize(items.at(i)).height);
@@ -884,6 +916,25 @@ void main() {
     expect(formatTrackDuration(59_999), '0:59');
     expect(formatTrackDuration(60_000), '1:00');
     expect(formatTrackDuration(3_661_000), '61:01');
+  });
+
+  test('LibrarySort.select starts new fields ascending and toggles active', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    // Default is Title ascending; a new field always starts ascending even if
+    // the previous field was flipped to descending.
+    container.read(librarySortProvider.notifier).select(LibrarySortField.bpm);
+    expect(container.read(librarySortProvider), (LibrarySortField.bpm, true));
+    container.read(librarySortProvider.notifier).select(LibrarySortField.bpm);
+    expect(container.read(librarySortProvider), (LibrarySortField.bpm, false));
+    container
+        .read(librarySortProvider.notifier)
+        .select(LibrarySortField.artist);
+    expect(container.read(librarySortProvider), (
+      LibrarySortField.artist,
+      true,
+    ));
   });
 
   test('sorting is stable, case-insensitive, and puts nulls last', () {
