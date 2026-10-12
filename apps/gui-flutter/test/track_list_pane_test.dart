@@ -280,6 +280,13 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: sortButton,
+        matching: find.byIcon(LucideIcons.arrowUp),
+      ),
+      findsNothing,
+    );
 
     // Second click on the active field flips direction, like a column header.
     await tester.tap(sortButton);
@@ -294,6 +301,13 @@ void main() {
         matching: find.byIcon(LucideIcons.arrowUp),
       ),
       findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: sortButton,
+        matching: find.byIcon(LucideIcons.arrowDown),
+      ),
+      findsNothing,
     );
   });
 
@@ -922,8 +936,12 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    // Default is Title ascending; a new field always starts ascending even if
-    // the previous field was flipped to descending.
+    // Pin the default so a changed default cannot silently skip the
+    // "new field starts ascending" path exercised below.
+    expect(container.read(librarySortProvider), (LibrarySortField.title, true));
+
+    // A new field always starts ascending even if the previous field was
+    // flipped to descending.
     container.read(librarySortProvider.notifier).select(LibrarySortField.bpm);
     expect(container.read(librarySortProvider), (LibrarySortField.bpm, true));
     container.read(librarySortProvider.notifier).select(LibrarySortField.bpm);
