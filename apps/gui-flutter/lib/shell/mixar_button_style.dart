@@ -116,11 +116,15 @@ MixarButtonLook resolveMixarButtonLook({
       colors.disable(colors.secondaryForeground),
     ),
     MixarButtonVariant.ghost => (
-      state.active
-          ? (state.disabled
-                ? colors.disable(colors.secondary)
-                : colors.secondary)
-          : const Color(0x00000000),
+      // Transparent at rest; solid teal tint on hover/press so the wash reads
+      // on secondary, muted, and card surfaces (secondary-on-secondary was
+      // invisible in dark).
+      _fill(
+        const Color(0x00000000),
+        colors.selection,
+        const Color(0x00000000),
+        state,
+      ),
       null,
       state.disabled
           ? colors.disable(colors.secondaryForeground)
