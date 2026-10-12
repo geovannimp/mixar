@@ -332,11 +332,16 @@ class _SortMenu extends ConsumerWidget {
         // here instead would make the button a flex child, which lets it grow
         // to a share of the toolbar instead of hugging its label.
         constraints: const BoxConstraints(maxWidth: 120),
+        // `md` grows minHeight to the header (same as the 3-dots menu) so the
+        // hover wash fills it. Label stays compact via explicit `body.xs` /
+        // 12px arrow below, and tighter horizontal padding than `md` default —
+        // `padding` only overrides contentPadding, not contentConstraints.
         child: AppButton(
           semanticsLabel: 'Sort tracks',
           onPress: handle.toggle,
           variant: .ghost,
-          size: .xs,
+          size: .md,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
           // `AppButton` defaults to MainAxisSize.max, which would stretch the
           // button to the cap above instead of hugging its label.
           mainAxisSize: MainAxisSize.min,
