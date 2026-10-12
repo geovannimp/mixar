@@ -142,7 +142,10 @@ pub fn update_bank(
     let result = SamplerBankEntity::update_many()
         .col_expr(sampler_bank::Column::Name, name.into())
         .col_expr(sampler_bank::Column::PlayMode, play_mode_value.into())
-        .col_expr(sampler_bank::Column::UpdatedAt, crate::unix_secs_string().into())
+        .col_expr(
+            sampler_bank::Column::UpdatedAt,
+            crate::unix_secs_string().into(),
+        )
         .filter(sampler_bank::Column::Id.eq(bank_id))
         .exec(db.conn()?.as_connection())
         .map_err(db::db_err)?;

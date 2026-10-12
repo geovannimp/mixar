@@ -289,7 +289,13 @@ pub(crate) fn save_track_beat_grid(
         message: e.to_string(),
     })?;
 
-    store.upsert_manual_beat_grid(track_id, bpm, beat_grid_json, &ctx, &crate::unix_secs_string())?;
+    store.upsert_manual_beat_grid(
+        track_id,
+        bpm,
+        beat_grid_json,
+        &ctx,
+        &crate::unix_secs_string(),
+    )?;
 
     Ok(BeatGridSnapshot {
         beats: grid.beats,

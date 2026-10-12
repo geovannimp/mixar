@@ -273,7 +273,8 @@ impl LibraryManager {
     }
 
     pub fn update_track_isrc(&self, track_id: &TrackId, isrc: Option<String>) -> Result<()> {
-        self.store().update_track_isrc(track_id, isrc, &unix_secs_string())
+        self.store()
+            .update_track_isrc(track_id, isrc, &unix_secs_string())
     }
 
     pub fn save_history_as_playlist(
