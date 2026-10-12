@@ -659,9 +659,17 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
 final libraryEventsBootstrapProvider = Provider<void>((ref) {
   final transportAsync = ref.watch(libraryTransportProvider);
   if (transportAsync case AsyncData(:final value)) {
-    final sub = value.subscribeEvents().listen((evt) {
-      handleLibraryEvt(ref, evt);
-    });
+    final sub = value.subscribeEvents().listen(
+      (evt) {
+        handleLibraryEvt(ref, evt);
+      },
+      onError: (Object e, StackTrace _) {
+        if (!ref.mounted) {
+          return;
+        }
+        ref.read(appNoticeProvider.notifier).setError('$e');
+      },
+    );
     ref.onDispose(sub.cancel);
   }
 });

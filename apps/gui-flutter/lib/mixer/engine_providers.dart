@@ -695,14 +695,22 @@ final engineTransportProvider = FutureProvider<EngineTransport?>((ref) async {
 final engineEventsBootstrapProvider = Provider<void>((ref) {
   final transportAsync = ref.watch(engineTransportProvider);
   if (transportAsync case AsyncData(:final value) when value != null) {
-    final sub = value.subscribeEvents().listen((evt) {
-      ref.read(engineUiProvider.notifier).apply(evt);
-      if (evt.kind == EngineEvtKind.error) {
-        ref
-            .read(appNoticeProvider.notifier)
-            .setError(evt.message ?? 'Engine error');
-      }
-    });
+    final sub = value.subscribeEvents().listen(
+      (evt) {
+        ref.read(engineUiProvider.notifier).apply(evt);
+        if (evt.kind == EngineEvtKind.error) {
+          ref
+              .read(appNoticeProvider.notifier)
+              .setError(evt.message ?? 'Engine error');
+        }
+      },
+      onError: (Object e, StackTrace _) {
+        if (!ref.mounted) {
+          return;
+        }
+        ref.read(appNoticeProvider.notifier).setError('$e');
+      },
+    );
     ref.onDispose(sub.cancel);
   }
 });
