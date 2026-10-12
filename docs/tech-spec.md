@@ -138,7 +138,7 @@ impl AudioBackend {
 | `PreparedTrackPlayback` | `library` | Library-owned handoff: track id + source + cached decode + loudness |
 | `FileAudioSource` | `library-core` | Loads from an arbitrary disk path |
 
-**Preferred host path (GUI):** `LibraryManager::prepare_*_for_playback(&Mutex<…>)` → `Engine::load_prepared_track`. The library owns decode cache / waveform ensure; the engine does not re-decode. These APIs take `&Mutex<LibraryManager>` so decode/waveform generation does not hold the library lock.
+**Preferred host path (GUI):** `LibraryManager::prepare_*_for_playback(&Mutex<…>)` → `Engine::load_prepared_track`. The library owns a bounded LRU decode cache (~512 MiB / 8 tracks; cleared with waveform/stem cache wipe) and waveform ensure; the engine does not re-decode. These APIs take `&Mutex<LibraryManager>` so decode/waveform generation does not hold the library lock.
 
 ```rust
 let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id)?;

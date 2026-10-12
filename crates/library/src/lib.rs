@@ -21,6 +21,7 @@ mod analysis;
 mod bus;
 mod db;
 mod deck_data;
+mod decode_cache;
 mod entity;
 mod history;
 mod model;
@@ -40,9 +41,9 @@ use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
 use codec::{decode_stem_file, StemPcmBundle};
 use codec::{is_loadable_audio_path, is_stem_path};
 
+use decode_cache::DecodeCache;
 use library_api::{EvtBody, Kind, Origin};
 use library_core::AnalysisDurationMode;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -103,7 +104,7 @@ pub struct LibraryManager {
     db: db::Db,
     history: HistoryRecorder,
     config: LibraryConfig,
-    decode_cache: Mutex<HashMap<TrackId, Arc<LoadedAudio>>>,
+    decode_cache: Mutex<DecodeCache>,
     /// Host-injected omnibus buses (None until [`Self::set_buses`]).
     buses: Option<LibraryBuses>,
 }
@@ -119,7 +120,7 @@ impl LibraryManager {
             db,
             history,
             config,
-            decode_cache: Mutex::new(HashMap::new()),
+            decode_cache: Mutex::new(DecodeCache::new()),
             buses: None,
         })
     }
@@ -134,7 +135,7 @@ impl LibraryManager {
             db,
             history,
             config,
-            decode_cache: Mutex::new(HashMap::new()),
+            decode_cache: Mutex::new(DecodeCache::new()),
             buses: None,
         })
     }
@@ -495,7 +496,9 @@ impl LibraryManager {
 
     /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
     pub fn clear_stem_cache(&self, stems_root: &Path) -> Result<()> {
-        stems::clear_all_track_stems(&self.db, stems_root)
+        stems::clear_all_track_stems(&self.db, stems_root)?;
+        self.clear_decode_cache();
+        Ok(())
     }
 
     /// Remove orphan stem cache files and rows that no longer match on disk.
@@ -503,9 +506,19 @@ impl LibraryManager {
         stems::sync_stem_cache_with_db(&self.db, stems_root)
     }
 
-    /// Delete all cached waveform overview rows.
+    /// Delete all cached waveform overview rows and drop decoded PCM from RAM.
     pub fn clear_waveform_cache(&self) -> Result<()> {
-        waveform::clear_all_track_waveforms(&self.db)
+        waveform::clear_all_track_waveforms(&self.db)?;
+        self.clear_decode_cache();
+        Ok(())
+    }
+
+    /// Drop decoded PCM even if a prior panic poisoned the cache mutex.
+    fn clear_decode_cache(&self) {
+        self.decode_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     /// Compressed waveform overview bytes stored in the library DB.
@@ -680,9 +693,9 @@ impl LibraryManager {
         })
     }
 
-    fn lock_decode_cache(
-        cache: &Mutex<HashMap<TrackId, Arc<LoadedAudio>>>,
-    ) -> Result<std::sync::MutexGuard<'_, HashMap<TrackId, Arc<LoadedAudio>>>> {
+    pub(crate) fn lock_decode_cache(
+        cache: &Mutex<DecodeCache>,
+    ) -> Result<std::sync::MutexGuard<'_, DecodeCache>> {
         cache.lock().map_err(|_| LibraryError::Backend {
             backend: "library",
             message: "library decode cache lock poisoned".into(),
@@ -832,10 +845,13 @@ impl LibraryManager {
                 message: "waveform bucket count is out of range".into(),
             });
         }
+        // Double-checked cache: decode off the library lock so UI/DB work can
+        // proceed. A racing miss may decode twice; re-get before insert drops the
+        // duplicate Arc. Upgrade to single-flight if wasted decode becomes costly.
         let cached = {
             let lib = Self::lock_library(library)?;
-            let cache = Self::lock_decode_cache(&lib.decode_cache)?;
-            cache.get(id).cloned()
+            let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
+            cache.get(id)
         };
 
         let audio = if let Some(cached) = cached {
@@ -855,10 +871,11 @@ impl LibraryManager {
             })?);
             let lib = Self::lock_library(library)?;
             let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
-            cache
-                .entry(id.clone())
-                .or_insert_with(|| Arc::clone(&loaded));
-            cache.get(id).cloned().unwrap_or(loaded)
+            if let Some(existing) = cache.get(id) {
+                existing
+            } else {
+                cache.insert(id.clone(), loaded)
+            }
         };
 
         let duration_ms = {
@@ -995,16 +1012,18 @@ impl LibraryManager {
             }
         }
 
+        // Double-checked cache: decode off the library lock so artwork/DB reads
+        // can proceed. A racing miss may decode twice; re-get before insert drops
+        // the duplicate Arc. Upgrade to single-flight if wasted decode becomes costly.
         let cached = {
             let lib = Self::lock_library(library)?;
-            let cache = Self::lock_decode_cache(&lib.decode_cache)?;
-            cache.get(&track_id).map(Arc::clone)
+            let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
+            cache.get(&track_id)
         };
 
         let audio = if let Some(cached) = cached {
             cached
         } else {
-            // Decode without holding LibraryManager so artwork/DB reads can proceed.
             let loaded = Arc::new(source.load().map_err(|e| LibraryError::Backend {
                 backend: "library",
                 message: format!("failed to decode track for playback: {e}"),
@@ -1012,10 +1031,9 @@ impl LibraryManager {
             let lib = Self::lock_library(library)?;
             let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
             if let Some(existing) = cache.get(&track_id) {
-                Arc::clone(existing)
+                existing
             } else {
-                cache.insert(track_id.clone(), Arc::clone(&loaded));
-                loaded
+                cache.insert(track_id.clone(), loaded)
             }
         };
 
@@ -2128,6 +2146,29 @@ mod tests {
         assert_eq!(first.track_id, track_id);
         assert_eq!(second.track_id, track_id);
         assert!(std::sync::Arc::ptr_eq(&first.audio, &second.audio));
+    }
+
+    #[test]
+    fn clear_waveform_cache_drops_decode_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_analysis_wav(&wav);
+
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+        let track_id = {
+            let lib = library.lock().unwrap();
+            lib.import_file_path(&wav).unwrap().id().clone()
+        };
+
+        let first = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        {
+            let lib = library.lock().unwrap();
+            assert!(lib.decode_cache.lock().unwrap().contains(&track_id));
+            lib.clear_waveform_cache().unwrap();
+            assert_eq!(lib.decode_cache.lock().unwrap().len(), 0);
+        }
+        let second = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        assert!(!std::sync::Arc::ptr_eq(&first.audio, &second.audio));
     }
 
     #[test]
