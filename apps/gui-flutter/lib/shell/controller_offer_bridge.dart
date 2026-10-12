@@ -39,7 +39,19 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     if (transport == null) {
       return;
     }
-    _events = transport.subscribeEvents().listen(_onEvent);
+    _events = transport.subscribeEvents().listen(
+      _onEvent,
+      onError: (Object e, StackTrace _) {
+        if (!mounted) {
+          return;
+        }
+        showMixarToast(
+          context: context,
+          variant: MixarToastVariant.destructive,
+          title: Text('$e'),
+        );
+      },
+    );
     _hydrate(transport);
   }
 
