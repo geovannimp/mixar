@@ -14,6 +14,15 @@ void main() {
     expect(formatDeckKey('unknown', KeyDisplayMode.camelot), 'unknown');
   });
 
+  test('flat spellings normalize to sharp Camelot slots', () {
+    expect(musicalToCamelot('Bb'), musicalToCamelot('A#'));
+    expect(musicalToCamelot('Ebm'), musicalToCamelot('D#m'));
+    expect(camelotSlotForKey('Bb'), camelotSlotForKey('A#'));
+    expect(camelotSlotForKey('Ebm'), camelotSlotForKey('D#m'));
+    expect(formatDeckKey('Bb', KeyDisplayMode.camelot), '6B');
+    expect(colorForKey('Bb', KeyColorMode.absolute), isNotNull);
+  });
+
   test('absolute mode shares hue on circle of fifths wedge', () {
     final cMajor = colorForKey('C', KeyColorMode.absolute)!;
     final aMinor = colorForKey('Am', KeyColorMode.absolute)!;
