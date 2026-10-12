@@ -46,6 +46,27 @@ class _ThrowingDeckLoadTransport implements DeckLoadTransport {
   }
 }
 
+class _GatedThrowDeckLoadTransport implements DeckLoadTransport {
+  _GatedThrowDeckLoadTransport(this._gate);
+
+  final Completer<void> _gate;
+
+  @override
+  Future<void> loadLibraryTrack({
+    required int deckId,
+    required String trackId,
+  }) async {
+    await _gate.future;
+    throw Exception('stale load failed');
+  }
+
+  @override
+  Future<void> loadPath({required int deckId, required String path}) async {
+    await _gate.future;
+    throw Exception('stale load failed');
+  }
+}
+
 void main() {
   test('A-then-B commits chrome for the latest load', () async {
     final fake = _FakeDeckLoadTransport();
@@ -109,5 +130,23 @@ void main() {
     expect(notice, isNotNull);
     expect(notice!.kind, AppNoticeKind.error);
     expect(notice.message, contains('load failed'));
+  });
+
+  test('superseded failed load does not set appNotice', () async {
+    final gate = Completer<void>();
+    final fake = _GatedThrowDeckLoadTransport(gate);
+    final container = ProviderContainer(
+      overrides: [deckLoadTransportProvider.overrideWith((ref) async => fake)],
+    );
+    addTearDown(container.dispose);
+
+    final stale = loadPayloadOntoDeck(container.read, 0, _payload('stale'));
+    await Future<void>.delayed(Duration.zero);
+    // Begin a newer generation so the stale attempt is superseded.
+    container.read(deckLoadGenerationProvider.notifier).begin(0);
+    gate.complete();
+    await stale;
+
+    expect(container.read(appNoticeProvider), isNull);
   });
 }
