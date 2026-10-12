@@ -195,12 +195,7 @@ List<String> filterAudioFilePaths(Iterable<String> paths) => [
     if (isSupportedAudioPath(path)) path,
 ];
 
-String pathFromDroppedUri(Uri uri) {
-  if (uri.scheme == 'file' || uri.scheme.isEmpty) {
-    return uri.toFilePath();
-  }
-  return uri.toFilePath();
-}
+String pathFromDroppedUri(Uri uri) => uri.toFilePath();
 
 Future<void> applyTrackDrop({
   required int deckId,
