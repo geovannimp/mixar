@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -473,6 +473,8 @@ pub struct EngineTransport {
     sampler_slots: Arc<Mutex<Vec<Vec<SamplerSlotChrome>>>>,
     evt_forwarder: Mutex<Option<EngineEvtForwarder>>,
     history_worker: Mutex<Option<EngineHistoryWorker>>,
+    /// Bumped at the start of each deck load; stale prepares skip `load_prepared`.
+    deck_load_generation: [AtomicU64; NUM_DECKS],
 }
 
 impl Drop for EngineTransport {
@@ -538,6 +540,7 @@ impl EngineTransport {
                     None
                 }
             }),
+            deck_load_generation: std::array::from_fn(|_| AtomicU64::new(0)),
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
             let _ = transport.apply_host_settings(target, top, outer);
@@ -1206,26 +1209,43 @@ impl EngineTransport {
 
     /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.
     pub fn load_library_track(&self, deck_id: u16, track_id: String) -> Result<(), String> {
+        let generation = self.begin_deck_load(deck_id)?;
         let prepared = LibraryManager::prepare_track_for_playback(
             self.library.as_ref(),
             &TrackId::new(track_id),
         )
         .map_err(|e| e.to_string())?;
-        self.load_prepared(deck_id, prepared)
+        self.load_prepared(deck_id, prepared, generation)
     }
 
     /// Load a filesystem path: prepare outside the engine lock, then `load_prepared_track`.
     pub fn load_path(&self, deck_id: u16, path: String) -> Result<(), String> {
+        let generation = self.begin_deck_load(deck_id)?;
         let prepared =
             LibraryManager::prepare_file_path_for_playback(self.library.as_ref(), Path::new(&path))
                 .map_err(|e| e.to_string())?;
-        self.load_prepared(deck_id, prepared)
+        self.load_prepared(deck_id, prepared, generation)
+    }
+
+    fn begin_deck_load(&self, deck_id: u16) -> Result<u64, String> {
+        let idx = usize::from(deck_id);
+        if idx >= NUM_DECKS {
+            return Err(format!("invalid deck id: {deck_id}"));
+        }
+        Ok(self.deck_load_generation[idx].fetch_add(1, Ordering::AcqRel) + 1)
+    }
+
+    fn is_current_deck_load(&self, deck_id: u16, generation: u64) -> bool {
+        let idx = usize::from(deck_id);
+        idx < NUM_DECKS
+            && self.deck_load_generation[idx].load(Ordering::Acquire) == generation
     }
 
     fn load_prepared(
         &self,
         deck_id: u16,
         mut prepared: PreparedTrackPlayback,
+        generation: u64,
     ) -> Result<(), String> {
         let stems = prepared.stems.take();
         let snap = {
@@ -1233,6 +1253,9 @@ impl EngineTransport {
                 .engine
                 .lock()
                 .map_err(|_| "engine lock poisoned".to_string())?;
+            if !self.is_current_deck_load(deck_id, generation) {
+                return Ok(());
+            }
             let engine = guard
                 .as_mut()
                 .ok_or_else(|| "engine not available".to_string())?;

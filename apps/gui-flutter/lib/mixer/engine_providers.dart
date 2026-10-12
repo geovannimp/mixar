@@ -307,7 +307,7 @@ class DeckLoadInFlight extends Notifier<Map<int, int>> {
 final deckLoadInFlightProvider =
     NotifierProvider<DeckLoadInFlight, Map<int, int>>(DeckLoadInFlight.new);
 
-/// Per-deck monotonic load generation. Stale UI chrome commits check this.
+/// Per-deck monotonic load generation. Stale engine loads and chrome commits check this.
 class DeckLoadGeneration extends Notifier<Map<int, int>> {
   @override
   Map<int, int> build() => const {};

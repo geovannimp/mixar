@@ -81,8 +81,8 @@ Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
 
 /// Shared deck-load path (UI drop/keyboard + MIDI).
 ///
-/// Uses [deckLoadGenerationProvider] so a superseded attempt does not
-/// overwrite chrome after a newer load wins.
+/// Uses [deckLoadGenerationProvider] so a superseded attempt does not call the
+/// engine or overwrite chrome after a newer load wins.
 Future<void> loadPayloadOntoDeck(
   DeckLoadRead read,
   int deckId,
@@ -93,6 +93,10 @@ Future<void> loadPayloadOntoDeck(
   try {
     final transport = await read(deckLoadTransportProvider.future);
     if (transport == null) {
+      return;
+    }
+    if (!read(deckLoadGenerationProvider.notifier)
+        .isCurrent(deckId, generation)) {
       return;
     }
     await applyTrackDrop(
