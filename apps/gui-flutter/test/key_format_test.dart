@@ -55,6 +55,8 @@ void main() {
     expect(transposeKey('Db', 2), transposeKey('C#', 2));
     expect(transposeKey('Ebm', 2), transposeKey('D#m', 2));
     expect(transposeKey('Bb', 0), 'Bb');
+    expect(transposeKey('8B', 0), 'C');
+    expect(transposeKey('8A', 0), 'Am');
     expect(deckSoundingKeyLabel('Bb', 0, KeyDisplayMode.musical), 'Bb');
   });
 

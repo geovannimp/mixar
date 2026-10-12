@@ -251,7 +251,8 @@ String? transposeKey(String? key, int semitones) {
     return null;
   }
   if (semitones % 12 == 0) {
-    return fromCamelot ?? sourceSpelling;
+    // Musical spelling: Camelot inputs already resolved into sourceSpelling.
+    return sourceSpelling;
   }
   final shifted = ((pitch + semitones) % 12 + 12) % 12;
   final table = minor ? _minorPitchClasses : _majorPitchClasses;
