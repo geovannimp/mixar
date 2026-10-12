@@ -38,18 +38,18 @@ class MixarColors {
     brightness: Brightness.light,
     background: Color(0xFFFAFAFA),
     foreground: Color(0xFF18181B),
-    primary: MixarEmerald.s600,
+    // One teal ladder for brand primary + accent (website `--accent` family).
+    primary: MixarTeal.s600,
     primaryForeground: Color(0xFFFFFFFF),
     secondary: Color(0xFFF4F4F5),
     secondaryForeground: Color(0xFF171717),
     muted: Color(0xFFF4F4F5),
     mutedForeground: Color(0xFF52525B),
     accent: MixarTeal.s700,
-    // Soft solid selection — emerald-100, not an alpha wash over the surface.
-    selection: MixarEmerald.s100,
+    selection: MixarTeal.s100,
     selectionForeground: Color(0xFF09090B),
-    primaryTint: MixarEmerald.s50,
-    primaryDim: MixarEmerald.s500,
+    primaryTint: MixarTeal.s50,
+    primaryDim: MixarTeal.s500,
     accentTint: MixarTeal.s50,
     cueTint: MixarAmber.s100,
     destructive: Color(0xFFE7000B),
@@ -63,19 +63,18 @@ class MixarColors {
     brightness: Brightness.dark,
     background: Color(0xFF09090B),
     foreground: Color(0xFFF4F4F5),
-    primary: MixarEmerald.s400,
+    primary: MixarTeal.s400,
     primaryForeground: Color(0xFF09090B),
     secondary: Color(0xFF121216),
     secondaryForeground: Color(0xFFFAFAFA),
     muted: Color(0xFF121216),
     mutedForeground: Color(0xFFA1A1AA),
     accent: MixarTeal.s400,
-    // Soft solid selection — emerald-900. Same fill for tabs, library rows,
-    // menus, and + chips so the booth chrome stays on one emerald ladder.
-    selection: MixarEmerald.s900,
+    // Soft solid selection — teal-900. Same fill for tabs, library rows, menus.
+    selection: MixarTeal.s900,
     selectionForeground: Color(0xFFF4F4F5),
-    primaryTint: MixarEmerald.s900,
-    primaryDim: MixarEmerald.s500,
+    primaryTint: MixarTeal.s900,
+    primaryDim: MixarTeal.s500,
     accentTint: MixarTeal.s950,
     cueTint: MixarAmber.s950,
     destructive: Color(0xFFFF6467),
@@ -99,19 +98,19 @@ class MixarColors {
   final Color card;
   final Color border;
 
-  /// Soft selected-row / menu-option fill — solid palette step, surface-stable.
+  /// Soft selected-row / menu-option fill — solid teal step, surface-stable.
   final Color selection;
 
   /// Text/icon colour drawn over [selection].
   final Color selectionForeground;
 
-  /// Soft emerald fill (mapping "on", Q wash) — same step as [selection] in dark.
+  /// Soft teal fill (mapping "on", Q wash) — same step as [selection] in dark.
   final Color primaryTint;
 
-  /// Mid emerald for calmer accents (knob arcs) without raw [primary] neon.
+  /// Mid teal for calmer accents (knob arcs) without raw [primary] neon.
   final Color primaryDim;
 
-  /// Softest teal fill (Play while playing only — transport, not library chrome).
+  /// Softest teal fill (Play while playing).
   final Color accentTint;
 
   /// Softest amber fill (Cue while auditioning).

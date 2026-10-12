@@ -68,7 +68,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: theme.style.borderRadius.sm,
-                      // Same emerald-400 as selected-tab icons / row accent bar.
+                      // Same teal as selected-tab icons / row accent bar.
                       border: Border.all(color: colors.primary),
                       color: colors.selection,
                     ),

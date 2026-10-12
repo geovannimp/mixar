@@ -4,7 +4,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Selected fill shared by library sidebar rows and track/history list rows.
 ///
-/// Solid [MixarColors.selection] (emerald-100 / emerald-900) — same on every
+/// Solid [MixarColors.selection] (teal-100 / teal-900) — same on every
 /// surface, no alphaBlend that drifts with the base.
 Color librarySelectedRowColor(MixarThemeData theme) => theme.colors.selection;
 

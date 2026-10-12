@@ -125,7 +125,7 @@ class DeckLoopPanel extends StatelessWidget {
     );
     const buttonPad = EdgeInsets.symmetric(horizontal: 12, vertical: 14);
     final borderColor = active ? theme.colors.primaryDim : theme.colors.border;
-    // Active: solid emerald tint. Idle: translucent scrim so the deck shows
+    // Active: solid teal tint. Idle: translucent scrim so the deck shows
     // through — one of the few intentional alpha fills.
     final fillColor = active
         ? theme.colors.primaryTint

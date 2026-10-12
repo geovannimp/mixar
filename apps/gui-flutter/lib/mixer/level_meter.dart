@@ -56,9 +56,9 @@ int? holdSegment(double hold) {
   );
 }
 
-// Lit bands match Tauri emerald/amber/red; idle uses Mixar muted (readable on MCard).
-final Color _green = const Color(0xff10b981)
-    .withValues(alpha: 0.45); // emerald-500/45
+// Lit bands: teal/amber/red; idle uses Mixar muted (readable on MCard).
+final Color _green = const Color(0xff14b8a6)
+    .withValues(alpha: 0.45); // teal-500/45
 final Color _amber = const Color(0xfffbbf24)
     .withValues(alpha: 0.45); // amber-400/45
 final Color _red = const Color(0xffef4444)

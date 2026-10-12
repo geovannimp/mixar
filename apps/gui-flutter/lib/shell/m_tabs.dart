@@ -210,7 +210,7 @@ class _TabBar extends StatelessWidget {
                     child: DecoratedBox(
                       key: const ValueKey('m-tabs-indicator'),
                       decoration: BoxDecoration(
-                        // Soft emerald — same [selection] as library rows / menus.
+                        // Soft teal — same [selection] as library rows / menus.
                         color: theme.colors.selection,
                         borderRadius: theme.style.borderRadius.md,
                       ),
@@ -286,8 +286,8 @@ class _TabHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Selected chrome stays on the emerald brand scale (not teal accent) so
-    // tabs, library rows, and + chips read as one palette.
+    // Selected chrome stays on the teal brand scale so tabs, library rows,
+    // and + chips read as one palette.
     final foreground = selected
         ? theme.colors.primary
         : theme.colors.mutedForeground;
