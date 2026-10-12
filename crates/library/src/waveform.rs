@@ -28,16 +28,6 @@ fn waveform_config() -> WaveformAnalysisConfig {
     WaveformAnalysisConfig::default()
 }
 
-fn now_iso() -> String {
-    // RFC3339 without pulling in chrono — good enough for generated_at metadata.
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("{secs}")
-}
-
 fn amplitude_mode_str(mode: WaveformAmplitudeMode) -> &'static str {
     match mode {
         WaveformAmplitudeMode::Peak => "peak",
@@ -110,7 +100,7 @@ pub(crate) fn upsert_track_waveform(
         channel_mode: Set(channel_mode_str(config.channel_mode).to_string()),
         overview_count: Set(peaks.len() as i32),
         overview_bytes: Set(compressed),
-        generated_at: Set(now_iso()),
+        generated_at: Set(crate::unix_secs_string()),
     };
 
     TrackWaveformEntity::insert(active)
@@ -299,7 +289,7 @@ pub(crate) fn save_track_beat_grid(
         message: e.to_string(),
     })?;
 
-    store.upsert_manual_beat_grid(track_id, bpm, beat_grid_json, &ctx, &now_iso())?;
+    store.upsert_manual_beat_grid(track_id, bpm, beat_grid_json, &ctx, &crate::unix_secs_string())?;
 
     Ok(BeatGridSnapshot {
         beats: grid.beats,

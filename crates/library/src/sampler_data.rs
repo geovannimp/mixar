@@ -33,15 +33,6 @@ pub struct SamplerSlotRecord {
     pub label: Option<String>,
 }
 
-fn now_iso() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("{secs}")
-}
-
 fn new_bank_id() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()
@@ -118,7 +109,7 @@ pub fn create_bank(
         name: Set(name.to_string()),
         play_mode: Set(play_mode),
         sort_index: Set(next_sort),
-        updated_at: Set(now_iso()),
+        updated_at: Set(crate::unix_secs_string()),
     })
     .exec(db.conn()?.as_connection())
     .map_err(db::db_err)?;
@@ -151,7 +142,7 @@ pub fn update_bank(
     let result = SamplerBankEntity::update_many()
         .col_expr(sampler_bank::Column::Name, name.into())
         .col_expr(sampler_bank::Column::PlayMode, play_mode_value.into())
-        .col_expr(sampler_bank::Column::UpdatedAt, now_iso().into())
+        .col_expr(sampler_bank::Column::UpdatedAt, crate::unix_secs_string().into())
         .filter(sampler_bank::Column::Id.eq(bank_id))
         .exec(db.conn()?.as_connection())
         .map_err(db::db_err)?;
@@ -224,7 +215,7 @@ pub fn assign_slot(
         track_id: Set(track_id),
         path: Set(path),
         label: Set(label),
-        updated_at: Set(now_iso()),
+        updated_at: Set(crate::unix_secs_string()),
     })
     .on_conflict(
         OnConflict::columns([

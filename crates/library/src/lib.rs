@@ -273,7 +273,7 @@ impl LibraryManager {
     }
 
     pub fn update_track_isrc(&self, track_id: &TrackId, isrc: Option<String>) -> Result<()> {
-        self.store().update_track_isrc(track_id, isrc, &now_stamp())
+        self.store().update_track_isrc(track_id, isrc, &unix_secs_string())
     }
 
     pub fn save_history_as_playlist(
@@ -1056,7 +1056,7 @@ impl LibraryManager {
         metadata: &TrackMetadata,
     ) -> Result<AudioSource> {
         let id = Self::track_id_for(path);
-        let now = now_stamp();
+        let now = unix_secs_string();
         self.store().upsert_file_track(&id, path, metadata, &now)?;
         Ok(AudioSource::File(FileAudioSource::new(
             id,
@@ -1073,7 +1073,7 @@ impl LibraryManager {
         provider: Option<StreamProvider>,
     ) -> Result<AudioSource> {
         let id = Self::stream_id_for(uri, provider);
-        let now = now_stamp();
+        let now = unix_secs_string();
         let provider_str = provider.map(|p| p.as_str());
         self.store()
             .upsert_stream_track(&id, uri, metadata, provider_str, &now)?;
@@ -2007,7 +2007,7 @@ fn escape_like(input: &str) -> String {
         .replace('_', "\\_")
 }
 
-fn now_stamp() -> String {
+pub(crate) fn unix_secs_string() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)

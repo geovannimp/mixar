@@ -27,15 +27,6 @@ pub struct LoopRecord {
     pub color: Option<String>,
 }
 
-fn now_iso() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("{secs}")
-}
-
 pub fn list_hot_cues(db: &Db, track_id: &TrackId) -> Result<Vec<HotCueRecord>> {
     let rows = TrackHotCueEntity::find()
         .filter(track_hot_cue::Column::TrackId.eq(track_id.as_str()))
@@ -79,7 +70,7 @@ pub fn save_hot_cue(
         loop_length_beats: Set(loop_length_beats),
         color: Set(color),
         label: Set(label),
-        updated_at: Set(now_iso()),
+        updated_at: Set(crate::unix_secs_string()),
     })
     .on_conflict(
         OnConflict::columns([
@@ -167,7 +158,7 @@ pub fn save_loop(
         out_ms: Set(out_ms),
         label: Set(label),
         color: Set(color),
-        updated_at: Set(now_iso()),
+        updated_at: Set(crate::unix_secs_string()),
     })
     .on_conflict(
         OnConflict::columns([track_loop::Column::TrackId, track_loop::Column::SlotIndex])
