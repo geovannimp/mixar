@@ -29,7 +29,7 @@ const padRows = [
 
 /** Shared styling for a mute/solo pad button. */
 const padClass =
-  "group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-[10px] border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none";
+  "group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-md border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none";
 
 const iconProps = { size: 18, "stroke-width": 2 };
 
@@ -158,7 +158,7 @@ const points = [
               data-stem-play
               data-playing="false"
               aria-label="Play"
-              class="group relative flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-bg-card text-fg transition hover:border-accent hover:text-accent disabled:opacity-50"
+              class="group relative flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-bg-card text-fg transition hover:border-accent hover:text-accent disabled:opacity-50"
             >
               <Play
                 size={16}
@@ -282,7 +282,7 @@ const points = [
                     <span class="w-12 pl-2 text-sm">{stem.label}</span>
                     <span class="grow flex justify-center items-center h-full gap-1">
                       {waveBars(index * 7 + 3).map((height) => (
-                        <i class="flex grow bg-(--stem) rounded-full" style={`height: ${height}%`} />
+                        <i class="flex grow rounded-md bg-(--stem)" style={`height: ${height}%`} />
                       ))}
                     </span>
                   </li>
