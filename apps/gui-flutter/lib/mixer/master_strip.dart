@@ -59,7 +59,9 @@ class MasterStrip extends ConsumerWidget {
                 fontWeight: .w600,
                 letterSpacing: 0.6,
                 fontSize: 9,
-                color: masterCue ? kMixerCueOn : theme.colors.mutedForeground,
+                color: masterCue
+                    ? theme.colors.cueOn
+                    : theme.colors.mutedForeground,
               ),
             ),
           ),

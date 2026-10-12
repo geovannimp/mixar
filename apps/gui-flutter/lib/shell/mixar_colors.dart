@@ -28,6 +28,7 @@ class MixarColors {
     required this.primaryDim,
     required this.accentTint,
     required this.cueTint,
+    required this.cueOn,
     this.hoverLighten = 0.075,
     this.hoverDarken = 0.05,
     this.disabledOpacity = 0.5,
@@ -52,6 +53,8 @@ class MixarColors {
     primaryDim: MixarTeal.s500,
     accentTint: MixarTeal.s50,
     cueTint: MixarAmber.s100,
+    // Dark amber over cream cueTint — s300 on s100 fails WCAG.
+    cueOn: MixarAmber.s700,
     destructive: Color(0xFFE7000B),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFFFFFFFF),
@@ -75,9 +78,11 @@ class MixarColors {
     selection: MixarTeal.s950,
     selectionForeground: Color(0xFFF4F4F5),
     primaryTint: MixarTeal.s950,
-    primaryDim: MixarTeal.s500,
+    // Calmer mid teal in dark — s500 reads too neon on booth chrome.
+    primaryDim: MixarTeal.s600,
     accentTint: MixarTeal.s950,
     cueTint: MixarAmber.s950,
+    cueOn: MixarAmber.s300,
     destructive: Color(0xFFFF6467),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFF18181C),
@@ -116,6 +121,10 @@ class MixarColors {
 
   /// Softest amber fill (Cue while auditioning).
   final Color cueTint;
+
+  /// Amber label/border over cue chrome — darker in light for contrast on
+  /// [cueTint], brighter in dark for outline transport.
+  final Color cueOn;
 
   final double hoverLighten;
   final double hoverDarken;

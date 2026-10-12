@@ -80,7 +80,13 @@ class _SettingsNavItem extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
             child: Row(
               children: [
-                Icon(icon, size: 16, color: colors.mutedForeground),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: selected
+                      ? colors.selectionForeground
+                      : colors.mutedForeground,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -88,7 +94,9 @@ class _SettingsNavItem extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.typography.body.sm.copyWith(
-                      color: colors.foreground,
+                      color: selected
+                          ? colors.selectionForeground
+                          : colors.foreground,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

@@ -6,6 +6,7 @@ import 'package:gui_flutter/shell/mixar_palette.dart';
 /// Solid teal-400 (same as MixarColors.dark.primary / website `--accent`).
 const kMixerLiveOn = MixarTeal.s400;
 
-/// Cue amber — deck Cue + master PFL (DESIGN.md cue amber).
+/// Cue amber border/label when theme is unavailable — prefer
+/// [MixarColors.cueOn] in widgets (theme-aware for light/dark contrast).
 const kMixerCueOn = MixarAmber.s300;
 const kMixerCueBorder = MixarAmber.s600;

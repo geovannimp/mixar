@@ -75,7 +75,13 @@ class LibraryNavRow extends StatelessWidget {
           child: Row(
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 16, color: colors.mutedForeground),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: selected
+                      ? colors.selectionForeground
+                      : colors.mutedForeground,
+                ),
                 const SizedBox(width: 8),
               ],
               Expanded(
@@ -87,7 +93,9 @@ class LibraryNavRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.typography.body.sm.copyWith(
-                        color: colors.foreground,
+                        color: selected
+                            ? colors.selectionForeground
+                            : colors.foreground,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -97,7 +105,11 @@ class LibraryNavRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.typography.body.xs.copyWith(
-                          color: colors.mutedForeground,
+                          color: selected
+                              ? colors.selectionForeground.withValues(
+                                  alpha: 0.75,
+                                )
+                              : colors.mutedForeground,
                         ),
                       ),
                   ],

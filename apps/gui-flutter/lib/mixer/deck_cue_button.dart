@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/mixer/mixer_live_color.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Hold to audition cue; a short tap sets the cue point.
@@ -99,8 +98,9 @@ class _DeckCueButtonState extends State<DeckCueButton> {
     final theme = context.theme;
     final enabled = !widget.disabled;
     final accented = _accented;
-    final borderColor = accented ? kMixerCueOn : theme.colors.border;
-    final fg = accented ? kMixerCueOn : theme.colors.foreground;
+    final cueOn = theme.colors.cueOn;
+    final borderColor = accented ? cueOn : theme.colors.border;
+    final fg = accented ? cueOn : theme.colors.foreground;
     // Soft solid amber only while auditioning — hover stays outline-only.
     final fill = _auditioning ? theme.colors.cueTint : theme.colors.card;
 
