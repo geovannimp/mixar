@@ -56,7 +56,7 @@ fn recv_lib_kind(sub: &library::EvtReceiver, kind: LibKind) -> library::Evt {
     panic!("timeout waiting for library evt kind {kind:?}");
 }
 
-/// Cmd published with no library worker → HotCuesChanged never arrives.
+/// Buses attached, but no library worker → SaveHotCue never yields HotCuesChanged.
 /// Engine memory must stay empty until that ack (audit #5).
 #[test]
 fn save_hot_cue_does_not_commit_memory_before_library_ack() {
@@ -64,16 +64,17 @@ fn save_hot_cue_does_not_commit_memory_before_library_ack() {
     let wav = dir.path().join("song.wav");
     write_tiny_wav(&wav);
 
-    let library = library::LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let mut library = library::LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let buses = library::LibraryBuses::new();
+    library.set_buses(buses.clone());
     let library = std::sync::Arc::new(std::sync::Mutex::new(library));
-    // Orphan cmd bus: publish succeeds, nobody drains → no HotCuesChanged.
-    let orphan_cmd = library::LibraryBuses::new().cmd_bus();
+    // Same cmd bus the engine publishes to; no worker drains it.
 
     let config = EngineConfig {
         backend: "null".to_string(),
         ..Default::default()
     };
-    let session = EngineSession::new_with_library_bus(config, library.clone(), orphan_cmd)
+    let session = EngineSession::new_with_library_bus(config, library.clone(), buses.cmd_bus())
         .expect("engine session");
     session.with_engine(|engine| engine.start()).expect("start");
 
@@ -102,6 +103,14 @@ fn save_hot_cue_does_not_commit_memory_before_library_ack() {
             )?;
             engine.seek_deck(0, 620)?;
             engine.save_deck_hot_cue(0, 0)?;
+            Ok(())
+        })
+        .expect("save without worker");
+
+    // Let the control thread tick (subscribed to library evt) with nothing to apply.
+    std::thread::sleep(Duration::from_millis(80));
+    session
+        .with_engine(|engine| {
             let snap = engine.deck_snapshot(0).expect("snapshot");
             assert!(
                 snap.hot_cues.is_empty(),
@@ -109,7 +118,7 @@ fn save_hot_cue_does_not_commit_memory_before_library_ack() {
             );
             Ok(())
         })
-        .expect("save without ack");
+        .expect("still empty after control ticks");
 }
 
 #[test]

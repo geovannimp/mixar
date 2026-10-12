@@ -149,7 +149,9 @@ fn control_thread_loop(
             return;
         }
     };
-    // Optional: library HotCuesChanged → commit deck_control.hot_cues after DB ack.
+    // Best-effort at control-thread start: subscribe to library HotCuesChanged so
+    // deck_control.hot_cues commits only after DB ack. Hosts attach buses before
+    // spawn; no retry if subscribe fails or library has no buses.
     let library_evt_rx = library_evt_receiver(&engine);
     let _ = ready.send(Ok(()));
     let mut peak_hold = PeakHoldState::new();
@@ -171,15 +173,17 @@ fn library_evt_receiver(engine: &Arc<Mutex<Option<Engine>>>) -> Option<library::
     let guard = engine.lock().ok()?;
     let eng = guard.as_ref()?;
     let library = eng.library_manager()?;
-    let lib = match library.lock() {
-        Ok(lib) => lib,
-        Err(_) => {
-            tracing::warn!("library lock poisoned; hot cue library evt sync disabled");
-            return None;
-        }
+    let buses = {
+        let lib = match library.lock() {
+            Ok(lib) => lib,
+            Err(_) => {
+                tracing::warn!("library lock poisoned; hot cue library evt sync disabled");
+                return None;
+            }
+        };
+        // No buses → engine has no performance-persist path; stay quiet.
+        lib.buses()?
     };
-    // No buses → engine has no performance-persist path; stay quiet.
-    let buses = lib.buses()?;
     match buses.subscribe_evt_all() {
         Ok(rx) => Some(rx),
         Err(err) => {
@@ -224,25 +228,14 @@ fn handle_library_evt(
             return;
         }
     };
-    let changed = match with_engine_mut(engine, |eng| {
-        Ok(eng.apply_track_hot_cues(&track_id, &hot_cues))
+    if let Err(err) = with_engine_mut(engine, |eng| {
+        let changed = eng.apply_track_hot_cues(&track_id, &hot_cues);
+        for deck_id in changed {
+            publish_deck_updated(evt_bus, revision, eng, deck_id)?;
+        }
+        Ok(())
     }) {
-        Ok(changed) => changed,
-        Err(err) => {
-            tracing::warn!(error = %err, "failed to apply HotCuesChanged to engine");
-            return;
-        }
-    };
-    for deck_id in changed {
-        if let Err(err) = with_engine_ref(engine, |eng| {
-            publish_deck_updated(evt_bus, revision, eng, deck_id)
-        }) {
-            tracing::warn!(
-                deck_id,
-                error = %err,
-                "failed to publish DeckUpdated after HotCuesChanged"
-            );
-        }
+        tracing::warn!(error = %err, "failed to apply HotCuesChanged / publish DeckUpdated");
     }
 }
 
