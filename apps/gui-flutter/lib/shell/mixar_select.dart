@@ -16,7 +16,7 @@ enum MixarBorderSide { top, right, bottom, left }
 /// Full-width left-aligned option row for the mobile select dialog.
 ///
 /// Avoids [AppButton]'s centered shrink-wrap layout. Selected rows use the
-/// Mixar [MixarColors.selection] green tint (same wash as desktop options).
+/// Mixar [MixarColors.selection] emerald tint (same wash as desktop options).
 class _MobileSelectOption extends StatelessWidget {
   const new({
     required this.label,
