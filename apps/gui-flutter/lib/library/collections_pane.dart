@@ -4,6 +4,8 @@ import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -58,31 +60,17 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
           child: Row(
             children: [
               const Expanded(child: LibraryPaneLabel('Collections')),
-              MTappable(
-                onPress: _adding ? null : _addCollection,
-                semanticsLabel: 'Create collection',
-                builder: (context, state) {
-                  return Container(
-                    width: 24,
-                    height: 24,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: theme.style.borderRadius.sm,
-                      // Same teal as selected-tab icons / row accent bar.
-                      border: Border.all(color: colors.primary),
-                      color: colors.selection,
-                    ),
-                    child: _adding
-                        ? const MLoader(size: MLoaderSize.sm)
-                        : Text(
-                            '+',
-                            style: theme.typography.body.sm.copyWith(
-                              color: colors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  );
-                },
+              AppTooltip(
+                tip: 'Create collection',
+                child: AppButton.icon(
+                  semanticsLabel: 'Create collection',
+                  onPress: _adding ? null : _addCollection,
+                  variant: .ghost,
+                  size: .xs,
+                  child: _adding
+                      ? const MLoader(size: MLoaderSize.sm)
+                      : const Icon(LucideIcons.plus, size: 14),
+                ),
               ),
             ],
           ),
