@@ -164,16 +164,17 @@ void main() {
     expect(bottom.width, theme.style.borderWidth);
   });
 
-  testWidgets('tab bar falls back to the flush fill when no border is given', (
+  testWidgets('tab bar has no bottom border when none is given', (
     tester,
   ) async {
-    final theme = MixarThemeData.dark();
     await pumpTabs(
       tester,
       children: const [MTabEntry(label: Text('A'), child: Text('pane-a'))],
     );
 
-    expect(barBorder(tester).bottom.color, theme.colors.muted);
+    // Bare edge — a fill-matched stroke would cover the selected chip and
+    // read as a gap between the selection wash and the bar.
+    expect(barBorder(tester).bottom, BorderSide.none);
 
     // The bar's floor height is the constant consumers align to.
     expect(tester.getSize(find.byKey(kMTabBarKey)).height, kMTabBarMinHeight);

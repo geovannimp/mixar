@@ -58,8 +58,8 @@ class MTabs extends StatefulWidget {
   final double spacing;
 
   /// Optional bottom border on the tab bar, so it can line up with a header row
-  /// beside it that draws one (the library topbar). The bar's other edges are
-  /// painted in its own fill colour, so only this one shows.
+  /// beside it that draws one (the library topbar). Other edges stay bare so
+  /// the selected chip can sit flush to the bar.
   ///
   /// Only the colour (and style) are used: the width is forced to the theme
   /// hairline, since the width is part of [kMTabBarMinHeight]'s alignment
@@ -223,32 +223,27 @@ class _TabBar extends StatelessWidget {
           )
         : labels;
 
-    // Outer edges match the muted fill so they don't double the parent card
-    // stroke. Horizontal bars expose [barBottomBorder]; vertical bars always
-    // paint a hairline on the trailing edge to separate the rail from content.
-    final flush = BorderSide(
-      color: theme.colors.muted,
-      width: theme.style.borderWidth,
-    );
-    // Blend onto background (not muted): opaque border-over-muted reads too
-    // bright next to content-surface hairlines. Background match was chosen
-    // after a visual pass — keep it even though the rail fill is muted.
+    // Only paint sides that should actually show. Fill-matched "flush" borders
+    // used to cover the selected chip in the bar's own muted colour and read as
+    // a 1px gap between the selection wash and the bar edge.
+    //
+    // Horizontal bars expose [barBottomBorder]; vertical bars paint a hairline
+    // on the trailing edge to separate the rail from content. Blend the
+    // hairline onto background (not muted): opaque border-over-muted reads too
+    // bright next to content-surface hairlines.
     final hairline = BorderSide(
       color: Color.alphaBlend(theme.colors.border, theme.colors.background),
       width: theme.style.borderWidth,
     );
     // Force the theme hairline on a caller's bottom border: the width is part
     // of the bar's alignment contract, so a wider side would misalign the rows.
-    final bottom =
-        barBottomBorder?.copyWith(width: theme.style.borderWidth) ?? flush;
+    final bottom = barBottomBorder?.copyWith(width: theme.style.borderWidth);
     final border = Border(
-      top: flush,
-      left: flush,
-      right: horizontal ? flush : hairline,
-      bottom: horizontal ? bottom : flush,
+      right: horizontal ? BorderSide.none : hairline,
+      bottom: horizontal ? (bottom ?? BorderSide.none) : BorderSide.none,
     );
-    // Foreground border stays above the selected chip (flush headers would
-    // otherwise paint over the hairline — same DecoratedBox under-fill issue).
+    // Foreground so the hairline stays above the selected chip instead of
+    // being covered by it (DecoratedBox under-fill).
     return Container(
       key: kMTabBarKey,
       decoration: BoxDecoration(color: theme.colors.muted),

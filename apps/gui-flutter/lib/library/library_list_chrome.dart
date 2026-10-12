@@ -57,7 +57,9 @@ const double kLibraryHeaderHeight = kMTabBarMinHeight;
 Color libraryToolbarFieldColor(MixarThemeData theme, {bool focused = false}) {
   final colors = theme.colors;
   final dark = colors.brightness == Brightness.dark;
-  final alpha = focused ? (dark ? 0.16 : 0.12) : (dark ? 0.10 : 0.06);
+  // Dark idle/focus used to be 0.10 / 0.16; nudged down a notch so the band
+  // is only slightly darker than that previous wash.
+  final alpha = focused ? (dark ? 0.06 : 0.12) : (dark ? 0.04 : 0.06);
   return Color.alphaBlend(
     colors.foreground.withValues(alpha: alpha),
     colors.secondary,
@@ -285,17 +287,15 @@ class LibraryRowDensityButton extends ConsumerWidget {
       tip: target == LibraryRowDensity.compact
           ? 'Compact rows'
           : 'Comfortable rows',
+      // `md` matches the trailing 3-dots menu so the hover wash fills the
+      // header height; `xs` left a centred chip with gaps above and below.
       child: AppButton.icon(
         semanticsLabel: 'Toggle row layout',
         onPress: () => ref
             .read(libraryRowDensityOverrideProvider.notifier)
             .toggle(density),
         variant: .ghost,
-        size: .xs,
-        child: Icon(
-          density.isCompact ? LucideIcons.list : LucideIcons.rows3,
-          size: 14,
-        ),
+        child: Icon(density.isCompact ? LucideIcons.list : LucideIcons.rows3),
       ),
     );
   }
