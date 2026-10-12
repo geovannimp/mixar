@@ -11,6 +11,7 @@ use engine_api::{
 use library::{LibraryManager, PreparedTrackPlayback};
 use library_core::TrackId;
 use omnibus::Event;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -422,6 +423,9 @@ fn dispatch_deck_cmd(
     payload: &[u8],
     engine: &Arc<Mutex<Option<Engine>>>,
 ) -> Result<CmdOutcome> {
+    if kind == Kind::AssignSampler {
+        return dispatch_assign_sampler(deck_id, payload, engine);
+    }
     if kind == Kind::AssignSamplerTrack {
         return dispatch_assign_sampler_track(deck_id, payload, engine);
     }
@@ -881,13 +885,6 @@ fn dispatch_deck_cmd(
             eng.key_shift_pad_release(deck_id, slot)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
-        Kind::AssignSampler => {
-            let CmdBody::AssignSampler { slot, path } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.assign_sampler_from_path(deck_id, slot, path)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
         Kind::ClearSampler => {
             let CmdBody::ClearSampler { slot } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
@@ -927,6 +924,28 @@ fn dispatch_deck_cmd(
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),
+    })
+}
+
+fn dispatch_assign_sampler(
+    deck_id: usize,
+    payload: &[u8],
+    engine: &Arc<Mutex<Option<Engine>>>,
+) -> Result<CmdOutcome> {
+    let kind = Kind::AssignSampler;
+    let CmdBody::AssignSampler { slot, path } = decode_cmd_body_for(kind, payload)? else {
+        unreachable!()
+    };
+    let library = with_engine_ref(engine, |eng| {
+        eng.library_manager()
+            .ok_or_else(|| anyhow!("Engine has no attached LibraryManager"))
+    })?;
+    let prepared: PreparedTrackPlayback =
+        LibraryManager::prepare_file_path_for_playback(library.as_ref(), Path::new(&path))
+            .map_err(|e| anyhow!(e.to_string()))?;
+    with_engine_mut(engine, |eng| {
+        eng.assign_prepared_sampler(deck_id, slot as usize, prepared)?;
+        Ok(CmdOutcome::DeckUpdated(deck_id))
     })
 }
 
