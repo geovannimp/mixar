@@ -1,11 +1,13 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/history_restore_bridge.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_load.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/app_notice_bridge.dart';
 import 'package:gui_flutter/shell/controller_offer_bridge.dart';
@@ -30,6 +32,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.watch(engineEventsBootstrapProvider);
     ref.watch(libraryEventsBootstrapProvider);
     ref.watch(focusedDeckLoadBootstrapProvider);
+    ref.watch(historySettingsBootstrapProvider);
+    ref.watch(librarySettingsBootstrapProvider);
     // Opaque fill: native window is transparent for rounded desktop chrome.
     return ColoredBox(
       color: context.theme.colors.background,

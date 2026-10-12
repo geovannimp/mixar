@@ -4,10 +4,8 @@ import 'package:gui_flutter/library/collections_pane.dart';
 import 'package:gui_flutter/library/drive_pane.dart';
 import 'package:gui_flutter/library/history_detail_pane.dart';
 import 'package:gui_flutter/library/history_pane.dart';
-import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_list_pane.dart';
-import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -52,9 +50,6 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(libraryEventsBootstrapProvider);
-    ref.watch(historySettingsBootstrapProvider);
-    ref.watch(librarySettingsBootstrapProvider);
     final theme = context.theme;
     final tab = ref.watch(librarySourceTabProvider);
 
