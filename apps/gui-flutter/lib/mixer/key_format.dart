@@ -232,7 +232,11 @@ String? transposeKey(String? key, int semitones) {
   if (trimmed == null || trimmed.isEmpty) {
     return null;
   }
-  final musical = _sharpSpell(camelotToMusical(trimmed) ?? trimmed);
+  final fromCamelot = camelotToMusical(trimmed);
+  final sourceSpelling = fromCamelot ?? trimmed;
+  // Sharp-normalize for pitch-class lookup only — flats stay flats when the
+  // shift is a no-op so deck labels match library musical spelling.
+  final musical = _sharpSpell(sourceSpelling);
   final majorIndex = kMajorKeys.indexOf(musical);
   final minorIndex = kMinorKeys.indexOf(musical);
   final bool minor;
@@ -245,6 +249,9 @@ String? transposeKey(String? key, int semitones) {
     pitch = _minorPitchClasses[minorIndex];
   } else {
     return null;
+  }
+  if (semitones % 12 == 0) {
+    return fromCamelot ?? sourceSpelling;
   }
   final shifted = ((pitch + semitones) % 12 + 12) % 12;
   final table = minor ? _minorPitchClasses : _majorPitchClasses;

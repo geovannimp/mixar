@@ -51,6 +51,13 @@ void main() {
     expect(transposeKey('unknown', 2), isNull);
   });
 
+  test('transposeKey accepts flats and preserves spelling on zero shift', () {
+    expect(transposeKey('Db', 2), transposeKey('C#', 2));
+    expect(transposeKey('Ebm', 2), transposeKey('D#m', 2));
+    expect(transposeKey('Bb', 0), 'Bb');
+    expect(deckSoundingKeyLabel('Bb', 0, KeyDisplayMode.musical), 'Bb');
+  });
+
   test('deckSoundingKeyLabel applies the session key shift', () {
     expect(deckSoundingKeyLabel('C', 2, KeyDisplayMode.musical), 'D');
     expect(deckSoundingKeyLabel('Am', -2, KeyDisplayMode.musical), 'Gm');
