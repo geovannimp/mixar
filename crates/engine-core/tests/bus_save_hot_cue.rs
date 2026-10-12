@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::recv_evt_where;
+use common::{recv_evt_where, wait_engine_hot_cue_count};
 use engine_api::{
     decode_evt_body as decode_engine_evt, encode_cmd_body, CmdBody, EvtBody as EngineEvtBody, Kind,
     Origin,
@@ -54,26 +54,6 @@ fn recv_lib_kind(sub: &library::EvtReceiver, kind: LibKind) -> library::Evt {
         }
     }
     panic!("timeout waiting for library evt kind {kind:?}");
-}
-
-/// Control thread applies `HotCuesChanged` asynchronously after the library evt.
-fn wait_engine_hot_cue_count(session: &EngineSession, deck_id: usize, count: usize) {
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while Instant::now() < deadline {
-        let ok = session
-            .with_engine(|engine| {
-                Ok(engine
-                    .deck_snapshot(deck_id)
-                    .map(|s| s.hot_cues.len() == count)
-                    .unwrap_or(false))
-            })
-            .unwrap_or(false);
-        if ok {
-            return;
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    panic!("timeout waiting for engine deck {deck_id} hot_cues.len() == {count}");
 }
 
 /// Cmd published with no library worker → HotCuesChanged never arrives.

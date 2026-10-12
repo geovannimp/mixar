@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture, TestReceiver};
+use common::{recv_evt_kind, short_tone_fixture, wait_engine_hot_cue_count, TestReceiver};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, PadMode};
 use engine_core::{
     key_shift_page_action, key_shift_page_next, key_shift_page_prev, keyboard_page_action,
@@ -14,7 +14,6 @@ use library_core::{AudioSource, FileAudioSource, Library, TrackId, TrackMetadata
 use omnibus::Filter;
 use std::io::Write;
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 fn null_session_with_loaded_deck() -> EngineSession {
     let config = EngineConfig {
@@ -116,32 +115,7 @@ fn library_session_with_root_hot_cue() -> (EngineSession, LibrarySession, tempfi
         })
         .expect("load + hot cue");
     // Save only publishes the library cmd; memory commits on HotCuesChanged.
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while Instant::now() < deadline {
-        let ready = session
-            .with_engine(|engine| {
-                Ok(engine
-                    .deck_snapshot(0)
-                    .map(|s| s.hot_cues.len() == 1)
-                    .unwrap_or(false))
-            })
-            .unwrap_or(false);
-        if ready {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    session
-        .with_engine(|engine| {
-            let snap = engine.deck_snapshot(0).expect("snapshot");
-            assert_eq!(
-                snap.hot_cues.len(),
-                1,
-                "root hot cue must be library-acked before pad tests"
-            );
-            Ok(())
-        })
-        .expect("await hot cue ack");
+    wait_engine_hot_cue_count(&session, 0, 1);
 
     (session, library_session, dir)
 }
@@ -619,24 +593,12 @@ fn keyboard_shift_bank_deletes_root_hot_cue() {
     let _ = next_deck_updated(&evt);
 
     // Delete publishes library cmd; engine memory clears on HotCuesChanged ack.
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while Instant::now() < deadline {
-        let empty = session
-            .with_engine(|e| {
-                Ok(e.deck_snapshot(0)
-                    .map(|s| s.hot_cues.is_empty())
-                    .unwrap_or(false))
-            })
-            .unwrap_or(false);
-        if empty {
-            return;
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    wait_engine_hot_cue_count(&session, 0, 0);
     let snap = session
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
         .expect("snapshot call");
-    panic!(
+    assert!(
+        snap.hot_cues.is_empty(),
         "shift+pad 1 must delete hot cue 0 after library ack, got {:?}",
         snap.hot_cues
     );

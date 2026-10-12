@@ -167,14 +167,29 @@ fn control_thread_loop(
     }
 }
 
-fn library_evt_receiver(
-    engine: &Arc<Mutex<Option<Engine>>>,
-) -> Option<library::EvtReceiver> {
+fn library_evt_receiver(engine: &Arc<Mutex<Option<Engine>>>) -> Option<library::EvtReceiver> {
     let guard = engine.lock().ok()?;
     let eng = guard.as_ref()?;
     let library = eng.library_manager()?;
-    let lib = library.lock().ok()?;
-    lib.buses()?.subscribe_evt_all().ok()
+    let lib = match library.lock() {
+        Ok(lib) => lib,
+        Err(_) => {
+            tracing::warn!("library lock poisoned; hot cue library evt sync disabled");
+            return None;
+        }
+    };
+    // No buses → engine has no performance-persist path; stay quiet.
+    let buses = lib.buses()?;
+    match buses.subscribe_evt_all() {
+        Ok(rx) => Some(rx),
+        Err(err) => {
+            tracing::warn!(
+                error = %err,
+                "failed to subscribe to library evt; hot cue ack sync disabled"
+            );
+            None
+        }
+    }
 }
 
 fn drain_library_evt(
@@ -183,6 +198,7 @@ fn drain_library_evt(
     evt_bus: &EngineBus,
     revision: &AtomicU64,
 ) {
+    // omnibus `recv` is non-blocking (`try_recv`); drains only queued events.
     while let Ok(Some(event)) = rx.recv() {
         handle_library_evt(event.as_ref(), engine, evt_bus, revision);
     }
@@ -197,20 +213,36 @@ fn handle_library_evt(
     if *event.kind() != LibraryKind::HotCuesChanged {
         return;
     }
-    let Ok(LibraryEvtBody::HotCuesChanged { track_id, hot_cues }) =
-        decode_library_evt_body(event.payload())
-    else {
-        return;
+    let (track_id, hot_cues) = match decode_library_evt_body(event.payload()) {
+        Ok(LibraryEvtBody::HotCuesChanged { track_id, hot_cues }) => (track_id, hot_cues),
+        Ok(_) => {
+            tracing::warn!("HotCuesChanged kind with mismatched library evt body");
+            return;
+        }
+        Err(err) => {
+            tracing::warn!(error = %err, "failed to decode library HotCuesChanged");
+            return;
+        }
     };
-    let Ok(changed) = with_engine_mut(engine, |eng| {
+    let changed = match with_engine_mut(engine, |eng| {
         Ok(eng.apply_track_hot_cues(&track_id, &hot_cues))
-    }) else {
-        return;
+    }) {
+        Ok(changed) => changed,
+        Err(err) => {
+            tracing::warn!(error = %err, "failed to apply HotCuesChanged to engine");
+            return;
+        }
     };
     for deck_id in changed {
-        let _ = with_engine_ref(engine, |eng| {
+        if let Err(err) = with_engine_ref(engine, |eng| {
             publish_deck_updated(evt_bus, revision, eng, deck_id)
-        });
+        }) {
+            tracing::warn!(
+                deck_id,
+                error = %err,
+                "failed to publish DeckUpdated after HotCuesChanged"
+            );
+        }
     }
 }
 
