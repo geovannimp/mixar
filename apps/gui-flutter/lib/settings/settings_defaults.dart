@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:gui_flutter/mixer/key_format.dart';
+import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -72,7 +73,6 @@ const kDefaultBufferSize = 512;
 const kDefaultTargetLufs = -18.0;
 const kMinTargetLufs = -24.0;
 const kMaxTargetLufs = -9.0;
-const kDefaultTempoRange = 0.06;
 
 const kDefaultMasterBus = BusRouteSettings(
   deviceId: 'default',
