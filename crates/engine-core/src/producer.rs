@@ -212,13 +212,7 @@ pub(crate) fn producer_thread_loop(
                 &mut device_scratch[i][..needed],
             );
 
-            let mut pushed_all = true;
-            for &sample in &device_scratch[i][..needed] {
-                if producer.push(sample).is_err() {
-                    pushed_all = false;
-                    break;
-                }
-            }
+            let pushed_all = push_ring_samples(producer, &device_scratch[i][..needed]);
             if i == 0 {
                 pushed_pacing_chunk = pushed_all;
             }
@@ -230,4 +224,74 @@ pub(crate) fn producer_thread_loop(
     }
 
     tracing::info!("Producer thread stopped");
+}
+
+/// Bulk-write interleaved scratch into the ring. Returns `true` iff every sample was committed
+/// (same semantics as the former per-sample `push` loop: partial/full-ring → `false`).
+fn push_ring_samples(producer: &mut Producer<Sample>, samples: &[Sample]) -> bool {
+    if samples.is_empty() {
+        return true;
+    }
+
+    let n = producer.slots().min(samples.len());
+    if n == 0 {
+        return false;
+    }
+    let Ok(mut chunk) = producer.write_chunk(n) else {
+        return false;
+    };
+    let (first, second) = chunk.as_mut_slices();
+    let first_take = first.len().min(n);
+    let second_take = n - first_take;
+    first[..first_take].copy_from_slice(&samples[..first_take]);
+    second[..second_take].copy_from_slice(&samples[first_take..n]);
+    chunk.commit_all();
+    n == samples.len()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn push_ring_samples_writes_full_chunk() {
+        let (mut producer, mut consumer) = RingBuffer::new(16);
+        let samples = [0.1, 0.2, 0.3, 0.4];
+
+        assert!(push_ring_samples(&mut producer, &samples));
+        assert_eq!(consumer.slots(), 4);
+
+        let chunk = consumer.read_chunk(4).unwrap();
+        let (first, second) = chunk.as_slices();
+        let mut got = Vec::with_capacity(4);
+        got.extend_from_slice(first);
+        got.extend_from_slice(second);
+        chunk.commit_all();
+        assert_eq!(got.as_slice(), &samples);
+    }
+
+    #[test]
+    fn push_ring_samples_partial_when_ring_nearly_full() {
+        let (mut producer, mut consumer) = RingBuffer::new(4);
+        assert!(push_ring_samples(&mut producer, &[1.0, 2.0, 3.0]));
+
+        let samples = [4.0, 5.0, 6.0];
+        assert!(!push_ring_samples(&mut producer, &samples));
+        assert_eq!(producer.slots(), 0);
+
+        let chunk = consumer.read_chunk(4).unwrap();
+        let (first, second) = chunk.as_slices();
+        let mut got = Vec::with_capacity(4);
+        got.extend_from_slice(first);
+        got.extend_from_slice(second);
+        chunk.commit_all();
+        assert_eq!(got.as_slice(), &[1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn push_ring_samples_returns_false_when_ring_full() {
+        let (mut producer, _consumer) = RingBuffer::new(2);
+        assert!(push_ring_samples(&mut producer, &[1.0, 2.0]));
+        assert!(!push_ring_samples(&mut producer, &[3.0, 4.0]));
+    }
 }
