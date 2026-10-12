@@ -83,14 +83,17 @@ impl DecodeCache {
         self.bytes = 0;
     }
 
+    #[cfg(test)]
     pub(crate) fn len(&self) -> usize {
         self.map.len()
     }
 
+    #[cfg(test)]
     pub(crate) fn contains(&self, id: &TrackId) -> bool {
         self.map.contains_key(id)
     }
 
+    #[cfg(test)]
     pub(crate) fn bytes(&self) -> usize {
         self.bytes
     }
