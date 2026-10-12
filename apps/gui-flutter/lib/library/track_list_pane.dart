@@ -55,7 +55,6 @@ class TrackListPane extends ConsumerStatefulWidget {
 class _TrackListPaneState extends ConsumerState<TrackListPane> {
   @override
   Widget build(BuildContext context) {
-    ref.watch(libraryEventsBootstrapProvider);
     final theme = context.theme;
     final selectedId = ref.watch(activeCollectionIdProvider);
     final drive = ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
