@@ -113,6 +113,8 @@ Future<void> loadPayloadOntoDeck(
     read(engineUiProvider.notifier)
       ..setDeckTrackPath(deckId, payload.path)
       ..setDeckTrackId(deckId, payload.trackId);
+  } catch (e) {
+    read(appNoticeProvider.notifier).setError('$e');
   } finally {
     loading.set(deckId, false);
   }
