@@ -28,6 +28,9 @@ impl DecodeCache {
         Self::with_limits(DEFAULT_MAX_BYTES, DEFAULT_MAX_ENTRIES)
     }
 
+    /// Build a cache with custom limits (tests).
+    ///
+    /// `get`/`touch` are O(n) in `max_entries`; keep that small (production uses 8).
     pub(crate) fn with_limits(max_bytes: usize, max_entries: usize) -> Self {
         Self {
             map: HashMap::new(),
@@ -141,7 +144,7 @@ mod tests {
 
     #[test]
     fn insert_evicts_until_under_byte_cap() {
-        // 100 f32 samples = 400 bytes each entry.
+        // 100 interleaved f32 samples = 400 bytes each entry.
         let mut cache = DecodeCache::with_limits(500, 8);
         cache.insert(id(1), audio(100));
         cache.insert(id(2), audio(100));

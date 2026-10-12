@@ -496,7 +496,7 @@ impl LibraryManager {
     /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
     pub fn clear_stem_cache(&self, stems_root: &Path) -> Result<()> {
         stems::clear_all_track_stems(&self.db, stems_root)?;
-        Self::lock_decode_cache(&self.decode_cache)?.clear();
+        self.clear_decode_cache();
         Ok(())
     }
 
@@ -508,8 +508,16 @@ impl LibraryManager {
     /// Delete all cached waveform overview rows and drop decoded PCM from RAM.
     pub fn clear_waveform_cache(&self) -> Result<()> {
         waveform::clear_all_track_waveforms(&self.db)?;
-        Self::lock_decode_cache(&self.decode_cache)?.clear();
+        self.clear_decode_cache();
         Ok(())
+    }
+
+    /// Drop decoded PCM even if a prior panic poisoned the cache mutex.
+    fn clear_decode_cache(&self) {
+        self.decode_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     /// Compressed waveform overview bytes stored in the library DB.
