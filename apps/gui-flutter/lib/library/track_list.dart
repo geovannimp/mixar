@@ -288,10 +288,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     if (payload == null) {
       return;
     }
-    // Errors surface via libraryMessageProvider inside loadPayloadOntoDeck.
-    unawaited(
-      loadPayloadToDeck(ref, deckId, payload).catchError((Object _) {}),
-    );
+    unawaited(loadPayloadToDeck(ref, deckId, payload));
   }
 
   /// Bring [index] into view without jumping past a row the user can still see.
@@ -510,10 +507,7 @@ Widget buildTrackListMenuBody({
     if (payload == null) {
       return;
     }
-    // Errors surface via libraryMessageProvider inside loadPayloadOntoDeck.
-    unawaited(
-      loadPayloadToDeck(ref, deckId, payload).catchError((Object _) {}),
-    );
+    unawaited(loadPayloadToDeck(ref, deckId, payload));
   }
 
   return MixarMenuBody(

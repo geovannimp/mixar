@@ -113,8 +113,24 @@ Future<void> loadPayloadOntoDeck(
     read(engineUiProvider.notifier)
       ..setDeckTrackPath(deckId, payload.path)
       ..setDeckTrackId(deckId, payload.trackId);
+  } catch (e) {
+    // Superseded loads must stay silent (same contract as the isCurrent
+    // guards above). A disposed WidgetRef.read after await must not escape.
+    try {
+      if (!read(deckLoadGenerationProvider.notifier)
+          .isCurrent(deckId, generation)) {
+        return;
+      }
+      read(appNoticeProvider.notifier).setError('$e');
+    } on Object {
+      // Caller unmounted while the engine load was in flight.
+    }
   } finally {
-    loading.set(deckId, false);
+    try {
+      loading.set(deckId, false);
+    } on Object {
+      // Caller unmounted while the engine load was in flight.
+    }
   }
 }
 

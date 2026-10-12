@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/deck_load.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 
 TrackDragPayload _payload(String id) => TrackDragPayload(
   source: TrackDragSource.library,
@@ -27,6 +28,42 @@ class _FakeDeckLoadTransport implements DeckLoadTransport {
   @override
   Future<void> loadPath({required int deckId, required String path}) async {
     loads.add(path);
+  }
+}
+
+class _ThrowingDeckLoadTransport implements DeckLoadTransport {
+  @override
+  Future<void> loadLibraryTrack({
+    required int deckId,
+    required String trackId,
+  }) async {
+    throw Exception('load failed');
+  }
+
+  @override
+  Future<void> loadPath({required int deckId, required String path}) async {
+    throw Exception('load failed');
+  }
+}
+
+class _GatedThrowDeckLoadTransport implements DeckLoadTransport {
+  _GatedThrowDeckLoadTransport(this._gate);
+
+  final Completer<void> _gate;
+
+  @override
+  Future<void> loadLibraryTrack({
+    required int deckId,
+    required String trackId,
+  }) async {
+    await _gate.future;
+    throw Exception('stale load failed');
+  }
+
+  @override
+  Future<void> loadPath({required int deckId, required String path}) async {
+    await _gate.future;
+    throw Exception('stale load failed');
   }
 }
 
@@ -75,5 +112,41 @@ void main() {
     expect(ui.trackIdFor(0), 'B');
     expect(ui.trackPathFor(0), '/tmp/B.wav');
     expect(fake.loads, ['B']);
+  });
+
+  test('failed loadLibraryTrack sets appNotice error', () async {
+    final container = ProviderContainer(
+      overrides: [
+        deckLoadTransportProvider.overrideWith(
+          (ref) async => _ThrowingDeckLoadTransport(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await loadPayloadOntoDeck(container.read, 0, _payload('bad'));
+
+    final notice = container.read(appNoticeProvider);
+    expect(notice, isNotNull);
+    expect(notice!.kind, AppNoticeKind.error);
+    expect(notice.message, contains('load failed'));
+  });
+
+  test('superseded failed load does not set appNotice', () async {
+    final gate = Completer<void>();
+    final fake = _GatedThrowDeckLoadTransport(gate);
+    final container = ProviderContainer(
+      overrides: [deckLoadTransportProvider.overrideWith((ref) async => fake)],
+    );
+    addTearDown(container.dispose);
+
+    final stale = loadPayloadOntoDeck(container.read, 0, _payload('stale'));
+    await Future<void>.delayed(Duration.zero);
+    // Begin a newer generation so the stale attempt is superseded.
+    container.read(deckLoadGenerationProvider.notifier).begin(0);
+    gate.complete();
+    await stale;
+
+    expect(container.read(appNoticeProvider), isNull);
   });
 }
