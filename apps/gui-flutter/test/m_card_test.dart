@@ -56,7 +56,7 @@ void main() {
 
   testWidgets('MCard accepts a border color override', (tester) async {
     final base = MixarThemeData.dark();
-    const override = Color(0xFF34D399);
+    const override = Color(0xFF2DD4BF);
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromMixar(base),

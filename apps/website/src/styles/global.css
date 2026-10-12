@@ -18,8 +18,8 @@
   --accent: #0f766e;
   --accent-hover: #115e59;
   --accent-dim: rgba(15, 118, 110, 0.1);
-  --deck-a: #059669;
-  --deck-b: #0284c7;
+  --deck-a: #0284c7; /* sky-600 — Deck A blue */
+  --deck-b: #e11d48; /* rose-600 — Deck B */
   --warn: #fbbf24;
   /* NI Stems slot colors written into the .stem.mp4 STEM atom (fixed metadata,
      not themed). Keep in sync with stem_atom.rs default_ni(). */
@@ -48,8 +48,8 @@
   --accent: #2dd4bf;
   --accent-hover: #5eead4;
   --accent-dim: rgba(45, 212, 191, 0.12);
-  --deck-a: #34d399;
-  --deck-b: #38bdf8;
+  --deck-a: #38bdf8; /* sky-400 — Deck A blue */
+  --deck-b: #fb7185; /* rose-400 — Deck B */
   --header-bg: rgba(9, 9, 11, 0.85);
   --screenshot-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03), 0 24px 64px rgba(0, 0, 0, 0.5);

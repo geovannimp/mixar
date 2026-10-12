@@ -284,10 +284,12 @@ class _DirectionBadge extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final input = direction == ControllerDeviceDirection.input;
     final color = input ? theme.colors.primary : theme.colors.accent;
+    final fill = input ? theme.colors.primaryTint : theme.colors.accentTint;
+    final edge = input ? theme.colors.primaryDim : theme.colors.accent;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+        color: fill,
+        border: Border.all(color: edge),
         borderRadius: theme.style.borderRadius.xs,
       ),
       child: SizedBox(

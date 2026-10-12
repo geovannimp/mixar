@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:gui_flutter/shell/mixar_palette.dart';
 
 /// Mixar color tokens aligned with the website palette.
 @immutable
@@ -23,6 +24,11 @@ class MixarColors {
     required this.border,
     required this.selection,
     required this.selectionForeground,
+    required this.primaryTint,
+    required this.primaryDim,
+    required this.accentTint,
+    required this.cueTint,
+    required this.cueOn,
     this.hoverLighten = 0.075,
     this.hoverDarken = 0.05,
     this.disabledOpacity = 0.5,
@@ -33,17 +39,22 @@ class MixarColors {
     brightness: Brightness.light,
     background: Color(0xFFFAFAFA),
     foreground: Color(0xFF18181B),
-    // Emerald family (matches booth live / deck-a) — not Tailwind green-*.
-    primary: Color(0xFF059669), // emerald-600
+    // One teal ladder for brand primary + accent (website `--accent` family).
+    primary: MixarTeal.s600,
     primaryForeground: Color(0xFFFFFFFF),
     secondary: Color(0xFFF4F4F5),
     secondaryForeground: Color(0xFF171717),
     muted: Color(0xFFF4F4F5),
     mutedForeground: Color(0xFF52525B),
-    accent: Color(0xFF0F766E),
-    // Solid brand-emerald selection fill keeps dark ink legible.
-    selection: Color(0xFF059669),
+    accent: MixarTeal.s700,
+    selection: MixarTeal.s100,
     selectionForeground: Color(0xFF09090B),
+    primaryTint: MixarTeal.s50,
+    primaryDim: MixarTeal.s500,
+    accentTint: MixarTeal.s50,
+    cueTint: MixarAmber.s100,
+    // Dark amber over cream cueTint — s300 on s100 fails WCAG.
+    cueOn: MixarAmber.s700,
     destructive: Color(0xFFE7000B),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFFFFFFFF),
@@ -55,18 +66,23 @@ class MixarColors {
     brightness: Brightness.dark,
     background: Color(0xFF09090B),
     foreground: Color(0xFFF4F4F5),
-    primary: Color(0xFF34D399), // emerald-400 — same hue as kMixerLiveOn
+    primary: MixarTeal.s400,
     primaryForeground: Color(0xFF09090B),
     secondary: Color(0xFF121216),
     secondaryForeground: Color(0xFFFAFAFA),
     muted: Color(0xFF121216),
     mutedForeground: Color(0xFFA1A1AA),
-    accent: Color(0xFF2DD4BF),
-    // Low-opacity brand wash: calm emerald highlight in a menu or select
-    // without the neon of a solid `primary` block. Foreground is the theme's
-    // regular text colour, which stays legible over the tint.
-    selection: Color(0x2934D399),
+    accent: MixarTeal.s400,
+    // Soft solid selection — teal-950. Same deeper fill for tabs, library
+    // rows, and menus so selected chrome stays quiet against the booth.
+    selection: MixarTeal.s950,
     selectionForeground: Color(0xFFF4F4F5),
+    primaryTint: MixarTeal.s950,
+    // Calmer mid teal in dark — s500 reads too neon on booth chrome.
+    primaryDim: MixarTeal.s600,
+    accentTint: MixarTeal.s950,
+    cueTint: MixarAmber.s950,
+    cueOn: MixarAmber.s300,
     destructive: Color(0xFFFF6467),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFF18181C),
@@ -88,25 +104,31 @@ class MixarColors {
   final Color card;
   final Color border;
 
-  /// Fill for an active/hovered menu row, option row, or tab: a brand-emerald
-  /// wash that stays legible under [selectionForeground].
+  /// Soft selected-row / menu-option fill — solid teal step, surface-stable.
   final Color selection;
 
   /// Text/icon colour drawn over [selection].
   final Color selectionForeground;
+
+  /// Soft teal fill (mapping "on", Q wash) — same step as [selection] in dark.
+  final Color primaryTint;
+
+  /// Mid teal for calmer accents (knob arcs) without raw [primary] neon.
+  final Color primaryDim;
+
+  /// Softest teal fill (Play while playing).
+  final Color accentTint;
+
+  /// Softest amber fill (Cue while auditioning).
+  final Color cueTint;
+
+  /// Amber label/border over cue chrome — darker in light for contrast on
+  /// [cueTint], brighter in dark for outline transport.
+  final Color cueOn;
+
   final double hoverLighten;
   final double hoverDarken;
   final double disabledOpacity;
-
-  /// Brand emerald dimmed toward the page background: a calmer fill accent
-  /// (knob value arcs, selected-tab icon) that keeps the hue without the neon
-  /// glow of raw [primary] in the dark theme.
-  Color get primaryDim =>
-      Color.alphaBlend(background.withValues(alpha: 0.45), primary);
-
-  /// Brand emerald at low opacity: a subtle tint for filled surfaces (selected
-  /// tab, mapping chips) without a solid accent block.
-  Color get primaryTint => primary.withValues(alpha: 0.12);
 
   /// Hovered variant (Forui `FColors.hover` algorithm).
   Color hover(Color color) {

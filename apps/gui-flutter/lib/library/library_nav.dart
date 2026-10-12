@@ -4,13 +4,9 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Selected fill shared by library sidebar rows and track/history list rows.
 ///
-/// Blended over [MixarColors.card] so the opaque colour matches on both the
-/// sidebar (`secondary`) and the list surface (`card`) — a raw alpha wash
-/// over each base reads as two different greens.
-Color librarySelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
-  theme.colors.primary.withValues(alpha: 0.14),
-  theme.colors.card,
-);
+/// Solid [MixarColors.selection] (teal-100 / teal-950) — same on every
+/// surface, no alphaBlend that drifts with the base.
+Color librarySelectedRowColor(MixarThemeData theme) => theme.colors.selection;
 
 /// Uppercase sidebar section label (Tauri `LibraryPaneHeader`).
 class LibraryPaneLabel extends StatelessWidget {
@@ -62,7 +58,7 @@ class LibraryNavRow extends StatelessWidget {
       final fill = selected
           ? librarySelectedRowColor(theme)
           : hovered
-          ? colors.foreground.withValues(alpha: 0.05)
+          ? colors.card
           : null;
       return DecoratedBox(
         decoration: BoxDecoration(
@@ -79,7 +75,13 @@ class LibraryNavRow extends StatelessWidget {
           child: Row(
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 16, color: colors.mutedForeground),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: selected
+                      ? colors.selectionForeground
+                      : colors.mutedForeground,
+                ),
                 const SizedBox(width: 8),
               ],
               Expanded(
@@ -91,7 +93,9 @@ class LibraryNavRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.typography.body.sm.copyWith(
-                        color: colors.foreground,
+                        color: selected
+                            ? colors.selectionForeground
+                            : colors.foreground,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -101,7 +105,11 @@ class LibraryNavRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.typography.body.xs.copyWith(
-                          color: colors.mutedForeground,
+                          color: selected
+                              ? colors.selectionForeground.withValues(
+                                  alpha: 0.75,
+                                )
+                              : colors.mutedForeground,
                         ),
                       ),
                   ],

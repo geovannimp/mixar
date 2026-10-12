@@ -700,9 +700,7 @@ class _TrackStatusOverlay extends ConsumerWidget {
               child: SizedBox(
                 height: kStatusBarHeight,
                 child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colors.primary.withValues(alpha: 0.18),
-                  ),
+                  decoration: BoxDecoration(color: theme.colors.primaryTint),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: FractionallySizedBox(

@@ -212,9 +212,7 @@ class _VolumeSelectButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: theme.style.borderRadius.sm,
             border: Border.all(color: colors.border),
-            color: state.hovered || open
-                ? colors.foreground.withValues(alpha: 0.05)
-                : colors.secondary,
+            color: state.hovered || open ? colors.card : colors.secondary,
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),

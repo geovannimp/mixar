@@ -56,6 +56,8 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
       border: c.border,
       input: c.border,
       ring: c.primary,
+      // Text-selection highlight must stay translucent so glyphs show through
+      // — solid [MixarColors.selection] is for row/chip fills, not caret spans.
       selection: c.primary.withValues(alpha: 0.35),
     ),
     textTheme: ShadTextTheme(family: MixarFonts.outfit),

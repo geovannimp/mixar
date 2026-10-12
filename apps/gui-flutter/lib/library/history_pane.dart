@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/app_notice.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -39,34 +41,17 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
           child: Row(
             children: [
               const Expanded(child: LibraryPaneLabel('History')),
-              MTappable(
-                onPress: _creating ? null : () => unawaited(_newSession()),
-                semanticsLabel: 'New session',
-                builder: (context, state) {
-                  return Container(
-                    width: 24,
-                    height: 24,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: theme.style.borderRadius.sm,
-                      border: Border.all(
-                        color: colors.primary.withValues(alpha: 0.35),
-                      ),
-                      color: colors.primary.withValues(
-                        alpha: state.hovered ? 0.20 : 0.12,
-                      ),
-                    ),
-                    child: _creating
-                        ? const MLoader(size: MLoaderSize.sm)
-                        : Text(
-                            '+',
-                            style: theme.typography.body.sm.copyWith(
-                              color: colors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  );
-                },
+              AppTooltip(
+                tip: 'New session',
+                child: AppButton.icon(
+                  semanticsLabel: 'New session',
+                  onPress: _creating ? null : () => unawaited(_newSession()),
+                  variant: .ghost,
+                  size: .xs,
+                  child: _creating
+                      ? const MLoader(size: MLoaderSize.sm)
+                      : const Icon(LucideIcons.plus, size: 14),
+                ),
               ),
             ],
           ),
