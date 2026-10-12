@@ -1436,6 +1436,7 @@ impl Engine {
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let position_ms = snap_ms(position_ms, bpm, quantize);
+        // Memory/UI commit on library `HotCuesChanged` (control thread), not here.
         self.publish_library_cmd(
             library_api::Kind::SaveHotCue,
             library_api::CmdBody::SaveHotCue {
@@ -1447,9 +1448,6 @@ impl Engine {
                 label: None,
             },
         )?;
-        if let Some(control) = self.deck_control.get_mut(deck_id) {
-            control.hot_cues[usize::from(slot)] = Some(position_ms);
-        }
         Ok(())
     }
 
@@ -1497,6 +1495,7 @@ impl Engine {
             .get(deck_id)
             .and_then(|c| c.track_id.clone())
             .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
+        // Memory/UI commit on library `HotCuesChanged` (control thread), not here.
         self.publish_library_cmd(
             library_api::Kind::DeleteHotCue,
             library_api::CmdBody::DeleteHotCue {
@@ -1504,10 +1503,38 @@ impl Engine {
                 slot,
             },
         )?;
-        if let Some(control) = self.deck_control.get_mut(deck_id) {
-            control.hot_cues[usize::from(slot)] = None;
-        }
         Ok(())
+    }
+
+    /// Apply library-acked hot cues to every deck currently loaded with `track_id`.
+    ///
+    /// Returns deck ids whose slot map changed (caller publishes `DeckUpdated`).
+    pub fn apply_track_hot_cues(
+        &mut self,
+        track_id: &str,
+        hot_cues: &[library_api::HotCue],
+    ) -> Vec<usize> {
+        let mut slots = [None; crate::pads::HOT_CUE_SLOT_COUNT];
+        for cue in hot_cues {
+            let idx = usize::from(cue.slot);
+            if idx < slots.len() {
+                slots[idx] = Some(cue.position_ms);
+            }
+        }
+        let mut changed = Vec::new();
+        for (deck_id, control) in self.deck_control.iter_mut().enumerate() {
+            let Some(loaded) = control.track_id.as_ref() else {
+                continue;
+            };
+            if loaded.as_str() != track_id {
+                continue;
+            }
+            if control.hot_cues != slots {
+                control.hot_cues = slots;
+                changed.push(deck_id);
+            }
+        }
+        changed
     }
 
     /// Generic pad press: dispatch using this deck's engine `pad_mode`.

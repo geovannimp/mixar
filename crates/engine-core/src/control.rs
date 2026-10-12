@@ -9,6 +9,9 @@ use engine_api::{
     decode_cmd_body, encode_evt_body, CmdBody, DeckSnapshot, EqBand, EvtBody, Kind, Origin,
 };
 use library::{LibraryManager, PreparedTrackPlayback};
+use library_api::{
+    decode_evt_body as decode_library_evt_body, EvtBody as LibraryEvtBody, Kind as LibraryKind,
+};
 use library_core::TrackId;
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -146,6 +149,8 @@ fn control_thread_loop(
             return;
         }
     };
+    // Optional: library HotCuesChanged → commit deck_control.hot_cues after DB ack.
+    let library_evt_rx = library_evt_receiver(&engine);
     let _ = ready.send(Ok(()));
     let mut peak_hold = PeakHoldState::new();
 
@@ -155,7 +160,57 @@ fn control_thread_loop(
             Ok(None) => {}
             Err(_) => break,
         }
+        if let Some(lib_rx) = library_evt_rx.as_ref() {
+            drain_library_evt(lib_rx, &engine, &evt_bus, &revision);
+        }
         tick(&engine, &evt_bus, &revision, &mut peak_hold);
+    }
+}
+
+fn library_evt_receiver(
+    engine: &Arc<Mutex<Option<Engine>>>,
+) -> Option<library::EvtReceiver> {
+    let guard = engine.lock().ok()?;
+    let eng = guard.as_ref()?;
+    let library = eng.library_manager()?;
+    let lib = library.lock().ok()?;
+    lib.buses()?.subscribe_evt_all().ok()
+}
+
+fn drain_library_evt(
+    rx: &library::EvtReceiver,
+    engine: &Arc<Mutex<Option<Engine>>>,
+    evt_bus: &EngineBus,
+    revision: &AtomicU64,
+) {
+    while let Ok(Some(event)) = rx.recv() {
+        handle_library_evt(event.as_ref(), engine, evt_bus, revision);
+    }
+}
+
+fn handle_library_evt(
+    event: &omnibus::Event<library_api::Origin, LibraryKind, Arc<[u8]>>,
+    engine: &Arc<Mutex<Option<Engine>>>,
+    evt_bus: &EngineBus,
+    revision: &AtomicU64,
+) {
+    if *event.kind() != LibraryKind::HotCuesChanged {
+        return;
+    }
+    let Ok(LibraryEvtBody::HotCuesChanged { track_id, hot_cues }) =
+        decode_library_evt_body(event.payload())
+    else {
+        return;
+    };
+    let Ok(changed) = with_engine_mut(engine, |eng| {
+        Ok(eng.apply_track_hot_cues(&track_id, &hot_cues))
+    }) else {
+        return;
+    };
+    for deck_id in changed {
+        let _ = with_engine_ref(engine, |eng| {
+            publish_deck_updated(evt_bus, revision, eng, deck_id)
+        });
     }
 }
 
