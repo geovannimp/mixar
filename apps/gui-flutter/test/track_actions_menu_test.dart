@@ -144,7 +144,6 @@ void main() {
     expect(find.text('Load to deck'), findsOneWidget);
   });
 
-
   testWidgets('mobile Load to deck section spacing matches action cards', (
     tester,
   ) async {

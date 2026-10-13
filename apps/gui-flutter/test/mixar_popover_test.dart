@@ -187,34 +187,35 @@ void main() {
     expect(find.text('Analyze tracks…'), findsNothing);
   });
 
-  testWidgets('MixarMenuAnchor mobile menu rows use bordered cards like select', (
-    tester,
-  ) async {
-    final theme = MixarThemeData.dark();
-    await pumpMenuAnchor(tester, dialogTitle: 'Collection actions');
-    await tester.tap(find.text('Open menu'));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'MixarMenuAnchor mobile menu rows use bordered cards like select',
+    (tester) async {
+      final theme = MixarThemeData.dark();
+      await pumpMenuAnchor(tester, dialogTitle: 'Collection actions');
+      await tester.tap(find.text('Open menu'));
+      await tester.pumpAndSettle();
 
-    final item = find.ancestor(
-      of: find.text('Analyze tracks…'),
-      matching: find.byType(MixarMenuItem),
-    );
-    expect(item, findsOneWidget);
+      final item = find.ancestor(
+        of: find.text('Analyze tracks…'),
+        matching: find.byType(MixarMenuItem),
+      );
+      expect(item, findsOneWidget);
 
-    // Card chrome must live under the menu item (not only on the dialog shell).
-    final rowFinder = find.descendant(
-      of: item,
-      matching: find.byWidgetPredicate((w) {
-        if (w is! DecoratedBox) return false;
-        final decoration = w.decoration;
-        return decoration is BoxDecoration && decoration.border != null;
-      }),
-    );
-    expect(rowFinder, findsOneWidget);
-    final decoration =
-        tester.widget<DecoratedBox>(rowFinder).decoration as BoxDecoration;
-    expect(decoration.color, theme.colors.card);
-  });
+      // Card chrome must live under the menu item (not only on the dialog shell).
+      final rowFinder = find.descendant(
+        of: item,
+        matching: find.byWidgetPredicate((w) {
+          if (w is! DecoratedBox) return false;
+          final decoration = w.decoration;
+          return decoration is BoxDecoration && decoration.border != null;
+        }),
+      );
+      expect(rowFinder, findsOneWidget);
+      final decoration =
+          tester.widget<DecoratedBox>(rowFinder).decoration as BoxDecoration;
+      expect(decoration.color, theme.colors.card);
+    },
+  );
 
   testWidgets('MixarMenuAnchor mobile barrier dismiss clears isShowing', (
     tester,

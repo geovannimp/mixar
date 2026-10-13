@@ -48,10 +48,8 @@ void main() {
       ProviderScope(
         overrides: [
           appSettingsProvider.overrideWith(
-            (ref) async => copyAppSettings(
-              defaultAppSettings(),
-              selectStyle: selectStyle,
-            ),
+            (ref) async =>
+                copyAppSettings(defaultAppSettings(), selectStyle: selectStyle),
           ),
         ],
         child: MaterialApp(
