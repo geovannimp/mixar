@@ -352,12 +352,15 @@ fn map_evt(ev: ControllerEvent) -> ControllerEvt {
             device_name: None,
             port_name: Some(port_name),
         },
-        ControllerEvent::MappingDetached { mapping_id } => ControllerEvt {
+        ControllerEvent::MappingDetached {
+            mapping_id,
+            port_name,
+        } => ControllerEvt {
             kind: ControllerEvtKind::MappingDetached,
             mapping_id: Some(mapping_id),
             device_id: None,
             device_name: None,
-            port_name: None,
+            port_name: Some(port_name),
         },
     }
 }
