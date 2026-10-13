@@ -3,6 +3,7 @@ import {
   GITHUB_REPO,
   QUICK_START_URL,
   README_URL,
+  RELEASES_URL,
   TECH_SPEC_URL,
 } from "../consts";
 
@@ -14,6 +15,7 @@ import {
  */
 export const DESTINATIONS = {
   repo: "repo",
+  releases: "releases",
   quickStart: "quick_start",
   readme: "readme",
   techSpec: "tech_spec",
@@ -51,6 +53,7 @@ export type Placement = (typeof PLACEMENTS)[number];
  * quick_start, readme, tech_spec and contributing into `repo`.
  */
 const EXACT_BY_URL: ReadonlyArray<readonly [string, Destination]> = [
+  [RELEASES_URL, DESTINATIONS.releases],
   [TECH_SPEC_URL, DESTINATIONS.techSpec],
   [QUICK_START_URL, DESTINATIONS.quickStart],
   [README_URL, DESTINATIONS.readme],

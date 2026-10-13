@@ -9,6 +9,7 @@ import {
   GITHUB_REPO,
   QUICK_START_URL,
   README_URL,
+  RELEASES_URL,
   TECH_SPEC_URL,
 } from "../consts";
 import { PLACEMENTS, resolveDestination } from "./analytics-events";
@@ -76,7 +77,11 @@ describe("resolveDestination", () => {
     expect(resolveDestination("")).toBeNull();
   });
 
-  // A future /issues or /releases link is still "the repo".
+  it("maps the releases link to releases", () => {
+    expect(resolveDestination(RELEASES_URL)).toBe("releases");
+  });
+
+  // Unlisted paths inside the repo (e.g. /issues) still count as repo.
   it("falls back to repo for an unlisted path inside the repository", () => {
     expect(resolveDestination(`${GITHUB_REPO}/issues`)).toBe("repo");
   });

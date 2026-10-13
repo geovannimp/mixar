@@ -1,6 +1,6 @@
 ---
-import { GITHUB_REPO, QUICK_START_URL } from "../consts";
-import { ArrowDown, Star, Terminal } from "@lucide/astro";
+import { GITHUB_REPO, RELEASES_URL } from "../consts";
+import { ArrowDown, Download, Star } from "@lucide/astro";
 import Button from "./ui/Button.astro";
 
 const iconProps = { size: 18, "stroke-width": 2 };
@@ -18,17 +18,17 @@ const iconProps = { size: 18, "stroke-width": 2 };
       {" "}nothing locked away
     </h1>
     <p class="mb-8 max-w-[44ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl">
-      Open-source DJ software with the tools you actually mix with: beat grids, hot cues,
-      loops, key lock, and a mixer built to keep up.
+      Dual decks, a full mixer, hot cues, loops, NI Stems, and MIDI mapping. Open source
+      under GPL-3.0.
     </p>
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Button href={GITHUB_REPO} external placement="hero" class="w-full px-7 py-3.5 text-base">
+      <Button href={RELEASES_URL} external placement="hero" class="w-full px-7 py-3.5 text-base">
+        <Download {...iconProps} aria-hidden="true" />
+        Download Mixar
+      </Button>
+      <Button href={GITHUB_REPO} external variant="secondary" placement="hero" class="w-full px-7 py-3.5 text-base">
         <Star {...iconProps} aria-hidden="true" />
         Star on GitHub
-      </Button>
-      <Button href={QUICK_START_URL} external variant="secondary" placement="hero" class="w-full px-7 py-3.5 text-base">
-        <Terminal {...iconProps} aria-hidden="true" />
-        Build on Linux
       </Button>
       <Button href="#features" variant="secondary" class="w-full px-7 py-3.5 text-base sm:col-span-2">
         See what it does
@@ -37,7 +37,7 @@ const iconProps = { size: 18, "stroke-width": 2 };
     </div>
     <p class="mt-6 flex items-center gap-2.5 text-[0.875rem] text-muted">
       <span class="size-2 shrink-0 rounded-full bg-warn" aria-hidden="true"></span>
-      In active development
+      In active development · Pre-release builds
     </p>
   </div>
   <div class="relative">
