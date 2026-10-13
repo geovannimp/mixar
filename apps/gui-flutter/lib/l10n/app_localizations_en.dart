@@ -96,7 +96,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUiDescription =>
-      'Chrome, hover tips, and control presentation.';
+      'Language, hover tips, control presentation, and library list appearance.';
+
+  @override
+  String get settingsUiChromeTitle => 'Chrome and controls';
+
+  @override
+  String get settingsUiChromeDescription =>
+      'Language, hover tips, and how selects open.';
+
+  @override
+  String get settingsUiLibraryListTitle => 'Library list';
+
+  @override
+  String get settingsUiLibraryListDescription =>
+      'How tracks look in the library table.';
 
   @override
   String get settingsUiLanguageLabel => 'Language';
@@ -141,6 +155,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAudioDescription => 'Engine output and buses.';
 
   @override
+  String get settingsAudioEngineTitle => 'Engine';
+
+  @override
+  String get settingsAudioEngineDescription =>
+      'Backend, sample rate, resampler, and buffer size.';
+
+  @override
   String get settingsAudioBackend => 'Backend';
 
   @override
@@ -181,7 +202,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAudioMasterBus => 'Master bus';
 
   @override
-  String get settingsAudioPreviewBus => 'Preview bus (headphones / cue)';
+  String get settingsAudioMasterBusDescription =>
+      'Primary output device and channel routing.';
+
+  @override
+  String get settingsAudioPreviewBusTitle => 'Preview bus';
+
+  @override
+  String get settingsAudioPreviewBusDescription =>
+      'Headphones / cue output when preview is enabled.';
+
+  @override
+  String get settingsAudioPreviewBus => 'Enable preview bus';
 
   @override
   String get settingsAudioDevice => 'Device';
@@ -209,6 +241,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Keep analyzed tracks near a consistent perceived loudness.';
 
   @override
+  String get settingsMixerNormalizerTitle => 'Volume normalizer';
+
+  @override
+  String get settingsMixerNormalizerDescription =>
+      'Match analyzed tracks to a target loudness.';
+
+  @override
   String get settingsMixerVolumeNormalizer => 'Volume normalizer';
 
   @override
@@ -216,6 +255,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsWaveformDescription =>
+      'RGB mixes low/mid/high into one color. Filtered stacks the three bands.';
+
+  @override
+  String get settingsWaveformDisplayTitle => 'Display';
+
+  @override
+  String get settingsWaveformDisplayDescription =>
       'RGB mixes low/mid/high into one color. Filtered stacks the three bands.';
 
   @override
@@ -312,6 +358,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Track import, offline analysis, and list display.';
 
   @override
+  String get settingsLibraryAnalysisTitle => 'Analysis';
+
+  @override
+  String get settingsLibraryAnalysisDescription =>
+      'How thoroughly offline analysis scans each track.';
+
+  @override
   String get settingsLibraryAnalysisQuality => 'Analysis quality';
 
   @override
@@ -382,6 +435,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsLibraryKeyColorHarmonicSubtitle =>
       'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.';
+
+  @override
+  String get settingsLibraryStemsTitle => 'Stems';
+
+  @override
+  String get settingsLibraryStemsDescription =>
+      'Codec used when writing separated stem caches.';
 
   @override
   String get settingsLibraryStemFormat => 'Stem format';
@@ -457,6 +517,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsStorageDescription =>
       'Disk use for Mixar caches and library metadata under app support.';
+
+  @override
+  String get settingsStorageOverviewTitle => 'Mixar storage';
+
+  @override
+  String get settingsStorageOverviewDescription =>
+      'Disk use for caches and library metadata under app support.';
 
   @override
   String get settingsStorageMixarStorage => 'Mixar storage';

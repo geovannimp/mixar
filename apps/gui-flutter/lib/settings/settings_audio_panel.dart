@@ -9,6 +9,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_slider.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -23,7 +24,6 @@ class SettingsAudioPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     final devicesAsync = ref.watch(audioDevicesProvider(draft.backend));
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
@@ -46,7 +46,9 @@ class SettingsAudioPanel extends ConsumerWidget {
           title: l10n.settingsSectionAudio,
           description: l10n.settingsAudioDescription,
         ),
-        SettingsPanel(
+        SettingsSectionCard(
+          title: l10n.settingsAudioEngineTitle,
+          subtitle: l10n.settingsAudioEngineDescription,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
@@ -116,52 +118,40 @@ class SettingsAudioPanel extends ConsumerWidget {
             ],
           ),
         ),
-        SettingsPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 16,
-            children: [
-              Text(
-                l10n.settingsAudioMasterBus,
-                style: theme.typography.body.sm.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              _BusRouteFields(
-                route: draft.masterBus,
-                devices: deviceList,
-                devicesLoading: devicesAsync.isLoading,
-                onChanged: (bus) =>
-                    onChanged(copyAppSettings(draft, masterBus: bus)),
-              ),
-            ],
+        SettingsSectionCard(
+          title: l10n.settingsAudioMasterBus,
+          subtitle: l10n.settingsAudioMasterBusDescription,
+          child: _BusRouteFields(
+            route: draft.masterBus,
+            devices: deviceList,
+            devicesLoading: devicesAsync.isLoading,
+            onChanged: (bus) =>
+                onChanged(copyAppSettings(draft, masterBus: bus)),
           ),
         ),
-        SettingsPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 16,
-            children: [
-              SettingsToggle(
-                label: l10n.settingsAudioPreviewBus,
-                labelStyle: theme.typography.body.sm.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+        SettingsSectionCard(
+          title: l10n.settingsAudioPreviewBusTitle,
+          subtitle: l10n.settingsAudioPreviewBusDescription,
+          trailing: SizedBox(
+            height: 23,
+            child: FittedBox(
+              child: MixarSwitch(
                 value: draft.previewEnabled,
+                semanticsLabel: l10n.settingsAudioPreviewBus,
                 onChanged: (v) =>
                     onChanged(copyAppSettings(draft, previewEnabled: v)),
               ),
-              if (draft.previewEnabled) ...[
-                _BusRouteFields(
+            ),
+          ),
+          child: draft.previewEnabled
+              ? _BusRouteFields(
                   route: draft.previewBus,
                   devices: deviceList,
                   devicesLoading: devicesAsync.isLoading,
                   onChanged: (bus) =>
                       onChanged(copyAppSettings(draft, previewBus: bus)),
-                ),
-              ],
-            ],
-          ),
+                )
+              : null,
         ),
       ],
     );

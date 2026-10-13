@@ -97,7 +97,21 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiDescription =>
-      'Chrome, dicas ao passar o mouse e apresentação dos controles.';
+      'Idioma, dicas ao passar o mouse, apresentação dos controles e aparência da lista da biblioteca.';
+
+  @override
+  String get settingsUiChromeTitle => 'Chrome e controles';
+
+  @override
+  String get settingsUiChromeDescription =>
+      'Idioma, dicas ao passar o mouse e como os seletores abrem.';
+
+  @override
+  String get settingsUiLibraryListTitle => 'Lista da biblioteca';
+
+  @override
+  String get settingsUiLibraryListDescription =>
+      'Como as faixas aparecem na tabela da biblioteca.';
 
   @override
   String get settingsUiLanguageLabel => 'Idioma';
@@ -142,6 +156,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioDescription => 'Saída do engine e barramentos.';
 
   @override
+  String get settingsAudioEngineTitle => 'Engine';
+
+  @override
+  String get settingsAudioEngineDescription =>
+      'Backend, taxa de amostragem, resampler e tamanho do buffer.';
+
+  @override
   String get settingsAudioBackend => 'Backend';
 
   @override
@@ -182,7 +203,18 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioMasterBus => 'Barramento master';
 
   @override
-  String get settingsAudioPreviewBus => 'Escuta (fones / cue)';
+  String get settingsAudioMasterBusDescription =>
+      'Dispositivo de saída principal e roteamento de canais.';
+
+  @override
+  String get settingsAudioPreviewBusTitle => 'Barramento de escuta';
+
+  @override
+  String get settingsAudioPreviewBusDescription =>
+      'Saída de fones / cue quando a escuta está ativada.';
+
+  @override
+  String get settingsAudioPreviewBus => 'Ativar barramento de escuta';
 
   @override
   String get settingsAudioDevice => 'Dispositivo';
@@ -210,6 +242,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'Mantém faixas analisadas com volume percebido consistente.';
 
   @override
+  String get settingsMixerNormalizerTitle => 'Normalizador de volume';
+
+  @override
+  String get settingsMixerNormalizerDescription =>
+      'Alinha faixas analisadas a um volume alvo.';
+
+  @override
   String get settingsMixerVolumeNormalizer => 'Normalizador de volume';
 
   @override
@@ -217,6 +256,13 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsWaveformDescription =>
+      'RGB mistura grave/médio/agudo em uma cor. Filtrado empilha as três bandas.';
+
+  @override
+  String get settingsWaveformDisplayTitle => 'Exibição';
+
+  @override
+  String get settingsWaveformDisplayDescription =>
       'RGB mistura grave/médio/agudo em uma cor. Filtrado empilha as três bandas.';
 
   @override
@@ -315,6 +361,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'Importação de faixas, análise offline e exibição da lista.';
 
   @override
+  String get settingsLibraryAnalysisTitle => 'Análise';
+
+  @override
+  String get settingsLibraryAnalysisDescription =>
+      'Quão profundamente a análise offline examina cada faixa.';
+
+  @override
   String get settingsLibraryAnalysisQuality => 'Qualidade da análise';
 
   @override
@@ -387,6 +440,13 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get settingsLibraryKeyColorHarmonicSubtitle =>
       'Verde/amarelo em relação ao deck tocando — ex.: com 2A tocando, 1A/2A/3A/2B verdes, 1B/3B amarelos.';
+
+  @override
+  String get settingsLibraryStemsTitle => 'Stems';
+
+  @override
+  String get settingsLibraryStemsDescription =>
+      'Codec usado ao gravar caches de stems separados.';
 
   @override
   String get settingsLibraryStemFormat => 'Formato de stems';
@@ -463,6 +523,13 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get settingsStorageDescription =>
       'Uso de disco dos caches do Mixar e metadados da biblioteca no suporte do app.';
+
+  @override
+  String get settingsStorageOverviewTitle => 'Armazenamento do Mixar';
+
+  @override
+  String get settingsStorageOverviewDescription =>
+      'Uso de disco dos caches e metadados da biblioteca no suporte do app.';
 
   @override
   String get settingsStorageMixarStorage => 'Armazenamento do Mixar';

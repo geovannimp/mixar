@@ -270,8 +270,32 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiDescription.
   ///
   /// In en, this message translates to:
-  /// **'Chrome, hover tips, and control presentation.'**
+  /// **'Language, hover tips, control presentation, and library list appearance.'**
   String get settingsUiDescription;
+
+  /// No description provided for @settingsUiChromeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chrome and controls'**
+  String get settingsUiChromeTitle;
+
+  /// No description provided for @settingsUiChromeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Language, hover tips, and how selects open.'**
+  String get settingsUiChromeDescription;
+
+  /// No description provided for @settingsUiLibraryListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library list'**
+  String get settingsUiLibraryListTitle;
+
+  /// No description provided for @settingsUiLibraryListDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'How tracks look in the library table.'**
+  String get settingsUiLibraryListDescription;
 
   /// No description provided for @settingsUiLanguageLabel.
   ///
@@ -351,6 +375,18 @@ abstract class AppLocalizations {
   /// **'Engine output and buses.'**
   String get settingsAudioDescription;
 
+  /// No description provided for @settingsAudioEngineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine'**
+  String get settingsAudioEngineTitle;
+
+  /// No description provided for @settingsAudioEngineDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Backend, sample rate, resampler, and buffer size.'**
+  String get settingsAudioEngineDescription;
+
   /// No description provided for @settingsAudioBackend.
   ///
   /// In en, this message translates to:
@@ -423,10 +459,28 @@ abstract class AppLocalizations {
   /// **'Master bus'**
   String get settingsAudioMasterBus;
 
+  /// No description provided for @settingsAudioMasterBusDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary output device and channel routing.'**
+  String get settingsAudioMasterBusDescription;
+
+  /// No description provided for @settingsAudioPreviewBusTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview bus'**
+  String get settingsAudioPreviewBusTitle;
+
+  /// No description provided for @settingsAudioPreviewBusDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Headphones / cue output when preview is enabled.'**
+  String get settingsAudioPreviewBusDescription;
+
   /// No description provided for @settingsAudioPreviewBus.
   ///
   /// In en, this message translates to:
-  /// **'Preview bus (headphones / cue)'**
+  /// **'Enable preview bus'**
   String get settingsAudioPreviewBus;
 
   /// No description provided for @settingsAudioDevice.
@@ -477,6 +531,18 @@ abstract class AppLocalizations {
   /// **'Keep analyzed tracks near a consistent perceived loudness.'**
   String get settingsMixerDescription;
 
+  /// No description provided for @settingsMixerNormalizerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume normalizer'**
+  String get settingsMixerNormalizerTitle;
+
+  /// No description provided for @settingsMixerNormalizerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Match analyzed tracks to a target loudness.'**
+  String get settingsMixerNormalizerDescription;
+
   /// No description provided for @settingsMixerVolumeNormalizer.
   ///
   /// In en, this message translates to:
@@ -494,6 +560,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'RGB mixes low/mid/high into one color. Filtered stacks the three bands.'**
   String get settingsWaveformDescription;
+
+  /// No description provided for @settingsWaveformDisplayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get settingsWaveformDisplayTitle;
+
+  /// No description provided for @settingsWaveformDisplayDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'RGB mixes low/mid/high into one color. Filtered stacks the three bands.'**
+  String get settingsWaveformDisplayDescription;
 
   /// No description provided for @settingsWaveformDisplayMode.
   ///
@@ -669,6 +747,18 @@ abstract class AppLocalizations {
   /// **'Track import, offline analysis, and list display.'**
   String get settingsLibraryDescription;
 
+  /// No description provided for @settingsLibraryAnalysisTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis'**
+  String get settingsLibraryAnalysisTitle;
+
+  /// No description provided for @settingsLibraryAnalysisDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'How thoroughly offline analysis scans each track.'**
+  String get settingsLibraryAnalysisDescription;
+
   /// No description provided for @settingsLibraryAnalysisQuality.
   ///
   /// In en, this message translates to:
@@ -794,6 +884,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.'**
   String get settingsLibraryKeyColorHarmonicSubtitle;
+
+  /// No description provided for @settingsLibraryStemsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stems'**
+  String get settingsLibraryStemsTitle;
+
+  /// No description provided for @settingsLibraryStemsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Codec used when writing separated stem caches.'**
+  String get settingsLibraryStemsDescription;
 
   /// No description provided for @settingsLibraryStemFormat.
   ///
@@ -926,6 +1028,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disk use for Mixar caches and library metadata under app support.'**
   String get settingsStorageDescription;
+
+  /// No description provided for @settingsStorageOverviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixar storage'**
+  String get settingsStorageOverviewTitle;
+
+  /// No description provided for @settingsStorageOverviewDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Disk use for caches and library metadata under app support.'**
+  String get settingsStorageOverviewDescription;
 
   /// No description provided for @settingsStorageMixarStorage.
   ///

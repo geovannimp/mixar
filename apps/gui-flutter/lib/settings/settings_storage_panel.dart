@@ -206,31 +206,19 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
               color: theme.colors.destructive,
             ),
           ),
-        SettingsPanel(
+        SettingsSectionCard(
+          title: l10n.settingsStorageOverviewTitle,
+          subtitle: l10n.settingsStorageOverviewDescription,
+          trailing: Text(
+            ready ? l10n.settingsStorageUsed(formatStorageBytes(total)) : '…',
+            style: theme.typography.body.sm.copyWith(
+              color: theme.colors.mutedForeground,
+            ),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: 16,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.settingsStorageMixarStorage,
-                      style: theme.typography.body.sm.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    ready
-                        ? l10n.settingsStorageUsed(formatStorageBytes(total))
-                        : '…',
-                    style: theme.typography.body.sm.copyWith(
-                      color: theme.colors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
               _StorageUsageBar(
                 segments: [
                   (stems, _kStemCacheColor),

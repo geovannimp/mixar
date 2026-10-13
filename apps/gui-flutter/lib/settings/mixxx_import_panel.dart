@@ -136,42 +136,19 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
         : l10n.mixxxImportNotFound;
     final onPress = !_busy && dbPath != null ? () => _run(dbPath) : null;
 
-    return SettingsPanel(
-      child: Row(
-        spacing: 16,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 4,
-              children: [
-                Text(
-                  l10n.mixxxImportTitle,
-                  style: theme.typography.body.sm.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  l10n.mixxxImportDescription,
-                  style: theme.typography.body.sm.copyWith(
-                    color: theme.colors.mutedForeground,
-                  ),
-                ),
-                Text(
-                  status,
-                  style: theme.typography.body.xs.copyWith(
-                    color: theme.colors.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          AppButton(
-            size: MixarButtonSize.sm,
-            onPress: onPress,
-            child: Text(_busy ? l10n.mixxxImporting : l10n.mixxxImportButton),
-          ),
-        ],
+    return SettingsSectionCard(
+      title: l10n.mixxxImportTitle,
+      subtitle: l10n.mixxxImportDescription,
+      trailing: AppButton(
+        size: MixarButtonSize.sm,
+        onPress: onPress,
+        child: Text(_busy ? l10n.mixxxImporting : l10n.mixxxImportButton),
+      ),
+      child: Text(
+        status,
+        style: theme.typography.body.xs.copyWith(
+          color: theme.colors.mutedForeground,
+        ),
       ),
     );
   }

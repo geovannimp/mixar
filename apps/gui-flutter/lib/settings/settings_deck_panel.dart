@@ -30,16 +30,13 @@ class SettingsDeckPanel extends ConsumerWidget {
           title: l10n.settingsSectionDeck,
           description: l10n.settingsDeckDescription,
         ),
-        SettingsPanel(
+        SettingsSectionCard(
+          title: l10n.settingsDeckJogTitle,
+          subtitle: l10n.settingsDeckJogDescription,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              SettingsSectionHeader(
-                title: l10n.settingsDeckJogTitle,
-                description: l10n.settingsDeckJogDescription,
-              ),
-              const SizedBox(height: 0),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 12,
@@ -77,16 +74,13 @@ class SettingsDeckPanel extends ConsumerWidget {
             ],
           ),
         ),
-        SettingsPanel(
+        SettingsSectionCard(
+          title: l10n.settingsDeckTempoKeyTitle,
+          subtitle: l10n.settingsDeckTempoKeyDescription,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              SettingsSectionHeader(
-                title: l10n.settingsDeckTempoKeyTitle,
-                description: l10n.settingsDeckTempoKeyDescription,
-              ),
-              const SizedBox(height: 0),
               SettingsField(
                 label: l10n.settingsDeckDefaultTempoRange,
                 child: SettingsSelect(
@@ -112,16 +106,13 @@ class SettingsDeckPanel extends ConsumerWidget {
             ],
           ),
         ),
-        SettingsPanel(
+        SettingsSectionCard(
+          title: l10n.settingsDeckSamplerTitle,
+          subtitle: l10n.settingsDeckSamplerDescription,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              SettingsSectionHeader(
-                title: l10n.settingsDeckSamplerTitle,
-                description: l10n.settingsDeckSamplerDescription,
-              ),
-              const SizedBox(height: 0),
               SettingsField(
                 label: l10n.settingsDeckSamplerPlayMode,
                 child: SettingsSelect(

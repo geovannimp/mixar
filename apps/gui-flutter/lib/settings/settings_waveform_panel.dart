@@ -16,25 +16,29 @@ class SettingsWaveformPanel extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 16,
       children: [
         SettingsSectionHeader(
           title: l10n.settingsSectionWaveform,
           description: l10n.settingsWaveformDescription,
         ),
-        const SizedBox(height: 20),
-        SettingsField(
-          label: l10n.settingsWaveformDisplayMode,
-          child: SettingsSelect(
-            dialogTitle: l10n.settingsWaveformDisplayMode,
-            value: draft.waveformDisplayMode,
-            options: WaveformDisplayModeSetting.values,
-            labelBuilder: (m) => switch (m) {
-              WaveformDisplayModeSetting.rgb => l10n.settingsWaveformModeRgb,
-              WaveformDisplayModeSetting.filtered =>
-                l10n.settingsWaveformModeFiltered,
-            },
-            onChanged: (m) =>
-                onChanged(copyAppSettings(draft, waveformDisplayMode: m)),
+        SettingsSectionCard(
+          title: l10n.settingsWaveformDisplayTitle,
+          subtitle: l10n.settingsWaveformDisplayDescription,
+          child: SettingsField(
+            label: l10n.settingsWaveformDisplayMode,
+            child: SettingsSelect(
+              dialogTitle: l10n.settingsWaveformDisplayMode,
+              value: draft.waveformDisplayMode,
+              options: WaveformDisplayModeSetting.values,
+              labelBuilder: (m) => switch (m) {
+                WaveformDisplayModeSetting.rgb => l10n.settingsWaveformModeRgb,
+                WaveformDisplayModeSetting.filtered =>
+                  l10n.settingsWaveformModeFiltered,
+              },
+              onChanged: (m) =>
+                  onChanged(copyAppSettings(draft, waveformDisplayMode: m)),
+            ),
           ),
         ),
       ],
