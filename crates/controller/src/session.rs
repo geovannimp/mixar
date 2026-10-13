@@ -436,6 +436,17 @@ impl MappingSession {
                 return None;
             }
             self.note_state.insert(key.clone(), parsed.active());
+            // Flush coalesced relative jog while previous touch state still applies.
+            let mut flush_fail = None;
+            if alias == "jog_touch" || alias == "jog_touch_shift" {
+                for jog_alias in ["jog_turn", "jog_side", "jog_search"] {
+                    if let Some(fail) =
+                        self.flush_pending_key(&format!("{section}.{jog_alias}"), bus, midi)
+                    {
+                        flush_fail = Some(fail);
+                    }
+                }
+            }
             let (_handled, fail) = self.dispatch_input(
                 &section,
                 &alias,
@@ -446,7 +457,7 @@ impl MappingSession {
                 bus,
                 midi,
             );
-            return fail;
+            return fail.or(flush_fail);
         }
 
         // Absolute: keep latest. Relative: sum deltas. Both publish at ≤60 Hz.
@@ -929,6 +940,37 @@ mod tests {
         match &bus.cmds[1].2 {
             CmdBody::JogTurn { delta } => assert_eq!(*delta, 4),
             other => panic!("expected JogTurn sum, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn jog_touch_release_flushes_pending_relative_first() {
+        let mut s = session();
+        let mut bus = CaptureBus { cmds: vec![] };
+
+        // Touch down so note-off is a real edge.
+        s.handle_midi(&[0x90, 0x36, 0x7F], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 1);
+        match &bus.cmds[0].2 {
+            CmdBody::JogTouch { touching: true } => {}
+            other => panic!("expected JogTouch true, got {other:?}"),
+        }
+
+        // First relative turn publishes; second stays pending inside coalesce window.
+        s.handle_midi(&[0xB0, 0x22, 65], &mut bus, &mut NullMidi);
+        s.handle_midi(&[0xB0, 0x22, 65], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 2, "second turn must remain pending");
+
+        // Release: pending JogTurn must publish before JogTouch false.
+        s.handle_midi(&[0x80, 0x36, 0x00], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 4, "flush + touch release");
+        match &bus.cmds[2].2 {
+            CmdBody::JogTurn { delta } => assert_eq!(*delta, 1),
+            other => panic!("expected flushed JogTurn before release, got {other:?}"),
+        }
+        match &bus.cmds[3].2 {
+            CmdBody::JogTouch { touching: false } => {}
+            other => panic!("expected JogTouch false after flush, got {other:?}"),
         }
     }
 }

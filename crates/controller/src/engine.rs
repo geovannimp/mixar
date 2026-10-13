@@ -82,6 +82,7 @@ pub enum ControllerEvent {
     },
     MappingDetached {
         mapping_id: String,
+        port_name: String,
     },
 }
 
@@ -611,10 +612,18 @@ impl ControllerEngine {
             .cloned()
             .collect::<Vec<_>>()
         {
-            self.offered_ports.remove(&gone);
+            let was_offered = self.offered_ports.remove(&gone);
             self.suppressed_ports.remove(&gone);
             if self.attached.contains_key(&gone) {
                 let _ = self.disable_mapping_on_port(&gone, false);
+            } else if was_offered {
+                // Unplug before Enable: withdraw the offer so the UI can dismiss.
+                if let Some(mapping_id) = self.match_port(&gone) {
+                    self.events.push_back(ControllerEvent::MappingDetached {
+                        mapping_id,
+                        port_name: gone,
+                    });
+                }
             }
         }
 
@@ -854,6 +863,7 @@ impl ControllerEngine {
         }
         self.events.push_back(ControllerEvent::MappingDetached {
             mapping_id: attached.mapping_id,
+            port_name: port_name.to_string(),
         });
         self.refresh_pending_offers_cache();
         Ok(())

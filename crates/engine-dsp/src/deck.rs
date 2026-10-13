@@ -38,10 +38,10 @@ const JOG_INTERVALS_PER_REV: f64 = 720.0;
 const JOG_RPM: f64 = 100.0 / 3.0; // 33⅓
 const JOG_ALPHA: f64 = 1.0 / 8.0;
 const JOG_BETA: f64 = JOG_ALPHA / 32.0;
-const JOG_VINYL_HOLD_SECS: f64 = 0.02;
+const JOG_VINYL_HOLD_SECS: f64 = 0.05;
 const JOG_RELEASE_RATE_PER_SEC: f32 = 12.0;
 const JOG_BEND_PER_TICK: f32 = 0.0015;
-const JOG_BEND_DECAY_PER_SEC: f32 = 8.0;
+const JOG_BEND_DECAY_PER_SEC: f32 = 24.0;
 const JOG_BEND_MAX: f32 = 0.08;
 
 /// Audio deck for DJ-style playback
@@ -74,6 +74,8 @@ pub struct Deck {
     jog_idle_secs: f64,
     /// Engine samples since last `jog_turn` (for vinyl velocity).
     jog_samples_since_tick: u64,
+    /// Vinyl ticks received while `jog_samples_since_tick == 0` (await next buffer).
+    jog_pending_ticks: i32,
     /// When true, ramp `jog_rate` toward 1.0 after leaving vinyl.
     jog_releasing: bool,
     /// Immutable engine output sample rate (from config).
@@ -163,6 +165,7 @@ impl Deck {
             jog_velocity_deriv: 0.0,
             jog_idle_secs: 1.0,
             jog_samples_since_tick: u64::MAX / 4,
+            jog_pending_ticks: 0,
             jog_releasing: false,
             sample_rate,
             buffer_size: buffer_size.max(1),
@@ -445,6 +448,7 @@ impl Deck {
             if self.slip_enabled {
                 self.catch_up_slip();
                 self.jog_releasing = false;
+                self.jog_pending_ticks = 0;
                 self.jog_rate = 1.0;
                 self.jog_velocity = 0.0;
                 self.jog_velocity_deriv = 0.0;
@@ -457,6 +461,7 @@ impl Deck {
             self.jog_idle_secs = 0.0;
             if touching {
                 // Touching a vinyl platter stops the motor until ticks arrive.
+                self.jog_pending_ticks = 0;
                 self.jog_velocity = 0.0;
                 self.jog_velocity_deriv = 0.0;
                 self.jog_rate = 0.0;
@@ -478,23 +483,31 @@ impl Deck {
             }
             JogMode::Vinyl => {
                 self.jog_releasing = false;
-                let dt = if self.jog_samples_since_tick == 0 {
-                    1.0 / f64::from(self.sample_rate)
-                } else {
-                    (self.jog_samples_since_tick as f64 / f64::from(self.sample_rate))
-                        .clamp(1.0 / f64::from(self.sample_rate), 0.05)
-                };
-                self.jog_samples_since_tick = 0;
-                let instant_rps = f64::from(delta) / JOG_INTERVALS_PER_REV / dt;
-                let err = instant_rps - self.jog_velocity;
-                self.jog_velocity += JOG_ALPHA * err;
-                self.jog_velocity_deriv += JOG_BETA * err / dt;
-                self.jog_velocity += self.jog_velocity_deriv * dt;
-                let vinyl_rps = JOG_RPM / 60.0;
-                self.jog_rate = ((self.jog_velocity / vinyl_rps) as f32).clamp(-3.0, 3.0);
                 self.jog_idle_secs = 0.0;
+                if self.jog_samples_since_tick == 0 {
+                    self.jog_pending_ticks = self.jog_pending_ticks.saturating_add(delta);
+                    return;
+                }
+                let d = delta.saturating_add(self.jog_pending_ticks);
+                self.jog_pending_ticks = 0;
+                self.apply_vinyl_delta(d);
             }
         }
+    }
+
+    /// Apply a vinyl scratch delta. Requires `jog_samples_since_tick > 0`.
+    fn apply_vinyl_delta(&mut self, delta: i32) {
+        debug_assert!(self.jog_samples_since_tick > 0);
+        let dt = (self.jog_samples_since_tick as f64 / f64::from(self.sample_rate))
+            .clamp(1.0 / f64::from(self.sample_rate), 0.05);
+        self.jog_samples_since_tick = 0;
+        let instant_rps = f64::from(delta) / JOG_INTERVALS_PER_REV / dt;
+        let err = instant_rps - self.jog_velocity;
+        self.jog_velocity += JOG_ALPHA * err;
+        self.jog_velocity_deriv += JOG_BETA * err / dt;
+        self.jog_velocity += self.jog_velocity_deriv * dt;
+        let vinyl_rps = JOG_RPM / 60.0;
+        self.jog_rate = ((self.jog_velocity / vinyl_rps) as f32).clamp(-3.0, 3.0);
     }
 
     fn active_jog_mode(&self) -> JogMode {
@@ -506,6 +519,7 @@ impl Deck {
     }
 
     fn begin_jog_release(&mut self) {
+        self.jog_pending_ticks = 0;
         self.jog_velocity = 0.0;
         self.jog_velocity_deriv = 0.0;
         if self.state != DeckState::Playing {
@@ -522,6 +536,12 @@ impl Deck {
         let dt = frames as f64 / f64::from(self.sample_rate);
         self.jog_idle_secs += dt;
         self.jog_samples_since_tick = self.jog_samples_since_tick.saturating_add(frames as u64);
+
+        if self.active_jog_mode() == JogMode::Vinyl && self.jog_pending_ticks != 0 {
+            let pending = self.jog_pending_ticks;
+            self.jog_pending_ticks = 0;
+            self.apply_vinyl_delta(pending);
+        }
 
         if self.jog_releasing {
             let step = JOG_RELEASE_RATE_PER_SEC * (dt as f32);
@@ -553,7 +573,7 @@ impl Deck {
                 }
             }
             JogMode::PitchBend => {
-                if self.jog_idle_secs > 0.03 {
+                if self.jog_idle_secs > 0.02 {
                     let decay = (-JOG_BEND_DECAY_PER_SEC * (dt as f32)).exp();
                     let bend = (self.jog_rate - 1.0) * decay;
                     if bend.abs() < 1e-4 {
@@ -1887,6 +1907,55 @@ mod tests {
             (deck.jog_rate() - 1.0).abs() < 0.05,
             "expected ramp to 1, got {}",
             deck.jog_rate()
+        );
+    }
+
+    #[test]
+    fn vinyl_back_to_back_turns_do_not_spike_to_max_rate() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 100], ENGINE_RATE);
+        deck.set_jog_touch(true);
+        deck.process(CHUNK).unwrap();
+        deck.jog_turn(1);
+        deck.jog_turn(1);
+        deck.process(CHUNK).unwrap();
+        let rate = deck.jog_rate().abs();
+        assert!(
+            rate < 1.5,
+            "back-to-back turns must not clamp via 1-sample dt; rate={rate}"
+        );
+    }
+
+    #[test]
+    fn vinyl_hold_tolerates_40ms_idle_without_zeroing_while_moving() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 500], ENGINE_RATE);
+        deck.set_jog_touch(true);
+        for _ in 0..8 {
+            let _ = deck.process(48);
+            deck.jog_turn(8);
+        }
+        let moving = deck.jog_rate().abs();
+        assert!(moving > 0.05, "need velocity before idle, rate={moving}");
+
+        // ~40 ms with no turns (CHUNK=512 @ 48 kHz ≈ 10.67 ms → 4 buffers ≈ 42.7 ms).
+        for _ in 0..4 {
+            deck.process(CHUNK).unwrap();
+        }
+        let after_40 = deck.jog_rate().abs();
+        assert!(
+            after_40 > 0.01,
+            "40 ms idle under 50 ms hold must keep rate, got {after_40}"
+        );
+
+        // Extra buffers past 50 ms hold while touching → forced zero.
+        for _ in 0..3 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert_eq!(
+            deck.jog_rate(),
+            0.0,
+            "≥50 ms idle while touching must zero rate"
         );
     }
 
