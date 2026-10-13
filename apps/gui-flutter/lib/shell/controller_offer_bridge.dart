@@ -109,10 +109,17 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         unawaited(syncAttachedMappingIds(ref));
         ref.invalidate(controllerDevicesProvider);
       case ControllerEvtKind.mappingDetached:
+        final port = evt.portName;
+        if (port != null) {
+          _shownPorts.remove(port);
+          dismissMixarToast(context, id: _offerToastId(port));
+        }
         unawaited(syncAttachedMappingIds(ref));
         ref.invalidate(controllerDevicesProvider);
     }
   }
+
+  static String _offerToastId(String port) => 'controller-offer:$port';
 
   void _showOffer(ControllerEvt evt) {
     final port = evt.portName;
@@ -129,10 +136,18 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     }
     _shownPorts.add(port);
     var alwaysAllow = false;
+    // Cancel keeps [port] in [_shownPorts] so hydrate does not re-prompt;
+    // Enable clears it so a later re-plug can offer again. Detach also clears.
+    var clearPortOnDismiss = true;
     showMixarToast(
       context: context,
+      id: _offerToastId(port),
       duration: null,
-      onDismiss: () => _shownPorts.remove(port),
+      onDismiss: () {
+        if (clearPortOnDismiss) {
+          _shownPorts.remove(port);
+        }
+      },
       title: Text('${evt.deviceName ?? mappingId} connected'),
       description: StatefulBuilder(
         builder: (context, setLocal) {
@@ -151,22 +166,39 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
           );
         },
       ),
-      suffixBuilder: (context, dismiss) => AppButton(
-        size: .sm,
-        mainAxisSize: .min,
-        onPress: () {
-          dismiss();
-          unawaited(
-            _enable(
-              transport: transport,
-              mappingId: mappingId,
-              portName: port,
-              deviceId: evt.deviceId,
-              alwaysAllow: alwaysAllow,
-            ),
-          );
-        },
-        child: const Text('Enable'),
+      suffixBuilder: (context, dismiss) => Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 8,
+        children: [
+          AppButton(
+            size: .sm,
+            mainAxisSize: .min,
+            variant: .outline,
+            onPress: () {
+              clearPortOnDismiss = false;
+              dismiss();
+            },
+            child: const Text('Cancel'),
+          ),
+          AppButton(
+            size: .sm,
+            mainAxisSize: .min,
+            onPress: () {
+              clearPortOnDismiss = true;
+              dismiss();
+              unawaited(
+                _enable(
+                  transport: transport,
+                  mappingId: mappingId,
+                  portName: port,
+                  deviceId: evt.deviceId,
+                  alwaysAllow: alwaysAllow,
+                ),
+              );
+            },
+            child: const Text('Enable'),
+          ),
+        ],
       ),
     );
   }

@@ -185,3 +185,25 @@ fn pending_offers_omit_trusted_matches() {
         .apply_input_ports(HashSet::from(["TestDev Port".into()]));
     assert!(fx.engine.pending_offers().is_empty());
 }
+
+#[test]
+fn disconnecting_offered_port_emits_detached_with_port_name() {
+    let mut fx = open_with_map();
+    fx.engine
+        .apply_input_ports(HashSet::from(["TestDev Port".into()]));
+    let _ = fx.engine.take_events();
+
+    fx.engine.apply_input_ports(HashSet::new());
+    let ev = fx.engine.take_events();
+    assert!(
+        matches!(
+            &ev[..],
+            [ControllerEvent::MappingDetached {
+                mapping_id,
+                port_name,
+            }] if mapping_id == "test-map" && port_name == "TestDev Port"
+        ),
+        "offer toast needs a detach event keyed by port: {ev:?}"
+    );
+    assert!(fx.engine.pending_offers().is_empty());
+}
