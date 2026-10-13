@@ -4,6 +4,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
@@ -15,7 +16,6 @@ class SettingsMixerPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -25,23 +25,23 @@ class SettingsMixerPanel extends StatelessWidget {
           title: l10n.settingsSectionMixer,
           description: l10n.settingsMixerDescription,
         ),
-        SettingsPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 16,
-            children: [
-              SettingsToggle(
-                label: l10n.settingsMixerVolumeNormalizer,
-                labelStyle: theme.typography.body.sm.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+        SettingsSectionCard(
+          title: l10n.settingsMixerNormalizerTitle,
+          subtitle: l10n.settingsMixerNormalizerDescription,
+          trailing: SizedBox(
+            height: 23,
+            child: FittedBox(
+              child: MixarSwitch(
                 value: draft.volumeNormalizerEnabled,
+                semanticsLabel: l10n.settingsMixerVolumeNormalizer,
                 onChanged: (v) => onChanged(
                   copyAppSettings(draft, volumeNormalizerEnabled: v),
                 ),
               ),
-              if (draft.volumeNormalizerEnabled)
-                SettingsField(
+            ),
+          ),
+          child: draft.volumeNormalizerEnabled
+              ? SettingsField(
                   label: l10n.settingsMixerTargetLufs,
                   child: _NumericStepper(
                     value: draft.targetLufs,
@@ -52,9 +52,8 @@ class SettingsMixerPanel extends StatelessWidget {
                     onChanged: (v) =>
                         onChanged(copyAppSettings(draft, targetLufs: v)),
                   ),
-                ),
-            ],
-          ),
+                )
+              : null,
         ),
       ],
     );

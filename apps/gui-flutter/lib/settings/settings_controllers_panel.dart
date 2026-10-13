@@ -77,148 +77,119 @@ class _SettingsControllersPanelState
           title: l10n.settingsSectionControllers,
           description: l10n.settingsControllersDescription,
         ),
-        SettingsPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 12,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 12,
-                children: [
-                  Expanded(
-                    child: SettingsSectionHeader(
-                      title: l10n.settingsControllersMappingsTitle,
-                      description: l10n.settingsControllersMappingsDescription,
-                    ),
-                  ),
-                  AppButton(
-                    variant: .outline,
-                    size: .sm,
-                    mainAxisSize: .min,
-                    onPress: transport == null || _busy
-                        ? null
-                        : () => _run(() async {
-                            await transport.updateAllMappings();
-                            if (mounted) {
-                              ref.invalidate(controllerMappingsProvider);
-                            }
-                          }),
-                    child: Text(l10n.settingsControllersUpdateAll),
-                  ),
-                ],
-              ),
-              mappings.when(
-                data: (rows) {
-                  if (rows.isEmpty) {
-                    return Text(
-                      l10n.settingsControllersNoMappings,
-                      style: theme.typography.body.sm.copyWith(
-                        color: theme.colors.mutedForeground,
-                      ),
-                    );
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < rows.length; i++) ...[
-                        if (i > 0)
-                          const MDivider(
-                            padding: EdgeInsets.symmetric(vertical: 4),
-                          ),
-                        ControllerMappingRow(
-                          mapping: rows[i],
-                          attached: attachedIds.contains(rows[i].id),
-                          trusted: widget.draft.trustedControllerDeviceIds
-                              .contains(rows[i].deviceId),
-                          attachBusy: _busy || transport == null,
-                          trustBusy: _busy,
-                          onToggleAttach: (enabled) => _run(
-                            () => enabled
-                                ? transport!.enableMapping(
-                                    mappingId: rows[i].id,
-                                  )
-                                : transport!.disableMapping(
-                                    mappingId: rows[i].id,
-                                  ),
-                          ),
-                          onToggleTrust: (trusted) =>
-                              _setTrusted(rows[i].deviceId, trusted),
-                          onUpdate: () => _run(() async {
-                            await transport!.updateMapping(
-                              mappingId: rows[i].id,
-                            );
-                            if (mounted) {
-                              ref.invalidate(controllerMappingsProvider);
-                            }
-                          }),
-                        ),
-                      ],
-                    ],
-                  );
-                },
-                loading: () => Text(
-                  l10n.commonLoading,
+        SettingsSectionCard(
+          title: l10n.settingsControllersMappingsTitle,
+          subtitle: l10n.settingsControllersMappingsDescription,
+          trailing: AppButton(
+            variant: .outline,
+            size: .sm,
+            mainAxisSize: .min,
+            onPress: transport == null || _busy
+                ? null
+                : () => _run(() async {
+                    await transport.updateAllMappings();
+                    if (mounted) {
+                      ref.invalidate(controllerMappingsProvider);
+                    }
+                  }),
+            child: Text(l10n.settingsControllersUpdateAll),
+          ),
+          child: mappings.when(
+            data: (rows) {
+              if (rows.isEmpty) {
+                return Text(
+                  l10n.settingsControllersNoMappings,
                   style: theme.typography.body.sm.copyWith(
                     color: theme.colors.mutedForeground,
                   ),
-                ),
-                error: (e, _) => Text(
-                  '$e',
-                  style: theme.typography.body.sm.copyWith(
-                    color: theme.colors.destructive,
-                  ),
-                ),
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < rows.length; i++) ...[
+                    if (i > 0)
+                      const MDivider(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                      ),
+                    ControllerMappingRow(
+                      mapping: rows[i],
+                      attached: attachedIds.contains(rows[i].id),
+                      trusted: widget.draft.trustedControllerDeviceIds.contains(
+                        rows[i].deviceId,
+                      ),
+                      attachBusy: _busy || transport == null,
+                      trustBusy: _busy,
+                      onToggleAttach: (enabled) => _run(
+                        () => enabled
+                            ? transport!.enableMapping(mappingId: rows[i].id)
+                            : transport!.disableMapping(mappingId: rows[i].id),
+                      ),
+                      onToggleTrust: (trusted) =>
+                          _setTrusted(rows[i].deviceId, trusted),
+                      onUpdate: () => _run(() async {
+                        await transport!.updateMapping(mappingId: rows[i].id);
+                        if (mounted) {
+                          ref.invalidate(controllerMappingsProvider);
+                        }
+                      }),
+                    ),
+                  ],
+                ],
+              );
+            },
+            loading: () => Text(
+              l10n.commonLoading,
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.mutedForeground,
               ),
-            ],
+            ),
+            error: (e, _) => Text(
+              '$e',
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.destructive,
+              ),
+            ),
           ),
         ),
-        SettingsPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 12,
-            children: [
-              SettingsSectionHeader(
-                title: l10n.settingsControllersMidiPortsTitle,
-                description: l10n.settingsControllersMidiPortsDescription,
-              ),
-              devices.when(
-                data: (rows) {
-                  if (rows.isEmpty) {
-                    return Text(
-                      l10n.settingsControllersNoMidiPorts,
-                      style: theme.typography.body.sm.copyWith(
-                        color: theme.colors.mutedForeground,
-                      ),
-                    );
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < rows.length; i++) ...[
-                        if (i > 0)
-                          const MDivider(
-                            padding: EdgeInsets.symmetric(vertical: 4),
-                          ),
-                        _MidiPortRow(device: rows[i]),
-                      ],
-                    ],
-                  );
-                },
-                loading: () => Text(
-                  l10n.commonLoading,
+        SettingsSectionCard(
+          title: l10n.settingsControllersMidiPortsTitle,
+          subtitle: l10n.settingsControllersMidiPortsDescription,
+          child: devices.when(
+            data: (rows) {
+              if (rows.isEmpty) {
+                return Text(
+                  l10n.settingsControllersNoMidiPorts,
                   style: theme.typography.body.sm.copyWith(
                     color: theme.colors.mutedForeground,
                   ),
-                ),
-                error: (e, _) => Text(
-                  '$e',
-                  style: theme.typography.body.sm.copyWith(
-                    color: theme.colors.destructive,
-                  ),
-                ),
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < rows.length; i++) ...[
+                    if (i > 0)
+                      const MDivider(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                      ),
+                    _MidiPortRow(device: rows[i]),
+                  ],
+                ],
+              );
+            },
+            loading: () => Text(
+              l10n.commonLoading,
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.mutedForeground,
               ),
-            ],
+            ),
+            error: (e, _) => Text(
+              '$e',
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.destructive,
+              ),
+            ),
           ),
         ),
       ],

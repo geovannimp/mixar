@@ -55,7 +55,9 @@ class SettingsUiPanel extends StatelessWidget {
           title: l10n.settingsSectionUi,
           description: l10n.settingsUiDescription,
         ),
-        SettingsPanel(
+        SettingsSectionCard(
+          title: l10n.settingsUiChromeTitle,
+          subtitle: l10n.settingsUiChromeDescription,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
@@ -90,6 +92,44 @@ class SettingsUiPanel extends StatelessWidget {
                   subtitleBuilder: (mode) => _selectStyleSubtitle(l10n, mode),
                   onChanged: (mode) =>
                       onChanged(copyAppSettings(draft, selectStyle: mode)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsUiLibraryListTitle,
+          subtitle: l10n.settingsUiLibraryListDescription,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 16,
+            children: [
+              SettingsToggle(
+                label: l10n.settingsLibraryDimPlayedTracks,
+                value: draft.dimPlayedTracks,
+                onChanged: (enabled) =>
+                    onChanged(copyAppSettings(draft, dimPlayedTracks: enabled)),
+              ),
+              SettingsField(
+                label: l10n.settingsLibraryTrackRowLayout,
+                child: SettingsSelect<LibraryRowDensitySetting>(
+                  dialogTitle: l10n.settingsLibraryTrackRowLayout,
+                  value: draft.libraryRowDensity,
+                  options: const [
+                    LibraryRowDensitySetting.comfortable,
+                    LibraryRowDensitySetting.compact,
+                  ],
+                  labelBuilder: (mode) =>
+                      mode == LibraryRowDensitySetting.compact
+                      ? l10n.settingsLibraryRowCompact
+                      : l10n.settingsLibraryRowComfortable,
+                  subtitleBuilder: (mode) =>
+                      mode == LibraryRowDensitySetting.compact
+                      ? l10n.settingsLibraryRowCompactSubtitle
+                      : l10n.settingsLibraryRowComfortableSubtitle,
+                  onChanged: (mode) => onChanged(
+                    copyAppSettings(draft, libraryRowDensity: mode),
+                  ),
                 ),
               ),
             ],

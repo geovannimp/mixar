@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/mixar_select.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
@@ -45,15 +46,49 @@ class SettingsToggle extends StatelessWidget {
   }
 }
 
-class SettingsPanel extends StatelessWidget {
-  const new({required this.child, super.key});
+/// Titled settings card: required title + subtitle above optional [child].
+///
+/// Pass [trailing] for header actions (e.g. Update All, enable toggles). Omit
+/// [child] when the card is header-only (toggle off, no fields to show).
+class SettingsSectionCard extends StatelessWidget {
+  const new({
+    required this.title,
+    required this.subtitle,
+    super.key,
+    this.trailing,
+    this.child,
+  });
 
-  final Widget child;
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
+    final header = SettingsSectionHeader(title: title, description: subtitle);
     return MCard(
-      child: Padding(padding: const .fromLTRB(16, 16, 16, 16), child: child),
+      child: Padding(
+        padding: const .fromLTRB(16, 16, 16, 16),
+        child: Column(
+          crossAxisAlignment: .start,
+          spacing: 16,
+          children: [
+            if (trailing == null)
+              header
+            else
+              Row(
+                crossAxisAlignment: .start,
+                spacing: 12,
+                children: [
+                  Expanded(child: header),
+                  trailing!,
+                ],
+              ),
+            if (child != null) child!,
+          ],
+        ),
+      ),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_slider.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
@@ -25,87 +26,92 @@ class SettingsSessionPanel extends StatelessWidget {
           title: l10n.settingsSectionSession,
           description: l10n.settingsSessionDescription,
         ),
-        SettingsPanel(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 16,
-            children: [
-              SettingsSectionHeader(
-                title: l10n.settingsSessionHistoryTitle,
-                description: l10n.settingsSessionHistoryDescription,
-              ),
-              SettingsToggle(
-                label: l10n.settingsSessionRecordHistory,
+        SettingsSectionCard(
+          title: l10n.settingsSessionHistoryTitle,
+          subtitle: l10n.settingsSessionHistoryDescription,
+          trailing: SizedBox(
+            height: 23,
+            child: FittedBox(
+              child: MixarSwitch(
                 value: draft.historyEnabled,
+                semanticsLabel: l10n.settingsSessionRecordHistory,
                 onChanged: (enabled) =>
                     onChanged(copyAppSettings(draft, historyEnabled: enabled)),
               ),
-              const SizedBox(height: 0),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 12,
-                children: [
-                  Expanded(
-                    child: SettingsField(
-                      label: l10n.settingsSessionIdleTimeout,
-                      hint: l10n.settingsSessionIdleTimeoutHint,
-                      child: MixarInput(
-                        initialValue: '${draft.historySessionIdleMinutes}',
-                        trailing: _suffixLabel(
-                          context,
-                          l10n.settingsSessionMinutes,
-                        ),
-                        onChanged: (text) {
-                          final parsed = int.tryParse(text.trim());
-                          if (parsed != null && parsed > 0) {
-                            onChanged(
-                              copyAppSettings(
-                                draft,
-                                historySessionIdleMinutes: parsed,
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: SettingsField(
-                      label: l10n.settingsSessionMinPlayDuration,
-                      hint: l10n.settingsSessionMinPlayDurationHint,
-                      child: MixarInput(
-                        initialValue: '${draft.historyMinPlaySeconds}',
-                        trailing: _suffixLabel(
-                          context,
-                          l10n.settingsSessionSeconds,
-                        ),
-                        onChanged: (text) {
-                          final parsed = int.tryParse(text.trim());
-                          if (parsed != null && parsed > 0) {
-                            onChanged(
-                              copyAppSettings(
-                                draft,
-                                historyMinPlaySeconds: parsed,
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SettingsField(
-                label: l10n.settingsSessionMinDeckVolume,
-                child: _MinDeckVolumeSlider(
-                  value: draft.historyMinDeckVolume,
-                  onChanged: (volume) => onChanged(
-                    copyAppSettings(draft, historyMinDeckVolume: volume),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
+          child: draft.historyEnabled
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 16,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 12,
+                      children: [
+                        Expanded(
+                          child: SettingsField(
+                            label: l10n.settingsSessionIdleTimeout,
+                            hint: l10n.settingsSessionIdleTimeoutHint,
+                            child: MixarInput(
+                              initialValue:
+                                  '${draft.historySessionIdleMinutes}',
+                              trailing: _suffixLabel(
+                                context,
+                                l10n.settingsSessionMinutes,
+                              ),
+                              onChanged: (text) {
+                                final parsed = int.tryParse(text.trim());
+                                if (parsed != null && parsed > 0) {
+                                  onChanged(
+                                    copyAppSettings(
+                                      draft,
+                                      historySessionIdleMinutes: parsed,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: SettingsField(
+                            label: l10n.settingsSessionMinPlayDuration,
+                            hint: l10n.settingsSessionMinPlayDurationHint,
+                            child: MixarInput(
+                              initialValue: '${draft.historyMinPlaySeconds}',
+                              trailing: _suffixLabel(
+                                context,
+                                l10n.settingsSessionSeconds,
+                              ),
+                              onChanged: (text) {
+                                final parsed = int.tryParse(text.trim());
+                                if (parsed != null && parsed > 0) {
+                                  onChanged(
+                                    copyAppSettings(
+                                      draft,
+                                      historyMinPlaySeconds: parsed,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SettingsField(
+                      label: l10n.settingsSessionMinDeckVolume,
+                      child: _MinDeckVolumeSlider(
+                        value: draft.historyMinDeckVolume,
+                        onChanged: (volume) => onChanged(
+                          copyAppSettings(draft, historyMinDeckVolume: volume),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : null,
         ),
       ],
     );
