@@ -134,6 +134,10 @@ const kMetaPillPadding = EdgeInsets.symmetric(
 /// Widest a pill may get before its padding leaves no room for a glyph.
 const kMetaPillIconMinWidth = 40.0;
 
+/// Leading glyph/loader (~12) + gap (4) inside a [MetaPill]. Shared with tests
+/// that assert content-sized pill chrome width.
+const kMetaPillLeadingExtent = 16.0;
+
 /// Centred message for a list pane's empty / loading / error states.
 class LibraryListMessage extends StatelessWidget {
   const new(this.text, {required this.color, super.key});
@@ -481,9 +485,7 @@ class MetaPill extends StatelessWidget {
             fontWeight: fontWeight,
           ),
         );
-        // Leading is icon/loader (~12) + gap (4); used to budget label max
-        // when fillWidth is false.
-        const leadingExtent = 16.0;
+        // Leading budgets the label max when fillWidth is false.
         return DecoratedBox(
           decoration: BoxDecoration(
             color: backgroundColor ?? theme.colors.card,
@@ -509,7 +511,8 @@ class MetaPill extends StatelessWidget {
                   ConstrainedBox(
                     constraints: BoxConstraints(
                       maxWidth:
-                          (innerWidth - (showLeading ? leadingExtent : 0.0))
+                          (innerWidth -
+                                  (showLeading ? kMetaPillLeadingExtent : 0.0))
                               .clamp(0.0, double.infinity),
                     ),
                     child: label,

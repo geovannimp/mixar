@@ -544,7 +544,6 @@ class _ComfortableRow extends StatelessWidget {
             metaWidth -
             kRowGutter -
             kActionsColumnWidth;
-        final maxPillWidth = (detailsWidth - kMetaPillGap) / 2;
         final statusMax = (detailsWidth - kMinTitleWidth).clamp(
           0.0,
           double.infinity,
@@ -554,57 +553,68 @@ class _ComfortableRow extends StatelessWidget {
             _ArtworkThumb(trackId: track.id, size: artSize),
             const SizedBox(width: kArtworkGap),
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: titleStyle,
-                  ),
-                  // Wrap, not a single ellipsized line: a long artist name
-                  // pushes the remaining pills onto a second line instead of
-                  // hiding them. Two runs is the cap (see `maxPillWidth`); the
-                  // clip is belt-and-braces so no label can paint outside the
-                  // row. Skipped entirely when there is no room left: a
-                  // zero-width cap would render the pills as an empty gap.
-                  if (pills.isNotEmpty && maxPillWidth > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      // maxHeight, not a fixed height. Reserving two runs when
-                      // a row only needs one leaves dead space under the pills,
-                      // which pushes the title + pills group off centre. The
-                      // cap still bounds the area at the two runs the width
-                      // cap above guarantees.
-                      //
-                      // Hung left by the pill's own inset so the metadata text
-                      // lines up with the title above.
-                      child: Transform.translate(
-                        offset: const Offset(-kMetaPillInset, 0),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxHeight: kMetaPillAreaHeight,
-                          ),
-                          child: Wrap(
-                            spacing: kMetaPillGap,
-                            runSpacing: kMetaPillGap,
-                            clipBehavior: Clip.hardEdge,
-                            children: [
-                              for (final pill in pills)
-                                ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxWidth: maxPillWidth,
-                                  ),
-                                  child: pill,
-                                ),
-                            ],
+              // Measure the real title column: in-flow status pills shrink this
+              // Expanded, so a status-free detailsWidth cap would leave
+              // maxPillWidth too wide and force a third Wrap run past the
+              // kMetaPillAreaHeight clip.
+              child: LayoutBuilder(
+                builder: (context, columnConstraints) {
+                  final maxPillWidth =
+                      (columnConstraints.maxWidth - kMetaPillGap) / 2;
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle,
+                      ),
+                      // Wrap, not a single ellipsized line: a long artist name
+                      // pushes the remaining pills onto a second line instead of
+                      // hiding them. Two runs is the cap (see `maxPillWidth`);
+                      // the clip is belt-and-braces so no label can paint
+                      // outside the row. Skipped entirely when there is no room
+                      // left: a zero-width cap would render the pills as an
+                      // empty gap.
+                      if (pills.isNotEmpty && maxPillWidth > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          // maxHeight, not a fixed height. Reserving two runs
+                          // when a row only needs one leaves dead space under
+                          // the pills, which pushes the title + pills group off
+                          // centre. The cap still bounds the area at the two
+                          // runs the width cap above guarantees.
+                          //
+                          // Hung left by the pill's own inset so the metadata
+                          // text lines up with the title above.
+                          child: Transform.translate(
+                            offset: const Offset(-kMetaPillInset, 0),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                maxHeight: kMetaPillAreaHeight,
+                              ),
+                              child: Wrap(
+                                spacing: kMetaPillGap,
+                                runSpacing: kMetaPillGap,
+                                clipBehavior: Clip.hardEdge,
+                                children: [
+                                  for (final pill in pills)
+                                    ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: maxPillWidth,
+                                      ),
+                                      child: pill,
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
             ConstrainedBox(

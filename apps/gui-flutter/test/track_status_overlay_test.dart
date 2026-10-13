@@ -366,10 +366,12 @@ void main() {
         (w) => w is MetaPill && w.text.contains('BPM'),
       ),
     );
-    const leadingExtent = 16.0; // icon 12 + gap 4, matches MetaPill
     expect(
       tester.getSize(bpmPill).width,
-      closeTo(bpmRect.width + kMetaPillPadding.horizontal + leadingExtent, 1.0),
+      closeTo(
+        bpmRect.width + kMetaPillPadding.horizontal + kMetaPillLeadingExtent,
+        1.0,
+      ),
     );
     expect(tester.getSize(bpmPill).width, lessThan(kBpmSlotWidth));
     // BPM and key pack with only kMetaPillGap — not slot-width gaps.
