@@ -169,7 +169,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 for (final option in widget.options)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),

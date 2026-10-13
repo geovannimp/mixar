@@ -2,6 +2,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/library/track_list.dart';
 import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -51,6 +54,7 @@ void main() {
     bool running = false,
     bool stemsGenerating = false,
     double width = 200,
+    SelectStyleSetting selectStyle = SelectStyleSetting.auto,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -58,6 +62,10 @@ void main() {
         overrides: [
           driveResolvedByPathProvider.overrideWith(
             (ref) async => const <String, LibraryTrackSummary>{},
+          ),
+          appSettingsProvider.overrideWith(
+            (ref) async =>
+                copyAppSettings(defaultAppSettings(), selectStyle: selectStyle),
           ),
           if (running) engineUiProvider.overrideWith(_RunningEngineUi.new),
         ],
@@ -122,6 +130,87 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Analyze'), findsOneWidget);
     expect(tester.getSize(find.text('Load to deck')).width, lessThan(300));
+  });
+
+  testWidgets('mobile track actions menu shows Track actions title', (
+    tester,
+  ) async {
+    await pumpMenu(tester, selectStyle: SelectStyleSetting.mobile);
+    // Wait for appSettings override so selectStyleSettingProvider sees mobile.
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+    expect(find.text('Track actions'), findsOneWidget);
+    expect(find.text('Load to deck'), findsOneWidget);
+  });
+
+
+  testWidgets('mobile Load to deck section spacing matches action cards', (
+    tester,
+  ) async {
+    await pumpMenu(tester, selectStyle: SelectStyleSetting.mobile);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+
+    final labelBottom = tester.getBottomLeft(find.text('Load to deck')).dy;
+    final segmentTrack = find.descendant(
+      of: find.byType(MixarMenuSegments),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w is DecoratedBox &&
+            w.decoration is BoxDecoration &&
+            (w.decoration as BoxDecoration).border != null,
+      ),
+    );
+    expect(segmentTrack, findsOneWidget);
+    final segmentTop = tester.getTopLeft(segmentTrack).dy;
+    final segmentBottom = tester.getBottomLeft(segmentTrack).dy;
+    final segmentLeft = tester.getTopLeft(segmentTrack).dx;
+
+    final analyzeCard = find
+        .ancestor(
+          of: find.text('Analyze'),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is DecoratedBox &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).border != null,
+          ),
+        )
+        .first;
+    final analyzeTop = tester.getTopLeft(analyzeCard).dy;
+    final analyzeLeft = tester.getTopLeft(analyzeCard).dx;
+    final generateCard = find
+        .ancestor(
+          of: find.text('Generate stems'),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is DecoratedBox &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).border != null,
+          ),
+        )
+        .first;
+    final analyzeBottom = tester.getBottomLeft(analyzeCard).dy;
+    final generateTop = tester.getTopLeft(generateCard).dy;
+
+    // Full-bleed like action cards (no extra 12px track inset).
+    expect(segmentLeft, moreOrLessEquals(analyzeLeft, epsilon: 0.5));
+
+    // Section label shares the dialog title's left edge (not the card text inset).
+    final titleLeft = tester.getTopLeft(find.text('Track actions')).dx;
+    final labelLeft = tester.getTopLeft(find.text('Load to deck')).dx;
+    expect(labelLeft, moreOrLessEquals(titleLeft, epsilon: 0.5));
+
+    // Label → A/B gap should be at least the inter-card gap (not cramped).
+    final labelToSegment = segmentTop - labelBottom;
+    final cardGap = generateTop - analyzeBottom;
+    expect(labelToSegment, greaterThanOrEqualTo(cardGap - 0.5));
+
+    // A/B → Analyze uses the same gap as Analyze → Generate stems.
+    final segmentToAnalyze = analyzeTop - segmentBottom;
+    expect(segmentToAnalyze, moreOrLessEquals(cardGap, epsilon: 0.5));
   });
 
   testWidgets('the Load to deck header is not announced as a button', (

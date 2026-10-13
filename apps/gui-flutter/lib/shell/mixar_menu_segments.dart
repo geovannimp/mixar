@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/mixar_menu_dialog_chrome.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// One cell of a [MixarMenuSegments] group.
@@ -52,9 +53,12 @@ class MixarMenuSegments extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final theme = context.theme;
+    final dialogChrome = MixarMenuDialogChrome.isActive(context);
     final radius = theme.style.borderRadius.sm;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _inset, vertical: 4),
+      padding: dialogChrome
+          ? const EdgeInsets.only(bottom: 6)
+          : const EdgeInsets.symmetric(horizontal: _inset, vertical: 4),
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(

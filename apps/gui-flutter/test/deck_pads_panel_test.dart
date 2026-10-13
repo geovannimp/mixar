@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/pads/key_shift_pads.dart';
 import 'package:gui_flutter/mixer/pads/keyboard_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_select.dart';
@@ -23,6 +24,7 @@ void main() {
     WidgetTester tester, {
     required bool hasTrack,
     bool disabled = false,
+    SelectStyleSetting selectStyle = SelectStyleSetting.auto,
     PadMode padMode = PadMode.hotCue,
     List<DeckHotCue> hotCues = const [DeckHotCue(slot: 0, positionMs: 12500)],
     List<SamplerSlot> samplerSlots = const [
@@ -45,7 +47,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+          appSettingsProvider.overrideWith(
+            (ref) async => copyAppSettings(
+              defaultAppSettings(),
+              selectStyle: selectStyle,
+            ),
+          ),
         ],
         child: MaterialApp(
           theme: materialUiThemeFromMixar(theme),
@@ -127,6 +134,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Bank 1'), findsOneWidget);
     expect(find.text('Kick'), findsOneWidget);
+  });
+
+  testWidgets('mobile pad mode select shows Pad mode title', (tester) async {
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      selectStyle: SelectStyleSetting.mobile,
+    );
+
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    expect(find.text('Pad mode'), findsOneWidget);
+    expect(find.text('Jump'), findsOneWidget);
   });
 
   testWidgets('pad mode selector border matches panel radius', (tester) async {

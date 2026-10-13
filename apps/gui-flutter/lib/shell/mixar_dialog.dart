@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Narrow width → bottom-anchored sheet; otherwise centered dialog.
@@ -43,6 +44,13 @@ ShadDialog _mixarDialogShell({
   double gap = 0,
 }) {
   final theme = context.theme;
+  // Title chrome (in-body or Shad title slot) sits in the 16px content inset with
+  // body.md (16px / height 1.5 → 24). Center the larger close on that title band.
+  const titleInset = 16.0;
+  const titleLineHeight = 24.0;
+  const closeSize = 32.0;
+  const closeIconSize = 20.0;
+  final closeTop = titleInset + titleLineHeight / 2 - closeSize / 2;
   return ShadDialog(
     title: title,
     description: description,
@@ -74,6 +82,20 @@ ShadDialog _mixarDialogShell({
     titleTextAlign: TextAlign.start,
     descriptionTextAlign: TextAlign.start,
     crossAxisAlignment: CrossAxisAlignment.stretch,
+    closeIcon: AppButton.icon(
+      variant: MixarButtonVariant.ghost,
+      size: MixarButtonSize.sm,
+      // Keep a 32×32 hit target around the 20px glyph so top math stays exact.
+      padding: const EdgeInsets.all((closeSize - closeIconSize) / 2),
+      semanticsLabel: 'Close',
+      onPress: () => Navigator.of(context).pop(),
+      child: const Icon(LucideIcons.x, size: closeIconSize),
+    ),
+    closeIconPosition: ShadPosition.directional(
+      top: closeTop,
+      end: titleInset - (closeSize - closeIconSize) / 2,
+      textDirection: Directionality.of(context),
+    ),
     child: child,
   );
 }

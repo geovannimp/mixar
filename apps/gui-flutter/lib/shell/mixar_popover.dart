@@ -5,6 +5,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
+import 'package:gui_flutter/shell/mixar_menu_dialog_chrome.dart';
 import 'package:gui_flutter/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -111,6 +112,7 @@ class MixarMenuAnchor extends StatefulWidget {
     this.enabled = true,
     this.minWidth = 200,
     this.style,
+    this.dialogTitle,
     super.key,
   });
 
@@ -125,6 +127,9 @@ class MixarMenuAnchor extends StatefulWidget {
 
   /// Force presentation; `null` reads the saved select-style setting.
   final SelectStyleSetting? style;
+
+  /// Title shown above the menu body in the mobile dialog.
+  final String? dialogTitle;
 
   @override
   State<MixarMenuAnchor> createState() => _MixarMenuAnchorState();
@@ -173,13 +178,31 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
       builder: (dialogContext) {
         controller.attachNavigator(Navigator.of(dialogContext));
         final theme = dialogContext.theme;
-        return Padding(
+        final title = widget.dialogTitle;
+        return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: DefaultTextStyle(
             style: theme.typography.body.sm.copyWith(
               color: theme.colors.foreground,
             ),
-            child: widget.menuBuilder(dialogContext, controller),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (title != null) ...[
+                  Text(
+                    title,
+                    style: theme.typography.body.md.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                MixarMenuDialogChrome(
+                  child: widget.menuBuilder(dialogContext, controller),
+                ),
+              ],
+            ),
           ),
         );
       },
