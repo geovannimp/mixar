@@ -432,13 +432,14 @@ class _CompactRow extends StatelessWidget {
         );
         // Status sits immediately left of TrailingMeta (not inside the title
         // Expanded), capped so long labels ellipsize without eating the title.
-        final statusMax = (constraints.maxWidth -
-                artSize -
-                kArtworkGap -
-                metaWidth -
-                kActionsColumnWidth -
-                kMinTitleWidth)
-            .clamp(0.0, double.infinity);
+        final statusMax =
+            (constraints.maxWidth -
+                    artSize -
+                    kArtworkGap -
+                    metaWidth -
+                    kActionsColumnWidth -
+                    kMinTitleWidth)
+                .clamp(0.0, double.infinity);
         return Row(
           children: [
             _ArtworkThumb(trackId: track.id, size: artSize),

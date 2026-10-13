@@ -369,19 +369,14 @@ void main() {
     const leadingExtent = 16.0; // icon 12 + gap 4, matches MetaPill
     expect(
       tester.getSize(bpmPill).width,
-      closeTo(
-        bpmRect.width + kMetaPillPadding.horizontal + leadingExtent,
-        1.0,
-      ),
+      closeTo(bpmRect.width + kMetaPillPadding.horizontal + leadingExtent, 1.0),
     );
     expect(tester.getSize(bpmPill).width, lessThan(kBpmSlotWidth));
     // BPM and key pack with only kMetaPillGap — not slot-width gaps.
     // Compare pill chrome (not label text): label left includes MetaPill inset.
     final keyPill = find.descendant(
       of: find.descendant(of: rowAt(0), matching: find.byKey(kTrailingMetaKey)),
-      matching: find.byWidgetPredicate(
-        (w) => w is MetaPill && w.text == 'Am',
-      ),
+      matching: find.byWidgetPredicate((w) => w is MetaPill && w.text == 'Am'),
     );
     expect(
       tester.getRect(keyPill).left - tester.getRect(bpmPill).right,
