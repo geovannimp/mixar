@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -103,6 +104,9 @@ class _JogPlatterState extends State<JogPlatter> {
   var _dragging = false;
   double? _lastAngleDeg;
 
+  @visibleForTesting
+  double get debugRotationDeg => _rotationDeg;
+
   bool get _interactive => widget.enabled && widget.hasTrack;
 
   @override
@@ -135,7 +139,9 @@ class _JogPlatterState extends State<JogPlatter> {
       _rotationDeg = barCycleRotationDeg(widget.positionMs, bpm);
       return;
     }
-    if (_dragging || widget.jogTouching) {
+    // Only freeze playhead sync during a local pointer drag. Hardware
+    // `jogTouching` must still rotate the disc from positionMs (Mixxx-like).
+    if (_dragging) {
       _lastPositionMs = widget.positionMs;
       return;
     }

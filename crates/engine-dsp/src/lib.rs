@@ -19,11 +19,13 @@ pub mod level_meter;
 pub mod mixer;
 pub mod mixer_channel;
 pub mod mixer_lane;
+pub mod platter_motion;
 pub mod sampler;
 pub mod tempo;
 pub mod transport;
 
 pub use deck::{Deck, DeckState, JogMode};
+pub use platter_motion::{MotionMode, PlatterMotion};
 pub use eq::{clamp_gain_db, DeckEqGains, ThreeBandEq, EQ_MAX_DB, EQ_MIN_DB};
 pub use filter::{db_to_linear, DjFilter};
 pub use headphone_monitor::HeadphoneMonitor;

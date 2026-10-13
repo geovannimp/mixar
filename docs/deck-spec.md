@@ -334,7 +334,7 @@ Keyboard and Key Shift pad modes are shipped ([#298](https://github.com/geovanni
 | J5 | **Jog sensitivity** | Configurable | P3 |
 | J6 | **Platter animation** | Sync rotation to effective BPM | P2 |
 
-**Engine:** Jog updates via `jog_touch` / `jog_turn` / `set_jog_mode` (shared `JogMode`: vinyl | pitch_bend | ignore on top & outer). Transient `jog_rate` layered on deck speed; GUI platter is always top. Core jog/scratch shipped ([#43](https://github.com/geovannimp/mixar/issues/43)).
+**Engine:** Jog updates via `jog_touch` / `jog_turn` / `set_jog_mode` (shared `JogMode`: vinyl | pitch_bend | ignore on top & outer). Motion is owned by first-party `PlatterMotion` (`docs/platter-motion-design.md`): fixed 1 ms vinyl filter, paused outer remaps to vinyl scrub, optional envelope rate for future Pad FX. Transient `jog_rate` layered on deck speed; GUI platter follows playhead (including during hardware touch). Core jog/scratch shipped ([#43](https://github.com/geovannimp/mixar/issues/43)).
 
 ---
 
