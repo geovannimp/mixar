@@ -3,6 +3,7 @@ import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_button_style.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
@@ -220,5 +221,48 @@ void main() {
     await tester.tapAt(const Offset(8, 8));
     await tester.pumpAndSettle();
     expect(result, isNull);
+  });
+
+  testWidgets('dialog close icon is larger and centered on the title', (
+    tester,
+  ) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () async {
+            await showMixarDialog<void>(
+              context: context,
+              builder: (context) {
+                final theme = context.theme;
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Pad mode',
+                    style: theme.typography.body.md.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+          child: const Text('Open'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    final closeIcon = tester.widget<Icon>(find.byIcon(LucideIcons.x));
+    expect(closeIcon.size, 20);
+
+    final titleRect = tester.getRect(find.text('Pad mode'));
+    final closeRect = tester.getRect(find.byIcon(LucideIcons.x));
+    expect(
+      closeRect.center.dy,
+      moreOrLessEquals(titleRect.center.dy, epsilon: 1),
+    );
   });
 }

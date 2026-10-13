@@ -674,6 +674,7 @@ class TrackListMenuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MixarMenuAnchor(
+      dialogTitle: 'Track actions',
       menuBuilder: (context, controller) => Consumer(
         builder: (context, ref, _) =>
             menuBuilder(context, ref, controller.hide),

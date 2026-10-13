@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
+import 'package:gui_flutter/shell/mixar_menu_dialog_chrome.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
+export 'package:gui_flutter/shell/mixar_menu_dialog_chrome.dart';
 export 'package:gui_flutter/shell/mixar_menu_segments.dart'
     show MixarMenuSegment, MixarMenuSegments;
 
@@ -60,12 +62,18 @@ class MixarMenuBody extends StatelessWidget {
     if (groups.isEmpty) {
       return const SizedBox.shrink();
     }
+    final dialogChrome = MixarMenuDialogChrome.isActive(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < groups.length; i++) ...[
-          if (i > 0) const MDivider(padding: EdgeInsets.symmetric(vertical: 4)),
+          if (i > 0)
+            dialogChrome
+                // Card rows already own a 6px bottom gap; keep the same rhythm
+                // between groups instead of a hairline + extra padding.
+                ? const SizedBox.shrink()
+                : const MDivider(padding: EdgeInsets.symmetric(vertical: 4)),
           groups[i],
         ],
       ],
@@ -101,8 +109,13 @@ class MixarMenuLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final dialogChrome = MixarMenuDialogChrome.isActive(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      // Dialog title has no horizontal inset; section labels share that edge.
+      // Action card labels keep their own 12px content padding inside the card.
+      padding: dialogChrome
+          ? const EdgeInsets.fromLTRB(0, 0, 0, 10)
+          : const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: DefaultTextStyle(
         style: theme.typography.body.sm.copyWith(
           color: theme.colors.mutedForeground,
@@ -134,10 +147,14 @@ class MixarMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final dialogChrome = MixarMenuDialogChrome.isActive(context);
     final content =
         child ??
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: dialogChrome ? 10 : 8,
+          ),
           child: DefaultTextStyle(
             style: theme.typography.body.sm.copyWith(
               color: !enabled
@@ -151,17 +168,55 @@ class MixarMenuItem extends StatelessWidget {
         );
 
     if (child != null && onPress == null) {
-      return content;
+      if (!dialogChrome) {
+        return content;
+      }
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colors.card,
+            borderRadius: theme.style.borderRadius.md,
+            border: Border.all(
+              color: theme.colors.border,
+              width: theme.style.borderWidth,
+            ),
+          ),
+          child: content,
+        ),
+      );
     }
 
-    return MTappable(
-      onPress: enabled ? onPress : null,
-      builder: (context, state) {
-        final paint = state.active
-            ? theme.colors.selection
-            : const Color(0x00000000);
-        return ColoredBox(color: paint, child: content);
-      },
+    return Padding(
+      padding: dialogChrome
+          ? const EdgeInsets.only(bottom: 6)
+          : EdgeInsets.zero,
+      child: MTappable(
+        onPress: enabled ? onPress : null,
+        builder: (context, state) {
+          if (!dialogChrome) {
+            final paint = state.active
+                ? theme.colors.selection
+                : const Color(0x00000000);
+            return ColoredBox(color: paint, child: content);
+          }
+          // Match mobile MixarSelect option cards.
+          final fill = state.active
+              ? theme.colors.secondary
+              : theme.colors.card;
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: theme.style.borderRadius.md,
+              border: Border.all(
+                color: theme.colors.border,
+                width: theme.style.borderWidth,
+              ),
+            ),
+            child: content,
+          );
+        },
+      ),
     );
   }
 }

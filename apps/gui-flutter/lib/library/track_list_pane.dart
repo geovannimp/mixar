@@ -305,6 +305,7 @@ class _SortMenu extends ConsumerWidget {
     final theme = context.theme;
     final (field, ascending) = ref.watch(librarySortProvider);
     return MixarMenuAnchor(
+      dialogTitle: 'Sort tracks',
       // Field labels are short, but keep headroom so an arrow + accent row
       // never wraps under body.sm.
       minWidth: 160,

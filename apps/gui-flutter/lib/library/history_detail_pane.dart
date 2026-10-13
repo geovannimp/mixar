@@ -569,6 +569,7 @@ class _HistorySessionActionsMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MixarMenuAnchor(
+      dialogTitle: 'Session actions',
       menuBuilder: (context, controller) => MixarMenuBody(
         groups: [
           MixarMenuGroup(

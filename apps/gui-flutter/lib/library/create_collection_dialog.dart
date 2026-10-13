@@ -180,6 +180,7 @@ class _CreateCollectionDialogBodyState
             SettingsField(
               label: 'Type',
               child: MixarSelect<String>(
+                dialogTitle: 'Type',
                 value: _typeKey,
                 options: const [_typeFolder, _typePlaylist],
                 labelBuilder: (value) => switch (value) {

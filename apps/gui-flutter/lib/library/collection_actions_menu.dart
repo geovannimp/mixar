@@ -54,6 +54,7 @@ class CollectionActionsMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final browsePath = collection.kind == 'folder' ? collection.path : null;
     return MixarMenuAnchor(
+      dialogTitle: 'Collection actions',
       menuBuilder: (context, controller) => MixarMenuBody(
         groups: [
           MixarMenuGroup(

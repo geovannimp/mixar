@@ -127,6 +127,7 @@ class DeckPadsPanel extends StatelessWidget {
             border: Border(bottom: BorderSide(color: theme.colors.border)),
           ),
           child: MixarSelect<PadMode>(
+            dialogTitle: 'Pad mode',
             value: padMode,
             options: kPadModes,
             labelBuilder: padModeShortLabel,
