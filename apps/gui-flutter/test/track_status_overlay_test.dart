@@ -52,6 +52,7 @@ void main() {
     displayName: 'Demo Track',
     title: 'Demo Track',
     bpm: 128,
+    key: 'Am',
     durationMs: 180000,
     path: '/tmp/samples/demo.wav',
   );
@@ -102,49 +103,48 @@ void main() {
     );
   }
 
-  testWidgets(
-    'analysis and stem phases render as a row overlay, not in the title',
-    (tester) async {
-      final container = await pumpTable(tester);
-      expect(find.text('Analyzing'), findsNothing);
+  testWidgets('analysis and stem phases render as pills beside the title', (
+    tester,
+  ) async {
+    final container = await pumpTable(tester);
+    expect(find.text('Analyzing'), findsNothing);
 
-      // No phase event yet, but the track is queued: indeterminate, no bar.
-      container.read(analyzingTrackIdsProvider.notifier).add(track.id);
-      await tester.pump();
-      expect(find.text('Analyzing'), findsOneWidget);
-      expect(find.text('Demo Track'), findsOneWidget);
-      // A percentage is only drawn when the engine actually reported one.
-      expect(barsInPane(), findsNothing);
+    // No phase event yet, but the track is queued: indeterminate, no bar.
+    container.read(analyzingTrackIdsProvider.notifier).add(track.id);
+    await tester.pump();
+    expect(find.text('Analyzing'), findsOneWidget);
+    expect(find.text('Demo Track'), findsOneWidget);
+    // A percentage is only drawn when the engine actually reported one.
+    expect(barsInPane(), findsNothing);
 
-      container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.42);
-      await tester.pump();
-      expect(find.text('Detecting BPM 42%'), findsOneWidget);
-      expect(find.text('Demo Track'), findsOneWidget);
-      expect(barsInPane(), findsOneWidget);
+    container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.42);
+    await tester.pump();
+    expect(find.text('Detecting BPM 42%'), findsOneWidget);
+    expect(find.text('Demo Track'), findsOneWidget);
+    expect(barsInPane(), findsOneWidget);
 
-      // Stems open a second lane: both jobs report at once.
-      container
-          .read(trackProgressProvider.notifier)
-          .set(track.id, 'stems_separate', 0.5);
-      await tester.pump();
-      expect(find.text('Detecting BPM 42%'), findsOneWidget);
-      expect(find.text('Separating stems 50%'), findsOneWidget);
-      // The idle row still renders, and contributes no pill or bar: exactly
-      // two bars exist, one per job on the working row.
-      expect(find.text('Other Track'), findsOneWidget);
-      expect(barsInPane(), findsNWidgets(2));
+    // Stems open a second lane: both jobs report at once.
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_separate', 0.5);
+    await tester.pump();
+    expect(find.text('Detecting BPM 42%'), findsOneWidget);
+    expect(find.text('Separating stems 50%'), findsOneWidget);
+    // The idle row still renders, and contributes no pill or bar: exactly
+    // two bars exist, one per job on the working row.
+    expect(find.text('Other Track'), findsOneWidget);
+    expect(barsInPane(), findsNWidgets(2));
 
-      // Finishing stems drops only that lane.
-      container
-          .read(trackProgressProvider.notifier)
-          .set(track.id, 'stems_ready', null);
-      await tester.pump();
-      expect(find.text('Separating stems 50%'), findsNothing);
-      expect(find.text('Detecting BPM 42%'), findsOneWidget);
-      expect(barsInPane(), findsOneWidget);
-      expect(find.text('Demo Track'), findsOneWidget);
-    },
-  );
+    // Finishing stems drops only that lane.
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_ready', null);
+    await tester.pump();
+    expect(find.text('Separating stems 50%'), findsNothing);
+    expect(find.text('Detecting BPM 42%'), findsOneWidget);
+    expect(barsInPane(), findsOneWidget);
+    expect(find.text('Demo Track'), findsOneWidget);
+  });
 
   testWidgets('row and cell menus stay available while a track is busy', (
     tester,
@@ -325,11 +325,76 @@ void main() {
     );
   });
 
-  testWidgets('pills stay right-aligned as lanes stack', (tester) async {
+  testWidgets('status pills sit left of BPM and grow left as lanes stack', (
+    tester,
+  ) async {
     final container = await pumpTable(tester);
     container.read(analyzingTrackIdsProvider.notifier).add(track.id);
     await tester.pump();
-    final singleRight = tester.getRect(find.text('Analyzing')).right;
+
+    final analyzing = find.descendant(
+      of: rowAt(0),
+      matching: find.text('Analyzing'),
+    );
+    final bpm = find.descendant(of: rowAt(0), matching: find.text('128.0 BPM'));
+    final analyzingRect = tester.getRect(analyzing);
+    final bpmRect = tester.getRect(bpm);
+    expect(analyzingRect.right, lessThanOrEqualTo(bpmRect.left));
+    // Hug TrailingMeta / BPM chrome: only status padding + pill inset.
+    // TrailingMeta must fill its box from the left — loose end-aligned slots
+    // used to leave ~85px empty inside the meta box after the status chip.
+    final trailing = tester.getRect(
+      find.descendant(of: rowAt(0), matching: find.byKey(kTrailingMetaKey)),
+    );
+    expect(
+      trailing.left - analyzingRect.right,
+      closeTo(kMetaPillInset + kMetaPillGap, 1.0),
+    );
+    expect(
+      bpmRect.left - trailing.left,
+      lessThan(kMetaPillInset + 20),
+      reason: 'BPM chrome should start at TrailingMeta.left, not after a gap',
+    );
+    // Trailing slots reserve column width; the MetaPill chrome itself must
+    // wrap the label like the left-side chips — not stretch to the slot.
+    // Assert chrome ≈ label + padding + leading (icon+gap), not slot width.
+    // (Ahem makes "128.0 BPM" nearly as wide as kBpmSlotWidth, so a simple
+    // `pill < 0.85 * slot` check is a false failure under the test font.)
+    final bpmPill = find.descendant(
+      of: find.descendant(of: rowAt(0), matching: find.byKey(kTrailingMetaKey)),
+      matching: find.byWidgetPredicate(
+        (w) => w is MetaPill && w.text.contains('BPM'),
+      ),
+    );
+    expect(
+      tester.getSize(bpmPill).width,
+      closeTo(
+        bpmRect.width + kMetaPillPadding.horizontal + kMetaPillLeadingExtent,
+        1.0,
+      ),
+    );
+    expect(tester.getSize(bpmPill).width, lessThan(kBpmSlotWidth));
+    // BPM and key pack with only kMetaPillGap — not slot-width gaps.
+    // Compare pill chrome (not label text): label left includes MetaPill inset.
+    final keyPill = find.descendant(
+      of: find.descendant(of: rowAt(0), matching: find.byKey(kTrailingMetaKey)),
+      matching: find.byWidgetPredicate((w) => w is MetaPill && w.text == 'Am'),
+    );
+    expect(
+      tester.getRect(keyPill).left - tester.getRect(bpmPill).right,
+      closeTo(kMetaPillGap, 1.0),
+    );
+    // Content-sized TrailingMeta: no empty band between key and the menu.
+    final menu = find.descendant(
+      of: rowAt(0),
+      matching: find.byIcon(LucideIcons.ellipsisVertical),
+    );
+    expect(
+      tester.getRect(menu).left - tester.getRect(keyPill).right,
+      lessThan(kRowGutter + 24),
+      reason: 'key should sit flush before actions, not after a metaWidth gap',
+    );
+    final singleRight = analyzingRect.right;
 
     container
         .read(trackProgressProvider.notifier)
@@ -341,11 +406,10 @@ void main() {
     expect(find.text('Analyzing'), findsOneWidget);
     expect(find.text('Queuing stems'), findsOneWidget);
 
-    // Adding a pill must not push the group off the right edge.
-    expect(
-      tester.getRect(find.text('Queuing stems')).right,
-      closeTo(singleRight, 0.5),
-    );
+    // Group grows left: rightmost status pill keeps its right edge.
+    final rightmost = tester.getRect(find.text('Queuing stems')).right;
+    expect(rightmost, closeTo(singleRight, 0.5));
+    expect(rightmost, lessThanOrEqualTo(tester.getRect(bpm).left));
   });
 
   // The row owns its own height, so these two assert the bar sits on the row's

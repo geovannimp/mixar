@@ -32,8 +32,8 @@ const kRowGutter = 8.0;
 /// Below it the row would be all metadata and no name.
 const kMinTitleWidth = 64.0;
 
-/// Width of the trailing actions slot every list row reserves, so the status
-/// overlay keeps its pills clear of the row's menu button.
+/// Width of the trailing actions slot every list row reserves, so trailing
+/// meta and row actions stay aligned down the list.
 const kActionsColumnWidth = 44.0;
 
 /// Identifies the filter/sort toolbar, so a test can compare its height with
@@ -133,6 +133,10 @@ const kMetaPillPadding = EdgeInsets.symmetric(
 
 /// Widest a pill may get before its padding leaves no room for a glyph.
 const kMetaPillIconMinWidth = 40.0;
+
+/// Leading glyph/loader (~12) + gap (4) inside a [MetaPill]. Shared with tests
+/// that assert content-sized pill chrome width.
+const kMetaPillLeadingExtent = 16.0;
 
 /// Centred message for a list pane's empty / loading / error states.
 class LibraryListMessage extends StatelessWidget {
@@ -301,9 +305,12 @@ class LibraryRowDensityButton extends ConsumerWidget {
   }
 }
 
-/// Right-aligned BPM + key, shared by the library list rows so their layouts
-/// line up identically on the right. Fixed widths keep the values in columns
-/// down the list; the title and pills absorb whatever width is left.
+/// BPM + key (and optional duration) for the right side of a list row.
+///
+/// Content-sized: parents pass a `maxWidth` budget via [trailingMetaWidth], but
+/// this widget only takes the width of its pills so the cluster sits flush
+/// against the row actions. Loose flex still lets labels ellipsize when the
+/// budget is tight.
 class TrailingMeta extends StatelessWidget {
   const new({
     required this.bpm,
@@ -327,30 +334,35 @@ class TrailingMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // End-aligned so the group hugs the right edge and stays put when only some
-    // of the pills are present.
-    // Duration first, then BPM, then key: BPM and key stay flush right in both
-    // densities, so they hold their position when the density is toggled.
+    // `mainAxisSize: min` so a parent maxWidth budget does not leave empty
+    // space after the key (that read as "not flush right" before the menu).
+    // Loose flex + `fillWidth: false` keeps pills packed with only
+    // `kMetaPillGap` between them and still ellipsizes under pressure.
     final duration = formatTrackDuration(durationMs);
     final children = <Widget>[
       if (duration.isNotEmpty)
         Flexible(
+          fit: FlexFit.loose,
           flex: kDurationSlotFlex,
           child: MetaPill(
             text: duration,
+            fillWidth: false,
             leading: const MetaPillGlyph(LucideIcons.clock),
           ),
         ),
       if (bpm != null)
         Flexible(
+          fit: FlexFit.loose,
           flex: kBpmSlotFlex,
           child: MetaPill(
             text: '${bpm!.toStringAsFixed(1)} BPM',
+            fillWidth: false,
             leading: const MetaPillGlyph(LucideIcons.metronome),
           ),
         ),
       if (rawKey.isNotEmpty)
         Flexible(
+          fit: FlexFit.loose,
           flex: kKeySlotFlex,
           child: KeyPill(
             rawKey: rawKey,
@@ -361,7 +373,7 @@ class TrailingMeta extends StatelessWidget {
     ];
     return Row(
       key: kTrailingMetaKey,
-      mainAxisAlignment: MainAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < children.length; i++) ...[
           if (i > 0) const SizedBox(width: kMetaPillGap),
@@ -409,6 +421,7 @@ class KeyPill extends ConsumerWidget {
     );
     return MetaPill(
       text: formatDeckKey(rawKey, keyDisplayMode),
+      fillWidth: false,
       leading: const MetaPillGlyph(LucideIcons.music2),
       textColor: color ?? theme.colors.mutedForeground,
       fontWeight: color != null ? FontWeight.w600 : FontWeight.w500,
@@ -425,6 +438,7 @@ class MetaPill extends StatelessWidget {
     this.backgroundColor,
     this.borderColor,
     this.fontWeight = FontWeight.w500,
+    this.fillWidth = true,
     super.key,
   });
 
@@ -445,6 +459,12 @@ class MetaPill extends StatelessWidget {
   final Color? borderColor;
   final FontWeight fontWeight;
 
+  /// When true (default), expand to the parent's max width so trailing BPM/key
+  /// columns stay aligned. When false, size to the label and only ellipsize
+  /// under pressure — status chips use this so a wide max constraint cannot
+  /// stretch an invisible card fill across the details column.
+  final bool fillWidth;
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -456,6 +476,16 @@ class MetaPill extends StatelessWidget {
         final innerWidth = constraints.maxWidth - kMetaPillPadding.horizontal;
         final showLeading =
             leading != null && innerWidth >= kMetaPillIconMinWidth;
+        final label = Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.typography.body.xs.copyWith(
+            color: textColor ?? theme.colors.mutedForeground,
+            fontWeight: fontWeight,
+          ),
+        );
+        // Leading budgets the label max when fillWidth is false.
         return DecoratedBox(
           decoration: BoxDecoration(
             color: backgroundColor ?? theme.colors.card,
@@ -470,20 +500,23 @@ class MetaPill extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (showLeading) ...[leading!, const SizedBox(width: 4)],
-                // Flexible, not a bare Text: inside a min-size Row a loose
-                // child keeps its intrinsic width and overflows the pill, so a
-                // long artist name spills instead of ellipsizing.
-                Flexible(
-                  child: Text(
-                    text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.typography.body.xs.copyWith(
-                      color: textColor ?? theme.colors.mutedForeground,
-                      fontWeight: fontWeight,
+                // Flexible fills trailing meta slots (column alignment).
+                // ConstrainedBox (not Flexible) keeps status chips intrinsic:
+                // Flexible would expand the min-sized Row to the parent's max
+                // width and stretch an invisible card fill across the details
+                // column.
+                if (fillWidth)
+                  Flexible(child: label)
+                else
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth:
+                          (innerWidth -
+                                  (showLeading ? kMetaPillLeadingExtent : 0.0))
+                              .clamp(0.0, double.infinity),
                     ),
+                    child: label,
                   ),
-                ),
               ],
             ),
           ),

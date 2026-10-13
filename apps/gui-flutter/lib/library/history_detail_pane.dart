@@ -465,8 +465,8 @@ class _ComfortableEntryRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: kRowGutter),
-            SizedBox(
-              width: metaWidth,
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: metaWidth),
               child: TrailingMeta(
                 bpm: entry.bpm,
                 rawKey: entry.key ?? '',
@@ -534,14 +534,16 @@ class _CompactEntryRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: kRowGutter),
-          SizedBox(
-            width: trailingMetaWidth(
-              constraints.maxWidth,
-              _kHistoryLeadingWidth,
-              // Compact hides the pills, so the trailing group carries the
-              // played length too and must reserve room for it.
-              natural:
-                  kDurationSlotWidth + kMetaPillGap + kTrailingMetaBaseWidth,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: trailingMetaWidth(
+                constraints.maxWidth,
+                _kHistoryLeadingWidth,
+                // Compact hides the pills, so the trailing group carries the
+                // played length too and must reserve room for it.
+                natural:
+                    kDurationSlotWidth + kMetaPillGap + kTrailingMetaBaseWidth,
+              ),
             ),
             child: TrailingMeta(
               bpm: entry.bpm,
