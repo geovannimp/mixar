@@ -1,5 +1,5 @@
 ---
-import { CONTRIBUTING_URL, GITHUB_REPO, QUICK_START_URL } from "../consts";
+import { CONTRIBUTING_URL, GITHUB_REPO, RELEASES_URL } from "../consts";
 
 interface Props {
   currentPage?: "home" | "developers" | "privacy" | "docs";
@@ -28,8 +28,16 @@ const footerLink =
           Free DJ software, nothing locked away
         </p>
         <p class="mt-2 text-[0.9375rem] leading-relaxed text-muted">
-          Open source under GPL-3.0 and running on Linux today. macOS, Windows, and
-          mobile are on the roadmap.
+          Open source under GPL-3.0. Linux AppImage on{" "}
+          <a
+            class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
+            href={RELEASES_URL}
+            data-placement="footer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub Releases</a
+          >; macOS and Windows as early pre-releases; mobile still on the roadmap.
         </p>
       </div>
       <nav aria-label="Footer">
@@ -61,13 +69,13 @@ const footerLink =
           <li>
             <a
               class={footerLink}
-              href={QUICK_START_URL}
+              href={RELEASES_URL}
               data-placement="footer"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Build on Linux (opens in new tab)"
+              aria-label="Download Mixar (opens in new tab)"
             >
-              Build on Linux
+              Download
             </a>
           </li>
           <li>

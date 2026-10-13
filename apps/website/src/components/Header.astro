@@ -1,5 +1,5 @@
 ---
-import { GITHUB_REPO } from "../consts";
+import { RELEASES_URL } from "../consts";
 import { Moon, Sun } from "@lucide/astro";
 
 interface Props {
@@ -63,12 +63,12 @@ const iconProps = { size: 18, "stroke-width": 2 };
       </div>
       <a
         class:list={[navLink, "whitespace-nowrap"]}
-        href={GITHUB_REPO}
+        href={RELEASES_URL}
         data-placement="header"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="GitHub repository (opens in new tab)"
-        >GitHub</a
+        aria-label="Download Mixar (opens in new tab)"
+        >Download</a
       >
       <button
         id="theme-toggle"

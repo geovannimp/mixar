@@ -33,8 +33,12 @@ const padClass =
 
 const iconProps = { size: 18, "stroke-width": 2 };
 
-/** Deterministic bar heights (percent) so each lane reads as audio, not a solid bar. */
-const waveBars = (seed: number, count = 44) =>
+/** Deterministic bar heights (percent) so each lane reads as audio, not a solid bar.
+ * Render the desktop count; bars past MOBILE_WAVE_BARS are hidden below `sm`
+ * so a phone lane (~200px) does not collapse each bar to 1px. */
+const DESKTOP_WAVE_BARS = 44;
+const MOBILE_WAVE_BARS = 28;
+const waveBars = (seed: number, count = DESKTOP_WAVE_BARS) =>
   Array.from({ length: count }, (_, i) => {
     const a = Math.sin((i + seed) * 0.85);
     const b = Math.sin((i + seed) * 2.1) * 0.5;
@@ -46,7 +50,7 @@ const points = [
   {
     icon: "lines",
     title: "Plays NI Stems natively",
-    body: "Drop a Stem file on a deck and every part is ready to go. No converting, no re-exporting, no extra software.",
+    body: "Drop a Stem file on a deck and every part is ready to play.",
   },
   {
     icon: "zap",
@@ -68,11 +72,11 @@ const points = [
 
 <section
   id="stems"
-  class="scroll-mt-20 border-y border-border px-section py-24 lg:py-28"
+  class="scroll-mt-20 border-y border-border bg-bg-elevated px-section py-24 lg:py-28"
 >
   <div class="mx-auto max-w-content">
-    <div class="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr] lg:gap-20" data-reveal-group>
-      <div data-reveal style="--reveal-delay: 0ms">
+    <div class="grid items-stretch gap-14 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-20" data-reveal-group>
+      <div data-reveal style="--reveal-delay: 0ms" class="min-w-0 w-full">
         <h2
           class="text-[clamp(2rem,5vw,2.75rem)] font-bold leading-[1.08] tracking-[-0.03em]"
         >
@@ -81,10 +85,10 @@ const points = [
         <p
           class="mt-5 max-w-[46ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl"
         >
-          A Stem file is a track split into its parts: drums, bass, other, and
-          vocals. Mixar plays NI Stems natively, so you can pull the vocals for an a
-          cappella, cut the drums for a breakdown, or solo one part and let it ride. No
-          Stems yet? Mixar can split any track into four for you.
+          A Stem file is a track split into drums, bass, other, and vocals. Mixar plays
+          NI Stems on a deck, so you can pull vocals for an a cappella, cut drums for a
+          breakdown, or solo one part. If you do not have Stem files yet, Mixar can split
+          any track into four offline.
         </p>
 
         <ul class="mt-9 grid gap-x-8 gap-y-6 sm:grid-cols-2">
@@ -123,11 +127,11 @@ const points = [
             rel="noopener noreferrer"
           >
             Native Instruments</a
-          >. Mixar plays them as they are, and can build one from any track you own.
+          >. Mixar plays existing Stem files and can build one from a track you already own.
         </p>
       </div>
 
-      <div data-stems-demo data-reveal style="--reveal-delay: 100ms" class="rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
+      <div data-stems-demo data-reveal style="--reveal-delay: 100ms" class="min-w-0 w-full rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
         <div class="mb-5 flex flex-wrap items-center gap-3">
           <ul class="flex flex-wrap items-center gap-1.5" aria-label="Pad modes">
             {
@@ -249,17 +253,17 @@ const points = [
               Reset
             </button>
           </div>
-          <div class="flex justify-center items-stretch w-full h-64 py-4" aria-hidden="true">
+          <div class="flex w-full h-64 items-stretch justify-center py-4" aria-hidden="true">
             <span
               data-stem-disc
               data-playing="false"
-              class="flex justify-center items-center text-accent"
+              class="flex shrink-0 items-center justify-center text-accent"
             >
               <Disc3 size={34} stroke-width={1.5} />
             </span>
             <svg
               data-stem-connector
-              class="flex h-full [&_path]:fill-none [&_path]:[stroke:color-mix(in_srgb,var(--accent)_55%,var(--border))] [&_path]:[stroke-width:1.5] [&_path]:[stroke-linecap:round] [&_path]:[vector-effect:non-scaling-stroke]"
+              class="h-full w-8 shrink-0 sm:w-10 [&_path]:fill-none [&_path]:[stroke:color-mix(in_srgb,var(--accent)_55%,var(--border))] [&_path]:[stroke-width:1.5] [&_path]:[stroke-linecap:round] [&_path]:[vector-effect:non-scaling-stroke]"
               viewBox="0 0 48 152"
               preserveAspectRatio="none"
               focusable="false"
@@ -269,7 +273,7 @@ const points = [
               <path data-stem="2" d="M0 76 C24 76 24 96 48 96" />
               <path data-stem="3" d="M0 76 C24 76 24 136 48 138" />
             </svg>
-            <ul class="flex flex-col grow gap-4">
+            <ul class="flex min-w-0 grow flex-col gap-4">
               {
                 stems.map((stem, index) => (
                   <li
@@ -277,12 +281,18 @@ const points = [
                     data-stem={index}
                     data-audible="true"
                     style={`--stem: ${stem.color}`}
-                    class="flex flex-row grow w-full justify-between items-center gap-2 data-[audible=false]:opacity-30"
+                    class="flex w-full min-w-0 grow flex-row items-center justify-between gap-2 data-[audible=false]:opacity-30"
                   >
-                    <span class="w-12 pl-2 text-sm">{stem.label}</span>
-                    <span class="grow flex justify-center items-center h-full gap-1">
-                      {waveBars(index * 7 + 3).map((height) => (
-                        <i class="flex grow rounded-md bg-(--stem)" style={`height: ${height}%`} />
+                    <span class="w-12 shrink-0 pl-2 text-sm">{stem.label}</span>
+                    <span class="flex h-full min-w-0 grow items-center justify-center gap-px">
+                      {waveBars(index * 7 + 3).map((height, barIndex) => (
+                        <i
+                          class:list={[
+                            "min-w-[3px] grow rounded-sm bg-(--stem)",
+                            barIndex >= MOBILE_WAVE_BARS && "max-sm:hidden",
+                          ]}
+                          style={`height: ${height}%`}
+                        />
                       ))}
                     </span>
                   </li>

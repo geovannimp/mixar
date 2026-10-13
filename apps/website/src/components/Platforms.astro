@@ -1,15 +1,16 @@
 ---
 import { MonitorSmartphone } from "@lucide/astro";
-import { QUICK_START_URL } from "../consts";
+import { RELEASES_URL } from "../consts";
 import SectionHeader from "./ui/SectionHeader.astro";
 
-const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
+const earlyBuilds = ["macOS", "Windows"] as const;
+const upcomingPlatforms = ["iOS", "Android"] as const;
 ---
 
 <section class="px-section py-24 lg:py-28">
   <SectionHeader
-    title="Linux now, everywhere next"
-    description="One app shaped for desktop and mobile. Linux builds from source today; the other platforms are on the way."
+    title="Built for every platform"
+    description="One codebase aimed at desktop and mobile together. Pre-release builds live on GitHub Releases."
   >
     <MonitorSmartphone slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
   </SectionHeader>
@@ -24,18 +25,18 @@ const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
           Linux
         </h3>
         <p class="mt-2 text-lg text-muted">
-          Primary development target. Build it from source and it runs on Linux now.
+          Furthest along in testing. Grab the AppImage and mix on Linux today.
         </p>
       </div>
       <a
-        href={QUICK_START_URL}
+        href={RELEASES_URL}
         data-placement="platforms"
         target="_blank"
         rel="noopener noreferrer"
         class="mt-8 inline-flex w-fit items-center gap-2.5 rounded-md border border-accent bg-accent-dim px-7 py-3.5 text-base font-semibold text-accent transition hover:border-accent-hover hover:bg-accent hover:text-white dark:hover:text-teal-950"
       >
         <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-deck-a" aria-hidden="true"></span>
-        Build on Linux
+        Download for Linux
       </a>
     </article>
     <article
@@ -43,16 +44,41 @@ const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
       style="--reveal-delay: 100ms"
       class="flex min-h-[220px] flex-col justify-between rounded-2xl border border-dashed border-border p-10 sm:p-12"
     >
-      <h3 class="font-serif text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight tracking-tight text-muted">
-        On the roadmap
-      </h3>
-      <ul class="mt-4 space-y-1 font-serif text-[clamp(1.5rem,3.5vw,2.25rem)] font-bold leading-tight tracking-tight text-muted/50">
-        {
-          upcomingPlatforms.map((name) => (
-            <li>{name}</li>
-          ))
-        }
-      </ul>
+      <div>
+        <h3 class="font-serif text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight tracking-tight text-muted">
+          Also shipping early
+        </h3>
+        <p class="mt-2 text-lg text-muted">
+          Pre-release packages for macOS and Windows live on GitHub Releases. Treat them as
+          early builds.
+        </p>
+        <ul class="mt-4 flex flex-wrap gap-x-5 gap-y-1 font-serif text-[clamp(1.5rem,3.5vw,2.25rem)] font-bold leading-tight tracking-tight text-muted/50">
+          {
+            earlyBuilds.map((name) => (
+              <li>{name}</li>
+            ))
+          }
+        </ul>
+        <p class="mt-6 text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-muted/70">
+          Still on the roadmap
+        </p>
+        <ul class="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-serif text-[clamp(1.25rem,2.5vw,1.75rem)] font-bold leading-tight tracking-tight text-muted/40">
+          {
+            upcomingPlatforms.map((name) => (
+              <li>{name}</li>
+            ))
+          }
+        </ul>
+      </div>
+      <a
+        href={RELEASES_URL}
+        data-placement="platforms"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mt-8 inline-flex w-fit text-base font-semibold text-accent transition hover:text-accent-hover"
+      >
+        See all releases
+      </a>
     </article>
   </div>
 </section>

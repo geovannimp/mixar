@@ -17,7 +17,7 @@ const iconProps = { size: 24, "stroke-width": 2 };
 <section id="features" class="border-t border-border bg-bg-elevated px-section py-24 lg:py-28">
   <SectionHeader
     title="The whole booth"
-    description="Two decks, a full mixer, performance pads, and offline analysis. All of it open source."
+    description="Two decks, a full mixer, performance pads, and offline analysis. All of it under GPL-3.0."
   >
     <Flame slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
   </SectionHeader>
@@ -48,8 +48,7 @@ const iconProps = { size: 24, "stroke-width": 2 };
     </FeatureCard>
     <FeatureCard revealIndex={4} iconTone="accent" title="Open MIDI mapping">
       <Usb slot="icon" {...iconProps} />
-      Map the MIDI controller you already own and keep the layout you know. No hardware
-      paywall.
+      Map the MIDI controller you already own and keep the layout you know.
     </FeatureCard>
     <FeatureCard revealIndex={5} iconTone="deck-a" title="Low-latency mixing">
       <Volume2 slot="icon" {...iconProps} />

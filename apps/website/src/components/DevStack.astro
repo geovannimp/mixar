@@ -10,7 +10,7 @@ const iconProps = { size: 24, "stroke-width": 2 };
 <section class="px-section py-24 lg:py-28">
   <SectionHeader
     title="Stack"
-    description="Engine-first, with clean boundaries between audio, library, and UI."
+    description="Engine-first boundaries between audio, library, and UI."
   >
     <Layers slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
   </SectionHeader>
@@ -25,8 +25,8 @@ const iconProps = { size: 24, "stroke-width": 2 };
     </FeatureCard>
     <FeatureCard revealIndex={1} iconTone="deck-b" title="Flutter UI">
       <PanelTop slot="icon" {...iconProps} />
-      Decks, waveforms, and mixer chrome, in one UI codebase for desktop and the mobile
-      targets to come.
+      Decks, waveforms, and mixer chrome in one UI codebase for desktop today and mobile
+      targets next.
     </FeatureCard>
     <FeatureCard revealIndex={2} iconTone="accent" title="Async buses">
       <History slot="icon" {...iconProps} />
@@ -45,7 +45,7 @@ const iconProps = { size: 24, "stroke-width": 2 };
     </FeatureCard>
     <FeatureCard revealIndex={5} iconTone="deck-b" title="Pluggable backends">
       <Cable slot="icon" {...iconProps} />
-      CPAL/PipeWire or a null backend for tests, chosen at runtime behind one
+      CPAL/PipeWire on Linux, or a null backend for tests, chosen at runtime behind one
       trait.
     </FeatureCard>
   </div>
