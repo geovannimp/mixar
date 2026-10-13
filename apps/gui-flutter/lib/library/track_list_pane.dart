@@ -28,14 +28,40 @@ export 'package:gui_flutter/library/library_list_chrome.dart'
     show formatTrackDuration, kTrailingMetaKey, libraryListSelectedRowColor;
 export 'package:gui_flutter/library/track_list.dart' show TrackListRow;
 
-/// Gap between the status pill group and the actions button, and between
-/// adjacent pills.
-const kStatusPillGap = 8.0;
-
 /// Progress bar thickness, and the gap that keeps stacked per-job bars apart.
 /// The vertical stride is their sum, so changing one stays consistent.
 const kStatusBarHeight = 2.0;
 const kStatusBarGap = 1.0;
+
+/// Partition analysis / stem lanes and synthesise queued jobs.
+///
+/// Shared by in-flow [_TrackStatusPills] and the bars-only overlay so lane
+/// order cannot drift between the two surfaces.
+List<TrackProgressInfo> trackStatusInfos({
+  required List<TrackProgressInfo> jobs,
+  required bool analyzing,
+  required bool stemsGenerating,
+}) {
+  // Queued work has no phase yet. Reuse the label vocabulary with a null
+  // fraction so it reads indeterminate instead of inventing a percentage.
+  // At most one job per lane, so at most two pills. Partitioned rather than
+  // sorted: the two-lane comparator ties within a lane, and `List.sort` is
+  // only stable below its insertion-sort threshold, so a sort could swap
+  // same-lane pills between frames on a progress tick.
+  final analysisLane = <TrackProgressInfo>[
+    for (final job in jobs)
+      if (!isStemProgressPhase(job.phase)) job,
+    if (analyzing && !jobs.any((i) => !isStemProgressPhase(i.phase)))
+      const TrackProgressInfo(phase: 'analyze'),
+  ];
+  final stemLane = <TrackProgressInfo>[
+    for (final job in jobs)
+      if (isStemProgressPhase(job.phase)) job,
+    if (stemsGenerating && !jobs.any((i) => isStemProgressPhase(i.phase)))
+      const TrackProgressInfo(phase: 'stems_queued'),
+  ];
+  return [...analysisLane, ...stemLane];
+}
 
 // --- Row layout ---
 // Fixed trailing widths keep BPM / key aligned down the list in both
@@ -396,39 +422,54 @@ class _CompactRow extends StatelessWidget {
       color: theme.colors.foreground,
     );
     return LayoutBuilder(
-      builder: (context, constraints) => Row(
-        children: [
-          _ArtworkThumb(trackId: track.id, size: artSize),
-          const SizedBox(width: kArtworkGap),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: textStyle,
+      builder: (context, constraints) {
+        final metaWidth = trailingMetaWidth(
+          constraints.maxWidth,
+          artSize + kArtworkGap,
+          // Compact has no metadata pills, so the trailing group carries
+          // the length too and must reserve room for it.
+          natural: kDurationSlotWidth + kMetaPillGap + kTrailingMetaBaseWidth,
+        );
+        // Status sits immediately left of TrailingMeta (not inside the title
+        // Expanded), capped so long labels ellipsize without eating the title.
+        final statusMax = (constraints.maxWidth -
+                artSize -
+                kArtworkGap -
+                metaWidth -
+                kActionsColumnWidth -
+                kMinTitleWidth)
+            .clamp(0.0, double.infinity);
+        return Row(
+          children: [
+            _ArtworkThumb(trackId: track.id, size: artSize),
+            const SizedBox(width: kArtworkGap),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textStyle,
+              ),
             ),
-          ),
-          const SizedBox(width: kRowGutter),
-          SizedBox(
-            width: trailingMetaWidth(
-              constraints.maxWidth,
-              artSize + kArtworkGap,
-              // Compact has no metadata pills, so the trailing group carries
-              // the length too and must reserve room for it.
-              natural:
-                  kDurationSlotWidth + kMetaPillGap + kTrailingMetaBaseWidth,
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: statusMax),
+              child: _TrackStatusPills(trackId: track.id),
             ),
-            child: TrailingMeta(
-              bpm: track.bpm,
-              rawKey: track.key ?? '',
-              keyDisplayMode: keyDisplayMode,
-              keyColorMode: keyColorMode,
-              durationMs: track.durationMs,
+            // maxWidth budget only — force-width left a gap before actions.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: metaWidth),
+              child: TrailingMeta(
+                bpm: track.bpm,
+                rawKey: track.key ?? '',
+                keyDisplayMode: keyDisplayMode,
+                keyColorMode: keyColorMode,
+                durationMs: track.durationMs,
+              ),
             ),
-          ),
-          actionsSlot,
-        ],
-      ),
+            actionsSlot,
+          ],
+        );
+      },
     );
   }
 }
@@ -493,15 +534,20 @@ class _ComfortableRow extends StatelessWidget {
           constraints.maxWidth,
           artSize + kArtworkGap,
         );
+        // Title column width excludes status + trailing meta; status sits
+        // immediately left of TrailingMeta so it does not float mid-row.
         final detailsWidth =
             constraints.maxWidth -
             artSize -
             kArtworkGap -
-            kRowGutter -
             metaWidth -
             kRowGutter -
             kActionsColumnWidth;
         final maxPillWidth = (detailsWidth - kMetaPillGap) / 2;
+        final statusMax = (detailsWidth - kMinTitleWidth).clamp(
+          0.0,
+          double.infinity,
+        );
         return Row(
           children: [
             _ArtworkThumb(trackId: track.id, size: artSize),
@@ -529,11 +575,11 @@ class _ComfortableRow extends StatelessWidget {
                       // maxHeight, not a fixed height. Reserving two runs when
                       // a row only needs one leaves dead space under the pills,
                       // which pushes the title + pills group off centre. The
-                      // cap still bounds the area at the two runs the width cap
-                      // above guarantees.
+                      // cap still bounds the area at the two runs the width
+                      // cap above guarantees.
                       //
                       // Hung left by the pill's own inset so the metadata text
-                      // lines up with the title above it.
+                      // lines up with the title above.
                       child: Transform.translate(
                         offset: const Offset(-kMetaPillInset, 0),
                         child: ConstrainedBox(
@@ -560,9 +606,13 @@ class _ComfortableRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: kRowGutter),
-            SizedBox(
-              width: metaWidth,
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: statusMax),
+              child: _TrackStatusPills(trackId: track.id),
+            ),
+            // maxWidth budget only — force-width left a gap before actions.
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: metaWidth),
               child: TrailingMeta(
                 bpm: track.bpm,
                 rawKey: track.key ?? '',
@@ -620,10 +670,81 @@ class _ArtworkThumb extends ConsumerWidget {
   }
 }
 
-/// In-flight analysis / stem job chrome drawn over a track row.
+/// In-flow status chips for a track's analysis / stem jobs.
 ///
-/// Lives in the row rather than the title line so a progress tick rebuilds one
-/// row instead of the whole list.
+/// Watches progress independently so a tick rebuilds the pills without
+/// regenerating the row. [IgnorePointer] keeps selection and drag-to-deck on
+/// the row; menus stay on the actions slot.
+class _TrackStatusPills extends ConsumerWidget {
+  const new({required this.trackId});
+
+  final String trackId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final jobs =
+        ref.watch(trackProgressProvider.select((byId) => byId[trackId])) ??
+        const <TrackProgressInfo>[];
+    final analyzing = ref.watch(
+      analyzingTrackIdsProvider.select((ids) => ids.contains(trackId)),
+    );
+    final stemsGenerating = ref.watch(
+      stemGeneratingTrackIdsProvider.select((ids) => ids.contains(trackId)),
+    );
+    final infos = trackStatusInfos(
+      jobs: jobs,
+      analyzing: analyzing,
+      stemsGenerating: stemsGenerating,
+    );
+    if (infos.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    // LayoutBuilder + per-pill max: ellipsize under pressure without a
+    // Flexible parent that would expand the group to the details width and
+    // leave the label stranded left of TrailingMeta.
+    return IgnorePointer(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Budget the inner Row after the trailing gap padding; otherwise two
+          // pills sized to the outer max overflow by exactly [kMetaPillGap].
+          final innerMax = constraints.maxWidth.isFinite
+              ? (constraints.maxWidth - kMetaPillGap).clamp(
+                  0.0,
+                  double.infinity,
+                )
+              : double.infinity;
+          final gapTotal = kMetaPillGap * (infos.length - 1);
+          final perPillMax = infos.length == 1
+              ? innerMax
+              : ((innerMax - gapTotal) / infos.length).clamp(
+                  0.0,
+                  double.infinity,
+                );
+          return Padding(
+            padding: const EdgeInsets.only(right: kMetaPillGap),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < infos.length; i++) ...[
+                  if (i > 0) const SizedBox(width: kMetaPillGap),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: perPillMax),
+                    child: _TrackStatusPill(info: infos[i]),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Progress bars only — pills live in the row via [_TrackStatusPills].
+///
+/// Lives as a row overlay so a progress tick rebuilds the bars without the
+/// whole list, and so bars can paint flush on the row bottom edge.
 class _TrackStatusOverlay extends ConsumerWidget {
   const new({required this.trackId});
 
@@ -640,60 +761,25 @@ class _TrackStatusOverlay extends ConsumerWidget {
     final stemsGenerating = ref.watch(
       stemGeneratingTrackIdsProvider.select((ids) => ids.contains(trackId)),
     );
-    // Queued work has no phase yet. Reuse the label vocabulary with a null
-    // fraction so it reads indeterminate instead of inventing a percentage.
-    // At most one job per lane, so at most two pills. Partitioned rather than
-    // sorted: the two-lane comparator ties within a lane, and `List.sort` is
-    // only stable below its insertion-sort threshold, so a sort could swap
-    // same-lane pills between frames on a progress tick.
-    final analysisLane = <TrackProgressInfo>[
-      for (final job in jobs)
-        if (!isStemProgressPhase(job.phase)) job,
-      if (analyzing && !jobs.any((i) => !isStemProgressPhase(i.phase)))
-        const TrackProgressInfo(phase: 'analyze'),
-    ];
-    final stemLane = <TrackProgressInfo>[
-      for (final job in jobs)
-        if (isStemProgressPhase(job.phase)) job,
-      if (stemsGenerating && !jobs.any((i) => isStemProgressPhase(i.phase)))
-        const TrackProgressInfo(phase: 'stems_queued'),
-    ];
-    final infos = [...analysisLane, ...stemLane];
+    final infos = trackStatusInfos(
+      jobs: jobs,
+      analyzing: analyzing,
+      stemsGenerating: stemsGenerating,
+    );
     if (infos.isEmpty) {
       return const SizedBox.shrink();
     }
     final fractions = [for (final info in infos) ?info.fraction];
+    if (fractions.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final theme = context.theme;
-    // Decorative only. Without this the bar's ColoredBox and the pill's own
-    // widgets are the topmost hit target, so Stack hit testing stops there
-    // and the row's pointer-down selection and drag-to-deck never fire.
+    // Decorative only. Without this the bar's ColoredBox is the topmost hit
+    // target, so Stack hit testing stops there and the row's pointer-down
+    // selection and drag-to-deck never fire.
     return IgnorePointer(
       child: Stack(
         children: [
-          // Span the row so the pill group stays flush right as it grows —
-          // a right-only Positioned hands its child loose constraints, which
-          // then centres inside the inset box and drifts left.
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.only(
-                right: kActionsColumnWidth + kStatusPillGap,
-              ),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < infos.length; i++) ...[
-                      if (i > 0) const SizedBox(width: kStatusPillGap),
-                      // Flexible so long labels on two lanes ellipsize in a
-                      // narrow pane instead of overflowing the row.
-                      Flexible(child: _TrackStatusPill(info: infos[i])),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
           // One bar per job that reported a fraction, stacked in pill order.
           // The ordinal counts rendered bars, not entries in `infos`: a lane
           // with no fraction draws nothing, and counting it would leave a
@@ -733,43 +819,17 @@ class _TrackStatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final fg = theme.colors.mutedForeground;
     return Semantics(
       label: info.label,
       container: true,
       // Announce the phase once instead of also reading the spinner + text.
       excludeSemantics: true,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colors.background,
-          borderRadius: theme.style.borderRadius.pill,
-          border: Border.all(color: theme.colors.border),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (info.fraction == null) ...[
-                MLoader(size: MLoaderSize.xs, color: fg),
-                const SizedBox(width: 5),
-              ],
-              Flexible(
-                // Semantics above still carry the full label; the ellipsis is
-                // only for when two lanes crowd a narrow pane.
-                child: Text(
-                  info.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.typography.body.xs.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      child: MetaPill(
+        text: info.label,
+        fillWidth: false,
+        leading: info.fraction == null
+            ? MLoader(size: MLoaderSize.xs, color: theme.colors.mutedForeground)
+            : null,
       ),
     );
   }
