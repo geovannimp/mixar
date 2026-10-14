@@ -181,6 +181,17 @@ pub(crate) fn producer_thread_loop(
             continue;
         }
 
+        // Do not start a chunk unless every device ring can accept a full chunk.
+        // This prevents partial writes that would desync devices.
+        let all_have_room = device_producers.iter().all(|(plan, producer)| {
+            let needed = chunk_frames * plan.channels as usize;
+            producer.slots() >= needed
+        });
+        if !all_have_room {
+            thread::sleep(buffer_duration / 8);
+            continue;
+        }
+
         {
             let mut dsp = dsp_engine.lock().unwrap();
             if let Err(e) = dsp.process(chunk_frames as u32, &mut output_buses) {
@@ -293,5 +304,111 @@ mod tests {
         let (mut producer, _consumer) = RingBuffer::new(2);
         assert!(push_ring_samples(&mut producer, &[1.0, 2.0]));
         assert!(!push_ring_samples(&mut producer, &[3.0, 4.0]));
+    }
+
+    #[test]
+    fn two_device_starved_nonpacing_ring_stays_aligned() {
+        use crate::routing::BusRoute;
+        use audio_core::DeviceId;
+        use engine_dsp::SamplerStripRoute;
+
+        const BUFFER_FRAMES: u32 = 64; // dasp_graph::Buffer::LEN
+        const CHANNELS: u16 = 2;
+        const CHUNK_SAMPLES: usize = BUFFER_FRAMES as usize * CHANNELS as usize;
+        const RING_CAPACITY: usize = 512;
+
+        let pacing_plan = DeviceStreamPlan {
+            device: DeviceId::new("pacing"),
+            channels: CHANNELS,
+            routes: vec![BusRoute {
+                bus_id: BusId::new("master"),
+                left: 0,
+                right: Some(1),
+            }],
+        };
+        let nonpacing_plan = DeviceStreamPlan {
+            device: DeviceId::new("nonpacing"),
+            channels: CHANNELS,
+            routes: vec![BusRoute {
+                bus_id: BusId::new("cue"),
+                left: 0,
+                right: Some(1),
+            }],
+        };
+
+        let (pacing_prod, pacing_cons) = RingBuffer::<Sample>::new(RING_CAPACITY);
+        let (mut nonpacing_prod, mut nonpacing_cons) = RingBuffer::<Sample>::new(RING_CAPACITY);
+
+        // Starve the non-pacing ring: fewer free slots than one chunk.
+        let prefill = RING_CAPACITY - (CHUNK_SAMPLES - 1);
+        assert!(push_ring_samples(&mut nonpacing_prod, &vec![0.0; prefill],));
+
+        let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
+            48_000,
+            BUFFER_FRAMES,
+            0,
+            "medium",
+            SamplerStripRoute::BeforeStrip,
+        )));
+
+        let running = Arc::new(Mutex::new(true));
+        let running_thread = Arc::clone(&running);
+        let handle = thread::spawn(move || {
+            producer_thread_loop(
+                dsp_engine,
+                vec![(pacing_plan, pacing_prod), (nonpacing_plan, nonpacing_prod)],
+                running_thread,
+                48_000,
+                BUFFER_FRAMES as usize,
+                RING_CAPACITY,
+                Some(Arc::new(AtomicU32::new(BUFFER_FRAMES))),
+                Arc::new(AtomicU64::new(1000)),
+                Arc::new(Mutex::new(Vec::new())),
+            );
+        });
+
+        // Give the producer a chance to run while the non-pacing ring is starved.
+        thread::sleep(Duration::from_millis(10));
+        assert_eq!(
+            pacing_cons.slots(),
+            0,
+            "producer must not write when a non-pacing ring lacks room for a full chunk"
+        );
+
+        // Free two full chunks on the non-pacing ring.
+        let chunk = nonpacing_cons.read_chunk(2 * CHUNK_SAMPLES).unwrap();
+        chunk.commit_all();
+
+        // Wait for the producer to write at least one full chunk.
+        let deadline = Instant::now() + Duration::from_millis(500);
+        while pacing_cons.slots() < CHUNK_SAMPLES && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(1));
+        }
+
+        *running.lock().unwrap() = false;
+        handle.join().unwrap();
+
+        let nonpacing_base = prefill - (2 * CHUNK_SAMPLES);
+        let nonpacing_produced = nonpacing_cons.slots() - nonpacing_base;
+
+        assert!(
+            pacing_cons.slots() > 0,
+            "pacing ring should have produced at least one chunk"
+        );
+        assert_eq!(
+            pacing_cons.slots() % CHUNK_SAMPLES,
+            0,
+            "pacing ring must only contain whole chunks"
+        );
+        assert_eq!(
+            nonpacing_produced % CHUNK_SAMPLES,
+            0,
+            "non-pacing ring must not contain a partial commit"
+        );
+        assert_eq!(
+            pacing_cons.slots(),
+            nonpacing_produced,
+            "both devices must produce the same number of new samples"
+        );
     }
 }
