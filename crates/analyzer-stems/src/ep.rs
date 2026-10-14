@@ -167,11 +167,16 @@ impl Drop for LocaleGuard {
 
 /// Run `f` with `LC_NUMERIC=C`, restoring the previous locale afterwards.
 ///
-/// The flip is serialized by an internal `LOCALE_LOCK` mutex, so concurrent
-/// entry from the lock-free `preferred_execution_providers()` pub path
-/// (e.g. `examples/ep_probe.rs`) can never restore a stale locale over a
-/// guard another thread is still inside. In production the `SESSION` Mutex in
-/// `session.rs` already serializes entry; tests use `ENV_LOCK` for env vars.
+/// `LC_NUMERIC` is process-global C state, so the flip is serialized by an
+/// internal `LOCALE_LOCK` mutex: concurrent entries cannot interleave a
+/// capture/restore over each other's override. `LOCALE_LOCK` is held for the
+/// full duration of `f` (necessary — the guarantee only holds while `f` runs),
+/// and it is non-reentrant, so no caller may nest one guard inside another.
+/// Today the only production caller is `session::load_session` (webgpu only),
+/// which the `SESSION` Mutex already serializes; the lock is here so future
+/// callers of this `pub(crate)` helper cannot reintroduce the race, not
+/// because `preferred_execution_providers()` participates in locale locking.
+/// Tests use `ENV_LOCK` for env vars and hold this lock only briefly.
 ///
 /// If the current locale cannot be queried, the override is skipped — `f`
 /// still runs, just without the dot-decimal guarantee — rather than risk
@@ -385,19 +390,30 @@ mod tests {
     }
 
     /// The production wrapper must restore the previous `LC_NUMERIC` after the
-    /// closure returns. This does not require a comma-decimal locale, so it runs
-    /// on CI.
+    /// closure returns. Runs on CI without any special locale: when the ambient
+    /// locale is already C the `during` assertion is vacuous but still correct;
+    /// when a comma-decimal locale is available it is established first so the
+    /// override and the restore both carry signal.
     #[cfg(all(feature = "webgpu", unix))]
     #[test]
     fn c_numeric_locale_is_restored_after_scope() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
+        let (comma_locale, _) = install_first_comma_locale();
         let before = format_float(0.5);
+        if let Some(name) = comma_locale {
+            assert!(
+                before.contains(','),
+                "expected {name} to format with a comma, got {before:?}"
+            );
+        }
+
         with_c_numeric_locale(|| {
             let during = format_float(0.5);
             assert!(
                 during.contains('.') && !during.contains(','),
-                "scoped override must format with a dot, got {during:?}"
+                "scoped override must format with a dot, got {during:?} \
+                 (precondition comma locale: {comma_locale:?}, before: {before:?})"
             );
         });
         let after = format_float(0.5);
