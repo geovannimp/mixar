@@ -64,9 +64,11 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
         ref.watch(libraryFocusZoneProvider) == LibraryFocusZone.sidebar
         ? ref.watch(driveTreeFocusedPathProvider)
         : null;
-    // Pressing a row parks focus on the sidebar, as in the other panes.
+    // Pressing a row parks focus on the sidebar and moves the cursor onto that
+    // row, so the marker follows the pointer here as it does in the other panes.
     void pressPath(String path) {
       ref.read(libraryFocusZoneProvider.notifier).set(LibraryFocusZone.sidebar);
+      ref.read(driveTreeCursorProvider.notifier).set(path);
       _openPath(path);
     }
 
@@ -145,7 +147,10 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                           // The "up" row is the current folder, so it already
                           // carries the selection fill; the cursor adds the
                           // outline, exactly as it does in the other panes.
-                          focused: focusedPath == dir.parent,
+                          // A volume root has no parent row, and a `null`
+                          // focused path must not match one.
+                          focused:
+                              dir.parent != null && focusedPath == dir.parent,
                           onPress: parentOpenable
                               ? () => _openParent(dir, selectedVolume)
                               : null,

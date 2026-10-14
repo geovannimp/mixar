@@ -466,4 +466,14 @@ mod tests {
         assert!(is_known_signal("deck_1", "loop_slot_1"));
         assert!(is_known_signal("deck_1", "pad_hot_cue_1"));
     }
+
+    #[test]
+    fn library_focus_leaves_are_in_the_closed_catalogs() {
+        // Focus steps are button leaves: argument-less, on the master section.
+        assert!(is_known_action("LibraryNavigation::focus_next"));
+        assert!(is_known_action("LibraryNavigation::focus_prev"));
+        assert!(!is_known_action("LibraryNavigation::focus_next(deck:1)"));
+        assert!(is_closed_input_alias("master", "rotary_press"));
+        assert!(is_closed_input_alias("master", "rotary_press_shift"));
+    }
 }

@@ -913,11 +913,12 @@ bool driveParentInVolume(String? parent, FsVolumeInfo? volume) {
 }
 
 /// Visible Drive tree rows in pane order: the "up" row while a folder is open
-/// (index 0), then that folder's subfolders; volumes at the root.
+/// (index 0) and its parent is still inside the volume, then that folder's
+/// subfolders; volumes at the root.
 ///
 /// Takes the values it derives from instead of reading them, so a caller can
-/// pass one snapshot and be sure the rows, the cursor bound, and the focused
-/// path all describe the same listing.
+/// pass one snapshot and be sure the rows, the cursor, and the focused path all
+/// describe the same listing.
 List<String> driveTreeRowsFrom({
   required String? currentPath,
   required FsDirectoryListing? listing,
@@ -944,44 +945,42 @@ List<String> driveTreeRows(Ref ref) => driveTreeRowsFrom(
   volumes: ref.read(driveVolumesProvider).asData?.value ?? const [],
 );
 
-/// Focused Drive tree row, bounded by the rows last seen on screen.
-class DriveTreeCursor extends Notifier<int> {
-  var _count = 0;
-
+/// Focused Drive tree row, held by path.
+///
+/// A row's path is its identity, so a listing that changes under the cursor
+/// cannot leave it pointing at a different row — the way the track list pins its
+/// focused row by id. When the path is no longer on screen the cursor reads as
+/// the first row, which is where an externally opened folder starts.
+class DriveTreeCursor extends Notifier<String?> {
   @override
-  int build() => 0;
+  String? build() => null;
 
-  /// Record the row count and pull [state] back inside it, so a listing that
-  /// shrank under the cursor cannot leave the cursor past the end (a step from
-  /// a stale index would look like it did nothing).
-  void setCount(int count) {
-    _count = count < 0 ? 0 : count;
-    if (_count == 0) {
-      state = 0;
+  /// Park the cursor on [path] (a row press).
+  void set(String? path) => state = path;
+
+  /// Step the cursor by [delta] rows within [rows].
+  void step(List<String> rows, int delta) {
+    if (rows.isEmpty) {
+      state = null;
       return;
     }
-    if (state >= _count) {
-      state = _count - 1;
-    }
+    final current = rows.indexOf(state ?? '');
+    state = rows[navigateIndex(current < 0 ? 0 : current, rows.length, delta)];
   }
-
-  void navigate(int delta) => state = navigateIndex(state, _count, delta);
 }
 
-final driveTreeCursorProvider = NotifierProvider<DriveTreeCursor, int>(
+final driveTreeCursorProvider = NotifierProvider<DriveTreeCursor, String?>(
   DriveTreeCursor.new,
 );
 
 /// Path of the Drive tree row the cursor is on, `null` when no row can hold it.
-///
-/// Clamped on read, so a listing that shrank under the cursor still points at a
-/// real row.
 final driveTreeFocusedPathProvider = Provider<String?>((ref) {
   final rows = driveTreeRowsWatched(ref);
   if (rows.isEmpty) {
     return null;
   }
-  return rows[ref.watch(driveTreeCursorProvider).clamp(0, rows.length - 1)];
+  final cursor = ref.watch(driveTreeCursorProvider);
+  return cursor != null && rows.contains(cursor) ? cursor : rows.first;
 });
 
 /// [driveTreeRowsFrom] fed by the values this provider watches, so a listing
@@ -1002,18 +1001,18 @@ List<String> driveTreeRowsWatched(Ref ref) => driveTreeRowsFrom(
 /// Callers reject a zero [delta]; a zero step would still be a no-op here, but
 /// the guard lives at the evt boundary so it cannot be forgotten.
 void navigateDriveTree(Ref ref, int delta) {
-  // One snapshot for the bound and the path: re-deriving the rows afterwards
-  // could apply the new index to a listing that resolved in between, which
+  // One snapshot for the step and the path: re-deriving the rows afterwards
+  // could apply the new cursor to a listing that resolved in between, which
   // lands the rotary on the wrong folder.
   final rows = driveTreeRows(ref);
   if (rows.isEmpty) {
     return;
   }
-  final cursor = ref.read(driveTreeCursorProvider.notifier);
-  cursor.setCount(rows.length);
-  cursor.navigate(delta);
-  final index = ref.read(driveTreeCursorProvider).clamp(0, rows.length - 1);
-  ref.read(driveCurrentPathProvider.notifier).set(rows[index]);
+  ref.read(driveTreeCursorProvider.notifier).step(rows, delta);
+  final path = ref.read(driveTreeFocusedPathProvider);
+  if (path != null) {
+    ref.read(driveCurrentPathProvider.notifier).set(path);
+  }
 }
 
 final driveResolvedByPathProvider =

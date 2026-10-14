@@ -1623,23 +1623,5 @@ mod tests {
             &snap,
         )
         .is_none());
-        // Argument validation lives in the closed catalog, not in resolution.
-        assert!(crate::catalog::is_known_action(
-            "LibraryNavigation::focus_next"
-        ));
-        assert!(crate::catalog::is_known_action(
-            "LibraryNavigation::focus_prev"
-        ));
-        assert!(!crate::catalog::is_known_action(
-            "LibraryNavigation::focus_next(deck:1)"
-        ));
-        assert!(crate::catalog::is_closed_input_alias(
-            "master",
-            "rotary_press"
-        ));
-        assert!(crate::catalog::is_closed_input_alias(
-            "master",
-            "rotary_press_shift"
-        ));
     }
 }

@@ -260,32 +260,30 @@ void main() {
     emit(focusNext);
     await tester.pumpAndSettle();
 
-    // The cursor is an offset into the visible rows, and the "up" row is row 0,
-    // so it starts on the parent.
-    expect(container.read(driveTreeCursorProvider), 0);
+    // Nothing browsed yet, so the cursor reads as the first row — the "up" row.
+    expect(container.read(driveTreeCursorProvider), isNull);
     expect(container.read(driveTreeFocusedPathProvider), listing.parent);
 
     emit(browseNext);
     await tester.pumpAndSettle();
-    expect(container.read(driveTreeCursorProvider), 1);
+    expect(container.read(driveTreeCursorProvider), folders[0].path);
     expect(container.read(driveCurrentPathProvider), folders[0].path);
 
     emit(browseNext);
     await tester.pumpAndSettle();
-    expect(container.read(driveTreeCursorProvider), 2);
+    expect(container.read(driveTreeCursorProvider), folders[1].path);
     expect(container.read(driveCurrentPathProvider), folders[1].path);
 
     // Stepping back walks out through the sibling and onto the "up" row, which
     // is what opens the parent.
     emit(browsePrev);
     await tester.pumpAndSettle();
-    expect(container.read(driveTreeCursorProvider), 1);
+    expect(container.read(driveTreeCursorProvider), folders[0].path);
     expect(container.read(driveCurrentPathProvider), folders[0].path);
 
     emit(browsePrev);
     await tester.pumpAndSettle();
-    expect(container.read(driveTreeCursorProvider), 0);
-    expect(container.read(driveTreeFocusedPathProvider), listing.parent);
+    expect(container.read(driveTreeCursorProvider), listing.parent);
     expect(container.read(driveCurrentPathProvider), listing.parent);
   });
 
@@ -299,13 +297,13 @@ void main() {
     emit(focusNext);
     await tester.pumpAndSettle();
 
-    // No folder open: the tree is the volume list.
-    expect(container.read(driveTreeCursorProvider), 0);
+    // No folder open: the tree is the volume list, starting on the first.
+    expect(container.read(driveTreeCursorProvider), isNull);
     expect(container.read(driveTreeFocusedPathProvider), rootVolume.path);
 
     emit(browseNext);
     await tester.pumpAndSettle();
-    expect(container.read(driveTreeCursorProvider), 1);
+    expect(container.read(driveTreeCursorProvider), dataVolume.path);
     expect(container.read(driveCurrentPathProvider), dataVolume.path);
   });
 
@@ -331,7 +329,7 @@ void main() {
     await tester.pumpAndSettle();
     emit(browseNext);
     await tester.pumpAndSettle();
-    expect(container.read(driveTreeCursorProvider), 2);
+    expect(container.read(driveTreeCursorProvider), folders[1].path);
     expect(container.read(driveCurrentPathProvider), folders[1].path);
 
     // The folder now holds one subfolder: rows are ["up", a].
@@ -343,12 +341,73 @@ void main() {
     );
     await container.refresh(driveListingProvider.future);
     await tester.pumpAndSettle();
-    expect(container.read(driveTreeFocusedPathProvider), folders[0].path);
+    // The cursor's row is gone, so it reads as the first row rather than
+    // pointing at a row that no longer exists.
+    expect(container.read(driveTreeCursorProvider), folders[1].path);
+    expect(container.read(driveTreeFocusedPathProvider), listing.parent);
 
-    // One step back moves the cursor rather than clamping in place.
+    // The top of the tree clamps there rather than moving.
     emit(browsePrev);
     await tester.pumpAndSettle();
-    expect(container.read(driveTreeCursorProvider), 0);
+    expect(container.read(driveTreeCursorProvider), listing.parent);
     expect(container.read(driveCurrentPathProvider), listing.parent);
+  });
+
+  testWidgets('browsing after an externally opened folder starts from its '
+      'first row', (tester) async {
+    // A tree deep enough that the listing follows the open folder, the way the
+    // real filesystem browser does.
+    final subA = const FsEntry(name: 'a1', path: '/tmp/samples/a/a1');
+    final subB = const FsEntry(name: 'b1', path: '/tmp/samples/b/b1');
+    FsDirectoryListing listingFor(String path) {
+      if (path == folders[0].path) {
+        return FsDirectoryListing(
+          path: folders[0].path,
+          parent: listing.path,
+          directories: [subA],
+          audioFiles: const [],
+        );
+      }
+      if (path == folders[1].path) {
+        return FsDirectoryListing(
+          path: folders[1].path,
+          parent: listing.path,
+          directories: [subB],
+          audioFiles: const [],
+        );
+      }
+      return listing;
+    }
+
+    final (container, emit) = await pumpBrowser(
+      tester,
+      loadListing: (ref) async =>
+          listingFor(ref.watch(driveCurrentPathProvider) ?? listing.path),
+    );
+    container
+        .read(librarySourceTabProvider.notifier)
+        .set(LibrarySourceTab.drive);
+    container.read(driveCurrentPathProvider.notifier).set(listing.path);
+    await tester.pumpAndSettle();
+    emit(focusNext);
+    await tester.pumpAndSettle();
+
+    // Walk deep so the cursor holds a row of this listing.
+    emit(browseNext);
+    await tester.pumpAndSettle();
+    expect(container.read(driveTreeCursorProvider), folders[0].path);
+    expect(container.read(driveCurrentPathProvider), folders[0].path);
+
+    // A path change from outside the rotary (a row press, or "Browse in Drive"):
+    // the cursor's row is not in the new listing, so it reads as that listing's
+    // first row and the next step starts from there.
+    container.read(driveCurrentPathProvider.notifier).set(folders[1].path);
+    await tester.pumpAndSettle();
+    // First row of the new listing: the "up" row, i.e. the folder just left.
+    expect(container.read(driveTreeFocusedPathProvider), listing.path);
+    emit(browseNext);
+    await tester.pumpAndSettle();
+    expect(container.read(driveTreeCursorProvider), subB.path);
+    expect(container.read(driveCurrentPathProvider), subB.path);
   });
 }
