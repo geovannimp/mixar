@@ -184,6 +184,7 @@ pub(crate) fn target_sync_speed(master_bpm: f64, master_speed: f32, slave_bpm: f
     ((master_effective / slave_bpm) as f32).clamp(0.5, 2.0)
 }
 
+#[allow(clippy::too_many_arguments)] // master/slave pos+bpm+phase are parallel inputs
 pub(crate) fn beat_align_target(
     master_pos_ms: i32,
     slave_pos_ms: i32,
