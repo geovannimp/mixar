@@ -140,6 +140,7 @@ vu_meter = { type = "cc", channel = 1, cc = 0x02, direction = "out" }
 
 # Loop group: all six lamps track `loop_active` (the unit lights them as a set).
 loop_in_led = { type = "note", channel = 1, note = 0x10, velocity = 0x7F, direction = "out" }
+# Same physical LOOP IN lamp as `loop_in_led` (unbound; no distinct SHIFT-OUT note known).
 loop_in_shift_led = { type = "note", channel = 1, note = 0x10, velocity = 0x7F, direction = "out" }
 loop_in_four_beat_led = { type = "note", channel = 1, note = 0x60, velocity = 0x7F, direction = "out" }
 loop_in_long_led = { type = "note", channel = 1, note = 0x4C, velocity = 0x7F, direction = "out" }
@@ -160,7 +161,8 @@ pad_mode_beat_jump_led = { type = "note", channel = 1, note = 0x20, velocity = 0
 pad_mode_sampler_led = { type = "note", channel = 1, note = 0x22, velocity = 0x7F, direction = "out" }
 pad_mode_loop_roll_led = { type = "note", channel = 1, note = 0x6D, velocity = 0x7F, direction = "out" }
 
-# +SHIFT mode indicators: the unit flashes these while SHIFT is held.
+# +SHIFT mode indicators share the Keyboard / Key Shift lamp addresses on purpose:
+# SHIFT+HOT CUE enters Keyboard (0x69), SHIFT+SAMPLER enters Key Shift (0x6F).
 pad_mode_hot_cue_shift_led = { type = "note", channel = 1, note = 0x69, velocity = 0x7F, direction = "out" }
 pad_mode_loop_roll_shift_led = { type = "note", channel = 1, note = 0x1E, velocity = 0x7F, direction = "out" }
 pad_mode_beat_jump_shift_led = { type = "note", channel = 1, note = 0x6B, velocity = 0x7F, direction = "out" }
@@ -377,6 +379,7 @@ vu_meter = { type = "cc", channel = 2, cc = 0x02, direction = "out" }
 
 # Loop group: all six lamps track `loop_active` (the unit lights them as a set).
 loop_in_led = { type = "note", channel = 2, note = 0x10, velocity = 0x7F, direction = "out" }
+# Same physical LOOP IN lamp as `loop_in_led` (unbound; no distinct SHIFT-OUT note known).
 loop_in_shift_led = { type = "note", channel = 2, note = 0x10, velocity = 0x7F, direction = "out" }
 loop_in_four_beat_led = { type = "note", channel = 2, note = 0x60, velocity = 0x7F, direction = "out" }
 loop_in_long_led = { type = "note", channel = 2, note = 0x4C, velocity = 0x7F, direction = "out" }
@@ -398,6 +401,7 @@ pad_mode_sampler_led = { type = "note", channel = 2, note = 0x22, velocity = 0x7
 pad_mode_loop_roll_led = { type = "note", channel = 2, note = 0x6D, velocity = 0x7F, direction = "out" }
 
 # +SHIFT mode indicators: the unit flashes these while SHIFT is held.
+# SHIFT+HOT CUE / Keyboard share 0x69; SHIFT+SAMPLER / Key Shift share 0x6F.
 pad_mode_hot_cue_shift_led = { type = "note", channel = 2, note = 0x69, velocity = 0x7F, direction = "out" }
 pad_mode_loop_roll_shift_led = { type = "note", channel = 2, note = 0x1E, velocity = 0x7F, direction = "out" }
 pad_mode_beat_jump_shift_led = { type = "note", channel = 2, note = 0x6B, velocity = 0x7F, direction = "out" }

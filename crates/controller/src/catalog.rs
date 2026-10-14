@@ -260,7 +260,8 @@ pub fn is_known_signal(section: &str, name: &str) -> bool {
 
 /// Parse the 1-based slot number in `"<prefix><n>"`.
 fn numbered_suffix(name: &str, prefix: &str) -> Option<usize> {
-    name.strip_prefix(prefix)?.parse::<usize>().ok()
+    let n = name.strip_prefix(prefix)?.parse::<usize>().ok()?;
+    (n > 0).then_some(n)
 }
 
 const MIXER_LEAVES: &[&str] = &[
@@ -444,5 +445,16 @@ mod tests {
         assert!(is_closed_input_alias("deck_1", "delete_hot_cue_99"));
         assert!(!is_closed_input_alias("deck_1", "pad_0"));
         assert!(!numbered_deck_alias("pad_mode_hot_cue"));
+    }
+
+    #[test]
+    fn known_signals_reject_zero_slot_suffixes() {
+        // Matches ControlSnapshot::signal / numbered(): slots are 1-based.
+        assert!(!is_known_signal("deck_1", "hot_cue_0"));
+        assert!(!is_known_signal("deck_1", "loop_slot_0"));
+        assert!(!is_known_signal("deck_1", "pad_hot_cue_0"));
+        assert!(is_known_signal("deck_1", "hot_cue_1"));
+        assert!(is_known_signal("deck_1", "loop_slot_1"));
+        assert!(is_known_signal("deck_1", "pad_hot_cue_1"));
     }
 }

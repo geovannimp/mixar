@@ -889,10 +889,9 @@ impl MappingSession {
 
     /// Drive a signal-less `[outputs.*]` entry (Keyboard / Key Shift pad banks).
     /// Maps `active` onto [`LedState::On`] / [`LedState::Off`] through the same
-    /// send helper as declarative refresh. Unlike [`Self::apply_led`]'s "uncached
-    /// == Off" skip (which avoids attach spam), an absent cache entry here is
-    /// treated as unknown so `output_state.remove` + Off still force-sends —
-    /// matching main's bool-cache `apply_output_signal` used by pad-bank refresh.
+    /// send helper as declarative refresh. When the cache already holds `state`,
+    /// this is a no-op; otherwise it force-applies via [`Self::apply_led`] so a
+    /// prior `output_state.remove` still re-sends Off.
     pub fn apply_output_signal(
         &mut self,
         section: &str,

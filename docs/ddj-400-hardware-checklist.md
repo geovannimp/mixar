@@ -109,3 +109,5 @@ state, so their lamps stay dark. Bind them when the feature lands:
 | `0x78` (master channel) | +SHIFT MASTER CUE | — |
 | `0x94 0x43` / `0x94 0x47` | BEAT FX ON/OFF | engine beat FX |
 | pad pages `0x10`, `0x50` | PAD FX 1, PAD FX 2 | pad modes this mapping cannot enter |
+| pad ch `0x20`–`0x27` | Beat Jump pad bank | engine beat-jump slot / press state for LEDs |
+| pad ch `0x30`–`0x37` | Sampler pad bank | engine sampler slot state for LEDs |
