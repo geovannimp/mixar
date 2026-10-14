@@ -463,8 +463,14 @@ void main() {
         .set(LibraryFocusZone.trackList);
     await tester.pump();
 
-    // The "up" row: the open folder, shown by its own name.
-    await tester.tap(find.text('samples'));
+    // The "up" row: the open folder, shown by its own name. Matched through the
+    // row so a volume or folder that happens to share the name cannot be hit.
+    final upRow = find.ancestor(
+      of: find.text('samples'),
+      matching: find.byType(LibraryNavRow),
+    );
+    expect(upRow, findsOneWidget);
+    await tester.tap(upRow.first);
     await tester.pumpAndSettle();
 
     expect(container.read(libraryFocusZoneProvider), LibraryFocusZone.sidebar);

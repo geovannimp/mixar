@@ -154,7 +154,9 @@ class _ScrollFocusedIntoViewState extends State<_ScrollFocusedIntoView> {
     if (widget.focused && !oldWidget.focused) {
       // After this frame's layout: the row is in the tree by then.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
+        // The cursor may already have stepped off this row in the meantime —
+        // scrolling it in would be churn for a row nobody is looking at.
+        if (!mounted || !widget.focused) {
           return;
         }
         Scrollable.ensureVisible(

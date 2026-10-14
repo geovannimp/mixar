@@ -42,18 +42,22 @@ class TrackListRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
+    // Both watches below only flip for the row they belong to: `focused` is
+    // already narrowed with `select`, and the zone is ANDed with it here, so a
+    // focus step rebuilds the cursor row rather than every visible row.
     final focused = ref.watch(
       focusedTrackRowIndexProvider.select((i) => i == index),
     );
-    // The cursor only wears the brand tint while this list owns browser focus;
-    // otherwise it dims and the sidebar's focused row takes the accent.
-    final listFocused =
-        ref.watch(libraryFocusZoneProvider) == LibraryFocusZone.trackList;
+    final cursorWins = ref.watch(
+      libraryFocusZoneProvider.select(
+        (zone) => focused && zone == LibraryFocusZone.trackList,
+      ),
+    );
     final content = DecoratedBox(
       decoration: BoxDecoration(
         color: !focused
             ? theme.colors.card
-            : listFocused
+            : cursorWins
             ? libraryListSelectedRowColor(theme)
             : libraryListCursorRowColor(theme),
       ),
