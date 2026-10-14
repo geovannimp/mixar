@@ -169,8 +169,13 @@ pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, first_beat_ms: f64, quantize: b
     if bpm <= 0.0 {
         return ms;
     }
-    let beat = beat_ms(bpm);
     let phase = first_beat_ms;
+    // Bus/grid payloads can carry NaN/negative phase; refuse to snap rather than
+    // emit NaN or negative beat times.
+    if !phase.is_finite() || phase < 0.0 {
+        return ms;
+    }
+    let beat = beat_ms(bpm);
     (((f64::from(ms) - phase) / beat).round() * beat + phase).round() as i32
 }
 
@@ -237,6 +242,12 @@ mod tests {
         // 120 BPM, phase 100 ms → beats at 100, 600, 1100…
         assert_eq!(snap_ms(200, Some(120.0), 100.0, true), 100);
         assert_eq!(snap_ms(400, Some(120.0), 100.0, true), 600);
+    }
+
+    #[test]
+    fn snap_ms_passes_through_when_phase_is_invalid() {
+        assert_eq!(snap_ms(200, Some(120.0), f64::NAN, true), 200);
+        assert_eq!(snap_ms(200, Some(120.0), -50.0, true), 200);
     }
 
     #[test]

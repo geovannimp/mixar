@@ -357,7 +357,11 @@ fn loop_out_snaps_to_grid_phase_when_quantize_on() {
                     },
                 )),
             )?;
-            engine.apply_track_beat_grid("phase-loop.wav", &phase_grid(0.1));
+            let changed = engine.apply_track_beat_grid("phase-loop.wav", &phase_grid(0.1));
+            assert!(
+                !changed.is_empty(),
+                "beat grid must apply to loaded deck 0 (track phase-loop.wav)"
+            );
             Ok(())
         })
         .expect("load");
@@ -410,7 +414,11 @@ fn beat_grid_changed_updates_quantize_phase() {
 
     session
         .with_engine(|engine| {
-            engine.apply_track_beat_grid("perf.wav", &phase_grid(0.1));
+            let changed = engine.apply_track_beat_grid("perf.wav", &phase_grid(0.1));
+            assert!(
+                !changed.is_empty(),
+                "beat grid must apply to loaded deck 0 (track perf.wav)"
+            );
             Ok(())
         })
         .expect("apply grid");

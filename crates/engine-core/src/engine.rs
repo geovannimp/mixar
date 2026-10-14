@@ -1595,7 +1595,10 @@ impl Engine {
                     did_change = true;
                 }
             }
-            if (control.first_beat_ms - first_beat_ms).abs() > f64::EPSILON {
+            // Phase comes from f32 secs × 1000; use a ms-scale tolerance so
+            // semantically identical grids do not thrash DeckUpdated.
+            const FIRST_BEAT_MS_EPS: f64 = 1e-3;
+            if (control.first_beat_ms - first_beat_ms).abs() > FIRST_BEAT_MS_EPS {
                 control.first_beat_ms = first_beat_ms;
                 did_change = true;
             }
