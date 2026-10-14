@@ -19,7 +19,6 @@ import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
-import 'package:gui_flutter/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
@@ -302,6 +301,22 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('Levels Enable deep-links to Preview bus settings', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+
+    await tester.tap(find.byKey(const ValueKey('master-meter')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.widgetWithText(AppButton, 'Enable'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(
       find.descendant(
@@ -313,13 +328,7 @@ void main() {
     expect(find.byType(MasterStrip), findsNothing);
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(find.text('Preview bus'), findsOneWidget);
-    expect(find.byKey(SettingsAudioPanel.previewBusCardKey), findsOneWidget);
-    final previewRect = tester.getRect(
-      find.byKey(SettingsAudioPanel.previewBusCardKey),
-    );
-    final viewSize = tester.view.physicalSize / tester.view.devicePixelRatio;
-    expect(previewRect.top, lessThan(viewSize.height));
-    expect(previewRect.bottom, greaterThan(0));
+    expect(find.text('Preview bus').hitTestable(), findsOneWidget);
   });
 
   testWidgets('mixer cue controls enable with preview bus and follow status', (

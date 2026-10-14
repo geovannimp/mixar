@@ -18,15 +18,15 @@ class SettingsAudioPanel extends ConsumerWidget {
   const new({
     required this.draft,
     required this.onChanged,
+    required this.previewBusCardKey,
     this.highlightPreviewBus = false,
     super.key,
   });
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
+  final GlobalKey previewBusCardKey;
   final bool highlightPreviewBus;
-
-  static final previewBusCardKey = GlobalKey();
 
   static const _resamplerQualities = ['low', 'medium', 'high'];
 
@@ -140,8 +140,7 @@ class SettingsAudioPanel extends ConsumerWidget {
         SettingsGlowFlash(
           key: previewBusCardKey,
           active: highlightPreviewBus,
-          builder: (context, borderColor) => SettingsSectionCard(
-            borderColor: borderColor,
+          child: SettingsSectionCard(
             title: l10n.settingsAudioPreviewBusTitle,
             subtitle: l10n.settingsAudioPreviewBusDescription,
             trailing: SizedBox(

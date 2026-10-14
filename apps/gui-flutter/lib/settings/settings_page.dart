@@ -41,27 +41,28 @@ class SettingsPage extends ConsumerStatefulWidget {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   late SettingsSection _section = widget.initialSection;
   late var _highlightPreviewBus = widget.scrollToPreviewBus;
+  final _previewBusCardKey = GlobalKey();
   AppSettings? _draft;
   AppSettings? _baseline;
   var _busy = false;
   String? _error;
-  var _didScrollToPreviewBus = false;
+  var _didSchedulePreviewScroll = false;
 
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
 
-  void _maybeScrollToPreviewBus() {
+  void _schedulePreviewScrollOnce() {
     if (!widget.scrollToPreviewBus ||
-        _didScrollToPreviewBus ||
+        _didSchedulePreviewScroll ||
         _section != SettingsSection.audio) {
       return;
     }
+    _didSchedulePreviewScroll = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _didScrollToPreviewBus) {
+      if (!mounted) {
         return;
       }
-      _didScrollToPreviewBus = true;
-      final ctx = SettingsAudioPanel.previewBusCardKey.currentContext;
+      final ctx = _previewBusCardKey.currentContext;
       if (ctx != null) {
         Scrollable.ensureVisible(
           ctx,
@@ -97,12 +98,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
       ),
       data: (settings) {
+        final firstData = _draft == null;
         _baseline ??= settings;
         _draft ??= settings;
         final draft = _draft!;
         final baseline = _baseline!;
         final dirty = _isDirty(draft, baseline);
-        _maybeScrollToPreviewBus();
+        // One-shot after settings paint; avoids scheduling from every rebuild.
+        if (firstData) {
+          _schedulePreviewScrollOnce();
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -179,6 +184,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           section: _section,
                           draft: draft,
                           highlightPreviewBus: _highlightPreviewBus,
+                          previewBusCardKey: _previewBusCardKey,
                           onChanged: (next) => setState(() => _draft = next),
                         ),
                       ),
@@ -296,12 +302,14 @@ class _SettingsSectionPanel extends StatelessWidget {
     required this.section,
     required this.draft,
     required this.onChanged,
+    required this.previewBusCardKey,
     this.highlightPreviewBus = false,
   });
 
   final SettingsSection section;
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
+  final GlobalKey previewBusCardKey;
   final bool highlightPreviewBus;
 
   @override
@@ -311,6 +319,7 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
         highlightPreviewBus: highlightPreviewBus,
+        previewBusCardKey: previewBusCardKey,
       ),
       SettingsSection.mixer => SettingsMixerPanel(
         draft: draft,

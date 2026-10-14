@@ -28,6 +28,7 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   ShellTab _tab = ShellTab.mixer;
   SettingsDeepLink? _settingsDeepLink;
+  var _settingsDeepLinkEpoch = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +47,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       setState(() {
         _tab = ShellTab.settings;
         _settingsDeepLink = next;
+        _settingsDeepLinkEpoch++;
       });
       ref.read(pendingSettingsDeepLinkProvider.notifier).clear();
     });
@@ -70,7 +72,10 @@ class _AppShellState extends ConsumerState<AppShell> {
           Expanded(
             child: switch (_tab) {
               ShellTab.mixer => const MixerPage(),
+              // Epoch key remounts SettingsPage for each deep link so scroll /
+              // glow apply even when Settings is already open.
               ShellTab.settings => SettingsPage(
+                key: ValueKey(_settingsDeepLinkEpoch),
                 initialSection:
                     _settingsDeepLink?.section ?? SettingsSection.audio,
                 scrollToPreviewBus:

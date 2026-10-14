@@ -98,11 +98,12 @@ class SettingsSectionCard extends StatelessWidget {
 
 /// Primary border flash that holds briefly then fades out (~1s).
 ///
-/// [builder] receives the animated border tint (null when inactive/faded).
+/// Animates only a border overlay; [child] is built once and not rebuilt
+/// on each animation tick.
 class SettingsGlowFlash extends StatefulWidget {
-  const new({required this.builder, this.active = false, super.key});
+  const new({required this.child, this.active = false, super.key});
 
-  final Widget Function(BuildContext context, Color? borderColor) builder;
+  final Widget child;
   final bool active;
 
   @override
@@ -112,6 +113,7 @@ class SettingsGlowFlash extends StatefulWidget {
 class _SettingsGlowFlashState extends State<SettingsGlowFlash>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  late final CurvedAnimation _curve;
   late final Animation<double> _glow;
 
   @override
@@ -122,23 +124,34 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
       duration: const Duration(milliseconds: 1000),
     );
     // Hold full glow ~20%, then ease out.
-    _glow = Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.2, 1, curve: Curves.easeOut),
-      ),
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.2, 1, curve: Curves.easeOut),
     );
+    _glow = Tween<double>(begin: 1, end: 0).animate(_curve);
     if (widget.active) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _controller.forward();
+          _controller.forward(from: 0);
         }
       });
     }
   }
 
   @override
+  void didUpdateWidget(SettingsGlowFlash oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) {
+      _controller.forward(from: 0);
+    } else if (!widget.active && oldWidget.active) {
+      _controller.stop();
+      _controller.reset();
+    }
+  }
+
+  @override
   void dispose() {
+    _curve.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -146,17 +159,36 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
   @override
   Widget build(BuildContext context) {
     if (!widget.active && _controller.isDismissed) {
-      return widget.builder(context, null);
+      return widget.child;
     }
     final theme = context.theme;
     return AnimatedBuilder(
       animation: _glow,
-      builder: (context, _) {
+      child: widget.child,
+      builder: (context, child) {
         final t = _glow.value;
-        final borderColor = t <= 0
-            ? null
-            : Color.lerp(theme.colors.border, theme.colors.primary, t);
-        return widget.builder(context, borderColor);
+        if (t <= 0) {
+          return child!;
+        }
+        final color = Color.lerp(theme.colors.border, theme.colors.primary, t)!;
+        return Stack(
+          children: [
+            child!,
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: theme.style.borderRadius.lg,
+                    border: Border.all(
+                      color: color,
+                      width: theme.style.borderWidth,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
       },
     );
   }

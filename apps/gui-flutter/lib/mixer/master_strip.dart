@@ -112,7 +112,6 @@ class MasterStrip extends ConsumerWidget {
                     mainAxisSize: .min,
                     semanticsLabel: 'Enable preview bus',
                     onPress: () {
-                      Navigator.of(context).pop();
                       ref
                           .read(pendingSettingsDeepLinkProvider.notifier)
                           .request(
@@ -121,6 +120,7 @@ class MasterStrip extends ConsumerWidget {
                               scrollToPreviewBus: true,
                             ),
                           );
+                      Navigator.of(context).pop();
                     },
                     child: const Text('Enable'),
                   ),
