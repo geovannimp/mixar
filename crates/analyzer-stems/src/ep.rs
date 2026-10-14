@@ -102,14 +102,12 @@ fn ep_entry(label: &'static str) -> Option<(&'static str, ExecutionProviderDispa
 fn webgpu_ep() -> ExecutionProviderDispatch {
     // Bare EP registration — with_* helpers pre-prefix `ep.webgpuexecutionprovider.*`,
     // which AppendExecutionProvider prefixes again, so options never apply. Use defaults.
-    #[cfg(unix)]
-    {
-        with_c_numeric_locale(|| ep::WebGPU::default().build())
-    }
-    #[cfg(not(unix))]
-    {
-        ep::WebGPU::default().build()
-    }
+    //
+    // No C-locale scope here: this only constructs a dispatch struct, so it does no
+    // locale-sensitive ORT work. WGSL float generation happens at commit / first
+    // run, which `session::load_session` covers. Wrapping here would also hold
+    // the locale lock across a full model load for lock-free pub callers.
+    ep::WebGPU::default().build()
 }
 
 /// ORT WebGPU embeds floats into WGSL with locale-sensitive C printf.
