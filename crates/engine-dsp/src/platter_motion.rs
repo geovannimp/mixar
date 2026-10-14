@@ -86,6 +86,11 @@ impl PlatterMotion {
         self.touching = touching;
         let now = self.active_mode(transport_playing);
 
+        // Pad FX owns absolute rate while an envelope is active — only track touch.
+        if self.envelope_rate.is_some() {
+            return;
+        }
+
         // Finger lift always ends scratch authority. Paused outer remaps to
         // vinyl, so we cannot key only on was/now mode inequality.
         if was_touching && !touching {
@@ -222,7 +227,11 @@ impl PlatterMotion {
     }
 
     pub fn driving(&self) -> bool {
-        if self.touching || self.releasing {
+        if self.releasing {
+            return true;
+        }
+        // Ignore top: touch is a no-op motor; don't force paused audio.
+        if self.touching && self.top != MotionMode::Ignore {
             return true;
         }
         if let Some(r) = self.envelope_rate {
@@ -246,6 +255,10 @@ impl PlatterMotion {
     }
 
     pub fn begin_release(&mut self, transport_playing: bool) {
+        // Pad FX owns rate while an envelope is active.
+        if self.envelope_rate.is_some() {
+            return;
+        }
         self.tick_accum = 0;
         self.filter_x = 0.0;
         self.filter_v = 0.0;
@@ -478,6 +491,49 @@ mod tests {
         assert!(!m.driving());
         m.set_envelope_rate(Some(0.0), false);
         assert!(m.driving());
+    }
+
+    #[test]
+    fn ignore_touch_does_not_drive_while_paused() {
+        let mut m = PlatterMotion::new();
+        m.set_modes(MotionMode::Ignore, MotionMode::Ignore, false);
+        m.set_touch(true, false);
+        m.tick(512, 48_000, false);
+        assert!((m.rate() - 1.0).abs() < 1e-4, "rate={}", m.rate());
+        assert!(
+            !m.driving(),
+            "Ignore touch must not force paused audio, rate={}",
+            m.rate()
+        );
+    }
+
+    #[test]
+    fn touch_with_active_envelope_keeps_envelope_rate() {
+        let mut m = PlatterMotion::new();
+        m.set_envelope_rate(Some(-1.5), false);
+        m.set_touch(true, false);
+        assert!(
+            (m.rate() - (-1.5)).abs() < 1e-4,
+            "touch must not zero through an active envelope, rate={}",
+            m.rate()
+        );
+        assert!(m.touching());
+    }
+
+    #[test]
+    fn begin_release_preserves_active_envelope_rate() {
+        let mut m = PlatterMotion::new();
+        m.set_envelope_rate(Some(2.0), true);
+        m.set_touch(true, true);
+        m.begin_release(true);
+        assert!(
+            (m.rate() - 2.0).abs() < 1e-4,
+            "begin_release must not stomp envelope, rate={}",
+            m.rate()
+        );
+        assert!(!m.releasing);
+        m.tick(512, 48_000, true);
+        assert!((m.rate() - 2.0).abs() < 1e-4);
     }
 
     #[test]

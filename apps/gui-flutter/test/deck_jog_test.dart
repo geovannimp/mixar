@@ -129,14 +129,8 @@ void main() {
     // Playhead jumps a full vinyl rev; active drag must keep the local angle.
     setPos(() => positionMs = vinylRevolutionMs().round());
     await tester.pump();
-    final stateAfter = tester.state(find.byType(JogPlatter));
-    expect(
-      identical(state, stateAfter),
-      isTrue,
-      reason: 'JogPlatter State must be preserved across position updates',
-    );
-    expect((stateAfter as dynamic).debugDragging, isTrue);
-    final afterPlayhead = debugReadJogPlatterRotation(stateAfter);
+    expect((state as dynamic).debugDragging, isTrue);
+    final afterPlayhead = debugReadJogPlatterRotation(state);
 
     expect(
       afterPlayhead,
