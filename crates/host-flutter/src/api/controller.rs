@@ -589,9 +589,7 @@ fn apply_engine_mirror(
             };
             apply_position(controller, id, position_ms);
         }
-        EvtBody::Levels {
-            peak_l, peak_r, ..
-        } => {
+        EvtBody::Levels { peak_l, peak_r, .. } => {
             let Origin::Deck(id) = ev.origin().clone() else {
                 return;
             };

@@ -789,6 +789,9 @@ impl MappingSession {
 
     /// Send every mapped lamp's `off` bytes (detach, shutdown).
     fn clear_leds(&mut self, midi: &mut impl MidiOut) {
+        // Drop the cache first so a panic / early exit mid-send cannot leave
+        // stale On/Blink entries that would skip the next refresh.
+        self.output_state.clear();
         let sections: Vec<String> = self.bundle.map.outputs.keys().cloned().collect();
         for section in &sections {
             let aliases: Vec<String> = self
@@ -802,7 +805,6 @@ impl MappingSession {
                 self.apply_led(section, &alias, LedState::Off, true, midi);
             }
         }
-        self.output_state.clear();
     }
 
     /// `(alias, state)` for every output in `section` that declares a `signal`.
@@ -871,7 +873,8 @@ impl MappingSession {
     fn blink_bytes(&self, section: &str, alias: &str) -> Option<[u8; 3]> {
         let out = self.bundle.map.outputs.get(section)?.get(alias)?;
         let target = if self.blink_on {
-            out.blink.as_ref().unwrap_or(&out.on)
+            // Only called for `LedState::Blink`, which requires `blink: Some`.
+            out.blink.as_ref()?
         } else {
             &out.off
         };
@@ -897,11 +900,7 @@ impl MappingSession {
         active: bool,
         midi: &mut impl MidiOut,
     ) {
-        let state = if active {
-            LedState::On
-        } else {
-            LedState::Off
-        };
+        let state = if active { LedState::On } else { LedState::Off };
         let key = format!("{section}.{alias}");
         if self.output_state.get(&key).copied() == Some(state) {
             return;

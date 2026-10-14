@@ -201,7 +201,9 @@ impl ControlSnapshot {
         }
         Some(match mode {
             PadMode::HotCue => self.hot_cues[i].get(n - 1).copied().flatten().is_some(),
-            PadMode::LoopRoll => self.loop_slots[i][n - 1],
+            PadMode::LoopRoll => self.loop_slots[i].get(n - 1).copied().unwrap_or(false),
+            // Keyboard / Key Shift pad banks are host-driven (signal-less outputs);
+            // declarative `pad_keyboard_*` / `pad_key_shift_*` are not advertised.
             _ => false,
         })
     }
@@ -213,6 +215,9 @@ fn numbered(name: &str, prefix: &str) -> Option<usize> {
 }
 
 /// `hot_cue` | `loop` | `beat_jump` | `sampler` | `stems` → pad mode.
+///
+/// Keyboard / Key Shift pad-bank LEDs stay host-driven via signal-less outputs;
+/// do not parse them here (that would advertise inert `pad_keyboard_*` signals).
 fn pad_mode_from_signal(rest: &str) -> Option<PadMode> {
     let (mode, n) = rest.rsplit_once('_')?;
     if n.parse::<usize>().is_err() {
@@ -224,8 +229,6 @@ fn pad_mode_from_signal(rest: &str) -> Option<PadMode> {
         "beat_jump" => Some(PadMode::BeatJump),
         "sampler" => Some(PadMode::Sampler),
         "stems" => Some(PadMode::Stems),
-        "keyboard" => Some(PadMode::Keyboard),
-        "key_shift" => Some(PadMode::KeyShift),
         _ => None,
     }
 }

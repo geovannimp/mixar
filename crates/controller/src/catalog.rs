@@ -228,8 +228,6 @@ const PAD_SLOT_PREFIXES: &[&str] = &[
     "pad_beat_jump_",
     "pad_sampler_",
     "pad_stems_",
-    "pad_keyboard_",
-    "pad_key_shift_",
 ];
 
 /// Physical performance pads per deck.

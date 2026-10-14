@@ -226,9 +226,16 @@ fn loop_group_lights_while_a_loop_is_active() {
 
     midi.frames.clear();
     s.set_deck_feedback(0, &deck(PadMode::HotCue), &mut midi);
-    assert!(
-        sorted(&midi).iter().all(|f| f[1] != 0x4D || f[2] == 0x00),
-        "exiting the loop clears the exit-loop lamp"
+    assert_eq!(
+        sorted(&midi),
+        sorted_of(&[
+            [D1, 0x10, 0x00], // LOOP IN
+            [D1, 0x11, 0x00], // LOOP OUT
+            [D1, 0x4D, 0x00], // RELOOP / EXIT
+            [D1, 0x4E, 0x00], // +SHIFT LOOP OUT
+            [D1, 0x50, 0x00], // +SHIFT RELOOP / EXIT
+        ]),
+        "exiting the loop clears the full loop-group"
     );
 }
 

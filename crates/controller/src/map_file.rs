@@ -94,12 +94,13 @@ pub enum OutputTarget {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct OutputBinding {
     /// State name driving this LED (see `ControlSnapshot::signal`). Absent means
-    /// the host drives it explicitly through `apply_output_signal`.
+    /// the host drives it explicitly through [`MappingSession::apply_output_signal`](crate::session::MappingSession::apply_output_signal).
     #[serde(default)]
     pub signal: Option<String>,
     pub on: OutputTarget,
     pub off: OutputTarget,
-    /// Third state: while the signal is true, alternate `on` / `off` on a timer.
+    /// Third state: while the signal is true, alternate the `blink` target / `off`
+    /// on a timer (lit phase uses `blink`, not `on`).
     #[serde(default)]
     pub blink: Option<OutputTarget>,
 }
@@ -291,6 +292,11 @@ impl MapFile {
                 {
                     return Err(LoadError::Validation(format!(
                         "{path}: watch key not in closed catalog"
+                    )));
+                }
+                if out.blink.is_some() && out.signal.is_none() {
+                    return Err(LoadError::Validation(format!(
+                        "{path}: `blink` requires `signal` (otherwise the binding is never resolved)"
                     )));
                 }
                 if let Some(signal) = &out.signal {
