@@ -1,7 +1,7 @@
 //! Control thread: cmd dispatch and high-rate evt egress.
 
 use crate::bus::EngineBus;
-use crate::engine::Engine;
+use crate::engine::{Engine, NUM_DECKS};
 use crate::soft_takeover;
 use crate::transport::TransportEvent;
 use anyhow::{anyhow, Result};
@@ -42,10 +42,12 @@ struct PeakHoldState {
 
 impl PeakHoldState {
     fn new() -> Self {
+        // Deck slots 0..NUM_DECKS-1 plus master at NUM_DECKS.
+        let slots = NUM_DECKS + 1;
         Self {
-            hold_l: vec![0.0; 2],
-            hold_r: vec![0.0; 2],
-            needs_zero_flush: vec![false; 2],
+            hold_l: vec![0.0; slots],
+            hold_r: vec![0.0; slots],
+            needs_zero_flush: vec![false; slots],
         }
     }
 
@@ -488,6 +490,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::AssignSamplerTrack, CmdBody::AssignSamplerTrack { .. })
         | (Kind::ClearSampler, CmdBody::ClearSampler { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
+        | (Kind::SetMasterVolume, CmdBody::SetMasterVolume { .. })
+        | (Kind::SetCueVolume, CmdBody::SetCueVolume { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
         | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. })
         | (Kind::JogTouch, CmdBody::JogTouch { .. })
@@ -1076,6 +1080,44 @@ fn dispatch_mixer_cmd(
             eng.set_crossfader(position)?;
             Ok(CmdOutcome::EngineStatus)
         }
+        Kind::SetMasterVolume => {
+            let CmdBody::SetMasterVolume {
+                volume,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            let key = soft_takeover::key_mixer("master_volume");
+            let current = eng.master_volume().unwrap_or(1.0);
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, volume)
+            {
+                return Ok(CmdOutcome::Silent);
+            }
+            eng.set_master_volume(volume)?;
+            Ok(CmdOutcome::EngineStatus)
+        }
+        Kind::SetCueVolume => {
+            let CmdBody::SetCueVolume {
+                volume,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            let key = soft_takeover::key_mixer("cue_volume");
+            let current = eng.cue_volume().unwrap_or(1.0);
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, volume)
+            {
+                return Ok(CmdOutcome::Silent);
+            }
+            eng.set_cue_volume(volume)?;
+            Ok(CmdOutcome::EngineStatus)
+        }
         Kind::SetCueMix => {
             let CmdBody::SetCueMix { mix, soft_takeover } = decode_cmd_body_for(kind, payload)?
             else {
@@ -1185,6 +1227,41 @@ fn tick(
                 peak_hold_r,
             },
         );
+    }
+
+    // Master bus peaks (post fader). Hold slot sits above deck indices.
+    const MASTER_HOLD_SLOT: usize = NUM_DECKS;
+    if let Some((peak_l, peak_r)) = eng.master_level_snapshot() {
+        let any_playing = (0..NUM_DECKS).any(|deck_id| eng.deck_is_playing(deck_id) == Some(true));
+        let (peak_hold_l, peak_hold_r) = peak_hold.update(MASTER_HOLD_SLOT, peak_l, peak_r);
+        if !should_publish_levels(any_playing, peak_l, peak_r, peak_hold_l, peak_hold_r) {
+            if peak_hold.take_zero_flush(MASTER_HOLD_SLOT) {
+                publish_evt(
+                    evt_bus,
+                    Origin::Mixer,
+                    Kind::Levels,
+                    EvtBody::Levels {
+                        peak_l: 0.0,
+                        peak_r: 0.0,
+                        peak_hold_l: 0.0,
+                        peak_hold_r: 0.0,
+                    },
+                );
+            }
+        } else {
+            peak_hold.mark_published(MASTER_HOLD_SLOT, false);
+            publish_evt(
+                evt_bus,
+                Origin::Mixer,
+                Kind::Levels,
+                EvtBody::Levels {
+                    peak_l,
+                    peak_r,
+                    peak_hold_l,
+                    peak_hold_r,
+                },
+            );
+        }
     }
 }
 

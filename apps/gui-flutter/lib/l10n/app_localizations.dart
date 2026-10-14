@@ -327,6 +327,54 @@ abstract class AppLocalizations {
   /// **'Show tooltips'**
   String get settingsShowTooltips;
 
+  /// No description provided for @settingsUiMixerMetersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixer meters'**
+  String get settingsUiMixerMetersTitle;
+
+  /// No description provided for @settingsUiMixerMetersDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck VU meters between the volume faders. Master meter stays in the top bar.'**
+  String get settingsUiMixerMetersDescription;
+
+  /// No description provided for @settingsUiShowMixerMeters.
+  ///
+  /// In en, this message translates to:
+  /// **'Show mixer meters'**
+  String get settingsUiShowMixerMeters;
+
+  /// No description provided for @settingsUiMixerMetersMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Meter mode'**
+  String get settingsUiMixerMetersMode;
+
+  /// No description provided for @settingsUiMixerMetersMono.
+  ///
+  /// In en, this message translates to:
+  /// **'Mono'**
+  String get settingsUiMixerMetersMono;
+
+  /// No description provided for @settingsUiMixerMetersStereo.
+  ///
+  /// In en, this message translates to:
+  /// **'Stereo'**
+  String get settingsUiMixerMetersStereo;
+
+  /// No description provided for @settingsUiMixerMetersMonoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'One ladder per deck (max of left/right).'**
+  String get settingsUiMixerMetersMonoSubtitle;
+
+  /// No description provided for @settingsUiMixerMetersStereoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate left and right ladders per deck.'**
+  String get settingsUiMixerMetersStereoSubtitle;
+
   /// No description provided for @settingsUiSelectStyle.
   ///
   /// In en, this message translates to:

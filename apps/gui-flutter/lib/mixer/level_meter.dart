@@ -5,6 +5,8 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 enum LevelMeterMode { mono, stereo }
 
+enum LevelMeterOrientation { vertical, horizontal }
+
 class DeckLevels {
   const new({
     required this.peakL,
@@ -41,6 +43,7 @@ const zeroDeckLevels = DeckLevels(
 const kLevelMeterSegments = 12;
 const kLevelMeterYellowFrom = 8;
 const kLevelMeterRedFrom = 10;
+const kLevelMeterSegmentGap = 1.0;
 
 bool segmentOn(double level, int indexFromBottom) {
   final threshold = (indexFromBottom + 1) / kLevelMeterSegments;
@@ -71,12 +74,18 @@ Color _segmentColor(Color off, int fromBottom, {required bool lit}) {
   return _green;
 }
 
-/// Vertical LED ladder matching Tauri `LevelMeter` / `Ladder`.
+/// LED ladder matching Tauri `LevelMeter` / `Ladder`.
 class LevelMeter extends StatelessWidget {
-  const new({required this.levels, required this.mode, super.key});
+  const new({
+    required this.levels,
+    required this.mode,
+    this.orientation = LevelMeterOrientation.vertical,
+    super.key,
+  });
 
   final DeckLevels levels;
   final LevelMeterMode mode;
+  final LevelMeterOrientation orientation;
 
   @override
   Widget build(BuildContext context) {
@@ -84,14 +93,34 @@ class LevelMeter extends StatelessWidget {
       case LevelMeterMode.mono:
         final peak = math.max(levels.peakL, levels.peakR);
         final hold = math.max(levels.peakHoldL, levels.peakHoldR);
-        return _Ladder(peak: peak, hold: hold);
+        return _Ladder(peak: peak, hold: hold, orientation: orientation);
       case LevelMeterMode.stereo:
+        final left = _Ladder(
+          peak: levels.peakL,
+          hold: levels.peakHoldL,
+          orientation: orientation,
+        );
+        final right = _Ladder(
+          peak: levels.peakR,
+          hold: levels.peakHoldR,
+          orientation: orientation,
+        );
+        if (orientation == LevelMeterOrientation.horizontal) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              left,
+              const SizedBox(height: kLevelMeterSegmentGap),
+              right,
+            ],
+          );
+        }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _Ladder(peak: levels.peakL, hold: levels.peakHoldL),
-            const SizedBox(width: 1),
-            _Ladder(peak: levels.peakR, hold: levels.peakHoldR),
+            left,
+            const SizedBox(width: kLevelMeterSegmentGap),
+            right,
           ],
         );
     }
@@ -99,17 +128,53 @@ class LevelMeter extends StatelessWidget {
 }
 
 class _Ladder extends StatelessWidget {
-  const new({required this.peak, required this.hold});
+  const new({
+    required this.peak,
+    required this.hold,
+    required this.orientation,
+  });
 
   final double peak;
   final double hold;
+  final LevelMeterOrientation orientation;
 
   @override
   Widget build(BuildContext context) {
     final off = context.theme.colors.muted;
     final holdIdx = holdSegment(hold);
+    // DecoratedBox with no child sizes to constraints.smallest — expand.
+    Widget segment(int fromBottom) {
+      return Expanded(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: _segmentColor(
+              off,
+              fromBottom,
+              lit: segmentOn(peak, fromBottom) || holdIdx == fromBottom,
+            ),
+            borderRadius: BorderRadius.circular(1),
+          ),
+          child: const SizedBox.expand(),
+        ),
+      );
+    }
+
+    if (orientation == LevelMeterOrientation.horizontal) {
+      // Quiet (0) at left → loud/red at right.
+      return SizedBox(
+        height: 6,
+        child: Row(
+          children: [
+            for (var i = 0; i < kLevelMeterSegments; i++) ...[
+              if (i > 0) const SizedBox(width: kLevelMeterSegmentGap),
+              segment(i),
+            ],
+          ],
+        ),
+      );
+    }
+
     // Top → bottom visually: high indices first so fromBottom 0 sits at bottom.
-    // DecoratedBox with no child sizes to constraints.smallest (width 0) — expand.
     return SizedBox(
       width: 6,
       child: Column(
@@ -119,20 +184,9 @@ class _Ladder extends StatelessWidget {
             fromTop >= 0;
             fromTop--
           ) ...[
-            if (fromTop < kLevelMeterSegments - 1) const SizedBox(height: 1),
-            Expanded(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: _segmentColor(
-                    off,
-                    fromTop,
-                    lit: segmentOn(peak, fromTop) || holdIdx == fromTop,
-                  ),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-                child: const SizedBox.expand(),
-              ),
-            ),
+            if (fromTop < kLevelMeterSegments - 1)
+              const SizedBox(height: kLevelMeterSegmentGap),
+            segment(fromTop),
           ],
         ],
       ),

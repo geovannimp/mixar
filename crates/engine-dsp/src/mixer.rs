@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use crate::mixer_lane::MixerLane;
 use crate::sampler::SamplerStripRoute;
-use crate::{HeadphoneMonitor, MixerChannel};
+use crate::{HeadphoneMonitor, LevelPeaks, MixerChannel};
 
 /// Fixed buffer length used by dasp_graph (samples per channel per process call).
 const CHUNK_SAMPLES: usize = Buffer::LEN;
@@ -52,6 +52,8 @@ pub struct Mixer {
     lane_node_ids: Vec<petgraph::graph::NodeIndex>,
     resampler_quality: String,
     sample_rate: u32,
+    /// Post-fader peaks of the last master bus render.
+    master_level_peaks: LevelPeaks,
 }
 
 impl std::fmt::Debug for Mixer {
@@ -98,7 +100,7 @@ impl Mixer {
         Self {
             master_volume: 1.0,
             cue_volume: 1.0,
-            cue_mix: 0.0,
+            cue_mix: 0.5,
             master_cue: false,
             crossfader: 0.5,
             mix_buffer: Vec::new(),
@@ -108,7 +110,13 @@ impl Mixer {
             lane_node_ids,
             resampler_quality: resampler_quality.to_string(),
             sample_rate,
+            master_level_peaks: LevelPeaks::default(),
         }
+    }
+
+    /// Post-`master_volume` stereo peaks from the last [`Self::process`] call.
+    pub fn master_level_peaks(&self) -> LevelPeaks {
+        self.master_level_peaks
     }
 
     pub fn resampler_quality(&self) -> &str {
@@ -244,6 +252,7 @@ impl Mixer {
         let buffer_size = frames as usize * 2;
         self.mix_buffer.resize(buffer_size, 0.0);
         self.mix_buffer.fill(0.0);
+        self.master_level_peaks = LevelPeaks::default();
 
         for i in 0..self.lane_node_ids.len() {
             self.lane_mut(i)
@@ -360,6 +369,12 @@ impl Mixer {
                     *sample = (*sample * volume).clamp(-1.0, 1.0);
                 }
             }
+
+            if bus_name == "master" {
+                // Only the live frame range — reused bus buffers may be longer
+                // and still hold scaled leftovers past `required_size`.
+                self.master_level_peaks = LevelPeaks::from_buffer(&output_buffer[..required_size]);
+            }
         }
         Ok(())
     }
@@ -441,9 +456,71 @@ mod tests {
     }
 
     #[test]
+    fn master_level_peaks_track_post_volume_master_bus() {
+        let mut mixer = new_mixer(2);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.set_master_volume(0.5).unwrap();
+
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+        mixer.process(512, &mut output_buses).unwrap();
+
+        let peaks = mixer.master_level_peaks();
+        let bus_peak = output_buses[&BusId::new("master")][..1024]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(peaks.peak_l > 0.0 && peaks.peak_r > 0.0);
+        assert!((peaks.peak_l - bus_peak).abs() < 1e-5);
+        assert!((peaks.peak_r - bus_peak).abs() < 1e-5);
+        assert!(
+            peaks.peak_l <= 0.5 + 1e-3,
+            "peaks must reflect post-master_volume bus, got {}",
+            peaks.peak_l
+        );
+    }
+
+    #[test]
+    fn master_level_peaks_ignore_stale_tail_beyond_frames() {
+        let mut mixer = new_mixer(2);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.set_master_volume(0.25).unwrap();
+
+        // Oversized bus left over from a larger prior process() call, with a
+        // hot stale sample past the live frame range.
+        let frames = 64u32;
+        let required = frames as usize * 2;
+        let mut buf = vec![0.0; required * 2];
+        buf[required] = 1.0;
+        buf[required + 1] = -1.0;
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), buf);
+        mixer.process(frames, &mut output_buses).unwrap();
+
+        let peaks = mixer.master_level_peaks();
+        let live_peak = output_buses[&BusId::new("master")][..required]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(
+            (peaks.peak_l - live_peak).abs() < 1e-5,
+            "peak_l {} must match live slice max {}",
+            peaks.peak_l,
+            live_peak
+        );
+        assert!(
+            peaks.peak_l < 0.9,
+            "stale ±1.0 tail must not inflate master peaks, got {}",
+            peaks.peak_l
+        );
+    }
+
+    #[test]
     fn cue_mix_and_master_cue_defaults() {
         let mixer = new_mixer(2);
-        assert_eq!(mixer.cue_mix(), 0.0);
+        assert_eq!(mixer.cue_mix(), 0.5);
         assert!(!mixer.master_cue());
     }
 

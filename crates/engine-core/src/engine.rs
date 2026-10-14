@@ -29,7 +29,7 @@ use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
-const NUM_DECKS: usize = 2;
+pub(crate) const NUM_DECKS: usize = 2;
 
 /// Cue point (ms) and optional loop region `(start, end)` for status mirroring.
 type DeckTransportState = (Option<i32>, Option<(i32, i32)>);
@@ -461,6 +461,14 @@ impl Engine {
             snapshot.push((deck_id, peaks.peak_l, peaks.peak_r));
         }
         snapshot
+    }
+
+    /// Post-fader master bus peaks from the last DSP process cycle.
+    pub fn master_level_snapshot(&self) -> Option<(f32, f32)> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let peaks = dsp.mixer().master_level_peaks();
+        Some((peaks.peak_l, peaks.peak_r))
     }
 
     /// Load a track from an [`AudioSource`] into a deck.
@@ -2138,6 +2146,40 @@ impl Engine {
         Some(dsp.mixer().crossfader())
     }
 
+    /// Set master bus volume (0.0 … 1.0).
+    pub fn set_master_volume(&mut self, volume: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.mixer_mut().set_master_volume(volume)
+    }
+
+    /// Current master bus volume when the engine is running.
+    pub fn master_volume(&self) -> Option<f32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().master_volume())
+    }
+
+    /// Set cue/headphone bus volume (0.0 … 1.0).
+    pub fn set_cue_volume(&mut self, volume: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.mixer_mut().set_cue_volume(volume)
+    }
+
+    /// Current cue/headphone bus volume when the engine is running.
+    pub fn cue_volume(&self) -> Option<f32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().cue_volume())
+    }
+
     /// Set cue blend (0.0 = PFL only, 1.0 = master tap only when `master_cue`).
     pub fn set_cue_mix(&mut self, mix: f32) -> Result<()> {
         let dsp_engine = self
@@ -2214,6 +2256,8 @@ impl Engine {
             running: true,
             sample_rate: self.config.sample_rate,
             crossfader: dsp.mixer().crossfader(),
+            master_volume: dsp.mixer().master_volume(),
+            cue_volume: dsp.mixer().cue_volume(),
             cue_mix: dsp.mixer().cue_mix(),
             master_cue: dsp.mixer().master_cue(),
             master_deck: self.master_deck as u16,

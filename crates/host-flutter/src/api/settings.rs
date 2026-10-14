@@ -298,6 +298,12 @@ pub struct AppSettings {
     pub history_min_deck_volume: f32,
     #[serde(default = "default_show_tooltips")]
     pub show_tooltips: bool,
+    /// Show vertical deck VU meters between mixer volume faders.
+    #[serde(default = "default_show_mixer_meters")]
+    pub show_mixer_meters: bool,
+    /// When mixer meters are shown, use mono (max L/R) instead of stereo ladders.
+    #[serde(default = "default_mixer_meters_mono")]
+    pub mixer_meters_mono: bool,
     #[serde(default)]
     pub select_style: SelectStyleSetting,
     #[serde(default = "default_dim_played_tracks")]
@@ -332,6 +338,8 @@ struct SettingsHost {
     history_min_play_seconds: u32,
     history_min_deck_volume: f32,
     show_tooltips: bool,
+    show_mixer_meters: bool,
+    mixer_meters_mono: bool,
     select_style: SelectStyleSetting,
     dim_played_tracks: bool,
     stems_format: String,
@@ -361,6 +369,8 @@ impl Default for SettingsHost {
             history_min_play_seconds: default_history_min_play_seconds(),
             history_min_deck_volume: default_history_min_deck_volume(),
             show_tooltips: default_show_tooltips(),
+            show_mixer_meters: default_show_mixer_meters(),
+            mixer_meters_mono: default_mixer_meters_mono(),
             select_style: SelectStyleSetting::default(),
             dim_played_tracks: default_dim_played_tracks(),
             stems_format: default_stems_format(),
@@ -386,6 +396,14 @@ fn default_history_min_deck_volume() -> f32 {
 }
 
 fn default_show_tooltips() -> bool {
+    true
+}
+
+fn default_show_mixer_meters() -> bool {
+    true
+}
+
+fn default_mixer_meters_mono() -> bool {
     true
 }
 
@@ -622,6 +640,8 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         history_min_play_seconds: host.history_min_play_seconds,
         history_min_deck_volume: host.history_min_deck_volume,
         show_tooltips: host.show_tooltips,
+        show_mixer_meters: host.show_mixer_meters,
+        mixer_meters_mono: host.mixer_meters_mono,
         select_style: host.select_style,
         dim_played_tracks: host.dim_played_tracks,
         stems_format: host.stems_format.clone(),
@@ -664,6 +684,8 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.history_min_play_seconds = settings.history_min_play_seconds;
     host.history_min_deck_volume = settings.history_min_deck_volume;
     host.show_tooltips = settings.show_tooltips;
+    host.show_mixer_meters = settings.show_mixer_meters;
+    host.mixer_meters_mono = settings.mixer_meters_mono;
     host.select_style = settings.select_style;
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
@@ -777,6 +799,8 @@ mod tests {
         assert_eq!(parsed.key_color_mode, KeyColorModeSetting::Off);
         assert!(parsed.trusted_controller_device_ids.is_empty());
         assert!(parsed.show_tooltips);
+        assert!(parsed.show_mixer_meters);
+        assert!(parsed.mixer_meters_mono);
         assert_eq!(parsed.stems_format, "opus");
     }
 
@@ -915,6 +939,36 @@ mod tests {
         std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
         let host = load_host(&path);
         assert!(settings_from_host(&host).show_tooltips);
+    }
+
+    #[test]
+    fn missing_mixer_meter_settings_default_shown_mono() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let obj = value.as_object_mut().expect("object");
+        obj.remove("show_mixer_meters");
+        obj.remove("mixer_meters_mono");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        let settings = settings_from_host(&host);
+        assert!(settings.show_mixer_meters);
+        assert!(settings.mixer_meters_mono);
+    }
+
+    #[test]
+    fn mixer_meter_settings_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.show_mixer_meters = false;
+        settings.mixer_meters_mono = false;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.show_mixer_meters);
+        assert!(!restored.mixer_meters_mono);
     }
 
     #[test]

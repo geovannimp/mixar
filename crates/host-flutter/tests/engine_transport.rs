@@ -134,6 +134,34 @@ fn set_crossfader_publishes_status() {
 }
 
 #[test]
+fn set_cue_volume_publishes_status() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    transport.set_cue_volume(0.33).unwrap();
+    let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Mixer);
+    let EvtBody::EngineStatus { status } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected EngineStatus");
+    };
+    assert!((status.cue_volume - 0.33).abs() < 1e-4);
+}
+
+#[test]
+fn set_master_volume_publishes_status() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    transport.set_master_volume(0.42).unwrap();
+    let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Mixer);
+    let EvtBody::EngineStatus { status } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected EngineStatus");
+    };
+    assert!((status.master_volume - 0.42).abs() < 1e-4);
+}
+
+#[test]
 fn set_cue_mix_publishes_status() {
     let library = LibraryTransport::open_in_memory().unwrap();
     let transport = EngineTransport::start(&library, null_start_config()).unwrap();

@@ -201,6 +201,8 @@ pub struct EngineStatus {
     pub running: bool,
     pub sample_rate: u32,
     pub crossfader: f32,
+    pub master_volume: f32,
+    pub cue_volume: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
     pub master_deck: u16,
@@ -281,6 +283,16 @@ pub enum CmdBody {
     },
     SetCrossfader {
         position: f32,
+        #[serde(default)]
+        soft_takeover: bool,
+    },
+    SetMasterVolume {
+        volume: f32,
+        #[serde(default)]
+        soft_takeover: bool,
+    },
+    SetCueVolume {
+        volume: f32,
         #[serde(default)]
         soft_takeover: bool,
     },

@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/master_meter_header.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/desktop.dart';
@@ -10,8 +9,8 @@ import 'package:gui_flutter/shell/window_title_bar_controls.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Brand | drag region | status | settings | window controls (desktop).
-class AppHeader extends ConsumerWidget {
+/// Brand | drag region | master meter | settings | window controls (desktop).
+class AppHeader extends StatelessWidget {
   const new({
     required this.appTitle,
     required this.tab,
@@ -24,16 +23,9 @@ class AppHeader extends ConsumerWidget {
   final ValueChanged<ShellTab> onTabChanged;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = context.theme;
     final desktop = isDesktopWindow;
-    final starting = ref.watch(engineTransportProvider).isLoading;
-    final running = ref.watch(engineRunningProvider);
-    final engineLabel = starting
-        ? 'Engine starting…'
-        : running
-        ? 'Engine running'
-        : 'Engine idle';
 
     return ColoredBox(
       color: theme.colors.background,
@@ -66,20 +58,7 @@ class AppHeader extends ConsumerWidget {
                 child: const SizedBox.expand(),
               ),
             ),
-            _maybeDrag(
-              desktop: desktop,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Center(
-                  child: Text(
-                    engineLabel,
-                    style: theme.typography.body.xs.copyWith(
-                      color: theme.colors.mutedForeground,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            const MasterMeterHeader(),
             AppTooltip(
               tip: 'Settings',
               child: AppButton.icon(

@@ -313,6 +313,8 @@ pub struct EngineEvt {
     pub gain_trim: Option<f32>,
     pub headphone_cue: Option<bool>,
     pub crossfader: Option<f32>,
+    pub master_volume: Option<f32>,
+    pub cue_volume: Option<f32>,
     pub cue_mix: Option<f32>,
     pub master_cue: Option<bool>,
     pub duration_ms: Option<i32>,
@@ -390,6 +392,8 @@ impl EngineEvt {
             gain_trim: None,
             headphone_cue: None,
             crossfader: None,
+            master_volume: None,
+            cue_volume: None,
             cue_mix: None,
             master_cue: None,
             duration_ms: None,
@@ -732,6 +736,30 @@ impl EngineTransport {
             Kind::SetCrossfader,
             &CmdBody::SetCrossfader {
                 position,
+                soft_takeover: false,
+            },
+        )
+    }
+
+    /// Master bus volume `0..1`.
+    pub fn set_master_volume(&self, volume: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Mixer,
+            Kind::SetMasterVolume,
+            &CmdBody::SetMasterVolume {
+                volume,
+                soft_takeover: false,
+            },
+        )
+    }
+
+    /// Cue/headphone bus volume `0..1`.
+    pub fn set_cue_volume(&self, volume: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Mixer,
+            Kind::SetCueVolume,
+            &CmdBody::SetCueVolume {
+                volume,
                 soft_takeover: false,
             },
         )
@@ -1479,6 +1507,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             let mut status_evt = EngineEvt::bare(EngineEvtKind::Status);
             status_evt.running = Some(status.running);
             status_evt.crossfader = Some(status.crossfader);
+            status_evt.master_volume = Some(status.master_volume);
+            status_evt.cue_volume = Some(status.cue_volume);
             status_evt.cue_mix = Some(status.cue_mix);
             status_evt.master_cue = Some(status.master_cue);
             status_evt.master_deck = Some(status.master_deck);
@@ -1688,6 +1718,8 @@ mod tests {
                     running: true,
                     sample_rate: 48_000,
                     crossfader: 0.5,
+                    master_volume: 1.0,
+                    cue_volume: 1.0,
                     cue_mix: 0.5,
                     master_cue: false,
                     master_deck: 0,
@@ -1760,6 +1792,25 @@ mod tests {
     }
 
     #[test]
+    fn map_mixer_levels_have_null_deck_id() {
+        let mapped = recv_mapped(
+            Origin::Mixer,
+            Kind::Levels,
+            EvtBody::Levels {
+                peak_l: 0.3,
+                peak_r: 0.35,
+                peak_hold_l: 0.4,
+                peak_hold_r: 0.45,
+            },
+        );
+        assert_eq!(mapped.len(), 1);
+        assert_eq!(mapped[0].kind, EngineEvtKind::Levels);
+        assert_eq!(mapped[0].deck_id, None);
+        assert_eq!(mapped[0].peak_l, Some(0.3));
+        assert_eq!(mapped[0].peak_r, Some(0.35));
+    }
+
+    #[test]
     fn map_status_fans_out_crossfader_and_decks() {
         let mut deck1 = sample_deck(1, 0.7);
         deck1.sync_mode = SyncMode::Tempo;
@@ -1771,6 +1822,8 @@ mod tests {
                     running: true,
                     sample_rate: 48_000,
                     crossfader: 0.25,
+                    master_volume: 1.0,
+                    cue_volume: 1.0,
                     cue_mix: 0.4,
                     master_cue: true,
                     master_deck: 1,
@@ -1790,6 +1843,8 @@ mod tests {
         assert_eq!(mapped[0].kind, EngineEvtKind::Status);
         assert_eq!(mapped[0].running, Some(true));
         assert_eq!(mapped[0].crossfader, Some(0.25));
+        assert_eq!(mapped[0].master_volume, Some(1.0));
+        assert_eq!(mapped[0].cue_volume, Some(1.0));
         assert_eq!(mapped[0].cue_mix, Some(0.4));
         assert_eq!(mapped[0].master_cue, Some(true));
         assert_eq!(mapped[0].master_deck, Some(1));
@@ -1828,6 +1883,8 @@ mod tests {
                     running: true,
                     sample_rate: 48_000,
                     crossfader: 0.5,
+                    master_volume: 1.0,
+                    cue_volume: 1.0,
                     cue_mix: 0.0,
                     master_cue: false,
                     master_deck: 0,
@@ -1863,6 +1920,8 @@ mod tests {
                     running: true,
                     sample_rate: 48_000,
                     crossfader: 0.5,
+                    master_volume: 1.0,
+                    cue_volume: 1.0,
                     cue_mix: 0.0,
                     master_cue: false,
                     master_deck: 0,
@@ -1898,6 +1957,8 @@ mod tests {
                     running: true,
                     sample_rate: 48_000,
                     crossfader: 0.5,
+                    master_volume: 1.0,
+                    cue_volume: 1.0,
                     cue_mix: 0.0,
                     master_cue: false,
                     master_deck: 0,
@@ -1932,6 +1993,8 @@ mod tests {
                     running: true,
                     sample_rate: 48_000,
                     crossfader: 0.5,
+                    master_volume: 1.0,
+                    cue_volume: 1.0,
                     cue_mix: 0.0,
                     master_cue: false,
                     master_deck: 0,

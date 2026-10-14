@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
@@ -153,6 +153,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   Future<void> setCuePoint({required int deckId});
 
+  /// Cue/headphone bus volume `0..1`.
+  Future<void> setCueVolume({required double volume});
+
   /// Single EQ band as `0..1` (center `0.5` = 0 dB).
   Future<void> setEqBand({
     required int deckId,
@@ -194,6 +197,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
   Future<void> setMasterCue({required bool enabled});
 
   Future<void> setMasterDeck({required int deckId});
+
+  /// Master bus volume `0..1`.
+  Future<void> setMasterVolume({required double volume});
 
   /// Per-deck pad mode.
   Future<void> setPadMode({required int deckId, required PadMode mode});
@@ -293,6 +299,8 @@ class EngineEvt {
   final double? gainTrim;
   final bool? headphoneCue;
   final double? crossfader;
+  final double? masterVolume;
+  final double? cueVolume;
   final double? cueMix;
   final bool? masterCue;
   final int? durationMs;
@@ -378,6 +386,8 @@ class EngineEvt {
     this.gainTrim,
     this.headphoneCue,
     this.crossfader,
+    this.masterVolume,
+    this.cueVolume,
     this.cueMix,
     this.masterCue,
     this.durationMs,
@@ -433,6 +443,8 @@ class EngineEvt {
       gainTrim.hashCode ^
       headphoneCue.hashCode ^
       crossfader.hashCode ^
+      masterVolume.hashCode ^
+      cueVolume.hashCode ^
       cueMix.hashCode ^
       masterCue.hashCode ^
       durationMs.hashCode ^
@@ -490,6 +502,8 @@ class EngineEvt {
           gainTrim == other.gainTrim &&
           headphoneCue == other.headphoneCue &&
           crossfader == other.crossfader &&
+          masterVolume == other.masterVolume &&
+          cueVolume == other.cueVolume &&
           cueMix == other.cueMix &&
           masterCue == other.masterCue &&
           durationMs == other.durationMs &&

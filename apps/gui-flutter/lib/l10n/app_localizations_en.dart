@@ -128,6 +128,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsShowTooltips => 'Show tooltips';
 
   @override
+  String get settingsUiMixerMetersTitle => 'Mixer meters';
+
+  @override
+  String get settingsUiMixerMetersDescription =>
+      'Deck VU meters between the volume faders. Master meter stays in the top bar.';
+
+  @override
+  String get settingsUiShowMixerMeters => 'Show mixer meters';
+
+  @override
+  String get settingsUiMixerMetersMode => 'Meter mode';
+
+  @override
+  String get settingsUiMixerMetersMono => 'Mono';
+
+  @override
+  String get settingsUiMixerMetersStereo => 'Stereo';
+
+  @override
+  String get settingsUiMixerMetersMonoSubtitle =>
+      'One ladder per deck (max of left/right).';
+
+  @override
+  String get settingsUiMixerMetersStereoSubtitle =>
+      'Separate left and right ladders per deck.';
+
+  @override
   String get settingsUiSelectStyle => 'Select style';
 
   @override

@@ -6,10 +6,10 @@ import 'package:gui_flutter/mixer/collapsible_section.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
-import 'package:gui_flutter/mixer/master_strip.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/mixer_live_color.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
@@ -22,30 +22,41 @@ const _columnFooterHeight = 32.0;
 /// Tick half-span (gap + major) ≈ 15; thumb 20 — keep fader ≥ this.
 const _faderMinHitWidth = 36.0;
 
-/// Mixer column width.
-const _mixerInnerWidth = 212.0;
+/// Open mixer width without center VU column (4×36 + 3×8).
+const _mixerInnerWidthNoMeters = 168.0;
+
+/// Open mixer width with center VU column (5 columns + 4×8).
+const _mixerInnerWidthWithMeters = 212.0;
+
+/// Matches [RotaryKnob] md column: label (8) + gap (2) + dial (36).
+const _gainHeaderHeight = 8.0 + 2.0 + 36.0;
 
 /// Center mixer: Tauri `DeckMixer` layout wired to [EngineTransport].
-class MixerStrip extends StatefulWidget {
+class MixerStrip extends ConsumerStatefulWidget {
   const new({super.key});
 
   @override
-  State<MixerStrip> createState() => _MixerStripState();
+  ConsumerState<MixerStrip> createState() => _MixerStripState();
 }
 
-class _MixerStripState extends State<MixerStrip> {
+class _MixerStripState extends ConsumerState<MixerStrip> {
   var _mixerOpen = true;
   var _crossfaderOpen = true;
-  var _masterOpen = false;
 
-  bool get _anyOpen => _mixerOpen || _crossfaderOpen || _masterOpen;
+  bool get _anyOpen => _mixerOpen || _crossfaderOpen;
 
   @override
   Widget build(BuildContext context) {
+    final showMeters = ref
+        .watch(appSettingsProvider)
+        .maybeWhen(data: (s) => s.showMixerMeters, orElse: () => true);
+    final innerWidth = showMeters
+        ? _mixerInnerWidthWithMeters
+        : _mixerInnerWidthNoMeters;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: SizedBox(
-        width: _anyOpen ? _mixerInnerWidth : null,
+        width: _anyOpen ? innerWidth : null,
         child: Column(
           children: [
             CollapsibleSection(
@@ -59,14 +70,10 @@ class _MixerStripState extends State<MixerStrip> {
               label: 'Crossfader',
               expandHeader: _anyOpen,
               onOpenChanged: (open) => setState(() => _crossfaderOpen = open),
-              child: const _CrossfaderStrip(),
-            ),
-            CollapsibleSection(
-              label: 'Master',
-              initiallyOpen: false,
-              expandHeader: _anyOpen,
-              onOpenChanged: (open) => setState(() => _masterOpen = open),
-              child: const MasterStrip(),
+              child: const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: _CrossfaderStrip(),
+              ),
             ),
           ],
         ),
@@ -75,19 +82,18 @@ class _MixerStripState extends State<MixerStrip> {
   }
 }
 
-class _MixerChannels extends ConsumerStatefulWidget {
+class _MixerChannels extends ConsumerWidget {
   const new();
 
   @override
-  ConsumerState<_MixerChannels> createState() => _MixerChannelsState();
-}
-
-class _MixerChannelsState extends ConsumerState<_MixerChannels> {
-  var _meterMono = true;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(engineRunningProvider);
+    final showMeters = ref
+        .watch(appSettingsProvider)
+        .maybeWhen(data: (s) => s.showMixerMeters, orElse: () => true);
+    final mono = ref
+        .watch(appSettingsProvider)
+        .maybeWhen(data: (s) => s.mixerMetersMono, orElse: () => true);
     return Row(
       mainAxisAlignment: .center,
       crossAxisAlignment: .stretch,
@@ -95,10 +101,7 @@ class _MixerChannelsState extends ConsumerState<_MixerChannels> {
       children: [
         _EqColumn(deckId: 0, accent: .a, enabled: enabled),
         _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
-        _LevelMetersColumn(
-          mono: _meterMono,
-          onMonoChanged: (mono) => setState(() => _meterMono = mono),
-        ),
+        if (showMeters) _LevelMetersColumn(mono: mono),
         _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
         _EqColumn(deckId: 1, accent: .b, enabled: enabled),
       ],
@@ -376,63 +379,20 @@ class _MixerCueFooter extends StatelessWidget {
   }
 }
 
-/// VU ladders between faders — M/S toggle sits in the GAIN-aligned header.
+/// VU ladders between faders. Mono/stereo comes from saved settings.
 class _LevelMetersColumn extends ConsumerWidget {
-  const new({required this.mono, required this.onMonoChanged});
+  const new({required this.mono});
 
   final bool mono;
-  final ValueChanged<bool> onMonoChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
     final mode = mono ? LevelMeterMode.mono : LevelMeterMode.stereo;
 
     return Column(
       children: [
-        // Invisible GAIN knob keeps meter track aligned with volume faders;
-        // M/S sits centered on that header slot.
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            ExcludeSemantics(
-              child: IgnorePointer(
-                child: Opacity(
-                  opacity: 0,
-                  child: RotaryKnob(
-                    label: 'GAIN',
-                    value: kControlNormCenter,
-                    center: kControlNormCenter,
-                    onValueChange: _noopGain,
-                  ),
-                ),
-              ),
-            ),
-            AppTooltip(
-              tip: mono
-                  ? 'Level meters: mono. Switch to stereo.'
-                  : 'Level meters: stereo. Switch to mono.',
-              child: MixerButton(
-                variant: .outline,
-                size: .xs,
-                mainAxisSize: .min,
-                selected: mono,
-                semanticsLabel: mono
-                    ? 'Level meters: mono. Switch to stereo.'
-                    : 'Level meters: stereo. Switch to mono.',
-                onPress: () => onMonoChanged(!mono),
-                child: Text(
-                  mono ? 'M' : 'S',
-                  style: theme.typography.body.xs.copyWith(
-                    fontSize: 8,
-                    fontWeight: .w600,
-                    color: theme.colors.mutedForeground,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        // Spacer matching the volume-column GAIN header height.
+        const ExcludeSemantics(child: SizedBox(height: _gainHeaderHeight)),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
@@ -465,5 +425,3 @@ class _LiveLevelMeter extends ConsumerWidget {
     return LevelMeter(levels: levels, mode: mode);
   }
 }
-
-void _noopGain(double _) {}

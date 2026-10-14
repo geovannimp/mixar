@@ -22,6 +22,7 @@ import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
@@ -35,6 +36,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import 'helpers/collection_tracks_override.dart';
+import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
@@ -177,7 +179,8 @@ void main() {
     expect(find.text('samples'), findsOneWidget);
     expect(find.text('Demo Track'), findsWidgets);
     expect(find.textContaining('Filter tracks'), findsOneWidget);
-    expect(find.text('Engine idle'), findsOneWidget);
+    expect(find.text('Engine idle'), findsNothing);
+    expect(find.text('Engine running'), findsNothing);
     expect(find.text('No track loaded'), findsWidgets);
     expect(find.text('Q'), findsWidgets);
     expect(find.text('Drop or load a track'), findsWidgets);
@@ -186,40 +189,118 @@ void main() {
       find.byKey(const ValueKey('crossfader-panel-toggle')),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('master-panel-toggle')), findsOneWidget);
-    expect(find.byType(MasterStrip), findsNothing);
+    expect(find.byKey(const ValueKey('master-panel-toggle')), findsNothing);
     expect(
       find.descendant(
         of: find.byType(AppHeader),
-        matching: find.text('Master'),
+        matching: find.byKey(const ValueKey('master-meter')),
       ),
-      findsNothing,
+      findsOneWidget,
     );
-    await tester.tap(find.byKey(const ValueKey('master-panel-toggle')));
+    expect(find.byType(MasterStrip), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('master-meter')));
     await tester.pumpAndSettle();
     expect(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.text('CUE/MST'),
+        matching: find.text('Levels'),
       ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.text('Master'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.text('Headphone'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.widgetWithText(AppButton, 'Enable'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.text('Mixing'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: find.byType(MasterStrip), matching: find.text('Cue')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: find.byType(MasterStrip), matching: find.text('Mst')),
       findsOneWidget,
     );
     final masterCue = tester.widget<MixerButton>(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.widgetWithText(MixerButton, 'Cue'),
-      ),
-    );
-    expect(masterCue.onPress, isNull);
-    final cueMix = tester.widget<RotaryKnob>(
-      find.descendant(
-        of: find.byType(MasterStrip),
         matching: find.byWidgetPredicate(
-          (w) => w is RotaryKnob && w.label == 'Cue/Mst',
+          (w) => w is MixerButton && w.semanticsLabel == 'Master cue',
         ),
       ),
     );
-    expect(cueMix.disabled, isTrue);
+    expect(masterCue.onPress, isNotNull);
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.byIcon(LucideIcons.headphones),
+      ),
+      findsOneWidget,
+    );
+    final masterLevel = tester.widget<FaderSlider>(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.byWidgetPredicate(
+          (w) => w is FaderSlider && w.semanticLabel == 'Master level',
+        ),
+      ),
+    );
+    expect(masterLevel.value, 100);
+    expect(masterLevel.disabled, isFalse);
+    expect(masterLevel.showIndicator, isTrue);
+    expect(masterLevel.orientation, FaderOrientation.horizontal);
+    final headphoneLevel = tester.widget<FaderSlider>(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.byWidgetPredicate(
+          (w) => w is FaderSlider && w.semanticLabel == 'Headphone level',
+        ),
+      ),
+    );
+    expect(headphoneLevel.value, 100);
+    expect(headphoneLevel.disabled, isFalse);
+    expect(headphoneLevel.showIndicator, isTrue);
+    final cueMix = tester.widget<FaderSlider>(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.byWidgetPredicate(
+          (w) => w is FaderSlider && w.semanticLabel == 'Cue/Mst',
+        ),
+      ),
+    );
+    expect(cueMix.disabled, isFalse);
+    expect(cueMix.centerNotch, isTrue);
+    expect(cueMix.value, 50);
+    expect(cueMix.orientation, FaderOrientation.horizontal);
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.widgetWithText(MixerButton, 'M'),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('mixer cue controls enable with preview bus and follow status', (
@@ -231,36 +312,115 @@ void main() {
       settings: copyAppSettings(defaultAppSettings(), previewEnabled: true),
     );
 
-    await tester.tap(find.byKey(const ValueKey('master-panel-toggle')));
+    await tester.tap(find.byKey(const ValueKey('master-meter')));
     await tester.pumpAndSettle();
 
     final master = find.byType(MasterStrip);
     final masterCue = tester.widget<MixerButton>(
       find.descendant(
         of: master,
-        matching: find.widgetWithText(MixerButton, 'Cue'),
+        matching: find.byWidgetPredicate(
+          (w) => w is MixerButton && w.semanticsLabel == 'Master cue',
+        ),
       ),
     );
     expect(masterCue.onPress, isNotNull);
     expect(masterCue.variant == .secondary, isTrue);
+    expect(
+      find.descendant(
+        of: master,
+        matching: find.byIcon(LucideIcons.headphones),
+      ),
+      findsOneWidget,
+    );
 
-    final cueMix = tester.widget<RotaryKnob>(
+    final masterLevel = tester.widget<FaderSlider>(
       find.descendant(
         of: master,
         matching: find.byWidgetPredicate(
-          (w) => w is RotaryKnob && w.label == 'Cue/Mst',
+          (w) => w is FaderSlider && w.semanticLabel == 'Master level',
+        ),
+      ),
+    );
+    expect(masterLevel.value, 100);
+    expect(masterLevel.showIndicator, isTrue);
+
+    final headphoneLevel = tester.widget<FaderSlider>(
+      find.descendant(
+        of: master,
+        matching: find.byWidgetPredicate(
+          (w) => w is FaderSlider && w.semanticLabel == 'Headphone level',
+        ),
+      ),
+    );
+    expect(headphoneLevel.disabled, isFalse);
+    expect(headphoneLevel.value, 100);
+    expect(
+      find.descendant(
+        of: master,
+        matching: find.widgetWithText(AppButton, 'On'),
+      ),
+      findsOneWidget,
+    );
+
+    expect(
+      find.descendant(of: master, matching: find.text('Mixing')),
+      findsOneWidget,
+    );
+
+    final cueMix = tester.widget<FaderSlider>(
+      find.descendant(
+        of: master,
+        matching: find.byWidgetPredicate(
+          (w) => w is FaderSlider && w.semanticLabel == 'Cue/Mst',
         ),
       ),
     );
     expect(cueMix.disabled, isFalse);
-    expect(cueMix.value, 0.7);
+    expect(cueMix.value, 70);
+    expect(cueMix.centerNotch, isTrue);
+  });
+
+  testWidgets('Levels faders call master/cue volume transport', (tester) async {
+    final engine = FakeEngineTransport();
+    await pumpShell(
+      tester,
+      extraOverrides: [
+        engineTransportProvider.overrideWith((ref) async => engine),
+      ],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('master-meter')));
+    await tester.pumpAndSettle();
+
+    Finder fader(String label) => find.descendant(
+      of: find.byType(MasterStrip),
+      matching: find.byWidgetPredicate(
+        (w) => w is FaderSlider && w.semanticLabel == label,
+      ),
+    );
+
+    await tester.drag(fader('Master level'), const Offset(-40, 0));
+    await tester.pumpAndSettle();
+    expect(engine.masterVolumes, isNotEmpty);
+    expect(engine.masterVolumes.last, lessThan(1.0));
+    expect(engine.masterVolumes.last, greaterThanOrEqualTo(0.0));
+
+    await tester.drag(fader('Headphone level'), const Offset(-40, 0));
+    await tester.pumpAndSettle();
+    expect(engine.cueVolumes, isNotEmpty);
+    expect(engine.cueVolumes.last, lessThan(1.0));
+
+    await tester.drag(fader('Cue/Mst'), const Offset(30, 0));
+    await tester.pumpAndSettle();
+    expect(engine.cueMixes, isNotEmpty);
+    expect(engine.cueMixes.last, inInclusiveRange(0.0, 1.0));
   });
 
   testWidgets('mixer section headers toggle their panels', (tester) async {
     await pumpShell(tester);
     final mixer = find.byKey(const ValueKey('mixer-panel-toggle'));
     final crossfader = find.byKey(const ValueKey('crossfader-panel-toggle'));
-    final master = find.byKey(const ValueKey('master-panel-toggle'));
     Finder hiKnobs() =>
         find.byWidgetPredicate((w) => w is RotaryKnob && w.label == 'HI');
     Finder xfader() => find.byWidgetPredicate(
@@ -286,17 +446,22 @@ void main() {
     await press(crossfader);
     expect(xfader(), findsOneWidget);
 
-    expect(find.byType(MasterStrip), findsNothing);
-    await press(master);
-    expect(find.byType(MasterStrip), findsOneWidget);
-    await press(master);
-    expect(find.byType(MasterStrip), findsNothing);
+    expect(find.byKey(const ValueKey('master-panel-toggle')), findsNothing);
 
     await press(mixer);
     await press(crossfader);
     expect(tester.getSize(find.byType(MixerStrip)).width, lessThan(212));
     await press(mixer);
     expect(tester.getSize(find.byType(MixerStrip)).width, 212);
+  });
+
+  testWidgets('hiding mixer meters narrows the strip', (tester) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(defaultAppSettings(), showMixerMeters: false),
+    );
+    expect(tester.getSize(find.byType(MixerStrip)).width, 168);
+    expect(find.byKey(const ValueKey('master-meter')), findsOneWidget);
   });
 
   testWidgets('settings switches waveform display mode', (tester) async {
