@@ -24,7 +24,7 @@ pub mod sampler;
 pub mod tempo;
 pub mod transport;
 
-pub use deck::{Deck, DeckState, JogMode};
+pub use deck::{Deck, DeckLoadSpec, DeckState, JogMode, PreparedDeckLoad};
 pub use eq::{clamp_gain_db, DeckEqGains, ThreeBandEq, EQ_MAX_DB, EQ_MIN_DB};
 pub use filter::{db_to_linear, DjFilter};
 pub use headphone_monitor::HeadphoneMonitor;

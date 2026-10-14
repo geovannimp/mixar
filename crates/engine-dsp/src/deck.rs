@@ -641,44 +641,6 @@ impl Deck {
         self.loop_region = None;
     }
 
-    /// Create or clear the resampler based on the loaded source rate and the
-    /// immutable engine output clock. Called on load only.
-    fn create_resampler(&mut self) -> Result<()> {
-        let Some(source_rate) = self.loaded.as_ref().map(|audio| audio.sample_rate) else {
-            self.resampler = None;
-            return Ok(());
-        };
-
-        if source_rate == self.sample_rate {
-            self.resampler = None;
-            tracing::info!(
-                "Deck {} passthrough at {} Hz (no resampling)",
-                self.id,
-                self.sample_rate
-            );
-            return Ok(());
-        }
-
-        // Mixer processes dasp_graph Buffer::LEN chunks, not the device buffer size.
-        // Rubato FixedSync::Output must match that quantum or it returns (0,0) forever.
-        self.resampler = Some(resampler::create_resampler(
-            source_rate,
-            self.sample_rate,
-            2,
-            Buffer::LEN,
-            Some(&self.resampler_quality),
-        )?);
-        tracing::info!(
-            "Deck {} realtime resampler: {} Hz -> {} Hz (chunk_frames={}, quality={})",
-            self.id,
-            source_rate,
-            self.sample_rate,
-            Buffer::LEN,
-            self.resampler_quality
-        );
-        Ok(())
-    }
-
     /// Clear resampler filter/history state after a position jump (seek/stop).
     fn reset_resampler_state(&mut self) {
         if let Some(resampler) = self.resampler.as_mut() {
@@ -690,10 +652,7 @@ impl Deck {
         if self.stretcher.is_some() {
             return Ok(());
         }
-        self.stretcher = Some(create_stretcher(
-            self.sample_rate,
-            self.buffer_size.max(Buffer::LEN as u32) as usize,
-        )?);
+        self.stretcher = Some(new_stretcher(self.sample_rate, self.buffer_size)?);
         Ok(())
     }
 
@@ -703,8 +662,25 @@ impl Deck {
         }
     }
 
-    /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
-    pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
+    /// Snapshot the parameters needed to build load resources off the DSP lock.
+    pub fn load_spec(&self) -> DeckLoadSpec {
+        DeckLoadSpec {
+            deck_id: self.id,
+            sample_rate: self.sample_rate,
+            buffer_size: self.buffer_size,
+            resampler_quality: self.resampler_quality.clone(),
+            key_lock: self.key_lock,
+        }
+    }
+
+    /// Swap in a load built by [`DeckLoadSpec::prepare`]. Infallible: only resets playback
+    /// state and assigns the prepared resources.
+    pub fn apply_prepared_load(&mut self, prepared: PreparedDeckLoad) {
+        let PreparedDeckLoad {
+            audio,
+            resampler,
+            stretcher,
+        } = prepared;
         self.position_frames = 0;
         self.position_frac = 0.0;
         self.loop_region = None;
@@ -718,9 +694,9 @@ impl Deck {
         self.stem_isolate = None;
         // Session-only key shift must not leak onto a newly loaded track.
         self.key_shift_semitones = 0.0;
-        self.create_resampler()?;
-        if self.key_lock {
-            self.ensure_stretcher()?;
+        self.resampler = resampler;
+        if let Some(stretcher) = stretcher {
+            self.stretcher = Some(stretcher);
         }
         self.reset_stretcher_state();
         self.stretch_active = false;
@@ -736,7 +712,12 @@ impl Deck {
                 self.sample_rate
             );
         }
+    }
 
+    /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
+    pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
+        let prepared = self.load_spec().prepare(audio)?;
+        self.apply_prepared_load(prepared);
         Ok(())
     }
 
@@ -1233,6 +1214,76 @@ fn interpolate_stereo(samples: &[Sample], pos: f64) -> (Sample, Sample) {
     (l0 + (l1 - l0) * frac, r0 + (r1 - r0) * frac)
 }
 
+/// Immutable deck parameters needed to build load resources off the DSP lock.
+#[derive(Debug, Clone)]
+pub struct DeckLoadSpec {
+    deck_id: usize,
+    sample_rate: u32,
+    buffer_size: u32,
+    resampler_quality: String,
+    key_lock: bool,
+}
+
+/// Resampler and stretcher built for a track, ready to swap in under the DSP lock.
+pub struct PreparedDeckLoad {
+    audio: Arc<LoadedAudio>,
+    resampler: Option<Box<dyn Resampler>>,
+    stretcher: Option<Box<dyn TimeStretcher>>,
+}
+
+/// Build a time stretcher at the engine rate, sized to the device callback (at least one chunk).
+/// Single construction site for [`DeckLoadSpec::prepare`] and [`Deck::ensure_stretcher`].
+fn new_stretcher(sample_rate: u32, buffer_size: u32) -> Result<Box<dyn TimeStretcher>> {
+    create_stretcher(sample_rate, buffer_size.max(Buffer::LEN as u32) as usize)
+}
+
+impl DeckLoadSpec {
+    /// Build the resampler and, when key lock is on, the stretcher for `audio`.
+    ///
+    /// All fallible construction happens here without touching deck state, so callers
+    /// can run it without holding the DSP lock.
+    pub fn prepare(&self, audio: Arc<LoadedAudio>) -> Result<PreparedDeckLoad> {
+        let source_rate = audio.sample_rate;
+        let resampler = if source_rate == self.sample_rate {
+            tracing::info!(
+                "Deck {} passthrough at {} Hz (no resampling)",
+                self.deck_id,
+                self.sample_rate
+            );
+            None
+        } else {
+            // Mixer processes dasp_graph Buffer::LEN chunks, not the device buffer size.
+            // Rubato FixedSync::Output must match that quantum or it returns (0,0) forever.
+            let built = resampler::create_resampler(
+                source_rate,
+                self.sample_rate,
+                2,
+                Buffer::LEN,
+                Some(&self.resampler_quality),
+            )?;
+            tracing::info!(
+                "Deck {} realtime resampler: {} Hz -> {} Hz (chunk_frames={}, quality={})",
+                self.deck_id,
+                source_rate,
+                self.sample_rate,
+                Buffer::LEN,
+                self.resampler_quality
+            );
+            Some(built)
+        };
+        let stretcher = if self.key_lock {
+            Some(new_stretcher(self.sample_rate, self.buffer_size)?)
+        } else {
+            None
+        };
+        Ok(PreparedDeckLoad {
+            audio,
+            resampler,
+            stretcher,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1576,6 +1627,110 @@ mod tests {
         assert!(
             (ratio - 1.0).abs() < 0.02,
             "480-frame callbacks must not over-consume source (ratio {ratio:.3})"
+        );
+    }
+
+    #[test]
+    fn prepared_load_mismatched_rate_leaves_deck_untouched_until_apply() {
+        let input_rate = 44100u32;
+        let duration_secs = 10usize;
+        let mut deck = new_deck(CHUNK);
+        let audio = Arc::new(LoadedAudio {
+            samples: vec![0.1f32; input_rate as usize * 2 * duration_secs],
+            sample_rate: input_rate,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        });
+
+        let prepared = deck.load_spec().prepare(audio).unwrap();
+        assert!(
+            deck.loaded_audio().is_none(),
+            "prepare must not mutate deck state"
+        );
+
+        deck.apply_prepared_load(prepared);
+        assert!(deck.loaded_audio().is_some());
+        deck.play().unwrap();
+
+        let total_output_frames = (ENGINE_RATE as usize * duration_secs / CHUNK) * CHUNK;
+        let mut produced = 0usize;
+        while produced < total_output_frames {
+            deck.process(CHUNK).unwrap();
+            produced += CHUNK;
+        }
+        let expected_source =
+            (total_output_frames as f64 * input_rate as f64 / ENGINE_RATE as f64) as u64;
+        let actual = deck.position_frames();
+        let ratio = actual as f64 / expected_source as f64;
+        assert!(
+            (ratio - 1.0).abs() < 0.02,
+            "prepared resampler must convert 44.1k source to engine rate (ratio {ratio:.3})"
+        );
+    }
+
+    #[test]
+    fn prepared_load_matching_rate_consumes_source_one_to_one() {
+        let mut deck = new_deck(CHUNK);
+        let audio = Arc::new(LoadedAudio {
+            samples: vec![0.1f32; CHUNK * 2 * 4],
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        });
+
+        let prepared = deck.load_spec().prepare(audio).unwrap();
+        deck.apply_prepared_load(prepared);
+        deck.play().unwrap();
+        deck.process(CHUNK).unwrap();
+
+        assert_eq!(deck.position_frames() as usize, CHUNK);
+    }
+
+    #[test]
+    fn prepared_load_key_lock_builds_stretcher_and_advances_at_tempo() {
+        let mut vinyl = new_deck(CHUNK);
+        let mut locked = new_deck(CHUNK);
+        let samples = vec![0.25f32; CHUNK * 2 * 500];
+        load_test_samples(&mut vinyl, samples.clone(), ENGINE_RATE);
+
+        locked.set_key_lock(true).unwrap();
+        let audio = Arc::new(LoadedAudio {
+            samples,
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        });
+        let prepared = locked.load_spec().prepare(audio).unwrap();
+        locked.apply_prepared_load(prepared);
+        assert!(
+            locked.stretcher.is_some(),
+            "key-lock prepared load must install a stretcher"
+        );
+
+        vinyl.set_speed(0.0).unwrap();
+        locked.set_speed(0.0).unwrap();
+        vinyl.play().unwrap();
+        locked.play().unwrap();
+
+        for _ in 0..32 {
+            locked.process(CHUNK).unwrap();
+            vinyl.process(CHUNK).unwrap();
+        }
+        let locked_start = locked.position_frames();
+        let vinyl_start = vinyl.position_frames();
+        for _ in 0..64 {
+            vinyl.process(CHUNK).unwrap();
+            locked.process(CHUNK).unwrap();
+        }
+        let locked_delta = locked.position_frames() - locked_start;
+        let vinyl_delta = vinyl.position_frames() - vinyl_start;
+        assert!(
+            locked_delta > CHUNK as i64 * 32,
+            "key lock should advance faster than 1x: delta={locked_delta}"
+        );
+        assert!(
+            vinyl_delta > CHUNK as i64 * 32,
+            "vinyl should advance faster than 1x: delta={vinyl_delta}"
         );
     }
 
