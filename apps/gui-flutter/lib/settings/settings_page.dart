@@ -28,10 +28,15 @@ class SettingsPage extends ConsumerStatefulWidget {
     this.initialSection = SettingsSection.audio,
     this.scrollToPreviewBus = false,
     super.key,
-  });
+  }) : assert(
+         !scrollToPreviewBus || initialSection == SettingsSection.audio,
+         'scrollToPreviewBus requires initialSection.audio',
+       );
 
   final VoidCallback? onClose;
   final SettingsSection initialSection;
+
+  /// Scroll + glow the Preview bus card. Requires [initialSection] audio.
   final bool scrollToPreviewBus;
 
   @override

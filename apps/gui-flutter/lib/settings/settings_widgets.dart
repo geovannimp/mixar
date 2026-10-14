@@ -57,20 +57,17 @@ class SettingsSectionCard extends StatelessWidget {
     super.key,
     this.trailing,
     this.child,
-    this.borderColor,
   });
 
   final String title;
   final String subtitle;
   final Widget? trailing;
   final Widget? child;
-  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
     final header = SettingsSectionHeader(title: title, description: subtitle);
     return MCard(
-      borderColor: borderColor,
       child: Padding(
         padding: const .fromLTRB(16, 16, 16, 16),
         child: Column(
@@ -158,10 +155,16 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.active && _controller.isDismissed) {
+    // Drop overlay once the flash finishes (or never started while inactive).
+    if (_controller.isCompleted ||
+        (!widget.active && _controller.isDismissed)) {
       return widget.child;
     }
     final theme = context.theme;
+    final radius = theme.style.borderRadius.lg;
+    final borderW = theme.style.borderWidth;
+    final borderBase = theme.colors.border;
+    final primary = theme.colors.primary;
     return AnimatedBuilder(
       animation: _glow,
       child: widget.child,
@@ -170,7 +173,7 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
         if (t <= 0) {
           return child!;
         }
-        final color = Color.lerp(theme.colors.border, theme.colors.primary, t)!;
+        final color = Color.lerp(borderBase, primary, t)!;
         return Stack(
           children: [
             child!,
@@ -178,11 +181,8 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
               child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    borderRadius: theme.style.borderRadius.lg,
-                    border: Border.all(
-                      color: color,
-                      width: theme.style.borderWidth,
-                    ),
+                    borderRadius: radius,
+                    border: Border.all(color: color, width: borderW),
                   ),
                 ),
               ),
