@@ -124,10 +124,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                     step: kVinylBrakeStopSecsStep,
                     format: (v) => '${v.toStringAsFixed(2)} s',
                     onChanged: (v) => onChanged(
-                      copyAppSettings(
-                        draft,
-                        vinylBrakeStopSecs: v,
-                      ),
+                      copyAppSettings(draft, vinylBrakeStopSecs: v),
                     ),
                   ),
                 ),
