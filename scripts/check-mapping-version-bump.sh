@@ -20,7 +20,9 @@ fi
 _pv_core=()
 _pv_release=0
 
-# Mirror crates/controller/src/engine.rs parse_version (~L1174).
+# Bash reimplementation of crates/controller/src/engine.rs `parse_version` /
+# `version_is_newer` (~L1174–1199). Keep in sync when those change; Lint must
+# not pull in the Rust toolchain for this gate.
 parse_version() {
   local version="$1"
   version="${version#"${version%%[![:space:]]*}"}"
@@ -128,9 +130,16 @@ read_mapping_version() {
   fi
 
   local line
+  # Match TOML basic `"..."` (no escapes) and literal `'...'` — both yield
+  # strings via toml::Value::as_str in engine.rs. Multiline forms are ignored.
+  local dq_re='^[[:space:]]*mapping_version[[:space:]]*=[[:space:]]*"([^"\\]*)"'
+  local sq_re="^[[:space:]]*mapping_version[[:space:]]*=[[:space:]]*'([^']*)'"
   while IFS= read -r line || [[ -n "${line}" ]]; do
-    # Basic TOML double-quoted string only (no escapes); matches toml::Value::as_str shape.
-    if [[ "${line}" =~ ^[[:space:]]*mapping_version[[:space:]]*=[[:space:]]*\"([^\"\\]*)\" ]]; then
+    if [[ "${line}" =~ $dq_re ]]; then
+      printf '%s\n' "${BASH_REMATCH[1]}"
+      return
+    fi
+    if [[ "${line}" =~ $sq_re ]]; then
       printf '%s\n' "${BASH_REMATCH[1]}"
       return
     fi
@@ -172,7 +181,9 @@ fi
 failed=0
 for bundle_id in "${!bundle_ids[@]}"; do
   if [[ ! -f "mappings/${bundle_id}/device.toml" ]]; then
-    # Full delete (or device.toml removed); --diff-filter already dropped pure D paths.
+    # Intentional: version bumps only apply to bundles that still ship device.toml.
+    # Pure deletes are excluded by --diff-filter=ACMR; a missing HEAD device.toml
+    # (full bundle delete or device.toml removed) is skipped here.
     continue
   fi
 

@@ -28,3 +28,7 @@
 - Library I/O uses `LibraryTransport` (separate from the engine bus). Hosts prepare `PreparedTrackPlayback` outside the host session lock; never hold that lock while waiting on `library`.
 - Controller / MIDI mapping I/O uses `ControllerTransport` (same rule: no raw host invoke/listen from UI widgets).
 - Hot cues and loops persist in dedicated `track_hot_cue` / `track_loop` tables in `library.db` (same pattern as waveforms).
+
+## Mappings
+
+- When changing any shipped MIDI mapping bundle under `mappings/<id>/`, always bump that bundle’s `mapping_version` in `device.toml` to a strictly newer parseable value (e.g. `1.0.0` → `1.0.1`). Lint enforces this on PRs via `scripts/check-mapping-version-bump.sh` so Settings can show “Update available.”
