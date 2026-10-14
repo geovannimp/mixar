@@ -116,14 +116,57 @@ class LibraryNavRow extends StatelessWidget {
       );
     }
 
-    if (onPress == null) {
-      return row(hovered: false);
-    }
-
-    return MTappable(
-      selected: selected,
-      onPress: onPress,
-      builder: (context, state) => row(hovered: state.hovered),
+    // The sidebar's cursor can move onto rows past the viewport, so a row that
+    // takes the cursor brings itself into view.
+    return _ScrollFocusedIntoView(
+      focused: focused,
+      child: onPress == null
+          ? row(hovered: false)
+          : MTappable(
+              selected: selected,
+              onPress: onPress,
+              builder: (context, state) => row(hovered: state.hovered),
+            ),
     );
   }
+}
+
+/// Scrolls its child into view when [focused] turns on, so a cursor that moves
+/// off the visible rows (a rotary step in a long sidebar list) is not lost.
+///
+/// One step at a time the newly focused row is adjacent to the one that had the
+/// cursor, so it is already laid out and a single [Scrollable.ensureVisible]
+/// reaches it — no fixed row extent to keep in step with the two row layouts.
+class _ScrollFocusedIntoView extends StatefulWidget {
+  const _ScrollFocusedIntoView({required this.focused, required this.child});
+
+  final bool focused;
+  final Widget child;
+
+  @override
+  State<_ScrollFocusedIntoView> createState() => _ScrollFocusedIntoViewState();
+}
+
+class _ScrollFocusedIntoViewState extends State<_ScrollFocusedIntoView> {
+  @override
+  void didUpdateWidget(_ScrollFocusedIntoView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.focused && !oldWidget.focused) {
+      // After this frame's layout: the row is in the tree by then.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 120),
+          alignment: 0.5,
+          curve: Curves.easeOutCubic,
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

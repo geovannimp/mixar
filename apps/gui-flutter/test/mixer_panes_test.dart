@@ -38,8 +38,10 @@ void main() {
     trackCount: 0,
   );
 
-  List<Override> overrides() => [
-    collectionsProvider.overrideWith((ref) async => [collection]),
+  List<Override> overrides({List<LibraryCollectionSummary>? collections}) => [
+    collectionsProvider.overrideWith(
+      (ref) async => collections ?? [collection],
+    ),
     overrideCollectionTracksValue(const []),
     historySessionsProvider.overrideWith((ref) async => const []),
     historyCanResumeProvider.overrideWith((ref) async => false),
@@ -49,7 +51,11 @@ void main() {
     appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
   ];
 
-  Future<void> pumpSized(WidgetTester tester, {required Widget child}) async {
+  Future<void> pumpSized(
+    WidgetTester tester, {
+    required Widget child,
+    List<LibraryCollectionSummary>? collections,
+  }) async {
     final theme = MixarThemeData.dark();
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
@@ -58,7 +64,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: overrides(),
+        overrides: overrides(collections: collections),
         child: MaterialApp(
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
@@ -172,6 +178,52 @@ void main() {
     expect(borderOf(tester, rowBox).top.color, isNot(theme.colors.primary));
     expect(borderOf(tester, rowBox).left.color, theme.colors.primary);
     expect(fillOf(tester, rowBox), theme.colors.selection);
+  });
+
+  testWidgets('the sidebar cursor scrolls its row into view', (tester) async {
+    // Far more collections than the sidebar can show, so the cursor can leave
+    // the fold.
+    final many = [
+      for (var i = 0; i < 40; i++)
+        LibraryCollectionSummary(
+          id: 'c$i',
+          name: 'col $i',
+          kind: 'folder',
+          trackCount: 0,
+        ),
+    ];
+    await pumpSized(tester, child: const LibraryPanel(), collections: many);
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LibraryPanel)),
+    );
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+
+    // Walk the cursor one row at a time, the way the rotary does, until the row
+    // it lands on is past the fold.
+    for (var i = 1; i <= 20; i++) {
+      container.read(selectedCollectionIdProvider.notifier).set('c$i');
+      await tester.pumpAndSettle();
+    }
+
+    // The cursor's row is inside the viewport, and the list scrolled to get it
+    // there rather than leaving it below the fold.
+    final rowTop = tester.getTopLeft(find.text('col 20')).dy;
+    expect(rowTop, greaterThanOrEqualTo(0));
+    expect(rowTop, lessThan(tester.view.physicalSize.height));
+    final scroller = tester
+        .state<ScrollableState>(
+          find
+              .ancestor(
+                of: find.text('col 20'),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        )
+        .position;
+    expect(scroller.pixels, greaterThan(0));
   });
 
   testWidgets('the filter band darkens while the field is focused', (
