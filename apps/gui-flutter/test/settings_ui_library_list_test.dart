@@ -33,7 +33,9 @@ void main() {
     expect(find.text('METER MODE'), findsOneWidget);
   }, semanticsEnabled: false);
 
-  testWidgets('UI panel hides meter mode when mixer meters off', (tester) async {
+  testWidgets('UI panel hides meter mode when mixer meters off', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: mixarTestMaterialApp(

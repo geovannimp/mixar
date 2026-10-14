@@ -192,6 +192,9 @@ class FakeEngineTransport implements EngineTransport {
   Future<void> setCueMix({required double mix}) async {}
 
   @override
+  Future<void> setCueVolume({required double volume}) async {}
+
+  @override
   Future<void> setCuePoint({required int deckId}) async {}
 
   @override
@@ -255,6 +258,9 @@ class FakeEngineTransport implements EngineTransport {
 
   @override
   Future<void> setMasterDeck({required int deckId}) async {}
+
+  @override
+  Future<void> setMasterVolume({required double volume}) async {}
 
   @override
   Future<void> setPadMode({required int deckId, required PadMode mode}) async {}
