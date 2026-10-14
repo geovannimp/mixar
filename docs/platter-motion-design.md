@@ -72,8 +72,9 @@ impl PlatterMotion {
     pub fn set_touch(&mut self, touching: bool, transport_playing: bool);
     pub fn set_modes(&mut self, top: MotionMode, outer: MotionMode);
     pub fn add_ticks(&mut self, delta: i32);
-    /// Optional absolute music-rate override for Pad FX patterns (None = inactive).
-    pub fn set_envelope_rate(&mut self, rate: Option<f32>);
+    /// Optional absolute music-rate override for Pad FX patterns.
+    /// `None` clears and begins release (needs transport_playing).
+    pub fn set_envelope_rate(&mut self, rate: Option<f32>, transport_playing: bool);
     pub fn tick(&mut self, frames: usize, sample_rate: u32, transport_playing: bool);
     pub fn rate(&self) -> f32;
     pub fn touching(&self) -> bool;
@@ -97,16 +98,14 @@ Each `tick(frames)`:
 1. Accumulate vinyl ticks since last tick.
 2. Subdivide the buffer into `⌊frames * 1000 / sample_rate⌋` steps of 1 ms
    (plus remainder carried).
-3. Each 1 ms step: `observation(dx)` where
-   `dx = (pending_ticks as f64) * (1.0 / (rpm * intervals_per_rev / 60.0))`
-   then clear the consumed pending share for that step (Mixxx-style: feed whole
-   accumulator once per 1 ms timer fire — we feed once per 1 ms quantum with the
-   ticks accumulated for that quantum).
+3. **Distribute** the buffer's tick accumulator evenly across those 1 ms quanta
+   (integer base + remainder on earlier steps), then `observation(dx)` per quantum
+   where `dx = ticks_q / (rpm * intervals_per_rev / 60)`. Dumping the whole
+   accumulator into the first quantum would spike rate at every audio callback.
 4. `rate = clamp(predicted_velocity, -3, 3)`.
 
-Practical v1 (matches Mixxx scratchProcess): on each 1 ms quantum, call
-`observation(dx * tick_accumulator)` once and zero the accumulator — ticks that
-arrived during the audio buffer are attributed to the quanta inside that buffer.
+Slip `hard_reset_rate` clears live vinyl/bend state only; an active envelope is
+preserved until the Pad FX owner calls `set_envelope_rate(None, …)`.
 
 ### UI
 

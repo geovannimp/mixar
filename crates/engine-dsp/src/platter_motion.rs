@@ -117,18 +117,27 @@ impl PlatterMotion {
         self.tick_accum = self.tick_accum.saturating_add(delta);
     }
 
-    /// Absolute music-rate override for Pad FX patterns. `None` clears it.
-    pub fn set_envelope_rate(&mut self, rate: Option<f32>) {
-        self.envelope_rate = rate.map(|r| {
-            if r.is_finite() {
-                r.clamp(-8.0, 8.0)
-            } else {
-                0.0
+    /// Absolute music-rate override for Pad FX patterns.
+    ///
+    /// `None` clears the envelope and begins a release (paused → idle `1.0`
+    /// immediately; playing → ramp), so a stale Pad FX rate cannot keep scrubbing.
+    pub fn set_envelope_rate(&mut self, rate: Option<f32>, transport_playing: bool) {
+        match rate {
+            Some(r) => {
+                let r = if r.is_finite() {
+                    r.clamp(-8.0, 8.0)
+                } else {
+                    0.0
+                };
+                self.envelope_rate = Some(r);
+                self.rate = r;
+                self.releasing = false;
             }
-        });
-        if let Some(r) = self.envelope_rate {
-            self.rate = r;
-            self.releasing = false;
+            None => {
+                if self.envelope_rate.take().is_some() {
+                    self.begin_release(transport_playing);
+                }
+            }
         }
     }
 
@@ -247,14 +256,20 @@ impl PlatterMotion {
         self.releasing = true;
     }
 
-    /// Slip exit: hard-clear vinyl without a release ramp.
+    /// Slip exit: hard-clear live vinyl/bend without a release ramp.
+    ///
+    /// Does **not** clear an active Pad FX envelope — that ownership stays with
+    /// the envelope caller until `set_envelope_rate(None, …)`.
     pub fn hard_reset_rate(&mut self) {
         self.tick_accum = 0;
         self.filter_x = 0.0;
         self.filter_v = 0.0;
         self.releasing = false;
-        self.rate = 1.0;
-        self.envelope_rate = None;
+        if let Some(r) = self.envelope_rate {
+            self.rate = r;
+        } else {
+            self.rate = 1.0;
+        }
     }
 
     fn ramp_release(&mut self, dt: f64, transport_playing: bool) {
@@ -278,16 +293,31 @@ impl PlatterMotion {
             return;
         }
         let mut samples = frames as f64 + self.quantum_samples_rem;
-        let mut feed_ticks = apply_ticks;
-        while samples >= samples_per_quantum {
+        let quantum_count = (samples / samples_per_quantum).floor() as i32;
+        if quantum_count <= 0 {
+            self.quantum_samples_rem = samples;
+            return;
+        }
+
+        // Spread buffer-accumulated ticks across the 1 ms quanta so a 512-frame
+        // callback (~10 ms) does not dump the whole accumulator into one step.
+        let total_ticks = if apply_ticks {
+            std::mem::take(&mut self.tick_accum)
+        } else {
+            0
+        };
+        let base = total_ticks / quantum_count;
+        let mut rem = total_ticks % quantum_count;
+
+        for _ in 0..quantum_count {
             samples -= samples_per_quantum;
-            let ticks = if feed_ticks {
-                feed_ticks = false;
-                std::mem::take(&mut self.tick_accum)
-            } else {
-                0
-            };
-            self.observe_vinyl(ticks);
+            let mut q = base;
+            if rem != 0 {
+                let step = if rem > 0 { 1 } else { -1 };
+                q += step;
+                rem -= step;
+            }
+            self.observe_vinyl(q);
         }
         self.quantum_samples_rem = samples;
     }
@@ -350,12 +380,12 @@ mod tests {
     fn envelope_overrides_live_ticks() {
         let mut m = PlatterMotion::new();
         m.set_touch(true, false);
-        m.set_envelope_rate(Some(-1.5));
+        m.set_envelope_rate(Some(-1.5), false);
         m.add_ticks(50);
         m.tick(512, 48_000, false);
         assert!((m.rate() - (-1.5)).abs() < 1e-4);
         assert!(m.driving());
-        m.set_envelope_rate(None);
+        m.set_envelope_rate(None, false);
         m.set_touch(true, false);
         assert_eq!(m.rate(), 0.0);
     }
@@ -418,9 +448,54 @@ mod tests {
     #[test]
     fn envelope_at_unity_does_not_drive() {
         let mut m = PlatterMotion::new();
-        m.set_envelope_rate(Some(1.0));
+        m.set_envelope_rate(Some(1.0), false);
         assert!(!m.driving());
-        m.set_envelope_rate(Some(0.0));
+        m.set_envelope_rate(Some(0.0), false);
         assert!(m.driving());
+    }
+
+    #[test]
+    fn clearing_envelope_releases_stale_rate_when_paused() {
+        let mut m = PlatterMotion::new();
+        m.set_envelope_rate(Some(2.0), false);
+        assert!(m.driving());
+        m.set_envelope_rate(None, false);
+        assert!(
+            (m.rate() - 1.0).abs() < 1e-4,
+            "paused envelope clear must idle at 1.0, rate={}",
+            m.rate()
+        );
+        assert!(!m.driving());
+    }
+
+    #[test]
+    fn hard_reset_preserves_active_envelope() {
+        let mut m = PlatterMotion::new();
+        m.set_envelope_rate(Some(-1.25), true);
+        m.hard_reset_rate();
+        assert!((m.rate() - (-1.25)).abs() < 1e-4);
+        assert!(m.driving());
+    }
+
+    #[test]
+    fn long_buffer_distributes_ticks_without_max_spike() {
+        let mut m = PlatterMotion::new();
+        m.set_touch(true, false);
+        // Warm near vinyl: 2 ticks / 5 ms ≈ 400 ticks/s.
+        for _ in 0..200 {
+            m.add_ticks(2);
+            m.tick(240, 48_000, false);
+        }
+        let warm = m.rate().abs();
+        assert!(warm > 0.5 && warm < 1.5, "warm rate={warm}");
+        // 20 ticks in one 512-frame buffer: dump-into-first-1ms would slam to ±3.
+        // Spread across ~10 quanta stays near a few× vinyl, not the clamp.
+        m.add_ticks(20);
+        m.tick(512, 48_000, false);
+        let after = m.rate().abs();
+        assert!(
+            after < 2.9,
+            "ticks must be spread across quanta; spiked rate={after} (warm={warm})"
+        );
     }
 }

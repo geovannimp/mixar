@@ -414,9 +414,10 @@ impl Deck {
         self.motion.rate()
     }
 
-    /// Optional Pad FX / scripted absolute rate (`None` clears).
+    /// Optional Pad FX / scripted absolute rate (`None` clears with release).
     pub fn set_motion_envelope_rate(&mut self, rate: Option<f32>) {
-        self.motion.set_envelope_rate(rate);
+        let playing = self.state == DeckState::Playing;
+        self.motion.set_envelope_rate(rate, playing);
     }
 
     pub fn set_jog_mode(&mut self, top: JogMode, outer: JogMode) {
