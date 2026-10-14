@@ -114,6 +114,29 @@
   "settingsDeckDefaultKeyLock": "Default key lock",
   "settingsDeckDefaultKeyLockHint": "Tempo-only pitch when on (time-stretch). Off = vinyl tempo.",
   "settingsDeckKeyLock": "Key lock",
+  "settingsDeckVinylBrakePause": "Vinyl brake pause",
+  "settingsDeckVinylBrakePauseHint": "Pause spins the deck down like a turntable instead of cutting instantly.",
+  "settingsDeckVinylBrakePauseToggle": "Brake on pause",
+  "settingsDeckVinylBrakeStopTime": "Stop time",
+  "settingsDeckVinylBrakeStopTimeHint": "How long the platter takes to stop after pause.",
+  "settingsStepperDecrease": "Decrease {field}",
+  "@settingsStepperDecrease": {
+    "description": "Screen-reader label for a numeric stepper's decrement button.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsStepperIncrease": "Increase {field}",
+  "@settingsStepperIncrease": {
+    "description": "Screen-reader label for a numeric stepper's increment button.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
   "settingsDeckSamplerTitle": "Sampler",
   "settingsDeckSamplerDescription": "Default play mode for inherit banks and default bank per deck.",
   "settingsDeckSamplerPlayMode": "Sampler play mode",

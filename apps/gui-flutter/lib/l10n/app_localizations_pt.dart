@@ -348,6 +348,33 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsDeckKeyLock => 'Key lock';
 
   @override
+  String get settingsDeckVinylBrakePause => 'Freio de vinil no pause';
+
+  @override
+  String get settingsDeckVinylBrakePauseHint =>
+      'Pause desacelera o deck como toca-discos, em vez de cortar na hora.';
+
+  @override
+  String get settingsDeckVinylBrakePauseToggle => 'Frear no pause';
+
+  @override
+  String get settingsDeckVinylBrakeStopTime => 'Tempo de parada';
+
+  @override
+  String get settingsDeckVinylBrakeStopTimeHint =>
+      'Quanto tempo o prato leva para parar após o pause.';
+
+  @override
+  String settingsStepperDecrease(String field) {
+    return 'Diminuir $field';
+  }
+
+  @override
+  String settingsStepperIncrease(String field) {
+    return 'Aumentar $field';
+  }
+
+  @override
   String get settingsDeckSamplerTitle => 'Sampler';
 
   @override
@@ -831,4 +858,31 @@ class AppLocalizationsPt extends AppLocalizations {
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
 class AppLocalizationsPtBr extends AppLocalizationsPt {
   AppLocalizationsPtBr() : super('pt_BR');
+
+  @override
+  String get settingsDeckVinylBrakePause => 'Freio de vinil no pause';
+
+  @override
+  String get settingsDeckVinylBrakePauseHint =>
+      'Pause desacelera o deck como toca-discos, em vez de cortar na hora.';
+
+  @override
+  String get settingsDeckVinylBrakePauseToggle => 'Frear no pause';
+
+  @override
+  String get settingsDeckVinylBrakeStopTime => 'Tempo de parada';
+
+  @override
+  String get settingsDeckVinylBrakeStopTimeHint =>
+      'Quanto tempo o prato leva para parar após o pause.';
+
+  @override
+  String settingsStepperDecrease(String field) {
+    return 'Diminuir $field';
+  }
+
+  @override
+  String settingsStepperIncrease(String field) {
+    return 'Aumentar $field';
+  }
 }

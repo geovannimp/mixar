@@ -1,3 +1,26 @@
 {
-  "@@locale": "pt_BR"
+  "@@locale": "pt_BR",
+  "settingsDeckVinylBrakePause": "Freio de vinil no pause",
+  "settingsDeckVinylBrakePauseHint": "Pause desacelera o deck como toca-discos, em vez de cortar na hora.",
+  "settingsDeckVinylBrakePauseToggle": "Frear no pause",
+  "settingsDeckVinylBrakeStopTime": "Tempo de parada",
+  "settingsDeckVinylBrakeStopTimeHint": "Quanto tempo o prato leva para parar após o pause.",
+  "settingsStepperDecrease": "Diminuir {field}",
+  "@settingsStepperDecrease": {
+    "description": "Screen-reader label for a numeric stepper's decrement button.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsStepperIncrease": "Aumentar {field}",
+  "@settingsStepperIncrease": {
+    "description": "Screen-reader label for a numeric stepper's increment button.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  }
 }

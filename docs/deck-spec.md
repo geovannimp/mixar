@@ -344,7 +344,7 @@ Keyboard and Key Shift pad modes are shipped ([#298](https://github.com/geovanni
 |----|---------|-------------|----------|
 | A1 | **Slip mode** | Shadow playhead continues during loop/scratch/cue; catch up on exit — **shipped** ([#38](https://github.com/geovannimp/mixar/issues/38)) | P2 |
 | A2 | **Censor / censor button** | Temporary reverse or mute | P3 → [#295](https://github.com/geovannimp/mixar/issues/295) |
-| A3 | **Brake / spin down** | Vinyl stop effect | P3 |
+| A3 | **Brake / spin down** | Vinyl stop effect on Pause (Settings → Deck → Vinyl brake pause; Play spin-up not implemented) | Pause shipped; Play spin-up P3 |
 
 ---
 

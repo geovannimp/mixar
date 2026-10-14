@@ -73,6 +73,10 @@ const kDefaultBufferSize = 512;
 const kDefaultTargetLufs = -18.0;
 const kMinTargetLufs = -24.0;
 const kMaxTargetLufs = -9.0;
+const kDefaultVinylBrakeStopSecs = 0.5;
+const kMinVinylBrakeStopSecs = 0.05;
+const kMaxVinylBrakeStopSecs = 3.0;
+const kVinylBrakeStopSecsStep = 0.05;
 
 const kDefaultMasterBus = BusRouteSettings(
   deviceId: 'default',
@@ -110,6 +114,8 @@ AppSettings defaultAppSettings() {
     defaultTempoRange: kDefaultTempoRange,
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
     defaultKeyLock: false,
+    vinylBrakePause: false,
+    vinylBrakeStopSecs: kDefaultVinylBrakeStopSecs,
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
     keyDisplayMode: KeyDisplayModeSetting.musical,
     keyColorMode: KeyColorModeSetting.off,
@@ -181,6 +187,8 @@ AppSettings copyAppSettings(
   double? defaultTempoRange,
   Float32List? tempoRangeSteps,
   bool? defaultKeyLock,
+  bool? vinylBrakePause,
+  double? vinylBrakeStopSecs,
   WaveformDisplayModeSetting? waveformDisplayMode,
   KeyDisplayModeSetting? keyDisplayMode,
   KeyColorModeSetting? keyColorMode,
@@ -220,6 +228,8 @@ AppSettings copyAppSettings(
     defaultTempoRange: defaultTempoRange ?? base.defaultTempoRange,
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
     defaultKeyLock: defaultKeyLock ?? base.defaultKeyLock,
+    vinylBrakePause: vinylBrakePause ?? base.vinylBrakePause,
+    vinylBrakeStopSecs: vinylBrakeStopSecs ?? base.vinylBrakeStopSecs,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
     keyColorMode: keyColorMode ?? base.keyColorMode,
@@ -263,6 +273,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultOuterJogMode != baseline.defaultOuterJogMode ||
       draft.defaultTempoRange != baseline.defaultTempoRange ||
       draft.defaultKeyLock != baseline.defaultKeyLock ||
+      draft.vinylBrakePause != baseline.vinylBrakePause ||
+      !_sameDuration(draft.vinylBrakeStopSecs, baseline.vinylBrakeStopSecs) ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||
       draft.keyColorMode != baseline.keyColorMode ||
@@ -288,6 +300,11 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
         baseline.trustedControllerDeviceIds,
       );
 }
+
+/// Stop secs crosses the Rust f32 boundary, so the host baseline and a stepper
+/// draft can describe the same displayed value with different doubles. Compare
+/// on a tolerance far below the 0.05 step so a genuine change still reads dirty.
+bool _sameDuration(double a, double b) => (a - b).abs() <= 1e-6;
 
 bool _sameList<T>(List<T> a, List<T> b) {
   if (identical(a, b)) {

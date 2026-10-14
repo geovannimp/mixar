@@ -111,6 +111,29 @@
   "settingsDeckDefaultKeyLock": "Key lock padrão",
   "settingsDeckDefaultKeyLockHint": "Com ligado, só altera o tempo (time-stretch). Desligado = tempo de vinil.",
   "settingsDeckKeyLock": "Key lock",
+  "settingsDeckVinylBrakePause": "Freio de vinil no pause",
+  "settingsDeckVinylBrakePauseHint": "Pause desacelera o deck como toca-discos, em vez de cortar na hora.",
+  "settingsDeckVinylBrakePauseToggle": "Frear no pause",
+  "settingsDeckVinylBrakeStopTime": "Tempo de parada",
+  "settingsDeckVinylBrakeStopTimeHint": "Quanto tempo o prato leva para parar após o pause.",
+  "settingsStepperIncrease": "Aumentar {field}",
+  "@settingsStepperIncrease": {
+    "description": "Screen-reader label for a numeric stepper's increment button.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsStepperDecrease": "Diminuir {field}",
+  "@settingsStepperDecrease": {
+    "description": "Screen-reader label for a numeric stepper's decrement button.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
   "settingsDeckSamplerTitle": "Sampler",
   "settingsDeckSamplerDescription": "Modo de reprodução padrão para bancos herdados e banco padrão por deck.",
   "settingsDeckSamplerPlayMode": "Modo de reprodução do sampler",

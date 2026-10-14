@@ -79,6 +79,12 @@ pub struct AudioConfig {
     /// Default key lock for new decks.
     #[serde(default)]
     pub default_key_lock: Option<bool>,
+    /// Pause spins audio down over `vinyl_brake_stop_secs` when true.
+    #[serde(default)]
+    pub vinyl_brake_pause: Option<bool>,
+    /// Brake stop duration in seconds (valid 0.05..=3.0).
+    #[serde(default)]
+    pub vinyl_brake_stop_secs: Option<f32>,
 }
 
 /// Sampler ↔ channel-strip routing (persisted in engine config).
@@ -168,9 +174,32 @@ impl EngineConfig {
             .unwrap_or(false)
     }
 
+    /// Pause spins audio down over `vinyl_brake_stop_secs` when true.
+    pub fn vinyl_brake_pause(&self) -> bool {
+        self.audio
+            .as_ref()
+            .and_then(|audio| audio.vinyl_brake_pause)
+            .unwrap_or(false)
+    }
+
+    /// Vinyl brake stop duration in seconds.
+    pub fn vinyl_brake_stop_secs(&self) -> f32 {
+        self.audio
+            .as_ref()
+            .and_then(|audio| audio.vinyl_brake_stop_secs)
+            .filter(|secs| secs.is_finite())
+            .unwrap_or(0.5)
+    }
+
     /// Validate fields that the engine requires to be well-formed.
     pub fn validate(&self) -> Result<()> {
         validate_buffer_size(self.buffer_size)?;
+        if let Some(secs) = self.audio.as_ref().and_then(|a| a.vinyl_brake_stop_secs) {
+            ensure!(
+                (0.05..=3.0).contains(&secs),
+                "vinyl_brake_stop_secs must be in 0.05..=3.0 (got {secs})"
+            );
+        }
         if let Some(range) = self
             .audio
             .as_ref()
@@ -246,6 +275,8 @@ mod tests {
                 default_tempo_range: Some(0.16),
                 tempo_range_steps: Some(vec![0.08, 0.16]),
                 default_key_lock: None,
+                vinyl_brake_pause: None,
+                vinyl_brake_stop_secs: None,
             }),
             ..EngineConfig::default()
         };
