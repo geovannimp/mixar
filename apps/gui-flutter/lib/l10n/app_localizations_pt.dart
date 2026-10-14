@@ -129,6 +129,33 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsShowTooltips => 'Mostrar dicas';
 
   @override
+  String get settingsUiMixerMetersTitle => 'Medidores do mixer';
+
+  @override
+  String get settingsUiMixerMetersDescription =>
+      'VUs dos decks entre os faders de volume. O medidor master fica na barra superior.';
+
+  @override
+  String get settingsUiShowMixerMeters => 'Mostrar medidores do mixer';
+
+  @override
+  String get settingsUiMixerMetersMode => 'Modo do medidor';
+
+  @override
+  String get settingsUiMixerMetersMono => 'Mono';
+
+  @override
+  String get settingsUiMixerMetersStereo => 'Estéreo';
+
+  @override
+  String get settingsUiMixerMetersMonoSubtitle =>
+      'Uma escada por deck (máximo de esquerda/direita).';
+
+  @override
+  String get settingsUiMixerMetersStereoSubtitle =>
+      'Escadas esquerda e direita separadas por deck.';
+
+  @override
   String get settingsUiSelectStyle => 'Estilo de seleção';
 
   @override

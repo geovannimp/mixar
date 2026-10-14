@@ -60,4 +60,49 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('horizontal mono 12 / stereo 24; segment height >= 6', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: const Scaffold(
+          body: SizedBox(
+            width: 200,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 6,
+                  child: LevelMeter(
+                    levels: zeroDeckLevels,
+                    mode: LevelMeterMode.mono,
+                    orientation: LevelMeterOrientation.horizontal,
+                  ),
+                ),
+                SizedBox(
+                  height: 13,
+                  child: LevelMeter(
+                    levels: zeroDeckLevels,
+                    mode: LevelMeterMode.stereo,
+                    orientation: LevelMeterOrientation.horizontal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(LevelMeter), findsNWidgets(2));
+    expect(find.byType(DecoratedBox), findsNWidgets(12 + 24));
+
+    final boxes = tester.renderObjectList<RenderBox>(find.byType(DecoratedBox));
+    expect(boxes.every((b) => b.size.height >= 6), isTrue);
+    expect(boxes.every((b) => b.size.width > 0), isTrue);
+  });
 }

@@ -3,6 +3,7 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsUiPanel extends StatelessWidget {
@@ -96,6 +97,40 @@ class SettingsUiPanel extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsUiMixerMetersTitle,
+          subtitle: l10n.settingsUiMixerMetersDescription,
+          trailing: SizedBox(
+            height: 23,
+            child: FittedBox(
+              child: MixarSwitch(
+                value: draft.showMixerMeters,
+                semanticsLabel: l10n.settingsUiShowMixerMeters,
+                onChanged: (v) =>
+                    onChanged(copyAppSettings(draft, showMixerMeters: v)),
+              ),
+            ),
+          ),
+          child: draft.showMixerMeters
+              ? SettingsField(
+                  label: l10n.settingsUiMixerMetersMode,
+                  child: SettingsSelect<bool>(
+                    dialogTitle: l10n.settingsUiMixerMetersMode,
+                    value: draft.mixerMetersMono,
+                    options: const [true, false],
+                    labelBuilder: (mono) => mono
+                        ? l10n.settingsUiMixerMetersMono
+                        : l10n.settingsUiMixerMetersStereo,
+                    subtitleBuilder: (mono) => mono
+                        ? l10n.settingsUiMixerMetersMonoSubtitle
+                        : l10n.settingsUiMixerMetersStereoSubtitle,
+                    onChanged: (mono) => onChanged(
+                      copyAppSettings(draft, mixerMetersMono: mono),
+                    ),
+                  ),
+                )
+              : null,
         ),
         SettingsSectionCard(
           title: l10n.settingsUiLibraryListTitle,

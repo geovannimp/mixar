@@ -34,6 +34,8 @@ pub struct ControlSnapshot {
     /// Hot-cue slot used as the Keyboard pad root.
     pub keyboard_root_hot_cue: [u8; 4],
     pub crossfader: f32,
+    pub master_volume: f32,
+    pub cue_volume: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
     /// Last known playhead ms per deck (from Position / DeckUpdated).
@@ -62,6 +64,8 @@ impl Default for ControlSnapshot {
             key_shift_page: [DEFAULT_PITCH_PAGE; 4],
             keyboard_root_hot_cue: [0; 4],
             crossfader: 0.5,
+            master_volume: 1.0,
+            cue_volume: 1.0,
             cue_mix: 0.5,
             master_cue: false,
             position_ms: [0; 4],
@@ -75,6 +79,8 @@ impl ControlSnapshot {
         match origin {
             Origin::Mixer => match key {
                 "crossfader" => self.crossfader = value,
+                "master_volume" => self.master_volume = value,
+                "cue_volume" => self.cue_volume = value,
                 "cue_mix" => self.cue_mix = value,
                 "master_cue" => self.master_cue = value > 0.5,
                 _ => {}
@@ -340,6 +346,22 @@ pub fn resolve_action(
             Kind::SetCrossfader,
             CmdBody::SetCrossfader {
                 position: norm.clamp(0.0, 1.0),
+                soft_takeover,
+            },
+        )),
+        "set_master_volume" => Some(engine_cmd(
+            Origin::Mixer,
+            Kind::SetMasterVolume,
+            CmdBody::SetMasterVolume {
+                volume: norm.clamp(0.0, 1.0),
+                soft_takeover,
+            },
+        )),
+        "set_cue_volume" => Some(engine_cmd(
+            Origin::Mixer,
+            Kind::SetCueVolume,
+            CmdBody::SetCueVolume {
+                volume: norm.clamp(0.0, 1.0),
                 soft_takeover,
             },
         )),

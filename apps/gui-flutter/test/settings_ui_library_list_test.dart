@@ -29,6 +29,31 @@ void main() {
     expect(find.text('Library list'), findsOneWidget);
     expect(find.text('Dim played tracks'), findsOneWidget);
     expect(find.text('TRACK ROW LAYOUT'), findsOneWidget);
+    expect(find.text('Mixer meters'), findsOneWidget);
+    expect(find.text('METER MODE'), findsOneWidget);
+  }, semanticsEnabled: false);
+
+  testWidgets('UI panel hides meter mode when mixer meters off', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: mixarTestMaterialApp(
+          theme: MixarThemeData.dark(),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SettingsUiPanel(
+                draft: copyAppSettings(
+                  defaultAppSettings(),
+                  showMixerMeters: false,
+                ),
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Mixer meters'), findsOneWidget);
+    expect(find.text('METER MODE'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('Library panel no longer hosts list controls', (tester) async {

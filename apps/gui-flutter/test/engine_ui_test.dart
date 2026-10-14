@@ -138,11 +138,15 @@ void main() {
         const EngineEvt(
           kind: EngineEvtKind.status,
           running: true,
+          masterVolume: 0.55,
+          cueVolume: 0.25,
           cueMix: 0.4,
           masterCue: true,
         ),
       );
       expect(snap.running, isTrue);
+      expect(snap.masterVolume, 0.55);
+      expect(snap.cueVolume, 0.25);
       expect(snap.cueMix, 0.4);
       expect(snap.masterCue, isTrue);
       expect(snap.channelFor(0).volume, 0.3);
@@ -185,6 +189,33 @@ void main() {
       expect(snap.channelFor(0).volume, 0.4);
       expect(snap.levelsFor(0).peakL, 0.5);
       expect(snap.levelsFor(0).peakHoldR, 0.9);
+    });
+
+    test('levels without deckId patch masterLevels only', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.levels,
+          deckId: 0,
+          peakL: 0.1,
+          peakR: 0.2,
+        ),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.levels,
+          peakL: 0.7,
+          peakR: 0.8,
+          peakHoldL: 0.9,
+          peakHoldR: 0.95,
+        ),
+      );
+      expect(snap.levelsFor(0).peakL, 0.1);
+      expect(snap.masterLevels.peakL, 0.7);
+      expect(snap.masterLevels.peakR, 0.8);
+      expect(snap.masterLevels.peakHoldL, 0.9);
+      expect(snap.masterLevels.peakHoldR, 0.95);
     });
 
     test('updated padMode lands on the snapshot', () {

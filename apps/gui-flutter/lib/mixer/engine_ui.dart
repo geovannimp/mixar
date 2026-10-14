@@ -58,6 +58,7 @@ class EngineUiSnapshot {
     this.playing = const {},
     this.channels = const {},
     this.levels = const {},
+    this.masterLevels = zeroDeckLevels,
     this.crossfader = 0.5,
     this.trackIds = const {},
     this.durationMs = const {},
@@ -83,7 +84,9 @@ class EngineUiSnapshot {
     this.activeSamplerBankIds = const {},
     this.samplerSlots = const {},
     this.masterDeck = 0,
-    this.cueMix = 0.0,
+    this.masterVolume = 1.0,
+    this.cueVolume = 1.0,
+    this.cueMix = 0.5,
     this.masterCue = false,
   });
 
@@ -94,7 +97,10 @@ class EngineUiSnapshot {
   final Map<int, bool> playing;
   final Map<int, MixerChannelUi> channels;
   final Map<int, DeckLevels> levels;
+  final DeckLevels masterLevels;
   final double crossfader;
+  final double masterVolume;
+  final double cueVolume;
   final double cueMix;
   final bool masterCue;
   final Map<int, String> trackIds;
@@ -187,6 +193,7 @@ class EngineUiSnapshot {
     Map<int, bool>? playing,
     Map<int, MixerChannelUi>? channels,
     Map<int, DeckLevels>? levels,
+    DeckLevels? masterLevels,
     double? crossfader,
     Map<int, String>? trackIds,
     Map<int, int>? durationMs,
@@ -212,6 +219,8 @@ class EngineUiSnapshot {
     Map<int, String>? activeSamplerBankIds,
     Map<int, List<SamplerSlotChrome>>? samplerSlots,
     int? masterDeck,
+    double? masterVolume,
+    double? cueVolume,
     double? cueMix,
     bool? masterCue,
   }) => EngineUiSnapshot(
@@ -220,6 +229,7 @@ class EngineUiSnapshot {
     playing: playing ?? this.playing,
     channels: channels ?? this.channels,
     levels: levels ?? this.levels,
+    masterLevels: masterLevels ?? this.masterLevels,
     crossfader: crossfader ?? this.crossfader,
     trackIds: trackIds ?? this.trackIds,
     durationMs: durationMs ?? this.durationMs,
@@ -245,6 +255,8 @@ class EngineUiSnapshot {
     activeSamplerBankIds: activeSamplerBankIds ?? this.activeSamplerBankIds,
     samplerSlots: samplerSlots ?? this.samplerSlots,
     masterDeck: masterDeck ?? this.masterDeck,
+    masterVolume: masterVolume ?? this.masterVolume,
+    cueVolume: cueVolume ?? this.cueVolume,
     cueMix: cueMix ?? this.cueMix,
     masterCue: masterCue ?? this.masterCue,
   );
@@ -256,6 +268,8 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       return prev.copyWith(
         running: evt.running ?? prev.running,
         crossfader: evt.crossfader ?? prev.crossfader,
+        masterVolume: evt.masterVolume ?? prev.masterVolume,
+        cueVolume: evt.cueVolume ?? prev.cueVolume,
         masterDeck: evt.masterDeck ?? prev.masterDeck,
         cueMix: evt.cueMix ?? prev.cueMix,
         masterCue: evt.masterCue ?? prev.masterCue,
@@ -452,9 +466,20 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         stemIsolate: nextStemIsolate,
       );
     case EngineEvtKind.levels:
-      final id = evt.deckId;
-      if (id == null || evt.peakL == null || evt.peakR == null) {
+      if (evt.peakL == null || evt.peakR == null) {
         return prev;
+      }
+      final id = evt.deckId;
+      if (id == null) {
+        final prevMaster = prev.masterLevels;
+        return prev.copyWith(
+          masterLevels: DeckLevels(
+            peakL: evt.peakL!,
+            peakR: evt.peakR!,
+            peakHoldL: evt.peakHoldL ?? prevMaster.peakHoldL,
+            peakHoldR: evt.peakHoldR ?? prevMaster.peakHoldR,
+          ),
+        );
       }
       final nextLevels = Map<int, DeckLevels>.from(prev.levels);
       final prevLevels = prev.levelsFor(id);

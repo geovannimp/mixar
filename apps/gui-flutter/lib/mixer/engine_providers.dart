@@ -657,8 +657,20 @@ final ProviderFamily<DeckLevels, int> deckLevelsProvider =
           ref.watch(engineUiProvider.select((s) => s.levelsFor(deckId))),
     );
 
+final masterLevelsProvider = Provider<DeckLevels>(
+  (ref) => ref.watch(engineUiProvider.select((s) => s.masterLevels)),
+);
+
 final crossfaderProvider = Provider<double>(
   (ref) => ref.watch(engineUiProvider.select((s) => s.crossfader)),
+);
+
+final masterVolumeProvider = Provider<double>(
+  (ref) => ref.watch(engineUiProvider.select((s) => s.masterVolume)),
+);
+
+final cueVolumeProvider = Provider<double>(
+  (ref) => ref.watch(engineUiProvider.select((s) => s.cueVolume)),
 );
 
 final cueMixProvider = Provider<double>(
@@ -846,6 +858,16 @@ Future<void> setDeckHeadphoneCue(
 Future<void> setCrossfader(WidgetRef ref, double position) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setCrossfader(position: position);
+}
+
+Future<void> setMasterVolume(WidgetRef ref, double volume) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setMasterVolume(volume: volume);
+}
+
+Future<void> setCueVolume(WidgetRef ref, double volume) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setCueVolume(volume: volume);
 }
 
 Future<void> setCueMix(WidgetRef ref, double mix) async {

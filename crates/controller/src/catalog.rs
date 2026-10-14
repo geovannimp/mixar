@@ -106,6 +106,8 @@ const DECK_ALIASES: &[&str] = &[
 
 const MASTER_ALIASES: &[&str] = &[
     "crossfader",
+    "master_volume",
+    "cue_volume",
     "cue_mix",
     "master_cue",
     "browse",
@@ -145,6 +147,8 @@ pub const ABSOLUTE_LEAVES: &[&str] = &[
     "set_eq_mid",
     "set_eq_low",
     "set_crossfader",
+    "set_master_volume",
+    "set_cue_volume",
     "set_cue_mix",
     "set_speed",
 ];
@@ -191,7 +195,13 @@ const DECK_LEAVES: &[&str] = &[
     "key_shift_pad",
 ];
 
-const MIXER_LEAVES: &[&str] = &["set_crossfader", "set_cue_mix", "set_master_cue"];
+const MIXER_LEAVES: &[&str] = &[
+    "set_crossfader",
+    "set_master_volume",
+    "set_cue_volume",
+    "set_cue_mix",
+    "set_master_cue",
+];
 
 const ENGINE_LEAVES: &[&str] = &["start_engine"];
 

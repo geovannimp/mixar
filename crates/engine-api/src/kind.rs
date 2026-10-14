@@ -23,6 +23,8 @@ pub enum Kind {
     SetHeadphoneCue,
     ToggleHeadphoneCue,
     SetCrossfader,
+    SetMasterVolume,
+    SetCueVolume,
     SetCueMix,
     SetMasterCue,
     ToggleMasterCue,

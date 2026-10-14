@@ -119,6 +119,8 @@ AppSettings defaultAppSettings() {
     historyMinPlaySeconds: 5,
     historyMinDeckVolume: 0.05,
     showTooltips: true,
+    showMixerMeters: true,
+    mixerMetersMono: true,
     selectStyle: SelectStyleSetting.auto,
     dimPlayedTracks: true,
     stemsFormat: 'opus',
@@ -188,6 +190,8 @@ AppSettings copyAppSettings(
   int? historyMinPlaySeconds,
   double? historyMinDeckVolume,
   bool? showTooltips,
+  bool? showMixerMeters,
+  bool? mixerMetersMono,
   SelectStyleSetting? selectStyle,
   bool? dimPlayedTracks,
   String? stemsFormat,
@@ -227,6 +231,8 @@ AppSettings copyAppSettings(
     historyMinPlaySeconds: historyMinPlaySeconds ?? base.historyMinPlaySeconds,
     historyMinDeckVolume: historyMinDeckVolume ?? base.historyMinDeckVolume,
     showTooltips: showTooltips ?? base.showTooltips,
+    showMixerMeters: showMixerMeters ?? base.showMixerMeters,
+    mixerMetersMono: mixerMetersMono ?? base.mixerMetersMono,
     selectStyle: selectStyle ?? base.selectStyle,
     dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
     stemsFormat: stemsFormat ?? base.stemsFormat,
@@ -265,6 +271,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.historyMinPlaySeconds != baseline.historyMinPlaySeconds ||
       draft.historyMinDeckVolume != baseline.historyMinDeckVolume ||
       draft.showTooltips != baseline.showTooltips ||
+      draft.showMixerMeters != baseline.showMixerMeters ||
+      draft.mixerMetersMono != baseline.mixerMetersMono ||
       draft.selectStyle != baseline.selectStyle ||
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       draft.stemsFormat != baseline.stemsFormat ||
