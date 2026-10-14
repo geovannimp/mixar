@@ -238,7 +238,7 @@ pub const LOOP_SLOT_COUNT: usize = 8;
 
 /// `true` when `name` is a signal this section can resolve.
 pub fn is_known_signal(section: &str, name: &str) -> bool {
-    if section == "master" {
+    if section == crate::device::SECTION_MASTER {
         return MASTER_SIGNALS.contains(&name);
     }
     if crate::device::deck_index(section).is_none() {

@@ -179,7 +179,8 @@ impl MappingSession {
         self.snapshot.quantize[i] = fb.quantize;
         self.snapshot.headphone_cue[i] = fb.headphone_cue;
         self.snapshot.loop_active[i] = fb.loop_active;
-        self.snapshot.loop_in_set[i] = fb.loop_in_set || fb.loop_active;
+        // Host already ORs pending-loop-in with active; mirror verbatim.
+        self.snapshot.loop_in_set[i] = fb.loop_in_set;
         self.snapshot.track_loaded[i] = fb.track_loaded;
         self.snapshot.loop_slots[i] = fb.loop_slots;
         self.snapshot.pad_mode[i] = fb.pad_mode;
@@ -680,46 +681,81 @@ impl MappingSession {
     ) {
         if let Origin::Deck(d) = origin {
             let i = deck_slot(d);
+            // Jog / EQ / volume / etc. do not touch LED signals — skip the
+            // per-deck resolve (≈70 outputs) on those hot paths.
+            let mut leds_dirty = false;
             match body {
-                CmdBody::SetPadMode { mode } => self.snapshot.pad_mode[i] = *mode,
+                CmdBody::SetPadMode { mode } => {
+                    self.snapshot.pad_mode[i] = *mode;
+                    leds_dirty = true;
+                }
                 CmdBody::SetKeyShift { semitones } => {
                     self.snapshot.key_shift[i] = *semitones;
+                    leds_dirty = true;
                 }
                 CmdBody::SetKeyboardPage { page } => {
                     self.snapshot.keyboard_page[i] = (*page).clamp(1, KEYBOARD_PAGE_COUNT);
+                    leds_dirty = true;
                 }
                 CmdBody::SetKeyShiftPage { page } => {
                     self.snapshot.key_shift_page[i] = (*page).clamp(1, KEY_SHIFT_PAGE_COUNT);
+                    leds_dirty = true;
                 }
                 CmdBody::SetKeyboardRoot { slot } => {
                     self.snapshot.keyboard_root_hot_cue[i] = *slot;
+                    leds_dirty = true;
                 }
                 CmdBody::SetTempoRange { tempo_range } => {
                     self.snapshot.tempo_range[i] = *tempo_range;
                 }
                 CmdBody::SetHeadphoneCue { enabled } => {
                     self.snapshot.headphone_cue[i] = *enabled;
+                    leds_dirty = true;
                 }
                 _ => {}
             }
             match kind {
                 Kind::ToggleHeadphoneCue => {
-                    self.snapshot.headphone_cue[i] = !self.snapshot.headphone_cue[i]
+                    self.snapshot.headphone_cue[i] = !self.snapshot.headphone_cue[i];
+                    leds_dirty = true;
                 }
-                Kind::ToggleSync => self.snapshot.sync[i] = !self.snapshot.sync[i],
-                Kind::ToggleQuantize => self.snapshot.quantize[i] = !self.snapshot.quantize[i],
-                Kind::BeginCueHold => self.snapshot.cue_hold[i] = true,
-                Kind::EndCueHold => self.snapshot.cue_hold[i] = false,
-                Kind::Play | Kind::TriggerHotCue => self.set_playing_deck(d, true),
-                Kind::Pause => self.set_playing_deck(d, false),
-                Kind::LoopIn => self.snapshot.loop_in_set[i] = true,
+                Kind::ToggleSync => {
+                    self.snapshot.sync[i] = !self.snapshot.sync[i];
+                    leds_dirty = true;
+                }
+                Kind::ToggleQuantize => {
+                    self.snapshot.quantize[i] = !self.snapshot.quantize[i];
+                    leds_dirty = true;
+                }
+                Kind::BeginCueHold => {
+                    self.snapshot.cue_hold[i] = true;
+                    leds_dirty = true;
+                }
+                Kind::EndCueHold => {
+                    self.snapshot.cue_hold[i] = false;
+                    leds_dirty = true;
+                }
+                Kind::Play | Kind::TriggerHotCue => {
+                    self.set_playing_deck(d, true);
+                    leds_dirty = true;
+                }
+                Kind::Pause => {
+                    self.set_playing_deck(d, false);
+                    leds_dirty = true;
+                }
+                Kind::LoopIn => {
+                    self.snapshot.loop_in_set[i] = true;
+                    leds_dirty = true;
+                }
                 Kind::LoopOut => {
                     self.snapshot.loop_active[i] = true;
                     self.snapshot.loop_in_set[i] = true;
+                    leds_dirty = true;
                 }
                 Kind::ExitLoop => {
                     self.snapshot.loop_active[i] = false;
                     self.snapshot.loop_in_set[i] = false;
+                    leds_dirty = true;
                 }
                 // A filled hot cue starts playback; an empty one saves the cue.
                 Kind::HotCuePadPress => {
@@ -731,17 +767,20 @@ impl MappingSession {
                             .is_some();
                         if filled {
                             self.set_playing_deck(d, true);
+                            leds_dirty = true;
                         }
                     }
                 }
                 _ => {}
             }
-            self.refresh_deck_leds(d, midi);
-            if matches!(
-                self.snapshot.pad_mode[i],
-                PadMode::Keyboard | PadMode::KeyShift
-            ) {
-                self.refresh_key_shift_leds(d, midi);
+            if leds_dirty {
+                self.refresh_deck_leds(d, midi);
+                if matches!(
+                    self.snapshot.pad_mode[i],
+                    PadMode::Keyboard | PadMode::KeyShift
+                ) {
+                    self.refresh_key_shift_leds(d, midi);
+                }
             }
         } else if origin == Origin::Mixer {
             match kind {

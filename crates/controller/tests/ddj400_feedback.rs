@@ -208,7 +208,9 @@ fn loop_group_lights_while_a_loop_is_active() {
     s.set_deck_feedback(
         0,
         &DeckFeedback {
+            // Host ORs pending||active into loop_in_set before mirroring.
             loop_active: true,
+            loop_in_set: true,
             ..deck(PadMode::HotCue)
         },
         &mut midi,
@@ -254,17 +256,16 @@ fn holding_shift_blinks_the_mode_indicators() {
     let (mut s, mut midi) = attached();
     let mut bus = NullBus;
 
-    // SHIFT down (deck 1, note 0x3F).
+    // SHIFT down (deck 1, note 0x3F). 0x69/0x6F are Keyboard/Key Shift mode
+    // lamps (same physical LEDs) — not blinked on shift_held.
     s.handle_midi(&[D1, 0x3F, 0x7F], &mut bus, &mut midi);
     assert_eq!(
         sorted(&midi),
         sorted_of(&[
             [D1, 0x1E, 0x7F], // +SHIFT BEAT LOOP
-            [D1, 0x69, 0x7F], // +SHIFT HOT CUE
             [D1, 0x6B, 0x7F], // +SHIFT BEAT JUMP
-            [D1, 0x6F, 0x7F], // +SHIFT SAMPLER
         ]),
-        "shift must light all four indicators"
+        "shift must blink the non-shared mode indicators"
     );
 
     // Blink phase 1: lit.
@@ -272,12 +273,7 @@ fn holding_shift_blinks_the_mode_indicators() {
     s.tick_leds(&mut midi);
     assert_eq!(
         sorted(&midi),
-        sorted_of(&[
-            [D1, 0x1E, 0x7F],
-            [D1, 0x69, 0x7F],
-            [D1, 0x6B, 0x7F],
-            [D1, 0x6F, 0x7F],
-        ])
+        sorted_of(&[[D1, 0x1E, 0x7F], [D1, 0x6B, 0x7F],])
     );
 
     // Blink phase 2: dark.
@@ -286,12 +282,7 @@ fn holding_shift_blinks_the_mode_indicators() {
     s.tick_leds(&mut midi);
     assert_eq!(
         sorted(&midi),
-        sorted_of(&[
-            [D1, 0x1E, 0x00],
-            [D1, 0x69, 0x00],
-            [D1, 0x6B, 0x00],
-            [D1, 0x6F, 0x00],
-        ])
+        sorted_of(&[[D1, 0x1E, 0x00], [D1, 0x6B, 0x00],])
     );
 
     // Release SHIFT: indicators go dark and stop blinking.
@@ -299,12 +290,7 @@ fn holding_shift_blinks_the_mode_indicators() {
     s.handle_midi(&[D1, 0x3F, 0x00], &mut bus, &mut midi);
     assert_eq!(
         sorted(&midi),
-        sorted_of(&[
-            [D1, 0x1E, 0x00],
-            [D1, 0x69, 0x00],
-            [D1, 0x6B, 0x00],
-            [D1, 0x6F, 0x00],
-        ])
+        sorted_of(&[[D1, 0x1E, 0x00], [D1, 0x6B, 0x00],])
     );
     midi.frames.clear();
     thread::sleep(BLINK_HALF_PERIOD + Duration::from_millis(100));

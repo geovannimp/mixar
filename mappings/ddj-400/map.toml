@@ -245,10 +245,11 @@ pad_mode_hot_cue = { signal = "pad_mode_hot_cue", on = "pad_mode_hot_cue_led", o
 pad_mode_beat_jump = { signal = "pad_mode_beat_jump", on = "pad_mode_beat_jump_led", off = { type = "note", channel = 1, note = 0x20, velocity = 0x00 } }
 pad_mode_sampler = { signal = "pad_mode_sampler", on = "pad_mode_sampler_led", off = { type = "note", channel = 1, note = 0x22, velocity = 0x00 } }
 pad_mode_loop_roll = { signal = "pad_mode_loop_roll", on = "pad_mode_loop_roll_led", off = { type = "note", channel = 1, note = 0x6D, velocity = 0x00 } }
-pad_mode_hot_cue_shift = { signal = "shift_held", blink = "pad_mode_hot_cue_shift_led", on = "pad_mode_hot_cue_shift_led", off = { type = "note", channel = 1, note = 0x69, velocity = 0x00 } }
+# 0x69 / 0x6F are owned by Keyboard / Key Shift mode lamps (same physical LEDs as
+# SHIFT+HOT CUE / SHIFT+SAMPLER). Do not also blink them on shift_held — that
+# fights the solid mode On and flickers.
 pad_mode_loop_roll_shift = { signal = "shift_held", blink = "pad_mode_loop_roll_shift_led", on = "pad_mode_loop_roll_shift_led", off = { type = "note", channel = 1, note = 0x1E, velocity = 0x00 } }
 pad_mode_beat_jump_shift = { signal = "shift_held", blink = "pad_mode_beat_jump_shift_led", on = "pad_mode_beat_jump_shift_led", off = { type = "note", channel = 1, note = 0x6B, velocity = 0x00 } }
-pad_mode_sampler_shift = { signal = "shift_held", blink = "pad_mode_sampler_shift_led", on = "pad_mode_sampler_shift_led", off = { type = "note", channel = 1, note = 0x6F, velocity = 0x00 } }
 pad_mode_keyboard = { signal = "pad_mode_keyboard", on = "pad_mode_keyboard_led", off = { type = "note", channel = 1, note = 0x69, velocity = 0x00 } }
 pad_mode_key_shift = { signal = "pad_mode_key_shift", on = "pad_mode_key_shift_led", off = { type = "note", channel = 1, note = 0x6F, velocity = 0x00 } }
 keyboard_pad_1 = { on = "keyboard_pad_1_led", off = { type = "note", channel = 8, note = 0x40, velocity = 0x00 } }
@@ -269,7 +270,8 @@ key_shift_pad_7 = { on = "key_shift_pad_7_led", off = { type = "note", channel =
 key_shift_pad_8 = { on = "key_shift_pad_8_led", off = { type = "note", channel = 8, note = 0x77, velocity = 0x00 } }
 
 # Performance pads. `pad_<mode>_<n>` is mode-gated, so the previous page's
-# bank goes dark as soon as the mode changes.
+# bank goes dark as soon as the mode changes. Beat Jump / Sampler banks stay
+# dark (no engine slot LED state yet) but remain bound so attach forces them off.
 pad_bank_hot_cue_1 = { signal = "pad_hot_cue_1", on = "hot_cue_pad_led1", off = { type = "note", channel = 9, note = 0x00, velocity = 0x00 } }
 pad_bank_hot_cue_2 = { signal = "pad_hot_cue_2", on = "hot_cue_pad_led2", off = { type = "note", channel = 9, note = 0x01, velocity = 0x00 } }
 pad_bank_hot_cue_3 = { signal = "pad_hot_cue_3", on = "hot_cue_pad_led3", off = { type = "note", channel = 9, note = 0x02, velocity = 0x00 } }
@@ -321,10 +323,9 @@ pad_mode_hot_cue = { signal = "pad_mode_hot_cue", on = "pad_mode_hot_cue_led", o
 pad_mode_beat_jump = { signal = "pad_mode_beat_jump", on = "pad_mode_beat_jump_led", off = { type = "note", channel = 2, note = 0x20, velocity = 0x00 } }
 pad_mode_sampler = { signal = "pad_mode_sampler", on = "pad_mode_sampler_led", off = { type = "note", channel = 2, note = 0x22, velocity = 0x00 } }
 pad_mode_loop_roll = { signal = "pad_mode_loop_roll", on = "pad_mode_loop_roll_led", off = { type = "note", channel = 2, note = 0x6D, velocity = 0x00 } }
-pad_mode_hot_cue_shift = { signal = "shift_held", blink = "pad_mode_hot_cue_shift_led", on = "pad_mode_hot_cue_shift_led", off = { type = "note", channel = 2, note = 0x69, velocity = 0x00 } }
+# 0x69 / 0x6F owned by Keyboard / Key Shift (same LEDs as SHIFT+HOT CUE / SHIFT+SAMPLER).
 pad_mode_loop_roll_shift = { signal = "shift_held", blink = "pad_mode_loop_roll_shift_led", on = "pad_mode_loop_roll_shift_led", off = { type = "note", channel = 2, note = 0x1E, velocity = 0x00 } }
 pad_mode_beat_jump_shift = { signal = "shift_held", blink = "pad_mode_beat_jump_shift_led", on = "pad_mode_beat_jump_shift_led", off = { type = "note", channel = 2, note = 0x6B, velocity = 0x00 } }
-pad_mode_sampler_shift = { signal = "shift_held", blink = "pad_mode_sampler_shift_led", on = "pad_mode_sampler_shift_led", off = { type = "note", channel = 2, note = 0x6F, velocity = 0x00 } }
 pad_mode_keyboard = { signal = "pad_mode_keyboard", on = "pad_mode_keyboard_led", off = { type = "note", channel = 2, note = 0x69, velocity = 0x00 } }
 pad_mode_key_shift = { signal = "pad_mode_key_shift", on = "pad_mode_key_shift_led", off = { type = "note", channel = 2, note = 0x6F, velocity = 0x00 } }
 keyboard_pad_1 = { on = "keyboard_pad_1_led", off = { type = "note", channel = 10, note = 0x40, velocity = 0x00 } }
@@ -344,8 +345,7 @@ key_shift_pad_6 = { on = "key_shift_pad_6_led", off = { type = "note", channel =
 key_shift_pad_7 = { on = "key_shift_pad_7_led", off = { type = "note", channel = 10, note = 0x76, velocity = 0x00 } }
 key_shift_pad_8 = { on = "key_shift_pad_8_led", off = { type = "note", channel = 10, note = 0x77, velocity = 0x00 } }
 
-# Performance pads. `pad_<mode>_<n>` is mode-gated, so the previous page's
-# bank goes dark as soon as the mode changes.
+# Performance pads. Beat Jump / Sampler banks stay dark until engine slot LEDs exist.
 pad_bank_hot_cue_1 = { signal = "pad_hot_cue_1", on = "hot_cue_pad_led1", off = { type = "note", channel = 11, note = 0x00, velocity = 0x00 } }
 pad_bank_hot_cue_2 = { signal = "pad_hot_cue_2", on = "hot_cue_pad_led2", off = { type = "note", channel = 11, note = 0x01, velocity = 0x00 } }
 pad_bank_hot_cue_3 = { signal = "pad_hot_cue_3", on = "hot_cue_pad_led3", off = { type = "note", channel = 11, note = 0x02, velocity = 0x00 } }
@@ -381,5 +381,6 @@ pad_bank_loop_5 = { signal = "pad_loop_5", on = "loop_pad_led5", off = { type = 
 pad_bank_loop_6 = { signal = "pad_loop_6", on = "loop_pad_led6", off = { type = "note", channel = 10, note = 0x65, velocity = 0x00 } }
 pad_bank_loop_7 = { signal = "pad_loop_7", on = "loop_pad_led7", off = { type = "note", channel = 10, note = 0x66, velocity = 0x00 } }
 pad_bank_loop_8 = { signal = "pad_loop_8", on = "loop_pad_led8", off = { type = "note", channel = 10, note = 0x67, velocity = 0x00 } }
+
 [outputs.master]
 master_cue = { signal = "master_cue", on = "master_cue_led", off = { type = "note", channel = 7, note = 0x63, velocity = 0x00 } }

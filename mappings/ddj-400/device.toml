@@ -12,7 +12,7 @@ vendor_name = "Pioneer"
 product_name = "DDJ-400"
 usb_vid = 0x2b73
 usb_pid = 0x0026
-mapping_version = "1.2.0"
+mapping_version = "1.2.1"
 midi_name_contains = ["DDJ-400"]
 
 [toml-schema]
