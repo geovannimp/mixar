@@ -24,7 +24,6 @@ use engine_dsp::{DeckEqGains, DeckState, DspEngine, KEY_SHIFT_SEMITONE_LIMIT};
 use library::{LibraryBus, LibraryManager, PreparedTrackPlayback};
 use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
