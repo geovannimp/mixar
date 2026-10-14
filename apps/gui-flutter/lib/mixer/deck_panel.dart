@@ -112,7 +112,9 @@ class DeckPanel extends ConsumerWidget {
               isMaster: isMaster,
               disabled: loadDisabled,
               onPress: () {
-                unawaited(_engineCmd(context, () => setMasterDeck(ref, deckId)));
+                unawaited(
+                  _engineCmd(context, () => setMasterDeck(ref, deckId)),
+                );
               },
             ),
             const SizedBox(width: 4),
@@ -370,9 +372,6 @@ class _MasterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    // Soft amber wash (not cueTint s950 — that reads brown on dark chrome).
-    const masterOn = Color.fromARGB(255, 252, 211, 77); // MixarAmber.s300
-    const masterFill = Color.fromARGB(48, 251, 191, 36); // MixarAmber.s400 @ ~19%
     final on = isMaster && !disabled;
     final tip = isMaster ? 'Master' : 'Set master';
     return AppTooltip(
@@ -388,11 +387,11 @@ class _MasterButton extends StatelessWidget {
         onPress: (!disabled && !isMaster) ? onPress : null,
         semanticsLabel: tip,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        backgroundColor: on ? masterFill : null,
+        backgroundColor: on ? kMixerMasterFill : null,
         child: Icon(
           LucideIcons.crown,
           size: 14,
-          color: on ? masterOn : theme.colors.mutedForeground,
+          color: on ? kMixerMasterOn : theme.colors.mutedForeground,
         ),
       ),
     );

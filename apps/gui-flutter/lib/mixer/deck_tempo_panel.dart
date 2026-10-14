@@ -6,6 +6,7 @@ import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -93,9 +94,7 @@ class DeckTempoPanel extends StatelessWidget {
     final statusIcon = isMaster
         ? LucideIcons.crown
         : (syncOn ? LucideIcons.lock : LucideIcons.lockOpen);
-    final statusColor = syncOn
-        ? kMixerLiveOn
-        : theme.colors.mutedForeground;
+    final statusColor = syncOn ? kMixerLiveOn : theme.colors.mutedForeground;
 
     final cardRadius = theme.style.borderRadius.md;
     return SizedBox(
@@ -111,6 +110,8 @@ class DeckTempoPanel extends StatelessWidget {
           child: Column(
             children: [
               // Flush to card edges; divider only under BPM/pitch/status.
+              // MTappable (not MixerButton): MixerButton's inner Row overflows
+              // the 88px tempo column when wrapping a tall BPM/pitch Column.
               Skeletonizer(
                 enabled: loading,
                 child: AppTooltip(
@@ -123,49 +124,52 @@ class DeckTempoPanel extends StatelessWidget {
                       ),
                       color: syncOn ? theme.colors.primaryTint : null,
                     ),
-                    child: MixerButton(
-                      variant: .ghost,
-                      size: .sm,
-                      selected: syncOn,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 8,
-                      ),
-                      onPress: syncPress,
-                      semanticsLabel: tip,
-                      child: Column(
-                        mainAxisSize: .min,
-                        children: [
-                          Text(
-                            loading ? '000.00' : formatBpm(liveBpm),
-                            textAlign: .center,
-                            style: theme.typography.body.md.copyWith(
-                              fontFamily: MixarFonts.notoSansMono,
-                              color: accent,
-                              fontWeight: .w700,
-                              height: 1.1,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                                FontFeature.slashedZero(),
-                              ],
-                            ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: MTappable.child(
+                        selected: syncOn,
+                        onPress: syncPress,
+                        semanticsLabel: tip,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            formatPitchPercent(speed, tempoRange),
-                            textAlign: .center,
-                            style: theme.typography.body.xs.copyWith(
-                              fontFamily: MixarFonts.notoSansMono,
-                              color: theme.colors.mutedForeground,
-                              fontWeight: .w500,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
+                          child: Column(
+                            mainAxisSize: .min,
+                            children: [
+                              Text(
+                                loading ? '000.00' : formatBpm(liveBpm),
+                                textAlign: .center,
+                                style: theme.typography.body.md.copyWith(
+                                  fontFamily: MixarFonts.notoSansMono,
+                                  color: accent,
+                                  fontWeight: .w700,
+                                  height: 1.1,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                    FontFeature.slashedZero(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatPitchPercent(speed, tempoRange),
+                                textAlign: .center,
+                                style: theme.typography.body.xs.copyWith(
+                                  fontFamily: MixarFonts.notoSansMono,
+                                  color: theme.colors.mutedForeground,
+                                  fontWeight: .w500,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Icon(statusIcon, size: 14, color: statusColor),
+                            ],
                           ),
-                          const SizedBox(height: 4),
-                          Icon(statusIcon, size: 14, color: statusColor),
-                        ],
+                        ),
                       ),
                     ),
                   ),

@@ -63,7 +63,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders engine speed range and locked sync icon', (tester) async {
+  testWidgets('renders engine speed range and locked sync icon', (
+    tester,
+  ) async {
     await pumpPanel(
       tester,
       speed: 0.25,
@@ -85,28 +87,29 @@ void main() {
     );
   });
 
-  testWidgets('master deck shows crown not lock; fader stays enabled; tap no-ops', (
-    tester,
-  ) async {
-    final beats = <bool>[];
-    await pumpPanel(tester, isMaster: true, onToggleSync: beats.add);
+  testWidgets(
+    'master deck shows crown not lock; fader stays enabled; tap no-ops',
+    (tester) async {
+      final beats = <bool>[];
+      await pumpPanel(tester, isMaster: true, onToggleSync: beats.add);
 
-    expect(find.text('M'), findsNothing);
-    expect(find.text('Master'), findsNothing);
-    expect(find.text('Set master'), findsNothing);
-    expect(find.text('Sync'), findsNothing);
-    expect(find.byIcon(LucideIcons.crown), findsOneWidget);
-    expect(find.byIcon(LucideIcons.lockOpen), findsNothing);
-    expect(find.byIcon(LucideIcons.lock), findsNothing);
-    expect(
-      tester.widget<FaderSlider>(find.byType(FaderSlider)).disabled,
-      isFalse,
-    );
+      expect(find.text('M'), findsNothing);
+      expect(find.text('Master'), findsNothing);
+      expect(find.text('Set master'), findsNothing);
+      expect(find.text('Sync'), findsNothing);
+      expect(find.byIcon(LucideIcons.crown), findsOneWidget);
+      expect(find.byIcon(LucideIcons.lockOpen), findsNothing);
+      expect(find.byIcon(LucideIcons.lock), findsNothing);
+      expect(
+        tester.widget<FaderSlider>(find.byType(FaderSlider)).disabled,
+        isFalse,
+      );
 
-    await tester.tap(find.byIcon(LucideIcons.crown));
-    await tester.pumpAndSettle();
-    expect(beats, isEmpty);
-  });
+      await tester.tap(find.byIcon(LucideIcons.crown));
+      await tester.pumpAndSettle();
+      expect(beats, isEmpty);
+    },
+  );
 
   testWidgets('master deck BPM tap does not toggle sync', (tester) async {
     final beats = <bool>[];
@@ -137,7 +140,9 @@ void main() {
     expect(find.text('±10%'), findsNothing);
   });
 
-  testWidgets('sync lock button sends tempo vs beat from shift', (tester) async {
+  testWidgets('sync lock button sends tempo vs beat from shift', (
+    tester,
+  ) async {
     final beats = <bool>[];
     await pumpPanel(tester, onToggleSync: beats.add);
 
