@@ -27,14 +27,6 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
     ref.read(driveCurrentPathProvider.notifier).set(path);
   }
 
-  void _openParent(FsDirectoryListing dir, FsVolumeInfo? volume) {
-    final parent = dir.parent;
-    if (parent == null || !driveParentInVolume(parent, volume)) {
-      return;
-    }
-    _openPath(parent);
-  }
-
   Future<void> _createCollection(String folderPath) async {
     final result = await showCreateCollectionDialog(
       context,
@@ -152,7 +144,11 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                           focused:
                               dir.parent != null && focusedPath == dir.parent,
                           onPress: parentOpenable
-                              ? () => _openParent(dir, selectedVolume)
+                              // Same contract as a subfolder press: park focus
+                              // on the sidebar and move the cursor onto the
+                              // parent row, or the next step starts from a row
+                              // the user never pressed.
+                              ? () => pressPath(dir.parent!)
                               : null,
                           trailing: _CreateCollectionButton(
                             onPress: () => _createCollection(dir.path),

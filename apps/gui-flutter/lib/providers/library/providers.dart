@@ -765,7 +765,7 @@ void navigateSidebarSelection(Ref ref, int delta) {
                 .id,
           );
     case LibrarySourceTab.drive:
-      navigateDriveTree(ref, delta);
+      _navigateDriveTree(ref, delta);
   }
 }
 
@@ -901,15 +901,28 @@ final driveActiveVolumeProvider = Provider<FsVolumeInfo?>((ref) {
 /// Whether [parent] stays inside [volume]'s mount point.
 ///
 /// A volume's parent sits outside it (e.g. `/media`), so the tree must not
-/// offer that row as the "up" step. Uses path containment rather than a string
-/// prefix, so a sibling like `/mnt/data-backup` is not treated as being inside
-/// `/mnt/data`.
+/// offer that row as the "up" step.
+///
+/// Path containment rather than a string prefix, so a sibling like
+/// `/mnt/data-backup` is not treated as being inside `/mnt/data`, and the
+/// volume root counts as inside its own tree.
 bool driveParentInVolume(String? parent, FsVolumeInfo? volume) {
   if (parent == null || volume == null) {
     return false;
   }
-  // The volume root itself is the top of its own tree.
-  return volume.path == parent || p.isWithin(volume.path, parent);
+  return _isWithinOrEqual(volume.path, parent);
+}
+
+/// Whether [path] is [root] or nested inside it.
+///
+/// [p.isWithin] is exclusive, and the root has to count as inside: the "up" row
+/// of a volume's own root is the volume itself. Both callers of this need the
+/// inclusive form, so the [p.isWithin] asymmetry lives here once.
+bool _isWithinOrEqual(String root, String path) {
+  if (root == path) {
+    return true;
+  }
+  return p.isWithin(root, path);
 }
 
 /// Visible Drive tree rows in pane order: the "up" row while a folder is open
@@ -919,7 +932,7 @@ bool driveParentInVolume(String? parent, FsVolumeInfo? volume) {
 /// Takes the values it derives from instead of reading them, so a caller can
 /// pass one snapshot and be sure the rows, the cursor, and the focused path all
 /// describe the same listing.
-List<String> driveTreeRowsFrom({
+List<String> _driveTreeRowsFrom({
   required String? currentPath,
   required FsDirectoryListing? listing,
   required FsVolumeInfo? volume,
@@ -938,7 +951,7 @@ List<String> driveTreeRowsFrom({
 }
 
 /// Drive rows for the current state, as one read of each source.
-List<String> driveTreeRows(Ref ref) => driveTreeRowsFrom(
+List<String> _driveTreeRows(Ref ref) => _driveTreeRowsFrom(
   currentPath: ref.read(driveCurrentPathProvider),
   listing: ref.read(driveListingProvider).asData?.value,
   volume: ref.read(driveActiveVolumeProvider),
@@ -979,7 +992,7 @@ final driveTreeCursorProvider = NotifierProvider<DriveTreeCursor, String?>(
 
 /// Path of the Drive tree row the cursor is on, `null` when no row can hold it.
 final driveTreeFocusedPathProvider = Provider<String?>((ref) {
-  final rows = driveTreeRowsWatched(ref);
+  final rows = _driveTreeRowsWatched(ref);
   if (rows.isEmpty) {
     return null;
   }
@@ -987,10 +1000,10 @@ final driveTreeFocusedPathProvider = Provider<String?>((ref) {
   return cursor != null && rows.contains(cursor) ? cursor : rows.first;
 });
 
-/// [driveTreeRowsFrom] fed by the values this provider watches, so a listing
+/// [_driveTreeRowsFrom] fed by the values this provider watches, so a listing
 /// that resolves — or a volume list that arrives — re-derives the rows and the
 /// focused path stays on a row that exists.
-List<String> driveTreeRowsWatched(Ref ref) => driveTreeRowsFrom(
+List<String> _driveTreeRowsWatched(Ref ref) => _driveTreeRowsFrom(
   currentPath: ref.watch(driveCurrentPathProvider),
   listing: ref.watch(driveListingProvider).asData?.value,
   volume: ref.watch(driveActiveVolumeProvider),
@@ -1004,11 +1017,11 @@ List<String> driveTreeRowsWatched(Ref ref) => driveTreeRowsFrom(
 ///
 /// Callers reject a zero [delta]; a zero step would still be a no-op here, but
 /// the guard lives at the evt boundary so it cannot be forgotten.
-void navigateDriveTree(Ref ref, int delta) {
+void _navigateDriveTree(Ref ref, int delta) {
   // One derivation: the rows are read once and the path it lands on comes back
   // from the step, so a listing resolving halfway through cannot apply the new
   // cursor to a different row set.
-  final rows = driveTreeRows(ref);
+  final rows = _driveTreeRows(ref);
   if (rows.isEmpty) {
     return;
   }

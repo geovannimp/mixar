@@ -1,15 +1,19 @@
-import 'dart:async';
-
 import 'package:flutter/widgets.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
+import 'package:gui_flutter/library/drive_pane.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 import 'helpers/collection_tracks_override.dart';
 import 'support/fake_library_transport.dart';
+import 'support/mixar_material_app.dart';
 
 /// Emits library evts the way the controller session does, so the tests run the
 /// real transport → handler path instead of calling the dispatch directly.
@@ -68,11 +72,6 @@ void main() {
     driveVolumesProvider.overrideWith((ref) async => [rootVolume, dataVolume]),
   ];
 
-  /// The drive listing override, held so a pump can swap it out.
-  final baseListingOverride = driveListingProvider.overrideWith(
-    (ref) async => listing,
-  );
-
   /// Pumps a host whose library transport replays the given evts.
   ///
   /// [loadListing] replaces the drive listing source, for a test that mutates
@@ -87,9 +86,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          ...baseOverrides.where((o) => !identical(o, baseListingOverride)),
+          ...baseOverrides,
           if (loadListing == null)
-            baseListingOverride
+            driveListingProvider.overrideWith((ref) async => listing)
           else
             driveListingProvider.overrideWith(loadListing),
           libraryTransportProvider.overrideWith((ref) async => transport),
@@ -409,5 +408,67 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(driveTreeCursorProvider), subB.path);
     expect(container.read(driveCurrentPathProvider), subB.path);
+  });
+  testWidgets('an "up" row press parks focus and the cursor like any other '
+      'row', (tester) async {
+    final subA = const FsEntry(name: 'a1', path: '/tmp/samples/a/a1');
+    FsDirectoryListing listingFor(String path) {
+      if (path == folders[0].path) {
+        return FsDirectoryListing(
+          path: folders[0].path,
+          parent: listing.path,
+          directories: [subA],
+          audioFiles: const [],
+        );
+      }
+      return listing;
+    }
+
+    // The pane itself: the contract is about which row a press moves the cursor
+    // onto, so the row has to be tappable.
+    final theme = MixarThemeData.light();
+    final transport = FakeLibraryTransport();
+    addTearDown(transport.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ...baseOverrides,
+          driveListingProvider.overrideWith(
+            (ref) async =>
+                listingFor(ref.watch(driveCurrentPathProvider) ?? listing.path),
+          ),
+          libraryTransportProvider.overrideWith((ref) async => transport),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
+          home: const Scaffold(
+            // A size for the pane: an unbounded child lays the list out empty.
+            body: SizedBox(width: 900, height: 600, child: DrivePane()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(DrivePane)),
+    );
+    container.read(driveCurrentPathProvider.notifier).set(listing.path);
+    await tester.pumpAndSettle();
+    // Park the cursor on a subfolder and hand the keys to the track list, so
+    // the press below has to move both.
+    container.read(driveTreeCursorProvider.notifier).set(folders[0].path);
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.trackList);
+    await tester.pump();
+
+    // The "up" row: the open folder, shown by its own name.
+    await tester.tap(find.text('samples'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(libraryFocusZoneProvider), LibraryFocusZone.sidebar);
+    expect(container.read(driveCurrentPathProvider), listing.parent);
+    expect(container.read(driveTreeCursorProvider), listing.parent);
   });
 }
