@@ -1,4 +1,4 @@
-//! Shipped DDJ-400 bundle: on_init LED-then-SysEx order (Mixxx PioneerDDJ400.init).
+//! Shipped DDJ-400 bundle: on_init Mixxx handshake, then declarative LED sweep.
 
 use std::path::Path;
 
@@ -38,12 +38,26 @@ fn on_init_emits_leds_then_pc_mode_sysex() {
     let mut bus = CaptureBus { cmds: vec![] };
     let mut midi = CaptureMidi { frames: vec![] };
     s.on_init(&mut bus, &mut midi).unwrap();
-    assert_eq!(
-        midi.frames,
+
+    // Script Mixxx PioneerDDJ400.init order first…
+    let mixxx = [
+        vec![0x9F, 0x00, 0x7F],
+        vec![0x9F, 0x01, 0x7F],
         vec![
-            vec![0x9F, 0x00, 0x7F],
-            vec![0x9F, 0x01, 0x7F],
-            vec![0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x02, 0x06, 0x00, 0x03, 0x01, 0xF7],
-        ]
+            0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x02, 0x06, 0x00, 0x03, 0x01, 0xF7,
+        ],
+    ];
+    assert!(
+        midi.frames.len() > mixxx.len(),
+        "declarative LED sweep must follow the Mixxx handshake"
+    );
+    assert_eq!(&midi.frames[..mixxx.len()], &mixxx);
+
+    // …then the session force-sweeps map.toml outputs (default hot-cue page lit).
+    assert!(
+        midi.frames[mixxx.len()..]
+            .iter()
+            .any(|f| f.as_slice() == [0x90, 0x1B, 0x7F]),
+        "deck 1 hot-cue page lamp must be asserted after SysEx"
     );
 }

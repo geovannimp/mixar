@@ -86,12 +86,18 @@ fn attach_asserts_lamps_and_detach_clears_them() {
     let mut midi = CaptureMidi { frames: vec![] };
 
     s.on_init(&mut bus, &mut midi).unwrap();
-    // Forced sweep: everything is asserted dark except the deck's default page.
+    // Forced sweep: everything is asserted dark except the deck's default page
+    // plus Mixxx's 0x9F track-loaded handshake notes from script.rhai.
     let lit: Vec<[u8; 3]> = sorted(&midi).into_iter().filter(|f| f[2] != 0x00).collect();
     assert_eq!(
         lit,
-        vec![[D1, 0x1B, 0x7F], [D2, 0x1B, 0x7F]],
-        "only the hot-cue page lamps may start lit"
+        vec![
+            [D1, 0x1B, 0x7F],
+            [D2, 0x1B, 0x7F],
+            [0x9F, 0x00, 0x7F],
+            [0x9F, 0x01, 0x7F],
+        ],
+        "only hot-cue page lamps and Mixxx init notes may start lit"
     );
     assert!(
         sorted(&midi).contains(&[D1, 0x0B, 0x00]),
