@@ -142,9 +142,7 @@ impl PlatterMotion {
                 if self.envelope_rate.take().is_some() {
                     // Touch may have been latched while the envelope owned rate;
                     // restore vinyl stop instead of releasing under a held finger.
-                    if self.touching
-                        && self.active_mode(transport_playing) == MotionMode::Vinyl
-                    {
+                    if self.touching && self.active_mode(transport_playing) == MotionMode::Vinyl {
                         self.releasing = false;
                         self.idle_secs = 0.0;
                         self.tick_accum = 0;
