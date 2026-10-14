@@ -507,7 +507,8 @@ fn mirror_engine_library_to_controller(
         return;
     };
     let mut deck_tracks: [Option<String>; 4] = Default::default();
-    let mut master_deck: u16 = 0;
+    // None until the first EngineStatus; avoids treating deck 0 as master by default.
+    let mut master_deck: Option<u16> = None;
     while !stop.load(Ordering::Relaxed) {
         match engine_rx.recv_timeout(Duration::from_millis(5)) {
             Ok(Some(ev)) => {
@@ -527,7 +528,7 @@ fn mirror_engine_library_to_controller(
 fn apply_engine_mirror(
     controller: &Arc<Mutex<ControllerEngine>>,
     deck_tracks: &mut [Option<String>; 4],
-    master_deck: &mut u16,
+    master_deck: &mut Option<u16>,
     ev: &engine_core::Evt,
 ) {
     let Ok(body) = decode_evt_body(ev.payload()) else {
@@ -563,7 +564,7 @@ fn apply_engine_mirror(
                 controller::DeckFeedback {
                     playing,
                     // Master decks keep SyncMode::Off; still light SYNC like the UI.
-                    sync: sync_mode != SyncMode::Off || id == *master_deck,
+                    sync: sync_mode != SyncMode::Off || *master_deck == Some(id),
                     quantize,
                     headphone_cue,
                     loop_active,
@@ -590,13 +591,14 @@ fn apply_engine_mirror(
             apply_position(controller, id, position_ms);
         }
         EvtBody::Levels { peak_l, peak_r, .. } => {
+            // Mixer/master Levels are ignored: DDJ-400 has per-deck VU only.
             let Origin::Deck(id) = ev.origin().clone() else {
                 return;
             };
             apply_deck_vu(controller, id, peak_l.max(peak_r));
         }
         EvtBody::EngineStatus { status } => {
-            *master_deck = status.master_deck;
+            *master_deck = Some(status.master_deck);
             for deck in &status.decks {
                 let idx = (deck.id as usize).min(3);
                 deck_tracks[idx] = deck.track_id.clone();
@@ -606,7 +608,7 @@ fn apply_engine_mirror(
                     deck.id,
                     controller::DeckFeedback {
                         playing: deck.playing,
-                        sync: deck.sync_mode != SyncMode::Off || deck.id == *master_deck,
+                        sync: deck.sync_mode != SyncMode::Off || *master_deck == Some(deck.id),
                         quantize: deck.quantize,
                         headphone_cue: deck.headphone_cue,
                         loop_active,

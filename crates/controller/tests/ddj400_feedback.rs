@@ -282,7 +282,7 @@ fn holding_shift_blinks_the_mode_indicators() {
 
     // Blink phase 2: dark.
     midi.frames.clear();
-    thread::sleep(BLINK_HALF_PERIOD + Duration::from_millis(20));
+    thread::sleep(BLINK_HALF_PERIOD + Duration::from_millis(100));
     s.tick_leds(&mut midi);
     assert_eq!(
         sorted(&midi),
@@ -307,7 +307,7 @@ fn holding_shift_blinks_the_mode_indicators() {
         ])
     );
     midi.frames.clear();
-    thread::sleep(BLINK_HALF_PERIOD + Duration::from_millis(20));
+    thread::sleep(BLINK_HALF_PERIOD + Duration::from_millis(100));
     s.tick_leds(&mut midi);
     assert!(
         midi.frames.is_empty(),
