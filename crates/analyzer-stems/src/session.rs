@@ -108,20 +108,12 @@ fn load_session(path: &Path) -> Result<LoadedSession> {
         .unwrap_or_else(|| anyhow!("no ORT execution provider could load {}", path.display())))
 }
 
+/// Build and commit a session for one EP attempt. The caller
+/// ([`load_session`]) applies the single C-locale scope for the webgpu label,
+/// so this must not re-enter `with_c_numeric_locale` — the internal
+/// `LOCALE_LOCK` is non-reentrant.
 fn try_commit(path: &Path, label: &str, ep: ort::ep::ExecutionProviderDispatch) -> Result<Session> {
     info!(ep = label, "stem ort: trying EP");
-    #[cfg(all(feature = "webgpu", unix))]
-    if label == "webgpu" {
-        return crate::ep::with_c_numeric_locale(|| try_commit_inner(path, label, ep));
-    }
-    try_commit_inner(path, label, ep)
-}
-
-fn try_commit_inner(
-    path: &Path,
-    label: &str,
-    ep: ort::ep::ExecutionProviderDispatch,
-) -> Result<Session> {
     let mut builder = Session::builder().context("ort Session::builder")?;
     builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)
