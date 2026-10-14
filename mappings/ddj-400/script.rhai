@@ -1,5 +1,5 @@
-// Pioneer DDJ-400 init — Mixxx sends this SysEx so the unit stays in PC MIDI mode.
-// Source: Pioneer-DDJ-400-script.js PioneerDDJ400.init
+// Pioneer DDJ-400 init — Mixxx PioneerDDJ400.init (Pioneer-DDJ-400-script.js).
+// SysEx is PC MIDI mode and a query for current knob/fader positions.
 // VU meters: host drives device `vu_meter` CC from engine Levels (not this script).
 
 const PC_MODE_SYSEX = [
@@ -7,10 +7,11 @@ const PC_MODE_SYSEX = [
 ];
 
 fn on_init() {
-    midi_out(PC_MODE_SYSEX);
     // Track-loaded pad lights (Mixxx uses 0x9F note 0/1); harmless if unsupported.
     midi_out([0x9F, 0x00, 0x7F]);
     midi_out([0x9F, 0x01, 0x7F]);
+    // PC MIDI mode + query current knob/fader positions (Mixxx PioneerDDJ400.init).
+    midi_out(PC_MODE_SYSEX);
 }
 
 // Keepalive while stopped — re-assert PC MIDI mode so the unit doesn't idle.

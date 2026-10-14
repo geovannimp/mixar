@@ -23,15 +23,22 @@ impl SoftTakeoverState {
             self.latched.insert(key.to_string(), false);
             return true;
         }
-        let latched = self.latched.get(key).copied().unwrap_or(false);
-        if latched {
-            return true;
+        match self.latched.get(key).copied() {
+            // Never seen: adopt first MIDI (init dump / first hardware message).
+            None => {
+                self.latched.insert(key.to_string(), true);
+                true
+            }
+            Some(true) => true,
+            Some(false) => {
+                if (incoming_norm - current_norm).abs() <= SOFT_TAKEOVER_THRESHOLD {
+                    self.latched.insert(key.to_string(), true);
+                    true
+                } else {
+                    false
+                }
+            }
         }
-        if (incoming_norm - current_norm).abs() <= SOFT_TAKEOVER_THRESHOLD {
-            self.latched.insert(key.to_string(), true);
-            return true;
-        }
-        false
     }
 }
 
@@ -51,6 +58,8 @@ mod tests {
     fn blocks_until_near_then_latches() {
         let mut s = SoftTakeoverState::default();
         let key = "deck0.volume";
+        // Explicit unlatched state via hard-set / clear.
+        assert!(s.allow(key, false, 0.9, 0.9));
         assert!(!s.allow(key, true, 0.9, 0.0));
         assert!(!s.allow(key, true, 0.9, 0.5));
         assert!(s.allow(key, true, 0.9, 0.9));
@@ -58,10 +67,22 @@ mod tests {
     }
 
     #[test]
+    fn adopts_first_value_when_unseen() {
+        let mut s = SoftTakeoverState::default();
+        let key = "deck0.volume";
+        assert!(s.allow(key, true, 0.9, 0.0), "first MIDI when unseen → adopt");
+        assert!(
+            s.allow(key, true, 0.9, 0.0),
+            "subsequent far move while latched → pass"
+        );
+    }
+
+    #[test]
     fn hard_set_clears_latch() {
         let mut s = SoftTakeoverState::default();
         let key = "deck0.volume";
-        assert!(s.allow(key, true, 0.5, 0.5));
+        // Far first adopt, then GUI hard-set clears latch.
+        assert!(s.allow(key, true, 0.5, 0.0));
         assert!(s.allow(key, false, 0.5, 1.0));
         assert!(!s.allow(key, true, 0.5, 1.0));
     }
