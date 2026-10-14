@@ -753,6 +753,18 @@ abstract class AppLocalizations {
   /// **'How long the platter takes to stop after pause.'**
   String get settingsDeckVinylBrakeStopTimeHint;
 
+  /// Screen-reader label for a numeric stepper's decrement button.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease {field}'**
+  String settingsStepperDecrease(String field);
+
+  /// Screen-reader label for a numeric stepper's increment button.
+  ///
+  /// In en, this message translates to:
+  /// **'Increase {field}'**
+  String settingsStepperIncrease(String field);
+
   /// No description provided for @settingsDeckSamplerTitle.
   ///
   /// In en, this message translates to:

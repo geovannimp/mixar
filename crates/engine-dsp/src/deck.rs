@@ -350,19 +350,30 @@ impl Deck {
     /// Pause playback
     pub fn pause(&mut self) -> Result<()> {
         if self.state == DeckState::Playing && self.vinyl_brake_enabled && !self.motion.touching() {
-            let total = ((f64::from(self.vinyl_brake_stop_secs) * f64::from(self.sample_rate))
-                .round() as usize)
-                .max(1);
-            let start_rate = self.motion.rate();
-            self.brake = Some(VinylBrake {
-                start_rate,
-                elapsed_frames: 0,
-                total_frames: total,
-            });
-            self.motion.set_envelope_rate(Some(start_rate), true);
+            self.start_brake();
         }
         self.state = DeckState::Paused;
         Ok(())
+    }
+
+    /// Begin a vinyl spin-down from the current motor rate over
+    /// `vinyl_brake_stop_secs`. Callers supply the state/touch guards.
+    fn start_brake(&mut self) {
+        // The ramp advances once per audio block, so a window shorter than two
+        // blocks would complete on the first tick and mute instantly instead of
+        // spinning down.
+        let block = self.buffer_size.max(1) as usize;
+        let total = ((f64::from(self.vinyl_brake_stop_secs) * f64::from(self.sample_rate)).round()
+            as usize)
+            .max(1)
+            .max(block * 2);
+        let start_rate = self.motion.rate();
+        self.brake = Some(VinylBrake {
+            start_rate,
+            elapsed_frames: 0,
+            total_frames: total,
+        });
+        self.motion.set_envelope_rate(Some(start_rate), true);
     }
 
     /// Stop playback and reset position
@@ -489,6 +500,16 @@ impl Deck {
             return;
         }
         self.motion.set_touch(touching, playing);
+        // Lifting the finger off a deck paused under brake must still spin the
+        // platter down; otherwise the pause that happened while holding the jog
+        // cuts instantly on release.
+        if !touching
+            && self.state == DeckState::Paused
+            && self.vinyl_brake_enabled
+            && self.brake.is_none()
+        {
+            self.start_brake();
+        }
     }
 
     pub fn jog_turn(&mut self, delta: i32) {
@@ -513,7 +534,12 @@ impl Deck {
         if self.brake.take().is_some() {
             let playing = self.state == DeckState::Playing;
             self.motion.set_envelope_rate(None, playing);
-            self.motion.hard_reset_rate();
+            // Only a live transport must snap to the idle motor. On a paused deck
+            // the vinyl filter holds the coast (used when a finger lifts), so
+            // wiping it would throw away the scratch velocity.
+            if playing {
+                self.motion.hard_reset_rate();
+            }
         }
     }
 
@@ -2438,5 +2464,94 @@ mod tests {
         assert!(!deck.jog_driving_audio());
         let out = deck.process(CHUNK).unwrap();
         assert!(out.iter().all(|s| *s == 0.0), "silent with nothing loaded");
+    }
+
+    #[test]
+    fn vinyl_brake_starts_when_platter_released_after_paused_touch() {
+        let mut deck = brake_test_deck();
+        // Pause while the finger owns the platter: no brake may start yet.
+        deck.set_jog_touch(true);
+        deck.pause().unwrap();
+        assert!(deck.brake.is_none(), "touch suppresses the brake");
+        deck.jog_turn(64);
+        deck.process(CHUNK).unwrap();
+        assert!(
+            deck.jog_driving_audio(),
+            "scratch drives audio while the finger holds the platter"
+        );
+
+        deck.set_jog_touch(false);
+
+        assert!(
+            deck.brake.is_some(),
+            "releasing a paused platter must start the brake"
+        );
+        assert_eq!(deck.state, DeckState::Paused);
+        let mut elapsed = 0usize;
+        while elapsed < ENGINE_RATE as usize / 2 {
+            assert!(
+                deck.jog_driving_audio(),
+                "brake must drive audio at elapsed {elapsed}"
+            );
+            deck.process(CHUNK).unwrap();
+            elapsed += CHUNK;
+        }
+        assert!(!deck.jog_driving_audio(), "brake ends after stop_secs");
+    }
+
+    #[test]
+    fn vinyl_brake_paused_seek_drops_brake_and_stays_silent() {
+        let mut deck = brake_test_deck();
+        deck.pause().unwrap();
+        deck.process(CHUNK).unwrap();
+        assert!(deck.brake.is_some());
+
+        deck.seek_ms(1_000).unwrap();
+
+        assert!(deck.brake.is_none(), "seek drops the brake");
+        assert!(!deck.jog_driving_audio(), "paused deck is idle after seek");
+        let out = deck.process(CHUNK).unwrap();
+        assert!(out.iter().all(|s| *s == 0.0), "silent while paused");
+        assert!(
+            (deck.position_frames() - ENGINE_RATE as i64).abs() <= 1,
+            "seek landed at 1 s, got {}",
+            deck.position_frames()
+        );
+    }
+
+    #[test]
+    fn vinyl_brake_ramps_across_multiple_blocks_even_when_window_is_tiny() {
+        // 4096-frame block on a 0.05 s window (2400 frames): one block is longer
+        // than the whole spin-down, so the ramp must be widened to at least two
+        // blocks instead of completing on the first tick and muting instantly.
+        const BLOCK: usize = 4096;
+        let mut deck = new_deck(BLOCK);
+        let frames = ENGINE_RATE as usize * 2;
+        let samples: Vec<Sample> = (0..frames)
+            .flat_map(|i| {
+                let v = (i as f32 * 0.05).sin() * 0.5;
+                [v, v]
+            })
+            .collect();
+        load_test_samples(&mut deck, samples, ENGINE_RATE);
+        deck.set_vinyl_brake(true, 0.05);
+        deck.play().unwrap();
+        deck.process(BLOCK).unwrap();
+        deck.pause().unwrap();
+
+        let mut rates = Vec::new();
+        while deck.brake.is_some() {
+            rates.push(deck.jog_rate());
+            deck.process(BLOCK).unwrap();
+        }
+        assert!(
+            rates.len() >= 2,
+            "brake must span at least two blocks, got {} rate(s): {rates:?}",
+            rates.len()
+        );
+        assert!(
+            rates.last().copied().unwrap_or(1.0) < 0.75,
+            "a rendered block must already be spinning down, got {rates:?}"
+        );
     }
 }

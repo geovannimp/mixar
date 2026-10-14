@@ -364,6 +364,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'How long the platter takes to stop after pause.';
 
   @override
+  String settingsStepperDecrease(String field) {
+    return 'Decrease $field';
+  }
+
+  @override
+  String settingsStepperIncrease(String field) {
+    return 'Increase $field';
+  }
+
+  @override
   String get settingsDeckSamplerTitle => 'Sampler';
 
   @override

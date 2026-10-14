@@ -187,6 +187,7 @@ impl EngineConfig {
         self.audio
             .as_ref()
             .and_then(|audio| audio.vinyl_brake_stop_secs)
+            .filter(|secs| secs.is_finite())
             .unwrap_or(0.5)
     }
 

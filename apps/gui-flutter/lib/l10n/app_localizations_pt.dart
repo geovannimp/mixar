@@ -365,6 +365,16 @@ class AppLocalizationsPt extends AppLocalizations {
       'Quanto tempo o prato leva para parar após o pause.';
 
   @override
+  String settingsStepperDecrease(String field) {
+    return 'Diminuir $field';
+  }
+
+  @override
+  String settingsStepperIncrease(String field) {
+    return 'Aumentar $field';
+  }
+
+  @override
   String get settingsDeckSamplerTitle => 'Sampler';
 
   @override
@@ -865,4 +875,14 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get settingsDeckVinylBrakeStopTimeHint =>
       'Quanto tempo o prato leva para parar após o pause.';
+
+  @override
+  String settingsStepperDecrease(String field) {
+    return 'Diminuir $field';
+  }
+
+  @override
+  String settingsStepperIncrease(String field) {
+    return 'Aumentar $field';
+  }
 }
