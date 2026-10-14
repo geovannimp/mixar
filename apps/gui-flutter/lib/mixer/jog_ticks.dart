@@ -15,12 +15,27 @@ const kJogBarCycleLength = 4;
 /// Music milliseconds for one vinyl jog tick at 1× platter speed.
 double vinylMsPerTick() => (60.0 / kJogRpm) * 1000.0 / kJogIntervalsPerRev;
 
+/// Music milliseconds for one platter revolution at 1× (matches engine `JOG_RPM`).
+double vinylRevolutionMs() => (60.0 / kJogRpm) * 1000.0;
+
 /// Relative music-time delta for vinyl [ticks] (paused scrub / UI estimate).
 int vinylTicksToDeltaMs(int ticks) {
   if (ticks == 0) {
     return 0;
   }
   return (ticks * vinylMsPerTick()).round();
+}
+
+/// Continuous jog tracker angle from music position (vinyl timebase).
+///
+/// One visual revolution == one hardware/UI platter revolution ==
+/// [kJogIntervalsPerRev] ticks == [vinylRevolutionMs] of source time.
+double vinylRotationDeg(int positionMs) {
+  final rev = vinylRevolutionMs();
+  if (rev <= 0) {
+    return 0;
+  }
+  return (positionMs / rev) * 360;
 }
 
 /// Convert an angular delta in degrees to relative jog ticks.

@@ -128,15 +128,13 @@ class _JogPlatterState extends State<JogPlatter> {
       _rotationDeg = 0;
       return;
     }
-    final bpm = widget.bpm != null && widget.bpm! > 0 ? widget.bpm! : 120.0;
-    final cycle = barCycleDurationMs(bpm);
-    if (cycle == null) {
-      return;
-    }
+    // Visual spin uses the vinyl timebase (one rev ↔ one hardware/UI circle),
+    // not the 4-bar phrase cycle — otherwise playback lags the platter.
+    final revMs = vinylRevolutionMs();
     if (!_trackerInitialized) {
       _trackerInitialized = true;
       _lastPositionMs = widget.positionMs;
-      _rotationDeg = barCycleRotationDeg(widget.positionMs, bpm);
+      _rotationDeg = vinylRotationDeg(widget.positionMs);
       return;
     }
     // Only freeze playhead sync during a local pointer drag. Hardware
@@ -147,11 +145,11 @@ class _JogPlatterState extends State<JogPlatter> {
     }
     final delta = widget.positionMs - _lastPositionMs;
     _lastPositionMs = widget.positionMs;
-    final seekThreshold = math.max(200, cycle * 0.15);
+    final seekThreshold = math.max(200, revMs * 0.15);
     if (delta.abs() > seekThreshold) {
-      _rotationDeg = barCycleRotationDeg(widget.positionMs, bpm);
+      _rotationDeg = vinylRotationDeg(widget.positionMs);
     } else {
-      _rotationDeg += (delta / cycle) * 360;
+      _rotationDeg += (delta / revMs) * 360;
     }
   }
 
