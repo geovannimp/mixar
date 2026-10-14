@@ -1687,6 +1687,54 @@ mod tests {
     }
 
     #[test]
+    fn prepared_load_key_lock_builds_stretcher_and_advances_at_tempo() {
+        let mut vinyl = new_deck(CHUNK);
+        let mut locked = new_deck(CHUNK);
+        let samples = vec![0.25f32; CHUNK * 2 * 500];
+        load_test_samples(&mut vinyl, samples.clone(), ENGINE_RATE);
+
+        locked.set_key_lock(true).unwrap();
+        let audio = Arc::new(LoadedAudio {
+            samples,
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        });
+        let prepared = locked.load_spec().prepare(audio).unwrap();
+        locked.apply_prepared_load(prepared);
+        assert!(
+            locked.stretcher.is_some(),
+            "key-lock prepared load must install a stretcher"
+        );
+
+        vinyl.set_speed(0.0).unwrap();
+        locked.set_speed(0.0).unwrap();
+        vinyl.play().unwrap();
+        locked.play().unwrap();
+
+        for _ in 0..32 {
+            locked.process(CHUNK).unwrap();
+            vinyl.process(CHUNK).unwrap();
+        }
+        let locked_start = locked.position_frames();
+        let vinyl_start = vinyl.position_frames();
+        for _ in 0..64 {
+            vinyl.process(CHUNK).unwrap();
+            locked.process(CHUNK).unwrap();
+        }
+        let locked_delta = locked.position_frames() - locked_start;
+        let vinyl_delta = vinyl.position_frames() - vinyl_start;
+        assert!(
+            locked_delta > CHUNK as i64 * 32,
+            "key lock should advance faster than 1x: delta={locked_delta}"
+        );
+        assert!(
+            vinyl_delta > CHUNK as i64 * 32,
+            "vinyl should advance faster than 1x: delta={vinyl_delta}"
+        );
+    }
+
+    #[test]
     fn test_deck_resample_advances_when_process_uses_graph_chunk() {
         // Engine device buffer is often 512; mixer always asks for Buffer::LEN (64).
         // Rubato FixedSync::Output sized to 512 returns (0,0) into a 64-frame out buf.
