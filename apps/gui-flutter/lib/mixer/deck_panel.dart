@@ -52,12 +52,13 @@ class DeckPanel extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider).value;
     final loadDisabled = loading || !engineRunning;
     final transportDisabled = loadDisabled || !hasTrack;
+    final isMaster = ref.watch(deckIsMasterProvider(deckId));
     final tempo = DeckTempoPanel(
       accent: accent,
       speed: ref.watch(deckSpeedProvider(deckId)),
       tempoRange: ref.watch(deckTempoRangeProvider(deckId)),
       syncMode: ref.watch(deckSyncModeProvider(deckId)),
-      isMaster: ref.watch(deckIsMasterProvider(deckId)),
+      isMaster: isMaster,
       trackBpm: ref.watch(deckBpmProvider(deckId)),
       loading: skeleton,
       enabled: engineRunning,
@@ -77,9 +78,6 @@ class DeckPanel extends ConsumerWidget {
             () => toggleDeckSync(ref, deckId, beatSync: beatSync),
           ),
         );
-      },
-      onSetMaster: () {
-        unawaited(_engineCmd(context, () => setMasterDeck(ref, deckId)));
       },
     );
 
@@ -110,6 +108,14 @@ class DeckPanel extends ConsumerWidget {
             const SizedBox(width: 4),
             DeckGainPopover(deckId: deckId, hasTrack: hasTrack),
             const Spacer(),
+            _MasterButton(
+              isMaster: isMaster,
+              disabled: loadDisabled,
+              onPress: () {
+                unawaited(_engineCmd(context, () => setMasterDeck(ref, deckId)));
+              },
+            ),
+            const SizedBox(width: 4),
             _QuantizeButton(
               quantize: quantize,
               disabled: loadDisabled,
@@ -345,6 +351,49 @@ class _EjectLoadButton extends StatelessWidget {
         semanticsLabel: tip,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         child: Icon(hasTrack ? LucideIcons.eject : LucideIcons.fileInput),
+      ),
+    );
+  }
+}
+
+class _MasterButton extends StatelessWidget {
+  const new({
+    required this.onPress,
+    required this.isMaster,
+    this.disabled = false,
+  });
+
+  final VoidCallback onPress;
+  final bool isMaster;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    // Soft amber wash (not cueTint s950 — that reads brown on dark chrome).
+    const masterOn = Color.fromARGB(255, 252, 211, 77); // MixarAmber.s300
+    const masterFill = Color.fromARGB(48, 251, 191, 36); // MixarAmber.s400 @ ~19%
+    final on = isMaster && !disabled;
+    final tip = isMaster ? 'Master' : 'Set master';
+    return AppTooltip(
+      tip: tip,
+      description: isMaster
+          ? 'This deck is the sync reference.'
+          : 'Make this deck the tempo reference for sync.',
+      child: MixerButton(
+        variant: .outline,
+        size: .xs,
+        mainAxisSize: .min,
+        selected: on,
+        onPress: (!disabled && !isMaster) ? onPress : null,
+        semanticsLabel: tip,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        backgroundColor: on ? masterFill : null,
+        child: Icon(
+          LucideIcons.crown,
+          size: 14,
+          color: on ? masterOn : theme.colors.mutedForeground,
+        ),
       ),
     );
   }
