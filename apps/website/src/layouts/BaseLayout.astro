@@ -16,32 +16,43 @@ interface Props {
 const { title, description, currentPage = "home", ogImage } = Astro.props;
 const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · Mixar`;
 
-const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const ogImageURL = new URL(ogImage ?? "/mixar-banner.png", Astro.site);
-const absOgImage = ogImageURL.href;
+const siteURL = Astro.site ?? new URL("https://mixar.top");
+const canonicalURL = new URL(Astro.url.pathname, siteURL);
+// Only site-relative image paths are accepted (a full absolute URL would
+// bypass origin checking, which the OCR security review flagged as the one
+// value a future caller could poison). Absolute-ize via the site origin so
+// `og:image`, `twitter:image` and the JSON-LD `image` all share one value.
+const ogImagePath = ogImage ?? "/mixar-banner.png";
+if (ogImagePath.startsWith("//") || /^[a-z]+:/i.test(ogImagePath)) {
+  throw new Error(`BaseLayout ogImage must be a site-root path, got: ${ogImagePath}`);
+}
+const absOgImage = new URL(ogImagePath, siteURL).href;
+const siteOrigin = siteURL.href.endsWith("/") ? siteURL.href : `${siteURL.href}/`;
 
 const organization = {
   "@type": "Organization",
-  "@id": "https://mixar.top/#organization",
+  "@id": `${siteOrigin}#organization`,
   name: "Mixar",
-  url: "https://mixar.top/",
-  logo: "https://mixar.top/mixar-logo.png",
+  url: siteOrigin,
+  logo: `${siteOrigin}mixar-logo.png`,
   sameAs: ["https://github.com/geovannimp/mixar"],
 };
 
 const website = {
   "@type": "WebSite",
-  "@id": "https://mixar.top/#website",
-  url: "https://mixar.top/",
+  "@id": `${siteOrigin}#website`,
+  url: siteOrigin,
   name: "Mixar",
-  description,
-  publisher: { "@id": "https://mixar.top/#organization" },
+  // Site-level blurb, not the per-page description: WebSite describes the
+  // whole site, and OCR review flagged page blurbs bleeding into it on docs.
+  description: "Free, open-source DJ software. Dual decks, hot cues, loops, and NI Stems.",
+  publisher: { "@id": `${siteOrigin}#organization` },
   inLanguage: "en",
 };
 
 const softwareApplication = {
   "@type": "SoftwareApplication",
-  "@id": "https://mixar.top/#app",
+  "@id": `${siteOrigin}#app`,
   name: "Mixar",
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Linux, macOS, Windows",
@@ -52,10 +63,10 @@ const softwareApplication = {
   },
   license: "https://www.gnu.org/licenses/gpl-3.0.html",
   downloadUrl: RELEASES_URL,
-  url: "https://mixar.top/",
+  url: siteOrigin,
   image: absOgImage,
   description,
-  publisher: { "@id": "https://mixar.top/#organization" },
+  publisher: { "@id": `${siteOrigin}#organization` },
 };
 
 const jsonLd = {
