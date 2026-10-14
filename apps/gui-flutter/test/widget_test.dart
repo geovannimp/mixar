@@ -313,10 +313,7 @@ void main() {
     expect(find.byType(MasterStrip), findsNothing);
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(find.text('Preview bus'), findsOneWidget);
-    expect(
-      find.byKey(SettingsAudioPanel.previewBusCardKey),
-      findsOneWidget,
-    );
+    expect(find.byKey(SettingsAudioPanel.previewBusCardKey), findsOneWidget);
     final previewRect = tester.getRect(
       find.byKey(SettingsAudioPanel.previewBusCardKey),
     );
