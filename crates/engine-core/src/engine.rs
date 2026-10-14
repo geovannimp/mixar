@@ -29,7 +29,7 @@ use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
-const NUM_DECKS: usize = 2;
+pub(crate) const NUM_DECKS: usize = 2;
 
 /// Cue point (ms) and optional loop region `(start, end)` for status mirroring.
 type DeckTransportState = (Option<i32>, Option<(i32, i32)>);

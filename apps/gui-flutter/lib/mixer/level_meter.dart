@@ -43,6 +43,7 @@ const zeroDeckLevels = DeckLevels(
 const kLevelMeterSegments = 12;
 const kLevelMeterYellowFrom = 8;
 const kLevelMeterRedFrom = 10;
+const kLevelMeterSegmentGap = 1.0;
 
 bool segmentOn(double level, int indexFromBottom) {
   final threshold = (indexFromBottom + 1) / kLevelMeterSegments;
@@ -107,12 +108,20 @@ class LevelMeter extends StatelessWidget {
         if (orientation == LevelMeterOrientation.horizontal) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [left, const SizedBox(height: 1), right],
+            children: [
+              left,
+              const SizedBox(height: kLevelMeterSegmentGap),
+              right,
+            ],
           );
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [left, const SizedBox(width: 1), right],
+          children: [
+            left,
+            const SizedBox(width: kLevelMeterSegmentGap),
+            right,
+          ],
         );
     }
   }
@@ -157,7 +166,7 @@ class _Ladder extends StatelessWidget {
         child: Row(
           children: [
             for (var i = 0; i < kLevelMeterSegments; i++) ...[
-              if (i > 0) const SizedBox(width: 1),
+              if (i > 0) const SizedBox(width: kLevelMeterSegmentGap),
               segment(i),
             ],
           ],
@@ -175,7 +184,8 @@ class _Ladder extends StatelessWidget {
             fromTop >= 0;
             fromTop--
           ) ...[
-            if (fromTop < kLevelMeterSegments - 1) const SizedBox(height: 1),
+            if (fromTop < kLevelMeterSegments - 1)
+              const SizedBox(height: kLevelMeterSegmentGap),
             segment(fromTop),
           ],
         ],

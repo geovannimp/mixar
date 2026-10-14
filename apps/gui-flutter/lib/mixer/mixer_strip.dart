@@ -28,6 +28,9 @@ const _mixerInnerWidthNoMeters = 168.0;
 /// Open mixer width with center VU column (5 columns + 4×8).
 const _mixerInnerWidthWithMeters = 212.0;
 
+/// Matches [RotaryKnob] md column: label (8) + gap (2) + dial (36).
+const _gainHeaderHeight = 8.0 + 2.0 + 36.0;
+
 /// Center mixer: Tauri `DeckMixer` layout wired to [EngineTransport].
 class MixerStrip extends ConsumerStatefulWidget {
   const new({super.key});
@@ -388,20 +391,8 @@ class _LevelMetersColumn extends ConsumerWidget {
 
     return Column(
       children: [
-        // Invisible GAIN knob keeps meter track aligned with volume faders.
-        ExcludeSemantics(
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: 0,
-              child: RotaryKnob(
-                label: 'GAIN',
-                value: kControlNormCenter,
-                center: kControlNormCenter,
-                onValueChange: _noopGain,
-              ),
-            ),
-          ),
-        ),
+        // Spacer matching the volume-column GAIN header height.
+        const ExcludeSemantics(child: SizedBox(height: _gainHeaderHeight)),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
@@ -434,5 +425,3 @@ class _LiveLevelMeter extends ConsumerWidget {
     return LevelMeter(levels: levels, mode: mode);
   }
 }
-
-void _noopGain(double _) {}

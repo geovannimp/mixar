@@ -371,7 +371,9 @@ impl Mixer {
             }
 
             if bus_name == "master" {
-                self.master_level_peaks = LevelPeaks::from_buffer(output_buffer);
+                // Only the live frame range — reused bus buffers may be longer
+                // and still hold scaled leftovers past `required_size`.
+                self.master_level_peaks = LevelPeaks::from_buffer(&output_buffer[..required_size]);
             }
         }
         Ok(())
@@ -465,7 +467,7 @@ mod tests {
         mixer.process(512, &mut output_buses).unwrap();
 
         let peaks = mixer.master_level_peaks();
-        let bus_peak = output_buses[&BusId::new("master")]
+        let bus_peak = output_buses[&BusId::new("master")][..1024]
             .iter()
             .map(|&s| s.abs())
             .fold(0.0_f32, f32::max);
@@ -475,6 +477,42 @@ mod tests {
         assert!(
             peaks.peak_l <= 0.5 + 1e-3,
             "peaks must reflect post-master_volume bus, got {}",
+            peaks.peak_l
+        );
+    }
+
+    #[test]
+    fn master_level_peaks_ignore_stale_tail_beyond_frames() {
+        let mut mixer = new_mixer(2);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.set_master_volume(0.25).unwrap();
+
+        // Oversized bus left over from a larger prior process() call, with a
+        // hot stale sample past the live frame range.
+        let frames = 64u32;
+        let required = frames as usize * 2;
+        let mut buf = vec![0.0; required * 2];
+        buf[required] = 1.0;
+        buf[required + 1] = -1.0;
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), buf);
+        mixer.process(frames, &mut output_buses).unwrap();
+
+        let peaks = mixer.master_level_peaks();
+        let live_peak = output_buses[&BusId::new("master")][..required]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(
+            (peaks.peak_l - live_peak).abs() < 1e-5,
+            "peak_l {} must match live slice max {}",
+            peaks.peak_l,
+            live_peak
+        );
+        assert!(
+            peaks.peak_l < 0.9,
+            "stale ±1.0 tail must not inflate master peaks, got {}",
             peaks.peak_l
         );
     }

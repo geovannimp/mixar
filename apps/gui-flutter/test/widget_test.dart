@@ -36,6 +36,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import 'helpers/collection_tracks_override.dart';
+import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
@@ -378,6 +379,42 @@ void main() {
     expect(cueMix.disabled, isFalse);
     expect(cueMix.value, 70);
     expect(cueMix.centerNotch, isTrue);
+  });
+
+  testWidgets('Levels faders call master/cue volume transport', (tester) async {
+    final engine = FakeEngineTransport();
+    await pumpShell(
+      tester,
+      extraOverrides: [
+        engineTransportProvider.overrideWith((ref) async => engine),
+      ],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('master-meter')));
+    await tester.pumpAndSettle();
+
+    Finder fader(String label) => find.descendant(
+      of: find.byType(MasterStrip),
+      matching: find.byWidgetPredicate(
+        (w) => w is FaderSlider && w.semanticLabel == label,
+      ),
+    );
+
+    await tester.drag(fader('Master level'), const Offset(-40, 0));
+    await tester.pumpAndSettle();
+    expect(engine.masterVolumes, isNotEmpty);
+    expect(engine.masterVolumes.last, lessThan(1.0));
+    expect(engine.masterVolumes.last, greaterThanOrEqualTo(0.0));
+
+    await tester.drag(fader('Headphone level'), const Offset(-40, 0));
+    await tester.pumpAndSettle();
+    expect(engine.cueVolumes, isNotEmpty);
+    expect(engine.cueVolumes.last, lessThan(1.0));
+
+    await tester.drag(fader('Cue/Mst'), const Offset(30, 0));
+    await tester.pumpAndSettle();
+    expect(engine.cueMixes, isNotEmpty);
+    expect(engine.cueMixes.last, inInclusiveRange(0.0, 1.0));
   });
 
   testWidgets('mixer section headers toggle their panels', (tester) async {

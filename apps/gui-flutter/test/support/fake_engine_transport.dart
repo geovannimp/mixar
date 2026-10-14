@@ -8,6 +8,9 @@ class FakeEngineTransport implements EngineTransport {
   final List<(int deckId, int positionMs)> seeks = [];
   final List<(int deckId, int delta)> jogTurns = [];
   final List<(int deckId, bool touching)> jogTouches = [];
+  final List<double> masterVolumes = [];
+  final List<double> cueVolumes = [];
+  final List<double> cueMixes = [];
 
   @override
   void dispose() {}
@@ -189,10 +192,14 @@ class FakeEngineTransport implements EngineTransport {
   Future<void> setCrossfader({required double position}) async {}
 
   @override
-  Future<void> setCueMix({required double mix}) async {}
+  Future<void> setCueMix({required double mix}) async {
+    cueMixes.add(mix);
+  }
 
   @override
-  Future<void> setCueVolume({required double volume}) async {}
+  Future<void> setCueVolume({required double volume}) async {
+    cueVolumes.add(volume);
+  }
 
   @override
   Future<void> setCuePoint({required int deckId}) async {}
@@ -260,7 +267,9 @@ class FakeEngineTransport implements EngineTransport {
   Future<void> setMasterDeck({required int deckId}) async {}
 
   @override
-  Future<void> setMasterVolume({required double volume}) async {}
+  Future<void> setMasterVolume({required double volume}) async {
+    masterVolumes.add(volume);
+  }
 
   @override
   Future<void> setPadMode({required int deckId, required PadMode mode}) async {}

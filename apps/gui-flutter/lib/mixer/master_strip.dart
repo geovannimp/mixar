@@ -44,9 +44,7 @@ class MasterStrip extends ConsumerWidget {
         children: [
           Text(
             'Levels',
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: theme.typography.body.md.copyWith(fontWeight: .w700),
           ),
           SettingsSectionCard(
             title: 'Master',
@@ -186,7 +184,15 @@ class MasterStrip extends ConsumerWidget {
 
 Future<void> _setPreviewEnabled(WidgetRef ref, {required bool enabled}) async {
   final current = await ref.read(appSettingsProvider.future);
-  await saveAppSettings(ref, copyAppSettings(current, previewEnabled: enabled));
+  final result = await saveAppSettings(
+    ref,
+    copyAppSettings(current, previewEnabled: enabled),
+  );
+  // saveAppSettings swallows apply failures into [SaveAppSettingsResult];
+  // rethrow so [_masterCmd] can toast them.
+  if (result.applyError case final err?) {
+    throw StateError(err);
+  }
 }
 
 Future<void> _masterCmd(
