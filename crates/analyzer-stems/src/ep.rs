@@ -159,7 +159,8 @@ impl Drop for LocaleGuard {
     fn drop(&mut self) {
         // SAFETY: `self.0` is an owned `CString` that outlives the call, so
         // the `*const c_char` passed to `setlocale` is valid for its duration.
-        // This is process-global mutation, so callers must serialize access.
+        // This is process-global mutation; `with_c_numeric_locale` holds
+        // `LOCALE_LOCK` around it (tests hold `ENV_LOCK`).
         unsafe {
             libc::setlocale(libc::LC_NUMERIC, self.0.as_ptr());
         }
@@ -168,15 +169,19 @@ impl Drop for LocaleGuard {
 
 /// Run `f` with `LC_NUMERIC=C`, restoring the previous locale afterwards.
 ///
-/// `LC_NUMERIC` is process-global C state, so callers are responsible for
-/// serializing entry. In production the `SESSION` Mutex in `session.rs` does
-/// this; tests use `ENV_LOCK`.
+/// The flip is serialized by an internal `LOCALE_LOCK` mutex, so concurrent
+/// entry from the lock-free `preferred_execution_providers()` pub path
+/// (e.g. `examples/ep_probe.rs`) can never restore a stale locale over a
+/// guard another thread is still inside. In production the `SESSION` Mutex in
+/// `session.rs` already serializes entry; tests use `ENV_LOCK` for env vars.
 ///
 /// If the current locale cannot be queried, the override is skipped — `f`
 /// still runs, just without the dot-decimal guarantee — rather than risk
 /// unrestorable state or panic in a library path.
 #[cfg(all(feature = "webgpu", unix))]
 pub(crate) fn with_c_numeric_locale<R>(f: impl FnOnce() -> R) -> R {
+    static LOCALE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _serial = LOCALE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let _restore = LocaleGuard::capture();
     if _restore.is_none() {
         tracing::warn!("stem ort: LC_NUMERIC query failed; running without C-locale override");
