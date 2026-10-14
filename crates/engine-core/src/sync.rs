@@ -262,14 +262,9 @@ mod tests {
     fn beat_align_target_clamps_negative_slave_position_to_zero() {
         // Negative slave playhead must not yield a negative seek target.
         let target = beat_align_target(
-            250,   // master mid-beat at 120 BPM
-            -100,  // slave before 0
-            10_000,
-            120.0,
-            120.0,
-            0.0,
-            0.0,
-            false,
+            250,  // master mid-beat at 120 BPM
+            -100, // slave before 0
+            10_000, 120.0, 120.0, 0.0, 0.0, false,
         );
         assert!(target >= 0, "expected non-negative target, got {target}");
     }
