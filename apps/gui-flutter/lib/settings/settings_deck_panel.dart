@@ -126,7 +126,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                     onChanged: (v) => onChanged(
                       copyAppSettings(
                         draft,
-                        vinylBrakeStopSecs: double.parse(v.toStringAsFixed(2)),
+                        vinylBrakeStopSecs: v,
                       ),
                     ),
                   ),

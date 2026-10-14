@@ -636,6 +636,7 @@ impl Deck {
 
     /// Clear loaded audio and reset transport state.
     pub fn unload(&mut self) -> Result<()> {
+        self.cancel_brake();
         self.state = DeckState::Stopped;
         self.position_frames = 0;
         self.position_frac = 0.0;
@@ -757,6 +758,9 @@ impl Deck {
     /// Swap in a load built by [`DeckLoadSpec::prepare`]. Infallible: only resets playback
     /// state and assigns the prepared resources.
     pub fn apply_prepared_load(&mut self, prepared: PreparedDeckLoad) {
+        // A brake started in pause must not ride onto the new track: it would
+        // render the freshly loaded audio at the decaying rate while paused.
+        self.cancel_brake();
         let PreparedDeckLoad {
             audio,
             resampler,
@@ -2402,5 +2406,37 @@ mod tests {
         deck.play().unwrap();
         assert!(deck.brake.is_none());
         assert!((deck.motion.rate() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn vinyl_brake_load_cancels_active_brake() {
+        let mut deck = brake_test_deck();
+        deck.pause().unwrap();
+        deck.process(CHUNK).unwrap();
+        assert!(deck.brake.is_some(), "brake active before load");
+
+        load_test_samples(&mut deck, vec![0.25f32; CHUNK * 4], ENGINE_RATE);
+
+        assert!(deck.brake.is_none(), "load must drop the brake");
+        assert!(!deck.jog_driving_audio());
+        assert_eq!(deck.state, DeckState::Paused);
+        let out = deck.process(CHUNK).unwrap();
+        assert!(out.iter().all(|s| *s == 0.0), "silent while paused");
+        assert_eq!(deck.position_frames(), 0, "playhead must not advance");
+    }
+
+    #[test]
+    fn vinyl_brake_unload_cancels_active_brake() {
+        let mut deck = brake_test_deck();
+        deck.pause().unwrap();
+        deck.process(CHUNK).unwrap();
+        assert!(deck.brake.is_some(), "brake active before unload");
+
+        deck.unload().unwrap();
+
+        assert!(deck.brake.is_none(), "unload must drop the brake");
+        assert!(!deck.jog_driving_audio());
+        let out = deck.process(CHUNK).unwrap();
+        assert!(out.iter().all(|s| *s == 0.0), "silent with nothing loaded");
     }
 }

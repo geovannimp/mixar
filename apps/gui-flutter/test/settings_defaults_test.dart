@@ -131,6 +131,36 @@ void main() {
     );
   });
 
+  test('vinyl brake stop secs dirty check tolerates the f32 boundary', () {
+    // The host reports stop secs as Rust f32 widened to double; the deck panel
+    // stepper drafts on the 2-decimal grid. Both display "0.55 s".
+    final baseline = copyAppSettings(
+      defaultAppSettings(),
+      vinylBrakeStopSecs: Float32List.fromList([0.55])[0],
+    );
+    final draft = copyAppSettings(
+      baseline,
+      vinylBrakeStopSecs: double.parse(0.55.toStringAsFixed(2)),
+    );
+    expect(
+      baseline.vinylBrakeStopSecs,
+      isNot(draft.vinylBrakeStopSecs),
+      reason: 'representations must really differ or the tolerance is vacuous',
+    );
+    expect(appSettingsDirty(draft, baseline), isFalse);
+  });
+
+  test('vinyl brake stop secs still flags a real change', () {
+    final baseline = copyAppSettings(defaultAppSettings());
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, vinylBrakeStopSecs: 1.25),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
+
   test('effectiveSelectStyle maps auto from isDesktopWindow', () {
     addTearDown(() => debugOverrideDesktopWindow = null);
 

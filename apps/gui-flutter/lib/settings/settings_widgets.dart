@@ -261,7 +261,7 @@ class SettingsNumericStepper extends StatelessWidget {
           onPress: atMin
               ? null
               : () => onChanged((value - step).clamp(min, max)),
-          child: const Text('-'),
+          child: const Text('−'),
         ),
         const SizedBox(width: 12),
         Text(
