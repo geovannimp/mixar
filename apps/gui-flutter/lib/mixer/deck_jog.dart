@@ -140,6 +140,9 @@ class _JogPlatterState extends State<JogPlatter> {
   /// Test-only: latch local-drag freeze without synthesizing pointer events.
   @visibleForTesting
   void debugSetDragging(bool value) {
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _dragging = value;
       if (value) {

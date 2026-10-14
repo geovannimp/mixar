@@ -66,15 +66,23 @@ void dismissMixarToast(BuildContext context, {required String id}) {
   if (!context.mounted) {
     return;
   }
-  // Already-dismissed overlays / unmount races raise FlutterError/StateError;
-  // rethrow anything else so real teardown bugs stay visible.
+  // Already-dismissed overlays raise StateError; unmount races may raise a
+  // deactivated/defunct FlutterError. Rethrow layout/assertion FlutterErrors.
   unawaited(
     context.close(Overlays.all(id: id)).catchError((
       Object error,
       StackTrace stack,
     ) {
-      if (error is FlutterError || error is StateError) {
+      if (error is StateError) {
         return;
+      }
+      if (error is FlutterError) {
+        final msg = error.message.toLowerCase();
+        if (msg.contains('deactivated') ||
+            msg.contains('disposed') ||
+            msg.contains('defunct')) {
+          return;
+        }
       }
       Error.throwWithStackTrace(error, stack);
     }),

@@ -46,6 +46,7 @@ pub struct PlatterMotion {
     quantum_samples_rem: f64,
 }
 
+/// Idle/unity defaults for `Deck` initialization (same as [`PlatterMotion::new`]).
 impl Default for PlatterMotion {
     fn default() -> Self {
         Self::new()
@@ -82,6 +83,10 @@ impl PlatterMotion {
         (self.top, self.outer)
     }
 
+    /// Update touch. Does **not** handle slip exit — `Deck::set_jog_touch` owns
+    /// slip catch-up + [`hard_reset_rate`] when leaving vinyl with slip enabled.
+    ///
+    /// `transport_playing` must match the deck transport at the call site.
     pub fn set_touch(&mut self, touching: bool, transport_playing: bool) {
         let was_touching = self.touching;
         let was = self.active_mode(transport_playing);
@@ -159,6 +164,9 @@ impl PlatterMotion {
         }
     }
 
+    /// Advance motion by `frames` at `sample_rate`.
+    ///
+    /// `transport_playing` must match the deck transport for this callback.
     pub fn tick(&mut self, frames: usize, sample_rate: u32, transport_playing: bool) {
         let sample_rate = sample_rate.max(1);
         let dt_buf = frames as f64 / f64::from(sample_rate);
