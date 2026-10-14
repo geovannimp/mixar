@@ -18,10 +18,11 @@ const RPM: f64 = 100.0 / 3.0; // 33⅓
 const ALPHA: f64 = 1.0 / 8.0;
 const BETA: f64 = ALPHA / 32.0;
 const QUANTUM_SECS: f64 = 0.001;
-const VINYL_HOLD_SECS: f64 = 0.05;
+// Match pre-PlatterMotion deck constants (JOG_VINYL_HOLD / JOG_BEND_DECAY).
+const VINYL_HOLD_SECS: f64 = 0.02;
 const RELEASE_RATE_PER_SEC: f32 = 12.0;
 const BEND_PER_TICK: f32 = 0.0015;
-const BEND_DECAY_PER_SEC: f32 = 24.0;
+const BEND_DECAY_PER_SEC: f32 = 8.0;
 const BEND_MAX: f32 = 0.08;
 
 /// Shared motion state for a deck platter.
@@ -238,10 +239,11 @@ impl PlatterMotion {
     }
 
     pub fn driving(&self) -> bool {
+        // Release ramp still owns the motor until it settles.
         if self.releasing {
             return true;
         }
-        // Ignore top: touch is a no-op motor; don't force paused audio.
+        // Ignore top: touch is a no-op; don't force paused audio.
         if self.touching && self.top != MotionMode::Ignore {
             return true;
         }

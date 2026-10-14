@@ -10,6 +10,9 @@ const double kJogRpm = 100.0 / 3.0;
 const kDefaultBeatsPerBar = 4;
 
 /// Bars per jog position cycle.
+///
+/// Retained for phrase-cycle helpers used by tests / future UI; live platter
+/// spin uses [vinylRotationDeg] instead.
 const kJogBarCycleLength = 4;
 
 /// Music milliseconds for one vinyl jog tick at 1× platter speed.

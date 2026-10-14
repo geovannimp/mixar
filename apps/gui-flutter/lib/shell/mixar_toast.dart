@@ -61,12 +61,14 @@ void showMixarToast({
 
 /// Close toasts previously shown with [showMixarToast]'s [id].
 ///
-/// No-op if [context] is unmounted.
+/// No-op if [context] is unmounted or no overlay matches [id].
 void dismissMixarToast(BuildContext context, {required String id}) {
   if (!context.mounted) {
     return;
   }
-  unawaited(context.close(Overlays.all(id: id)));
+  // Already-dismissed / missing id selectors are a no-op; swallow async errors
+  // if the tree unmounts between the mounted check and close completion.
+  unawaited(context.close(Overlays.all(id: id)).catchError((_) {}));
 }
 
 class _MixarToastChrome extends StatelessWidget {

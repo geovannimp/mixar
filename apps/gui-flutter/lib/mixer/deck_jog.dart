@@ -19,6 +19,24 @@ double debugReadJogPlatterRotation(State state) {
   return state.debugRotationDeg;
 }
 
+/// Test-only: latch local-drag freeze without a private cast.
+@visibleForTesting
+void debugSetJogPlatterDragging(State state, {required bool dragging}) {
+  if (state is! _JogPlatterState) {
+    throw StateError('expected JogPlatter state');
+  }
+  state.debugSetDragging(dragging);
+}
+
+/// Test-only: read [_JogPlatterState.debugDragging].
+@visibleForTesting
+bool debugReadJogPlatterDragging(State state) {
+  if (state is! _JogPlatterState) {
+    throw StateError('expected JogPlatter state');
+  }
+  return state.debugDragging;
+}
+
 /// Interactive jog platter — `jog_touch` / `jog_turn` (Tauri `JogPlatter`).
 class DeckJogHost extends ConsumerWidget {
   const new({
