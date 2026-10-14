@@ -128,7 +128,7 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
     _glow = Tween<double>(begin: 1, end: 0).animate(_curve);
     if (widget.active) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (mounted && widget.active) {
           _controller.forward(from: 0);
         }
       });

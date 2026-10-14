@@ -37,6 +37,10 @@ class SettingsPage extends ConsumerStatefulWidget {
   final SettingsSection initialSection;
 
   /// Scroll + glow the Preview bus card. Requires [initialSection] audio.
+  ///
+  /// Remount the page (e.g. new [Key]) to apply a changed
+  /// [initialSection]/[scrollToPreviewBus]; State does not sync them in
+  /// [State.didUpdateWidget].
   final bool scrollToPreviewBus;
 
   @override
@@ -103,16 +107,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
       ),
       data: (settings) {
-        final firstData = _draft == null;
         _baseline ??= settings;
         _draft ??= settings;
         final draft = _draft!;
         final baseline = _baseline!;
         final dirty = _isDirty(draft, baseline);
-        // One-shot after settings paint; avoids scheduling from every rebuild.
-        if (firstData) {
-          _schedulePreviewScrollOnce();
-        }
+        // Every data emission is fine: `_didSchedulePreviewScroll` dedupes.
+        // Do not gate on first `_draft` assign — provider invalidate/refetch
+        // would otherwise skip scroll after a deep-link remount race.
+        _schedulePreviewScrollOnce();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

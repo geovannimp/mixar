@@ -22,11 +22,17 @@ void main() {
     // Post-frame starts the controller; first tick shows overlay.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.byType(DecoratedBox), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byType(SettingsGlowFlash),
+        matching: find.byType(DecoratedBox),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('card'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 1000));
-    // Completed flash drops the overlay Stack and returns the bare child.
+    // Completed flash collapses the overlay Stack (AnimatedBuilder remains).
     expect(find.text('card'), findsOneWidget);
     expect(
       find.descendant(
