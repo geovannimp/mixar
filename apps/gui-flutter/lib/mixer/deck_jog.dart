@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -8,6 +9,33 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/jog_ticks.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
+
+/// Test-only: read [_JogPlatterState.debugRotationDeg].
+@visibleForTesting
+double debugReadJogPlatterRotation(State state) {
+  if (state is! _JogPlatterState) {
+    throw StateError('expected JogPlatter state');
+  }
+  return state.debugRotationDeg;
+}
+
+/// Test-only: latch local-drag freeze without a private cast.
+@visibleForTesting
+void debugSetJogPlatterDragging(State state, {required bool dragging}) {
+  if (state is! _JogPlatterState) {
+    throw StateError('expected JogPlatter state');
+  }
+  state.debugSetDragging(dragging);
+}
+
+/// Test-only: read [_JogPlatterState.debugDragging].
+@visibleForTesting
+bool debugReadJogPlatterDragging(State state) {
+  if (state is! _JogPlatterState) {
+    throw StateError('expected JogPlatter state');
+  }
+  return state.debugDragging;
+}
 
 /// Interactive jog platter — `jog_touch` / `jog_turn` (Tauri `JogPlatter`).
 class DeckJogHost extends ConsumerWidget {
@@ -103,7 +131,35 @@ class _JogPlatterState extends State<JogPlatter> {
   var _dragging = false;
   double? _lastAngleDeg;
 
+  @visibleForTesting
+  double get debugRotationDeg => _rotationDeg;
+
+  @visibleForTesting
+  bool get debugDragging => _dragging;
+
+  /// Test-only: latch local-drag freeze without synthesizing pointer events.
+  @visibleForTesting
+  void debugSetDragging(bool value) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _dragging = value;
+      if (value) {
+        _lastPositionMs = widget.positionMs;
+      } else {
+        _lastAngleDeg = null;
+      }
+    });
+  }
+
   bool get _interactive => widget.enabled && widget.hasTrack;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncRotationFromPlayhead();
+  }
 
   @override
   void didUpdateWidget(covariant JogPlatter oldWidget) {
@@ -124,28 +180,30 @@ class _JogPlatterState extends State<JogPlatter> {
       _rotationDeg = 0;
       return;
     }
-    final bpm = widget.bpm != null && widget.bpm! > 0 ? widget.bpm! : 120.0;
-    final cycle = barCycleDurationMs(bpm);
-    if (cycle == null) {
+    // Visual spin uses the vinyl timebase (one rev ↔ one hardware/UI circle),
+    // not the 4-bar phrase cycle — otherwise playback lags the platter.
+    final revMs = vinylRevolutionMs();
+    // Only freeze playhead sync during a local pointer drag. Hardware
+    // `jogTouching` must still rotate the disc from positionMs (Mixxx-like).
+    // Checked before init so a first update mid-drag cannot snap the disc.
+    if (_dragging) {
+      _trackerInitialized = true;
+      _lastPositionMs = widget.positionMs;
       return;
     }
     if (!_trackerInitialized) {
       _trackerInitialized = true;
       _lastPositionMs = widget.positionMs;
-      _rotationDeg = barCycleRotationDeg(widget.positionMs, bpm);
-      return;
-    }
-    if (_dragging || widget.jogTouching) {
-      _lastPositionMs = widget.positionMs;
+      _rotationDeg = vinylRotationDeg(widget.positionMs);
       return;
     }
     final delta = widget.positionMs - _lastPositionMs;
     _lastPositionMs = widget.positionMs;
-    final seekThreshold = math.max(200, cycle * 0.15);
+    final seekThreshold = math.max(200, revMs * 0.15);
     if (delta.abs() > seekThreshold) {
-      _rotationDeg = barCycleRotationDeg(widget.positionMs, bpm);
+      _rotationDeg = vinylRotationDeg(widget.positionMs);
     } else {
-      _rotationDeg += (delta / cycle) * 360;
+      _rotationDeg += (delta / revMs) * 360;
     }
   }
 

@@ -9,6 +9,8 @@ enum MixarToastVariant { primary, destructive }
 var _mixarToastSeq = 0;
 
 /// Mixar toast over [context_show] (Forui-free chrome; theme tokens OK).
+///
+/// Pass a stable [id] to dismiss later via [dismissMixarToast].
 void showMixarToast({
   required BuildContext context,
   required Widget title,
@@ -17,8 +19,9 @@ void showMixarToast({
   Widget Function(BuildContext context, VoidCallback dismiss)? suffixBuilder,
   Duration? duration = const Duration(seconds: 5),
   VoidCallback? onDismiss,
+  String? id,
 }) {
-  final id = 'mixar-toast-${_mixarToastSeq++}';
+  final toastId = id ?? 'mixar-toast-${_mixarToastSeq++}';
   // Duration.zero = persistent (controller offer). Null maps the same way.
   final showFor = duration ?? Duration.zero;
 
@@ -45,7 +48,7 @@ void showMixarToast({
               },
             );
           },
-          id: id,
+          id: toastId,
           duration: showFor,
           alignment: Alignment.bottomRight,
           safeArea: false,
@@ -53,6 +56,36 @@ void showMixarToast({
           background: (_) => const SizedBox.shrink(),
         )
         .whenComplete(() => onDismiss?.call()),
+  );
+}
+
+/// Close toasts previously shown with [showMixarToast]'s [id].
+///
+/// No-op if [context] is unmounted or no overlay matches [id].
+void dismissMixarToast(BuildContext context, {required String id}) {
+  if (!context.mounted) {
+    return;
+  }
+  // Already-dismissed overlays raise StateError; unmount races may raise a
+  // deactivated/defunct FlutterError. Rethrow layout/assertion FlutterErrors.
+  unawaited(
+    context.close(Overlays.all(id: id)).catchError((
+      Object error,
+      StackTrace stack,
+    ) {
+      if (error is StateError) {
+        return;
+      }
+      if (error is FlutterError) {
+        final msg = error.message.toLowerCase();
+        if (msg.contains('deactivated') ||
+            msg.contains('disposed') ||
+            msg.contains('defunct')) {
+          return;
+        }
+      }
+      Error.throwWithStackTrace(error, stack);
+    }),
   );
 }
 
@@ -88,34 +121,31 @@ class _MixarToastChrome extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
+          // Shrink-wrap; actions sit under copy (not beside it).
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DefaultTextStyle(
-                      style: theme.typography.body.sm.copyWith(
-                        color: fg,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      child: title,
-                    ),
-                    if (description != null) ...[
-                      const SizedBox(height: 4),
-                      DefaultTextStyle(
-                        style: theme.typography.body.sm.copyWith(
-                          color: fg.withValues(alpha: 0.85),
-                        ),
-                        child: description!,
-                      ),
-                    ],
-                  ],
+              DefaultTextStyle(
+                style: theme.typography.body.sm.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
                 ),
+                child: title,
               ),
-              if (suffix != null) ...[const SizedBox(width: 12), suffix!],
+              if (description != null) ...[
+                const SizedBox(height: 4),
+                DefaultTextStyle(
+                  style: theme.typography.body.sm.copyWith(
+                    color: fg.withValues(alpha: 0.85),
+                  ),
+                  child: description!,
+                ),
+              ],
+              if (suffix != null) ...[
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerRight, child: suffix!),
+              ],
             ],
           ),
         ),

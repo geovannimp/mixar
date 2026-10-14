@@ -10,10 +10,16 @@ const double kJogRpm = 100.0 / 3.0;
 const kDefaultBeatsPerBar = 4;
 
 /// Bars per jog position cycle.
+///
+/// Retained for phrase-cycle helpers used by tests / future UI; live platter
+/// spin uses [vinylRotationDeg] instead.
 const kJogBarCycleLength = 4;
 
 /// Music milliseconds for one vinyl jog tick at 1× platter speed.
 double vinylMsPerTick() => (60.0 / kJogRpm) * 1000.0 / kJogIntervalsPerRev;
+
+/// Music milliseconds for one platter revolution at 1× (matches engine `JOG_RPM`).
+double vinylRevolutionMs() => (60.0 / kJogRpm) * 1000.0;
 
 /// Relative music-time delta for vinyl [ticks] (paused scrub / UI estimate).
 int vinylTicksToDeltaMs(int ticks) {
@@ -21,6 +27,19 @@ int vinylTicksToDeltaMs(int ticks) {
     return 0;
   }
   return (ticks * vinylMsPerTick()).round();
+}
+
+/// Continuous jog tracker angle from music position (vinyl timebase).
+///
+/// One visual revolution == one hardware/UI platter revolution ==
+/// [kJogIntervalsPerRev] ticks == [vinylRevolutionMs] of source time.
+/// Returns 0 for non-positive [positionMs].
+double vinylRotationDeg(int positionMs) {
+  final rev = vinylRevolutionMs();
+  if (rev <= 0 || positionMs <= 0) {
+    return 0;
+  }
+  return (positionMs / rev) * 360;
 }
 
 /// Convert an angular delta in degrees to relative jog ticks.
@@ -48,6 +67,8 @@ double? barCycleDurationMs(
 }
 
 /// Continuous jog tracker angle (no 0–360 wrap).
+///
+/// Returns 0 for non-positive [positionMs].
 double barCycleRotationDeg(
   int positionMs,
   double bpm, [
@@ -55,7 +76,7 @@ double barCycleRotationDeg(
   int cycleBars = kJogBarCycleLength,
 ]) {
   final cycle = barCycleDurationMs(bpm, beatsPerBar, cycleBars);
-  if (cycle == null) {
+  if (cycle == null || positionMs <= 0) {
     return 0;
   }
   return (positionMs / cycle) * 360;

@@ -19,6 +19,7 @@ pub mod level_meter;
 pub mod mixer;
 pub mod mixer_channel;
 pub mod mixer_lane;
+pub mod platter_motion;
 pub mod sampler;
 pub mod tempo;
 pub mod transport;
@@ -31,6 +32,7 @@ pub use level_meter::{measure_stereo_peaks, LevelPeaks};
 pub use mixer::Mixer;
 pub use mixer_channel::{MixerChannel, AUTO_GAIN_CLAMP_DB};
 pub use mixer_lane::MixerLane;
+pub use platter_motion::{MotionMode, PlatterMotion};
 pub use sampler::{
     Sampler, SamplerPlayMode, SamplerSlotMeta, SamplerStripRoute, SAMPLER_SLOT_COUNT,
 };
