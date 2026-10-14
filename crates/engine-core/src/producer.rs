@@ -126,22 +126,30 @@ pub(crate) fn producer_thread_loop(
         sample_rate
     );
 
+    // The engine already verified at stream open that every device's actual
+    // buffer size matches config.buffer_size, and start_device_streams waits for
+    // the pacing callback to report that same size. Treat fallback_buffer_size
+    // as the contractual upper bound for callback frames and pre-size all
+    // producer scratch/output buffers to it so the steady-state loop never allocates.
+    let max_expected_frames = fallback_buffer_size;
+
     let mut output_buses = HashMap::new();
-    output_buses.insert(BusId::new("master"), vec![0.0; fallback_buffer_size * 2]);
+    output_buses.insert(BusId::new("master"), vec![0.0; max_expected_frames * 2]);
     if device_producers
         .iter()
         .any(|(plan, _)| plan.routes.iter().any(|r| r.bus_id.as_str() == "cue"))
     {
-        output_buses.insert(BusId::new("cue"), vec![0.0; fallback_buffer_size * 2]);
+        output_buses.insert(BusId::new("cue"), vec![0.0; max_expected_frames * 2]);
     }
 
     let mut device_scratch: Vec<Vec<Sample>> = device_producers
         .iter()
-        .map(|(plan, _)| vec![0.0; fallback_buffer_size * plan.channels as usize])
+        .map(|(plan, _)| vec![0.0; max_expected_frames * plan.channels as usize])
         .collect();
 
     const MAX_AHEAD_CHUNKS: u64 = 2;
     let mut produced_chunks: u64 = 0;
+    let mut oversized_warned = false;
     let pacing_channels = device_producers
         .first()
         .map(|(plan, _)| plan.channels as usize)
@@ -159,6 +167,26 @@ pub(crate) fn producer_thread_loop(
                 }
             })
             .unwrap_or(fallback_buffer_size);
+
+        // Hard error: callback frames must never exceed the pre-sized bound. On
+        // violation, log once for this producer thread, skip the chunk, and let the
+        // ring underrun into silence rather than allocating or passing an oversized
+        // frame count into DSP. The flag is intentionally never re-armed.
+        if chunk_frames > max_expected_frames {
+            if !oversized_warned {
+                tracing::error!(
+                    "Producer callback size {} frames exceeds pre-sized max {} frames; skipping chunk. Driver buffer changed after stream open?",
+                    chunk_frames,
+                    max_expected_frames
+                );
+                oversized_warned = true;
+            }
+            thread::sleep(
+                Duration::from_secs_f64(max_expected_frames as f64 / sample_rate as f64) / 4,
+            );
+            continue;
+        }
+
         let samples_per_chunk = chunk_frames * pacing_channels;
 
         let buffer_duration = Duration::from_secs_f64(chunk_frames as f64 / sample_rate as f64);
@@ -212,9 +240,6 @@ pub(crate) fn producer_thread_loop(
         for (i, (plan, producer)) in device_producers.iter_mut().enumerate() {
             let channels = plan.channels as usize;
             let needed = chunk_frames * channels;
-            if device_scratch[i].len() < needed {
-                device_scratch[i].resize(needed, 0.0);
-            }
             map_buses_to_device_buffer(
                 chunk_frames,
                 channels,
@@ -263,6 +288,7 @@ fn push_ring_samples(producer: &mut Producer<Sample>, samples: &[Sample]) -> boo
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Arc, Mutex, thread, Duration and the atomics all resolve via `use super::*`.
 
     #[test]
     fn push_ring_samples_writes_full_chunk() {
@@ -409,6 +435,95 @@ mod tests {
             pacing_cons.slots(),
             nonpacing_produced,
             "both devices must produce the same number of new samples"
+        );
+    }
+
+    #[test]
+    fn producer_skips_oversized_callback_without_resizing() {
+        use crate::routing::BusRoute;
+        use audio_core::{BusId, DeviceId};
+        use engine_dsp::SamplerStripRoute;
+
+        let fallback_buffer_size = 64;
+        let sample_rate = 48000;
+        let channels = 2;
+
+        let plan = DeviceStreamPlan {
+            device: DeviceId::new("null-device"),
+            channels,
+            routes: vec![BusRoute {
+                bus_id: BusId::new("master"),
+                left: 0,
+                right: Some(1),
+            }],
+        };
+
+        let (producer, mut consumer, ring_buffer_capacity) =
+            create_device_ring_buffer(fallback_buffer_size as u32, channels);
+        // Drain the pre-filled silence: otherwise the fill-level gate blocks production
+        // and the oversized assertion passes even without the guard.
+        let prefill = consumer.slots();
+        consumer.read_chunk(prefill).unwrap().commit_all();
+
+        let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
+            sample_rate,
+            fallback_buffer_size as u32,
+            2,
+            "medium",
+            SamplerStripRoute::BeforeStrip,
+        )));
+
+        let running = Arc::new(Mutex::new(true));
+        let transport_events: Arc<Mutex<Vec<TransportEvent>>> = Arc::new(Mutex::new(Vec::new()));
+        // Large callback count so the pacing gate never blocks production.
+        let callback_count = Arc::new(AtomicU64::new(u64::MAX / 4));
+        let callback_frames = Arc::new(AtomicU32::new(fallback_buffer_size as u32));
+
+        let running_clone = Arc::clone(&running);
+        let callback_frames_clone = Arc::clone(&callback_frames);
+        let thread_handle = thread::spawn(move || {
+            producer_thread_loop(
+                dsp_engine,
+                vec![(plan, producer)],
+                running_clone,
+                sample_rate,
+                fallback_buffer_size,
+                ring_buffer_capacity,
+                Some(callback_frames_clone),
+                callback_count,
+                transport_events,
+            );
+        });
+
+        // Precondition: the producer really runs at the normal size, otherwise the
+        // oversized assertion below could pass vacuously.
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while consumer.slots() == 0 {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "producer never produced a normal-size chunk"
+            );
+            thread::sleep(Duration::from_millis(1));
+        }
+
+        // Switch to an oversized callback, give the producer time to observe it and
+        // emit any chunk already in flight, then drain that chunk.
+        callback_frames.store(fallback_buffer_size as u32 * 2, Ordering::Relaxed);
+        thread::sleep(Duration::from_millis(100));
+        let pending = consumer.slots();
+        if pending > 0 {
+            consumer.read_chunk(pending).unwrap().commit_all();
+        }
+
+        *running.lock().unwrap() = false;
+        // Without the guard an oversized frame count indexes past the pre-sized scratch
+        // slice and panics in the producer loop, which join() surfaces here.
+        thread_handle.join().unwrap();
+
+        assert_eq!(
+            consumer.slots(),
+            0,
+            "oversized callback should not produce any samples"
         );
     }
 }
