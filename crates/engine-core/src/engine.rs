@@ -513,8 +513,10 @@ impl Engine {
 
     /// Load a track prepared by [`library::LibraryManager`] into a deck.
     ///
-    /// This consumes library-owned decode/cache output directly instead of filling the engine's
-    /// legacy decode cache.
+    /// Consumes the library-owned bounded decode cache output directly; the engine holds no
+    /// cache of its own. Callers that may receive `stems` must take them before calling this
+    /// method and attach them with [`Self::attach_deck_stems`] — decoding, phase selection,
+    /// and stem routing stay library/host-owned.
     pub fn load_prepared_track(
         &mut self,
         deck_id: usize,
