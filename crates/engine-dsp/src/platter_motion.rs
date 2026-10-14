@@ -18,7 +18,8 @@ const RPM: f64 = 100.0 / 3.0; // 33⅓
 const ALPHA: f64 = 1.0 / 8.0;
 const BETA: f64 = ALPHA / 32.0;
 const QUANTUM_SECS: f64 = 0.001;
-// Match pre-PlatterMotion deck constants (JOG_VINYL_HOLD / JOG_BEND_DECAY).
+// Tuned to pre-PlatterMotion deck behavior: 20 ms vinyl idle hold, 8/s bend decay
+// (from git history of the removed JOG_VINYL_HOLD_SECS / JOG_BEND_DECAY_PER_SEC).
 const VINYL_HOLD_SECS: f64 = 0.02;
 const RELEASE_RATE_PER_SEC: f32 = 12.0;
 const BEND_PER_TICK: f32 = 0.0015;

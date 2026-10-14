@@ -66,9 +66,19 @@ void dismissMixarToast(BuildContext context, {required String id}) {
   if (!context.mounted) {
     return;
   }
-  // Already-dismissed / missing id selectors are a no-op; swallow async errors
-  // if the tree unmounts between the mounted check and close completion.
-  unawaited(context.close(Overlays.all(id: id)).catchError((_) {}));
+  // Already-dismissed overlays / unmount races raise FlutterError/StateError;
+  // rethrow anything else so real teardown bugs stay visible.
+  unawaited(
+    context.close(Overlays.all(id: id)).catchError((
+      Object error,
+      StackTrace stack,
+    ) {
+      if (error is FlutterError || error is StateError) {
+        return;
+      }
+      Error.throwWithStackTrace(error, stack);
+    }),
+  );
 }
 
 class _MixarToastChrome extends StatelessWidget {
