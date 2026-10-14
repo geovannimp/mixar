@@ -123,12 +123,14 @@ class _JogPlatterState extends State<JogPlatter> {
   /// Test-only: latch local-drag freeze without synthesizing pointer events.
   @visibleForTesting
   void debugSetDragging(bool value) {
-    _dragging = value;
-    if (value) {
-      _lastPositionMs = widget.positionMs;
-    } else {
-      _lastAngleDeg = null;
-    }
+    setState(() {
+      _dragging = value;
+      if (value) {
+        _lastPositionMs = widget.positionMs;
+      } else {
+        _lastAngleDeg = null;
+      }
+    });
   }
 
   bool get _interactive => widget.enabled && widget.hasTrack;

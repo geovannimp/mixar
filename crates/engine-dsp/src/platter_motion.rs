@@ -182,6 +182,7 @@ impl PlatterMotion {
                         }
                     } else {
                         // Idle free platter: motor at unity (not stopped at 0).
+                        self.filter_x = 0.0;
                         self.rate = 1.0;
                     }
                 }
@@ -443,6 +444,31 @@ mod tests {
             m.rate()
         );
         assert!(!m.driving());
+    }
+
+    #[test]
+    fn idle_free_platter_zeros_filter_x() {
+        let mut m = PlatterMotion::new();
+        m.set_modes(MotionMode::Vinyl, MotionMode::Vinyl, true);
+        // Settled velocity with a stale position residual. frames=0 skips
+        // observe_vinyl so we hit the idle free-platter branch directly.
+        m.filter_x = 0.25;
+        m.filter_v = 0.0;
+        m.rate = 1.0;
+        m.idle_secs = VINYL_HOLD_SECS;
+        m.tick(0, 48_000, true);
+        assert!(
+            (m.rate() - 1.0).abs() < 1e-4,
+            "idle-branch rate expected 1.0, got {} (filter_x={}, filter_v={})",
+            m.rate(),
+            m.filter_x,
+            m.filter_v
+        );
+        assert!(
+            m.filter_x.abs() < 1e-12,
+            "idle free platter must clear stale filter_x, got {}",
+            m.filter_x
+        );
     }
 
     #[test]

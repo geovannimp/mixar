@@ -136,8 +136,10 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     }
     _shownPorts.add(port);
     var alwaysAllow = false;
-    // Cancel keeps [port] in [_shownPorts] so hydrate does not re-prompt;
-    // Enable clears it so a later re-plug can offer again. Detach also clears.
+    // Default true: any dismiss path that does not explicitly opt out (Cancel)
+    // clears [port] from [_shownPorts] so a later re-plug / re-offer can show.
+    // Cancel sets this false before dismiss so hydrate does not re-prompt.
+    // Enable keeps the default (true). Detach also clears via [_onEvent].
     var clearPortOnDismiss = true;
     showMixarToast(
       context: context,

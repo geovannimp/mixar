@@ -32,7 +32,7 @@ int vinylTicksToDeltaMs(int ticks) {
 /// [kJogIntervalsPerRev] ticks == [vinylRevolutionMs] of source time.
 double vinylRotationDeg(int positionMs) {
   final rev = vinylRevolutionMs();
-  if (rev <= 0) {
+  if (rev <= 0 || positionMs <= 0) {
     return 0;
   }
   return (positionMs / rev) * 360;
@@ -70,7 +70,7 @@ double barCycleRotationDeg(
   int cycleBars = kJogBarCycleLength,
 ]) {
   final cycle = barCycleDurationMs(bpm, beatsPerBar, cycleBars);
-  if (cycle == null) {
+  if (cycle == null || positionMs <= 0) {
     return 0;
   }
   return (positionMs / cycle) * 360;
