@@ -6,8 +6,10 @@ import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 /// Tauri-shaped tempo column: BPM / pitch / sync + pitch fader from engine state.
@@ -21,7 +23,6 @@ class DeckTempoPanel extends StatelessWidget {
     required this.onSpeedChange,
     required this.onTempoRangeChange,
     required this.onToggleSync,
-    required this.onSetMaster,
     this.trackBpm,
     this.loading = false,
     this.tempoRangeSteps = kTempoRangeSteps,
@@ -37,7 +38,6 @@ class DeckTempoPanel extends StatelessWidget {
   final ValueChanged<double> onSpeedChange;
   final ValueChanged<double> onTempoRangeChange;
   final ValueChanged<bool> onToggleSync;
-  final VoidCallback onSetMaster;
 
   /// Original track BPM when loaded; null → `—` and no live BPM scaling display source.
   final double? trackBpm;
@@ -52,6 +52,31 @@ class DeckTempoPanel extends StatelessWidget {
 
   bool get _syncActive => syncMode != SyncMode.off;
 
+  ({String tip, String description}) get _syncTooltip {
+    if (isMaster) {
+      return (
+        tip: 'Sync master',
+        description: 'This deck is the tempo reference for synced decks.',
+      );
+    }
+    return switch (syncMode) {
+      SyncMode.off => (
+        tip: 'Sync',
+        description:
+            "Match this deck's tempo to the master. Shift+click for beat sync.",
+      ),
+      SyncMode.tempo => (
+        tip: 'Tempo sync',
+        description: 'Tempo follows the master. Click again to turn sync off.',
+      ),
+      SyncMode.beat => (
+        tip: 'Beat sync',
+        description:
+            'Tempo and phase follow the master. Click again to turn sync off.',
+      ),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -59,132 +84,90 @@ class DeckTempoPanel extends StatelessWidget {
     final liveBpm = effectiveBpm(trackBpm, speed, tempoRange);
     final sliderValue = speedToPitchSlider(speed);
     final faderDisabled = _syncActive;
+    final syncOn = _syncActive && !loading;
+    final syncPress = (loading || !enabled || isMaster)
+        ? null
+        : () => onToggleSync(shiftKeyPressed());
+    final (:tip, :description) = _syncTooltip;
+    // Master: crown. Synced follower: closed lock. Else open lock.
+    // Colors stay the same as the lock chrome (no gold override).
+    final statusIcon = isMaster
+        ? LucideIcons.crown
+        : (syncOn ? LucideIcons.lock : LucideIcons.lockOpen);
+    final statusColor = syncOn ? kMixerLiveOn : theme.colors.mutedForeground;
 
-    final chipStyle = theme.typography.body.xs.copyWith(
-      fontWeight: .w600,
-      fontSize: 10,
-    );
-    const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
-
+    final cardRadius = theme.style.borderRadius.md;
     return SizedBox(
       width: 88,
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),
-          borderRadius: theme.style.borderRadius.md,
+          borderRadius: cardRadius,
           color: theme.colors.background.withValues(alpha: 0.8),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
+        child: ClipRRect(
+          borderRadius: cardRadius,
           child: Column(
             children: [
+              // Flush to card edges; divider only under BPM/pitch/status.
+              // MTappable (not MixerButton): MixerButton's inner Row overflows
+              // the 88px tempo column when wrapping a tall BPM/pitch Column.
               Skeletonizer(
                 enabled: loading,
-                child: Text(
-                  loading ? '000.00' : formatBpm(liveBpm),
-                  textAlign: .center,
-                  style: theme.typography.body.md.copyWith(
-                    fontFamily: MixarFonts.notoSansMono,
-                    color: accent,
-                    fontWeight: .w700,
-                    height: 1.1,
-                    fontFeatures: const [
-                      FontFeature.tabularFigures(),
-                      FontFeature.slashedZero(),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                formatPitchPercent(speed, tempoRange),
-                textAlign: .center,
-                style: theme.typography.body.xs.copyWith(
-                  fontFamily: MixarFonts.notoSansMono,
-                  color: theme.colors.mutedForeground,
-                  fontWeight: .w500,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: 6),
-              SizedBox(
-                width: double.infinity,
-                child: Builder(
-                  builder: (context) {
-                    final (:tip, :description) = isMaster
-                        ? (
-                            tip: 'Sync master',
-                            description: 'This deck is the tempo reference for synced decks.',
-                          )
-                        : switch (syncMode) {
-                            SyncMode.off => (
-                              tip: 'Sync',
-                              description: "Match this deck's tempo to the master. Shift+click for beat sync.",
-                            ),
-                            SyncMode.tempo => (
-                              tip: 'Tempo sync',
-                              description: 'Tempo follows the master. Click again to turn sync off.',
-                            ),
-                            SyncMode.beat => (
-                              tip: 'Beat sync',
-                              description: 'Tempo and phase follow the master. Click again to turn sync off.',
-                            ),
-                          };
-                    return AppTooltip(
-                      tip: tip,
-                      description: description,
-                      child: MixerButton(
-                        variant: .secondary,
-                        size: .sm,
-                        padding: compactPad,
-                        onPress: (!enabled || isMaster)
-                            ? null
-                            : () => onToggleSync(shiftKeyPressed()),
-                        semanticsLabel: tip,
-                        child: Text(
-                          isMaster
-                              ? 'M'
-                              : switch (syncMode) {
-                                  SyncMode.off => 'Sync',
-                                  SyncMode.tempo => 'S',
-                                  SyncMode.beat => 'B',
-                                },
-                          style: chipStyle,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 2),
-              SizedBox(
-                width: double.infinity,
                 child: AppTooltip(
-                  tip: isMaster ? 'Master' : 'Set master',
-                  description: isMaster
-                      ? 'This deck is the sync reference.'
-                      : 'Make this deck the tempo reference for sync.',
-                  child: MixerButton(
-                    variant: isMaster ? .secondary : .ghost,
-                    size: .xs,
-                    padding: compactPad,
-                    onPress: (!enabled || isMaster) ? null : onSetMaster,
-                    semanticsLabel: isMaster ? 'Master' : 'Set master',
+                  tip: tip,
+                  description: description,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: theme.colors.border),
+                      ),
+                      color: syncOn ? theme.colors.primaryTint : null,
+                    ),
                     child: SizedBox(
-                      width: 52,
-                      child: FittedBox(
-                        fit: .scaleDown,
-                        child: Text(
-                          isMaster ? 'Master' : 'Set master',
-                          textAlign: .center,
-                          maxLines: 1,
-                          style: theme.typography.body.xs.copyWith(
-                            color: isMaster
-                                ? kMixerLiveOn
-                                : theme.colors.mutedForeground,
-                            fontWeight: .w600,
-                            fontSize: 9,
-                            height: 1.1,
+                      width: double.infinity,
+                      child: MTappable.child(
+                        selected: syncOn,
+                        onPress: syncPress,
+                        semanticsLabel: tip,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 8,
+                          ),
+                          child: Column(
+                            mainAxisSize: .min,
+                            children: [
+                              Text(
+                                loading ? '000.00' : formatBpm(liveBpm),
+                                textAlign: .center,
+                                style: theme.typography.body.md.copyWith(
+                                  fontFamily: MixarFonts.notoSansMono,
+                                  color: accent,
+                                  fontWeight: .w700,
+                                  height: 1.1,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                    FontFeature.slashedZero(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                formatPitchPercent(speed, tempoRange),
+                                textAlign: .center,
+                                style: theme.typography.body.xs.copyWith(
+                                  fontFamily: MixarFonts.notoSansMono,
+                                  color: theme.colors.mutedForeground,
+                                  fontWeight: .w500,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Icon(statusIcon, size: 14, color: statusColor),
+                            ],
                           ),
                         ),
                       ),
@@ -194,7 +177,10 @@ class DeckTempoPanel extends StatelessWidget {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 12,
+                  ),
                   child: FaderSlider(
                     accent: this.accent,
                     value: sliderValue,
@@ -209,28 +195,31 @@ class DeckTempoPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(
-                width: double.infinity,
-                child: AppTooltip(
-                  tip: 'Tempo range',
-                  description:
-                      'Pitch fader span. Click to cycle the max ±% range.',
-                  child: MixerButton(
-                    variant: .ghost,
-                    size: .xs,
-                    mainAxisSize: .min,
-                    onPress: enabled
-                        ? () => onTempoRangeChange(
-                            nextTempoRange(tempoRange, tempoRangeSteps),
-                          )
-                        : null,
-                    semanticsLabel: 'Tempo range',
-                    child: Text(
-                      formatTempoRange(tempoRange),
-                      style: theme.typography.body.xs.copyWith(
-                        fontSize: 12,
-                        fontWeight: .w600,
-                        color: theme.colors.mutedForeground,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: AppTooltip(
+                    tip: 'Tempo range',
+                    description:
+                        'Pitch fader span. Click to cycle the max ±% range.',
+                    child: MixerButton(
+                      variant: .ghost,
+                      size: .xs,
+                      mainAxisSize: .min,
+                      onPress: enabled
+                          ? () => onTempoRangeChange(
+                              nextTempoRange(tempoRange, tempoRangeSteps),
+                            )
+                          : null,
+                      semanticsLabel: 'Tempo range',
+                      child: Text(
+                        formatTempoRange(tempoRange),
+                        style: theme.typography.body.xs.copyWith(
+                          fontSize: 12,
+                          fontWeight: .w600,
+                          color: theme.colors.mutedForeground,
+                        ),
                       ),
                     ),
                   ),

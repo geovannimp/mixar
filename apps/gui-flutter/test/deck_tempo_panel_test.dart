@@ -10,6 +10,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
@@ -23,11 +24,11 @@ void main() {
     double tempoRange = kDefaultTempoRange,
     SyncMode syncMode = SyncMode.off,
     bool isMaster = false,
+    double? trackBpm,
     List<double> tempoRangeSteps = kTempoRangeSteps,
     ValueChanged<double>? onSpeedChange,
     ValueChanged<double>? onTempoRangeChange,
     ValueChanged<bool>? onToggleSync,
-    VoidCallback? onSetMaster,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -48,11 +49,11 @@ void main() {
                 tempoRange: tempoRange,
                 syncMode: syncMode,
                 isMaster: isMaster,
+                trackBpm: trackBpm,
                 tempoRangeSteps: tempoRangeSteps,
                 onSpeedChange: onSpeedChange ?? (_) {},
                 onTempoRangeChange: onTempoRangeChange ?? (_) {},
                 onToggleSync: onToggleSync ?? (_) {},
-                onSetMaster: onSetMaster ?? () {},
               ),
             ),
           ),
@@ -62,7 +63,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders engine speed range sync and master labels', (
+  testWidgets('renders engine speed range and locked sync icon', (
     tester,
   ) async {
     await pumpPanel(
@@ -74,26 +75,55 @@ void main() {
 
     expect(find.text(formatPitchPercent(0.25, 0.08)), findsOneWidget);
     expect(find.text(formatTempoRange(0.08)), findsOneWidget);
-    expect(find.text('S'), findsOneWidget);
-    expect(find.text('Set master'), findsOneWidget);
+    expect(find.byIcon(LucideIcons.lock), findsOneWidget);
+    expect(find.byIcon(LucideIcons.lockOpen), findsNothing);
+    expect(find.text('Sync'), findsNothing);
+    expect(find.text('S'), findsNothing);
+    expect(find.text('Set master'), findsNothing);
+    expect(find.text('Master'), findsNothing);
     expect(
       tester.widget<FaderSlider>(find.byType(FaderSlider)).disabled,
       isTrue,
     );
   });
 
-  testWidgets('master deck shows M and Master; fader stays enabled', (
-    tester,
-  ) async {
-    await pumpPanel(tester, isMaster: true);
+  testWidgets(
+    'master deck shows crown not lock; fader stays enabled; tap no-ops',
+    (tester) async {
+      final beats = <bool>[];
+      await pumpPanel(tester, isMaster: true, onToggleSync: beats.add);
 
-    expect(find.text('M'), findsOneWidget);
-    expect(find.text('Master'), findsOneWidget);
-    expect(find.text('Sync'), findsNothing);
-    expect(
-      tester.widget<FaderSlider>(find.byType(FaderSlider)).disabled,
-      isFalse,
+      expect(find.text('M'), findsNothing);
+      expect(find.text('Master'), findsNothing);
+      expect(find.text('Set master'), findsNothing);
+      expect(find.text('Sync'), findsNothing);
+      expect(find.byIcon(LucideIcons.crown), findsOneWidget);
+      expect(find.byIcon(LucideIcons.lockOpen), findsNothing);
+      expect(find.byIcon(LucideIcons.lock), findsNothing);
+      expect(
+        tester.widget<FaderSlider>(find.byType(FaderSlider)).disabled,
+        isFalse,
+      );
+
+      await tester.tap(find.byIcon(LucideIcons.crown));
+      await tester.pumpAndSettle();
+      expect(beats, isEmpty);
+    },
+  );
+
+  testWidgets('master deck BPM tap does not toggle sync', (tester) async {
+    final beats = <bool>[];
+    await pumpPanel(
+      tester,
+      isMaster: true,
+      trackBpm: 128.0,
+      onToggleSync: beats.add,
     );
+
+    final bpmText = formatBpm(effectiveBpm(128.0, 0.5, kDefaultTempoRange));
+    await tester.tap(find.text(bpmText));
+    await tester.pumpAndSettle();
+    expect(beats, isEmpty);
   });
 
   testWidgets('range tap reports next step without local display change', (
@@ -110,34 +140,37 @@ void main() {
     expect(find.text('±10%'), findsNothing);
   });
 
-  testWidgets('sync chip sends tempo vs beat from shift', (tester) async {
+  testWidgets('sync lock button sends tempo vs beat from shift', (
+    tester,
+  ) async {
     final beats = <bool>[];
     await pumpPanel(tester, onToggleSync: beats.add);
 
-    await tester.tap(find.text('Sync'));
+    expect(find.byIcon(LucideIcons.lockOpen), findsOneWidget);
+    await tester.tap(find.byIcon(LucideIcons.lockOpen));
     await tester.pumpAndSettle();
     expect(beats, [false]);
-    expect(find.text('Sync'), findsOneWidget);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
-    await tester.tap(find.text('Sync'));
+    await tester.tap(find.byIcon(LucideIcons.lockOpen));
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pumpAndSettle();
     expect(beats, [false, true]);
   });
 
-  testWidgets('set master fires only when this deck is not master', (
-    tester,
-  ) async {
-    var taps = 0;
-    await pumpPanel(tester, onSetMaster: () => taps++);
-    await tester.tap(find.text('Set master'));
-    await tester.pumpAndSettle();
-    expect(taps, 1);
+  testWidgets('BPM area of sync button also toggles sync', (tester) async {
+    final beats = <bool>[];
+    await pumpPanel(tester, trackBpm: 128.0, onToggleSync: beats.add);
 
-    await pumpPanel(tester, isMaster: true, onSetMaster: () => taps++);
-    await tester.tap(find.text('Master'));
+    final bpmText = formatBpm(effectiveBpm(128.0, 0.5, kDefaultTempoRange));
+    await tester.tap(find.text(bpmText));
     await tester.pumpAndSettle();
-    expect(taps, 1);
+    expect(beats, [false]);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.tap(find.text(bpmText));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(beats, [false, true]);
   });
 }
