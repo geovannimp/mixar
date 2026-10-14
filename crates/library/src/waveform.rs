@@ -218,7 +218,7 @@ fn default_beats_per_bar() -> u8 {
     4
 }
 
-/// ponytail: constant-tempo grid only. Manual edits assume even spacing; variable-tempo
+/// shortcut: constant-tempo grid only. Manual edits assume even spacing; variable-tempo
 /// tracks keep stored beat times until a future editor maps phase/BPM onto beat indices.
 pub(crate) fn generate_even_beat_grid(
     bpm: f64,

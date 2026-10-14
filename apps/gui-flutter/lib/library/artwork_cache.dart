@@ -5,7 +5,7 @@ import 'package:gui_flutter/library/providers.dart';
 /// In-memory artwork keyed by track id
 /// (`getTrack` only — lists stay artwork-free).
 class ArtworkCache extends Notifier<Map<String, Uint8List?>> {
-  /// ponytail: session map of cover blobs; cap + drop non-visible first.
+  /// shortcut: session map of cover blobs; cap + drop non-visible first.
   /// Eviction among eligible keys is insertion-order FIFO (LinkedHashMap),
   /// not LRU. Upgrade path: true LRU / disk thumbnail cache once covers
   /// live in library.db.
@@ -33,7 +33,7 @@ class ArtworkCache extends Notifier<Map<String, Uint8List?>> {
     if (missing.isEmpty) {
       return;
     }
-    // ponytail: batch pool — at most 3 concurrent getTrack calls
+    // shortcut: batch pool — at most 3 concurrent getTrack calls
     for (var i = 0; i < missing.length; i += 3) {
       final batch = missing.skip(i).take(3);
       await Future.wait(batch.map(_loadOne));

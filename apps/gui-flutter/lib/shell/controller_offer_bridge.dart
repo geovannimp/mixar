@@ -56,7 +56,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   }
 
   void _hydrate(ControllerTransport transport) {
-    // ponytail: 250ms × 40 poll of pendingOffers covers offers raised before
+    // shortcut: 250ms × 40 poll of pendingOffers covers offers raised before
     // this widget subscribed (cold ALSA). Upgrade: Rust sink replays pending
     // offers on subscribe, then delete this timer.
     var attempts = 0;

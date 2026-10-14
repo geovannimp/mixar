@@ -62,7 +62,7 @@ pub fn analyze_pcm_with<A: AudioAnalyzer>(
     Ok(track)
 }
 
-/// ponytail: EBU R128 returns non-finite for silence / sub-gate clips. Map to a
+/// shortcut: EBU R128 returns non-finite for silence / sub-gate clips. Map to a
 /// very-quiet LUFS so deck load ensure can finish; auto-gain clamps the boost.
 const UNMEASURABLE_LOUDNESS_LUFS: f64 = -70.0;
 

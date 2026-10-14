@@ -919,7 +919,7 @@ impl Deck {
                     self.play_stretched(frames, &loaded.samples, source_rate);
                 }
             } else {
-                // ponytail: stem mix uses interpolated path (key-lock stretch skipped while stems attached).
+                // shortcut: stem mix uses interpolated path (key-lock stretch skipped while stems attached).
                 let eff = self.effective_speed();
                 let use_interp = self.stems.is_some()
                     || (eff - 1.0).abs() > f32::EPSILON
