@@ -9,6 +9,7 @@ use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnec
 use serde::Serialize;
 use thiserror::Error;
 
+use crate::action::DeckFeedback;
 use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
@@ -328,6 +329,10 @@ pub struct ControllerEngine {
     enum_out: Option<MidiOutput>,
     /// Live input port name → attached mapping session.
     attached: HashMap<String, Attached>,
+    /// Last engine state mirrored per deck / mixer, replayed into every newly
+    /// attached session so a hot-plugged controller starts in sync.
+    deck_feedback: [DeckFeedback; 4],
+    master_cue: bool,
 }
 
 impl ControllerEngine {
@@ -357,6 +362,8 @@ impl ControllerEngine {
             enum_in: None,
             enum_out: None,
             attached: HashMap::new(),
+            deck_feedback: [DeckFeedback::default(); 4],
+            master_cue: false,
         };
         this.ensure_seeded()?;
         Ok(this)
@@ -794,6 +801,12 @@ impl ControllerEngine {
                 );
                 return Err(err.into());
             }
+            // Replay mirrored engine state so attach / reconnect lights the
+            // lamps the engine already expects, not just the defaults.
+            for (i, fb) in self.deck_feedback.iter().enumerate() {
+                session.set_deck_feedback(i as u16, fb, &mut sink);
+            }
+            session.set_master_cue(self.master_cue, &mut sink);
         }
         self.suppressed_ports.remove(&port_name);
         self.attached.insert(
@@ -912,6 +925,7 @@ impl ControllerEngine {
                     send_gate: &mut attached.send_gate,
                 };
                 let flush_fails = attached.session.flush_coalesced(bus, &mut sink);
+                attached.session.tick_leds(&mut sink);
                 let heartbeat = attached.session.idle_heartbeat(bus, &mut sink);
                 (flush_fails, heartbeat)
             };
@@ -953,6 +967,22 @@ impl ControllerEngine {
             };
             f(session, &mut sink);
         }
+    }
+
+    /// Mirror an engine deck snapshot into every attached mapping (LED feedback).
+    pub fn set_deck_feedback(&mut self, deck: u16, feedback: &DeckFeedback) {
+        self.deck_feedback[deck.min(3) as usize] = *feedback;
+        self.for_each_attached_sink(|session, sink| {
+            session.set_deck_feedback(deck, feedback, sink);
+        });
+    }
+
+    /// Mirror mixer state (MASTER CUE LED).
+    pub fn set_master_cue(&mut self, enabled: bool) {
+        self.master_cue = enabled;
+        self.for_each_attached_sink(|session, sink| {
+            session.set_master_cue(enabled, sink);
+        });
     }
 
     pub fn on_deck_playing(&mut self, deck: u16, playing: bool) {
@@ -1003,7 +1033,6 @@ impl ControllerEngine {
             attached.session.set_deck_keyboard_root(deck, slot);
         }
     }
-
     /// Push deck peak level to `vu_meter` MIDI out (no-op if mapping has none).
     pub fn set_deck_vu(&mut self, deck: u16, level: f32) {
         self.for_each_attached_sink(|session, sink| session.set_deck_vu(deck, level, sink));

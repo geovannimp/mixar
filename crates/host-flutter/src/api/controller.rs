@@ -8,10 +8,11 @@ use std::time::Duration;
 
 use controller::{
     ActionPublish, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, MappingInfo,
-    HOT_CUE_SLOT_COUNT,
+    HOT_CUE_SLOT_COUNT, LOOP_SLOT_COUNT,
 };
 use engine_api::{
-    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, EvtBody, Kind, Origin, PadMode,
+    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, DeckSavedLoop, EvtBody, Kind, Origin,
+    SyncMode,
 };
 use engine_core::EngineBuses;
 use library::LibraryBuses;
@@ -412,11 +413,41 @@ fn hot_cue_slots_deck(cues: &[DeckHotCue]) -> [Option<i32>; HOT_CUE_SLOT_COUNT] 
     slots
 }
 
-fn apply_pad_mode(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, mode: PadMode) {
+fn loop_slots(loops: &[DeckSavedLoop]) -> [bool; LOOP_SLOT_COUNT] {
+    let mut slots = [false; LOOP_SLOT_COUNT];
+    for saved in loops {
+        let idx = saved.slot as usize;
+        if idx < slots.len() {
+            slots[idx] = true;
+        }
+    }
+    slots
+}
+
+fn apply_deck_feedback(
+    eng: &Arc<Mutex<ControllerEngine>>,
+    deck: u16,
+    fb: controller::DeckFeedback,
+) {
     let Ok(mut ctrl) = eng.lock() else {
         return;
     };
-    ctrl.set_deck_pad_mode(deck, mode);
+    ctrl.set_deck_feedback(deck, &fb);
+}
+
+fn apply_deck_vu(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, level: f32) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    // Clamping lives in MappingSession::set_deck_vu.
+    ctrl.set_deck_vu(deck, level);
+}
+
+fn apply_master_feedback(eng: &Arc<Mutex<ControllerEngine>>, enabled: bool) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_master_cue(enabled);
 }
 
 fn apply_hot_cues(
@@ -458,6 +489,13 @@ fn apply_keyboard_root(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, slot: u8) 
     ctrl.set_deck_keyboard_root(deck, slot);
 }
 
+fn apply_position(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, position_ms: i32) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_deck_position_ms(deck, position_ms);
+}
+
 fn mirror_engine_library_to_controller(
     stop: Arc<AtomicBool>,
     controller: Arc<Mutex<ControllerEngine>>,
@@ -471,9 +509,13 @@ fn mirror_engine_library_to_controller(
         return;
     };
     let mut deck_tracks: [Option<String>; 4] = Default::default();
+    // None until the first EngineStatus; avoids treating deck 0 as master by default.
+    let mut master_deck: Option<u16> = None;
     while !stop.load(Ordering::Relaxed) {
         match engine_rx.recv_timeout(Duration::from_millis(5)) {
-            Ok(Some(ev)) => apply_engine_mirror(&controller, &mut deck_tracks, ev.as_ref()),
+            Ok(Some(ev)) => {
+                apply_engine_mirror(&controller, &mut deck_tracks, &mut master_deck, ev.as_ref())
+            }
             Ok(None) => {}
             Err(_) => return,
         }
@@ -485,16 +527,10 @@ fn mirror_engine_library_to_controller(
     }
 }
 
-fn apply_position(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, position_ms: i32) {
-    let Ok(mut ctrl) = eng.lock() else {
-        return;
-    };
-    ctrl.set_deck_position_ms(deck, position_ms);
-}
-
 fn apply_engine_mirror(
     controller: &Arc<Mutex<ControllerEngine>>,
     deck_tracks: &mut [Option<String>; 4],
+    master_deck: &mut Option<u16>,
     ev: &engine_core::Evt,
 ) {
     let Ok(body) = decode_evt_body(ev.payload()) else {
@@ -504,24 +540,48 @@ fn apply_engine_mirror(
         EvtBody::DeckUpdated {
             id,
             track_id,
+            playing,
+            sync_mode,
+            quantize,
+            headphone_cue,
+            active_loop,
+            pending_loop_in_ms,
             pad_mode,
             key_shift,
             keyboard_page,
             key_shift_page,
             keyboard_root_hot_cue,
-            hot_cues,
             position_ms,
+            hot_cues,
+            saved_loops,
             ..
         } => {
             let idx = (id as usize).min(3);
+            let track_loaded = track_id.is_some();
             deck_tracks[idx] = track_id;
-            apply_pad_mode(controller, id, pad_mode);
+            let loop_active = active_loop.is_some_and(|l| l.active);
+            apply_deck_feedback(
+                controller,
+                id,
+                controller::DeckFeedback {
+                    playing,
+                    // Master decks keep SyncMode::Off; still light SYNC like the UI.
+                    sync: sync_mode != SyncMode::Off || *master_deck == Some(id),
+                    quantize,
+                    headphone_cue,
+                    loop_active,
+                    loop_in_set: pending_loop_in_ms.is_some() || loop_active,
+                    track_loaded,
+                    loop_slots: loop_slots(&saved_loops),
+                    pad_mode,
+                    hot_cues: hot_cue_slots_deck(&hot_cues),
+                },
+            );
             // Pages before shift so the last LED refresh uses both fresh values.
             apply_keyboard_page(controller, id, keyboard_page);
             apply_key_shift_page(controller, id, key_shift_page);
             apply_keyboard_root(controller, id, keyboard_root_hot_cue);
             apply_key_shift(controller, id, key_shift);
-            apply_hot_cues(controller, id, hot_cue_slots_deck(&hot_cues));
             if let Some(ms) = position_ms {
                 apply_position(controller, id, ms);
             }
@@ -532,21 +592,45 @@ fn apply_engine_mirror(
             };
             apply_position(controller, id, position_ms);
         }
+        EvtBody::Levels { peak_l, peak_r, .. } => {
+            // Mixer/master Levels are ignored: DDJ-400 has per-deck VU only.
+            let Origin::Deck(id) = ev.origin().clone() else {
+                return;
+            };
+            apply_deck_vu(controller, id, peak_l.max(peak_r));
+        }
         EvtBody::EngineStatus { status } => {
-            for deck in status.decks {
+            *master_deck = Some(status.master_deck);
+            for deck in &status.decks {
                 let idx = (deck.id as usize).min(3);
-                deck_tracks[idx] = deck.track_id;
-                apply_pad_mode(controller, deck.id, deck.pad_mode);
+                deck_tracks[idx] = deck.track_id.clone();
+                let loop_active = deck.active_loop.as_ref().is_some_and(|l| l.active);
+                apply_deck_feedback(
+                    controller,
+                    deck.id,
+                    controller::DeckFeedback {
+                        playing: deck.playing,
+                        sync: deck.sync_mode != SyncMode::Off || *master_deck == Some(deck.id),
+                        quantize: deck.quantize,
+                        headphone_cue: deck.headphone_cue,
+                        loop_active,
+                        loop_in_set: deck.pending_loop_in_ms.is_some() || loop_active,
+                        track_loaded: deck.track_id.is_some(),
+                        loop_slots: loop_slots(&deck.saved_loops),
+                        pad_mode: deck.pad_mode,
+                        hot_cues: hot_cue_slots_deck(&deck.hot_cues),
+                    },
+                );
                 // Pages before shift so the last LED refresh uses both fresh values.
                 apply_keyboard_page(controller, deck.id, deck.keyboard_page);
                 apply_key_shift_page(controller, deck.id, deck.key_shift_page);
                 apply_keyboard_root(controller, deck.id, deck.keyboard_root_hot_cue);
                 apply_key_shift(controller, deck.id, deck.key_shift);
-                apply_hot_cues(controller, deck.id, hot_cue_slots_deck(&deck.hot_cues));
                 if let Some(ms) = deck.position_ms {
                     apply_position(controller, deck.id, ms);
                 }
             }
+            apply_master_feedback(controller, status.master_cue);
         }
         _ => {}
     }

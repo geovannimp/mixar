@@ -38,10 +38,35 @@ pub struct ControlSnapshot {
     pub cue_volume: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
+    pub cue_hold: [bool; 4],
+    pub sync: [bool; 4],
+    pub loop_active: [bool; 4],
+    /// Loop In marker set (pending entrance and/or active loop).
+    pub loop_in_set: [bool; 4],
+    pub track_loaded: [bool; 4],
+    /// Saved-loop slot presence per deck (loop-roll pad LEDs).
+    pub loop_slots: [[bool; crate::catalog::LOOP_SLOT_COUNT]; 4],
     /// Last known playhead ms per deck (from Position / DeckUpdated).
     pub position_ms: [i32; 4],
     /// Hot cue positions ms per deck/slot (None = empty).
     pub hot_cues: [[Option<i32>; HOT_CUE_SLOT_COUNT]; 4],
+}
+
+/// Engine deck state mirrored into a [`MappingSession`](crate::session::MappingSession)
+/// for LED feedback. Hosts build this from `DeckUpdated` / `EngineStatus`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct DeckFeedback {
+    pub playing: bool,
+    pub sync: bool,
+    pub quantize: bool,
+    pub headphone_cue: bool,
+    pub loop_active: bool,
+    /// True when a Loop In marker exists (pending) or a loop is active.
+    pub loop_in_set: bool,
+    pub track_loaded: bool,
+    pub loop_slots: [bool; crate::catalog::LOOP_SLOT_COUNT],
+    pub pad_mode: PadMode,
+    pub hot_cues: [Option<i32>; HOT_CUE_SLOT_COUNT],
 }
 
 impl Default for ControlSnapshot {
@@ -58,6 +83,12 @@ impl Default for ControlSnapshot {
             eq_high: [0.5; 4],
             headphone_cue: [false; 4],
             quantize: [false; 4],
+            cue_hold: [false; 4],
+            sync: [false; 4],
+            loop_active: [false; 4],
+            loop_in_set: [false; 4],
+            track_loaded: [false; 4],
+            loop_slots: [[false; crate::catalog::LOOP_SLOT_COUNT]; 4],
             pad_mode: [PadMode::HotCue; 4],
             key_shift: [0.0; 4],
             keyboard_page: [DEFAULT_PITCH_PAGE; 4],
@@ -99,6 +130,11 @@ impl ControlSnapshot {
                     "playing" => self.playing[i] = value > 0.5,
                     "headphone_cue" => self.headphone_cue[i] = value > 0.5,
                     "quantize" => self.quantize[i] = value > 0.5,
+                    "sync" => self.sync[i] = value > 0.5,
+                    "cue_hold" => self.cue_hold[i] = value > 0.5,
+                    "loop_active" => self.loop_active[i] = value > 0.5,
+                    "loop_in_set" => self.loop_in_set[i] = value > 0.5,
+                    "track_loaded" => self.track_loaded[i] = value > 0.5,
                     "pad_mode" => {
                         self.pad_mode[i] = match value as u8 {
                             1 => PadMode::LoopRoll,
@@ -113,6 +149,87 @@ impl ControlSnapshot {
             }
             Origin::Engine => {}
         }
+    }
+
+    /// Resolve a `map.toml` output `signal` name against this snapshot.
+    ///
+    /// `pad_<mode>_<n>` is mode-gated so only the deck's active pad bank lights up;
+    /// `shift_held` is resolved by the session (it lives in the modifier set).
+    pub fn signal(&self, section: &str, name: &str) -> Option<bool> {
+        if section == crate::device::SECTION_MASTER {
+            return (name == "master_cue").then_some(self.master_cue);
+        }
+        let i = deck_idx(crate::device::origin_deck_id(section)?);
+        Some(match name {
+            "playing" => self.playing[i],
+            "cue_hold" => self.cue_hold[i],
+            "sync" => self.sync[i],
+            "quantize" => self.quantize[i],
+            "headphone_cue" => self.headphone_cue[i],
+            "track_loaded" => self.track_loaded[i],
+            "loop_active" => self.loop_active[i],
+            "loop_in_set" => self.loop_in_set[i],
+            "pad_mode_hot_cue" => self.pad_mode[i] == PadMode::HotCue,
+            "pad_mode_loop_roll" => self.pad_mode[i] == PadMode::LoopRoll,
+            "pad_mode_beat_jump" => self.pad_mode[i] == PadMode::BeatJump,
+            "pad_mode_sampler" => self.pad_mode[i] == PadMode::Sampler,
+            "pad_mode_stems" => self.pad_mode[i] == PadMode::Stems,
+            "pad_mode_keyboard" => self.pad_mode[i] == PadMode::Keyboard,
+            "pad_mode_key_shift" => self.pad_mode[i] == PadMode::KeyShift,
+            _ => {
+                return self.slot_signal(i, name);
+            }
+        })
+    }
+
+    /// `hot_cue_<n>` (cue saved), `loop_slot_<n>` (loop saved) and the mode-gated
+    /// `pad_<mode>_<n>` pad-bank signals.
+    fn slot_signal(&self, i: usize, name: &str) -> Option<bool> {
+        if let Some(n) = numbered(name, "hot_cue_") {
+            return Some(self.hot_cues[i].get(n - 1).copied().flatten().is_some());
+        }
+        if let Some(n) = numbered(name, "loop_slot_") {
+            return Some(self.loop_slots[i].get(n - 1).copied().unwrap_or(false));
+        }
+        let mode = match name.split_once('_') {
+            Some(("pad", rest)) => pad_mode_from_signal(rest)?,
+            _ => return None,
+        };
+        let n = name.rsplit('_').next()?.parse::<usize>().ok()?;
+        if self.pad_mode[i] != mode || n == 0 || n > crate::catalog::PAD_SLOT_COUNT {
+            return Some(false);
+        }
+        Some(match mode {
+            PadMode::HotCue => self.hot_cues[i].get(n - 1).copied().flatten().is_some(),
+            PadMode::LoopRoll => self.loop_slots[i].get(n - 1).copied().unwrap_or(false),
+            // Keyboard / Key Shift pad banks are host-driven (signal-less outputs);
+            // declarative `pad_keyboard_*` / `pad_key_shift_*` are not advertised.
+            _ => false,
+        })
+    }
+}
+
+fn numbered(name: &str, prefix: &str) -> Option<usize> {
+    let n = name.strip_prefix(prefix)?.parse::<usize>().ok()?;
+    (n > 0).then_some(n)
+}
+
+/// `hot_cue` | `loop` | `beat_jump` | `sampler` | `stems` → pad mode.
+///
+/// Keyboard / Key Shift pad-bank LEDs stay host-driven via signal-less outputs;
+/// do not parse them here (that would advertise inert `pad_keyboard_*` signals).
+fn pad_mode_from_signal(rest: &str) -> Option<PadMode> {
+    let (mode, n) = rest.rsplit_once('_')?;
+    if n.parse::<usize>().is_err() {
+        return None;
+    }
+    match mode {
+        "hot_cue" => Some(PadMode::HotCue),
+        "loop" => Some(PadMode::LoopRoll),
+        "beat_jump" => Some(PadMode::BeatJump),
+        "sampler" => Some(PadMode::Sampler),
+        "stems" => Some(PadMode::Stems),
+        _ => None,
     }
 }
 

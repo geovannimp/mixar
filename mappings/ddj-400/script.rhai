@@ -1,5 +1,7 @@
 // Pioneer DDJ-400 init — Mixxx PioneerDDJ400.init (Pioneer-DDJ-400-script.js).
 // SysEx is PC MIDI mode and a query for current knob/fader positions.
+// LEDs are declarative now: map.toml `[outputs.*]` drives every lamp from engine
+// state, and the session force-refreshes on attach and clears on detach.
 // VU meters: host drives device `vu_meter` CC from engine Levels (not this script).
 
 const PC_MODE_SYSEX = [

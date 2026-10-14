@@ -1,4 +1,6 @@
 use std::path::Path;
+use std::thread;
+use std::time::Duration;
 
 use engine_api::{CmdBody, Kind, Origin};
 
@@ -73,6 +75,8 @@ fn idle_heartbeat_rate_limits_and_skips_when_playing() {
 
     s.set_control_value(engine_api::Origin::Deck(0), "playing", 1.0);
     midi.frames.clear();
+    // Wait out the idle interval so a firing heartbeat would be observable.
+    thread::sleep(Duration::from_secs(1) + Duration::from_millis(50));
     s.idle_heartbeat(&mut bus, &mut midi).unwrap();
     assert!(
         midi.frames.is_empty(),
