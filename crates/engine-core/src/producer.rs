@@ -139,6 +139,10 @@ impl DeviceLiveness {
     /// The stall clock is seeded at construction, so every device starts live and the producer
     /// can fill rings during stream startup. A device whose callback never fires goes dead after
     /// the timeout and stops holding back the others.
+    ///
+    /// `now` MUST be one shared timestamp sampled once per producer iteration and passed for
+    /// every device: per-device or stale timestamps would compare against each device's own
+    /// clock and break the stall deadline uniformly across devices.
     fn observe(&mut self, count: u64, now: Instant) -> bool {
         if count != self.last_count {
             self.last_count = count;
@@ -202,7 +206,12 @@ pub(crate) fn producer_thread_loop(
     let mut produced_chunks: u64 = 0;
     let mut oversized_warned = false;
     let mut pacing_index: Option<usize> = None;
-    let mut ring_capacity: usize = 0;
+    // Ring capacity is fixed at construction (rtrb rings are not resized), so snapshot it per
+    // device up front instead of re-reading it from the pacing producer on every failover.
+    let ring_capacities: Vec<usize> = device_producers
+        .iter()
+        .map(|(_, producer)| producer.buffer().capacity())
+        .collect();
     let mut liveness: Vec<DeviceLiveness> = device_producers
         .iter()
         .map(|_| DeviceLiveness::new(Instant::now()))
@@ -214,13 +223,15 @@ pub(crate) fn producer_thread_loop(
         return;
     }
 
-    // Fixed for the lifetime of the loop; a caller contract violation is a programming error.
-    debug_assert_eq!(
+    // The producer writes each chunk to every device ring and reads `live`/`callback_counts`
+    // positionally, so a length mismatch is a caller programming error that would silently
+    // drop a device in release builds. These are one-time checks before the loop.
+    assert_eq!(
         liveness.len(),
         callback_counts.len(),
         "callback_counts must pair 1:1 with device_producers"
     );
-    debug_assert_eq!(
+    assert_eq!(
         liveness.len(),
         device_producers.len(),
         "liveness must pair 1:1 with device_producers"
@@ -266,28 +277,34 @@ pub(crate) fn producer_thread_loop(
             live.push(state.observe(count.load(Ordering::Relaxed), now));
         }
 
-        // No device is producing callbacks: back off well past the stall timeout so a dead
-        // output device does not spin the producer thread.
+        // No device is producing callbacks. Back off well past the stall timeout so a dead
+        // output device does not spin the producer thread, in short slices that keep shutdown
+        // latency bounded by checking `running` between sleeps.
         let Some(pacing_i) = live.iter().position(|&l| l) else {
-            thread::sleep(DEVICE_STALL_TIMEOUT / 4);
+            let slice = DEVICE_STALL_TIMEOUT / 16;
+            for _ in 0..4 {
+                if !*running.lock().unwrap() {
+                    break;
+                }
+                thread::sleep(slice);
+            }
             continue;
         };
 
         let device_callbacks = callback_counts[pacing_i].load(Ordering::Relaxed);
         if pacing_index != Some(pacing_i) {
-            // Failover (or recovery back to a lower-index device). Rebase onto the new pacing
-            // clock so MAX_AHEAD_CHUNKS is measured against it and a failover does not stall
-            // production waiting for the old clock. Rebasing downward only parks the producer
-            // sooner; every write is still bounded by the per-device room gate.
+            // Failover (or recovery back to a lower-index device).
             match pacing_index {
                 Some(prev_i) => {
                     tracing::info!("Pacing changed: device {} -> device {}", prev_i, pacing_i)
                 }
                 None => tracing::info!("Pacing started on device {}", pacing_i),
             }
-            // Ring capacity is fixed after construction; refresh the cache only on failover.
-            ring_capacity = device_producers[pacing_i].1.buffer().capacity();
-            produced_chunks = device_callbacks;
+            // Move the pacing clock forward only. Lowering `produced_chunks` would make the
+            // MAX_AHEAD_CHUNKS gate pass trivially and let the producer burst ahead of the new
+            // pacing device's consumption; with a slower-count device the gate then holds
+            // production until it catches up, which is the correct pacing behavior.
+            produced_chunks = produced_chunks.max(device_callbacks);
             pacing_index = Some(pacing_i);
         }
 
@@ -300,7 +317,7 @@ pub(crate) fn producer_thread_loop(
         let (pacing_plan, pacing_producer) = &device_producers[pacing_i];
         let samples_per_chunk = chunk_frames * pacing_plan.channels as usize;
         let pacing_slots = pacing_producer.slots();
-        let filled = ring_capacity.saturating_sub(pacing_slots);
+        let filled = ring_capacities[pacing_i].saturating_sub(pacing_slots);
         let target_fill = samples_per_chunk * 2;
         if filled >= target_fill || pacing_slots < samples_per_chunk {
             thread::sleep(buffer_duration / 8);
