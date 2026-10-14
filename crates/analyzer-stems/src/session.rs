@@ -60,40 +60,23 @@ fn load_session(path: &Path) -> Result<LoadedSession> {
     let mut last_err = None;
 
     for (label, ep) in cascade {
-        match try_commit(path, label, ep) {
-            Ok(mut session) => {
-                let (input_name, output_name) = match resolve_io_names(&session) {
-                    Ok(names) => names,
-                    Err(err) => {
-                        warn!(ep = label, error = %format!("{err:#}"), "stem ort: bad I/O; trying next");
-                        last_err = Some(err);
-                        continue;
-                    }
-                };
-                if let Err(err) = probe_session(&mut session, &input_name) {
-                    let detail = format!("{err:#}");
-                    if detail.contains("leading 0") || detail.contains("0,00") {
-                        warn!(
-                            ep = label,
-                            error = %detail,
-                            "stem ort: WebGPU WGSL float locale bug; trying next EP"
-                        );
-                    } else if detail.contains("WGSL") {
-                        warn!(
-                            ep = label,
-                            error = %detail,
-                            "stem ort: WebGPU WGSL validation failed; trying next EP"
-                        );
-                    } else {
-                        warn!(
-                            ep = label,
-                            error = %detail,
-                            "stem ort: EP probe failed; trying next"
-                        );
-                    }
-                    last_err = Some(err);
-                    continue;
-                }
+        let probe = || -> Result<(Session, String, String)> {
+            let mut session = try_commit(path, label, ep)?;
+            let (input_name, output_name) = resolve_io_names(&session)
+                .with_context(|| format!("resolve ONNX I/O with EP '{label}'"))?;
+            probe_session(&mut session, &input_name)?;
+            Ok((session, input_name, output_name))
+        };
+        #[cfg(all(feature = "webgpu", unix))]
+        let probe_result = if label == "webgpu" {
+            crate::ep::with_c_numeric_locale(probe)
+        } else {
+            probe()
+        };
+        #[cfg(not(all(feature = "webgpu", unix)))]
+        let probe_result = probe();
+        match probe_result {
+            Ok((session, input_name, output_name)) => {
                 info!(
                     path = %path.display(),
                     ep = label,
@@ -114,7 +97,7 @@ fn load_session(path: &Path) -> Result<LoadedSession> {
                 warn!(
                     ep = label,
                     error = %format!("{err:#}"),
-                    "stem ort: EP session commit failed; trying next"
+                    "stem ort: EP session failed; trying next"
                 );
                 last_err = Some(err);
             }
@@ -125,14 +108,12 @@ fn load_session(path: &Path) -> Result<LoadedSession> {
         .unwrap_or_else(|| anyhow!("no ORT execution provider could load {}", path.display())))
 }
 
+/// Build and commit a session for one EP attempt. The caller
+/// ([`load_session`]) applies the single C-locale scope for the webgpu label,
+/// so this must not re-enter `with_c_numeric_locale` — the internal
+/// `LOCALE_LOCK` is non-reentrant.
 fn try_commit(path: &Path, label: &str, ep: ort::ep::ExecutionProviderDispatch) -> Result<Session> {
     info!(ep = label, "stem ort: trying EP");
-    #[cfg(feature = "webgpu")]
-    if label == "webgpu" {
-        // Re-assert before commit: Flutter (or anything else) may have reset locale.
-        crate::ep::force_c_numeric_locale();
-    }
-
     let mut builder = Session::builder().context("ort Session::builder")?;
     builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)
