@@ -217,28 +217,55 @@ fn handle_library_evt(
     evt_bus: &EngineBus,
     revision: &AtomicU64,
 ) {
-    if *event.kind() != LibraryKind::HotCuesChanged {
-        return;
-    }
-    let (track_id, hot_cues) = match decode_library_evt_body(event.payload()) {
-        Ok(LibraryEvtBody::HotCuesChanged { track_id, hot_cues }) => (track_id, hot_cues),
-        Ok(_) => {
-            tracing::warn!("HotCuesChanged kind with mismatched library evt body");
-            return;
+    match *event.kind() {
+        LibraryKind::HotCuesChanged => {
+            let (track_id, hot_cues) = match decode_library_evt_body(event.payload()) {
+                Ok(LibraryEvtBody::HotCuesChanged { track_id, hot_cues }) => (track_id, hot_cues),
+                Ok(_) => {
+                    tracing::warn!("HotCuesChanged kind with mismatched library evt body");
+                    return;
+                }
+                Err(err) => {
+                    tracing::warn!(error = %err, "failed to decode library HotCuesChanged");
+                    return;
+                }
+            };
+            if let Err(err) = with_engine_mut(engine, |eng| {
+                let changed = eng.apply_track_hot_cues(&track_id, &hot_cues);
+                for deck_id in changed {
+                    publish_deck_updated(evt_bus, revision, eng, deck_id)?;
+                }
+                Ok(())
+            }) {
+                tracing::warn!(error = %err, "failed to apply HotCuesChanged / publish DeckUpdated");
+            }
         }
-        Err(err) => {
-            tracing::warn!(error = %err, "failed to decode library HotCuesChanged");
-            return;
+        LibraryKind::BeatGridChanged => {
+            let (track_id, beat_grid) = match decode_library_evt_body(event.payload()) {
+                Ok(LibraryEvtBody::BeatGridChanged {
+                    track_id,
+                    beat_grid,
+                }) => (track_id, beat_grid),
+                Ok(_) => {
+                    tracing::warn!("BeatGridChanged kind with mismatched library evt body");
+                    return;
+                }
+                Err(err) => {
+                    tracing::warn!(error = %err, "failed to decode library BeatGridChanged");
+                    return;
+                }
+            };
+            if let Err(err) = with_engine_mut(engine, |eng| {
+                let changed = eng.apply_track_beat_grid(&track_id, &beat_grid);
+                for deck_id in changed {
+                    publish_deck_updated(evt_bus, revision, eng, deck_id)?;
+                }
+                Ok(())
+            }) {
+                tracing::warn!(error = %err, "failed to apply BeatGridChanged / publish DeckUpdated");
+            }
         }
-    };
-    if let Err(err) = with_engine_mut(engine, |eng| {
-        let changed = eng.apply_track_hot_cues(&track_id, &hot_cues);
-        for deck_id in changed {
-            publish_deck_updated(evt_bus, revision, eng, deck_id)?;
-        }
-        Ok(())
-    }) {
-        tracing::warn!(error = %err, "failed to apply HotCuesChanged / publish DeckUpdated");
+        _ => {}
     }
 }
 

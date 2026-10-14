@@ -35,6 +35,8 @@ impl Default for PitchPadState {
 pub(crate) struct DeckControlState {
     pub sync_mode: SyncMode,
     pub bpm: Option<f64>,
+    /// First beat of the constant-tempo grid in media milliseconds (phase for [`snap_ms`]).
+    pub first_beat_ms: f64,
     pub quantize: bool,
     pub pad_mode: PadMode,
     pub loop_roll_restore: Option<LoopRegion>,
@@ -62,6 +64,7 @@ impl Default for DeckControlState {
         Self {
             sync_mode: SyncMode::Off,
             bpm: None,
+            first_beat_ms: 0.0,
             quantize: false,
             pad_mode: PadMode::HotCue,
             loop_roll_restore: None,
@@ -92,6 +95,7 @@ impl DeckControlState {
 
     pub fn clear_loaded_track(&mut self) {
         self.bpm = None;
+        self.first_beat_ms = 0.0;
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
         self.pending_loop_in_ms = None;
@@ -117,6 +121,7 @@ impl DeckControlState {
         metadata: &library_core::TrackMetadata,
     ) {
         self.bpm = metadata.bpm.filter(|b| b.is_finite() && *b > 0.0);
+        self.first_beat_ms = 0.0;
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
         self.pending_loop_in_ms = None;
@@ -151,7 +156,10 @@ pub(crate) fn require_positive_bpm(bpm: Option<f64>, op: &str) -> anyhow::Result
 }
 
 /// Snap media time to the nearest beat when quantize is on. Stays in ms end-to-end.
-pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
+///
+/// `first_beat_ms` is the grid phase (constant-tempo first beat), matching the
+/// waveform beat lines painted by the UI.
+pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, first_beat_ms: f64, quantize: bool) -> i32 {
     if !quantize {
         return ms;
     }
@@ -161,8 +169,14 @@ pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
     if bpm <= 0.0 {
         return ms;
     }
+    let phase = first_beat_ms;
+    // Bus/grid payloads can carry NaN/negative phase; refuse to snap rather than
+    // emit NaN or negative beat times.
+    if !phase.is_finite() || phase < 0.0 {
+        return ms;
+    }
     let beat = beat_ms(bpm);
-    ((f64::from(ms) / beat).round() * beat).round() as i32
+    (((f64::from(ms) - phase) / beat).round() * beat + phase).round() as i32
 }
 
 pub(crate) fn target_sync_speed(master_bpm: f64, master_speed: f32, slave_bpm: f64) -> f32 {
@@ -170,32 +184,42 @@ pub(crate) fn target_sync_speed(master_bpm: f64, master_speed: f32, slave_bpm: f
     ((master_effective / slave_bpm) as f32).clamp(0.5, 2.0)
 }
 
+#[allow(clippy::too_many_arguments)] // master/slave pos+bpm+phase are parallel inputs
 pub(crate) fn beat_align_target(
     master_pos_ms: i32,
     slave_pos_ms: i32,
     duration_ms: i32,
     master_bpm: f64,
     slave_bpm: f64,
+    master_first_beat_ms: f64,
+    slave_first_beat_ms: f64,
     quantize: bool,
 ) -> i32 {
     let master_pos = f64::from(master_pos_ms);
     let slave_pos = f64::from(slave_pos_ms);
-    let duration = f64::from(duration_ms);
     let master_beat = beat_ms(master_bpm);
     let slave_beat = beat_ms(slave_bpm);
-    let master_phase = master_pos % master_beat;
+    // Phase relative to each deck's painted grid (not media t=0).
+    let master_phase = (master_pos - master_first_beat_ms).rem_euclid(master_beat);
 
-    let slave_beat_index = (slave_pos / slave_beat).floor();
-    let mut target = slave_beat_index * slave_beat + master_phase;
+    let slave_beat_index = ((slave_pos - slave_first_beat_ms) / slave_beat).floor();
+    let mut target = slave_beat_index * slave_beat + slave_first_beat_ms + master_phase;
     if target + slave_beat * 0.5 < slave_pos {
         target += slave_beat;
     }
 
-    snap_ms(
-        target.min(duration).round() as i32,
+    let snapped = snap_ms(
+        target.round() as i32,
         Some(slave_bpm),
+        slave_first_beat_ms,
         quantize,
-    )
+    );
+    // Clamp to valid media time: negative playheads must not seek before 0.
+    if duration_ms > 0 {
+        snapped.clamp(0, duration_ms)
+    } else {
+        snapped.max(0)
+    }
 }
 
 #[cfg(test)]
@@ -210,15 +234,39 @@ mod tests {
 
     #[test]
     fn snap_ms_without_quantize_passes_through_including_negatives() {
-        assert_eq!(snap_ms(500, Some(120.0), false), 500);
-        assert_eq!(snap_ms(-100, None, false), -100);
+        assert_eq!(snap_ms(500, Some(120.0), 0.0, false), 500);
+        assert_eq!(snap_ms(-100, None, 0.0, false), -100);
     }
 
     #[test]
     fn snap_ms_quantizes_to_nearest_beat_in_ms() {
         // 120 BPM → 500 ms per beat; 620 → 500, 760 → 1000
-        assert_eq!(snap_ms(620, Some(120.0), true), 500);
-        assert_eq!(snap_ms(760, Some(120.0), true), 1000);
+        assert_eq!(snap_ms(620, Some(120.0), 0.0, true), 500);
+        assert_eq!(snap_ms(760, Some(120.0), 0.0, true), 1000);
+    }
+
+    #[test]
+    fn snap_ms_respects_first_beat_phase() {
+        // 120 BPM, phase 100 ms → beats at 100, 600, 1100…
+        assert_eq!(snap_ms(200, Some(120.0), 100.0, true), 100);
+        assert_eq!(snap_ms(400, Some(120.0), 100.0, true), 600);
+    }
+
+    #[test]
+    fn snap_ms_passes_through_when_phase_is_invalid() {
+        assert_eq!(snap_ms(200, Some(120.0), f64::NAN, true), 200);
+        assert_eq!(snap_ms(200, Some(120.0), -50.0, true), 200);
+    }
+
+    #[test]
+    fn beat_align_target_clamps_negative_slave_position_to_zero() {
+        // Negative slave playhead must not yield a negative seek target.
+        let target = beat_align_target(
+            250,  // master mid-beat at 120 BPM
+            -100, // slave before 0
+            10_000, 120.0, 120.0, 0.0, 0.0, false,
+        );
+        assert!(target >= 0, "expected non-negative target, got {target}");
     }
 
     #[test]
