@@ -6,8 +6,8 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/mixer_live_color.dart';
-import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
@@ -104,21 +104,26 @@ class MasterStrip extends ConsumerWidget {
           SettingsSectionCard(
             title: 'Headphone',
             subtitle: 'Cue volume and Cue/Master blend.',
-            trailing: AppButton(
-              variant: previewEnabled ? .secondary : .outline,
-              size: .xs,
-              mainAxisSize: .min,
-              semanticsLabel: 'Enable preview bus',
-              onPress: () {
-                unawaited(
-                  _masterCmd(
-                    context,
-                    () => _setPreviewEnabled(ref, enabled: !previewEnabled),
+            trailing: previewEnabled
+                ? null
+                : AppButton(
+                    variant: .outline,
+                    size: .xs,
+                    mainAxisSize: .min,
+                    semanticsLabel: 'Enable preview bus',
+                    onPress: () {
+                      Navigator.of(context).pop();
+                      ref
+                          .read(pendingSettingsDeepLinkProvider.notifier)
+                          .request(
+                            const SettingsDeepLink(
+                              section: SettingsSection.audio,
+                              scrollToPreviewBus: true,
+                            ),
+                          );
+                    },
+                    child: const Text('Enable'),
                   ),
-                );
-              },
-              child: Text(previewEnabled ? 'On' : 'Enable'),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
@@ -179,19 +184,6 @@ class MasterStrip extends ConsumerWidget {
         ],
       ),
     );
-  }
-}
-
-Future<void> _setPreviewEnabled(WidgetRef ref, {required bool enabled}) async {
-  final current = await ref.read(appSettingsProvider.future);
-  final result = await saveAppSettings(
-    ref,
-    copyAppSettings(current, previewEnabled: enabled),
-  );
-  // saveAppSettings swallows apply failures into [SaveAppSettingsResult];
-  // rethrow so [_masterCmd] can toast them.
-  if (result.applyError case final err?) {
-    throw StateError(err);
   }
 }
 

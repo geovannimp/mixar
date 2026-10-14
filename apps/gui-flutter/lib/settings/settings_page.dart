@@ -23,23 +23,55 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
-  const new({this.onClose, super.key});
+  const new({
+    this.onClose,
+    this.initialSection = SettingsSection.audio,
+    this.scrollToPreviewBus = false,
+    super.key,
+  });
 
   final VoidCallback? onClose;
+  final SettingsSection initialSection;
+  final bool scrollToPreviewBus;
 
   @override
   ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  SettingsSection _section = SettingsSection.audio;
+  late SettingsSection _section = widget.initialSection;
+  late var _highlightPreviewBus = widget.scrollToPreviewBus;
   AppSettings? _draft;
   AppSettings? _baseline;
   var _busy = false;
   String? _error;
+  var _didScrollToPreviewBus = false;
 
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
+
+  void _maybeScrollToPreviewBus() {
+    if (!widget.scrollToPreviewBus ||
+        _didScrollToPreviewBus ||
+        _section != SettingsSection.audio) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _didScrollToPreviewBus) {
+        return;
+      }
+      _didScrollToPreviewBus = true;
+      final ctx = SettingsAudioPanel.previewBusCardKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.1,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +102,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         final draft = _draft!;
         final baseline = _baseline!;
         final dirty = _isDirty(draft, baseline);
+        _maybeScrollToPreviewBus();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -131,7 +164,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 children: [
                   SettingsSidebar(
                     active: _section,
-                    onSelect: (section) => setState(() => _section = section),
+                    onSelect: (section) => setState(() {
+                      _section = section;
+                      // One-shot deep-link glow; don't replay if user returns.
+                      _highlightPreviewBus = false;
+                    }),
                   ),
                   Expanded(
                     child: SingleChildScrollView(
@@ -141,6 +178,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         child: _SettingsSectionPanel(
                           section: _section,
                           draft: draft,
+                          highlightPreviewBus: _highlightPreviewBus,
                           onChanged: (next) => setState(() => _draft = next),
                         ),
                       ),
@@ -258,11 +296,13 @@ class _SettingsSectionPanel extends StatelessWidget {
     required this.section,
     required this.draft,
     required this.onChanged,
+    this.highlightPreviewBus = false,
   });
 
   final SettingsSection section;
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
+  final bool highlightPreviewBus;
 
   @override
   Widget build(BuildContext context) {
@@ -270,6 +310,7 @@ class _SettingsSectionPanel extends StatelessWidget {
       SettingsSection.audio => SettingsAudioPanel(
         draft: draft,
         onChanged: onChanged,
+        highlightPreviewBus: highlightPreviewBus,
       ),
       SettingsSection.mixer => SettingsMixerPanel(
         draft: draft,

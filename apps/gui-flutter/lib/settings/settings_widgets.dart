@@ -57,17 +57,20 @@ class SettingsSectionCard extends StatelessWidget {
     super.key,
     this.trailing,
     this.child,
+    this.borderColor,
   });
 
   final String title;
   final String subtitle;
   final Widget? trailing;
   final Widget? child;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
     final header = SettingsSectionHeader(title: title, description: subtitle);
     return MCard(
+      borderColor: borderColor,
       child: Padding(
         padding: const .fromLTRB(16, 16, 16, 16),
         child: Column(
@@ -89,6 +92,72 @@ class SettingsSectionCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Primary border flash that holds briefly then fades out (~1s).
+///
+/// [builder] receives the animated border tint (null when inactive/faded).
+class SettingsGlowFlash extends StatefulWidget {
+  const new({required this.builder, this.active = false, super.key});
+
+  final Widget Function(BuildContext context, Color? borderColor) builder;
+  final bool active;
+
+  @override
+  State<SettingsGlowFlash> createState() => _SettingsGlowFlashState();
+}
+
+class _SettingsGlowFlashState extends State<SettingsGlowFlash>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _glow;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+    // Hold full glow ~20%, then ease out.
+    _glow = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.2, 1, curve: Curves.easeOut),
+      ),
+    );
+    if (widget.active) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _controller.forward();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active && _controller.isDismissed) {
+      return widget.builder(context, null);
+    }
+    final theme = context.theme;
+    return AnimatedBuilder(
+      animation: _glow,
+      builder: (context, _) {
+        final t = _glow.value;
+        final borderColor = t <= 0
+            ? null
+            : Color.lerp(theme.colors.border, theme.colors.primary, t);
+        return widget.builder(context, borderColor);
+      },
     );
   }
 }
