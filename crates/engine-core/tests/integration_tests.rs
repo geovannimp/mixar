@@ -111,6 +111,61 @@ fn test_engine_session_loads_track_via_shared_library_manager() -> Result<()> {
     Ok(())
 }
 
+/// `prepare_track_for_playback` resolves stems for a native `.stem.mp4` track;
+/// `load_track_from_library` must land them on the deck instead of dropping the
+/// decoded stem buffers, so the stems pad works (`stems_ready()` true) without
+/// the host taking stems itself.
+#[test]
+fn test_engine_load_track_from_library_attaches_native_stems() -> Result<()> {
+    use codec::{encode_stem_mp4, StemAtom, StemMuxFormat};
+
+    let dir = tempfile::tempdir()?;
+    let stem_path = dir.path().join("library.stem.mp4");
+    let rate: u32 = 48_000;
+    let frames = (rate / 10) as usize;
+    let tone = |amp: f32| -> Vec<f32> {
+        (0..frames * 2)
+            .map(|i| amp * ((i / 2) as f32 * 0.01).sin())
+            .collect()
+    };
+    let mix = tone(0.1);
+    let stems = [tone(0.2), tone(0.3), tone(0.4), tone(0.5)];
+    encode_stem_mp4(
+        &stem_path,
+        StemMuxFormat::Opus,
+        rate,
+        &mix,
+        [&stems[0], &stems[1], &stems[2], &stems[3]],
+        &StemAtom::default_ni(),
+    )?;
+
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        analysis_duration: AnalysisDurationMode::Complete,
+        ..Default::default()
+    };
+
+    let lib = Arc::new(Mutex::new(LibraryManager::open_in_memory(
+        LibraryConfig::default(),
+    )?));
+    let imported = lib.lock().unwrap().import_file_path(&stem_path)?;
+
+    let mut engine = Engine::new_with_library(config, Arc::clone(&lib))?;
+    engine.start()?;
+    engine.load_track_from_library(0, imported.id())?;
+
+    assert!(
+        engine
+            .deck_snapshot(0)
+            .expect("deck snapshot available")
+            .stems_ready,
+        "stems returned by prepare_track_for_playback must be attached to the deck"
+    );
+
+    engine.stop()?;
+    Ok(())
+}
+
 #[test]
 fn test_engine_with_auto_backend_selects_a_usable_backend() -> Result<()> {
     // "auto" must resolve to a concrete backend: CPAL when it initialises,

@@ -24,7 +24,6 @@ use engine_dsp::{DeckEqGains, DeckState, DspEngine, KEY_SHIFT_SEMITONE_LIMIT};
 use library::{LibraryBus, LibraryManager, PreparedTrackPlayback};
 use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -49,8 +48,6 @@ pub struct Engine {
     library_cmd: Option<LibraryBus>,
     /// Host-owned omnibus clones. Worker JoinHandle stays off this struct.
     engine_buses: Option<EngineBuses>,
-    /// Decoded PCM cache keyed by track id.
-    decode_cache: HashMap<TrackId, Arc<LoadedAudio>>,
     master_deck: usize,
     deck_control: Vec<DeckControlState>,
     soft_takeover: crate::soft_takeover::SoftTakeoverState,
@@ -111,7 +108,6 @@ impl Engine {
             library,
             library_cmd,
             engine_buses: None,
-            decode_cache: HashMap::new(),
             master_deck: 0,
             deck_control: (0..NUM_DECKS)
                 .map(|_| DeckControlState {
@@ -129,9 +125,14 @@ impl Engine {
             .library
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine has no attached LibraryManager"))?;
-        let prepared = LibraryManager::prepare_track_for_playback(library.as_ref(), track_id)
+        let mut prepared = LibraryManager::prepare_track_for_playback(library.as_ref(), track_id)
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        self.load_prepared_track(deck_id, prepared)
+        let stems = prepared.stems.take();
+        self.load_prepared_track(deck_id, prepared)?;
+        if let Some(stems) = stems {
+            self.attach_deck_stems(deck_id, stems)?;
+        }
+        Ok(())
     }
 
     /// Attach host-owned omnibus buses (clones stored on the engine).
@@ -407,7 +408,6 @@ impl Engine {
 
         self.dsp_engine = None;
         self.transport_events.lock().unwrap().clear();
-        self.decode_cache.clear();
 
         tracing::info!("Engine stopped");
         Ok(())
@@ -473,9 +473,9 @@ impl Engine {
 
     /// Load a track from an [`AudioSource`] into a deck.
     ///
-    /// Decodes via [`LoadableAudio`] using an engine-owned PCM cache keyed by track id.
-    /// Channel auto gain is derived from source metadata (ReplayGain preferred, else
-    /// `loudness_lufs`) together with [`Self::set_normalizer_target`].
+    /// Decodes via [`LoadableAudio`] on demand. Channel auto gain is derived from
+    /// source metadata (ReplayGain preferred, else `loudness_lufs`) together with
+    /// [`Self::set_normalizer_target`].
     pub fn load_track(&mut self, deck_id: usize, source: AudioSource) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
@@ -493,14 +493,7 @@ impl Engine {
         let track_path = source.source_ref();
         let loudness_lufs = loudness_from_metadata(&metadata);
         let bpm = metadata.bpm;
-        let audio = if let Some(cached) = self.decode_cache.get(&track_id) {
-            Arc::clone(cached)
-        } else {
-            let audio = Arc::new(source.load()?);
-            self.decode_cache
-                .insert(track_id.clone(), Arc::clone(&audio));
-            audio
-        };
+        let audio = Arc::new(source.load()?);
 
         let mut dsp = dsp_engine.lock().unwrap();
         {
@@ -525,13 +518,21 @@ impl Engine {
 
     /// Load a track prepared by [`library::LibraryManager`] into a deck.
     ///
-    /// This consumes library-owned decode/cache output directly instead of filling the engine's
-    /// legacy decode cache.
+    /// Consumes the library-owned bounded decode cache output directly; the engine holds no
+    /// cache of its own. Callers that may receive `stems` must take them before calling this
+    /// method and attach them with [`Self::attach_deck_stems`] — decoding, phase selection,
+    /// and stem routing stay library/host-owned.
     pub fn load_prepared_track(
         &mut self,
         deck_id: usize,
         prepared: PreparedTrackPlayback,
     ) -> Result<()> {
+        // Stems must be taken by the caller and attached afterwards (see the doc comment);
+        // catching a Some here keeps the drop loud in test builds instead of silent.
+        debug_assert!(
+            prepared.stems.is_none(),
+            "load_prepared_track drops prepared.stems; take them before calling and attach via attach_deck_stems"
+        );
         let dsp_engine = self
             .dsp_engine
             .as_ref()
@@ -1175,16 +1176,6 @@ impl Engine {
         self.deck_control.get(deck_id).map(|c| c.quantize)
     }
 
-    fn decode_source(&mut self, source: &AudioSource) -> Result<Arc<LoadedAudio>> {
-        let track_id = source.id().clone();
-        if let Some(cached) = self.decode_cache.get(&track_id) {
-            return Ok(Arc::clone(cached));
-        }
-        let audio = Arc::new(source.load()?);
-        self.decode_cache.insert(track_id, Arc::clone(&audio));
-        Ok(audio)
-    }
-
     /// Assign a decoded sample to a sampler pad slot on a deck.
     pub fn assign_sampler_slot(
         &mut self,
@@ -1194,7 +1185,7 @@ impl Engine {
         label: String,
         loudness_lufs: Option<f64>,
     ) -> Result<()> {
-        let audio = self.decode_source(&source)?;
+        let audio = Arc::new(source.load()?);
         self.assign_sampler_audio(deck_id, slot, audio, label, loudness_lufs)
     }
 
@@ -2696,17 +2687,21 @@ mod tests {
         ))
     }
 
-    /// Bypass file decode by inserting PCM into the engine cache before load.
-    fn cache_empty_pcm(engine: &mut Engine, track_id: &str) {
-        engine.decode_cache.insert(
-            TrackId::new(track_id),
-            Arc::new(LoadedAudio {
+    fn prepared_test_source(loudness_lufs: Option<f64>) -> PreparedTrackPlayback {
+        let source = test_source(loudness_lufs);
+        let track_id = source.id().clone();
+        PreparedTrackPlayback {
+            track_id: track_id.clone(),
+            source,
+            audio: Arc::new(LoadedAudio {
                 samples: vec![],
                 sample_rate: 48_000,
                 channels: 2,
                 source_id: track_id.to_string(),
             }),
-        );
+            stems: None,
+            loudness_lufs,
+        }
     }
 
     fn started_null_engine() -> Engine {
@@ -2739,9 +2734,10 @@ mod tests {
     fn load_track_sets_channel_loudness_from_metadata() {
         let mut engine = started_null_engine();
         engine.set_normalizer_target(Some(-18.0)).unwrap();
-        cache_empty_pcm(&mut engine, "test.wav");
 
-        engine.load_track(0, test_source(Some(-24.0))).unwrap();
+        engine
+            .load_prepared_track(0, prepared_test_source(Some(-24.0)))
+            .unwrap();
 
         assert_eq!(with_channel(&engine, 0, |c| c.loudness_lufs()), Some(-24.0));
         assert_eq!(with_channel(&engine, 0, |c| c.auto_gain_db()), 6.0);
@@ -2754,10 +2750,13 @@ mod tests {
     fn load_track_invalid_deck_id_does_not_partially_mutate_state() {
         let mut engine = started_null_engine();
         engine.set_normalizer_target(Some(-18.0)).unwrap();
-        cache_empty_pcm(&mut engine, "test.wav");
-        engine.load_track(0, test_source(Some(-21.0))).unwrap();
+        engine
+            .load_prepared_track(0, prepared_test_source(Some(-21.0)))
+            .unwrap();
 
-        let err = engine.load_track(2, test_source(Some(-27.0))).unwrap_err();
+        let err = engine
+            .load_prepared_track(2, prepared_test_source(Some(-27.0)))
+            .unwrap_err();
         assert!(err.to_string().contains("Invalid deck ID"));
 
         assert_eq!(with_channel(&engine, 0, |c| c.loudness_lufs()), Some(-21.0));
@@ -2828,25 +2827,24 @@ mod tests {
     fn deck_level_snapshot_reads_peaks_from_mixer_channel_not_deck() {
         let mut engine = started_null_engine();
 
-        engine.decode_cache.insert(
-            TrackId::new("tone.wav"),
-            Arc::new(LoadedAudio {
+        let track_id = TrackId::new("tone.wav");
+        let prepared = PreparedTrackPlayback {
+            track_id: track_id.clone(),
+            source: AudioSource::File(FileAudioSource::new(
+                track_id.clone(),
+                PathBuf::from("/no/such/tone.wav"),
+                TrackMetadata::default(),
+            )),
+            audio: Arc::new(LoadedAudio {
                 samples: vec![0.5f32; 48_000 * 2],
                 sample_rate: 48_000,
                 channels: 2,
-                source_id: "tone.wav".to_string(),
+                source_id: track_id.to_string(),
             }),
-        );
-        engine
-            .load_track(
-                0,
-                AudioSource::File(FileAudioSource::new(
-                    TrackId::new("tone.wav"),
-                    PathBuf::from("/no/such/tone.wav"),
-                    TrackMetadata::default(),
-                )),
-            )
-            .unwrap();
+            stems: None,
+            loudness_lufs: None,
+        };
+        engine.load_prepared_track(0, prepared).unwrap();
         engine.play(0).unwrap();
 
         // The null backend never drains the pre-filled ring buffer, so the background
@@ -2887,8 +2885,9 @@ mod tests {
     fn unload_deck_clears_loudness_but_preserves_manual_controls() {
         let mut engine = started_null_engine();
         engine.set_normalizer_target(Some(-18.0)).unwrap();
-        cache_empty_pcm(&mut engine, "test.wav");
-        engine.load_track(0, test_source(Some(-24.0))).unwrap();
+        engine
+            .load_prepared_track(0, prepared_test_source(Some(-24.0)))
+            .unwrap();
         engine.set_deck_volume(0, 0.4).unwrap();
         engine.set_deck_eq_bands(0, 2.0, -1.0, 3.0).unwrap();
         engine.set_deck_filter_db(0, 5.0).unwrap();
@@ -2936,7 +2935,9 @@ mod tests {
 
         assert!(engine.play(0).is_err());
         assert!(engine.pause(0).is_err());
-        assert!(engine.load_track(0, test_source(None)).is_err());
+        assert!(engine
+            .load_prepared_track(0, prepared_test_source(None))
+            .is_err());
 
         engine.start().unwrap();
 
@@ -2947,7 +2948,9 @@ mod tests {
         assert!(missing.unwrap_err().to_string().contains("not found"));
 
         assert!(engine.play(2).is_err());
-        assert!(engine.load_track(2, test_source(None)).is_err());
+        assert!(engine
+            .load_prepared_track(2, prepared_test_source(None))
+            .is_err());
 
         engine.stop().unwrap();
     }
