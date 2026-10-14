@@ -9,9 +9,19 @@ use library_core::{Library, LibraryError, LoadableAudio, Result, TrackId};
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 
+#[cfg(feature = "analysis")]
+use crate::analysis::{analyze_stem_mixdown_pcm, preferred_loudness_lufs, ComputedFileAnalysis};
 use crate::db::{self, Db};
 use crate::entity::{track_stem, TrackStemEntity};
 use crate::LibraryManager;
+#[cfg(feature = "analysis")]
+use crate::PreparedTrackPlayback;
+#[cfg(feature = "analysis")]
+use analyzer::{merge_track_metadata, AnalysisConfig, TagMetadata};
+#[cfg(feature = "analysis")]
+use codec::{decode_stem_file, StemPcmBundle};
+#[cfg(feature = "analysis")]
+use library_core::{AnalysisDurationMode, AnalyzeTrackOptions, AudioSource};
 
 /// Optional progress reporter: `(phase, fraction)` where fraction is `0.0..=1.0` when known.
 pub type StemProgressFn = Arc<dyn Fn(&str, Option<f32>) + Send + Sync>;
@@ -626,6 +636,160 @@ pub fn clear_model_cache(models_root: &Path) -> Result<()> {
         message: format!("recreate models root: {e}"),
     })?;
     Ok(())
+}
+
+impl LibraryManager {
+    /// Load stored stem cache path for a track, if present and the `.stem.mp4` exists.
+    pub fn get_track_stems(&self, id: &TrackId) -> Result<Option<TrackStemsInfo>> {
+        Ok(get_track_stems(&self.db, id)?.filter(|info| info.path.is_file()))
+    }
+
+    /// True when a complete stem row exists and the cached `.stem.mp4` is on disk.
+    pub fn has_track_stems(&self, id: &TrackId) -> Result<bool> {
+        has_track_stems(&self.db, id)
+    }
+
+    /// Generate and persist stem files when missing.
+    ///
+    /// Backs the standalone `GenerateStems` action. Takes `&Mutex<Self>` so
+    /// decode / Demucs work does not hold the library lock.
+    pub fn ensure_track_stems(
+        library: &Mutex<Self>,
+        id: &TrackId,
+        stems_root: &Path,
+        models_root: &Path,
+        format: &str,
+    ) -> Result<()> {
+        ensure_track_stems(library, id, stems_root, models_root, format)
+    }
+
+    /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
+    pub fn clear_stem_cache(&self, stems_root: &Path) -> Result<()> {
+        clear_all_track_stems(&self.db, stems_root)?;
+        self.clear_decode_cache();
+        Ok(())
+    }
+
+    /// Remove orphan stem cache files and rows that no longer match on disk.
+    pub fn sync_stem_cache(&self, stems_root: &Path) -> Result<u32> {
+        sync_stem_cache_with_db(&self.db, stems_root)
+    }
+}
+
+#[cfg(feature = "analysis")]
+pub(crate) fn prepare_native_stem_for_playback(
+    library: &Mutex<LibraryManager>,
+    mut source: AudioSource,
+    path: PathBuf,
+) -> Result<PreparedTrackPlayback> {
+    let track_id = source.id().clone();
+    let bundle = decode_stem_file(&path).map_err(|e| LibraryError::Backend {
+        backend: "codec",
+        message: format!("failed to decode native stem file {}: {e}", path.display()),
+    })?;
+
+    let needs = {
+        let lib = LibraryManager::lock_library(library)?;
+        lib.needs_playback_analysis(&track_id)?
+    };
+    if needs {
+        let options = AnalyzeTrackOptions {
+            force: false,
+            analysis_duration: AnalysisDurationMode::Fast,
+        };
+        let mut config = AnalysisConfig::default();
+        let tag_metadata = crate::tags::read_tags(&path)?;
+        config.max_duration_ms = options
+            .analysis_duration
+            .resolve_max_duration_ms(tag_metadata.duration_ms);
+        let mut analysis = analyze_stem_mixdown_pcm(&bundle.mixdown, bundle.sample_rate, &config)?;
+        let replaygain_track_gain_db = crate::tags::read_replaygain_track_gain_db(&path)?;
+        analysis.loudness_lufs =
+            preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
+        let tag_side = TagMetadata {
+            bpm: tag_metadata.bpm,
+            key: tag_metadata.key.clone(),
+        };
+        let merged = merge_track_metadata(
+            &tag_side,
+            &analysis,
+            options.force,
+            config.min_bpm_confidence,
+            config.min_key_confidence,
+        );
+        let mut metadata = tag_metadata;
+        metadata.bpm = merged.bpm;
+        metadata.key = merged.key;
+        let computed = ComputedFileAnalysis { metadata, analysis };
+        {
+            let lib = LibraryManager::lock_library(library)?;
+            if lib.needs_playback_analysis(&track_id)? {
+                lib.persist_file_analysis(&path, &computed, false)?;
+            }
+        }
+        source = {
+            let lib = LibraryManager::lock_library(library)?;
+            lib.get_track(&track_id)?
+                .ok_or_else(|| LibraryError::NotFound(track_id.to_string()))?
+        };
+    }
+
+    let loudness_lufs = {
+        let lib = LibraryManager::lock_library(library)?;
+        lib.track_loudness_lufs(&track_id)?
+    };
+    source.metadata_mut().loudness_lufs = loudness_lufs;
+    let (audio, stems) = loaded_from_stem_bundle(&path, bundle);
+    Ok(PreparedTrackPlayback {
+        track_id,
+        source,
+        audio,
+        stems: Some(stems),
+        loudness_lufs,
+    })
+}
+
+#[cfg(feature = "analysis")]
+pub(crate) fn loaded_from_stem_bundle(
+    path: &Path,
+    bundle: StemPcmBundle,
+) -> (Arc<LoadedAudio>, [Arc<LoadedAudio>; 4]) {
+    let source_id = path.display().to_string();
+    let sample_rate = bundle.sample_rate;
+    let mixdown = Arc::new(LoadedAudio {
+        samples: bundle.mixdown,
+        sample_rate,
+        channels: 2,
+        source_id: source_id.clone(),
+    });
+    let [drums, bass, other, vocals] = bundle.stems;
+    let stems = [
+        Arc::new(LoadedAudio {
+            samples: drums,
+            sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#drums"),
+        }),
+        Arc::new(LoadedAudio {
+            samples: bass,
+            sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#bass"),
+        }),
+        Arc::new(LoadedAudio {
+            samples: other,
+            sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#other"),
+        }),
+        Arc::new(LoadedAudio {
+            samples: vocals,
+            sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#vocals"),
+        }),
+    ];
+    (mixdown, stems)
 }
 
 #[cfg(test)]

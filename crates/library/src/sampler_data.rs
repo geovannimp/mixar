@@ -10,6 +10,7 @@ use crate::db::{self, Db};
 use crate::entity::{
     sampler_bank, sampler_slot, tracks, SamplerBankEntity, SamplerSlotEntity, TrackEntity,
 };
+use crate::LibraryManager;
 
 pub use crate::entity::SamplerPlayMode;
 
@@ -277,6 +278,70 @@ pub fn set_track_last_sampler_bank_id(
         });
     }
     Ok(())
+}
+
+impl LibraryManager {
+    pub fn list_sampler_banks(&self) -> Result<Vec<SamplerBankRecord>> {
+        crate::sampler_data::list_banks(&self.db)
+    }
+
+    pub fn get_sampler_bank(&self, bank_id: &str) -> Result<Option<SamplerBankRecord>> {
+        crate::sampler_data::get_bank(&self.db, bank_id)
+    }
+
+    pub fn create_sampler_bank(
+        &self,
+        name: &str,
+        play_mode: Option<SamplerPlayMode>,
+    ) -> Result<SamplerBankRecord> {
+        crate::sampler_data::create_bank(&self.db, name, play_mode)
+    }
+
+    pub fn update_sampler_bank(
+        &self,
+        bank_id: &str,
+        name: &str,
+        play_mode: Option<SamplerPlayMode>,
+    ) -> Result<()> {
+        crate::sampler_data::update_bank(&self.db, bank_id, name, play_mode)
+    }
+
+    pub fn delete_sampler_bank(&self, bank_id: &str) -> Result<()> {
+        crate::sampler_data::delete_bank(&self.db, bank_id)
+    }
+
+    pub fn list_sampler_bank_slots(&self, bank_id: &str) -> Result<Vec<SamplerSlotRecord>> {
+        crate::sampler_data::list_slots(&self.db, bank_id)
+    }
+
+    pub fn assign_sampler_bank_slot(
+        &self,
+        bank_id: &str,
+        slot_index: u8,
+        track_id: Option<String>,
+        path: Option<String>,
+        label: Option<String>,
+    ) -> Result<()> {
+        crate::sampler_data::assign_slot(&self.db, bank_id, slot_index, track_id, path, label)
+    }
+
+    pub fn clear_sampler_bank_slot(&self, bank_id: &str, slot_index: u8) -> Result<()> {
+        crate::sampler_data::clear_slot(&self.db, bank_id, slot_index)
+    }
+
+    /// Bank last used with this track (set when a sampler pad is triggered while the track is loaded).
+    pub fn get_track_last_sampler_bank_id(&self, id: &TrackId) -> Result<Option<String>> {
+        crate::sampler_data::get_track_last_sampler_bank_id(&self.db, id)
+    }
+
+    /// Remember which sampler bank was active when a pad was triggered for this track.
+    pub fn set_track_last_sampler_bank_id(
+        &self,
+        id: &TrackId,
+        bank_id: Option<&str>,
+    ) -> Result<()> {
+        crate::sampler_data::set_track_last_sampler_bank_id(&self.db, id, bank_id)
+    }
 }
 
 #[cfg(test)]

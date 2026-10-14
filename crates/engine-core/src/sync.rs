@@ -1,7 +1,10 @@
 //! Tempo/beat sync follow helpers for the engine control path.
 
+use crate::engine::Engine;
 use crate::pads::{DEFAULT_PITCH_PAGE, HOT_CUE_SLOT_COUNT};
+use anyhow::{Context, Result};
 use engine_api::{LoopRegion, PadMode, SyncMode};
+use engine_dsp::KEY_SHIFT_SEMITONE_LIMIT;
 use library_core::TrackId;
 
 /// Session Keyboard / Key Shift pad state (pages, root, momentary holds).
@@ -219,6 +222,356 @@ pub(crate) fn beat_align_target(
         snapped.clamp(0, duration_ms)
     } else {
         snapped.max(0)
+    }
+}
+
+impl Engine {
+    /// Set tempo fader position for a deck (`0..1`, center = track BPM).
+    ///
+    /// When the deck is master, synced slaves follow tempo (not beat phase).
+    /// Returns every deck whose speed changed (master first).
+    pub fn set_deck_speed(&mut self, deck_id: usize, speed: f32) -> Result<Vec<usize>> {
+        if !(0.0..=1.0).contains(&speed) {
+            return Err(anyhow::anyhow!("Speed must be between 0 and 1."));
+        }
+        self.set_deck_speed_raw(deck_id, speed)?;
+        let mut updated = vec![deck_id];
+        if deck_id == self.master_deck {
+            for slave_id in 0..self.deck_control.len() {
+                if slave_id == deck_id {
+                    continue;
+                }
+                if self.deck_control[slave_id].sync_mode == SyncMode::Off {
+                    continue;
+                }
+                self.apply_tempo_sync(slave_id, deck_id)?;
+                updated.push(slave_id);
+            }
+        }
+        Ok(updated)
+    }
+
+    /// Set tempo fader half-span (pitch fraction, e.g. `0.06` = ±6%).
+    ///
+    /// Keeps fader position; remaps displayed speed when synced. If this deck is
+    /// master, re-applies tempo sync so slaves follow the new master ratio.
+    pub fn set_deck_tempo_range(&mut self, deck_id: usize, tempo_range: f32) -> Result<Vec<usize>> {
+        if !tempo_range.is_finite() || tempo_range <= 0.0 {
+            return Err(anyhow::anyhow!("tempo_range must be finite and > 0"));
+        }
+        {
+            let dsp_engine = self
+                .dsp_engine
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+            let mut dsp = dsp_engine.lock().unwrap();
+            let deck = dsp
+                .deck_mut(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            deck.set_tempo_range(tempo_range);
+        }
+        let mut updated = vec![deck_id];
+        if deck_id == self.master_deck {
+            for slave_id in 0..self.deck_control.len() {
+                if slave_id == deck_id {
+                    continue;
+                }
+                if self.deck_control[slave_id].sync_mode == SyncMode::Off {
+                    continue;
+                }
+                self.apply_tempo_sync(slave_id, deck_id)?;
+                updated.push(slave_id);
+            }
+        }
+        Ok(updated)
+    }
+
+    /// Enable/disable key lock (time-stretch) for a deck.
+    pub fn set_deck_key_lock(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        deck.set_key_lock(enabled)
+    }
+
+    /// Set the session key-shift offset in semitones
+    /// (`±KEY_SHIFT_SEMITONE_LIMIT`).
+    ///
+    /// Out-of-range values are clamped; non-finite values become `0`.
+    pub fn set_deck_key_shift(&mut self, deck_id: usize, semitones: f32) -> Result<()> {
+        let s = if semitones.is_finite() {
+            semitones.clamp(-KEY_SHIFT_SEMITONE_LIMIT, KEY_SHIFT_SEMITONE_LIMIT)
+        } else {
+            0.0
+        };
+        // Build the stretcher before mutating any state and before taking the
+        // DSP lock. Construction is heavy: doing it under the lock would stall
+        // the producer thread that shares the mutex, and Deck's ensure path
+        // would repeat that stall on failure.
+        let prepared = if s == 0.0 {
+            None
+        } else if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+            let spec = {
+                let dsp = dsp_engine.lock().unwrap();
+                dsp.deck(deck_id).and_then(|deck| deck.stretcher_spec())
+            };
+            match spec.map(|spec| spec.build()) {
+                Some(Ok(prepared)) => Some(prepared),
+                Some(Err(err)) => {
+                    return Err(err).with_context(|| {
+                        format!("Deck {deck_id}: could not build the key-shift stretcher")
+                    });
+                }
+                None => None,
+            }
+        } else {
+            None
+        };
+        {
+            let control = self
+                .deck_control
+                .get_mut(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            control.pitch_pad.key_shift_semitones = s;
+        }
+        if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+            let mut dsp = dsp_engine.lock().unwrap();
+            if let Some(deck) = dsp.deck_mut(deck_id) {
+                if let Some(prepared) = prepared {
+                    deck.install_stretcher(prepared);
+                }
+                deck.set_key_shift_semitones(s)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Set the Keyboard pad semitone page for a deck (`1..=4`).
+    ///
+    /// Out-of-range values are clamped.
+    pub fn set_deck_keyboard_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.pitch_pad.keyboard_page = page.clamp(1, crate::pads::KEYBOARD_PAGE_COUNT);
+        Ok(())
+    }
+
+    /// Set the Key Shift pad semitone page for a deck (`1..=5`).
+    ///
+    /// Out-of-range values are clamped.
+    pub fn set_deck_key_shift_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.pitch_pad.key_shift_page = page.clamp(1, crate::pads::KEY_SHIFT_PAGE_COUNT);
+        Ok(())
+    }
+
+    /// Set the hot-cue slot used as the Keyboard pad root for a deck (`0..=15`).
+    ///
+    /// The root may be any hot cue in the 16-slot domain; out-of-range values
+    /// are clamped.
+    pub fn set_deck_keyboard_root(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.pitch_pad.keyboard_root_hot_cue =
+            slot.min((crate::pads::HOT_CUE_SLOT_COUNT - 1) as u8);
+        Ok(())
+    }
+
+    fn set_deck_speed_raw(&mut self, deck_id: usize, speed: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_speed(speed)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    fn set_deck_playback_ratio_raw(&mut self, deck_id: usize, ratio: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_playback_ratio(ratio)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    pub(crate) fn apply_tempo_sync(&mut self, slave_id: usize, master_id: usize) -> Result<()> {
+        if slave_id == master_id {
+            return Err(anyhow::anyhow!("Cannot sync a deck to itself."));
+        }
+        let slave_bpm = self
+            .deck_control
+            .get(slave_id)
+            .and_then(|d| d.bpm)
+            .ok_or_else(|| anyhow::anyhow!("Slave deck BPM is required for sync."))?;
+        let master_bpm = self
+            .deck_control
+            .get(master_id)
+            .and_then(|d| d.bpm)
+            .ok_or_else(|| anyhow::anyhow!("Master deck BPM is required for sync."))?;
+        let master_ratio = {
+            let dsp = self
+                .dsp_engine
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?
+                .lock()
+                .unwrap();
+            dsp.deck(master_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid master deck ID: {master_id}"))?
+                .playback_ratio()
+        };
+        let target = target_sync_speed(master_bpm, master_ratio, slave_bpm);
+        self.set_deck_playback_ratio_raw(slave_id, target)
+    }
+
+    fn align_beat_phase(&mut self, slave_id: usize, master_id: usize) -> Result<()> {
+        let (master_bpm, master_first_beat_ms) = {
+            let control = self
+                .deck_control
+                .get(master_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid master deck ID: {master_id}"))?;
+            let bpm = control
+                .bpm
+                .ok_or_else(|| anyhow::anyhow!("Master deck BPM is required for beat sync."))?;
+            (bpm, control.first_beat_ms)
+        };
+        let (slave_bpm, slave_first_beat_ms, quantize) = {
+            let control = self
+                .deck_control
+                .get(slave_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid slave deck ID: {slave_id}"))?;
+            let bpm = control
+                .bpm
+                .ok_or_else(|| anyhow::anyhow!("Slave deck BPM is required for beat sync."))?;
+            (bpm, control.first_beat_ms, control.quantize)
+        };
+        let (master_pos, _) = self.deck_playback_ms(master_id).unwrap_or((0, 0));
+        let (slave_pos, duration) = self.deck_playback_ms(slave_id).unwrap_or((0, 0));
+        let target = beat_align_target(
+            master_pos,
+            slave_pos,
+            duration,
+            master_bpm,
+            slave_bpm,
+            master_first_beat_ms,
+            slave_first_beat_ms,
+            quantize,
+        );
+        self.seek_deck(slave_id, target)
+    }
+
+    /// Toggle sync for a slave deck (`beat_sync` chooses beat vs tempo when enabling).
+    pub fn toggle_deck_sync(&mut self, deck_id: usize, beat_sync: bool) -> Result<Vec<usize>> {
+        if deck_id >= self.deck_control.len() {
+            return Err(anyhow::anyhow!("Invalid deck ID: {deck_id}"));
+        }
+        if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
+            return Err(anyhow::anyhow!("Load a track before enabling sync."));
+        }
+        let master_id = self.master_deck;
+        if deck_id == master_id {
+            return Err(anyhow::anyhow!(
+                "Master deck cannot sync to itself. Choose the other deck."
+            ));
+        }
+
+        let next_mode = if self.deck_control[deck_id].sync_mode == SyncMode::Off {
+            if beat_sync {
+                SyncMode::Beat
+            } else {
+                SyncMode::Tempo
+            }
+        } else {
+            SyncMode::Off
+        };
+        self.deck_control[deck_id].sync_mode = next_mode;
+
+        let updated = vec![deck_id];
+        if next_mode != SyncMode::Off {
+            self.apply_tempo_sync(deck_id, master_id)?;
+            if next_mode == SyncMode::Beat {
+                self.align_beat_phase(deck_id, master_id)?;
+            }
+        }
+        Ok(updated)
+    }
+
+    /// Designate the master deck and re-apply sync to all active slaves.
+    pub fn set_master_deck(&mut self, deck_id: usize) -> Result<Vec<usize>> {
+        if deck_id >= self.deck_control.len() {
+            return Err(anyhow::anyhow!("Invalid deck ID: {deck_id}"));
+        }
+        self.master_deck = deck_id;
+        let mut updated = Vec::with_capacity(self.deck_control.len());
+        for id in 0..self.deck_control.len() {
+            updated.push(id);
+        }
+        for slave_id in 0..self.deck_control.len() {
+            if slave_id == deck_id {
+                continue;
+            }
+            let mode = self.deck_control[slave_id].sync_mode;
+            if mode == SyncMode::Off {
+                continue;
+            }
+            self.apply_tempo_sync(slave_id, deck_id)?;
+            if mode == SyncMode::Beat {
+                self.align_beat_phase(slave_id, deck_id)?;
+            }
+        }
+        Ok(updated)
+    }
+
+    pub fn master_deck(&self) -> usize {
+        self.master_deck
+    }
+
+    pub fn deck_sync_mode(&self, deck_id: usize) -> Option<SyncMode> {
+        self.deck_control.get(deck_id).map(|d| d.sync_mode)
+    }
+
+    /// Mirror UI quantize into engine control state (beat-sync snap).
+    pub fn set_deck_quantize(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
+        control.quantize = enabled;
+        Ok(())
+    }
+
+    pub fn deck_quantize(&self, deck_id: usize) -> Option<bool> {
+        self.deck_control.get(deck_id).map(|c| c.quantize)
+    }
+
+    pub(crate) fn deck_quantize_params(&self, deck_id: usize) -> Result<(Option<f64>, f64, bool)> {
+        let control = self
+            .deck_control
+            .get(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
+        Ok((control.bpm, control.first_beat_ms, control.quantize))
     }
 }
 

@@ -4,10 +4,11 @@ use sea_orm::sea_query::OnConflict;
 use sea_orm::ColumnTrait;
 use sea_orm::{EntityTrait, QueryFilter, Set};
 
-use library_core::{LibraryError, Result, TrackId};
+use library_core::{Library, LibraryError, Result, TrackId};
 
 use crate::db::{self, Db};
 use crate::entity::{track_hot_cue, track_loop, TrackHotCueEntity, TrackLoopEntity};
+use crate::{tags, unix_secs_string, LibraryManager};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HotCueRecord {
@@ -183,6 +184,74 @@ pub fn delete_loop(db: &Db, track_id: &TrackId, slot_index: u8) -> Result<()> {
         .exec(db.conn()?.as_connection())
         .map_err(db::db_err)?;
     Ok(())
+}
+
+impl LibraryManager {
+    pub fn update_track_isrc(&self, track_id: &TrackId, isrc: Option<String>) -> Result<()> {
+        self.store()
+            .update_track_isrc(track_id, isrc, &unix_secs_string())
+    }
+}
+impl LibraryManager {
+    /// Load hot cues and saved loops for a track.
+    pub fn list_track_hot_cues(&self, id: &TrackId) -> Result<Vec<HotCueRecord>> {
+        crate::deck_data::list_hot_cues(&self.db, id)
+    }
+
+    /// Read embedded album artwork bytes for a library track, if present.
+    pub fn get_track_artwork(&self, id: &TrackId) -> Result<Option<Vec<u8>>> {
+        let Some(source) = self.get_track(id)? else {
+            return Ok(None);
+        };
+        let Some(file) = source.file() else {
+            return Ok(None);
+        };
+        tags::read_artwork(file.path())
+    }
+
+    pub fn list_track_loops(&self, id: &TrackId) -> Result<Vec<LoopRecord>> {
+        crate::deck_data::list_loops(&self.db, id)
+    }
+
+    pub fn save_track_hot_cue(
+        &self,
+        id: &TrackId,
+        slot_index: u8,
+        position_ms: i32,
+        loop_length_beats: Option<i32>,
+        color: Option<String>,
+        label: Option<String>,
+    ) -> Result<()> {
+        crate::deck_data::save_hot_cue(
+            &self.db,
+            id,
+            slot_index,
+            position_ms,
+            loop_length_beats,
+            color,
+            label,
+        )
+    }
+
+    pub fn delete_track_hot_cue(&self, id: &TrackId, slot_index: u8) -> Result<()> {
+        crate::deck_data::delete_hot_cue(&self.db, id, slot_index)
+    }
+
+    pub fn save_track_loop(
+        &self,
+        id: &TrackId,
+        slot_index: u8,
+        in_ms: i32,
+        out_ms: i32,
+        label: Option<String>,
+        color: Option<String>,
+    ) -> Result<()> {
+        crate::deck_data::save_loop(&self.db, id, slot_index, in_ms, out_ms, label, color)
+    }
+
+    pub fn delete_track_loop(&self, id: &TrackId, slot_index: u8) -> Result<()> {
+        crate::deck_data::delete_loop(&self.db, id, slot_index)
+    }
 }
 
 #[cfg(test)]
