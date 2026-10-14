@@ -347,6 +347,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDeckKeyLock => 'Key lock';
 
   @override
+  String get settingsDeckVinylBrakePause => 'Vinyl brake pause';
+
+  @override
+  String get settingsDeckVinylBrakePauseHint =>
+      'Pause spins the deck down like a turntable instead of cutting instantly.';
+
+  @override
+  String get settingsDeckVinylBrakePauseToggle => 'Brake on pause';
+
+  @override
+  String get settingsDeckVinylBrakeStopTime => 'Stop time';
+
+  @override
+  String get settingsDeckVinylBrakeStopTimeHint =>
+      'How long the platter takes to stop after pause.';
+
+  @override
   String get settingsDeckSamplerTitle => 'Sampler';
 
   @override

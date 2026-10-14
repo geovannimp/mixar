@@ -20,6 +20,8 @@ fn null_session_with_synced_decks() -> EngineSession {
             default_tempo_range: Some(TEST_TEMPO_RANGE),
             tempo_range_steps: None,
             default_key_lock: None,
+            vinyl_brake_pause: None,
+            vinyl_brake_stop_secs: None,
         }),
         ..Default::default()
     };

@@ -342,11 +342,14 @@ impl Engine {
         {
             let default_range = self.config.default_tempo_range();
             let default_key_lock = self.config.default_key_lock();
+            let vinyl_brake = self.config.vinyl_brake_pause();
+            let vinyl_brake_stop = self.config.vinyl_brake_stop_secs();
             let mut dsp = dsp_engine.lock().unwrap();
             for deck_id in 0..dsp.num_decks() {
                 if let Some(deck) = dsp.deck_mut(deck_id) {
                     deck.set_tempo_range(default_range);
                     let _ = deck.set_key_lock(default_key_lock);
+                    deck.set_vinyl_brake(vinyl_brake, vinyl_brake_stop);
                 }
             }
         }

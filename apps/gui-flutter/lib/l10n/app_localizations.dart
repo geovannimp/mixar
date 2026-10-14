@@ -723,6 +723,36 @@ abstract class AppLocalizations {
   /// **'Key lock'**
   String get settingsDeckKeyLock;
 
+  /// No description provided for @settingsDeckVinylBrakePause.
+  ///
+  /// In en, this message translates to:
+  /// **'Vinyl brake pause'**
+  String get settingsDeckVinylBrakePause;
+
+  /// No description provided for @settingsDeckVinylBrakePauseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause spins the deck down like a turntable instead of cutting instantly.'**
+  String get settingsDeckVinylBrakePauseHint;
+
+  /// No description provided for @settingsDeckVinylBrakePauseToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Brake on pause'**
+  String get settingsDeckVinylBrakePauseToggle;
+
+  /// No description provided for @settingsDeckVinylBrakeStopTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop time'**
+  String get settingsDeckVinylBrakeStopTime;
+
+  /// No description provided for @settingsDeckVinylBrakeStopTimeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'How long the platter takes to stop after pause.'**
+  String get settingsDeckVinylBrakeStopTimeHint;
+
   /// No description provided for @settingsDeckSamplerTitle.
   ///
   /// In en, this message translates to:

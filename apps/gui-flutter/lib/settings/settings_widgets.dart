@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/mixar_select.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
@@ -224,6 +225,61 @@ class SettingsSelect<T> extends StatelessWidget {
       onChanged: onChanged,
       enabled: enabled,
       dialogTitle: dialogTitle,
+    );
+  }
+}
+
+class SettingsNumericStepper extends StatelessWidget {
+  const SettingsNumericStepper({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.step,
+    required this.onChanged,
+    this.format,
+    super.key,
+  });
+
+  final double value;
+  final double min;
+  final double max;
+  final double step;
+  final ValueChanged<double> onChanged;
+  final String Function(double value)? format;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final label = format?.call(value) ?? value.toString();
+    final atMin = value <= min + step / 2;
+    final atMax = value >= max - step / 2;
+    return Row(
+      children: [
+        AppButton(
+          variant: .outline,
+          size: .sm,
+          onPress: atMin
+              ? null
+              : () => onChanged((value - step).clamp(min, max)),
+          child: const Text('-'),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: theme.typography.body.sm.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(width: 12),
+        AppButton(
+          variant: .outline,
+          size: .sm,
+          onPress: atMax
+              ? null
+              : () => onChanged((value + step).clamp(min, max)),
+          child: const Text('+'),
+        ),
+      ],
     );
   }
 }

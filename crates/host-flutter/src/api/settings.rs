@@ -256,6 +256,10 @@ pub enum UiLanguageSetting {
     PtBr,
 }
 
+fn default_vinyl_brake_stop_secs() -> f32 {
+    0.5
+}
+
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
@@ -281,6 +285,10 @@ pub struct AppSettings {
     pub tempo_range_steps: Vec<f32>,
     #[serde(default)]
     pub default_key_lock: bool,
+    #[serde(default)]
+    pub vinyl_brake_pause: bool,
+    #[serde(default = "default_vinyl_brake_stop_secs")]
+    pub vinyl_brake_stop_secs: f32,
     pub waveform_display_mode: WaveformDisplayModeSetting,
     #[serde(default)]
     pub key_display_mode: KeyDisplayModeSetting,
@@ -450,6 +458,8 @@ fn default_engine_config() -> EngineConfig {
             default_tempo_range: Some(DEFAULT_TEMPO_RANGE),
             tempo_range_steps: Some(DEFAULT_TEMPO_RANGE_STEPS.to_vec()),
             default_key_lock: Some(false),
+            vinyl_brake_pause: Some(false),
+            vinyl_brake_stop_secs: Some(0.5),
         }),
         buses: vec![bus_config(
             MASTER_BUS_ID,
@@ -501,6 +511,11 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     if settings.tempo_range_steps.is_empty() {
         errors.push("tempo_range_steps must contain at least one finite > 0 step".into());
     }
+    settings.vinyl_brake_stop_secs = if settings.vinyl_brake_stop_secs.is_finite() {
+        settings.vinyl_brake_stop_secs.clamp(0.05, 3.0)
+    } else {
+        0.5
+    };
 
     let mut banks = settings.deck_default_sampler_bank_id;
     banks.resize(NUM_DECKS, None);
@@ -631,6 +646,8 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
         default_key_lock: config.default_key_lock(),
+        vinyl_brake_pause: config.vinyl_brake_pause(),
+        vinyl_brake_stop_secs: config.vinyl_brake_stop_secs(),
         waveform_display_mode: host.waveform_display_mode,
         key_display_mode: host.key_display_mode,
         key_color_mode: host.key_color_mode,
@@ -664,6 +681,8 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         default_tempo_range: Some(settings.default_tempo_range),
         tempo_range_steps: Some(settings.tempo_range_steps.clone()),
         default_key_lock: Some(settings.default_key_lock),
+        vinyl_brake_pause: Some(settings.vinyl_brake_pause),
+        vinyl_brake_stop_secs: Some(settings.vinyl_brake_stop_secs),
     });
     config.validate().map_err(|e| e.to_string())?;
     host.engine_config = config;
@@ -925,6 +944,36 @@ mod tests {
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert!(restored.default_key_lock);
+    }
+
+    #[test]
+    fn missing_vinyl_brake_fields_default_off_and_half_second() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        object.remove("vinyl_brake_pause");
+        object.remove("vinyl_brake_stop_secs");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.vinyl_brake_pause);
+        assert!((restored.vinyl_brake_stop_secs - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn vinyl_brake_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.vinyl_brake_pause = true;
+        settings.vinyl_brake_stop_secs = 1.25;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(restored.vinyl_brake_pause);
+        assert!((restored.vinyl_brake_stop_secs - 1.25).abs() < 1e-6);
     }
 
     #[test]

@@ -50,6 +50,17 @@ fn motion_to_jog(mode: MotionMode) -> JogMode {
     }
 }
 
+/// Active vinyl brake ramp (pause spin-down).
+#[derive(Clone, Copy, Debug)]
+struct VinylBrake {
+    /// Motor rate captured when pause started.
+    start_rate: f32,
+    /// Frames processed since brake start.
+    elapsed_frames: usize,
+    /// Brake length in frames (>= 1).
+    total_frames: usize,
+}
+
 /// Audio deck for DJ-style playback
 pub struct Deck {
     /// Deck identifier
@@ -94,6 +105,12 @@ pub struct Deck {
     resampler: Option<Box<dyn Resampler>>,
     /// Key lock: tempo via time-stretch, pitch held (inactive during vinyl jog).
     key_lock: bool,
+    /// Vinyl brake on Pause: spin down over `vinyl_brake_stop_secs` when true.
+    vinyl_brake_enabled: bool,
+    /// Brake stop duration in seconds (clamped to 0.05..=3.0).
+    vinyl_brake_stop_secs: f32,
+    /// Active brake ramp; `None` when not braking.
+    brake: Option<VinylBrake>,
     /// timestretch stretcher at engine rate (created lazily / on load).
     stretcher: Option<Box<dyn TimeStretcher>>,
     /// Last process used stretch path (reset stretcher when leaving it).
@@ -164,6 +181,9 @@ impl Deck {
             key_lock: false,
             stretcher: None,
             stretch_active: false,
+            vinyl_brake_enabled: false,
+            vinyl_brake_stop_secs: 0.5,
+            brake: None,
             key_shift_semitones: 0.0,
             loop_region: None,
             slip_enabled: false,
@@ -322,18 +342,32 @@ impl Deck {
             self.id,
             self.state
         );
+        self.cancel_brake();
         self.state = DeckState::Playing;
         Ok(())
     }
 
     /// Pause playback
     pub fn pause(&mut self) -> Result<()> {
+        if self.state == DeckState::Playing && self.vinyl_brake_enabled && !self.motion.touching() {
+            let total = ((f64::from(self.vinyl_brake_stop_secs) * f64::from(self.sample_rate))
+                .round() as usize)
+                .max(1);
+            let start_rate = self.motion.rate();
+            self.brake = Some(VinylBrake {
+                start_rate,
+                elapsed_frames: 0,
+                total_frames: total,
+            });
+            self.motion.set_envelope_rate(Some(start_rate), true);
+        }
         self.state = DeckState::Paused;
         Ok(())
     }
 
     /// Stop playback and reset position
     pub fn stop(&mut self) -> Result<()> {
+        self.cancel_brake();
         self.state = DeckState::Stopped;
         self.position_frames = 0;
         self.position_frac = 0.0;
@@ -347,6 +381,20 @@ impl Deck {
     /// Key lock enabled (tempo stretch; ignored while vinyl jog drives audio).
     pub fn key_lock(&self) -> bool {
         self.key_lock
+    }
+
+    /// Configure pause brake. Disabling cancels any active brake.
+    /// Non-finite `stop_secs` falls back to 0.5; finite values clamp to 0.05..=3.0.
+    pub fn set_vinyl_brake(&mut self, enabled: bool, stop_secs: f32) {
+        self.vinyl_brake_enabled = enabled;
+        self.vinyl_brake_stop_secs = if stop_secs.is_finite() {
+            stop_secs.clamp(0.05, 3.0)
+        } else {
+            0.5
+        };
+        if !enabled {
+            self.cancel_brake();
+        }
     }
 
     /// Enable/disable key lock. Resets stretcher state on change.
@@ -416,6 +464,7 @@ impl Deck {
 
     /// Optional Pad FX / scripted absolute rate (`None` clears with release).
     pub fn set_motion_envelope_rate(&mut self, rate: Option<f32>) {
+        self.brake = None;
         let playing = self.state == DeckState::Playing;
         self.motion.set_envelope_rate(rate, playing);
     }
@@ -427,6 +476,9 @@ impl Deck {
     }
 
     pub fn set_jog_touch(&mut self, touching: bool) {
+        if touching {
+            self.cancel_brake();
+        }
         let playing = self.state == DeckState::Playing;
         let was = self.motion.active_mode(playing);
         if was == MotionMode::Vinyl && !touching && self.motion.touching() && self.slip_enabled {
@@ -456,6 +508,33 @@ impl Deck {
         self.motion.tick(frames, self.sample_rate, playing);
     }
 
+    /// Drop an active vinyl brake and restore the idle motor (no release ramp).
+    fn cancel_brake(&mut self) {
+        if self.brake.take().is_some() {
+            let playing = self.state == DeckState::Playing;
+            self.motion.set_envelope_rate(None, playing);
+            self.motion.hard_reset_rate();
+        }
+    }
+
+    /// Ramp the envelope rate linearly to zero over the brake window.
+    /// Ends by clearing the envelope so `PlatterMotion::driving()` goes false.
+    fn advance_brake(&mut self, frames: usize) {
+        let Some(mut b) = self.brake else {
+            return;
+        };
+        b.elapsed_frames = b.elapsed_frames.saturating_add(frames);
+        if b.elapsed_frames >= b.total_frames {
+            self.brake = None;
+            self.motion.set_envelope_rate(None, false);
+            return;
+        }
+        let t = b.elapsed_frames as f32 / b.total_frames as f32;
+        self.brake = Some(b);
+        self.motion
+            .set_envelope_rate(Some(b.start_rate * (1.0 - t)), false);
+    }
+
     fn effective_speed(&self) -> f32 {
         self.playback_ratio() * self.motion.rate()
     }
@@ -463,11 +542,12 @@ impl Deck {
     /// True while jog may advance the playhead without transport Playing
     /// (vinyl scratch, release ramp, pitch bend, envelope).
     pub fn jog_driving_audio(&self) -> bool {
-        self.motion.driving()
+        self.brake.is_some() || self.motion.driving()
     }
 
     /// Seek to a specific position (in source frames at the file sample rate).
     pub fn seek(&mut self, frames: i64) -> Result<()> {
+        self.cancel_brake();
         self.position_frames = frames;
         self.position_frac = frames as f64;
         self.reset_resampler_state();
@@ -487,6 +567,7 @@ impl Deck {
     }
 
     fn seek_ms_inner(&mut self, ms: i32, move_shadow: bool) -> Result<()> {
+        self.cancel_brake();
         let audio = self
             .loaded
             .as_ref()
@@ -858,6 +939,7 @@ impl Deck {
     /// # Arguments
     /// * `frames` - Number of frames to process (should match the engine buffer size)
     pub fn process(&mut self, frames: usize) -> Result<&[Sample]> {
+        self.advance_brake(frames);
         self.tick_jog(frames);
 
         let transport_playing = self.state == DeckState::Playing;
@@ -2270,5 +2352,55 @@ mod tests {
             "gain should be mid-ramp, got {}",
             deck.stem_gain_current[0]
         );
+    }
+
+    fn brake_test_deck() -> Deck {
+        let mut deck = new_deck(CHUNK);
+        let frames = ENGINE_RATE as usize * 4;
+        let samples: Vec<Sample> = (0..frames)
+            .flat_map(|i| {
+                let v = (i as f32 * 0.05).sin() * 0.5;
+                [v, v]
+            })
+            .collect();
+        load_test_samples(&mut deck, samples, ENGINE_RATE);
+        deck.set_vinyl_brake(true, 0.5);
+        deck.play().unwrap();
+        for _ in 0..4 {
+            deck.process(CHUNK).unwrap();
+        }
+        deck
+    }
+
+    #[test]
+    fn vinyl_brake_spins_down_over_stop_secs_on_pause() {
+        let mut deck = brake_test_deck();
+        deck.pause().unwrap();
+        assert_eq!(deck.state, DeckState::Paused);
+
+        let brake_frames = ENGINE_RATE as usize / 2;
+        let mut elapsed = 0usize;
+        while elapsed < brake_frames {
+            assert!(
+                deck.jog_driving_audio(),
+                "brake must drive audio at elapsed {elapsed}"
+            );
+            deck.process(CHUNK).unwrap();
+            elapsed += CHUNK;
+        }
+        assert!(!deck.jog_driving_audio(), "brake must end after stop_secs");
+        let out = deck.process(CHUNK).unwrap();
+        assert!(out.iter().all(|s| *s == 0.0), "output silent after brake");
+    }
+
+    #[test]
+    fn vinyl_brake_play_cancels_brake_instantly() {
+        let mut deck = brake_test_deck();
+        deck.pause().unwrap();
+        deck.process(CHUNK).unwrap();
+        assert!(deck.brake.is_some());
+        deck.play().unwrap();
+        assert!(deck.brake.is_none());
+        assert!((deck.motion.rate() - 1.0).abs() < 1e-6);
     }
 }

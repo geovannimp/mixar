@@ -6448,8 +6448,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 35)
-      throw Exception('unexpected arr length: expect 35 but see ${arr.length}');
+    if (arr.length != 37)
+      throw Exception('unexpected arr length: expect 37 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -6471,21 +6471,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultTempoRange: dco_decode_f_32(arr[17]),
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
       defaultKeyLock: dco_decode_bool(arr[19]),
-      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[20]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[21]),
-      keyColorMode: dco_decode_key_color_mode_setting(arr[22]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[23]),
-      historyEnabled: dco_decode_bool(arr[24]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[25]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[26]),
-      historyMinDeckVolume: dco_decode_f_32(arr[27]),
-      showTooltips: dco_decode_bool(arr[28]),
-      showMixerMeters: dco_decode_bool(arr[29]),
-      mixerMetersMono: dco_decode_bool(arr[30]),
-      selectStyle: dco_decode_select_style_setting(arr[31]),
-      dimPlayedTracks: dco_decode_bool(arr[32]),
-      stemsFormat: dco_decode_String(arr[33]),
-      uiLanguage: dco_decode_ui_language_setting(arr[34]),
+      vinylBrakePause: dco_decode_bool(arr[20]),
+      vinylBrakeStopSecs: dco_decode_f_32(arr[21]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[22]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[23]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[24]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[25]),
+      historyEnabled: dco_decode_bool(arr[26]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[27]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[28]),
+      historyMinDeckVolume: dco_decode_f_32(arr[29]),
+      showTooltips: dco_decode_bool(arr[30]),
+      showMixerMeters: dco_decode_bool(arr[31]),
+      mixerMetersMono: dco_decode_bool(arr[32]),
+      selectStyle: dco_decode_select_style_setting(arr[33]),
+      dimPlayedTracks: dco_decode_bool(arr[34]),
+      stemsFormat: dco_decode_String(arr[35]),
+      uiLanguage: dco_decode_ui_language_setting(arr[36]),
     );
   }
 
@@ -7903,6 +7905,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_defaultTempoRange = sse_decode_f_32(deserializer);
     var var_tempoRangeSteps = sse_decode_list_prim_f_32_strict(deserializer);
     var var_defaultKeyLock = sse_decode_bool(deserializer);
+    var var_vinylBrakePause = sse_decode_bool(deserializer);
+    var var_vinylBrakeStopSecs = sse_decode_f_32(deserializer);
     var var_waveformDisplayMode = sse_decode_waveform_display_mode_setting(
       deserializer,
     );
@@ -7941,6 +7945,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultTempoRange: var_defaultTempoRange,
       tempoRangeSteps: var_tempoRangeSteps,
       defaultKeyLock: var_defaultKeyLock,
+      vinylBrakePause: var_vinylBrakePause,
+      vinylBrakeStopSecs: var_vinylBrakeStopSecs,
       waveformDisplayMode: var_waveformDisplayMode,
       keyDisplayMode: var_keyDisplayMode,
       keyColorMode: var_keyColorMode,
@@ -9826,6 +9832,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.defaultTempoRange, serializer);
     sse_encode_list_prim_f_32_strict(self.tempoRangeSteps, serializer);
     sse_encode_bool(self.defaultKeyLock, serializer);
+    sse_encode_bool(self.vinylBrakePause, serializer);
+    sse_encode_f_32(self.vinylBrakeStopSecs, serializer);
     sse_encode_waveform_display_mode_setting(
       self.waveformDisplayMode,
       serializer,
