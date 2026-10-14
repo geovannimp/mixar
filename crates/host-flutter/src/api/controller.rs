@@ -11,7 +11,8 @@ use controller::{
     HOT_CUE_SLOT_COUNT, LOOP_SLOT_COUNT,
 };
 use engine_api::{
-    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, EvtBody, Kind, Origin, SyncMode,
+    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, DeckSavedLoop, EvtBody, Kind, Origin,
+    SyncMode,
 };
 use engine_core::EngineBuses;
 use library::LibraryBuses;
@@ -412,7 +413,7 @@ fn hot_cue_slots_deck(cues: &[DeckHotCue]) -> [Option<i32>; HOT_CUE_SLOT_COUNT] 
     slots
 }
 
-fn loop_slots(loops: &[engine_api::DeckSavedLoop]) -> [bool; LOOP_SLOT_COUNT] {
+fn loop_slots(loops: &[DeckSavedLoop]) -> [bool; LOOP_SLOT_COUNT] {
     let mut slots = [false; LOOP_SLOT_COUNT];
     for saved in loops {
         let idx = saved.slot as usize;
@@ -438,7 +439,8 @@ fn apply_deck_vu(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, level: f32) {
     let Ok(mut ctrl) = eng.lock() else {
         return;
     };
-    ctrl.set_deck_vu(deck, level.clamp(0.0, 1.0));
+    // Clamping lives in MappingSession::set_deck_vu.
+    ctrl.set_deck_vu(deck, level);
 }
 
 fn apply_master_feedback(eng: &Arc<Mutex<ControllerEngine>>, enabled: bool) {
