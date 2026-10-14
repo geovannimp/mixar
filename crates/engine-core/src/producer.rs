@@ -20,7 +20,6 @@ pub(crate) struct DeviceStreamSetup {
     pub callback_frames_atomic: Option<Arc<AtomicU32>>,
     pub sample_rate: u32,
     pub buffer_size: usize,
-    pub ring_buffer_capacity: usize,
 }
 
 /// Ring buffer: spec §5.2 — preallocate N × frames_per_buffer (N ≥ 8) to tolerate producer jitter.
@@ -30,7 +29,7 @@ pub(crate) struct DeviceStreamSetup {
 pub(crate) fn create_device_ring_buffer(
     buffer_size: u32,
     channels: u16,
-) -> (Producer<Sample>, Consumer<Sample>, usize) {
+) -> (Producer<Sample>, Consumer<Sample>) {
     const RING_BUFFER_MULTIPLIER: usize = 24;
     let samples_per_buffer = buffer_size as usize * channels as usize;
     let ring_buffer_capacity = samples_per_buffer * RING_BUFFER_MULTIPLIER;
@@ -49,7 +48,7 @@ pub(crate) fn create_device_ring_buffer(
         prefill
     );
 
-    (producer, consumer, ring_buffer_capacity)
+    (producer, consumer)
 }
 
 /// Start every opened device stream, then wait for the pacing (first/master) device to report
@@ -69,7 +68,6 @@ pub(crate) fn start_device_streams(
 
     Ok(())
 }
-
 /// Wait for the audio device to report its callback frame count, then verify it matches config.
 pub(crate) fn wait_for_callback_frames(
     frames_atomic: Arc<AtomicU32>,
@@ -115,12 +113,52 @@ fn process_chunk_or_silence(
     }
 }
 
+/// A device whose callback counter has not advanced for this long is treated as unplugged or
+/// stalled. Long enough to ride out callback jitter under load; short enough that a dead device
+/// does not hold back the others.
+const DEVICE_STALL_TIMEOUT: Duration = Duration::from_millis(500);
+
+/// Liveness of one device, derived from its callback counter. Kept pure so the transition is
+/// unit-testable.
+#[derive(Debug)]
+struct DeviceLiveness {
+    last_count: u64,
+    last_advance: Instant,
+}
+
+impl DeviceLiveness {
+    fn new(started: Instant) -> Self {
+        Self {
+            last_count: 0,
+            last_advance: started,
+        }
+    }
+
+    /// Observe the device's callback count at `now`; returns `true` while the device is live.
+    ///
+    /// The stall clock is seeded at construction, so every device starts live and the producer
+    /// can fill rings during stream startup. A device whose callback never fires goes dead after
+    /// the timeout and stops holding back the others.
+    fn observe(&mut self, count: u64, now: Instant) -> bool {
+        if count != self.last_count {
+            self.last_count = count;
+            self.last_advance = now;
+        }
+        // `checked_duration_since` guards against a backward clock step (suspend/resume, NTP
+        // adjustment): a backwards `now` reads as "no time elapsed" rather than panicking.
+        now.checked_duration_since(self.last_advance)
+            .unwrap_or(Duration::ZERO)
+            < DEVICE_STALL_TIMEOUT
+    }
+}
+
 /// Producer thread loop (spec §5.1: writes decoded/resampled audio into per-device ring buffers).
 ///
-/// Production is paced by the pacing device's callback count, not wall clock. The pacing device
-/// is `device_producers[0]` — `resolve_device_stream_plans` always sorts a master-hosting plan
-/// first when one exists, so index 0 doubles as "the master clock" whenever a master bus is
-/// configured, and simply "the only clock" otherwise.
+/// Production is paced by the callback count of the first live device. Index 0 is the preferred
+/// pacing device (`resolve_device_stream_plans` sorts a master-hosting plan first), so it is the
+/// "master clock" whenever a master bus is configured. If it stalls or is unplugged, pacing falls
+/// over to the next live device. Dead devices are excluded from the room gate and from pushes, so
+/// only their own output stops; the remaining devices keep playing.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn producer_thread_loop(
     dsp_engine: Arc<Mutex<DspEngine>>,
@@ -128,16 +166,14 @@ pub(crate) fn producer_thread_loop(
     running: Arc<Mutex<bool>>,
     sample_rate: u32,
     fallback_buffer_size: usize,
-    ring_buffer_capacity: usize,
     callback_frames_atomic: Option<Arc<AtomicU32>>,
-    callback_count: Arc<AtomicU64>,
+    callback_counts: Vec<Arc<AtomicU64>>,
     transport_events: Arc<Mutex<Vec<TransportEvent>>>,
 ) {
     tracing::info!(
-        "Producer thread started ({} device stream(s), fallback_buffer_size={}, ring_capacity={}, sample_rate={})",
+        "Producer thread started ({} device stream(s), fallback_buffer_size={}, sample_rate={})",
         device_producers.len(),
         fallback_buffer_size,
-        ring_buffer_capacity,
         sample_rate
     );
 
@@ -165,10 +201,30 @@ pub(crate) fn producer_thread_loop(
     const MAX_AHEAD_CHUNKS: u64 = 2;
     let mut produced_chunks: u64 = 0;
     let mut oversized_warned = false;
-    let pacing_channels = device_producers
-        .first()
-        .map(|(plan, _)| plan.channels as usize)
-        .unwrap_or(2);
+    let mut pacing_index: Option<usize> = None;
+    let mut ring_capacity: usize = 0;
+    let mut liveness: Vec<DeviceLiveness> = device_producers
+        .iter()
+        .map(|_| DeviceLiveness::new(Instant::now()))
+        .collect();
+    let mut live: Vec<bool> = Vec::with_capacity(device_producers.len());
+
+    if device_producers.is_empty() {
+        tracing::info!("No device streams; producer thread exiting");
+        return;
+    }
+
+    // Fixed for the lifetime of the loop; a caller contract violation is a programming error.
+    debug_assert_eq!(
+        liveness.len(),
+        callback_counts.len(),
+        "callback_counts must pair 1:1 with device_producers"
+    );
+    debug_assert_eq!(
+        liveness.len(),
+        device_producers.len(),
+        "liveness must pair 1:1 with device_producers"
+    );
 
     while *running.lock().unwrap() {
         let chunk_frames = callback_frames_atomic
@@ -202,11 +258,38 @@ pub(crate) fn producer_thread_loop(
             continue;
         }
 
-        let samples_per_chunk = chunk_frames * pacing_channels;
-
         let buffer_duration = Duration::from_secs_f64(chunk_frames as f64 / sample_rate as f64);
 
-        let device_callbacks = callback_count.load(Ordering::Relaxed);
+        let now = Instant::now();
+        live.clear();
+        for (state, count) in liveness.iter_mut().zip(&callback_counts) {
+            live.push(state.observe(count.load(Ordering::Relaxed), now));
+        }
+
+        // No device is producing callbacks: back off well past the stall timeout so a dead
+        // output device does not spin the producer thread.
+        let Some(pacing_i) = live.iter().position(|&l| l) else {
+            thread::sleep(DEVICE_STALL_TIMEOUT / 4);
+            continue;
+        };
+
+        let device_callbacks = callback_counts[pacing_i].load(Ordering::Relaxed);
+        if pacing_index != Some(pacing_i) {
+            // Failover (or recovery back to a lower-index device). Rebase onto the new pacing
+            // clock so MAX_AHEAD_CHUNKS is measured against it and a failover does not stall
+            // production waiting for the old clock. Rebasing downward only parks the producer
+            // sooner; every write is still bounded by the per-device room gate.
+            match pacing_index {
+                Some(prev_i) => {
+                    tracing::info!("Pacing changed: device {} -> device {}", prev_i, pacing_i)
+                }
+                None => tracing::info!("Pacing started on device {}", pacing_i),
+            }
+            // Ring capacity is fixed after construction; refresh the cache only on failover.
+            ring_capacity = device_producers[pacing_i].1.buffer().capacity();
+            produced_chunks = device_callbacks;
+            pacing_index = Some(pacing_i);
+        }
 
         // Never run more than MAX_AHEAD_CHUNKS ahead of the pacing device's callback clock.
         if produced_chunks > device_callbacks.saturating_add(MAX_AHEAD_CHUNKS) {
@@ -214,23 +297,26 @@ pub(crate) fn producer_thread_loop(
             continue;
         }
 
-        let Some((_, pacing_producer)) = device_producers.first() else {
-            break;
-        };
-        let filled = ring_buffer_capacity.saturating_sub(pacing_producer.slots());
+        let (pacing_plan, pacing_producer) = &device_producers[pacing_i];
+        let samples_per_chunk = chunk_frames * pacing_plan.channels as usize;
+        let pacing_slots = pacing_producer.slots();
+        let filled = ring_capacity.saturating_sub(pacing_slots);
         let target_fill = samples_per_chunk * 2;
-        if filled >= target_fill || pacing_producer.slots() < samples_per_chunk {
+        if filled >= target_fill || pacing_slots < samples_per_chunk {
             thread::sleep(buffer_duration / 8);
             continue;
         }
 
-        // Do not start a chunk unless every device ring can accept a full chunk.
-        // This prevents partial writes that would desync devices.
-        let all_have_room = device_producers.iter().all(|(plan, producer)| {
-            let needed = chunk_frames * plan.channels as usize;
-            producer.slots() >= needed
-        });
-        if !all_have_room {
+        // Every live device must have room for a full chunk before DSP runs, so no ring is ever
+        // committed a partial chunk. Dead devices are excluded and skipped during the push.
+        let all_live_have_room =
+            device_producers
+                .iter()
+                .zip(&live)
+                .all(|((plan, producer), &is_live)| {
+                    !is_live || producer.slots() >= chunk_frames * plan.channels as usize
+                });
+        if !all_live_have_room {
             thread::sleep(buffer_duration / 8);
             continue;
         }
@@ -250,7 +336,13 @@ pub(crate) fn producer_thread_loop(
         }
 
         let mut pushed_pacing_chunk = false;
-        for (i, (plan, producer)) in device_producers.iter_mut().enumerate() {
+        // `zip(&live)` keeps this loop panic-free even if `live` were ever shorter than
+        // `device_producers` (the assertions above catch that in debug builds).
+        for (i, ((plan, producer), &is_live)) in device_producers.iter_mut().zip(&live).enumerate()
+        {
+            if !is_live {
+                continue;
+            }
             let channels = plan.channels as usize;
             let needed = chunk_frames * channels;
             map_buses_to_device_buffer(
@@ -262,7 +354,7 @@ pub(crate) fn producer_thread_loop(
             );
 
             let pushed_all = push_ring_samples(producer, &device_scratch[i][..needed]);
-            if i == 0 {
+            if i == pacing_i {
                 pushed_pacing_chunk = pushed_all;
             }
         }
@@ -399,9 +491,11 @@ mod tests {
                 running_thread,
                 48_000,
                 BUFFER_FRAMES as usize,
-                RING_CAPACITY,
                 Some(Arc::new(AtomicU32::new(BUFFER_FRAMES))),
-                Arc::new(AtomicU64::new(1000)),
+                vec![
+                    Arc::new(AtomicU64::new(200)),
+                    Arc::new(AtomicU64::new(1000)),
+                ],
                 Arc::new(Mutex::new(Vec::new())),
             );
         });
@@ -471,7 +565,7 @@ mod tests {
             }],
         };
 
-        let (producer, mut consumer, ring_buffer_capacity) =
+        let (producer, mut consumer) =
             create_device_ring_buffer(fallback_buffer_size as u32, channels);
         // Drain the pre-filled silence: otherwise the fill-level gate blocks production
         // and the oversized assertion passes even without the guard.
@@ -501,9 +595,8 @@ mod tests {
                 running_clone,
                 sample_rate,
                 fallback_buffer_size,
-                ring_buffer_capacity,
                 Some(callback_frames_clone),
-                callback_count,
+                vec![callback_count],
                 transport_events,
             );
         });
@@ -560,5 +653,51 @@ mod tests {
                 bus_id.as_str()
             );
         }
+    }
+
+    #[test]
+    fn device_stays_live_while_callbacks_advance() {
+        let t0 = Instant::now();
+        let mut state = DeviceLiveness::new(t0);
+        assert!(state.observe(1, t0));
+        assert!(state.observe(2, t0 + Duration::from_millis(100)));
+        assert!(state.observe(3, t0 + DEVICE_STALL_TIMEOUT));
+        assert!(state.observe(4, t0 + DEVICE_STALL_TIMEOUT * 3));
+    }
+
+    #[test]
+    fn device_live_before_first_callback_then_dead_without_one() {
+        let t0 = Instant::now();
+        let mut state = DeviceLiveness::new(t0);
+        // Slow startup: the clock is seeded at construction, so the device stays live
+        // during the startup wait...
+        assert!(state.observe(0, t0 + Duration::from_millis(100)));
+        // ...and its first callback, even a late one, keeps it live.
+        assert!(state.observe(1, t0 + DEVICE_STALL_TIMEOUT));
+        // A device whose callback never fires goes dead after the timeout and stops holding
+        // the others back.
+        let mut never = DeviceLiveness::new(t0);
+        assert!(never.observe(0, t0 + Duration::from_millis(100)));
+        assert!(!never.observe(0, t0 + DEVICE_STALL_TIMEOUT));
+    }
+
+    #[test]
+    fn device_goes_dead_after_stall_timeout_and_revives_on_advance() {
+        let t0 = Instant::now();
+        let mut state = DeviceLiveness::new(t0);
+        assert!(state.observe(5, t0));
+        assert!(!state.observe(5, t0 + DEVICE_STALL_TIMEOUT));
+        assert!(!state.observe(5, t0 + DEVICE_STALL_TIMEOUT * 2));
+        assert!(state.observe(6, t0 + DEVICE_STALL_TIMEOUT * 2));
+    }
+
+    #[test]
+    fn device_that_stops_after_first_advance_goes_dead() {
+        let t0 = Instant::now();
+        let mut state = DeviceLiveness::new(t0);
+        // First advance starts the stall clock...
+        assert!(state.observe(7, t0 + Duration::from_millis(100)));
+        // ...and a device that then stops advancing goes dead after the timeout.
+        assert!(!state.observe(7, t0 + Duration::from_millis(100) + DEVICE_STALL_TIMEOUT));
     }
 }
