@@ -554,7 +554,7 @@ impl LibraryManager {
 
     /// True when BPM, key, or loudness needed for playback is missing.
     ///
-    /// ponytail: if an analysis row already exists with loudness but BPM/key stay
+    /// shortcut: if an analysis row already exists with loudness but BPM/key stay
     /// empty (analyzer could not detect them), do not re-run forever. Upgrade:
     /// surface "analysis incomplete" in UI and allow manual force re-analyze.
     pub fn needs_playback_analysis(&self, id: &TrackId) -> Result<bool> {
@@ -837,7 +837,7 @@ impl LibraryManager {
         end_ms: i32,
         buckets: usize,
     ) -> Result<(Vec<audio_core::SpectralPeak>, i32, i32)> {
-        // ponytail: caps L1 resolution to bound RPC allocation. Upgrade to
+        // shortcut: caps L1 resolution to bound RPC allocation. Upgrade to
         // chunked peak generation if a larger waveform window is required.
         if buckets == 0 || buckets > audio_core::MAX_WAVEFORM_BUCKETS {
             return Err(LibraryError::Backend {

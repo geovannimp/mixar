@@ -261,7 +261,7 @@ fn decoder_params(params: &CodecParameters) -> CodecParameters {
 /// [`OPUS_SAMPLE_RATE`] — resample before calling. The file is written to a
 /// sibling temp file and renamed, so `path` is never left half-written.
 ///
-/// // ponytail: whole file is encoded in RAM before the rename; streaming mux if cache size hurts.
+/// // shortcut: whole file is encoded in RAM before the rename; streaming mux if cache size hurts.
 pub fn encode_stem_mp4(
     path: &Path,
     format: StemMuxFormat,

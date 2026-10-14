@@ -153,6 +153,6 @@ This supersedes the Tauri-centric half of §9 (per-command returns + Tauri-owned
 
 ## Non-goals / deliberate ceilings
 
-- `ponytail:` Omnibus per-subscriber channel capacity (default 64) may drop under flood; coalesce high-rate meters on the control thread first; raise capacity only if `PublishResult::dropped` shows up in real use.
+- `shortcut:` Omnibus per-subscriber channel capacity (default 64) may drop under flood; coalesce high-rate meters on the control thread first; raise capacity only if `PublishResult::dropped` shows up in real use.
 - MessagePack + hand-maintained TS decode for the first payload set; codegen later if the schema grows painful.
 - Dual path during migration is gone; do not add new per-action Tauri engine commands.

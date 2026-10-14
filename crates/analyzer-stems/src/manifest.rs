@@ -150,7 +150,7 @@ fn fetch_manifest(url: &str) -> Result<ModelManifest> {
 fn http_client() -> Result<Client> {
     Client::builder()
         .user_agent("mixar-analyzer-stems/1.0")
-        // ponytail: no total timeout — Mixxx ONNX is ~300 MB; slow links exceed 30s.
+        // shortcut: no total timeout — Mixxx ONNX is ~300 MB; slow links exceed 30s.
         // Upgrade: progress + soft idle timeout if downloads hang mid-body.
         .connect_timeout(std::time::Duration::from_secs(30))
         .timeout(None)
@@ -178,7 +178,7 @@ fn verify_sha256(path: &Path, expected: &str) -> Result<bool> {
     if !path.is_file() {
         return Ok(false);
     }
-    // ponytail: process-level skip after first OK — assumes models_root is
+    // shortcut: process-level skip after first OK — assumes models_root is
     // immutable for the process lifetime. Upgrade: mtime/inode check if
     // Storage clear can race a live session.
     {

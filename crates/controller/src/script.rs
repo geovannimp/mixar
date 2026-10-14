@@ -9,7 +9,7 @@ use rhai::{CallFnOptions, Dynamic, Engine, Module, Scope, AST};
 use crate::error::{LoadError, RuntimeError};
 use crate::session::{ActionPublish, MidiOut};
 
-/// ponytail: caps mapping script CPU; raise if legitimate bundles hit it.
+/// shortcut: caps mapping script CPU; raise if legitimate bundles hit it.
 const MAX_SCRIPT_OPERATIONS: u64 = 50_000;
 const MAX_MIDI_OUT_BYTES: usize = 256;
 

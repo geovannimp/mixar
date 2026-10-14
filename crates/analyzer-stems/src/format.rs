@@ -49,7 +49,7 @@ impl StemAudioFormat {
 /// Returns the sample rate written into the file (always [`OPUS_SAMPLE_RATE`]
 /// for Opus after resampling; `sample_rate` for FLAC).
 ///
-/// // ponytail: full-stem f32 in RAM for encode; streaming writers if cache size hurts.
+/// // shortcut: full-stem f32 in RAM for encode; streaming writers if cache size hurts.
 pub fn encode_stem_file(
     path: &Path,
     format: StemAudioFormat,

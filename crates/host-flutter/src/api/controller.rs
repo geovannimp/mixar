@@ -655,7 +655,7 @@ fn apply_library_mirror(
     }
 }
 
-/// ponytail: compile-time walk to repo `mappings/` — Flutter release builds need
+/// shortcut: compile-time walk to repo `mappings/` — Flutter release builds need
 /// bundled resources (Tauri uses `resource_dir` first). Override via `shipped_mappings_dir`.
 fn resolve_shipped_mappings() -> PathBuf {
     let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

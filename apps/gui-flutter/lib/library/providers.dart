@@ -260,7 +260,7 @@ class AnalyzingTrackIds extends Notifier<Set<String>> {
   void add(String id) {
     _stuckClears.remove(id)?.cancel();
     state = {...state, id};
-    // ponytail: clear stuck spinner if evt never arrives. Upgrade: correlate cmd/evt ids.
+    // shortcut: clear stuck spinner if evt never arrives. Upgrade: correlate cmd/evt ids.
     // Stems + Demucs can exceed a minute; keep the loader until stems_ready when enabled.
     _stuckClears[id] = Timer(const Duration(minutes: 30), () {
       clearIf(id);
