@@ -81,7 +81,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final ctx = _previewBusCardKey.currentContext;
     if (ctx == null) {
       if (_previewScrollAttempts++ < 30) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _tryPreviewScroll(),
+        );
       }
       return;
     }
