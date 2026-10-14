@@ -21,6 +21,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check mapping_version bumps
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: bash scripts/check-mapping-version-bump.sh
+
       - name: Setup moon affected
         uses: ./.github/actions/setup-moon-base
 
