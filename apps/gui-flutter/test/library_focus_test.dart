@@ -138,6 +138,15 @@ void main() {
       container.read(libraryFocusZoneProvider),
       LibraryFocusZone.trackList,
     );
+    // One pane per step whatever the magnitude: a relative knob reporting
+    // several ticks must not walk past the other side.
+    zone.move(5);
+    expect(container.read(libraryFocusZoneProvider), LibraryFocusZone.sidebar);
+    zone.move(-9);
+    expect(
+      container.read(libraryFocusZoneProvider),
+      LibraryFocusZone.trackList,
+    );
     zone.move(-1);
     expect(container.read(libraryFocusZoneProvider), LibraryFocusZone.sidebar);
     // A step with no ticks is not a focus step.
@@ -204,6 +213,26 @@ void main() {
     emit(browseNext);
     await tester.pump();
     expect(container.read(activeCollectionIdProvider), collectionB.id);
+  });
+
+  testWidgets('a stale sidebar selection still steps from the shown row', (
+    tester,
+  ) async {
+    final (container, emit) = await pumpBrowser(tester);
+    // A row that is no longer in the list: the provider falls back to the first
+    // row, and the browse must step from that row rather than from nowhere.
+    container.read(selectedCollectionIdProvider.notifier).set('deleted');
+    expect(container.read(activeCollectionIdProvider), collectionA.id);
+    emit(focusNext);
+    await tester.pump();
+
+    emit(browseNext);
+    await tester.pump();
+    expect(container.read(selectedCollectionIdProvider), collectionB.id);
+
+    emit(browsePrev);
+    await tester.pump();
+    expect(container.read(selectedCollectionIdProvider), collectionA.id);
   });
 
   testWidgets('sidebar browse follows the active tab', (tester) async {

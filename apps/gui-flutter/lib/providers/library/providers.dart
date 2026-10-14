@@ -686,7 +686,11 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
     case LibraryEvtKind.navigate:
       applyLibraryNavigateEvt(ref, evt.delta ?? 0);
     case LibraryEvtKind.focus:
-      ref.read(libraryFocusZoneProvider.notifier).move(evt.delta ?? 0);
+      // Same boundary guard as navigate: a step with no ticks is not a step.
+      final focusDelta = evt.delta ?? 0;
+      if (focusDelta != 0) {
+        ref.read(libraryFocusZoneProvider.notifier).move(focusDelta);
+      }
     case LibraryEvtKind.load:
       final deck = evt.deck;
       if (deck != null) {
@@ -723,6 +727,11 @@ void navigateSidebarSelection(Ref ref, int delta) {
       if (collections == null || collections.isEmpty) {
         return;
       }
+      // The base row comes from [activeCollectionIdProvider] itself, which
+      // already resolves "nothing selected" to the first row — so the
+      // `index < 0` arm only covers a read where the selection is genuinely
+      // absent from this list (a refresh landing mid-step), and it lands on
+      // the same row the provider would show.
       final active = ref.read(activeCollectionIdProvider);
       final index = collections.indexWhere((c) => c.id == active);
       ref
@@ -740,6 +749,9 @@ void navigateSidebarSelection(Ref ref, int delta) {
       if (sessions == null || sessions.isEmpty) {
         return;
       }
+      // Same as the collections case: the active session resolves from
+      // [activeHistorySessionIdProvider], which already falls back to the
+      // first row.
       final active = ref.read(activeHistorySessionIdProvider);
       final index = sessions.indexWhere((s) => s.id == active);
       ref
@@ -889,41 +901,48 @@ final driveActiveVolumeProvider = Provider<FsVolumeInfo?>((ref) {
 /// Whether [parent] stays inside [volume]'s mount point.
 ///
 /// A volume's parent sits outside it (e.g. `/media`), so the tree must not
-/// offer that row as the "up" step.
+/// offer that row as the "up" step. Uses path containment rather than a string
+/// prefix, so a sibling like `/mnt/data-backup` is not treated as being inside
+/// `/mnt/data`.
 bool driveParentInVolume(String? parent, FsVolumeInfo? volume) {
   if (parent == null || volume == null) {
     return false;
   }
-  if (parent == volume.path) {
-    return true;
-  }
-  if (volume.path == '/') {
-    return parent.startsWith('/');
-  }
-  return parent.startsWith('${volume.path}/');
+  // The volume root itself is the top of its own tree.
+  return volume.path == parent || p.isWithin(volume.path, parent);
 }
 
 /// Visible Drive tree rows in pane order: the "up" row while a folder is open
 /// (index 0), then that folder's subfolders; volumes at the root.
 ///
-/// The focused row is resolved by path (see [driveTreeFocusedPathProvider]), so
-/// the pane never has to keep its own index in step with this order.
-List<String> driveTreeRows(Ref ref) {
-  final current = ref.read(driveCurrentPathProvider);
-  if (current == null) {
-    final volumes = ref.read(driveVolumesProvider).asData?.value;
-    return volumes == null ? const [] : [for (final v in volumes) v.path];
+/// Takes the values it derives from instead of reading them, so a caller can
+/// pass one snapshot and be sure the rows, the cursor bound, and the focused
+/// path all describe the same listing.
+List<String> driveTreeRowsFrom({
+  required String? currentPath,
+  required FsDirectoryListing? listing,
+  required FsVolumeInfo? volume,
+  required List<FsVolumeInfo> volumes,
+}) {
+  if (currentPath == null) {
+    return [for (final v in volumes) v.path];
   }
-  final dir = ref.read(driveListingProvider).asData?.value;
-  if (dir == null) {
+  if (listing == null) {
     return const [];
   }
-  final parent =
-      driveParentInVolume(dir.parent, ref.read(driveActiveVolumeProvider))
-      ? dir.parent
+  final parent = driveParentInVolume(listing.parent, volume)
+      ? listing.parent
       : null;
-  return [?parent, for (final d in dir.directories) d.path];
+  return [?parent, for (final d in listing.directories) d.path];
 }
+
+/// Drive rows for the current state, as one read of each source.
+List<String> driveTreeRows(Ref ref) => driveTreeRowsFrom(
+  currentPath: ref.read(driveCurrentPathProvider),
+  listing: ref.read(driveListingProvider).asData?.value,
+  volume: ref.read(driveActiveVolumeProvider),
+  volumes: ref.read(driveVolumesProvider).asData?.value ?? const [],
+);
 
 /// Focused Drive tree row, bounded by the rows last seen on screen.
 class DriveTreeCursor extends Notifier<int> {
@@ -958,18 +977,22 @@ final driveTreeCursorProvider = NotifierProvider<DriveTreeCursor, int>(
 /// Clamped on read, so a listing that shrank under the cursor still points at a
 /// real row.
 final driveTreeFocusedPathProvider = Provider<String?>((ref) {
-  // The rows follow the open folder, its listing, and the volume list, so the
-  // focused path has to be re-derived when any of them changes. [driveTreeRows]
-  // reads them without subscribing, hence the explicit watches.
-  ref.watch(driveCurrentPathProvider);
-  ref.watch(driveListingProvider);
-  ref.watch(driveVolumesProvider);
-  final rows = driveTreeRows(ref);
+  final rows = driveTreeRowsWatched(ref);
   if (rows.isEmpty) {
     return null;
   }
   return rows[ref.watch(driveTreeCursorProvider).clamp(0, rows.length - 1)];
 });
+
+/// [driveTreeRowsFrom] fed by the values this provider watches, so a listing
+/// that resolves — or a volume list that arrives — re-derives the rows and the
+/// focused path stays on a row that exists.
+List<String> driveTreeRowsWatched(Ref ref) => driveTreeRowsFrom(
+  currentPath: ref.watch(driveCurrentPathProvider),
+  listing: ref.watch(driveListingProvider).asData?.value,
+  volume: ref.watch(driveActiveVolumeProvider),
+  volumes: ref.watch(driveVolumesProvider).asData?.value ?? const [],
+);
 
 /// Browse the Drive tree by [delta] rows.
 ///
@@ -979,6 +1002,9 @@ final driveTreeFocusedPathProvider = Provider<String?>((ref) {
 /// Callers reject a zero [delta]; a zero step would still be a no-op here, but
 /// the guard lives at the evt boundary so it cannot be forgotten.
 void navigateDriveTree(Ref ref, int delta) {
+  // One snapshot for the bound and the path: re-deriving the rows afterwards
+  // could apply the new index to a listing that resolved in between, which
+  // lands the rotary on the wrong folder.
   final rows = driveTreeRows(ref);
   if (rows.isEmpty) {
     return;
@@ -986,9 +1012,6 @@ void navigateDriveTree(Ref ref, int delta) {
   final cursor = ref.read(driveTreeCursorProvider.notifier);
   cursor.setCount(rows.length);
   cursor.navigate(delta);
-  // Index the same snapshot the cursor was bounded against: re-deriving the
-  // rows through [driveTreeFocusedPathProvider] could apply the new index to a
-  // listing that resolved in between, which lands on the wrong folder.
   final index = ref.read(driveTreeCursorProvider).clamp(0, rows.length - 1);
   ref.read(driveCurrentPathProvider.notifier).set(rows[index]);
 }
