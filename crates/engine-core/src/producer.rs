@@ -100,6 +100,21 @@ pub(crate) fn wait_for_callback_frames(
     ))
 }
 
+/// Run one DSP chunk. On error, log it and zero every output bus so the
+/// caller's map/push path emits silence instead of the previous chunk.
+fn process_chunk_or_silence(
+    dsp: &mut DspEngine,
+    frames: u32,
+    output_buses: &mut HashMap<BusId, Vec<Sample>>,
+) {
+    if let Err(e) = dsp.process(frames, output_buses) {
+        tracing::error!("DSP processing error: {}", e);
+        for bus_buf in output_buses.values_mut() {
+            bus_buf.fill(0.0);
+        }
+    }
+}
+
 /// Producer thread loop (spec §5.1: writes decoded/resampled audio into per-device ring buffers).
 ///
 /// Production is paced by the pacing device's callback count, not wall clock. The pacing device
@@ -222,9 +237,7 @@ pub(crate) fn producer_thread_loop(
 
         {
             let mut dsp = dsp_engine.lock().unwrap();
-            if let Err(e) = dsp.process(chunk_frames as u32, &mut output_buses) {
-                tracing::error!("DSP processing error: {}", e);
-            }
+            process_chunk_or_silence(&mut dsp, chunk_frames as u32, &mut output_buses);
             let deck_events = dsp.drain_transport_events();
             if !deck_events.is_empty() {
                 let mut queue = transport_events.lock().unwrap();
@@ -525,5 +538,27 @@ mod tests {
             0,
             "oversized callback should not produce any samples"
         );
+    }
+
+    #[test]
+    fn process_error_zeros_output_buses() {
+        use engine_dsp::{DspEngine, SamplerStripRoute};
+        use std::collections::HashMap;
+
+        let mut dsp = DspEngine::new(48_000, 64, 2, "medium", SamplerStripRoute::BeforeStrip);
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), vec![0.5_f32; 64 * 2]);
+
+        // 65 frames is not a multiple of dasp_graph::Buffer::LEN (64),
+        // so mixer processing returns an error.
+        process_chunk_or_silence(&mut dsp, 65, &mut output_buses);
+
+        for (bus_id, buf) in &output_buses {
+            assert!(
+                buf.iter().all(|&s| s == 0.0),
+                "bus {} must be silent after process error",
+                bus_id.as_str()
+            );
+        }
     }
 }
