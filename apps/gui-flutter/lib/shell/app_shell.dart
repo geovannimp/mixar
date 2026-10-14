@@ -49,7 +49,13 @@ class _AppShellState extends ConsumerState<AppShell> {
         _settingsDeepLink = next;
         _settingsDeepLinkEpoch++;
       });
-      ref.read(pendingSettingsDeepLinkProvider.notifier).clear();
+      // Defer clear so the request() caller / sync observers still see [next].
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        ref.read(pendingSettingsDeepLinkProvider.notifier).clear();
+      });
     });
     // Opaque fill: native window is transparent for rounded desktop chrome.
     return ColoredBox(
@@ -61,9 +67,8 @@ class _AppShellState extends ConsumerState<AppShell> {
             tab: _tab,
             onTabChanged: (tab) => setState(() {
               _tab = tab;
-              if (tab == ShellTab.settings) {
-                _settingsDeepLink = null;
-              }
+              // Manual tab changes never carry a deep link; listen sets it.
+              _settingsDeepLink = null;
             }),
           ),
           const AppNoticeBridge(),

@@ -155,9 +155,9 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
 
   @override
   Widget build(BuildContext context) {
-    // Drop overlay once the flash finishes (or never started while inactive).
-    if (_controller.isCompleted ||
-        (!widget.active && _controller.isDismissed)) {
+    // Inactive + never started: bare child. Otherwise keep AnimatedBuilder so
+    // the child element is not remounted when the overlay collapses (t <= 0).
+    if (!widget.active && _controller.isDismissed) {
       return widget.child;
     }
     final theme = context.theme;
