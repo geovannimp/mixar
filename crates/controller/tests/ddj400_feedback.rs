@@ -347,22 +347,78 @@ fn controller_input_lights_leds_without_an_engine_echo() {
     assert_eq!(midi.frames, vec![vec![D1, 0x54, 0x7F]]);
     midi.frames.clear();
 
-    // Loop In alone must not light the loop group; only Loop Out completes it.
+    // Loop In alone lights only LOOP IN (pending entrance); Loop Out completes the group.
     s.handle_midi(&[D1, 0x10, 0x7F], &mut bus, &mut midi);
-    assert!(
-        midi.frames.is_empty(),
-        "loop in alone leaves the loop lamps dark"
+    assert_eq!(
+        sorted(&midi),
+        sorted_of(&[[D1, 0x10, 0x7F]]),
+        "loop in alone must light the LOOP IN lamp"
     );
 
+    midi.frames.clear();
     s.handle_midi(&[D1, 0x11, 0x7F], &mut bus, &mut midi);
     assert_eq!(
         sorted(&midi),
         sorted_of(&[
-            [D1, 0x10, 0x7F],
             [D1, 0x11, 0x7F],
             [D1, 0x4D, 0x7F],
             [D1, 0x4E, 0x7F],
             [D1, 0x50, 0x7F],
         ])
+    );
+}
+
+#[test]
+fn loop_in_entrance_lights_only_loop_in_lamp() {
+    let (mut s, mut midi) = attached();
+
+    s.set_deck_feedback(
+        0,
+        &DeckFeedback {
+            loop_in_set: true,
+            ..deck(PadMode::HotCue)
+        },
+        &mut midi,
+    );
+    assert_eq!(
+        sorted(&midi),
+        sorted_of(&[[D1, 0x10, 0x7F]]),
+        "pending loop-in must light LOOP IN only"
+    );
+    assert!(
+        !sorted(&midi).iter().any(|f| f[1] == 0x11 && f[2] != 0),
+        "LOOP OUT must stay dark until the loop is active"
+    );
+}
+
+#[test]
+fn sync_lamp_lights_when_deck_is_sync_master() {
+    let (mut s, mut midi) = attached();
+
+    // Master deck keeps SyncMode::Off in the engine; the host ORs master into
+    // DeckFeedback.sync so the SYNC button still lights.
+    s.set_deck_feedback(
+        0,
+        &DeckFeedback {
+            sync: true,
+            ..deck(PadMode::HotCue)
+        },
+        &mut midi,
+    );
+    assert!(
+        sorted(&midi).contains(&[D1, 0x58, 0x7F]),
+        "SYNC lamp must light for the master / synced deck"
+    );
+}
+
+#[test]
+fn channel_vu_meter_sends_mixxx_scaled_cc() {
+    let (mut s, mut midi) = attached();
+
+    s.set_deck_vu(0, 0.5, &mut midi);
+    assert_eq!(
+        midi.frames,
+        vec![vec![0xB0, 0x02, 75]],
+        "deck 1 VU is CC ch1 / 0x02 at Mixxx scale level×150"
     );
 }

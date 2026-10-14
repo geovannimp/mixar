@@ -179,6 +179,7 @@ impl MappingSession {
         self.snapshot.quantize[i] = fb.quantize;
         self.snapshot.headphone_cue[i] = fb.headphone_cue;
         self.snapshot.loop_active[i] = fb.loop_active;
+        self.snapshot.loop_in_set[i] = fb.loop_in_set || fb.loop_active;
         self.snapshot.track_loaded[i] = fb.track_loaded;
         self.snapshot.loop_slots[i] = fb.loop_slots;
         self.snapshot.pad_mode[i] = fb.pad_mode;
@@ -711,8 +712,15 @@ impl MappingSession {
                 Kind::EndCueHold => self.snapshot.cue_hold[i] = false,
                 Kind::Play | Kind::TriggerHotCue => self.set_playing_deck(d, true),
                 Kind::Pause => self.set_playing_deck(d, false),
-                Kind::LoopOut => self.snapshot.loop_active[i] = true,
-                Kind::ExitLoop => self.snapshot.loop_active[i] = false,
+                Kind::LoopIn => self.snapshot.loop_in_set[i] = true,
+                Kind::LoopOut => {
+                    self.snapshot.loop_active[i] = true;
+                    self.snapshot.loop_in_set[i] = true;
+                }
+                Kind::ExitLoop => {
+                    self.snapshot.loop_active[i] = false;
+                    self.snapshot.loop_in_set[i] = false;
+                }
                 // A filled hot cue starts playback; an empty one saves the cue.
                 Kind::HotCuePadPress => {
                     if let CmdBody::HotCuePadPress { slot, shift: false } = body {

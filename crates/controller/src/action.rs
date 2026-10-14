@@ -41,6 +41,8 @@ pub struct ControlSnapshot {
     pub cue_hold: [bool; 4],
     pub sync: [bool; 4],
     pub loop_active: [bool; 4],
+    /// Loop In marker set (pending entrance and/or active loop).
+    pub loop_in_set: [bool; 4],
     pub track_loaded: [bool; 4],
     /// Saved-loop slot presence per deck (loop-roll pad LEDs).
     pub loop_slots: [[bool; crate::catalog::LOOP_SLOT_COUNT]; 4],
@@ -59,6 +61,8 @@ pub struct DeckFeedback {
     pub quantize: bool,
     pub headphone_cue: bool,
     pub loop_active: bool,
+    /// True when a Loop In marker exists (pending) or a loop is active.
+    pub loop_in_set: bool,
     pub track_loaded: bool,
     pub loop_slots: [bool; crate::catalog::LOOP_SLOT_COUNT],
     pub pad_mode: PadMode,
@@ -82,6 +86,7 @@ impl Default for ControlSnapshot {
             cue_hold: [false; 4],
             sync: [false; 4],
             loop_active: [false; 4],
+            loop_in_set: [false; 4],
             track_loaded: [false; 4],
             loop_slots: [[false; crate::catalog::LOOP_SLOT_COUNT]; 4],
             pad_mode: [PadMode::HotCue; 4],
@@ -128,6 +133,7 @@ impl ControlSnapshot {
                     "sync" => self.sync[i] = value > 0.5,
                     "cue_hold" => self.cue_hold[i] = value > 0.5,
                     "loop_active" => self.loop_active[i] = value > 0.5,
+                    "loop_in_set" => self.loop_in_set[i] = value > 0.5,
                     "track_loaded" => self.track_loaded[i] = value > 0.5,
                     "pad_mode" => {
                         self.pad_mode[i] = match value as u8 {
@@ -162,6 +168,7 @@ impl ControlSnapshot {
             "headphone_cue" => self.headphone_cue[i],
             "track_loaded" => self.track_loaded[i],
             "loop_active" => self.loop_active[i],
+            "loop_in_set" => self.loop_in_set[i],
             "pad_mode_hot_cue" => self.pad_mode[i] == PadMode::HotCue,
             "pad_mode_loop_roll" => self.pad_mode[i] == PadMode::LoopRoll,
             "pad_mode_beat_jump" => self.pad_mode[i] == PadMode::BeatJump,

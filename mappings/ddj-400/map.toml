@@ -236,7 +236,7 @@ cue = { signal = "cue_hold", on = "cue_led", off = { type = "note", channel = 1,
 sync = { signal = "sync", on = "sync_led", off = { type = "note", channel = 1, note = 0x58, velocity = 0x00 } }
 headphone_cue = { signal = "headphone_cue", on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
 quantize = { signal = "quantize", on = "quantize_led", off = { type = "note", channel = 1, note = 0x68, velocity = 0x00 } }
-loop_in = { signal = "loop_active", on = "loop_in_led", off = { type = "note", channel = 1, note = 0x10, velocity = 0x00 } }
+loop_in = { signal = "loop_in_set", on = "loop_in_led", off = { type = "note", channel = 1, note = 0x10, velocity = 0x00 } }
 loop_out = { signal = "loop_active", on = "loop_out_led", off = { type = "note", channel = 1, note = 0x11, velocity = 0x00 } }
 loop_out_shift = { signal = "loop_active", on = "loop_out_shift_led", off = { type = "note", channel = 1, note = 0x4E, velocity = 0x00 } }
 exit_loop = { signal = "loop_active", on = "exit_loop_led", off = { type = "note", channel = 1, note = 0x4D, velocity = 0x00 } }
@@ -312,7 +312,7 @@ cue = { signal = "cue_hold", on = "cue_led", off = { type = "note", channel = 2,
 sync = { signal = "sync", on = "sync_led", off = { type = "note", channel = 2, note = 0x58, velocity = 0x00 } }
 headphone_cue = { signal = "headphone_cue", on = "pfl_led", off = { type = "note", channel = 2, note = 0x54, velocity = 0x00 } }
 quantize = { signal = "quantize", on = "quantize_led", off = { type = "note", channel = 2, note = 0x68, velocity = 0x00 } }
-loop_in = { signal = "loop_active", on = "loop_in_led", off = { type = "note", channel = 2, note = 0x10, velocity = 0x00 } }
+loop_in = { signal = "loop_in_set", on = "loop_in_led", off = { type = "note", channel = 2, note = 0x10, velocity = 0x00 } }
 loop_out = { signal = "loop_active", on = "loop_out_led", off = { type = "note", channel = 2, note = 0x11, velocity = 0x00 } }
 loop_out_shift = { signal = "loop_active", on = "loop_out_shift_led", off = { type = "note", channel = 2, note = 0x4E, velocity = 0x00 } }
 exit_loop = { signal = "loop_active", on = "exit_loop_led", off = { type = "note", channel = 2, note = 0x4D, velocity = 0x00 } }

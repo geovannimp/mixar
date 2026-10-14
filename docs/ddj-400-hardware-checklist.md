@@ -36,9 +36,10 @@ Shift banks. This checklist is about what the unit *does* with them.
 - [ ] SYNC: lamp follows the sync toggle.
 - [ ] QUANTIZE: lamp follows the quantize toggle.
 - [ ] HEADPHONE CUE: lamp follows the PFL toggle.
-- [ ] LOOP IN alone leaves the loop lamps dark; **LOOP OUT** lights the loop group
-      (LOOP IN / LOOP OUT / RELOOP·EXIT and both +SHIFT variants).
+- [ ] LOOP IN alone lights the LOOP IN lamp (pending entrance); **LOOP OUT** lights
+      the rest of the loop group (LOOP OUT / RELOOP·EXIT and both +SHIFT variants).
 - [ ] RELOOP/EXIT (with an active loop) clears the loop group.
+- [ ] SYNC lights on a slave with sync enabled **and** on the master deck.
 
 ## Pad pages
 

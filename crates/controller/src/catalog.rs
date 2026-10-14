@@ -208,6 +208,7 @@ const DECK_SIGNALS: &[&str] = &[
     "headphone_cue",
     "track_loaded",
     "loop_active",
+    "loop_in_set",
     "shift_held",
     "pad_mode_hot_cue",
     "pad_mode_loop_roll",

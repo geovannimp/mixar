@@ -434,6 +434,13 @@ fn apply_deck_feedback(
     ctrl.set_deck_feedback(deck, &fb);
 }
 
+fn apply_deck_vu(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, level: f32) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_deck_vu(deck, level.clamp(0.0, 1.0));
+}
+
 fn apply_master_feedback(eng: &Arc<Mutex<ControllerEngine>>, enabled: bool) {
     let Ok(mut ctrl) = eng.lock() else {
         return;
@@ -500,9 +507,12 @@ fn mirror_engine_library_to_controller(
         return;
     };
     let mut deck_tracks: [Option<String>; 4] = Default::default();
+    let mut master_deck: u16 = 0;
     while !stop.load(Ordering::Relaxed) {
         match engine_rx.recv_timeout(Duration::from_millis(5)) {
-            Ok(Some(ev)) => apply_engine_mirror(&controller, &mut deck_tracks, ev.as_ref()),
+            Ok(Some(ev)) => {
+                apply_engine_mirror(&controller, &mut deck_tracks, &mut master_deck, ev.as_ref())
+            }
             Ok(None) => {}
             Err(_) => return,
         }
@@ -517,6 +527,7 @@ fn mirror_engine_library_to_controller(
 fn apply_engine_mirror(
     controller: &Arc<Mutex<ControllerEngine>>,
     deck_tracks: &mut [Option<String>; 4],
+    master_deck: &mut u16,
     ev: &engine_core::Evt,
 ) {
     let Ok(body) = decode_evt_body(ev.payload()) else {
@@ -531,6 +542,7 @@ fn apply_engine_mirror(
             quantize,
             headphone_cue,
             active_loop,
+            pending_loop_in_ms,
             pad_mode,
             key_shift,
             keyboard_page,
@@ -544,15 +556,18 @@ fn apply_engine_mirror(
             let idx = (id as usize).min(3);
             let track_loaded = track_id.is_some();
             deck_tracks[idx] = track_id;
+            let loop_active = active_loop.is_some_and(|l| l.active);
             apply_deck_feedback(
                 controller,
                 id,
                 controller::DeckFeedback {
                     playing,
-                    sync: sync_mode != SyncMode::Off,
+                    // Master decks keep SyncMode::Off; still light SYNC like the UI.
+                    sync: sync_mode != SyncMode::Off || id == *master_deck,
                     quantize,
                     headphone_cue,
-                    loop_active: active_loop.is_some_and(|l| l.active),
+                    loop_active,
+                    loop_in_set: pending_loop_in_ms.is_some() || loop_active,
                     track_loaded,
                     loop_slots: loop_slots(&saved_loops),
                     pad_mode,
@@ -574,19 +589,30 @@ fn apply_engine_mirror(
             };
             apply_position(controller, id, position_ms);
         }
+        EvtBody::Levels {
+            peak_l, peak_r, ..
+        } => {
+            let Origin::Deck(id) = ev.origin().clone() else {
+                return;
+            };
+            apply_deck_vu(controller, id, peak_l.max(peak_r));
+        }
         EvtBody::EngineStatus { status } => {
+            *master_deck = status.master_deck;
             for deck in &status.decks {
                 let idx = (deck.id as usize).min(3);
                 deck_tracks[idx] = deck.track_id.clone();
+                let loop_active = deck.active_loop.as_ref().is_some_and(|l| l.active);
                 apply_deck_feedback(
                     controller,
                     deck.id,
                     controller::DeckFeedback {
                         playing: deck.playing,
-                        sync: deck.sync_mode != SyncMode::Off,
+                        sync: deck.sync_mode != SyncMode::Off || deck.id == *master_deck,
                         quantize: deck.quantize,
                         headphone_cue: deck.headphone_cue,
-                        loop_active: deck.active_loop.as_ref().is_some_and(|l| l.active),
+                        loop_active,
+                        loop_in_set: deck.pending_loop_in_ms.is_some() || loop_active,
                         track_loaded: deck.track_id.is_some(),
                         loop_slots: loop_slots(&deck.saved_loops),
                         pad_mode: deck.pad_mode,
