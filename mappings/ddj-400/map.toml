@@ -218,10 +218,16 @@ key_shift_shift_pad_8 = "Deck(_)::key_shift_pad(n:8, shift:true)"
 
 [inputs.master]
 crossfader = { action = "Mixer::set_crossfader", soft_takeover = true }
+master_volume = { action = "Mixer::set_master_volume", soft_takeover = true }
 cue_mix = { action = "Mixer::set_cue_mix", soft_takeover = true }
+cue_volume = { action = "Mixer::set_cue_volume", soft_takeover = true }
+master_cue = "Mixer::set_master_cue"
 browse = "LibraryNavigation::navigate"
 load_deck_1 = "LibraryNavigation::load_to_deck(deck:1)"
 load_deck_2 = "LibraryNavigation::load_to_deck(deck:2)"
+
+[outputs.master]
+master_cue = { on = "master_cue_led", off = { type = "note", channel = 7, note = 0x63, velocity = 0x00 } }
 
 [outputs.deck_1]
 play_pause = { on = "play_led", off = { type = "note", channel = 1, note = 0x0B, velocity = 0x00 } }

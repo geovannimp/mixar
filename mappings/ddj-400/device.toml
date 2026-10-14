@@ -298,7 +298,11 @@ key_shift_pad_8_led = { type = "note", channel = 10, note = 0x77, velocity = 0x7
 
 [master]
 crossfader = { type = "cc14", channel = 7, cc = { msb = 0x1F, lsb = 0x3F } }
+master_volume = { type = "cc14", channel = 7, cc = { msb = 0x08, lsb = 0x28 } }
 cue_mix = { type = "cc14", channel = 7, cc = { msb = 0x0C, lsb = 0x2C } }
+cue_volume = { type = "cc14", channel = 7, cc = { msb = 0x0D, lsb = 0x2D } }
+master_cue = { type = "note", channel = 7, note = 0x63 }
+master_cue_led = { type = "note", channel = 7, note = 0x63, velocity = 0x7F, direction = "out" }
 # Browse encoder (Mixxx SelectKnob): relative CC ch7 / 0x40
 browse = { type = "cc", channel = 7, cc = 0x40, relative = "TWOS_COMPLEMENT" }
 # LOAD buttons (Mixxx LoadSelectedTrack): note ch7 / 0x46, 0x47
