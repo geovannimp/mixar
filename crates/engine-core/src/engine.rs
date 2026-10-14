@@ -517,6 +517,7 @@ impl Engine {
         }
         drop(dsp);
         self.hydrate_hot_cues(deck_id)?;
+        self.hydrate_beat_grid(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
         tracing::info!("Track loaded into deck {}", deck_id);
         Ok(())
@@ -561,6 +562,7 @@ impl Engine {
         }
         drop(dsp);
         self.hydrate_hot_cues(deck_id)?;
+        self.hydrate_beat_grid(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
         tracing::info!("Library-prepared track loaded into deck {}", deck_id);
         Ok(())
@@ -965,7 +967,7 @@ impl Engine {
             .get(master_id)
             .and_then(|d| d.bpm)
             .ok_or_else(|| anyhow::anyhow!("Master deck BPM is required for beat sync."))?;
-        let (slave_bpm, quantize) = {
+        let (slave_bpm, slave_first_beat_ms, quantize) = {
             let control = self
                 .deck_control
                 .get(slave_id)
@@ -973,12 +975,18 @@ impl Engine {
             let bpm = control
                 .bpm
                 .ok_or_else(|| anyhow::anyhow!("Slave deck BPM is required for beat sync."))?;
-            (bpm, control.quantize)
+            (bpm, control.first_beat_ms, control.quantize)
         };
         let (master_pos, _) = self.deck_playback_ms(master_id).unwrap_or((0, 0));
         let (slave_pos, duration) = self.deck_playback_ms(slave_id).unwrap_or((0, 0));
         let target = beat_align_target(
-            master_pos, slave_pos, duration, master_bpm, slave_bpm, quantize,
+            master_pos,
+            slave_pos,
+            duration,
+            master_bpm,
+            slave_bpm,
+            slave_first_beat_ms,
+            quantize,
         );
         self.seek_deck(slave_id, target)
     }
@@ -1387,8 +1395,8 @@ impl Engine {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
             return Err(anyhow::anyhow!("Load a track before triggering a hot cue."));
         }
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let target = snap_ms(position_ms, bpm, quantize);
+        let (bpm, first_beat_ms, quantize) = self.deck_quantize_params(deck_id)?;
+        let target = snap_ms(position_ms, bpm, first_beat_ms, quantize);
         self.seek_deck_audible(deck_id, target)?;
         self.play(deck_id)
     }
@@ -1406,9 +1414,9 @@ impl Engine {
             .get(deck_id)
             .and_then(|c| c.track_id.clone())
             .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, first_beat_ms, quantize) = self.deck_quantize_params(deck_id)?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
-        let position_ms = snap_ms(position_ms, bpm, quantize);
+        let position_ms = snap_ms(position_ms, bpm, first_beat_ms, quantize);
         // Memory/UI commit on library `HotCuesChanged` (control thread), not here.
         self.publish_library_cmd(
             library_api::Kind::SaveHotCue,
@@ -1451,6 +1459,44 @@ impl Engine {
             if idx < control.hot_cues.len() {
                 control.hot_cues[idx] = Some(cue.position_ms);
             }
+        }
+        Ok(())
+    }
+
+    /// Load persisted beat-grid BPM + first-beat phase for quantize snap.
+    fn hydrate_beat_grid(&mut self, deck_id: usize) -> Result<()> {
+        let Some(track_id) = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.track_id.clone())
+        else {
+            return Ok(());
+        };
+        let Some(library) = self.library.as_ref() else {
+            return Ok(());
+        };
+        let lib = library
+            .lock()
+            .map_err(|_| anyhow::anyhow!("library lock poisoned"))?;
+        let grid = lib
+            .get_track_beat_grid(&track_id)
+            .map_err(|e| anyhow::anyhow!("get beat grid: {e}"))?;
+        drop(lib);
+        let Some(control) = self.deck_control.get_mut(deck_id) else {
+            return Ok(());
+        };
+        let Some(grid) = grid else {
+            control.first_beat_ms = 0.0;
+            return Ok(());
+        };
+        control.first_beat_ms = grid
+            .beats
+            .first()
+            .copied()
+            .map(|s| f64::from(s) * 1000.0)
+            .unwrap_or(0.0);
+        if let Some(b) = grid.bpm.filter(|b| b.is_finite() && *b > 0.0) {
+            control.bpm = Some(b);
         }
         Ok(())
     }
@@ -1505,6 +1551,67 @@ impl Engine {
             if control.hot_cues != slots {
                 control.hot_cues = slots;
                 changed.push(deck_id);
+            }
+        }
+        changed
+    }
+
+    /// Apply a live beat-grid edit to every deck currently loaded with `track_id`.
+    ///
+    /// Returns deck ids whose BPM or first-beat phase changed (caller publishes `DeckUpdated`).
+    pub fn apply_track_beat_grid(
+        &mut self,
+        track_id: &str,
+        beat_grid: &library_api::BeatGrid,
+    ) -> Vec<usize> {
+        let first_beat_ms = beat_grid
+            .beats
+            .first()
+            .copied()
+            .map(|s| f64::from(s) * 1000.0)
+            .unwrap_or(0.0);
+        let new_bpm = beat_grid
+            .bpm
+            .is_finite()
+            .then_some(beat_grid.bpm)
+            .filter(|b| *b > 0.0);
+
+        let mut changed = Vec::new();
+        for deck_id in 0..self.deck_control.len() {
+            let Some(control) = self.deck_control.get_mut(deck_id) else {
+                continue;
+            };
+            let Some(loaded) = control.track_id.as_ref() else {
+                continue;
+            };
+            if loaded.as_str() != track_id {
+                continue;
+            }
+
+            let mut did_change = false;
+            if let Some(b) = new_bpm {
+                if control.bpm != Some(b) {
+                    control.bpm = Some(b);
+                    did_change = true;
+                }
+            }
+            if (control.first_beat_ms - first_beat_ms).abs() > f64::EPSILON {
+                control.first_beat_ms = first_beat_ms;
+                did_change = true;
+            }
+            if !did_change {
+                continue;
+            }
+            changed.push(deck_id);
+
+            if let Some(bpm) = self.deck_control[deck_id].bpm {
+                if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+                    if let Ok(mut dsp) = dsp_engine.lock() {
+                        if let Some(deck) = dsp.deck_mut(deck_id) {
+                            deck.set_track_bpm(Some(bpm));
+                        }
+                    }
+                }
             }
         }
         changed
@@ -1911,7 +2018,7 @@ impl Engine {
                 "Loop roll requires a positive finite beat length."
             ));
         }
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, first_beat_ms, quantize) = self.deck_quantize_params(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for loop roll."))?;
         let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let restore = self.active_loop_region(deck_id);
@@ -1923,7 +2030,7 @@ impl Engine {
         control.pending_loop_in_ms = None;
 
         let beat_len = 60.0 / bpm;
-        let in_ms = snap_ms(position_ms, Some(bpm), quantize);
+        let in_ms = snap_ms(position_ms, Some(bpm), first_beat_ms, quantize);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
         let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
@@ -1961,9 +2068,9 @@ impl Engine {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
             return Err(anyhow::anyhow!("Load a track before setting cue."));
         }
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, first_beat_ms, quantize) = self.deck_quantize_params(deck_id)?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
-        let target = snap_ms(position_ms, bpm, quantize);
+        let target = snap_ms(position_ms, bpm, first_beat_ms, quantize);
         self.set_deck_cue_point(deck_id, target)
     }
 
@@ -1974,11 +2081,11 @@ impl Engine {
                 "Loop length must be a positive finite beat count."
             ));
         }
-        let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, first_beat_ms, _) = self.deck_quantize_params(deck_id)?;
         let bpm = require_positive_bpm(bpm, "auto loop")?;
         let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
-        let in_ms = snap_ms(position_ms, Some(bpm), true);
+        let in_ms = snap_ms(position_ms, Some(bpm), first_beat_ms, true);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
         let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
@@ -1990,7 +2097,7 @@ impl Engine {
 
     /// Resolve a caller-supplied loop boundary: clamp, then snap only when Quantize is on.
     fn resolve_loop_boundary_ms(&self, deck_id: usize, position_ms: i32, op: &str) -> Result<i32> {
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, first_beat_ms, quantize) = self.deck_quantize_params(deck_id)?;
         let (_, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let clamp = |ms: i32| {
             if duration_ms > 0 {
@@ -2002,7 +2109,7 @@ impl Engine {
         let raw = clamp(position_ms);
         if quantize {
             let bpm = require_positive_bpm(bpm, op)?;
-            Ok(clamp(snap_ms(raw, Some(bpm), true)))
+            Ok(clamp(snap_ms(raw, Some(bpm), first_beat_ms, true)))
         } else {
             Ok(raw)
         }
@@ -2065,21 +2172,21 @@ impl Engine {
                 "Beat jump requires a non-zero finite beat count."
             ));
         }
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, first_beat_ms, quantize) = self.deck_quantize_params(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for beat jump."))?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
         let raw = ms_to_secs(position_ms) + beat_len * f64::from(beats);
-        let target = snap_ms(secs_to_ms(raw), Some(bpm), quantize);
+        let target = snap_ms(secs_to_ms(raw), Some(bpm), first_beat_ms, quantize);
         self.seek_deck_audible(deck_id, target)
     }
 
-    fn deck_bpm_quantize(&self, deck_id: usize) -> Result<(Option<f64>, bool)> {
+    fn deck_quantize_params(&self, deck_id: usize) -> Result<(Option<f64>, f64, bool)> {
         let control = self
             .deck_control
             .get(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
-        Ok((control.bpm, control.quantize))
+        Ok((control.bpm, control.first_beat_ms, control.quantize))
     }
 
     /// Cue point and loop region for status mirroring.

@@ -35,6 +35,8 @@ impl Default for PitchPadState {
 pub(crate) struct DeckControlState {
     pub sync_mode: SyncMode,
     pub bpm: Option<f64>,
+    /// First beat of the constant-tempo grid in media milliseconds (phase for [`snap_ms`]).
+    pub first_beat_ms: f64,
     pub quantize: bool,
     pub pad_mode: PadMode,
     pub loop_roll_restore: Option<LoopRegion>,
@@ -62,6 +64,7 @@ impl Default for DeckControlState {
         Self {
             sync_mode: SyncMode::Off,
             bpm: None,
+            first_beat_ms: 0.0,
             quantize: false,
             pad_mode: PadMode::HotCue,
             loop_roll_restore: None,
@@ -92,6 +95,7 @@ impl DeckControlState {
 
     pub fn clear_loaded_track(&mut self) {
         self.bpm = None;
+        self.first_beat_ms = 0.0;
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
         self.pending_loop_in_ms = None;
@@ -117,6 +121,7 @@ impl DeckControlState {
         metadata: &library_core::TrackMetadata,
     ) {
         self.bpm = metadata.bpm.filter(|b| b.is_finite() && *b > 0.0);
+        self.first_beat_ms = 0.0;
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
         self.pending_loop_in_ms = None;
@@ -151,7 +156,10 @@ pub(crate) fn require_positive_bpm(bpm: Option<f64>, op: &str) -> anyhow::Result
 }
 
 /// Snap media time to the nearest beat when quantize is on. Stays in ms end-to-end.
-pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
+///
+/// `first_beat_ms` is the grid phase (constant-tempo first beat), matching the
+/// waveform beat lines painted by the UI.
+pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, first_beat_ms: f64, quantize: bool) -> i32 {
     if !quantize {
         return ms;
     }
@@ -162,7 +170,8 @@ pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
         return ms;
     }
     let beat = beat_ms(bpm);
-    ((f64::from(ms) / beat).round() * beat).round() as i32
+    let phase = first_beat_ms;
+    (((f64::from(ms) - phase) / beat).round() * beat + phase).round() as i32
 }
 
 pub(crate) fn target_sync_speed(master_bpm: f64, master_speed: f32, slave_bpm: f64) -> f32 {
@@ -176,6 +185,7 @@ pub(crate) fn beat_align_target(
     duration_ms: i32,
     master_bpm: f64,
     slave_bpm: f64,
+    slave_first_beat_ms: f64,
     quantize: bool,
 ) -> i32 {
     let master_pos = f64::from(master_pos_ms);
@@ -194,6 +204,7 @@ pub(crate) fn beat_align_target(
     snap_ms(
         target.min(duration).round() as i32,
         Some(slave_bpm),
+        slave_first_beat_ms,
         quantize,
     )
 }
@@ -210,15 +221,22 @@ mod tests {
 
     #[test]
     fn snap_ms_without_quantize_passes_through_including_negatives() {
-        assert_eq!(snap_ms(500, Some(120.0), false), 500);
-        assert_eq!(snap_ms(-100, None, false), -100);
+        assert_eq!(snap_ms(500, Some(120.0), 0.0, false), 500);
+        assert_eq!(snap_ms(-100, None, 0.0, false), -100);
     }
 
     #[test]
     fn snap_ms_quantizes_to_nearest_beat_in_ms() {
         // 120 BPM → 500 ms per beat; 620 → 500, 760 → 1000
-        assert_eq!(snap_ms(620, Some(120.0), true), 500);
-        assert_eq!(snap_ms(760, Some(120.0), true), 1000);
+        assert_eq!(snap_ms(620, Some(120.0), 0.0, true), 500);
+        assert_eq!(snap_ms(760, Some(120.0), 0.0, true), 1000);
+    }
+
+    #[test]
+    fn snap_ms_respects_first_beat_phase() {
+        // 120 BPM, phase 100 ms → beats at 100, 600, 1100…
+        assert_eq!(snap_ms(200, Some(120.0), 100.0, true), 100);
+        assert_eq!(snap_ms(400, Some(120.0), 100.0, true), 600);
     }
 
     #[test]

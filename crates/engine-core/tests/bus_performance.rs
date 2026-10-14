@@ -5,8 +5,13 @@ mod common;
 use common::{recv_evt_kind, short_tone_fixture, source_with_bpm, SHORT_TONE_LEN_MS};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
+use library::{LibraryConfig, NewCollection, WritableLibrary};
+use library_api::BeatGrid;
+use library_core::{AudioSource, FileAudioSource, Library, TrackId, TrackMetadata};
 use omnibus::Filter;
+use std::io::Write;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 fn encode_loop_in(position_ms: i32) -> Vec<u8> {
     encode_cmd_body(&CmdBody::LoopIn { position_ms }).unwrap()
@@ -227,6 +232,200 @@ fn loop_in_snaps_when_quantize_on() {
         panic!("expected DeckUpdated");
     };
     assert_eq!(pending_loop_in_ms, Some(0));
+}
+
+/// 2 s silent WAV so loop-out / play snap tests can use positions past the short tone.
+fn write_two_second_wav(path: &Path) {
+    let sample_rate = 48_000u32;
+    let sample_count = (sample_rate * 2) as usize;
+    let pcm = vec![0u8; sample_count * 2];
+    let data_size = pcm.len() as u32;
+    let file_size = 36 + data_size;
+    let byte_rate = sample_rate * 2;
+    let mut file = std::fs::File::create(path).unwrap();
+    file.write_all(b"RIFF").unwrap();
+    file.write_all(&file_size.to_le_bytes()).unwrap();
+    file.write_all(b"WAVEfmt ").unwrap();
+    file.write_all(&16u32.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap();
+    file.write_all(&sample_rate.to_le_bytes()).unwrap();
+    file.write_all(&byte_rate.to_le_bytes()).unwrap();
+    file.write_all(&2u16.to_le_bytes()).unwrap();
+    file.write_all(&16u16.to_le_bytes()).unwrap();
+    file.write_all(b"data").unwrap();
+    file.write_all(&data_size.to_le_bytes()).unwrap();
+    file.write_all(&pcm).unwrap();
+}
+
+fn phase_grid(first_beat_secs: f32) -> BeatGrid {
+    BeatGrid {
+        beats: vec![first_beat_secs],
+        downbeats: vec![first_beat_secs],
+        bpm: 120.0,
+    }
+}
+
+#[test]
+fn loop_in_snaps_to_first_beat_phase_when_quantize_on() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("song.wav");
+    write_two_second_wav(&wav);
+
+    let mut library = library::LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let buses = library::LibraryBuses::new();
+    library.set_buses(buses.clone());
+    let track_id = {
+        let folder = library
+            .add_collection(&NewCollection::folder(dir.path()))
+            .unwrap();
+        library.sync_collection(Some(&folder.id)).unwrap();
+        let tracks = library.list_collection_tracks(&folder.id).unwrap();
+        let id = tracks[0].id().clone();
+        library
+            .save_track_beat_grid(&id, 120.0, 0.1)
+            .expect("save beat grid");
+        id
+    };
+    let library = Arc::new(Mutex::new(library));
+
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new_with_library_bus(config, library, buses.cmd_bus())
+        .expect("engine session");
+    session.with_engine(|engine| engine.start()).expect("start");
+    session
+        .with_engine(|engine| {
+            engine.load_track(
+                0,
+                AudioSource::File(FileAudioSource::new(
+                    track_id.clone(),
+                    wav.clone(),
+                    TrackMetadata {
+                        bpm: Some(120.0),
+                        ..Default::default()
+                    },
+                )),
+            )?;
+            Ok(())
+        })
+        .expect("load");
+
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    // Hydrated phase 100 ms; 200 → nearest beat 100 (not 0).
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(200))
+        .expect("loop in");
+    let loop_in = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms, ..
+    } = decode_evt_body(loop_in.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pending_loop_in_ms, Some(100));
+}
+
+#[test]
+fn loop_out_snaps_to_grid_phase_when_quantize_on() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("song.wav");
+    write_two_second_wav(&wav);
+
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new(config).expect("session");
+    session.with_engine(|engine| engine.start()).expect("start");
+    session
+        .with_engine(|engine| {
+            engine.load_track(
+                0,
+                AudioSource::File(FileAudioSource::new(
+                    TrackId::new("phase-loop.wav"),
+                    wav.clone(),
+                    TrackMetadata {
+                        bpm: Some(120.0),
+                        ..Default::default()
+                    },
+                )),
+            )?;
+            engine.apply_track_beat_grid("phase-loop.wav", &phase_grid(0.1));
+            Ok(())
+        })
+        .expect("load");
+
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(200))
+        .expect("loop in");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    // Phase 100: beats at 100, 600, 1100…; raw 700 → 600.
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopOut, encode_loop_out(700))
+        .expect("loop out");
+    let loop_out = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { active_loop, .. } =
+        decode_evt_body(loop_out.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let region = active_loop.expect("active loop");
+    assert_eq!(region.in_ms, 100);
+    assert_eq!(region.out_ms, 600);
+}
+
+#[test]
+fn beat_grid_changed_updates_quantize_phase() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    // Phase 0 initially: 200 → 0.
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(200))
+        .expect("loop in");
+    let first = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms, ..
+    } = decode_evt_body(first.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pending_loop_in_ms, Some(0));
+
+    session
+        .with_engine(|engine| {
+            engine.apply_track_beat_grid("perf.wav", &phase_grid(0.1));
+            Ok(())
+        })
+        .expect("apply grid");
+
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(200))
+        .expect("loop in after phase");
+    let second = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms, ..
+    } = decode_evt_body(second.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pending_loop_in_ms, Some(100));
 }
 
 #[test]
