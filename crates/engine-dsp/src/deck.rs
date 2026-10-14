@@ -61,6 +61,25 @@ struct VinylBrake {
     total_frames: usize,
 }
 
+/// Parameters for building a [`PreparedStretcher`] outside the DSP lock.
+pub struct StretcherSpec {
+    sample_rate: u32,
+    buffer_size: u32,
+}
+
+impl StretcherSpec {
+    /// Construct the realtime stretcher. Heavy: call off the DSP lock.
+    pub fn build(&self) -> Result<PreparedStretcher> {
+        Ok(PreparedStretcher(new_stretcher(
+            self.sample_rate,
+            self.buffer_size,
+        )?))
+    }
+}
+
+/// A fully constructed stretcher ready to install into a [`Deck`].
+pub struct PreparedStretcher(Box<dyn TimeStretcher>);
+
 /// Audio deck for DJ-style playback
 pub struct Deck {
     /// Deck identifier
@@ -115,6 +134,10 @@ pub struct Deck {
     stretcher: Option<Box<dyn TimeStretcher>>,
     /// Last process used stretch path (reset stretcher when leaving it).
     stretch_active: bool,
+    /// Set once a stretched process fell back to vinyl for a missing stretcher
+    /// during the current stretch episode, so the audio thread logs the failure
+    /// once per transition instead of once per callback.
+    stretcher_fallback_logged: bool,
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass resampler).
     key_shift_semitones: f32,
     /// Active loop region in source frames (inclusive start, exclusive end).
@@ -184,6 +207,7 @@ impl Deck {
             vinyl_brake_enabled: false,
             vinyl_brake_stop_secs: 0.5,
             brake: None,
+            stretcher_fallback_logged: false,
             key_shift_semitones: 0.0,
             loop_region: None,
             slip_enabled: false,
@@ -450,6 +474,9 @@ impl Deck {
         };
         if (s - self.key_shift_semitones).abs() < f32::EPSILON {
             return Ok(());
+        }
+        if s != 0.0 {
+            self.ensure_stretcher()?;
         }
         self.key_shift_semitones = s;
         self.reset_stretcher_state();
@@ -756,12 +783,45 @@ impl Deck {
         }
     }
 
+    /// Build the stretcher on demand if none is installed.
+    ///
+    /// Heavy. Callers that hold the DSP lock should instead take a
+    /// [`StretcherSpec`](Self::stretcher_spec), build it off-lock, and
+    /// [`install`](Self::install_stretcher) it. The remaining under-lock
+    /// callers are `set_key_lock` and `set_key_shift_semitones`; moving those
+    /// off-lock is a follow-up, since the engine has to pre-build before it
+    /// takes the lock. Track load builds off-lock via [`DeckLoadSpec::prepare`].
     fn ensure_stretcher(&mut self) -> Result<()> {
-        if self.stretcher.is_some() {
-            return Ok(());
+        if let Some(spec) = self.stretcher_spec() {
+            self.stretcher = Some(spec.build()?.0);
         }
-        self.stretcher = Some(new_stretcher(self.sample_rate, self.buffer_size)?);
         Ok(())
+    }
+
+    /// Build recipe for the stretcher, or `None` when one is already installed.
+    /// Construction is heavy; callers holding the DSP lock should build via
+    /// [`StretcherSpec::build`] first and install with [`Self::install_stretcher`].
+    pub fn stretcher_spec(&self) -> Option<StretcherSpec> {
+        if self.stretcher.is_some() {
+            return None;
+        }
+        Some(StretcherSpec {
+            sample_rate: self.sample_rate,
+            buffer_size: self.buffer_size,
+        })
+    }
+
+    /// Install a stretcher built off-lock from [`Self::stretcher_spec`].
+    /// A prepared stretcher is dropped (with a warning) if one is already installed.
+    pub fn install_stretcher(&mut self, prepared: PreparedStretcher) {
+        if self.stretcher.is_none() {
+            self.stretcher = Some(prepared.0);
+        } else {
+            tracing::warn!(
+                "Deck {}: stretcher already installed; dropping prepared stretcher",
+                self.id
+            );
+        }
     }
 
     fn reset_stretcher_state(&mut self) {
@@ -998,18 +1058,26 @@ impl Deck {
             if self.stretch_active && !want_stretch {
                 self.reset_stretcher_state();
             }
+            if !want_stretch {
+                // Leaving the stretch path re-arms the missing-stretcher note so
+                // the next stretch episode logs its own failure once.
+                self.stretcher_fallback_logged = false;
+            }
             self.stretch_active = want_stretch;
 
             if want_stretch {
-                if let Err(err) = self.ensure_stretcher() {
-                    tracing::error!(
-                        "Deck {}: stretcher unavailable ({err}); falling back to vinyl",
-                        self.id
-                    );
+                if self.stretcher.is_some() {
+                    self.play_stretched(frames, &loaded.samples, source_rate);
+                } else {
+                    if !self.stretcher_fallback_logged {
+                        tracing::error!(
+                            "Deck {}: stretcher missing; falling back to vinyl",
+                            self.id
+                        );
+                        self.stretcher_fallback_logged = true;
+                    }
                     self.stretch_active = false;
                     self.play_interpolated(frames, &loaded.samples, source_rate);
-                } else {
-                    self.play_stretched(frames, &loaded.samples, source_rate);
                 }
             } else {
                 // shortcut: stem mix uses interpolated path (key-lock stretch skipped while stems attached).
@@ -1344,7 +1412,8 @@ pub struct PreparedDeckLoad {
 }
 
 /// Build a time stretcher at the engine rate, sized to the device callback (at least one chunk).
-/// Single construction site for [`DeckLoadSpec::prepare`] and [`Deck::ensure_stretcher`].
+/// Single construction site for [`DeckLoadSpec::prepare`], [`StretcherSpec::build`],
+/// and [`Deck::ensure_stretcher`].
 fn new_stretcher(sample_rate: u32, buffer_size: u32) -> Result<Box<dyn TimeStretcher>> {
     create_stretcher(sample_rate, buffer_size.max(Buffer::LEN as u32) as usize)
 }
@@ -1560,6 +1629,82 @@ mod tests {
         deck.set_key_shift_semitones(5.0).unwrap();
         deck.unload().unwrap();
         assert_eq!(deck.key_shift_semitones(), 0.0);
+    }
+
+    #[test]
+    fn key_shift_stretcher_is_prebuilt_off_process() {
+        // 440 Hz sine at engine rate, 1 s, so a +5 semitone shift is measurable.
+        let n = ENGINE_RATE as usize;
+        let sine = || {
+            let mut samples = vec![0.0f32; n * 2];
+            for i in 0..n {
+                let v = ((i as f64) * 440.0 / f64::from(ENGINE_RATE) * std::f64::consts::TAU).sin();
+                samples[i * 2] = v as f32;
+                samples[i * 2 + 1] = v as f32;
+            }
+            samples
+        };
+
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, sine(), ENGINE_RATE);
+        let spec = deck.stretcher_spec().expect("no stretcher before install");
+        deck.install_stretcher(spec.build().unwrap());
+        assert!(deck.stretcher_spec().is_none());
+
+        deck.set_key_shift_semitones(5.0).unwrap();
+        deck.play().unwrap();
+        let mut out = Vec::new();
+        for _ in 0..32 {
+            out.extend_from_slice(deck.process(CHUNK).unwrap());
+        }
+        assert!(
+            out.iter().all(|s| s.is_finite()),
+            "stretched output must be finite"
+        );
+        // The stretch path must actually run: a vinyl fallback would leave the
+        // pitch at 440 Hz and make this output identical to the control deck.
+        let f = estimate_frequency(&out, ENGINE_RATE);
+        let expected = 440.0 * 2.0f64.powf(5.0 / 12.0);
+        assert!(
+            (f - expected).abs() / expected < 0.10,
+            "expected ~{expected:.0} Hz for a +5 semitone shift, got {f}"
+        );
+        let mut vinyl = new_deck(CHUNK);
+        load_test_samples(&mut vinyl, sine(), ENGINE_RATE);
+        vinyl.play().unwrap();
+        let mut vinyl_out = Vec::new();
+        for _ in 0..32 {
+            vinyl_out.extend_from_slice(vinyl.process(CHUNK).unwrap());
+        }
+        assert!(
+            out.iter()
+                .zip(&vinyl_out)
+                .any(|(a, b)| (a - b).abs() > 1e-3),
+            "stretched output must differ from the vinyl path"
+        );
+        assert!(
+            deck.stretcher_spec().is_none(),
+            "process must not build a stretcher"
+        );
+    }
+
+    #[test]
+    fn key_shift_builds_stretcher_on_control_call() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.4f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        assert!(deck.stretcher_spec().is_some());
+
+        deck.set_key_shift_semitones(5.0).unwrap();
+        assert!(
+            deck.stretcher_spec().is_none(),
+            "setting a non-zero shift must install the stretcher before the first process"
+        );
+        deck.play().unwrap();
+        deck.process(CHUNK).unwrap();
+        assert!(
+            deck.stretch_active,
+            "first stretched process should use the stretcher"
+        );
     }
 
     #[test]

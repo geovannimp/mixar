@@ -10,7 +10,7 @@ use crate::sync::{
     beat_align_target, require_positive_bpm, snap_ms, target_sync_speed, DeckControlState,
 };
 use crate::transport::TransportEvent;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use audio_core::LoadedAudio;
 use audio_core::{
     ms_to_secs, secs_to_ms, AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo,
@@ -790,6 +790,29 @@ impl Engine {
         } else {
             0.0
         };
+        // Build the stretcher before mutating any state and before taking the
+        // DSP lock. Construction is heavy: doing it under the lock would stall
+        // the producer thread that shares the mutex, and Deck's ensure path
+        // would repeat that stall on failure.
+        let prepared = if s == 0.0 {
+            None
+        } else if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+            let spec = {
+                let dsp = dsp_engine.lock().unwrap();
+                dsp.deck(deck_id).and_then(|deck| deck.stretcher_spec())
+            };
+            match spec.map(|spec| spec.build()) {
+                Some(Ok(prepared)) => Some(prepared),
+                Some(Err(err)) => {
+                    return Err(err).with_context(|| {
+                        format!("Deck {deck_id}: could not build the key-shift stretcher")
+                    });
+                }
+                None => None,
+            }
+        } else {
+            None
+        };
         {
             let control = self
                 .deck_control
@@ -800,6 +823,9 @@ impl Engine {
         if let Some(dsp_engine) = self.dsp_engine.as_ref() {
             let mut dsp = dsp_engine.lock().unwrap();
             if let Some(deck) = dsp.deck_mut(deck_id) {
+                if let Some(prepared) = prepared {
+                    deck.install_stretcher(prepared);
+                }
                 deck.set_key_shift_semitones(s)?;
             }
         }
