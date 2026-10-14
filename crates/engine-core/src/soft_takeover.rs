@@ -70,7 +70,10 @@ mod tests {
     fn adopts_first_value_when_unseen() {
         let mut s = SoftTakeoverState::default();
         let key = "deck0.volume";
-        assert!(s.allow(key, true, 0.9, 0.0), "first MIDI when unseen → adopt");
+        assert!(
+            s.allow(key, true, 0.9, 0.0),
+            "first MIDI when unseen → adopt"
+        );
         assert!(
             s.allow(key, true, 0.9, 0.0),
             "subsequent far move while latched → pass"
