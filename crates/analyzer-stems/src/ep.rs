@@ -137,14 +137,20 @@ pub(crate) struct LocaleGuard(std::ffi::CString);
 impl LocaleGuard {
     /// Capture the current locale. Call while holding whatever lock serializes
     /// locale access (`ENV_LOCK` in tests, the `SESSION` mutex in production).
-    pub(crate) fn capture() -> Self {
+    /// Returns `None` when `setlocale(LC_NUMERIC, NULL)` fails — callers
+    /// should skip the override rather than risk an unrestorable state.
+    pub(crate) fn capture() -> Option<Self> {
         // SAFETY: `setlocale(LC_NUMERIC, NULL)` is the query form — it does
         // not modify process state. The returned pointer is owned by libc and
         // valid only until the next `setlocale`, so it is copied immediately
         // into a `CString` before any further `setlocale` call.
         let current = unsafe { libc::setlocale(libc::LC_NUMERIC, std::ptr::null()) };
-        assert!(!current.is_null(), "LC_NUMERIC query failed");
-        Self(unsafe { std::ffi::CStr::from_ptr(current) }.to_owned())
+        if current.is_null() {
+            return None;
+        }
+        Some(Self(
+            unsafe { std::ffi::CStr::from_ptr(current) }.to_owned(),
+        ))
     }
 }
 
@@ -165,10 +171,18 @@ impl Drop for LocaleGuard {
 /// `LC_NUMERIC` is process-global C state, so callers are responsible for
 /// serializing entry. In production the `SESSION` Mutex in `session.rs` does
 /// this; tests use `ENV_LOCK`.
+///
+/// If the current locale cannot be queried, the override is skipped — `f`
+/// still runs, just without the dot-decimal guarantee — rather than risk
+/// unrestorable state or panic in a library path.
 #[cfg(all(feature = "webgpu", unix))]
 pub(crate) fn with_c_numeric_locale<R>(f: impl FnOnce() -> R) -> R {
     let _restore = LocaleGuard::capture();
-    force_c_numeric_locale();
+    if _restore.is_none() {
+        tracing::warn!("stem ort: LC_NUMERIC query failed; running without C-locale override");
+    } else {
+        force_c_numeric_locale();
+    }
     f()
 }
 
@@ -374,7 +388,6 @@ mod tests {
     #[test]
     fn c_numeric_locale_is_restored_after_scope() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let _restore_locale = LocaleGuard::capture();
 
         let before = format_float(0.5);
         with_c_numeric_locale(|| {
