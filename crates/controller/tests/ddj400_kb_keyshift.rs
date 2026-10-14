@@ -210,6 +210,9 @@ fn master_mixer_controls_dispatch() {
     assert_eq!(midi.frames[0], vec![0x96, 0x63, 0x7F]);
 
     s.handle_midi(&[0x86, 0x63, 0x00], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1, "note-off must not publish");
+    assert_eq!(midi.frames.len(), 1, "note-off must not send MIDI");
+
     s.handle_midi(&[0x96, 0x63, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 2);
     assert_eq!(bus.cmds[1].1, Kind::ToggleMasterCue);
@@ -264,6 +267,9 @@ fn master_mixer_controls_dispatch() {
         ..
     } = bus.cmds[0].2
     else {
-        panic!("expected SetCueVolume soft_takeover, got {:?}", bus.cmds[0].2);
+        panic!(
+            "expected SetCueVolume soft_takeover, got {:?}",
+            bus.cmds[0].2
+        );
     };
 }
