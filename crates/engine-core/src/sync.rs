@@ -190,6 +190,7 @@ pub(crate) fn beat_align_target(
     duration_ms: i32,
     master_bpm: f64,
     slave_bpm: f64,
+    master_first_beat_ms: f64,
     slave_first_beat_ms: f64,
     quantize: bool,
 ) -> i32 {
@@ -198,10 +199,11 @@ pub(crate) fn beat_align_target(
     let duration = f64::from(duration_ms);
     let master_beat = beat_ms(master_bpm);
     let slave_beat = beat_ms(slave_bpm);
-    let master_phase = master_pos % master_beat;
+    // Phase relative to each deck's painted grid (not media t=0).
+    let master_phase = (master_pos - master_first_beat_ms).rem_euclid(master_beat);
 
-    let slave_beat_index = (slave_pos / slave_beat).floor();
-    let mut target = slave_beat_index * slave_beat + master_phase;
+    let slave_beat_index = ((slave_pos - slave_first_beat_ms) / slave_beat).floor();
+    let mut target = slave_beat_index * slave_beat + slave_first_beat_ms + master_phase;
     if target + slave_beat * 0.5 < slave_pos {
         target += slave_beat;
     }

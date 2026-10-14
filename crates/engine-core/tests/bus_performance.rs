@@ -2,15 +2,15 @@
 
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture, source_with_bpm, SHORT_TONE_LEN_MS};
+use common::{
+    recv_evt_kind, short_tone_fixture, source_with_bpm, write_two_second_wav, SHORT_TONE_LEN_MS,
+};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{EngineConfig, EngineSession};
 use library::{LibraryConfig, NewCollection, WritableLibrary};
 use library_api::BeatGrid;
 use library_core::{AudioSource, FileAudioSource, Library, TrackId, TrackMetadata};
 use omnibus::Filter;
-use std::io::Write;
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 fn encode_loop_in(position_ms: i32) -> Vec<u8> {
@@ -232,30 +232,6 @@ fn loop_in_snaps_when_quantize_on() {
         panic!("expected DeckUpdated");
     };
     assert_eq!(pending_loop_in_ms, Some(0));
-}
-
-/// 2 s silent WAV so loop-out / play snap tests can use positions past the short tone.
-fn write_two_second_wav(path: &Path) {
-    let sample_rate = 48_000u32;
-    let sample_count = (sample_rate * 2) as usize;
-    let pcm = vec![0u8; sample_count * 2];
-    let data_size = pcm.len() as u32;
-    let file_size = 36 + data_size;
-    let byte_rate = sample_rate * 2;
-    let mut file = std::fs::File::create(path).unwrap();
-    file.write_all(b"RIFF").unwrap();
-    file.write_all(&file_size.to_le_bytes()).unwrap();
-    file.write_all(b"WAVEfmt ").unwrap();
-    file.write_all(&16u32.to_le_bytes()).unwrap();
-    file.write_all(&1u16.to_le_bytes()).unwrap();
-    file.write_all(&1u16.to_le_bytes()).unwrap();
-    file.write_all(&sample_rate.to_le_bytes()).unwrap();
-    file.write_all(&byte_rate.to_le_bytes()).unwrap();
-    file.write_all(&2u16.to_le_bytes()).unwrap();
-    file.write_all(&16u16.to_le_bytes()).unwrap();
-    file.write_all(b"data").unwrap();
-    file.write_all(&data_size.to_le_bytes()).unwrap();
-    file.write_all(&pcm).unwrap();
 }
 
 fn phase_grid(first_beat_secs: f32) -> BeatGrid {

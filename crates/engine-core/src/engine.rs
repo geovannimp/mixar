@@ -962,11 +962,16 @@ impl Engine {
     }
 
     fn align_beat_phase(&mut self, slave_id: usize, master_id: usize) -> Result<()> {
-        let master_bpm = self
-            .deck_control
-            .get(master_id)
-            .and_then(|d| d.bpm)
-            .ok_or_else(|| anyhow::anyhow!("Master deck BPM is required for beat sync."))?;
+        let (master_bpm, master_first_beat_ms) = {
+            let control = self
+                .deck_control
+                .get(master_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid master deck ID: {master_id}"))?;
+            let bpm = control
+                .bpm
+                .ok_or_else(|| anyhow::anyhow!("Master deck BPM is required for beat sync."))?;
+            (bpm, control.first_beat_ms)
+        };
         let (slave_bpm, slave_first_beat_ms, quantize) = {
             let control = self
                 .deck_control
@@ -985,6 +990,7 @@ impl Engine {
             duration,
             master_bpm,
             slave_bpm,
+            master_first_beat_ms,
             slave_first_beat_ms,
             quantize,
         );
@@ -1495,8 +1501,20 @@ impl Engine {
             .copied()
             .map(|s| f64::from(s) * 1000.0)
             .unwrap_or(0.0);
-        if let Some(b) = grid.bpm.filter(|b| b.is_finite() && *b > 0.0) {
+        let grid_bpm = grid.bpm.filter(|b| b.is_finite() && *b > 0.0);
+        if let Some(b) = grid_bpm {
             control.bpm = Some(b);
+        }
+        // Keep DSP track_bpm aligned with control when the grid overrides metadata BPM.
+        // Safe on load: ratio_override is already cleared by the earlier set_track_bpm.
+        if let Some(b) = grid_bpm {
+            if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+                if let Ok(mut dsp) = dsp_engine.lock() {
+                    if let Some(deck) = dsp.deck_mut(deck_id) {
+                        deck.set_track_bpm(Some(b));
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -1589,10 +1607,12 @@ impl Engine {
             }
 
             let mut did_change = false;
+            let mut bpm_changed = false;
             if let Some(b) = new_bpm {
                 if control.bpm != Some(b) {
                     control.bpm = Some(b);
                     did_change = true;
+                    bpm_changed = true;
                 }
             }
             // Phase comes from f32 secs × 1000; use a ms-scale tolerance so
@@ -1607,11 +1627,16 @@ impl Engine {
             }
             changed.push(deck_id);
 
-            if let Some(bpm) = self.deck_control[deck_id].bpm {
-                if let Some(dsp_engine) = self.dsp_engine.as_ref() {
-                    if let Ok(mut dsp) = dsp_engine.lock() {
-                        if let Some(deck) = dsp.deck_mut(deck_id) {
-                            deck.set_track_bpm(Some(bpm));
+            // Only push BPM to DSP when it actually changed. `set_track_bpm`
+            // clears ratio_override and would break an active tempo/beat sync
+            // on phase-only grid edits.
+            if bpm_changed {
+                if let Some(bpm) = self.deck_control[deck_id].bpm {
+                    if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+                        if let Ok(mut dsp) = dsp_engine.lock() {
+                            if let Some(deck) = dsp.deck_mut(deck_id) {
+                                deck.set_track_bpm(Some(bpm));
+                            }
                         }
                     }
                 }

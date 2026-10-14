@@ -18,6 +18,7 @@
 
 #![allow(dead_code)]
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -92,6 +93,30 @@ pub fn source_with_bpm(id: &str, bpm: f64) -> AudioSource {
             ..Default::default()
         },
     ))
+}
+
+/// Write a 2-second silent mono 16-bit PCM WAV (48 kHz) for library import tests.
+pub fn write_two_second_wav(path: &Path) {
+    let sample_rate = 48_000u32;
+    let sample_count = (sample_rate * 2) as usize;
+    let pcm = vec![0u8; sample_count * 2];
+    let data_size = pcm.len() as u32;
+    let file_size = 36 + data_size;
+    let byte_rate = sample_rate * 2;
+    let mut file = std::fs::File::create(path).unwrap();
+    file.write_all(b"RIFF").unwrap();
+    file.write_all(&file_size.to_le_bytes()).unwrap();
+    file.write_all(b"WAVEfmt ").unwrap();
+    file.write_all(&16u32.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap();
+    file.write_all(&sample_rate.to_le_bytes()).unwrap();
+    file.write_all(&byte_rate.to_le_bytes()).unwrap();
+    file.write_all(&2u16.to_le_bytes()).unwrap();
+    file.write_all(&16u16.to_le_bytes()).unwrap();
+    file.write_all(b"data").unwrap();
+    file.write_all(&data_size.to_le_bytes()).unwrap();
+    file.write_all(&pcm).unwrap();
 }
 
 /// Wait until `deck_id` engine memory reports `count` hot cues (library ack).

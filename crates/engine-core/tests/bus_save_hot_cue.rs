@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{recv_evt_where, wait_engine_hot_cue_count};
+use common::{recv_evt_where, wait_engine_hot_cue_count, write_two_second_wav};
 use engine_api::{
     decode_evt_body as decode_engine_evt, encode_cmd_body, CmdBody, EvtBody as EngineEvtBody, Kind,
     Origin,
@@ -11,32 +11,7 @@ use engine_core::{EngineConfig, EngineSession};
 use library::{LibraryConfig, LibrarySession, NewCollection, WritableLibrary};
 use library_api::{decode_evt_body, EvtBody, Kind as LibKind};
 use library_core::{AudioSource, FileAudioSource, Library, TrackMetadata};
-use std::io::Write;
-use std::path::Path;
 use std::time::{Duration, Instant};
-
-fn write_tiny_wav(path: &Path) {
-    let sample_rate = 48_000u32;
-    let sample_count = (sample_rate * 2) as usize;
-    let pcm = vec![0u8; sample_count * 2];
-    let data_size = pcm.len() as u32;
-    let file_size = 36 + data_size;
-    let byte_rate = sample_rate * 2;
-    let mut file = std::fs::File::create(path).unwrap();
-    file.write_all(b"RIFF").unwrap();
-    file.write_all(&file_size.to_le_bytes()).unwrap();
-    file.write_all(b"WAVEfmt ").unwrap();
-    file.write_all(&16u32.to_le_bytes()).unwrap();
-    file.write_all(&1u16.to_le_bytes()).unwrap();
-    file.write_all(&1u16.to_le_bytes()).unwrap();
-    file.write_all(&sample_rate.to_le_bytes()).unwrap();
-    file.write_all(&byte_rate.to_le_bytes()).unwrap();
-    file.write_all(&2u16.to_le_bytes()).unwrap();
-    file.write_all(&16u16.to_le_bytes()).unwrap();
-    file.write_all(b"data").unwrap();
-    file.write_all(&data_size.to_le_bytes()).unwrap();
-    file.write_all(&pcm).unwrap();
-}
 
 fn recv_lib_kind(sub: &library::EvtReceiver, kind: LibKind) -> library::Evt {
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -62,7 +37,7 @@ fn recv_lib_kind(sub: &library::EvtReceiver, kind: LibKind) -> library::Evt {
 fn save_hot_cue_does_not_commit_memory_before_library_ack() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("song.wav");
-    write_tiny_wav(&wav);
+    write_two_second_wav(&wav);
 
     let mut library = library::LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
     let buses = library::LibraryBuses::new();
@@ -125,7 +100,7 @@ fn save_hot_cue_does_not_commit_memory_before_library_ack() {
 fn save_hot_cue_snaps_with_quantize_and_emits_library_evt() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("song.wav");
-    write_tiny_wav(&wav);
+    write_two_second_wav(&wav);
 
     let library_session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
     let track_id = {
@@ -197,7 +172,7 @@ fn save_hot_cue_snaps_with_quantize_and_emits_library_evt() {
 fn hot_cue_pad_press_saves_then_triggers() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("song.wav");
-    write_tiny_wav(&wav);
+    write_two_second_wav(&wav);
 
     let library_session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
     let track_id = {
@@ -362,7 +337,7 @@ fn hot_cue_pad_press_saves_then_triggers() {
 fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("song.wav");
-    write_tiny_wav(&wav);
+    write_two_second_wav(&wav);
 
     let library_session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
     let track_id = {
