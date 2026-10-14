@@ -8,6 +8,7 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/app_notice_bridge.dart';
 import 'package:gui_flutter/shell/controller_offer_bridge.dart';
@@ -26,6 +27,8 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell> {
   ShellTab _tab = ShellTab.mixer;
+  SettingsDeepLink? _settingsDeepLink;
+  var _settingsDeepLinkEpoch = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +37,22 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.watch(focusedDeckLoadBootstrapProvider);
     ref.watch(historySettingsBootstrapProvider);
     ref.watch(librarySettingsBootstrapProvider);
+    ref.listen<SettingsDeepLink?>(pendingSettingsDeepLinkProvider, (
+      prev,
+      next,
+    ) {
+      if (next == null) {
+        return;
+      }
+      setState(() {
+        _tab = ShellTab.settings;
+        _settingsDeepLink = next;
+        _settingsDeepLinkEpoch++;
+      });
+      // Sync clear: [next] is already copied into `_settingsDeepLink`. Avoids a
+      // post-frame clear racing dispose and leaving a stale pending link.
+      ref.read(pendingSettingsDeepLinkProvider.notifier).clear();
+    });
     // Opaque fill: native window is transparent for rounded desktop chrome.
     return ColoredBox(
       color: context.theme.colors.background,
@@ -42,7 +61,11 @@ class _AppShellState extends ConsumerState<AppShell> {
           AppHeader(
             appTitle: widget.appTitle,
             tab: _tab,
-            onTabChanged: (tab) => setState(() => _tab = tab),
+            onTabChanged: (tab) => setState(() {
+              _tab = tab;
+              // Manual tab changes never carry a deep link; listen sets it.
+              _settingsDeepLink = null;
+            }),
           ),
           const AppNoticeBridge(),
           const ControllerOfferBridge(),
@@ -50,8 +73,18 @@ class _AppShellState extends ConsumerState<AppShell> {
           Expanded(
             child: switch (_tab) {
               ShellTab.mixer => const MixerPage(),
+              // Epoch key remounts SettingsPage for each deep link so scroll /
+              // glow apply even when Settings is already open.
               ShellTab.settings => SettingsPage(
-                onClose: () => setState(() => _tab = ShellTab.mixer),
+                key: ValueKey(_settingsDeepLinkEpoch),
+                initialSection:
+                    _settingsDeepLink?.section ?? SettingsSection.audio,
+                scrollToPreviewBus:
+                    _settingsDeepLink?.scrollToPreviewBus ?? false,
+                onClose: () => setState(() {
+                  _tab = ShellTab.mixer;
+                  _settingsDeepLink = null;
+                }),
               ),
             },
           ),

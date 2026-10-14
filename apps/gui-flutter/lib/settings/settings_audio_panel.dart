@@ -15,10 +15,18 @@ import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsAudioPanel extends ConsumerWidget {
-  const new({required this.draft, required this.onChanged, super.key});
+  const new({
+    required this.draft,
+    required this.onChanged,
+    required this.previewBusCardKey,
+    this.highlightPreviewBus = false,
+    super.key,
+  });
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
+  final GlobalKey previewBusCardKey;
+  final bool highlightPreviewBus;
 
   static const _resamplerQualities = ['low', 'medium', 'high'];
 
@@ -129,29 +137,33 @@ class SettingsAudioPanel extends ConsumerWidget {
                 onChanged(copyAppSettings(draft, masterBus: bus)),
           ),
         ),
-        SettingsSectionCard(
-          title: l10n.settingsAudioPreviewBusTitle,
-          subtitle: l10n.settingsAudioPreviewBusDescription,
-          trailing: SizedBox(
-            height: 23,
-            child: FittedBox(
-              child: MixarSwitch(
-                value: draft.previewEnabled,
-                semanticsLabel: l10n.settingsAudioPreviewBus,
-                onChanged: (v) =>
-                    onChanged(copyAppSettings(draft, previewEnabled: v)),
+        SettingsGlowFlash(
+          key: previewBusCardKey,
+          active: highlightPreviewBus,
+          child: SettingsSectionCard(
+            title: l10n.settingsAudioPreviewBusTitle,
+            subtitle: l10n.settingsAudioPreviewBusDescription,
+            trailing: SizedBox(
+              height: 23,
+              child: FittedBox(
+                child: MixarSwitch(
+                  value: draft.previewEnabled,
+                  semanticsLabel: l10n.settingsAudioPreviewBus,
+                  onChanged: (v) =>
+                      onChanged(copyAppSettings(draft, previewEnabled: v)),
+                ),
               ),
             ),
+            child: draft.previewEnabled
+                ? _BusRouteFields(
+                    route: draft.previewBus,
+                    devices: deviceList,
+                    devicesLoading: devicesAsync.isLoading,
+                    onChanged: (bus) =>
+                        onChanged(copyAppSettings(draft, previewBus: bus)),
+                  )
+                : null,
           ),
-          child: draft.previewEnabled
-              ? _BusRouteFields(
-                  route: draft.previewBus,
-                  devices: deviceList,
-                  devicesLoading: devicesAsync.isLoading,
-                  onChanged: (bus) =>
-                      onChanged(copyAppSettings(draft, previewBus: bus)),
-                )
-              : null,
         ),
       ],
     );

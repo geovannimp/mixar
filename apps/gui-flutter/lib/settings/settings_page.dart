@@ -23,23 +23,78 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
-  const new({this.onClose, super.key});
+  const new({
+    this.onClose,
+    this.initialSection = SettingsSection.audio,
+    this.scrollToPreviewBus = false,
+    super.key,
+  }) : assert(
+         !scrollToPreviewBus || initialSection == SettingsSection.audio,
+         'scrollToPreviewBus requires initialSection.audio',
+       );
 
   final VoidCallback? onClose;
+  final SettingsSection initialSection;
+
+  /// Scroll + glow the Preview bus card. Requires [initialSection] audio.
+  ///
+  /// Remount the page (e.g. new [Key]) to apply a changed
+  /// [initialSection]/[scrollToPreviewBus]; State does not sync them in
+  /// [State.didUpdateWidget].
+  final bool scrollToPreviewBus;
 
   @override
   ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  SettingsSection _section = SettingsSection.audio;
+  late SettingsSection _section = widget.initialSection;
+  late var _highlightPreviewBus = widget.scrollToPreviewBus;
+  final _previewBusCardKey = GlobalKey();
   AppSettings? _draft;
   AppSettings? _baseline;
   var _busy = false;
   String? _error;
+  var _didSchedulePreviewScroll = false;
+  var _previewScrollAttempts = 0;
 
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.scrollToPreviewBus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
+    }
+  }
+
+  /// Post-frame poll until the Preview bus card is mounted (settings may still
+  /// be loading on the first frame). Not called from [build].
+  void _tryPreviewScroll() {
+    if (!mounted ||
+        _didSchedulePreviewScroll ||
+        !widget.scrollToPreviewBus ||
+        _section != SettingsSection.audio) {
+      return;
+    }
+    final ctx = _previewBusCardKey.currentContext;
+    if (ctx == null) {
+      if (_previewScrollAttempts++ < 30) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _tryPreviewScroll(),
+        );
+      }
+      return;
+    }
+    _didSchedulePreviewScroll = true;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.1,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +186,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 children: [
                   SettingsSidebar(
                     active: _section,
-                    onSelect: (section) => setState(() => _section = section),
+                    onSelect: (section) => setState(() {
+                      if (section != _section) {
+                        // One-shot deep-link glow; don't kill on re-tap.
+                        _highlightPreviewBus = false;
+                      }
+                      _section = section;
+                    }),
                   ),
                   Expanded(
                     child: SingleChildScrollView(
@@ -141,6 +202,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         child: _SettingsSectionPanel(
                           section: _section,
                           draft: draft,
+                          highlightPreviewBus: _highlightPreviewBus,
+                          previewBusCardKey: _previewBusCardKey,
                           onChanged: (next) => setState(() => _draft = next),
                         ),
                       ),
@@ -258,11 +321,15 @@ class _SettingsSectionPanel extends StatelessWidget {
     required this.section,
     required this.draft,
     required this.onChanged,
+    required this.previewBusCardKey,
+    this.highlightPreviewBus = false,
   });
 
   final SettingsSection section;
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
+  final GlobalKey previewBusCardKey;
+  final bool highlightPreviewBus;
 
   @override
   Widget build(BuildContext context) {
@@ -270,6 +337,8 @@ class _SettingsSectionPanel extends StatelessWidget {
       SettingsSection.audio => SettingsAudioPanel(
         draft: draft,
         onChanged: onChanged,
+        highlightPreviewBus: highlightPreviewBus,
+        previewBusCardKey: previewBusCardKey,
       ),
       SettingsSection.mixer => SettingsMixerPanel(
         draft: draft,

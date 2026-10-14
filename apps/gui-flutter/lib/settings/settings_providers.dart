@@ -7,11 +7,36 @@ import 'package:flutter_riverpod/misc.dart'
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+class SettingsDeepLink {
+  const SettingsDeepLink({
+    this.section = SettingsSection.audio,
+    this.scrollToPreviewBus = false,
+  });
+
+  final SettingsSection section;
+  final bool scrollToPreviewBus;
+}
+
+class PendingSettingsDeepLink extends Notifier<SettingsDeepLink?> {
+  @override
+  SettingsDeepLink? build() => null;
+
+  void request(SettingsDeepLink link) => state = link;
+
+  void clear() => state = null;
+}
+
+final pendingSettingsDeepLinkProvider =
+    NotifierProvider<PendingSettingsDeepLink, SettingsDeepLink?>(
+      PendingSettingsDeepLink.new,
+    );
 
 final settingsTransportProvider = FutureProvider<SettingsTransport>((
   ref,

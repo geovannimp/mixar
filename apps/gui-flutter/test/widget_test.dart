@@ -22,6 +22,7 @@ import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
@@ -303,6 +304,80 @@ void main() {
     );
   });
 
+  testWidgets('Levels Enable deep-links to Preview bus settings', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+
+    await tester.tap(find.byKey(const ValueKey('master-meter')));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.widgetWithText(AppButton, 'Enable'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(MasterStrip),
+        matching: find.widgetWithText(AppButton, 'Enable'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(MasterStrip), findsNothing);
+    expect(find.byType(SettingsPage), findsOneWidget);
+    expect(find.text('Preview bus'), findsOneWidget);
+    // Overlay lifecycle is covered in settings_glow_flash_test; here we only
+    // assert the deep-link armed the one-shot flash.
+    expect(
+      tester.widget<SettingsGlowFlash>(find.byType(SettingsGlowFlash)).active,
+      isTrue,
+    );
+  });
+
+  testWidgets('SettingsPage scrollToPreviewBus brings Preview bus on-screen', (
+    tester,
+  ) async {
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
+    final theme = MixarThemeData.dark();
+    // Short enough that Preview starts below the fold; tall enough for sidebar.
+    tester.view.physicalSize = const Size(900, 520);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _settingsOverrides(),
+        child: mixarTestMaterialApp(
+          theme: theme,
+          home: const SizedBox(
+            width: 900,
+            height: 520,
+            child: SettingsPage(scrollToPreviewBus: true),
+          ),
+        ),
+      ),
+    );
+    // First data paint mounts the card off-screen; scroll runs next frame.
+    await tester.pump();
+    expect(find.text('Preview bus'), findsOneWidget);
+    final beforeTop = tester.getRect(find.text('Preview bus')).top;
+    expect(beforeTop, greaterThanOrEqualTo(520));
+
+    await tester.pumpAndSettle();
+    final afterTop = tester.getRect(find.text('Preview bus')).top;
+    expect(afterTop, lessThan(520));
+    expect(find.text('Preview bus').hitTestable(), findsOneWidget);
+    expect(
+      tester.widget<SettingsGlowFlash>(find.byType(SettingsGlowFlash)).active,
+      isTrue,
+    );
+  }, semanticsEnabled: false);
+
   testWidgets('mixer cue controls enable with preview bus and follow status', (
     tester,
   ) async {
@@ -358,9 +433,16 @@ void main() {
     expect(
       find.descendant(
         of: master,
+        matching: find.widgetWithText(AppButton, 'Enable'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: master,
         matching: find.widgetWithText(AppButton, 'On'),
       ),
-      findsOneWidget,
+      findsNothing,
     );
 
     expect(
