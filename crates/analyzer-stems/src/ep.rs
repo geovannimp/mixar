@@ -102,8 +102,14 @@ fn ep_entry(label: &'static str) -> Option<(&'static str, ExecutionProviderDispa
 fn webgpu_ep() -> ExecutionProviderDispatch {
     // Bare EP registration — with_* helpers pre-prefix `ep.webgpuexecutionprovider.*`,
     // which AppendExecutionProvider prefixes again, so options never apply. Use defaults.
-    force_c_numeric_locale();
-    ep::WebGPU::default().build()
+    #[cfg(unix)]
+    {
+        with_c_numeric_locale(|| ep::WebGPU::default().build())
+    }
+    #[cfg(not(unix))]
+    {
+        ep::WebGPU::default().build()
+    }
 }
 
 /// ORT WebGPU embeds floats into WGSL with locale-sensitive C printf.
@@ -121,6 +127,49 @@ pub(crate) fn force_c_numeric_locale() {
             }
         }
     }
+}
+
+/// Restores the process-global `LC_NUMERIC` on drop, including on unwind.
+#[cfg(all(feature = "webgpu", unix))]
+pub(crate) struct LocaleGuard(std::ffi::CString);
+
+#[cfg(all(feature = "webgpu", unix))]
+impl LocaleGuard {
+    /// Capture the current locale. Call while holding whatever lock serializes
+    /// locale access (`ENV_LOCK` in tests, the `SESSION` mutex in production).
+    pub(crate) fn capture() -> Self {
+        // SAFETY: `setlocale(LC_NUMERIC, NULL)` is the query form — it does
+        // not modify process state. The returned pointer is owned by libc and
+        // valid only until the next `setlocale`, so it is copied immediately
+        // into a `CString` before any further `setlocale` call.
+        let current = unsafe { libc::setlocale(libc::LC_NUMERIC, std::ptr::null()) };
+        assert!(!current.is_null(), "LC_NUMERIC query failed");
+        Self(unsafe { std::ffi::CStr::from_ptr(current) }.to_owned())
+    }
+}
+
+#[cfg(all(feature = "webgpu", unix))]
+impl Drop for LocaleGuard {
+    fn drop(&mut self) {
+        // SAFETY: `self.0` is an owned `CString` that outlives the call, so
+        // the `*const c_char` passed to `setlocale` is valid for its duration.
+        // This is process-global mutation, so callers must serialize access.
+        unsafe {
+            libc::setlocale(libc::LC_NUMERIC, self.0.as_ptr());
+        }
+    }
+}
+
+/// Run `f` with `LC_NUMERIC=C`, restoring the previous locale afterwards.
+///
+/// `LC_NUMERIC` is process-global C state, so callers are responsible for
+/// serializing entry. In production the `SESSION` Mutex in `session.rs` does
+/// this; tests use `ENV_LOCK`.
+#[cfg(all(feature = "webgpu", unix))]
+pub(crate) fn with_c_numeric_locale<R>(f: impl FnOnce() -> R) -> R {
+    let _restore = LocaleGuard::capture();
+    force_c_numeric_locale();
+    f()
 }
 
 #[cfg(test)]
@@ -194,36 +243,6 @@ mod tests {
             );
             assert_eq!(cpu, Some(1), "expected cpu after webgpu: {labels:?}");
         });
-    }
-
-    /// Restores the process-global `LC_NUMERIC` on drop, including on unwind.
-    #[cfg(all(feature = "webgpu", unix))]
-    struct LocaleGuard(std::ffi::CString);
-
-    #[cfg(all(feature = "webgpu", unix))]
-    impl LocaleGuard {
-        /// Capture the current locale. Call while holding `ENV_LOCK`.
-        fn capture() -> Self {
-            // SAFETY: `setlocale(LC_NUMERIC, NULL)` is the query form — it does
-            // not modify process state. The returned pointer is owned by libc and
-            // valid only until the next `setlocale`, so it is copied immediately
-            // into a `CString` before any further `setlocale` call.
-            let current = unsafe { libc::setlocale(libc::LC_NUMERIC, std::ptr::null()) };
-            assert!(!current.is_null(), "LC_NUMERIC query failed");
-            Self(unsafe { std::ffi::CStr::from_ptr(current) }.to_owned())
-        }
-    }
-
-    #[cfg(all(feature = "webgpu", unix))]
-    impl Drop for LocaleGuard {
-        fn drop(&mut self) {
-            // SAFETY: `self.0` is an owned `CString` that outlives the call, so
-            // the `*const c_char` passed to `setlocale` is valid for its duration.
-            // This is process-global mutation, serialized by `ENV_LOCK`.
-            unsafe {
-                libc::setlocale(libc::LC_NUMERIC, self.0.as_ptr());
-            }
-        }
     }
 
     /// Format `value` with libc `%f` — the same call site the WebGPU/WGSL float
@@ -345,6 +364,30 @@ mod tests {
         assert!(
             s.contains('.') && !s.contains(','),
             "expected C-locale float, got {s:?}"
+        );
+    }
+
+    /// The production wrapper must restore the previous `LC_NUMERIC` after the
+    /// closure returns. This does not require a comma-decimal locale, so it runs
+    /// on CI.
+    #[cfg(all(feature = "webgpu", unix))]
+    #[test]
+    fn c_numeric_locale_is_restored_after_scope() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _restore_locale = LocaleGuard::capture();
+
+        let before = format_float(0.5);
+        with_c_numeric_locale(|| {
+            let during = format_float(0.5);
+            assert!(
+                during.contains('.') && !during.contains(','),
+                "scoped override must format with a dot, got {during:?}"
+            );
+        });
+        let after = format_float(0.5);
+        assert_eq!(
+            before, after,
+            "LC_NUMERIC was not restored after with_c_numeric_locale: before={before:?}, after={after:?}"
         );
     }
 }

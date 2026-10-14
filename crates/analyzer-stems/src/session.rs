@@ -127,12 +127,18 @@ fn load_session(path: &Path) -> Result<LoadedSession> {
 
 fn try_commit(path: &Path, label: &str, ep: ort::ep::ExecutionProviderDispatch) -> Result<Session> {
     info!(ep = label, "stem ort: trying EP");
-    #[cfg(feature = "webgpu")]
+    #[cfg(all(feature = "webgpu", unix))]
     if label == "webgpu" {
-        // Re-assert before commit: Flutter (or anything else) may have reset locale.
-        crate::ep::force_c_numeric_locale();
+        return crate::ep::with_c_numeric_locale(|| try_commit_inner(path, label, ep));
     }
+    try_commit_inner(path, label, ep)
+}
 
+fn try_commit_inner(
+    path: &Path,
+    label: &str,
+    ep: ort::ep::ExecutionProviderDispatch,
+) -> Result<Session> {
     let mut builder = Session::builder().context("ort Session::builder")?;
     builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)
