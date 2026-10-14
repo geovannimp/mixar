@@ -155,11 +155,8 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
 
   @override
   Widget build(BuildContext context) {
-    // Inactive + never started: bare child. Otherwise keep AnimatedBuilder so
-    // the child element is not remounted when the overlay collapses (t <= 0).
-    if (!widget.active && _controller.isDismissed) {
-      return widget.child;
-    }
+    // Always keep AnimatedBuilder so true→false / completed flash does not
+    // remount [child] (overlay collapses when t <= 0).
     final theme = context.theme;
     final radius = theme.style.borderRadius.lg;
     final borderW = theme.style.borderWidth;
@@ -169,7 +166,8 @@ class _SettingsGlowFlashState extends State<SettingsGlowFlash>
       animation: _glow,
       child: widget.child,
       builder: (context, child) {
-        final t = _glow.value;
+        // Controller at 0 maps Tween(begin:1) → 1; only paint while active.
+        final t = widget.active ? _glow.value : 0.0;
         if (t <= 0) {
           return child!;
         }

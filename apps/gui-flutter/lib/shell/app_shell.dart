@@ -49,13 +49,9 @@ class _AppShellState extends ConsumerState<AppShell> {
         _settingsDeepLink = next;
         _settingsDeepLinkEpoch++;
       });
-      // Defer clear so the request() caller / sync observers still see [next].
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          return;
-        }
-        ref.read(pendingSettingsDeepLinkProvider.notifier).clear();
-      });
+      // Sync clear: [next] is already copied into `_settingsDeepLink`. Avoids a
+      // post-frame clear racing dispose and leaving a stale pending link.
+      ref.read(pendingSettingsDeepLinkProvider.notifier).clear();
     });
     // Opaque fill: native window is transparent for rounded desktop chrome.
     return ColoredBox(

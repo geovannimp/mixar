@@ -56,31 +56,42 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   var _busy = false;
   String? _error;
   var _didSchedulePreviewScroll = false;
+  var _previewScrollAttempts = 0;
 
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
 
-  void _schedulePreviewScrollOnce() {
-    if (!widget.scrollToPreviewBus ||
+  @override
+  void initState() {
+    super.initState();
+    if (widget.scrollToPreviewBus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
+    }
+  }
+
+  /// Post-frame poll until the Preview bus card is mounted (settings may still
+  /// be loading on the first frame). Not called from [build].
+  void _tryPreviewScroll() {
+    if (!mounted ||
         _didSchedulePreviewScroll ||
+        !widget.scrollToPreviewBus ||
         _section != SettingsSection.audio) {
       return;
     }
+    final ctx = _previewBusCardKey.currentContext;
+    if (ctx == null) {
+      if (_previewScrollAttempts++ < 30) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
+      }
+      return;
+    }
     _didSchedulePreviewScroll = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      final ctx = _previewBusCardKey.currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(
-          ctx,
-          alignment: 0.1,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.1,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -112,10 +123,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         final draft = _draft!;
         final baseline = _baseline!;
         final dirty = _isDirty(draft, baseline);
-        // Every data emission is fine: `_didSchedulePreviewScroll` dedupes.
-        // Do not gate on first `_draft` assign — provider invalidate/refetch
-        // would otherwise skip scroll after a deep-link remount race.
-        _schedulePreviewScrollOnce();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -178,9 +185,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   SettingsSidebar(
                     active: _section,
                     onSelect: (section) => setState(() {
+                      if (section != _section) {
+                        // One-shot deep-link glow; don't kill on re-tap.
+                        _highlightPreviewBus = false;
+                      }
                       _section = section;
-                      // One-shot deep-link glow; don't replay if user returns.
-                      _highlightPreviewBus = false;
                     }),
                   ),
                   Expanded(
