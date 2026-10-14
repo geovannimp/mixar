@@ -401,7 +401,7 @@ fn handle_cmd_event(
             if let Err(e) = with_engine_ref(engine, |eng| {
                 publish_deck_updated(evt_bus, revision, eng, deck_id)
             }) {
-                publish_error(evt_bus, origin, e.to_string());
+                publish_error(evt_bus, origin, format!("{e:#}"));
             }
         }
         Ok(CmdOutcome::DecksUpdated(deck_ids)) => {
@@ -409,7 +409,7 @@ fn handle_cmd_event(
                 if let Err(e) = with_engine_ref(engine, |eng| {
                     publish_deck_updated(evt_bus, revision, eng, deck_id)
                 }) {
-                    publish_error(evt_bus, origin.clone(), e.to_string());
+                    publish_error(evt_bus, origin.clone(), format!("{e:#}"));
                 }
             }
         }
@@ -448,7 +448,7 @@ fn handle_cmd_event(
             });
         }
         Ok(CmdOutcome::Silent) => {}
-        Err(e) => publish_error(evt_bus, origin, e.to_string()),
+        Err(e) => publish_error(evt_bus, origin, format!("{e:#}")),
     }
 }
 
