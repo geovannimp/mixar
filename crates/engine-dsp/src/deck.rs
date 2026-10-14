@@ -428,11 +428,7 @@ impl Deck {
     pub fn set_jog_touch(&mut self, touching: bool) {
         let playing = self.state == DeckState::Playing;
         let was = self.motion.active_mode(playing);
-        if was == MotionMode::Vinyl
-            && !touching
-            && self.motion.touching()
-            && self.slip_enabled
-        {
+        if was == MotionMode::Vinyl && !touching && self.motion.touching() && self.slip_enabled {
             // Leaving vinyl with slip: catch up and hard-clear (no release scrub).
             self.motion.set_touch(false, playing);
             self.catch_up_slip();

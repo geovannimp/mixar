@@ -10,7 +10,7 @@ var _mixarToastSeq = 0;
 
 /// Mixar toast over [context_show] (Forui-free chrome; theme tokens OK).
 ///
-/// Pass a stable [id] to dismiss later via [dismissMixarToast] (controller offers).
+/// Pass a stable [id] to dismiss later via [dismissMixarToast].
 void showMixarToast({
   required BuildContext context,
   required Widget title,
@@ -60,7 +60,12 @@ void showMixarToast({
 }
 
 /// Close toasts previously shown with [showMixarToast]'s [id].
+///
+/// No-op if [context] is unmounted.
 void dismissMixarToast(BuildContext context, {required String id}) {
+  if (!context.mounted) {
+    return;
+  }
   unawaited(context.close(Overlays.all(id: id)));
 }
 
@@ -96,34 +101,32 @@ class _MixarToastChrome extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          // Shrink-wrap to content; action sits under copy (not beside it).
-          child: IntrinsicWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
+          // Shrink-wrap; actions sit under copy (not beside it).
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DefaultTextStyle(
+                style: theme.typography.body.sm.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                ),
+                child: title,
+              ),
+              if (description != null) ...[
+                const SizedBox(height: 4),
                 DefaultTextStyle(
                   style: theme.typography.body.sm.copyWith(
-                    color: fg,
-                    fontWeight: FontWeight.w600,
+                    color: fg.withValues(alpha: 0.85),
                   ),
-                  child: title,
+                  child: description!,
                 ),
-                if (description != null) ...[
-                  const SizedBox(height: 4),
-                  DefaultTextStyle(
-                    style: theme.typography.body.sm.copyWith(
-                      color: fg.withValues(alpha: 0.85),
-                    ),
-                    child: description!,
-                  ),
-                ],
-                if (suffix != null) ...[
-                  const SizedBox(height: 12),
-                  Align(alignment: Alignment.centerRight, child: suffix!),
-                ],
               ],
-            ),
+              if (suffix != null) ...[
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerRight, child: suffix!),
+              ],
+            ],
           ),
         ),
       ),

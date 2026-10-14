@@ -10,6 +10,16 @@ import 'package:gui_flutter/mixer/jog_ticks.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 
+/// Test-only: read [_JogPlatterState.debugRotationDeg] without a private cast.
+@visibleForTesting
+double debugReadJogPlatterRotation(State state) {
+  final value = (state as dynamic).debugRotationDeg;
+  if (value is! double) {
+    throw StateError('expected JogPlatter state with debugRotationDeg');
+  }
+  return value;
+}
+
 /// Interactive jog platter — `jog_touch` / `jog_turn` (Tauri `JogPlatter`).
 class DeckJogHost extends ConsumerWidget {
   const new({
@@ -107,7 +117,27 @@ class _JogPlatterState extends State<JogPlatter> {
   @visibleForTesting
   double get debugRotationDeg => _rotationDeg;
 
+  @visibleForTesting
+  bool get debugDragging => _dragging;
+
+  /// Test-only: latch local-drag freeze without synthesizing pointer events.
+  @visibleForTesting
+  void debugSetDragging(bool value) {
+    _dragging = value;
+    if (value) {
+      _lastPositionMs = widget.positionMs;
+    } else {
+      _lastAngleDeg = null;
+    }
+  }
+
   bool get _interactive => widget.enabled && widget.hasTrack;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncRotationFromPlayhead();
+  }
 
   @override
   void didUpdateWidget(covariant JogPlatter oldWidget) {
@@ -131,16 +161,18 @@ class _JogPlatterState extends State<JogPlatter> {
     // Visual spin uses the vinyl timebase (one rev ↔ one hardware/UI circle),
     // not the 4-bar phrase cycle — otherwise playback lags the platter.
     final revMs = vinylRevolutionMs();
+    // Only freeze playhead sync during a local pointer drag. Hardware
+    // `jogTouching` must still rotate the disc from positionMs (Mixxx-like).
+    // Checked before init so a first update mid-drag cannot snap the disc.
+    if (_dragging) {
+      _trackerInitialized = true;
+      _lastPositionMs = widget.positionMs;
+      return;
+    }
     if (!_trackerInitialized) {
       _trackerInitialized = true;
       _lastPositionMs = widget.positionMs;
       _rotationDeg = vinylRotationDeg(widget.positionMs);
-      return;
-    }
-    // Only freeze playhead sync during a local pointer drag. Hardware
-    // `jogTouching` must still rotate the disc from positionMs (Mixxx-like).
-    if (_dragging) {
-      _lastPositionMs = widget.positionMs;
       return;
     }
     final delta = widget.positionMs - _lastPositionMs;

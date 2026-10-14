@@ -146,5 +146,13 @@ void main() {
       greaterThanOrEqualTo(promptBottom),
       reason: 'Enable must sit under the prompt, not beside it',
     );
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Pioneer DDJ-400 connected'),
+      findsNothing,
+      reason: 'Cancel dismiss callback must close the toast',
+    );
   });
 }

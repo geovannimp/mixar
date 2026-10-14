@@ -166,15 +166,14 @@ impl PlatterMotion {
                         if self.filter_v.abs() < 1e-4 {
                             self.filter_v = 0.0;
                             self.filter_x = 0.0;
-                            self.rate = if transport_playing { 0.0 } else { 1.0 };
+                            // Coast done → re-engage motor (1.0), playing or paused.
+                            self.rate = 1.0;
                         } else {
                             self.rate = self.filter_v as f32;
                         }
-                    } else if !transport_playing {
-                        // Idle paused/stopped platter: neutral motor, not scrubbing.
-                        self.rate = 1.0;
                     } else {
-                        self.rate = self.filter_v as f32;
+                        // Idle free platter: motor at unity (not stopped at 0).
+                        self.rate = 1.0;
                     }
                 }
             }
@@ -213,8 +212,12 @@ impl PlatterMotion {
     }
 
     pub fn driving(&self) -> bool {
-        if self.envelope_rate.is_some() || self.touching || self.releasing {
+        if self.touching || self.releasing {
             return true;
+        }
+        if let Some(r) = self.envelope_rate {
+            // Envelope at exactly 1.0 is a no-op motor; don't force audio.
+            return r.is_finite() && (r - 1.0).abs() > 1e-4;
         }
         // Rate away from the idle motor (1.0). Near-zero after a paused coast is
         // "stopped", not an active scrub (avoids outputting a held sample).
@@ -394,5 +397,30 @@ mod tests {
         m.set_touch(false, false);
         assert!(!m.driving(), "rate={}", m.rate());
         assert!((m.rate() - 1.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn playing_idle_vinyl_outer_keeps_motor_at_unity() {
+        let mut m = PlatterMotion::new();
+        m.set_modes(MotionMode::Vinyl, MotionMode::Vinyl, true);
+        assert!(!m.touching());
+        for _ in 0..10 {
+            m.tick(512, 48_000, true);
+        }
+        assert!(
+            (m.rate() - 1.0).abs() < 1e-4,
+            "idle playing vinyl must not stop motor, rate={}",
+            m.rate()
+        );
+        assert!(!m.driving());
+    }
+
+    #[test]
+    fn envelope_at_unity_does_not_drive() {
+        let mut m = PlatterMotion::new();
+        m.set_envelope_rate(Some(1.0));
+        assert!(!m.driving());
+        m.set_envelope_rate(Some(0.0));
+        assert!(m.driving());
     }
 }
