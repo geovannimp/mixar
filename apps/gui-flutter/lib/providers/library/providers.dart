@@ -958,14 +958,18 @@ class DriveTreeCursor extends Notifier<String?> {
   /// Park the cursor on [path] (a row press).
   void set(String? path) => state = path;
 
-  /// Step the cursor by [delta] rows within [rows].
-  void step(List<String> rows, int delta) {
+  /// Step the cursor by [delta] rows within [rows] and return the row it lands
+  /// on, so the caller can apply that path without re-deriving the rows.
+  String? step(List<String> rows, int delta) {
     if (rows.isEmpty) {
       state = null;
-      return;
+      return null;
     }
     final current = rows.indexOf(state ?? '');
-    state = rows[navigateIndex(current < 0 ? 0 : current, rows.length, delta)];
+    final next =
+        rows[navigateIndex(current < 0 ? 0 : current, rows.length, delta)];
+    state = next;
+    return next;
   }
 }
 
@@ -1001,15 +1005,14 @@ List<String> driveTreeRowsWatched(Ref ref) => driveTreeRowsFrom(
 /// Callers reject a zero [delta]; a zero step would still be a no-op here, but
 /// the guard lives at the evt boundary so it cannot be forgotten.
 void navigateDriveTree(Ref ref, int delta) {
-  // One snapshot for the step and the path: re-deriving the rows afterwards
-  // could apply the new cursor to a listing that resolved in between, which
-  // lands the rotary on the wrong folder.
+  // One derivation: the rows are read once and the path it lands on comes back
+  // from the step, so a listing resolving halfway through cannot apply the new
+  // cursor to a different row set.
   final rows = driveTreeRows(ref);
   if (rows.isEmpty) {
     return;
   }
-  ref.read(driveTreeCursorProvider.notifier).step(rows, delta);
-  final path = ref.read(driveTreeFocusedPathProvider);
+  final path = ref.read(driveTreeCursorProvider.notifier).step(rows, delta);
   if (path != null) {
     ref.read(driveCurrentPathProvider.notifier).set(path);
   }
