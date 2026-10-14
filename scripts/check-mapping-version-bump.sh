@@ -25,7 +25,8 @@ parse_version() {
   local version="$1"
   version="${version#"${version%%[![:space:]]*}"}"
   version="${version%"${version##*[![:space:]]}"}"
-  if [[ "${version}" == [vV]* ]]; then
+  # Match Rust strip_prefix('v') — uppercase V stays and fails numeric parse.
+  if [[ "${version}" == v* ]]; then
     version="${version:1}"
   fi
   if [[ -z "${version}" ]]; then
@@ -128,7 +129,8 @@ read_mapping_version() {
 
   local line
   while IFS= read -r line || [[ -n "${line}" ]]; do
-    if [[ "${line}" =~ ^[[:space:]]*mapping_version[[:space:]]*=[[:space:]]*\"([^\"]+)\" ]]; then
+    # Basic TOML double-quoted string only (no escapes); matches toml::Value::as_str shape.
+    if [[ "${line}" =~ ^[[:space:]]*mapping_version[[:space:]]*=[[:space:]]*\"([^\"\\]*)\" ]]; then
       printf '%s\n' "${BASH_REMATCH[1]}"
       return
     fi
@@ -147,7 +149,14 @@ fmt_ver() {
   fi
 }
 
-mapfile -t changed_paths < <(git diff --name-only --diff-filter=ACMR "${BASE_SHA}" HEAD -- mappings/ || true)
+if ! diff_out="$(git diff --name-only --diff-filter=ACMR "${BASE_SHA}" HEAD -- mappings/)"; then
+  echo "error: git diff failed against base ${BASE_SHA}" >&2
+  exit 2
+fi
+changed_paths=()
+if [[ -n "${diff_out}" ]]; then
+  mapfile -t changed_paths <<<"${diff_out}"
+fi
 
 declare -A bundle_ids=()
 for path in "${changed_paths[@]+"${changed_paths[@]}"}"; do
