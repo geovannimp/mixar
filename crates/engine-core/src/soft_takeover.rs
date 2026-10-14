@@ -1,4 +1,11 @@
 //! Soft-takeover gate for absolute MIDI controls (engine-owned latch).
+//!
+//! Latch map meanings for a control key:
+//! - **absent**: never seen — first soft-takeover MIDI is adopted and latches
+//!   (intentional so controller init dumps / first HW message sync the UI).
+//! - **`true`**: hardware owns the control; further MIDI passes.
+//! - **`false`**: GUI/hard set cleared the latch; MIDI is blocked until it
+//!   catches up within [`SOFT_TAKEOVER_THRESHOLD`].
 
 use std::collections::HashMap;
 
@@ -7,7 +14,7 @@ pub const SOFT_TAKEOVER_THRESHOLD: f32 = 3.0 / 127.0;
 
 #[derive(Clone, Debug, Default)]
 pub struct SoftTakeoverState {
-    /// Latched when HW has caught engine value (hard-set clears latch).
+    /// See module docs: absent ≠ `false`.
     latched: HashMap<String, bool>,
 }
 
@@ -23,15 +30,22 @@ impl SoftTakeoverState {
             self.latched.insert(key.to_string(), false);
             return true;
         }
-        let latched = self.latched.get(key).copied().unwrap_or(false);
-        if latched {
-            return true;
+        match self.latched.get(key).copied() {
+            // Never seen: adopt first MIDI (init dump / first hardware message).
+            None => {
+                self.latched.insert(key.to_string(), true);
+                true
+            }
+            Some(true) => true,
+            Some(false) => {
+                if (incoming_norm - current_norm).abs() <= SOFT_TAKEOVER_THRESHOLD {
+                    self.latched.insert(key.to_string(), true);
+                    true
+                } else {
+                    false
+                }
+            }
         }
-        if (incoming_norm - current_norm).abs() <= SOFT_TAKEOVER_THRESHOLD {
-            self.latched.insert(key.to_string(), true);
-            return true;
-        }
-        false
     }
 }
 
@@ -51,6 +65,8 @@ mod tests {
     fn blocks_until_near_then_latches() {
         let mut s = SoftTakeoverState::default();
         let key = "deck0.volume";
+        // Explicit unlatched state via hard-set / clear.
+        assert!(s.allow(key, false, 0.9, 0.9));
         assert!(!s.allow(key, true, 0.9, 0.0));
         assert!(!s.allow(key, true, 0.9, 0.5));
         assert!(s.allow(key, true, 0.9, 0.9));
@@ -58,11 +74,33 @@ mod tests {
     }
 
     #[test]
+    fn adopts_first_value_when_unseen() {
+        let mut s = SoftTakeoverState::default();
+        let key = "deck0.volume";
+        assert!(
+            s.allow(key, true, 0.9, 0.0),
+            "first MIDI when unseen → adopt"
+        );
+        assert!(
+            s.allow(key, true, 0.9, 0.0),
+            "subsequent far move while latched → pass"
+        );
+    }
+
+    #[test]
     fn hard_set_clears_latch() {
         let mut s = SoftTakeoverState::default();
         let key = "deck0.volume";
-        assert!(s.allow(key, true, 0.5, 0.5));
+        // Adopt-first latches; prove latched, then GUI hard-set requires catch-up.
+        assert!(s.allow(key, true, 0.5, 0.0));
+        assert!(
+            s.allow(key, true, 0.5, 1.0),
+            "still latched → far MIDI passes"
+        );
         assert!(s.allow(key, false, 0.5, 1.0));
-        assert!(!s.allow(key, true, 0.5, 1.0));
+        assert!(
+            !s.allow(key, true, 0.5, 1.0),
+            "hard-set cleared latch → block"
+        );
     }
 }
