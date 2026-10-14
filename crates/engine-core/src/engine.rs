@@ -527,6 +527,12 @@ impl Engine {
         deck_id: usize,
         prepared: PreparedTrackPlayback,
     ) -> Result<()> {
+        // Stems must be taken by the caller and attached afterwards (see the doc comment);
+        // catching a Some here keeps the drop loud in test builds instead of silent.
+        debug_assert!(
+            prepared.stems.is_none(),
+            "load_prepared_track drops prepared.stems; take them before calling and attach via attach_deck_stems"
+        );
         let dsp_engine = self
             .dsp_engine
             .as_ref()
