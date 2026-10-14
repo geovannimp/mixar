@@ -536,21 +536,28 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
-
-        if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
-            return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
-        }
+        // Phase A (locked, short): validate the deck and snapshot the params needed to build.
+        let spec = {
+            let dsp = dsp_engine.lock().unwrap();
+            if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
+                return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
+            }
+            dsp.deck(deck_id).expect("validated above").load_spec()
+        };
 
         let bpm = prepared.source.metadata().bpm;
         let track_id = prepared.track_id.clone();
         let loudness_lufs =
             loudness_from_metadata(prepared.source.metadata()).or(prepared.loudness_lufs);
-        let audio = prepared.audio;
 
+        // Phase B (unlocked): resampler/stretcher construction so the producer can keep filling.
+        let deck_load = spec.prepare(prepared.audio)?;
+
+        // Phase C (locked, short): swap in prepared resources only.
+        let mut dsp = dsp_engine.lock().unwrap();
         {
             let deck = dsp.deck_mut(deck_id).expect("validated above");
-            deck.load(audio)?;
+            deck.apply_prepared_load(deck_load);
             deck.set_track_bpm(bpm);
         }
         dsp.mixer_mut()
