@@ -194,3 +194,82 @@ fn mode_buttons_set_pad_mode() {
         }
     ));
 }
+
+#[test]
+fn master_mixer_controls_dispatch() {
+    let mut s = session();
+    let mut bus = new_bus();
+    let mut midi = new_midi();
+
+    // MASTER CUE (ch7 / note 0x63) → ToggleMasterCue + LED on/off
+    s.handle_midi(&[0x96, 0x63, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(bus.cmds[0].0, Origin::Mixer);
+    assert_eq!(bus.cmds[0].1, Kind::ToggleMasterCue);
+    assert_eq!(midi.frames.len(), 1, "MASTER CUE LED should turn on");
+    assert_eq!(midi.frames[0], vec![0x96, 0x63, 0x7F]);
+
+    s.handle_midi(&[0x86, 0x63, 0x00], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1, "note-off must not publish");
+    assert_eq!(midi.frames.len(), 1, "note-off must not send MIDI");
+
+    s.handle_midi(&[0x96, 0x63, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 2);
+    assert_eq!(bus.cmds[1].1, Kind::ToggleMasterCue);
+    assert_eq!(midi.frames.len(), 2, "MASTER CUE LED should turn off");
+    assert_eq!(midi.frames[1], vec![0x96, 0x63, 0x00]);
+
+    // HEADPHONES MIXING cc14 0x0C/0x2C → SetCueMix soft-takeover (regression)
+    bus.cmds.clear();
+    s.handle_midi(&[0xB6, 0x0C, 0x40], &mut bus, &mut midi);
+    assert!(bus.cmds.is_empty(), "MSB alone must not publish");
+    s.handle_midi(&[0xB6, 0x2C, 0x00], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(bus.cmds[0].0, Origin::Mixer);
+    assert_eq!(bus.cmds[0].1, Kind::SetCueMix);
+    let CmdBody::SetCueMix {
+        soft_takeover: true,
+        ..
+    } = bus.cmds[0].2
+    else {
+        panic!("expected SetCueMix soft_takeover, got {:?}", bus.cmds[0].2);
+    };
+
+    // MASTER LEVEL cc14 0x08/0x28 → SetMasterVolume soft-takeover
+    bus.cmds.clear();
+    s.handle_midi(&[0xB6, 0x08, 0x40], &mut bus, &mut midi);
+    assert!(bus.cmds.is_empty(), "MSB alone must not publish");
+    s.handle_midi(&[0xB6, 0x28, 0x00], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(bus.cmds[0].0, Origin::Mixer);
+    assert_eq!(bus.cmds[0].1, Kind::SetMasterVolume);
+    let CmdBody::SetMasterVolume {
+        soft_takeover: true,
+        ..
+    } = bus.cmds[0].2
+    else {
+        panic!(
+            "expected SetMasterVolume soft_takeover, got {:?}",
+            bus.cmds[0].2
+        );
+    };
+
+    // HEADPHONES LEVEL cc14 0x0D/0x2D → SetCueVolume soft-takeover
+    bus.cmds.clear();
+    s.handle_midi(&[0xB6, 0x0D, 0x40], &mut bus, &mut midi);
+    assert!(bus.cmds.is_empty(), "MSB alone must not publish");
+    s.handle_midi(&[0xB6, 0x2D, 0x00], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(bus.cmds[0].0, Origin::Mixer);
+    assert_eq!(bus.cmds[0].1, Kind::SetCueVolume);
+    let CmdBody::SetCueVolume {
+        soft_takeover: true,
+        ..
+    } = bus.cmds[0].2
+    else {
+        panic!(
+            "expected SetCueVolume soft_takeover, got {:?}",
+            bus.cmds[0].2
+        );
+    };
+}

@@ -8,6 +8,7 @@
 - In the Flutter GUI, prefer Mixar shell widgets and `context.theme` Mixar tokens (Shad-bridged) over one-off chrome; keep error feedback concise (`showMixarToast` / context_show), including async engine start failures.
 - Custom in-app title bar on Flutter desktop (`window_manager`, decorations off), matching app chrome, with min/max/close controls.
 - Prefer minimal, focused changes when refining UI; user may narrow scope mid-task.
+- After addressing or declining PR review comments, reply on each thread and mark it resolved; do not leave handled review threads open.
 - Use cpal with low-latency/realtime features as the default audio backend.
 - Audio backend API: `AudioBackend::list_names()` and `AudioBackend::new(name)`; enumerate devices on the backend instance; mark default devices with an `is_default` flag on `DeviceInfo`.
 - Auto-start the audio engine when entering the decks view; no manual start button.

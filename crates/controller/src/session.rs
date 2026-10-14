@@ -686,6 +686,11 @@ impl MappingSession {
                         self.apply_output_signal(&deck_section, "headphone_cue", enabled, midi);
                     }
                 }
+                if matches!(kind, Kind::ToggleMasterCue) {
+                    let enabled = !self.snapshot.master_cue;
+                    self.snapshot.master_cue = enabled;
+                    self.apply_output_signal("master", "master_cue", enabled, midi);
+                }
                 if matches!(kind, Kind::Play | Kind::TriggerHotCue) {
                     if let Origin::Deck(d) = *o {
                         self.set_playing_deck(d, true);
