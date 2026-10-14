@@ -10,14 +10,13 @@ import 'package:gui_flutter/mixer/jog_ticks.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 
-/// Test-only: read [_JogPlatterState.debugRotationDeg] without a private cast.
+/// Test-only: read [_JogPlatterState.debugRotationDeg].
 @visibleForTesting
 double debugReadJogPlatterRotation(State state) {
-  final value = (state as dynamic).debugRotationDeg;
-  if (value is! double) {
-    throw StateError('expected JogPlatter state with debugRotationDeg');
+  if (state is! _JogPlatterState) {
+    throw StateError('expected JogPlatter state');
   }
-  return value;
+  return state.debugRotationDeg;
 }
 
 /// Interactive jog platter — `jog_touch` / `jog_turn` (Tauri `JogPlatter`).

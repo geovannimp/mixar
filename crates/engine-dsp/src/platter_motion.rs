@@ -140,7 +140,20 @@ impl PlatterMotion {
             }
             None => {
                 if self.envelope_rate.take().is_some() {
-                    self.begin_release(transport_playing);
+                    // Touch may have been latched while the envelope owned rate;
+                    // restore vinyl stop instead of releasing under a held finger.
+                    if self.touching
+                        && self.active_mode(transport_playing) == MotionMode::Vinyl
+                    {
+                        self.releasing = false;
+                        self.idle_secs = 0.0;
+                        self.tick_accum = 0;
+                        self.filter_x = 0.0;
+                        self.filter_v = 0.0;
+                        self.rate = 0.0;
+                    } else {
+                        self.begin_release(transport_playing);
+                    }
                 }
             }
         }
@@ -534,6 +547,23 @@ mod tests {
         assert!(!m.releasing);
         m.tick(512, 48_000, true);
         assert!((m.rate() - 2.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn clearing_envelope_while_touching_vinyl_holds_at_zero() {
+        let mut m = PlatterMotion::new();
+        m.set_modes(MotionMode::Vinyl, MotionMode::Vinyl, false);
+        m.set_envelope_rate(Some(2.0), false);
+        m.set_touch(true, false);
+        assert!(m.touching());
+        m.set_envelope_rate(None, false);
+        assert!(
+            (m.rate() - 0.0).abs() < 1e-4,
+            "cleared envelope under vinyl touch must hold stop, rate={}",
+            m.rate()
+        );
+        assert!(!m.releasing);
+        assert!(m.driving());
     }
 
     #[test]

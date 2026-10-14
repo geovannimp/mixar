@@ -70,6 +70,22 @@ void main() {
     expect(find.text('Controller connected'), findsNothing);
   });
 
+  testWidgets('dismissMixarToast is a no-op for unknown id', (tester) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () => dismissMixarToast(context, id: 'missing-toast'),
+          child: const Text('Dismiss'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('dismissMixarToast closes toast by id', (tester) async {
     await pumpHome(
       tester,

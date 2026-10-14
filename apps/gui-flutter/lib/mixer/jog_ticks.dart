@@ -30,6 +30,7 @@ int vinylTicksToDeltaMs(int ticks) {
 ///
 /// One visual revolution == one hardware/UI platter revolution ==
 /// [kJogIntervalsPerRev] ticks == [vinylRevolutionMs] of source time.
+/// Returns 0 for non-positive [positionMs].
 double vinylRotationDeg(int positionMs) {
   final rev = vinylRevolutionMs();
   if (rev <= 0 || positionMs <= 0) {
@@ -63,6 +64,8 @@ double? barCycleDurationMs(
 }
 
 /// Continuous jog tracker angle (no 0–360 wrap).
+///
+/// Returns 0 for non-positive [positionMs].
 double barCycleRotationDeg(
   int positionMs,
   double bpm, [
