@@ -142,6 +142,9 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                           title: currentName,
                           icon: LucideIcons.folder,
                           selected: true,
+                          // The "up" row is the current folder, so it already
+                          // carries the selection fill; the cursor adds the
+                          // outline, exactly as it does in the other panes.
                           focused: focusedPath == dir.parent,
                           onPress: parentOpenable
                               ? () => _openParent(dir, selectedVolume)

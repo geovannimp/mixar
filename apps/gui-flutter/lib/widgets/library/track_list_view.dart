@@ -127,6 +127,10 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   /// Captured in `initState` because `ref` is unsafe to use from `dispose`.
   FocusedTrackPayload? _focusedPayload;
 
+  /// Focus-zone subscription, closed in `dispose` so the provider does not keep
+  /// this state (and its [_focusNode]) alive after the list is gone.
+  ProviderSubscription<LibraryFocusZone>? _focusZoneListen;
+
   /// Identifies this list as the payload owner, and the mount that owns it.
   final Object _payloadOwner = Object();
 
@@ -138,7 +142,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     // A focus step (rotary press) hands the keys to the pane it names: taking
     // focus for the list, and dropping it when the sidebar takes over. Manual
     // because it drives a FocusNode rather than the widget tree.
-    ref.listenManual(libraryFocusZoneProvider, (_, zone) {
+    _focusZoneListen = ref.listenManual(libraryFocusZoneProvider, (_, zone) {
       if (!mounted) {
         return;
       }
@@ -183,6 +187,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     }
     _scroll.removeListener(_requestVisibleRange);
     _scroll.dispose();
+    _focusZoneListen?.close();
     _focusNode.dispose();
     super.dispose();
   }

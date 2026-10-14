@@ -41,7 +41,11 @@ class LibraryNavRow extends StatelessWidget {
     final colors = theme.colors;
 
     Widget row({required bool hovered}) {
-      final fill = selected
+      // The cursor wears the same fill as a selection: a focused Drive volume
+      // is not the active volume, and an outline with no fill reads as chrome
+      // rather than as the row the rotary is on.
+      final marked = selected || focused;
+      final fill = marked
           ? librarySelectedRowColor(theme)
           : hovered
           ? colors.card
@@ -68,7 +72,7 @@ class LibraryNavRow extends StatelessWidget {
                 Icon(
                   icon,
                   size: 16,
-                  color: selected
+                  color: marked
                       ? colors.selectionForeground
                       : colors.mutedForeground,
                 ),
@@ -83,7 +87,7 @@ class LibraryNavRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.typography.body.sm.copyWith(
-                        color: selected
+                        color: marked
                             ? colors.selectionForeground
                             : colors.foreground,
                         fontWeight: FontWeight.w500,
@@ -95,7 +99,7 @@ class LibraryNavRow extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.typography.body.xs.copyWith(
-                          color: selected
+                          color: marked
                               ? colors.selectionForeground.withValues(
                                   alpha: 0.75,
                                 )

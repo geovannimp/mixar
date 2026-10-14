@@ -21,11 +21,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import 'helpers/collection_tracks_override.dart';
-
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 
+import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
 
 /// The row element whose text is [label], for the row-height assertions.
@@ -150,17 +150,15 @@ void main() {
   ) async {
     final container = await pumpList(tester, tracks: const [track, trackB]);
     final theme = MixarThemeData.light();
-    Color rowColor(int index) {
-      final box = tester.widget<DecoratedBox>(
-        find
-            .descendant(
-              of: find.byType(TrackListRow).at(index),
-              matching: find.byType(DecoratedBox),
-            )
-            .first,
-      );
-      return (box.decoration as BoxDecoration).color!;
-    }
+    Color rowColor(int index) => fillOf(
+      tester,
+      find
+          .descendant(
+            of: find.byType(TrackListRow).at(index),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
 
     // The list owns focus on open, so its cursor wears the brand tint.
     expect(

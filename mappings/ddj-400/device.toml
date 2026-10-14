@@ -12,7 +12,9 @@ vendor_name = "Pioneer"
 product_name = "DDJ-400"
 usb_vid = 0x2b73
 usb_pid = 0x0026
-mapping_version = "1.2.1"
+# This bundle adds the rotary-press focus endpoints, so it is strictly newer
+# than the base the version gate compares against.
+mapping_version = "1.2.2"
 midi_name_contains = ["DDJ-400"]
 
 [toml-schema]

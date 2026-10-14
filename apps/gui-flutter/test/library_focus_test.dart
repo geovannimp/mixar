@@ -9,22 +9,10 @@ import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 import 'helpers/collection_tracks_override.dart';
+import 'support/fake_library_transport.dart';
 
 /// Emits library evts the way the controller session does, so the tests run the
 /// real transport → handler path instead of calling the dispatch directly.
-class _FakeLibraryTransport implements LibraryTransport {
-  final _events = StreamController<LibraryEvt>.broadcast();
-
-  @override
-  Stream<LibraryEvt> subscribeEvents() => _events.stream;
-
-  void emit(LibraryEvt evt) => _events.add(evt);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('$invocation');
-}
-
 void main() {
   const collectionA = LibraryCollectionSummary(
     id: 'c1',
@@ -73,24 +61,37 @@ void main() {
     isRemovable: true,
   );
 
-  final overrides = [
+  final baseOverrides = [
     collectionsProvider.overrideWith((ref) async => [collectionA, collectionB]),
     overrideCollectionTracksValue(const []),
     historySessionsProvider.overrideWith((ref) async => [sessionA, sessionB]),
     driveVolumesProvider.overrideWith((ref) async => [rootVolume, dataVolume]),
-    driveListingProvider.overrideWith((ref) async => listing),
   ];
 
+  /// The drive listing override, held so a pump can swap it out.
+  final baseListingOverride = driveListingProvider.overrideWith(
+    (ref) async => listing,
+  );
+
   /// Pumps a host whose library transport replays the given evts.
+  ///
+  /// [loadListing] replaces the drive listing source, for a test that mutates
+  /// the tree under an open browse cursor (it re-reads on refresh).
   Future<(ProviderContainer, void Function(LibraryEvt))> pumpBrowser(
-    WidgetTester tester,
-  ) async {
-    final transport = _FakeLibraryTransport();
+    WidgetTester tester, {
+    Future<FsDirectoryListing> Function(Ref ref)? loadListing,
+  }) async {
+    final transport = FakeLibraryTransport();
+    addTearDown(transport.dispose);
     late ProviderContainer container;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          ...overrides,
+          ...baseOverrides.where((o) => !identical(o, baseListingOverride)),
+          if (loadListing == null)
+            baseListingOverride
+          else
+            driveListingProvider.overrideWith(loadListing),
           libraryTransportProvider.overrideWith((ref) async => transport),
         ],
         child: Directionality(
@@ -112,7 +113,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    return (container, transport.emit);
+    return (container, (LibraryEvt evt) => transport.events.add(evt));
   }
 
   const focusNext = LibraryEvt(kind: LibraryEvtKind.focus, delta: 1);
@@ -277,5 +278,48 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(driveTreeCursorProvider), 1);
     expect(container.read(driveCurrentPathProvider), dataVolume.path);
+  });
+
+  testWidgets('a listing that shrinks pulls the drive cursor back in range', (
+    tester,
+  ) async {
+    // A folder that loses subfolders while the browser is open: the cursor sat
+    // on the last row, so it must fall back onto a row that still exists
+    // instead of stepping from an index past the end.
+    var rows = listing;
+    final (container, emit) = await pumpBrowser(
+      tester,
+      loadListing: (ref) async => rows,
+    );
+    container.read(driveCurrentPathProvider.notifier).set(rows.path);
+    container
+        .read(librarySourceTabProvider.notifier)
+        .set(LibrarySourceTab.drive);
+    emit(focusNext);
+    await tester.pumpAndSettle();
+
+    emit(browseNext);
+    await tester.pumpAndSettle();
+    emit(browseNext);
+    await tester.pumpAndSettle();
+    expect(container.read(driveTreeCursorProvider), 2);
+    expect(container.read(driveCurrentPathProvider), folders[1].path);
+
+    // The folder now holds one subfolder: rows are ["up", a].
+    rows = FsDirectoryListing(
+      path: listing.path,
+      parent: listing.parent,
+      directories: [folders[0]],
+      audioFiles: [],
+    );
+    await container.refresh(driveListingProvider.future);
+    await tester.pumpAndSettle();
+    expect(container.read(driveTreeFocusedPathProvider), folders[0].path);
+
+    // One step back moves the cursor rather than clamping in place.
+    emit(browsePrev);
+    await tester.pumpAndSettle();
+    expect(container.read(driveTreeCursorProvider), 0);
+    expect(container.read(driveCurrentPathProvider), listing.parent);
   });
 }

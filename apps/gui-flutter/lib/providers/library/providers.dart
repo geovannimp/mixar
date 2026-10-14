@@ -537,6 +537,9 @@ class LibraryFocusZoneNotifier extends Notifier<LibraryFocusZone> {
 
   /// Step focus one pane over. The count of steps is the sign only: a rotary
   /// tick is never more than one pane wide.
+  ///
+  /// The evt handler rejects a zero delta before reaching here; this guard is
+  /// the notifier's own contract for direct callers.
   void move(int delta) {
     if (delta == 0) {
       return;
@@ -697,8 +700,13 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
 /// Apply a `LibraryNavigation::navigate` evt to whichever pane owns focus.
 ///
 /// The rotary is one control for both panes: the track list moves its focused
-/// row, the sidebar moves the focused row of the active tab.
+/// row, the sidebar moves the focused row of the active tab. A zero delta (a
+/// relative knob that reported no ticks) is rejected here, once, so the helpers
+/// below never have to repeat the guard.
 void applyLibraryNavigateEvt(Ref ref, int delta) {
+  if (delta == 0) {
+    return;
+  }
   if (ref.read(libraryFocusZoneProvider) == LibraryFocusZone.sidebar) {
     navigateSidebarSelection(ref, delta);
     return;
@@ -709,9 +717,6 @@ void applyLibraryNavigateEvt(Ref ref, int delta) {
 /// Browse the sidebar: the focused row of the active tab follows [delta],
 /// mirroring [focusedTrackRowIndexProvider] for the track list.
 void navigateSidebarSelection(Ref ref, int delta) {
-  if (delta == 0) {
-    return;
-  }
   switch (ref.read(librarySourceTabProvider)) {
     case LibrarySourceTab.collections:
       final collections = ref.read(collectionsProvider).asData?.value;
@@ -927,7 +932,19 @@ class DriveTreeCursor extends Notifier<int> {
   @override
   int build() => 0;
 
-  void setCount(int count) => _count = count < 0 ? 0 : count;
+  /// Record the row count and pull [state] back inside it, so a listing that
+  /// shrank under the cursor cannot leave the cursor past the end (a step from
+  /// a stale index would look like it did nothing).
+  void setCount(int count) {
+    _count = count < 0 ? 0 : count;
+    if (_count == 0) {
+      state = 0;
+      return;
+    }
+    if (state >= _count) {
+      state = _count - 1;
+    }
+  }
 
   void navigate(int delta) => state = navigateIndex(state, _count, delta);
 }
@@ -958,10 +975,10 @@ final driveTreeFocusedPathProvider = Provider<String?>((ref) {
 ///
 /// A tree row's selection *is* the folder it opens, so the cursor moves and the
 /// row it lands on becomes the listing (the "up" row walks back out).
+///
+/// Callers reject a zero [delta]; a zero step would still be a no-op here, but
+/// the guard lives at the evt boundary so it cannot be forgotten.
 void navigateDriveTree(Ref ref, int delta) {
-  if (delta == 0) {
-    return;
-  }
   final rows = driveTreeRows(ref);
   if (rows.isEmpty) {
     return;
@@ -969,10 +986,11 @@ void navigateDriveTree(Ref ref, int delta) {
   final cursor = ref.read(driveTreeCursorProvider.notifier);
   cursor.setCount(rows.length);
   cursor.navigate(delta);
-  final path = ref.read(driveTreeFocusedPathProvider);
-  if (path != null) {
-    ref.read(driveCurrentPathProvider.notifier).set(path);
-  }
+  // Index the same snapshot the cursor was bounded against: re-deriving the
+  // rows through [driveTreeFocusedPathProvider] could apply the new index to a
+  // listing that resolved in between, which lands on the wrong folder.
+  final index = ref.read(driveTreeCursorProvider).clamp(0, rows.length - 1);
+  ref.read(driveCurrentPathProvider.notifier).set(rows[index]);
 }
 
 final driveResolvedByPathProvider =
