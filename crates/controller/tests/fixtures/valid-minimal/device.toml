@@ -22,6 +22,8 @@ vu_meter = { type = "cc", channel = 1, cc = 0x02, direction = "out" }
 
 [master]
 browse = { type = "cc", channel = 7, cc = 0x40, relative = "TWOS_COMPLEMENT" }
+rotary_press = { type = "note", channel = 7, note = 0x41 }
+rotary_press_shift = { type = "note", channel = 7, note = 0x42 }
 
 [custom]
 shift = { type = "note", channel = 1, note = 0x3F }

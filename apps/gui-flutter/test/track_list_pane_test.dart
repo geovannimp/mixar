@@ -145,6 +145,79 @@ void main() {
     expect(container.read(focusedTrackRowIndexProvider), 1);
   });
 
+  testWidgets('the cursor tint follows the pane that owns focus', (
+    tester,
+  ) async {
+    final container = await pumpList(tester, tracks: const [track, trackB]);
+    final theme = MixarThemeData.light();
+    Color rowColor(int index) {
+      final box = tester.widget<DecoratedBox>(
+        find
+            .descendant(
+              of: find.byType(TrackListRow).at(index),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      return (box.decoration as BoxDecoration).color!;
+    }
+
+    // The list owns focus on open, so its cursor wears the brand tint.
+    expect(
+      container.read(libraryFocusZoneProvider),
+      LibraryFocusZone.trackList,
+    );
+    expect(rowColor(0), libraryListSelectedRowColor(theme));
+
+    // A focus step to the sidebar dims the cursor here instead.
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+    await tester.pump();
+    expect(rowColor(0), libraryListCursorRowColor(theme));
+
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.trackList);
+    await tester.pump();
+    expect(rowColor(0), libraryListSelectedRowColor(theme));
+  });
+
+  testWidgets('a focus step hands keyboard focus to the list', (tester) async {
+    final container = await pumpList(tester, tracks: const [track, trackB]);
+    // Whether the node holding keyboard focus sits inside the list pane.
+    bool listHasKeyboardFocus() {
+      final context = tester.binding.focusManager.primaryFocus?.context;
+      return context != null &&
+          context.findAncestorWidgetOfExactType<TrackListPane>() != null;
+    }
+
+    tester.binding.focusManager.primaryFocus?.unfocus();
+    await tester.pump();
+    expect(listHasKeyboardFocus(), isFalse);
+
+    // Step away and back: the list starts focused, so stepping back is the only
+    // transition that can hand it the keys.
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+    await tester.pump();
+    expect(listHasKeyboardFocus(), isFalse);
+
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.trackList);
+    await tester.pump();
+    expect(listHasKeyboardFocus(), isTrue);
+
+    // Focus moving to the sidebar gives the keys away.
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+    await tester.pump();
+    expect(listHasKeyboardFocus(), isFalse);
+  });
+
   testWidgets('publishes the focused row payload for controller load', (
     tester,
   ) async {

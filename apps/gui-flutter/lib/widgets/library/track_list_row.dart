@@ -45,9 +45,17 @@ class TrackListRow extends ConsumerWidget {
     final focused = ref.watch(
       focusedTrackRowIndexProvider.select((i) => i == index),
     );
+    // The cursor only wears the brand tint while this list owns browser focus;
+    // otherwise it dims and the sidebar's focused row takes the accent.
+    final listFocused =
+        ref.watch(libraryFocusZoneProvider) == LibraryFocusZone.trackList;
     final content = DecoratedBox(
       decoration: BoxDecoration(
-        color: focused ? libraryListSelectedRowColor(theme) : theme.colors.card,
+        color: !focused
+            ? theme.colors.card
+            : listFocused
+            ? libraryListSelectedRowColor(theme)
+            : libraryListCursorRowColor(theme),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),

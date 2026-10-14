@@ -221,6 +221,7 @@ pub enum LibraryEvtKind {
     Notice,
     HotCuesChanged,
     Navigate,
+    Focus,
     Load,
     LoopsChanged,
     BeatGridChanged,
@@ -1267,6 +1268,10 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             delta: Some(delta),
             ..bare(LibraryEvtKind::Navigate)
         }),
+        EvtBody::Focus { delta } => Some(LibraryEvt {
+            delta: Some(delta),
+            ..bare(LibraryEvtKind::Focus)
+        }),
         EvtBody::Load { deck } => Some(LibraryEvt {
             deck: Some(deck),
             ..bare(LibraryEvtKind::Load)
@@ -1526,6 +1531,18 @@ mod tests {
         let mapped = map_library_evt(ev.as_ref()).expect("Navigate maps");
         assert_eq!(mapped.kind, LibraryEvtKind::Navigate);
         assert_eq!(mapped.delta, Some(1));
+
+        buses
+            .publish_evt(
+                Origin::LibraryNavigation,
+                Kind::Focus,
+                EvtBody::Focus { delta: -1 },
+            )
+            .unwrap();
+        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        let mapped = map_library_evt(ev.as_ref()).expect("Focus maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::Focus);
+        assert_eq!(mapped.delta, Some(-1));
 
         buses
             .publish_evt(

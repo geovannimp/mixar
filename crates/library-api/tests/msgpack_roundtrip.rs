@@ -202,6 +202,34 @@ fn library_navigation_origin_and_navigate_kind_roundtrip() {
 }
 
 #[test]
+fn focus_kind_and_body_roundtrip() {
+    let body = EvtBody::Focus { delta: 1 };
+    let msg = WireMessage {
+        origin: Origin::LibraryNavigation,
+        kind: Kind::Focus,
+        revision: 5,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&body).unwrap(),
+    };
+    let decoded = decode_wire(&encode_wire(&msg).unwrap()).unwrap();
+    assert_eq!(decoded.kind, Kind::Focus);
+    assert_eq!(decode_evt_body(&decoded.body).unwrap(), body);
+
+    let back = EvtBody::Focus { delta: -1 };
+    let msg = WireMessage {
+        origin: Origin::LibraryNavigation,
+        kind: Kind::Focus,
+        revision: 6,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&back).unwrap(),
+    };
+    assert_eq!(
+        decode_evt_body(&decode_wire(&encode_wire(&msg).unwrap()).unwrap().body).unwrap(),
+        back
+    );
+}
+
+#[test]
 fn load_kind_and_body_roundtrip() {
     let body = EvtBody::Load { deck: 1 };
     let msg = WireMessage {

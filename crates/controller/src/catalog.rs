@@ -111,6 +111,8 @@ const MASTER_ALIASES: &[&str] = &[
     "cue_mix",
     "master_cue",
     "browse",
+    "rotary_press",
+    "rotary_press_shift",
     "load_deck_1",
     "load_deck_2",
     "headphone_cue_1",
@@ -274,7 +276,14 @@ const MIXER_LEAVES: &[&str] = &[
 
 const ENGINE_LEAVES: &[&str] = &["start_engine"];
 
-const LIBRARY_NAV_LEAVES: &[&str] = &["navigate", "navigate_next", "navigate_prev", "load_to_deck"];
+const LIBRARY_NAV_LEAVES: &[&str] = &[
+    "navigate",
+    "navigate_next",
+    "navigate_prev",
+    "focus_next",
+    "focus_prev",
+    "load_to_deck",
+];
 
 const PAD_MODES: &[&str] = &[
     "hot_cue",

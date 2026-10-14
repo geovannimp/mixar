@@ -227,6 +227,8 @@ cue_mix = { action = "Mixer::set_cue_mix", soft_takeover = true }
 cue_volume = { action = "Mixer::set_cue_volume", soft_takeover = true }
 master_cue = "Mixer::set_master_cue"
 browse = "LibraryNavigation::navigate"
+rotary_press = "LibraryNavigation::focus_next"
+rotary_press_shift = "LibraryNavigation::focus_prev"
 load_deck_1 = "LibraryNavigation::load_to_deck(deck:1)"
 load_deck_2 = "LibraryNavigation::load_to_deck(deck:2)"
 

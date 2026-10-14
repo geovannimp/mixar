@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/focused_load.dart';
+import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/history_refresh.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
@@ -518,6 +519,42 @@ class FocusedTrackRowIndex extends Notifier<int> {
 final focusedTrackRowIndexProvider =
     NotifierProvider<FocusedTrackRowIndex, int>(FocusedTrackRowIndex.new);
 
+/// Which library pane holds browser focus: the sidebar (collections / drive /
+/// history) or the track list.
+///
+/// Controller mappings address panes, never Flutter widgets: a focus step
+/// (`LibraryNavigation::focus_next` / `focus_prev`) moves this, and the browse
+/// rotary acts on whichever pane owns it.
+enum LibraryFocusZone { sidebar, trackList }
+
+/// Focus step order. Two panes today, so next and previous both land on the
+/// other one; walking an ordered list keeps adding a pane from changing callers.
+const _focusZoneOrder = [LibraryFocusZone.sidebar, LibraryFocusZone.trackList];
+
+class LibraryFocusZoneNotifier extends Notifier<LibraryFocusZone> {
+  @override
+  LibraryFocusZone build() => LibraryFocusZone.trackList;
+
+  /// Step focus one pane over. The count of steps is the sign only: a rotary
+  /// tick is never more than one pane wide.
+  void move(int delta) {
+    if (delta == 0) {
+      return;
+    }
+    final count = _focusZoneOrder.length;
+    final next = (_focusZoneOrder.indexOf(state) + delta.sign + count) % count;
+    state = _focusZoneOrder[next];
+  }
+
+  /// Park focus on one pane (a click in that pane).
+  void set(LibraryFocusZone zone) => state = zone;
+}
+
+final libraryFocusZoneProvider =
+    NotifierProvider<LibraryFocusZoneNotifier, LibraryFocusZone>(
+      LibraryFocusZoneNotifier.new,
+    );
+
 /// The active list's focused-row payload, so controller / MIDI "load focused
 /// row" acts on whichever list is on screen (library or history).
 ///
@@ -644,7 +681,9 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
         ref.read(trackBeatGridsProvider.notifier).set(trackId, evt.beatGrid);
       }
     case LibraryEvtKind.navigate:
-      ref.read(focusedTrackRowIndexProvider.notifier).navigate(evt.delta ?? 0);
+      applyLibraryNavigateEvt(ref, evt.delta ?? 0);
+    case LibraryEvtKind.focus:
+      ref.read(libraryFocusZoneProvider.notifier).move(evt.delta ?? 0);
     case LibraryEvtKind.load:
       final deck = evt.deck;
       if (deck != null) {
@@ -652,6 +691,64 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
       }
     case LibraryEvtKind.historySessionUpdated:
       ref.read(historyRefreshTickProvider.notifier).bump();
+  }
+}
+
+/// Apply a `LibraryNavigation::navigate` evt to whichever pane owns focus.
+///
+/// The rotary is one control for both panes: the track list moves its focused
+/// row, the sidebar moves the focused row of the active tab.
+void applyLibraryNavigateEvt(Ref ref, int delta) {
+  if (ref.read(libraryFocusZoneProvider) == LibraryFocusZone.sidebar) {
+    navigateSidebarSelection(ref, delta);
+    return;
+  }
+  ref.read(focusedTrackRowIndexProvider.notifier).navigate(delta);
+}
+
+/// Browse the sidebar: the focused row of the active tab follows [delta],
+/// mirroring [focusedTrackRowIndexProvider] for the track list.
+void navigateSidebarSelection(Ref ref, int delta) {
+  if (delta == 0) {
+    return;
+  }
+  switch (ref.read(librarySourceTabProvider)) {
+    case LibrarySourceTab.collections:
+      final collections = ref.read(collectionsProvider).asData?.value;
+      if (collections == null || collections.isEmpty) {
+        return;
+      }
+      final active = ref.read(activeCollectionIdProvider);
+      final index = collections.indexWhere((c) => c.id == active);
+      ref
+          .read(selectedCollectionIdProvider.notifier)
+          .set(
+            collections[navigateIndex(
+                  index < 0 ? 0 : index,
+                  collections.length,
+                  delta,
+                )]
+                .id,
+          );
+    case LibrarySourceTab.history:
+      final sessions = ref.read(historySessionsProvider).asData?.value;
+      if (sessions == null || sessions.isEmpty) {
+        return;
+      }
+      final active = ref.read(activeHistorySessionIdProvider);
+      final index = sessions.indexWhere((s) => s.id == active);
+      ref
+          .read(selectedHistorySessionIdProvider.notifier)
+          .set(
+            sessions[navigateIndex(
+                  index < 0 ? 0 : index,
+                  sessions.length,
+                  delta,
+                )]
+                .id,
+          );
+    case LibrarySourceTab.drive:
+      navigateDriveTree(ref, delta);
   }
 }
 
@@ -783,6 +880,100 @@ final driveActiveVolumeProvider = Provider<FsVolumeInfo?>((ref) {
   }
   return null;
 });
+
+/// Whether [parent] stays inside [volume]'s mount point.
+///
+/// A volume's parent sits outside it (e.g. `/media`), so the tree must not
+/// offer that row as the "up" step.
+bool driveParentInVolume(String? parent, FsVolumeInfo? volume) {
+  if (parent == null || volume == null) {
+    return false;
+  }
+  if (parent == volume.path) {
+    return true;
+  }
+  if (volume.path == '/') {
+    return parent.startsWith('/');
+  }
+  return parent.startsWith('${volume.path}/');
+}
+
+/// Visible Drive tree rows in pane order: the "up" row while a folder is open
+/// (index 0), then that folder's subfolders; volumes at the root.
+///
+/// The focused row is resolved by path (see [driveTreeFocusedPathProvider]), so
+/// the pane never has to keep its own index in step with this order.
+List<String> driveTreeRows(Ref ref) {
+  final current = ref.read(driveCurrentPathProvider);
+  if (current == null) {
+    final volumes = ref.read(driveVolumesProvider).asData?.value;
+    return volumes == null ? const [] : [for (final v in volumes) v.path];
+  }
+  final dir = ref.read(driveListingProvider).asData?.value;
+  if (dir == null) {
+    return const [];
+  }
+  final parent =
+      driveParentInVolume(dir.parent, ref.read(driveActiveVolumeProvider))
+      ? dir.parent
+      : null;
+  return [?parent, for (final d in dir.directories) d.path];
+}
+
+/// Focused Drive tree row, bounded by the rows last seen on screen.
+class DriveTreeCursor extends Notifier<int> {
+  var _count = 0;
+
+  @override
+  int build() => 0;
+
+  void setCount(int count) => _count = count < 0 ? 0 : count;
+
+  void navigate(int delta) => state = navigateIndex(state, _count, delta);
+}
+
+final driveTreeCursorProvider = NotifierProvider<DriveTreeCursor, int>(
+  DriveTreeCursor.new,
+);
+
+/// Path of the Drive tree row the cursor is on, `null` when no row can hold it.
+///
+/// Clamped on read, so a listing that shrank under the cursor still points at a
+/// real row.
+final driveTreeFocusedPathProvider = Provider<String?>((ref) {
+  // The rows follow the open folder, its listing, and the volume list, so the
+  // focused path has to be re-derived when any of them changes. [driveTreeRows]
+  // reads them without subscribing, hence the explicit watches.
+  ref.watch(driveCurrentPathProvider);
+  ref.watch(driveListingProvider);
+  ref.watch(driveVolumesProvider);
+  final rows = driveTreeRows(ref);
+  if (rows.isEmpty) {
+    return null;
+  }
+  return rows[ref.watch(driveTreeCursorProvider).clamp(0, rows.length - 1)];
+});
+
+/// Browse the Drive tree by [delta] rows.
+///
+/// A tree row's selection *is* the folder it opens, so the cursor moves and the
+/// row it lands on becomes the listing (the "up" row walks back out).
+void navigateDriveTree(Ref ref, int delta) {
+  if (delta == 0) {
+    return;
+  }
+  final rows = driveTreeRows(ref);
+  if (rows.isEmpty) {
+    return;
+  }
+  final cursor = ref.read(driveTreeCursorProvider.notifier);
+  cursor.setCount(rows.length);
+  cursor.navigate(delta);
+  final path = ref.read(driveTreeFocusedPathProvider);
+  if (path != null) {
+    ref.read(driveCurrentPathProvider.notifier).set(path);
+  }
+}
 
 final driveResolvedByPathProvider =
     FutureProvider<Map<String, LibraryTrackSummary>>((ref) async {

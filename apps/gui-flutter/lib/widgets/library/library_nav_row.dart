@@ -17,6 +17,7 @@ class LibraryNavRow extends StatelessWidget {
     this.icon,
     this.trailing,
     this.selected = false,
+    this.focused = false,
     this.indented = false,
     this.onPress,
   });
@@ -26,6 +27,11 @@ class LibraryNavRow extends StatelessWidget {
   final IconData? icon;
   final Widget? trailing;
   final bool selected;
+
+  /// Whether the sidebar owns browser focus, which marks this row as the cursor
+  /// the browse rotary moves. Without it a selected row and a focused row read
+  /// the same while the track list owns focus.
+  final bool focused;
   final bool indented;
   final VoidCallback? onPress;
 
@@ -43,12 +49,16 @@ class LibraryNavRow extends StatelessWidget {
       return DecoratedBox(
         decoration: BoxDecoration(
           color: fill,
-          border: Border(
-            left: BorderSide(
-              width: 2,
-              color: selected ? colors.primary : const Color(0x00000000),
-            ),
-          ),
+          // Focused cursor: the left accent grows into a full outline, so a
+          // selected row and a focused row read differently at a glance.
+          border: focused
+              ? Border.all(color: colors.primary, width: 2)
+              : Border(
+                  left: BorderSide(
+                    width: 2,
+                    color: selected ? colors.primary : const Color(0x00000000),
+                  ),
+                ),
         ),
         child: Padding(
           padding: EdgeInsets.fromLTRB(indented ? 20 : 10, 8, 4, 8),

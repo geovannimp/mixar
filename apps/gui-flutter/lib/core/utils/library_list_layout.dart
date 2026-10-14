@@ -11,6 +11,14 @@ import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
 /// Focused-row fill — same token as sidebar [librarySelectedRowColor].
 Color libraryListSelectedRowColor(MixarThemeData theme) =>
     librarySelectedRowColor(theme);
+/// Focused-row fill for a list that does not own browser focus.
+///
+/// The cursor stays put (so a focus step back to this pane lands where it left
+/// off) but drops the selection colour that marks the focused pane — with the
+/// sidebar owning focus, a bright cursor in the track list would contradict it.
+/// A solid [MixarColors.muted] recess rather than an alpha blend, so it does not
+/// shift with the surface underneath.
+Color libraryListCursorRowColor(MixarThemeData theme) => theme.colors.muted;
 
 /// Horizontal gap between a list row's layout groups.
 const kRowGutter = 8.0;

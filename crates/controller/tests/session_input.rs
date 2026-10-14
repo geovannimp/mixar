@@ -190,3 +190,33 @@ fn browse_relative_cc_publishes_library_navigation() {
         library_api::EvtBody::Navigate { delta: -1 }
     ));
 }
+
+#[test]
+fn rotary_press_publishes_pane_focus_evt() {
+    let mut s = session();
+    let mut bus = CaptureBus {
+        cmds: vec![],
+        library: vec![],
+    };
+    let mut midi = NullMidi;
+    // DDJ rotary-selector press: ch7 note 0x41.
+    s.handle_midi(&[0x96, 0x41, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.library.len(), 1);
+    assert_eq!(bus.library[0].0, library_api::Origin::LibraryNavigation);
+    assert_eq!(bus.library[0].1, library_api::Kind::Focus);
+    assert!(matches!(
+        bus.library[0].2,
+        library_api::EvtBody::Focus { delta: 1 }
+    ));
+    // SHIFT + rotary-selector press: ch7 note 0x42.
+    s.handle_midi(&[0x96, 0x42, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.library.len(), 2);
+    assert_eq!(bus.library[1].1, library_api::Kind::Focus);
+    assert!(matches!(
+        bus.library[1].2,
+        library_api::EvtBody::Focus { delta: -1 }
+    ));
+    // Release is not a focus step.
+    s.handle_midi(&[0x86, 0x41, 0x00], &mut bus, &mut midi);
+    assert_eq!(bus.library.len(), 2);
+}

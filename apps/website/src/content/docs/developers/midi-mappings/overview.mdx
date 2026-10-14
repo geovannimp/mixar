@@ -139,8 +139,8 @@ What each part does:
 - `device.toml` carries the identity (`id`, `vendor_name`, `product_name`, `midi_name_contains`) and one named endpoint per control: `play_pause`, `headphone_cue`, `pad_1`, `jog_turn`, and so on. Endpoints marked `direction = "out"` are outputs Mixar drives, such as the LEDs and `vu_meter`.
 - `map.toml` binds those endpoints to actions: `Deck(_)::toggle_play`, `Deck(_)::set_headphone_cue`, `Deck(_)::hot_cue_pad(n:1)`, `Deck(_)::jog_turn`. The `_` is the deck placeholder.
 - `volume` is a two-entry list: the default action is `set_volume`, and while the `custom.shift` modifier is held it becomes `set_filter`. Both use `soft_takeover` so the hardware knob and the software value do not fight.
-- `browse` is bound to `LibraryNavigation::navigate` under the master input section.
-- `[outputs.deck_1]` mirrors player state onto the LEDs: play/pause lights `play_led` while the deck plays and clears it when stopped, and the PFL and hot-cue-1 LEDs follow their controls. An `on` or `off` may name a device endpoint or inline a raw note.
+- `browse` is bound to `LibraryNavigation::navigate` under the master input section. It browses whichever library pane owns focus; `LibraryNavigation::focus_next` / `focus_prev` are the press-and-SHIFT-press bindings that move focus between the sidebar and the track list (the DDJ-400's rotary selector).
+- `[outputs.deck_1]` mirrors player state onto the LEDs: play/pause swaps between `pause_led` and `play_led`, and the PFL and hot-cue-1 LEDs follow their controls. An `on` or `off` may name a device endpoint or inline a raw note.
 - The `[toml-schema]` tables are editor hints (schema autocompletion); Mixar ignores them at runtime.
 
 ## Where to go next

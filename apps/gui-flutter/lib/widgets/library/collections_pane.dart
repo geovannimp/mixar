@@ -52,6 +52,9 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     final colors = theme.colors;
     final collections = ref.watch(collectionsProvider);
     final selectedId = ref.watch(activeCollectionIdProvider);
+    // The selected row doubles as the cursor while the sidebar owns focus.
+    final sidebarFocused =
+        ref.watch(libraryFocusZoneProvider) == LibraryFocusZone.sidebar;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -108,9 +111,17 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                       subtitle: '${c.trackCount} tracks',
                       icon: LucideIcons.folder,
                       selected: c.id == selectedId,
-                      onPress: () => ref
-                          .read(selectedCollectionIdProvider.notifier)
-                          .set(c.id),
+                      focused: sidebarFocused && c.id == selectedId,
+                      onPress: () {
+                        // Focus follows the pointer, the way a row press in the
+                        // track list does.
+                        ref
+                            .read(libraryFocusZoneProvider.notifier)
+                            .set(LibraryFocusZone.sidebar);
+                        ref
+                            .read(selectedCollectionIdProvider.notifier)
+                            .set(c.id);
+                      },
                       trailing: c.kind == 'folder' && c.path != null
                           ? MTappable.child(
                               semanticsLabel: 'Browse ${c.name} in Drive',

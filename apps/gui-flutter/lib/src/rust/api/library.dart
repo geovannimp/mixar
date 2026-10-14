@@ -573,6 +573,7 @@ enum LibraryEvtKind {
   notice,
   hotCuesChanged,
   navigate,
+  focus,
   load,
   loopsChanged,
   beatGridChanged,

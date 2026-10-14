@@ -508,6 +508,10 @@ cue_volume = { type = "cc14", channel = 7, cc = { msb = 0x0D, lsb = 0x2D } }
 master_cue = { type = "note", channel = 7, note = 0x63 }
 # Browse encoder (Mixxx SelectKnob): relative CC ch7 / 0x40
 browse = { type = "cc", channel = 7, cc = 0x40, relative = "TWOS_COMPLEMENT" }
+# Rotary-selector press (Mixxx MoveFocusForward): note ch7 / 0x41
+rotary_press = { type = "note", channel = 7, note = 0x41 }
+# SHIFT + rotary-selector press (Mixxx MoveFocusBackward): note ch7 / 0x42
+rotary_press_shift = { type = "note", channel = 7, note = 0x42 }
 # LOAD buttons (Mixxx LoadSelectedTrack): note ch7 / 0x46, 0x47
 load_deck_1 = { type = "note", channel = 7, note = 0x46 }
 load_deck_2 = { type = "note", channel = 7, note = 0x47 }

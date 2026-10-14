@@ -155,6 +155,7 @@ fn handle_cmd(
         | Kind::BeatGridChanged
         | Kind::HistorySessionUpdated
         | Kind::Navigate
+        | Kind::Focus
         | Kind::Load
         | Kind::Error
         | Kind::Notice

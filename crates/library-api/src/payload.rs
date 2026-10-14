@@ -145,6 +145,11 @@ pub enum EvtBody {
     Navigate {
         delta: i32,
     },
+    /// UI-only: step browser focus to another pane. `+1` moves to the next pane
+    /// (sidebar → track list), `-1` to the previous one.
+    Focus {
+        delta: i32,
+    },
     /// UI-only: load the focused library table row onto `deck` (0-based).
     Load {
         deck: u16,
