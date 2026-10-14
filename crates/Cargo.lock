@@ -1329,6 +1329,7 @@ dependencies = [
  "audio-core 0.1.0",
  "backend-cpal",
  "backend-null",
+ "codec",
  "engine-api",
  "engine-dsp",
  "library",

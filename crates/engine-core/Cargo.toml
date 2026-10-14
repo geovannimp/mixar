@@ -32,4 +32,5 @@ tokio.workspace = true
 
 [dev-dependencies]
 library-core = { path = "../library-core" }
+codec = { path = "../codec" }
 tempfile = "3.0"

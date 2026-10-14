@@ -125,9 +125,14 @@ impl Engine {
             .library
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine has no attached LibraryManager"))?;
-        let prepared = LibraryManager::prepare_track_for_playback(library.as_ref(), track_id)
+        let mut prepared = LibraryManager::prepare_track_for_playback(library.as_ref(), track_id)
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        self.load_prepared_track(deck_id, prepared)
+        let stems = prepared.stems.take();
+        self.load_prepared_track(deck_id, prepared)?;
+        if let Some(stems) = stems {
+            self.attach_deck_stems(deck_id, stems)?;
+        }
+        Ok(())
     }
 
     /// Attach host-owned omnibus buses (clones stored on the engine).
