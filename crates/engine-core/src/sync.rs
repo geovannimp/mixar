@@ -197,7 +197,6 @@ pub(crate) fn beat_align_target(
 ) -> i32 {
     let master_pos = f64::from(master_pos_ms);
     let slave_pos = f64::from(slave_pos_ms);
-    let duration = f64::from(duration_ms);
     let master_beat = beat_ms(master_bpm);
     let slave_beat = beat_ms(slave_bpm);
     // Phase relative to each deck's painted grid (not media t=0).
@@ -209,12 +208,18 @@ pub(crate) fn beat_align_target(
         target += slave_beat;
     }
 
-    snap_ms(
-        target.min(duration).round() as i32,
+    let snapped = snap_ms(
+        target.round() as i32,
         Some(slave_bpm),
         slave_first_beat_ms,
         quantize,
-    )
+    );
+    // Clamp to valid media time: negative playheads must not seek before 0.
+    if duration_ms > 0 {
+        snapped.clamp(0, duration_ms)
+    } else {
+        snapped.max(0)
+    }
 }
 
 #[cfg(test)]
@@ -251,6 +256,22 @@ mod tests {
     fn snap_ms_passes_through_when_phase_is_invalid() {
         assert_eq!(snap_ms(200, Some(120.0), f64::NAN, true), 200);
         assert_eq!(snap_ms(200, Some(120.0), -50.0, true), 200);
+    }
+
+    #[test]
+    fn beat_align_target_clamps_negative_slave_position_to_zero() {
+        // Negative slave playhead must not yield a negative seek target.
+        let target = beat_align_target(
+            250,   // master mid-beat at 120 BPM
+            -100,  // slave before 0
+            10_000,
+            120.0,
+            120.0,
+            0.0,
+            0.0,
+            false,
+        );
+        assert!(target >= 0, "expected non-negative target, got {target}");
     }
 
     #[test]

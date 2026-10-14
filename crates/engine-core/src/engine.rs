@@ -1595,6 +1595,9 @@ impl Engine {
             .filter(|b| *b > 0.0);
 
         let mut changed = Vec::new();
+        // Collect BPM pushes and apply under one DSP lock after the loop so
+        // multi-deck same-track edits do not bounce the producer lock per deck.
+        let mut bpm_updates: Vec<(usize, f64)> = Vec::new();
         for deck_id in 0..self.deck_control.len() {
             let Some(control) = self.deck_control.get_mut(deck_id) else {
                 continue;
@@ -1631,12 +1634,17 @@ impl Engine {
             // clears ratio_override and would break an active tempo/beat sync
             // on phase-only grid edits.
             if bpm_changed {
-                if let Some(bpm) = self.deck_control[deck_id].bpm {
-                    if let Some(dsp_engine) = self.dsp_engine.as_ref() {
-                        if let Ok(mut dsp) = dsp_engine.lock() {
-                            if let Some(deck) = dsp.deck_mut(deck_id) {
-                                deck.set_track_bpm(Some(bpm));
-                            }
+                if let Some(bpm) = control.bpm {
+                    bpm_updates.push((deck_id, bpm));
+                }
+            }
+        }
+        if !bpm_updates.is_empty() {
+            if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+                if let Ok(mut dsp) = dsp_engine.lock() {
+                    for (deck_id, bpm) in bpm_updates {
+                        if let Some(deck) = dsp.deck_mut(deck_id) {
+                            deck.set_track_bpm(Some(bpm));
                         }
                     }
                 }
