@@ -1,5 +1,6 @@
 import { defineConfig } from "astro/config";
 import mdx from "@astrojs/mdx";
+import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import posthogRollup from "@posthog/rollup-plugin";
 
@@ -12,8 +13,11 @@ const uploadSourceMaps = Boolean(posthogApiKey && posthogProjectId);
 
 export default defineConfig({
   site: "https://mixar.top",
+  // Match live GitHub Pages 301s into trailing-slash URLs so sitemap +
+  // canonicals agree with what crawlers already land on.
+  trailingSlash: "always",
   outDir: "dist",
-  integrations: [mdx()],
+  integrations: [mdx(), sitemap()],
   markdown: {
     // Dual themes emit both `--shiki-light*` and `--shiki-dark*` custom
     // properties; the dark set is activated from DocsLayout because Astro does

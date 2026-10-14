@@ -2,16 +2,69 @@
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { RELEASES_URL } from "../consts";
 import { META_NAME, resolvePosthogHost } from "../scripts/analytics";
 
 interface Props {
   title: string;
   description: string;
   currentPage?: "home" | "developers" | "privacy" | "docs";
+  /** Absolute or site-root path; default `/mixar-banner.png` */
+  ogImage?: string;
 }
 
-const { title, description, currentPage = "home" } = Astro.props;
+const { title, description, currentPage = "home", ogImage } = Astro.props;
 const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · Mixar`;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImageURL = new URL(ogImage ?? "/mixar-banner.png", Astro.site);
+const absOgImage = ogImageURL.href;
+
+const organization = {
+  "@type": "Organization",
+  "@id": "https://mixar.top/#organization",
+  name: "Mixar",
+  url: "https://mixar.top/",
+  logo: "https://mixar.top/mixar-logo.png",
+  sameAs: ["https://github.com/geovannimp/mixar"],
+};
+
+const website = {
+  "@type": "WebSite",
+  "@id": "https://mixar.top/#website",
+  url: "https://mixar.top/",
+  name: "Mixar",
+  description,
+  publisher: { "@id": "https://mixar.top/#organization" },
+  inLanguage: "en",
+};
+
+const softwareApplication = {
+  "@type": "SoftwareApplication",
+  "@id": "https://mixar.top/#app",
+  name: "Mixar",
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "Linux, macOS, Windows",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  license: "https://www.gnu.org/licenses/gpl-3.0.html",
+  downloadUrl: RELEASES_URL,
+  url: "https://mixar.top/",
+  image: absOgImage,
+  description,
+  publisher: { "@id": "https://mixar.top/#organization" },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph":
+    currentPage === "home"
+      ? [organization, website, softwareApplication]
+      : [organization, website],
+};
 
 // Analytics is opt-in by configuration, not by consent UI. With no key the
 // element below is not rendered, the script's config read returns null, and the
@@ -40,6 +93,19 @@ const analyticsEnabled = posthogKey !== "";
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <title>{fullTitle}</title>
+    <link rel="canonical" href={canonicalURL} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Mixar" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={absOgImage} />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={absOgImage} />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="shortcut icon" href="/favicon.ico" />
