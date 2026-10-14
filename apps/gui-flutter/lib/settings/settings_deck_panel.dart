@@ -123,6 +123,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                     max: kMaxVinylBrakeStopSecs,
                     step: kVinylBrakeStopSecsStep,
                     format: (v) => '${v.toStringAsFixed(2)} s',
+                    fieldLabel: l10n.settingsDeckVinylBrakeStopTime,
                     onChanged: (v) => onChanged(
                       copyAppSettings(draft, vinylBrakeStopSecs: v),
                     ),

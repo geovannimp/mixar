@@ -75,6 +75,26 @@ void main() {
     expect(find.text('0.50 s'), findsOneWidget);
   });
 
+  testWidgets('stop time stepper buttons are labeled for screen readers', (
+    tester,
+  ) async {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    await pumpDeckPanel(
+      tester,
+      draft: brakeDraft(brake: true, stopSecs: 0.5),
+      onChanged: (_) {},
+    );
+
+    expect(
+      stepButton(tester, '−').semanticsLabel,
+      l10n.settingsStepperDecrease(l10n.settingsDeckVinylBrakeStopTime),
+    );
+    expect(
+      stepButton(tester, '+').semanticsLabel,
+      l10n.settingsStepperIncrease(l10n.settingsDeckVinylBrakeStopTime),
+    );
+  });
+
   testWidgets('stop time stepper reports the stepped value', (tester) async {
     AppSettings? emitted;
     await pumpDeckPanel(
@@ -109,6 +129,7 @@ void main() {
     await tester.pump();
     expect(emitted!.vinylBrakeStopSecs, closeTo(0.1, 1e-6));
 
+    emitted = null;
     await pumpDeckPanel(
       tester,
       draft: brakeDraft(brake: true, stopSecs: kMaxVinylBrakeStopSecs),
@@ -119,9 +140,8 @@ void main() {
       isNull,
       reason: 'above 3.0 s would fail EngineConfig::validate',
     );
-    final before = emitted;
     await tester.tap(find.widgetWithText(AppButton, '+'));
     await tester.pump();
-    expect(emitted, same(before), reason: 'no emission past the ceiling');
+    expect(emitted, isNull, reason: 'no emission past the ceiling');
   });
 }
