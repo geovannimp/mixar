@@ -699,7 +699,16 @@ impl Deck {
     /// in flight. A release clears only the cursor it caused to advance: with a
     /// loop, cue hold, or live jog still holding the cursor, dropping it here
     /// would make that action's own exit catch-up silently no-op.
+    ///
+    /// Only ever arms while the deck can advance a cursor — `Playing` or an
+    /// active brake, exactly the states `advance_slip_shadow` renders. A fully
+    /// paused deck would freeze the cursor while a scratch keeps moving the
+    /// playhead, so the next catch-up would snap the scratch back to this stale
+    /// anchor.
     fn rearm_slip_shadow(&mut self) {
+        if self.state != DeckState::Playing && self.brake.is_none() {
+            return;
+        }
         let playing = self.state == DeckState::Playing;
         // A held jog owns a cursor only once it is a live vinyl scratch, exactly
         // the gate `set_jog_touch` applies before arming. A paused or non-vinyl
@@ -2820,6 +2829,40 @@ mod tests {
         assert!(
             (after - scratched).abs() <= 10,
             "the paused scratch must survive the release: {scratched} -> {after}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_does_not_rearm_on_paused_seek() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        deck.pause().unwrap();
+        deck.set_jog_touch(true);
+        for _ in 0..30 {
+            deck.jog_turn(-10);
+            deck.process(CHUNK).unwrap();
+        }
+        // A permanent seek on a paused deck must not re-anchor a cursor: it
+        // would freeze while the scratch keeps moving the playhead, and the
+        // next catch-up would snap the scratch back to the stale seek target.
+        let target = deck.position_ms().unwrap() - 500;
+        deck.seek_ms(target).unwrap();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "a paused deck must not re-arm the cursor on a permanent seek"
+        );
+        deck.set_jog_touch(false);
+        let after = deck.position_ms().unwrap();
+        assert!(
+            (after - target).abs() <= 10,
+            "the scratch must stay where the seek left it: {target} -> {after}"
         );
     }
 
