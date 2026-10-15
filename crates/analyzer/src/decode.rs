@@ -16,8 +16,10 @@ use codec::AudioDecoder;
 pub struct DecodedMono {
     /// Mono samples downmixed from the file's channels, ordered by time.
     ///
-    /// Not peak-normalized: the crate's own entry points run the buffer through
-    /// the preprocess stage, which scales it into ±1.0, before a backend sees it.
+    /// Raw channel-averaged f32 in the file's native scale, so a hot master can
+    /// carry samples past ±1.0. Not peak-normalized: the crate's own entry
+    /// points run the buffer through the preprocess stage, which scales it into
+    /// ±1.0, before a backend sees it.
     pub samples: Vec<f32>,
     /// Sample rate the samples were decoded at (the file's native rate).
     pub sample_rate: u32,

@@ -36,8 +36,8 @@ pub fn analyze_pcm(
 pub fn analyze_file(path: &Path, config: &AnalysisConfig) -> Result<TrackAnalysis> {
     let decoded =
         decode::decode_mono(path, config).map_err(|e| AnalyzerError::Decode(e.to_string()))?;
-    // The decoder already averaged the channels and measured the peak, so there
-    // is one buffer to hand to the backend rather than a decoded copy plus a
+    // The decoder hands back one mono buffer and `prepare_owned` rescales it in
+    // place when it is out of range, so there is no decoded copy plus a
     // normalized copy.
     analyze_prepared(preprocess::prepare_owned(decoded), config)
 }
