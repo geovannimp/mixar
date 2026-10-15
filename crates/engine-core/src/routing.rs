@@ -4,6 +4,8 @@
 //! Buses that share a device are opened as one multi-channel stream.
 //! Mono routes fold stereo bus L+R with a 0.5 scale into one device channel.
 
+use crate::config::DeviceConfig;
+use crate::engine::Engine;
 use anyhow::Result;
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId, DeviceInfo};
 
@@ -298,6 +300,133 @@ pub(crate) fn map_buses_to_device_buffer(
                 }
             }
         }
+    }
+}
+
+impl Engine {
+    /// List available audio devices for the engine's current backend
+    pub fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
+        self.backend.list_output_devices()
+    }
+
+    /// Get the default audio device (first device with `is_default`, or first in list).
+    pub fn default_device(&self) -> Result<DeviceInfo> {
+        let devices = self.backend.list_output_devices()?;
+        devices
+            .iter()
+            .find(|d| d.is_default)
+            .cloned()
+            .or_else(|| devices.first().cloned())
+            .ok_or_else(|| anyhow::anyhow!("No output device available"))
+    }
+
+    /// Get bus configuration
+    pub fn get_bus_config(&self, bus_id: &BusId) -> Option<&BusConfig> {
+        self.config.buses.iter().find(|bus| &bus.id == bus_id)
+    }
+
+    fn validate_bus_device_mapping(
+        &self,
+        bus_id: &BusId,
+        device: &DeviceId,
+        mapping: &ChannelMapping,
+    ) -> Result<DeviceId> {
+        let devices = self.backend.list_output_devices()?;
+        let resolved = crate::routing::resolve_device_id(device, &devices)?;
+        let info = devices
+            .iter()
+            .find(|d| d.id == resolved)
+            .ok_or_else(|| anyhow::anyhow!("Output device not found: {}", resolved.as_str()))?;
+        crate::routing::ensure_channels_in_range(mapping, info.max_channels, &resolved)?;
+        crate::routing::ensure_no_channel_conflicts(
+            &self.config.buses,
+            bus_id,
+            &resolved,
+            mapping,
+        )?;
+        Ok(resolved)
+    }
+
+    /// Update bus configuration
+    pub fn update_bus_config(&mut self, bus_id: &BusId, new_config: BusConfig) -> Result<()> {
+        let mapping = crate::routing::validate_channel_mapping(&new_config.channels)?;
+        let resolved = self.validate_bus_device_mapping(bus_id, &new_config.device, &mapping)?;
+
+        if let Some(bus) = self.config.buses.iter_mut().find(|bus| &bus.id == bus_id) {
+            bus.name = new_config.name;
+            bus.device = resolved;
+            bus.channels = mapping;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Bus not found: {}", bus_id.as_str()))
+        }
+    }
+
+    /// Get device configuration
+    pub fn get_device_config(&self, device_id: &DeviceId) -> Option<&DeviceConfig> {
+        self.config
+            .devices
+            .as_ref()?
+            .iter()
+            .find(|device| device.id == device_id.as_str())
+    }
+
+    /// Update device configuration
+    pub fn update_device_config(
+        &mut self,
+        device_id: &DeviceId,
+        new_config: DeviceConfig,
+    ) -> Result<()> {
+        if let Some(devices) = self.config.devices.as_mut() {
+            if let Some(device) = devices
+                .iter_mut()
+                .find(|device| device.id == device_id.as_str())
+            {
+                *device = new_config;
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!("Device not found: {}", device_id.as_str()))
+            }
+        } else {
+            Err(anyhow::anyhow!("No devices configured"))
+        }
+    }
+
+    /// Set bus device mapping to a stereo channel pair (1-based).
+    pub fn set_bus_device(
+        &mut self,
+        bus: BusId,
+        device: DeviceId,
+        channels: [u16; 2],
+    ) -> Result<()> {
+        let mapping = crate::routing::validate_channel_pair(channels)?;
+        self.set_bus_channel_mapping(bus, device, mapping)
+    }
+
+    /// Set bus device mapping (stereo pair or mono fold).
+    pub fn set_bus_channel_mapping(
+        &mut self,
+        bus: BusId,
+        device: DeviceId,
+        channels: ChannelMapping,
+    ) -> Result<()> {
+        let mapping = crate::routing::validate_channel_mapping(&channels)?;
+        let resolved = self.validate_bus_device_mapping(&bus, &device, &mapping)?;
+
+        if let Some(existing) = self.config.buses.iter_mut().find(|b| b.id == bus) {
+            existing.device = resolved;
+            existing.channels = mapping;
+        } else {
+            let name = match bus.as_str() {
+                "master" => "Master".to_string(),
+                "cue" => "Preview".to_string(),
+                other => other.to_string(),
+            };
+            self.config
+                .buses
+                .push(BusConfig::new(bus, name, resolved, mapping));
+        }
+        Ok(())
     }
 }
 

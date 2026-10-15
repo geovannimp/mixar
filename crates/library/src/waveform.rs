@@ -1,6 +1,7 @@
 //! Persist and load track waveform overviews (L0) in the library database.
 
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use audio_core::{
     compute_overview_envelope, peaks_to_rgb_bytes, rgb_bytes_to_peaks, LoadableAudio, SpectralPeak,
@@ -11,10 +12,11 @@ use sea_orm::sea_query::OnConflict;
 use sea_orm::{EntityTrait, Set};
 use serde::{Deserialize, Serialize};
 
-use library_core::{FileAudioSource, LibraryError, Result, TrackId};
+use library_core::{FileAudioSource, Library, LibraryError, Result, TrackId};
 
 use crate::db::{self, Db};
 use crate::entity::{track_waveform, TrackAnalysisEntity, TrackWaveformEntity};
+use crate::LibraryManager;
 
 #[derive(Debug, Clone)]
 pub struct TrackWaveformOverview {
@@ -341,6 +343,150 @@ pub(crate) fn store_overview(db: &Db, track_id: &TrackId, peaks: &[SpectralPeak]
 pub(crate) fn generate_and_store_overview(db: &Db, track_id: &TrackId, path: &Path) -> Result<()> {
     let peaks = generate_overview_from_path(path)?;
     store_overview(db, track_id, &peaks)
+}
+
+impl LibraryManager {
+    /// Load the stored L0 waveform overview for a track, if present.
+    pub fn get_track_waveform_overview(
+        &self,
+        id: &TrackId,
+    ) -> Result<Option<TrackWaveformOverview>> {
+        get_track_waveform_row(&self.db, id)
+    }
+}
+
+impl LibraryManager {
+    /// Delete all cached waveform overview rows and drop decoded PCM from RAM.
+    pub fn clear_waveform_cache(&self) -> Result<()> {
+        clear_all_track_waveforms(&self.db)?;
+        self.clear_decode_cache();
+        Ok(())
+    }
+
+    /// Drop decoded PCM even if a prior panic poisoned the cache mutex.
+    pub(crate) fn clear_decode_cache(&self) {
+        self.decode_cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+    }
+
+    /// Compressed waveform overview bytes stored in the library DB.
+    pub fn waveform_cache_bytes(&self) -> Result<u64> {
+        waveform_cache_bytes(&self.db)
+    }
+
+    /// Generate and persist the overview when missing (e.g. first waveform fetch).
+    ///
+    /// Takes `&Mutex<Self>` so overview generation does not hold the library lock.
+    pub fn ensure_track_waveform(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
+        let path = {
+            let lib = Self::lock_library(library)?;
+            if has_track_waveform(&lib.db, id)? {
+                return Ok(());
+            }
+            lib.get_track(id)?
+                .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+                .file()
+                .ok_or(LibraryError::Unsupported("stream tracks have no waveform"))?
+                .path()
+                .to_path_buf()
+        };
+
+        let peaks = generate_overview_from_path(&path)?;
+
+        let lib = Self::lock_library(library)?;
+        if has_track_waveform(&lib.db, id)? {
+            return Ok(());
+        }
+        store_overview(&lib.db, id, &peaks)
+    }
+
+    /// Beat grid overlay data when the track has been analyzed.
+    pub fn get_track_beat_grid(&self, id: &TrackId) -> Result<Option<BeatGridSnapshot>> {
+        get_track_beat_grid(&self.db, id)
+    }
+
+    pub fn save_track_beat_grid(
+        &self,
+        id: &TrackId,
+        bpm: f64,
+        first_beat_secs: f32,
+    ) -> Result<BeatGridSnapshot> {
+        save_track_beat_grid(&self.db, id, bpm, first_beat_secs)
+    }
+
+    /// Hi-res spectral peaks for a time window (L1). Uses the decode cache when present.
+    ///
+    /// Takes `&Mutex<Self>` so decode / analysis does not hold the library lock.
+    pub fn compute_waveform_window(
+        library: &Mutex<Self>,
+        id: &TrackId,
+        start_ms: i32,
+        end_ms: i32,
+        buckets: usize,
+    ) -> Result<(Vec<audio_core::SpectralPeak>, i32, i32)> {
+        // shortcut: caps L1 resolution to bound RPC allocation. Upgrade to
+        // chunked peak generation if a larger waveform window is required.
+        if buckets == 0 || buckets > audio_core::MAX_WAVEFORM_BUCKETS {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: "waveform bucket count is out of range".into(),
+            });
+        }
+        // Double-checked cache: decode off the library lock so UI/DB work can
+        // proceed. A racing miss may decode twice; re-get before insert drops the
+        // duplicate Arc. Upgrade to single-flight if wasted decode becomes costly.
+        let cached = {
+            let lib = Self::lock_library(library)?;
+            let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
+            cache.get(id)
+        };
+
+        let audio = if let Some(cached) = cached {
+            cached
+        } else {
+            let source = {
+                let lib = Self::lock_library(library)?;
+                lib.get_track(id)?
+                    .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+            };
+            if source.file().is_none() {
+                return Err(LibraryError::Unsupported("stream tracks have no waveform"));
+            }
+            let loaded = Arc::new(source.load().map_err(|e| LibraryError::Backend {
+                backend: "library",
+                message: format!("failed to decode track for waveform: {e}"),
+            })?);
+            let lib = Self::lock_library(library)?;
+            let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
+            if let Some(existing) = cache.get(id) {
+                existing
+            } else {
+                cache.insert(id.clone(), loaded)
+            }
+        };
+
+        let duration_ms = {
+            let channels = usize::from(audio.channels.max(1));
+            let frames = audio.samples.len() / channels;
+            if audio.sample_rate == 0 || frames == 0 {
+                0
+            } else {
+                audio_core::secs_to_ms(frames as f64 / f64::from(audio.sample_rate))
+            }
+        };
+        let start_ms = start_ms.max(0).min(duration_ms.max(0));
+        let end_ms = end_ms.max(start_ms).min(duration_ms.max(0));
+        let peaks = audio_core::compute_spectral_window(
+            audio.as_ref(),
+            audio_core::ms_to_secs(start_ms),
+            audio_core::ms_to_secs(end_ms),
+            buckets,
+            &audio_core::WaveformAnalysisConfig::default(),
+        );
+        Ok((peaks, start_ms, end_ms))
+    }
 }
 
 #[cfg(test)]
