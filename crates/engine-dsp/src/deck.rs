@@ -513,7 +513,10 @@ impl Deck {
         let playing = self.state == DeckState::Playing;
         self.motion
             .set_modes(jog_to_motion(top), jog_to_motion(outer), playing);
-        if self.motion.touching() {
+        // A mid-touch mode change ends a touch-armed scratch cursor (the motion
+        // begins a release ramp, so there is no catch-up to make), but an
+        // in-flight loop or cue hold still owns its cursor and must keep it.
+        if self.motion.touching() && self.loop_region.is_none() && self.cue_hold_return.is_none() {
             self.shadow_position_frac = None;
         }
     }
@@ -530,10 +533,12 @@ impl Deck {
             self.catch_up_slip();
             self.motion.hard_reset_rate();
             self.shadow_position_frac = None;
+            self.rearm_slip_shadow();
             return;
         }
         self.motion.set_touch(touching, playing);
         if touching
+            && playing
             && self.slip_enabled
             && self.shadow_position_frac.is_none()
             && self.motion.active_mode(playing) == MotionMode::Vinyl
@@ -681,6 +686,21 @@ impl Deck {
         }
     }
 
+    /// Re-arm at the current position when a *different* manual action is still
+    /// in flight. A release clears only the cursor it caused to advance: with a
+    /// loop, cue hold, or live jog still holding the cursor, dropping it here
+    /// would make that action's own exit catch-up silently no-op.
+    fn rearm_slip_shadow(&mut self) {
+        if self.slip_enabled
+            && self.shadow_position_frac.is_none()
+            && (self.loop_region.is_some()
+                || self.cue_hold_return.is_some()
+                || self.motion.touching())
+        {
+            self.shadow_position_frac = Some(self.position_frac);
+        }
+    }
+
     fn catch_up_slip(&mut self) {
         if !self.slip_enabled {
             return;
@@ -794,6 +814,7 @@ impl Deck {
         } else {
             self.seek_ms(return_pos)?;
         }
+        self.rearm_slip_shadow();
         if was_playing {
             self.play()?;
         } else {
@@ -828,6 +849,9 @@ impl Deck {
             self.shadow_position_frac = None;
         }
         self.loop_region = None;
+        // After the region drops, only a concurrent cue hold or live jog still
+        // needs the cursor; re-arm it there so its own exit still catches up.
+        self.rearm_slip_shadow();
     }
 
     /// Clear resampler filter/history state after a position jump (seek/stop).
@@ -2542,6 +2566,165 @@ mod tests {
         assert!(
             (after - advanced).abs() <= 10,
             "release must catch up: {after} vs {advanced}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_does_not_arm_on_paused_pitch_bend_outer() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        // Paused: `active_mode` remaps an outer PitchBend jog to vinyl, so the
+        // vinyl-only arm gate must still reject this non-scratch touch.
+        deck.set_jog_mode(JogMode::Vinyl, JogMode::PitchBend);
+        let start = deck.position_ms().unwrap();
+        deck.set_jog_touch(true);
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "a paused touch must not arm the slip cursor"
+        );
+        for _ in 0..40 {
+            let _ = deck.process(48);
+            deck.jog_turn(20);
+            let _ = deck.process(CHUNK);
+        }
+        let scratched = deck.position_ms().unwrap();
+        assert!(
+            (scratched - start).abs() >= 5,
+            "the scratch must actually move the playhead: {start} -> {scratched}"
+        );
+        deck.set_jog_touch(false);
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "a paused release must not leave a cursor"
+        );
+        let after = deck.position_ms().unwrap();
+        assert!(
+            (after - scratched).abs() <= 5,
+            "a paused release must not snap the playhead: {scratched} -> {after}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_survives_cue_hold_while_loop_active() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        let armed = deck.shadow_position_ms().expect("loop arms the cursor");
+        // The cue hold must not steal (or strip) the loop's cursor.
+        deck.set_cue_point_ms(in_ms + 1000).unwrap();
+        deck.begin_cue_hold().unwrap();
+        for _ in 0..20 {
+            deck.process(CHUNK).unwrap();
+        }
+        let held = deck.shadow_position_ms().expect("cursor still armed");
+        assert!(
+            held > armed,
+            "cursor advances during the hold: {armed} -> {held}"
+        );
+        deck.end_cue_hold().unwrap();
+        let after_hold = deck
+            .shadow_position_ms()
+            .expect("cue-hold release must keep the loop's cursor");
+        assert!(
+            (after_hold - held).abs() <= 10,
+            "the loop's cursor survives the hold at the caught-up position: held={held} after_hold={after_hold}"
+        );
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let before_exit = deck
+            .shadow_position_ms()
+            .expect("cursor still armed after the hold");
+        deck.clear_loop();
+        let audible = deck.position_ms().unwrap();
+        let cursor = deck.shadow_position_ms();
+        assert!(
+            cursor.is_none(),
+            "loop exit after a hold clears the cursor once: {cursor:?}"
+        );
+        assert!(
+            (audible - before_exit).abs() <= 10,
+            "loop exit must still catch up: audible={audible} before_exit={before_exit}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_survives_loop_exit_during_cue_hold() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        let armed = deck.shadow_position_ms().expect("loop arms the cursor");
+        deck.set_cue_point_ms(in_ms + 1000).unwrap();
+        deck.begin_cue_hold().unwrap();
+        for _ in 0..20 {
+            deck.process(CHUNK).unwrap();
+        }
+        // Loop exits while the cue hold is still held: the hold keeps a cursor.
+        deck.clear_loop();
+        let after_exit = deck
+            .shadow_position_ms()
+            .expect("loop exit must keep the cue hold's cursor");
+        assert!(
+            after_exit > armed,
+            "re-armed cursor continues advancing: {armed} -> {after_exit}"
+        );
+        deck.end_cue_hold().unwrap();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "cue-hold release clears the cursor once nothing else needs it"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_mode_switch_clears_touch_cursor_only() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        // Touch-armed: a mid-touch mode switch abandons the scratch.
+        deck.set_jog_touch(true);
+        assert!(
+            deck.shadow_position_ms().is_some(),
+            "touch arms the cursor while playing"
+        );
+        deck.set_jog_mode(JogMode::Vinyl, JogMode::PitchBend);
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "a mid-touch switch must drop a touch-armed cursor"
+        );
+        deck.set_jog_touch(false);
+        // Loop-armed: the loop still owns its cursor across the same switch.
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        let armed = deck.shadow_position_ms().expect("loop arms the cursor");
+        deck.set_jog_touch(true);
+        deck.set_jog_mode(JogMode::Vinyl, JogMode::PitchBend);
+        assert!(
+            deck.shadow_position_ms().is_some(),
+            "a mid-touch switch must keep a loop-armed cursor"
+        );
+        deck.set_jog_touch(false);
+        deck.clear_loop();
+        let audible = deck.position_ms().unwrap();
+        assert!(
+            (audible - armed).abs() <= 30,
+            "loop exit must still catch up: audible={audible} armed={armed}"
         );
     }
 
