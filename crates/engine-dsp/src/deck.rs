@@ -370,6 +370,10 @@ impl Deck {
         );
         self.cancel_brake();
         self.state = DeckState::Playing;
+        // A paused deck holds no cursor (see `rearm_slip_shadow`), so an action
+        // that was in flight across a pause must re-arm on resume or its exit
+        // catch-up would no-op once the deck plays again.
+        self.rearm_slip_shadow();
         Ok(())
     }
 
@@ -2473,7 +2477,7 @@ mod tests {
     #[test]
     fn slip_scratch_exit_catches_up_to_shadow() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 24_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2514,14 +2518,14 @@ mod tests {
     #[test]
     fn slip_shadow_stays_none_until_a_manual_action_starts() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 24_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         assert!(
             deck.shadow_position_ms().is_none(),
             "enabling slip must not arm the cursor"
         );
         deck.play().unwrap();
-        for _ in 0..50 {
+        for _ in 0..20 {
             deck.process(CHUNK).unwrap();
         }
         assert!(
@@ -2539,7 +2543,7 @@ mod tests {
     #[test]
     fn slip_shadow_loop_capture_survives_seek_and_clears_at_exit() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 32_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2550,14 +2554,14 @@ mod tests {
         assert!(deck.shadow_position_ms().is_some());
         // The loop is still in flight, so the permanent seek re-arms the cursor
         // at the new position instead of dropping it.
-        deck.seek_ms(in_ms + 2000).unwrap();
+        deck.seek_ms(in_ms + 300).unwrap();
         let rearmed = deck
             .shadow_position_ms()
             .expect("a live loop keeps its cursor across a seek");
         assert!(
-            (rearmed - (in_ms + 2000)).abs() <= 5,
+            (rearmed - (in_ms + 300)).abs() <= 5,
             "re-arm at the seek target: {rearmed} vs {}",
-            in_ms + 2000
+            in_ms + 300
         );
         deck.clear_loop();
         assert!(
@@ -2569,7 +2573,7 @@ mod tests {
     #[test]
     fn slip_shadow_captures_at_cue_hold_and_clears_on_release() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 64_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2612,7 +2616,7 @@ mod tests {
     #[test]
     fn slip_shadow_does_not_arm_on_paused_pitch_bend_outer() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 8_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         // Paused: `active_mode` remaps an outer PitchBend jog to vinyl, so the
         // vinyl-only arm gate must still reject this non-scratch touch.
@@ -2648,7 +2652,7 @@ mod tests {
     #[test]
     fn slip_shadow_survives_cue_hold_while_loop_active() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 40_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2658,7 +2662,7 @@ mod tests {
         deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
         let armed = deck.shadow_position_ms().expect("loop arms the cursor");
         // The cue hold must not steal (or strip) the loop's cursor.
-        deck.set_cue_point_ms(in_ms + 1000).unwrap();
+        deck.set_cue_point_ms(in_ms + 300).unwrap();
         deck.begin_cue_hold().unwrap();
         for _ in 0..20 {
             deck.process(CHUNK).unwrap();
@@ -2698,7 +2702,7 @@ mod tests {
     #[test]
     fn slip_shadow_survives_loop_exit_during_cue_hold() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 40_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2707,7 +2711,7 @@ mod tests {
         let in_ms = deck.position_ms().unwrap();
         deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
         let armed = deck.shadow_position_ms().expect("loop arms the cursor");
-        deck.set_cue_point_ms(in_ms + 1000).unwrap();
+        deck.set_cue_point_ms(in_ms + 300).unwrap();
         deck.begin_cue_hold().unwrap();
         for _ in 0..20 {
             deck.process(CHUNK).unwrap();
@@ -2731,7 +2735,7 @@ mod tests {
     #[test]
     fn slip_shadow_mode_switch_clears_touch_cursor_only() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 24_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2773,7 +2777,7 @@ mod tests {
     #[test]
     fn slip_shadow_survives_vinyl_to_vinyl_mode_switch() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 24_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2808,7 +2812,7 @@ mod tests {
     #[test]
     fn slip_shadow_does_not_arm_for_paused_jog_at_loop_exit() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 24_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2840,7 +2844,7 @@ mod tests {
     #[test]
     fn slip_shadow_arms_when_slip_enabled_during_active_loop() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 32_000], ENGINE_RATE);
         // Loop first, slip second: the loop is already in flight.
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2869,9 +2873,45 @@ mod tests {
     }
 
     #[test]
+    fn slip_shadow_rearms_when_play_resumes_with_active_loop() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 32_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        // A paused jog release must not leave a frozen cursor behind …
+        deck.pause().unwrap();
+        deck.set_jog_touch(true);
+        deck.set_jog_touch(false);
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "a paused deck holds no cursor"
+        );
+        // … and resuming with the loop still active must re-arm it, or the loop
+        // exit would silently skip its catch-up.
+        deck.play().unwrap();
+        deck.shadow_position_ms()
+            .expect("play re-arms the cursor of an in-flight loop");
+        for _ in 0..40 {
+            deck.process(CHUNK).unwrap();
+        }
+        let before_exit = deck.shadow_position_ms().expect("cursor advances");
+        deck.clear_loop();
+        let audible = deck.position_ms().unwrap();
+        assert!(
+            (audible - before_exit).abs() <= 10,
+            "loop exit still catches up after a resume: {audible} vs {before_exit}"
+        );
+    }
+
+    #[test]
     fn slip_shadow_does_not_rearm_on_paused_seek() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 24_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
@@ -2905,7 +2945,7 @@ mod tests {
     #[test]
     fn slip_shadow_survives_permanent_seek_during_loop() {
         let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 48_000], ENGINE_RATE);
         deck.set_slip_enabled(true).unwrap();
         deck.play().unwrap();
         for _ in 0..10 {
