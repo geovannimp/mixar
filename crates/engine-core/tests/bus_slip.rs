@@ -121,8 +121,10 @@ fn slip_shadow_publishes_only_during_a_manual_action() {
         })
         .expect("setup");
 
-    std::thread::sleep(Duration::from_millis(120));
-
+    // No sleep: `recv_evt_kind` blocks until the first Position tick arrives,
+    // which is a few ms into the 250 ms fixture — well inside track end, so
+    // the deck is still Playing when the jog touch lands and can arm.
+    //
     // Plain playback: Position ticks carry no slip cursor.
     let position = recv_evt_kind(&evt, Kind::Position);
     let EvtBody::Position {
