@@ -154,6 +154,11 @@ async function loadDocs(): Promise<Docs> {
   return { docs, categories };
 }
 
+// Top-level pages are `<category>/<topic>/<page>` (3 segments); anything deeper
+// lives in a folder under another page. Keep in sync with the loadDocs check
+// that rejects entries shorter than `<category>/<topic>/<page>`.
+const TOP_LEVEL_SEGMENTS = 3;
+
 /**
  * Folder a nested page lives in: `developers/midi-mappings/map-toml/inputs`
  * → `developers/midi-mappings/map-toml`. `undefined` for top-level pages
@@ -161,7 +166,7 @@ async function loadDocs(): Promise<Docs> {
  */
 export function parentDocPath(id: string): string | undefined {
   const segments = id.split("/");
-  if (segments.length <= 3) return undefined;
+  if (segments.length <= TOP_LEVEL_SEGMENTS) return undefined;
   segments.pop();
   return segments.join("/");
 }
@@ -173,14 +178,15 @@ export function parentDocPath(id: string): string | undefined {
  */
 function buildDocNav(entries: DocEntry[]): DocNode[] {
   const nodes: DocNode[] = entries.map((entry) => ({ entry, children: [] }));
+  // Route path → node so a nested page finds its parent in O(1). Route paths
+  // always contain `/`, so they can never collide with an Object.prototype key.
+  const byPath: Record<string, DocNode> = {};
+  for (const node of nodes) byPath[docSlug(node.entry.id)] = node;
   const roots: DocNode[] = [];
   for (const node of nodes) {
     const parentPath = parentDocPath(node.entry.id);
-    const parent =
-      parentPath === undefined
-        ? undefined
-        : nodes.find((candidate) => docSlug(candidate.entry.id) === parentPath && candidate !== node);
-    if (parent === undefined) {
+    const parent = parentPath === undefined ? undefined : byPath[parentPath];
+    if (parent === undefined || parent === node) {
       roots.push(node);
       continue;
     }

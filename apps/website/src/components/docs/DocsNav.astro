@@ -1,6 +1,7 @@
 ---
 import type { DocCategory } from "../../lib/docs";
-import { categorySlug, docPath, navLabel } from "../../lib/docs";
+import { categorySlug } from "../../lib/docs";
+import DocsNavNode from "./DocsNavNode.astro";
 
 interface Props {
   categories: DocCategory[];
@@ -13,12 +14,6 @@ const currentCategory = categorySlug(currentId);
 const visible = categories.filter(
   (category) => category.slug === currentCategory && category.topics.length > 0,
 );
-
-// One shared rail (`border-l` on the list); the active item paints over it, so
-// nesting is indentation only — no second vertical line.
-const rail = "-ml-px block border-l-2 py-1.5 leading-snug transition";
-const activeRail = "border-accent font-semibold text-fg";
-const idleRail = "border-transparent text-muted hover:border-border-hover hover:text-fg";
 ---
 
 <nav aria-label="Documentation" class="text-[0.9375rem]">
@@ -34,42 +29,9 @@ const idleRail = "border-transparent text-muted hover:border-border-hover hover:
               {topic.name}
             </p>
             <ul class="m-0 list-none border-l border-border p-0">
-              {topic.nav.map((node) => {
-                const current = node.entry.id === currentId;
-                return (
-                  <li class="m-0">
-                    <a
-                      href={docPath(node.entry.id)}
-                      aria-current={current ? "page" : undefined}
-                      class:list={[rail, "pl-3", current ? activeRail : idleRail]}
-                    >
-                      {navLabel(node)}
-                    </a>
-                    {node.children.length > 0 && (
-                      <ul class="m-0 list-none p-0">
-                        {node.children.map((child) => {
-                          const childCurrent = child.entry.id === currentId;
-                          return (
-                            <li class="m-0">
-                              <a
-                                href={docPath(child.entry.id)}
-                                aria-current={childCurrent ? "page" : undefined}
-                                class:list={[
-                                  rail,
-                                  "pl-6 text-[0.875rem]",
-                                  childCurrent ? activeRail : idleRail,
-                                ]}
-                              >
-                                {navLabel(child)}
-                              </a>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </li>
-                );
-              })}
+              {topic.nav.map((node) => (
+                <DocsNavNode node={node} currentId={currentId} />
+              ))}
             </ul>
           </div>
         ))}
