@@ -1,5 +1,6 @@
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AstroIntegration } from "astro";
 
 /**
@@ -22,7 +23,9 @@ export default function trailingSlashRedirects(): AstroIntegration {
         site = config.site;
       },
       "astro:build:done": async ({ dir, logger }) => {
-        const outDir = dir.pathname;
+        // `dir` is a URL: `.pathname` is percent-encoded and Windows-hostile
+        // (`/C:/…`), so go through fileURLToPath for a real filesystem path.
+        const outDir = fileURLToPath(dir);
         let pages: string[];
         try {
           pages = await htmlPages(outDir);
