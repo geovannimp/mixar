@@ -1,0 +1,33 @@
+---
+title: "map.toml — [lifecycle]"
+description: "The optional lifecycle hooks: on_init, on_shutdown, idle_heartbeat, and their session semantics."
+section: "MIDI Mappings"
+order: 6
+---
+
+`[lifecycle]` names functions implemented in `script.rhai`:
+
+```toml
+[lifecycle]
+on_init = "on_init"
+idle_heartbeat = "idle_heartbeat"
+on_shutdown = "on_shutdown"
+```
+
+| Key | When it runs |
+| --- | --- |
+| `on_init` | Runs once when the session starts (attach, reconnect). After the hook returns, the session force-refreshes every LED, re-asserting each lamp. |
+| `on_shutdown` | Runs once when the session shuts down (detach, shutdown). After the hook returns, the session clears every mapped lamp. |
+| `idle_heartbeat` | Called periodically, roughly once per second, and only while no deck is playing. |
+
+All three are optional, but any of them requires the bundle to contain `script.rhai`; otherwise load fails with `[lifecycle] requires script.rhai in the mapping bundle`. Each name must be non-empty. See [Scripts](/docs/developers/midi-mappings/scripts) for the hook signatures and what they can do.
+
+<Callout type="tip" title="Declarative LEDs run alongside the hooks">
+`on_init` and `on_shutdown` do not own the LEDs: the session re-asserts or clears every `[outputs]` lamp around them. The DDJ-400's script handles only the mode SysEx handshake and its two track-loaded lamps. See [outputs](/docs/developers/midi-mappings/map-toml/outputs).
+</Callout>
+
+## Where to go next
+
+- [Scripts](/docs/developers/midi-mappings/scripts) — the Rhai hooks, sandbox limits, and error reporting.
+- [outputs](/docs/developers/midi-mappings/map-toml/outputs) — the declarative LED state the session forces around these hooks.
+- [map.toml](/docs/developers/midi-mappings/map-toml) — the overview for the file as a whole.

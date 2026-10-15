@@ -111,7 +111,7 @@ Out-only names are not restricted to the catalog: extra aliases for LEDs (`play_
 `cue_led`, `hot_cue_<n>_led`, …) and `vu_meter` are allowed and expected. `[custom]` is
 exempt from the catalog entirely. An extra input-eligible name in these sections is
 accepted by `device.toml` but cannot be used as a `[inputs.*]` key in
-[`map.toml`](/docs/developers/midi-mappings/map-toml), which runs the catalog check.
+[inputs](/docs/developers/midi-mappings/map-toml/inputs), which runs the catalog check.
 
 ## Endpoint fields
 
@@ -158,8 +158,10 @@ volume = { type = "cc14", channel = 1, cc = { msb = 0x13, lsb = 0x33 } }
 ```
 
 `cc14` pairs an MSB and an LSB controller into a single 0..1 value:
-`((msb << 7) | lsb) / 16383`. The `[map.toml]` side binds the alias just once; the session
-pairs the two CC messages. `msb` and `lsb` must differ.
+`((msb << 7) | lsb) / 16383`. The session tracks the pair per alias and only publishes once
+both bytes have been seen. `msb` and `lsb` must differ. On the `map.toml` side the alias is
+bound just once, like any absolute leaf — see
+[inputs](/docs/developers/midi-mappings/map-toml/inputs#absolute-vs-relative-inputs).
 
 ## Relative encoders
 

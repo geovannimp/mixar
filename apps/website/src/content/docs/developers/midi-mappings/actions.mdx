@@ -2,7 +2,7 @@
 title: "Actions & aliases"
 description: "The action id grammar, every deck/mixer/engine/library action, and the closed input alias catalog."
 section: "MIDI Mappings"
-order: 4
+order: 7
 ---
 
 This page is the reference for the two vocabularies a mapping uses: **action ids** (the value you assign in `map.toml`) and **input aliases** (the keys of an `[inputs.<section>]` table). They are validated against a closed catalog, so anything not listed here is rejected at load time.
@@ -198,7 +198,7 @@ Most leaves are **buttons** (edge-triggered on press, or press/release pairs suc
 | Absolute | `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed` | Normalized `0..1`, clamped. |
 | Relative | `jog_turn`, `navigate` | A decoded tick delta from the device's `relative` mode. |
 
-Absolute leaves default to soft-takeover behavior (and can opt out per binding), which is also why they are the ones you typically pair with `soft_takeover = true` in `map.toml`:
+Absolute leaves default to soft-takeover behavior (and can opt out per binding), which is also why they are the ones you typically pair with `soft_takeover = true` in `map.toml` — what soft takeover does and why it is useful is [explained on the inputs page](/docs/developers/midi-mappings/map-toml/inputs#soft-takeover--invert):
 
 ```toml
 [inputs.deck_1]
@@ -206,7 +206,7 @@ volume = { action = "Deck(_)::set_volume", soft_takeover = true }
 tempo  = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }
 ```
 
-See [Binding inputs to actions](/docs/developers/midi-mappings/map-toml) for the `[inputs]` binding form and its per-binding options.
+See [Binding inputs to actions](/docs/developers/midi-mappings/map-toml/inputs) for the `[inputs]` binding form and its per-binding options.
 
 <Callout type="note" title="An alias is not an action">
 An input alias is only a name for a physical control. It is the **action id** you assign to it that decides what happens. In `volume = { action = "Deck(_)::set_volume", soft_takeover = true }`, `volume` is the alias and `Deck(_)::set_volume` is the action.
@@ -307,4 +307,4 @@ pad_mode_beat_jump = "Deck(_)::pad_mode(mode:beat_jump)"
 pad_mode_sampler = "Deck(_)::pad_mode(mode:sampler)"
 ```
 
-A `pad_mode` value outside these five is rejected. For the pad-note strategy that pairs with these modes, see the deck leaves above and [Binding inputs to actions](/docs/developers/midi-mappings/map-toml).
+A `pad_mode` value outside these five is rejected. For the pad-note strategy that pairs with these modes, see the deck leaves above and [Binding inputs to actions](/docs/developers/midi-mappings/map-toml/inputs).

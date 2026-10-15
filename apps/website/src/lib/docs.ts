@@ -7,7 +7,18 @@ export interface DocTopic {
   name: string;
   /** The topic's `overview` entry; the topic is served at its path. */
   overview: DocEntry;
+  /** Flat, display-sorted — used for prev/next. */
   entries: DocEntry[];
+  /** Same entries as a tree: pages in a nested folder hang off their parent. */
+  nav: DocNode[];
+}
+
+/** A docs page plus the nested pages that live in a folder under it. */
+export interface DocNode {
+  entry: DocEntry;
+  /** Set when the page lives in a folder under another page (`map-toml/inputs`). */
+  parent?: DocNode;
+  children: DocNode[];
 }
 
 export interface DocCategory {
@@ -128,7 +139,7 @@ async function loadDocs(): Promise<Docs> {
             `(expected ${category.slug}/${slug}/overview.mdx).`,
         );
       }
-      return { slug, name: overview.data.section, overview, entries };
+      return { slug, name: overview.data.section, overview, entries, nav: buildDocNav(entries) };
     });
 
     return {
@@ -141,6 +152,53 @@ async function loadDocs(): Promise<Docs> {
   });
 
   return { docs, categories };
+}
+
+/**
+ * Folder a nested page lives in: `developers/midi-mappings/map-toml/inputs`
+ * → `developers/midi-mappings/map-toml`. `undefined` for top-level pages
+ * (`<category>/<topic>/<page>`).
+ */
+export function parentDocPath(id: string): string | undefined {
+  const segments = id.split("/");
+  if (segments.length <= 3) return undefined;
+  segments.pop();
+  return segments.join("/");
+}
+
+/**
+ * Group a topic's entries so pages in a nested folder hang off the page whose
+ * route is their folder. A nested page whose folder has no page of its own
+ * stays top-level rather than disappearing.
+ */
+function buildDocNav(entries: DocEntry[]): DocNode[] {
+  const nodes: DocNode[] = entries.map((entry) => ({ entry, children: [] }));
+  const roots: DocNode[] = [];
+  for (const node of nodes) {
+    const parentPath = parentDocPath(node.entry.id);
+    const parent =
+      parentPath === undefined
+        ? undefined
+        : nodes.find((candidate) => docSlug(candidate.entry.id) === parentPath && candidate !== node);
+    if (parent === undefined) {
+      roots.push(node);
+      continue;
+    }
+    node.parent = parent;
+    parent.children.push(node);
+  }
+  return roots;
+}
+
+/**
+ * Sidebar label for a node: nested pages drop the parent title prefix, so
+ * `map.toml — [inputs]` renders as `[inputs]` under its `map.toml` parent.
+ */
+export function navLabel(node: DocNode): string {
+  const title = node.entry.data.title;
+  const parentTitle = node.parent?.entry.data.title;
+  if (parentTitle === undefined || !title.startsWith(parentTitle)) return title;
+  return title.slice(parentTitle.length).replace(/^\s*[—:-]\s*/, "");
 }
 
 /** Entries of the topic an entry belongs to, for prev/next within that topic. */
