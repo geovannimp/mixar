@@ -134,6 +134,119 @@ void main() {
         expect(container.read(engineUiProvider).trackIdFor(0), isNull);
       },
     );
+
+    test('position evt with null slip shadow clears the cursor', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      // Boundary: a null shadow before any set removes a non-existent key.
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.position,
+          deckId: 0,
+          positionMs: 1000,
+          slipShadowPositionMs: null,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), isNull);
+      expect(container.read(deckSlipShadowsProvider), isEmpty);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.position,
+          deckId: 0,
+          positionMs: 1234,
+          slipShadowPositionMs: 100,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), 100);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.position,
+          deckId: 0,
+          positionMs: 1300,
+          slipShadowPositionMs: null,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), isNull);
+      expect(container.read(deckPlayheadsProvider)[0], 1300);
+      // Round-trip: a later non-null shadow re-arms after the clear, so the
+      // remove path cannot leave stale state in the provider map.
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.position,
+          deckId: 0,
+          positionMs: 1400,
+          slipShadowPositionMs: 1350,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), 1350);
+    });
+
+    test('updated evt with null slip shadow clears the cursor', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      // Boundary: a null shadow before any set removes a non-existent key.
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          trackPath: '/a.wav',
+          trackId: 't',
+          durationMs: 8000,
+          durationKnown: true,
+          positionMs: 100,
+          slipEnabled: true,
+          slipShadowPositionMs: null,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), isNull);
+      expect(container.read(deckSlipShadowsProvider), isEmpty);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          trackPath: '/a.wav',
+          trackId: 't',
+          durationMs: 8000,
+          durationKnown: true,
+          positionMs: 500,
+          slipEnabled: true,
+          slipShadowPositionMs: 400,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), 400);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          trackPath: '/a.wav',
+          trackId: 't',
+          durationMs: 8000,
+          durationKnown: true,
+          positionMs: 700,
+          slipEnabled: true,
+          slipShadowPositionMs: null,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), isNull);
+      expect(container.read(deckSlipEnabledProvider(0)), isTrue);
+      // Round-trip: a later non-null shadow re-arms after the clear.
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          trackPath: '/a.wav',
+          trackId: 't',
+          durationMs: 8000,
+          durationKnown: true,
+          positionMs: 900,
+          slipEnabled: true,
+          slipShadowPositionMs: 850,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), 850);
+    });
   });
 
   group('jogTurn paused + touching nudge', () {

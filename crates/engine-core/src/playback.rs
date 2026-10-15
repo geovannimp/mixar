@@ -247,11 +247,19 @@ impl Engine {
                 "Load a track before recalling a saved loop."
             ));
         }
+        if out_ms <= in_ms {
+            return Err(anyhow::anyhow!(
+                "Loop out must be after loop in: in={in_ms} out={out_ms}"
+            ));
+        }
+        // Seek first: the loop activation anchors the slip cursor at the in point.
+        self.seek_deck(deck_id, in_ms)?;
+        self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
+        // Drop the pending loop-in only once the activation succeeded, so a
+        // failed recall leaves it intact for a retry.
         if let Some(control) = self.deck_control.get_mut(deck_id) {
             control.pending_loop_in_ms = None;
         }
-        self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
-        self.seek_deck(deck_id, in_ms)?;
         self.play(deck_id)
     }
 
