@@ -676,7 +676,12 @@ impl Deck {
             return Ok(());
         }
         self.slip_enabled = enabled;
-        if !enabled {
+        if enabled {
+            // An action already in flight (loop / cue hold / live vinyl scratch)
+            // must arm its cursor now, or its exit would skip the catch-up. With
+            // nothing in flight this stays `None`, which is the whole point.
+            self.rearm_slip_shadow();
+        } else {
             self.shadow_position_frac = None;
         }
         Ok(())
@@ -2829,6 +2834,37 @@ mod tests {
         assert!(
             (after - scratched).abs() <= 10,
             "the paused scratch must survive the release: {scratched} -> {after}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_arms_when_slip_enabled_during_active_loop() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        // Loop first, slip second: the loop is already in flight.
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        deck.set_slip_enabled(true).unwrap();
+        let armed = deck
+            .shadow_position_ms()
+            .expect("enabling slip during a live loop arms the cursor");
+        assert!(
+            (armed - in_ms).abs() <= 5,
+            "arm at the current position: {armed} vs {in_ms}"
+        );
+        for _ in 0..40 {
+            deck.process(CHUNK).unwrap();
+        }
+        let before_exit = deck.shadow_position_ms().expect("cursor advances");
+        deck.clear_loop();
+        let audible = deck.position_ms().unwrap();
+        assert!(
+            (audible - before_exit).abs() <= 10,
+            "loop exit catches up: {audible} vs {before_exit}"
         );
     }
 
