@@ -71,9 +71,10 @@ async function htmlPages(outDir: string): Promise<string[]> {
         subdirs.push(path);
         continue;
       }
-      // With `format: "file"` every page emits `<route>.html`, so only the root
-      // `index.html` (and 404) is an actual index page — nested "index" pages
-      // like `docs.html` do get a stub at `docs/index.html`.
+      // With `format: "file"` every page emits `<route>.html`, so an
+      // `index.html` at any depth is either the site root, a stub from an
+      // earlier build (re-stubbing it would be a no-op at best), or a real
+      // index page that Pages already serves at its trailing-slash path.
       if (!entry.name.endsWith(".html") || entry.name === "index.html" || entry.name === "404.html")
         continue;
       out.push(path);
@@ -89,6 +90,7 @@ function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }

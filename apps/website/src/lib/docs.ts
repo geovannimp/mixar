@@ -164,7 +164,7 @@ const TOP_LEVEL_SEGMENTS = 3;
  * → `developers/midi-mappings/map-toml`. `undefined` for top-level pages
  * (`<category>/<topic>/<page>`).
  */
-export function parentDocPath(id: string): string | undefined {
+function parentDocPath(id: string): string | undefined {
   const parts = segments(id);
   if (parts.length <= TOP_LEVEL_SEGMENTS) return undefined;
   parts.pop();
@@ -202,9 +202,10 @@ function buildDocNav(entries: DocEntry[]): DocNode[] {
 
 /**
  * Sidebar label for a node: nested pages drop the parent title prefix, so
- * `map.toml — [inputs]` renders as `[inputs]` under its `map.toml` parent. Only
- * a separator (` — `, ` - `, `: `) counts as a prefix boundary, and anything
- * that would strip away the whole title keeps the full title instead.
+ * `map.toml — [inputs]` renders as `[inputs]` under its `map.toml` parent. The
+ * prefix only counts when what follows is a separator character (`—`, `-`, or
+ * `:`), optionally surrounded by whitespace, and anything that would strip away
+ * the whole title keeps the full title instead.
  */
 export function navLabel(node: DocNode): string {
   const title = node.entry.data.title;

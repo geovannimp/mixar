@@ -20,6 +20,8 @@ const current = node.entry.id === currentId;
 const rail = "-ml-px block border-l-2 py-1.5 leading-snug transition";
 const activeRail = "border-accent font-semibold text-fg";
 const idleRail = "border-transparent text-muted hover:border-border-hover hover:text-fg";
+// Per-depth indent; the last entry covers any deeper nesting.
+const depthIndent = ["pl-3", "pl-6 text-[0.875rem]", "pl-9 text-[0.8125rem]"];
 ---
 
 <li class="m-0">
@@ -28,7 +30,7 @@ const idleRail = "border-transparent text-muted hover:border-border-hover hover:
     aria-current={current ? "page" : undefined}
     class:list={[
       rail,
-      depth === 0 ? "pl-3" : depth === 1 ? "pl-6 text-[0.875rem]" : "pl-9 text-[0.8125rem]",
+      depthIndent[Math.min(depth, depthIndent.length - 1)],
       current ? activeRail : idleRail,
     ]}
   >
