@@ -1,0 +1,5 @@
+# cargo test ran every test and reported all failures at the end; nextest
+# defaults to fail-fast (stop scheduling after the first failure). Keep the
+# cargo-test behavior so CI and local runs both surface the full failure list.
+[profile.default]
+fail-fast = { max-fail = "all" }

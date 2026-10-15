@@ -143,7 +143,7 @@ panic = "abort"
 
 ## CI, testing & maintainability
 
-Root `npm` scripts / moon drive affected checks (see [`README.md`](README.md)). Rust gates typically include `cargo fmt -- --check`, `cargo clippy -- -D warnings`, and `cargo test` (prefer `backend = "null"` for headless runs). Optional `cargo bench` / criterion for DSP hot paths ([#245](https://github.com/geovannimp/mixar/issues/245)).
+Root `npm` scripts / moon drive affected checks (see [`README.md`](README.md)). Rust gates typically include `cargo fmt -- --check`, `cargo clippy -- -D warnings`, and `cargo nextest run` (Rust tests run under [cargo-nextest](https://nexte.st/) — install once with `cargo install cargo-nextest --locked`; doctests are not run by nextest, use `cargo test --doc`). Prefer `backend = "null"` for headless runs. Optional `cargo bench` / criterion for DSP hot paths ([#245](https://github.com/geovannimp/mixar/issues/245)).
 
 Rules of thumb:
 

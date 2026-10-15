@@ -48,7 +48,7 @@ The main window wraps **MixarTheme** + **ShadTheme** (intentional dual bridge fr
 ## Rust tests
 
 ```sh
-cargo test --manifest-path crates/Cargo.toml -p host_flutter
+cargo nextest run --manifest-path crates/Cargo.toml -p host_flutter
 ```
 
 Uses the `null` backend (no real audio device).

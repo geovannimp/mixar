@@ -1,0 +1,15 @@
+name: Install cargo-nextest
+description: Install cargo-nextest (prebuilt release binary) for `cargo nextest run`
+runs:
+  using: composite
+  steps:
+    # Prebuilt release binary via taiki-e (vs. `cargo install`, which compiles
+    # nextest from source every run). Unpinned, matching the cargo-audit step in
+    # audit.yml — pin with `tool: cargo-nextest@X.Y.Z` if a release regresses.
+    # Single source of truth: setup-toolchains and the standalone
+    # rust-beta-audit.yml job (which cannot reuse setup-toolchains because it
+    # installs its own beta toolchain) both call this action.
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
