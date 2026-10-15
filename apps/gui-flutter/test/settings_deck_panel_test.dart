@@ -52,6 +52,16 @@ void main() {
   AppButton stepButton(WidgetTester tester, String glyph) =>
       tester.widget<AppButton>(find.widgetWithText(AppButton, glyph));
 
+  /// Scrolls an off-screen stepper button into view before tapping it; the
+  /// vinyl brake card sits below the fold in the 800x600 test viewport.
+  Future<void> tapStep(WidgetTester tester, String glyph) async {
+    final finder = find.widgetWithText(AppButton, glyph);
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(finder);
+    await tester.pump();
+  }
+
   testWidgets('stop time stepper only shows when brake is on', (tester) async {
     final l10n = lookupAppLocalizations(const Locale('en'));
 
@@ -73,6 +83,35 @@ void main() {
     );
     expect(stopTimeLabel(l10n), findsOneWidget);
     expect(find.text('0.50 s'), findsOneWidget);
+  });
+
+  testWidgets('vinyl brake renders as its own settings card', (tester) async {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+
+    await pumpDeckPanel(
+      tester,
+      draft: brakeDraft(brake: false),
+      onChanged: (_) {},
+    );
+    expect(find.text(l10n.settingsDeckVinylBrakePause), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(l10n.settingsDeckVinylBrakePauseToggle),
+      findsOneWidget,
+    );
+    expect(stopTimeLabel(l10n), findsNothing);
+
+    await pumpDeckPanel(
+      tester,
+      draft: brakeDraft(brake: true),
+      onChanged: (_) {},
+    );
+    expect(find.text(l10n.settingsDeckVinylBrakePause), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(l10n.settingsDeckVinylBrakePauseToggle),
+      findsOneWidget,
+      reason: 'brake toggle lives in the card header like mixer meters',
+    );
+    expect(stopTimeLabel(l10n), findsOneWidget);
   });
 
   testWidgets('stop time stepper buttons are labeled for screen readers', (
@@ -103,8 +142,7 @@ void main() {
       onChanged: (settings) => emitted = settings,
     );
 
-    await tester.tap(find.widgetWithText(AppButton, '+'));
-    await tester.pump();
+    await tapStep(tester, '+');
 
     expect(emitted, isNotNull);
     expect(emitted!.vinylBrakePause, isTrue);
@@ -125,8 +163,7 @@ void main() {
       isNull,
       reason: 'below 0.05 s would fail EngineConfig::validate',
     );
-    await tester.tap(find.widgetWithText(AppButton, '+'));
-    await tester.pump();
+    await tapStep(tester, '+');
     expect(emitted!.vinylBrakeStopSecs, closeTo(0.1, 1e-6));
 
     emitted = null;
@@ -140,8 +177,7 @@ void main() {
       isNull,
       reason: 'above 3.0 s would fail EngineConfig::validate',
     );
-    await tester.tap(find.widgetWithText(AppButton, '+'));
-    await tester.pump();
+    await tapStep(tester, '+');
     expect(emitted, isNull, reason: 'no emission past the ceiling');
   });
 }

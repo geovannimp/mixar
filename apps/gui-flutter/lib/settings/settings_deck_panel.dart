@@ -6,6 +6,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
@@ -103,18 +104,25 @@ class SettingsDeckPanel extends ConsumerWidget {
                       onChanged(copyAppSettings(draft, defaultKeyLock: v)),
                 ),
               ),
-              SettingsField(
-                label: l10n.settingsDeckVinylBrakePause,
-                hint: l10n.settingsDeckVinylBrakePauseHint,
-                child: SettingsToggle(
-                  label: l10n.settingsDeckVinylBrakePauseToggle,
-                  value: draft.vinylBrakePause,
-                  onChanged: (v) =>
-                      onChanged(copyAppSettings(draft, vinylBrakePause: v)),
-                ),
+            ],
+          ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsDeckVinylBrakePause,
+          subtitle: l10n.settingsDeckVinylBrakePauseHint,
+          trailing: SizedBox(
+            height: 23,
+            child: FittedBox(
+              child: MixarSwitch(
+                value: draft.vinylBrakePause,
+                semanticsLabel: l10n.settingsDeckVinylBrakePauseToggle,
+                onChanged: (v) =>
+                    onChanged(copyAppSettings(draft, vinylBrakePause: v)),
               ),
-              if (draft.vinylBrakePause)
-                SettingsField(
+            ),
+          ),
+          child: draft.vinylBrakePause
+              ? SettingsField(
                   label: l10n.settingsDeckVinylBrakeStopTime,
                   hint: l10n.settingsDeckVinylBrakeStopTimeHint,
                   child: SettingsNumericStepper(
@@ -128,9 +136,8 @@ class SettingsDeckPanel extends ConsumerWidget {
                       copyAppSettings(draft, vinylBrakeStopSecs: v),
                     ),
                   ),
-                ),
-            ],
-          ),
+                )
+              : null,
         ),
         SettingsSectionCard(
           title: l10n.settingsDeckSamplerTitle,
