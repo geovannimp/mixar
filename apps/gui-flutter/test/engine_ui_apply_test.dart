@@ -134,6 +134,66 @@ void main() {
         expect(container.read(engineUiProvider).trackIdFor(0), isNull);
       },
     );
+
+    test('position evt with null slip shadow clears the cursor', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.position,
+          deckId: 0,
+          positionMs: 1234,
+          slipShadowPositionMs: 100,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), 100);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.position,
+          deckId: 0,
+          positionMs: 1300,
+          slipShadowPositionMs: null,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), isNull);
+      expect(container.read(deckPlayheadsProvider)[0], 1300);
+    });
+
+    test('updated evt with null slip shadow clears the cursor', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          trackPath: '/a.wav',
+          trackId: 't',
+          durationMs: 8000,
+          durationKnown: true,
+          positionMs: 500,
+          slipEnabled: true,
+          slipShadowPositionMs: 400,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), 400);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          trackPath: '/a.wav',
+          trackId: 't',
+          durationMs: 8000,
+          durationKnown: true,
+          positionMs: 700,
+          slipEnabled: true,
+          slipShadowPositionMs: null,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), isNull);
+      expect(container.read(deckSlipEnabledProvider(0)), isTrue);
+    });
   });
 
   group('jogTurn paused + touching nudge', () {

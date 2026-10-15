@@ -35,7 +35,7 @@ fn null_session_with_loaded_deck() -> EngineSession {
 }
 
 #[test]
-fn set_slip_publishes_enabled_flag() {
+fn set_slip_publishes_enabled_flag_without_shadow() {
     let session = null_session_with_loaded_deck();
     let evt = session
         .evt_bus()
@@ -60,7 +60,10 @@ fn set_slip_publishes_enabled_flag() {
         panic!("expected DeckUpdated");
     };
     assert!(slip_enabled);
-    assert!(slip_shadow_position_ms.is_some());
+    assert!(
+        slip_shadow_position_ms.is_none(),
+        "enabling slip must not arm the cursor"
+    );
 }
 
 #[test]
@@ -78,23 +81,95 @@ fn exit_loop_with_slip_catches_up() {
 
     std::thread::sleep(Duration::from_millis(400));
 
+    let shadow_ms = session
+        .with_engine(|engine| Ok(engine.deck_slip_shadow_position_ms(0)))
+        .expect("readback");
+    let shadow = shadow_ms.expect("loop activation arms the slip cursor");
+
     session
         .with_engine(|engine| engine.clear_deck_loop(0))
         .expect("exit loop");
 
-    let (position_ms, shadow_ms) = session
-        .with_engine(|engine| {
-            Ok((
-                engine.deck_playback_ms(0).map(|(p, _)| p),
-                engine.deck_slip_shadow_position_ms(0),
-            ))
-        })
+    let position_ms = session
+        .with_engine(|engine| Ok(engine.deck_playback_ms(0).map(|(p, _)| p)))
         .expect("readback");
 
     let pos = position_ms.expect("position");
-    let shadow = shadow_ms.expect("shadow");
     assert!(
         (pos - shadow).abs() <= 30,
         "loop exit should catch up: pos={pos} shadow={shadow}"
     );
+    let cleared = session
+        .with_engine(|engine| Ok(engine.deck_slip_shadow_position_ms(0)))
+        .expect("readback");
+    assert!(cleared.is_none(), "exit loop must clear the slip cursor");
+}
+
+#[test]
+fn slip_shadow_publishes_only_during_a_manual_action() {
+    let session = null_session_with_loaded_deck();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .with_engine(|engine| {
+            engine.set_deck_slip(0, true)?;
+            engine.play(0)?;
+            Ok(())
+        })
+        .expect("setup");
+
+    std::thread::sleep(Duration::from_millis(300));
+
+    // Plain playback: Position ticks carry no slip cursor.
+    let position = recv_evt_kind(&evt, Kind::Position);
+    let EvtBody::Position {
+        slip_shadow_position_ms: idle,
+        ..
+    } = decode_evt_body(position.payload()).expect("decode")
+    else {
+        panic!("expected Position");
+    };
+    assert!(
+        idle.is_none(),
+        "idle playback must publish no slip cursor: {idle:?}"
+    );
+
+    // Jog touch arms the cursor …
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::JogTouch,
+            encode_cmd_body(&CmdBody::JogTouch { touching: true }).unwrap(),
+        )
+        .expect("touch");
+    let touch = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        slip_shadow_position_ms: armed,
+        ..
+    } = decode_evt_body(touch.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert!(armed.is_some(), "jog touch must arm the slip cursor");
+
+    // … and release catches up and clears it.
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::JogTouch,
+            encode_cmd_body(&CmdBody::JogTouch { touching: false }).unwrap(),
+        )
+        .expect("release");
+    let release = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        slip_shadow_position_ms: cleared,
+        ..
+    } = decode_evt_body(release.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert!(cleared.is_none(), "jog release must clear the slip cursor");
 }

@@ -250,8 +250,9 @@ impl Engine {
         if let Some(control) = self.deck_control.get_mut(deck_id) {
             control.pending_loop_in_ms = None;
         }
-        self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
+        // Seek first: the loop activation anchors the slip cursor at the in point.
         self.seek_deck(deck_id, in_ms)?;
+        self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
         self.play(deck_id)
     }
 

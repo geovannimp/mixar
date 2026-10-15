@@ -144,8 +144,10 @@ pub struct Deck {
     loop_region: Option<(f64, f64)>,
     /// Slip mode: shadow playhead keeps advancing while audible pos is looped/scratched.
     slip_enabled: bool,
-    /// Shadow source position (frames, fractional); catches up on slip exit.
-    shadow_position_frac: f64,
+    /// Slip cursor source position (frames, fractional). `Some` only while a
+    /// manual cursor action (jog scratch / loop / cue hold) is active; `None`
+    /// means no cursor — nothing is calculated or published.
+    shadow_position_frac: Option<f64>,
     /// Temporary cue point in milliseconds (source time; may be negative).
     cue_point_ms: Option<i32>,
     /// Saved transport state while cue is held (return position ms, was_playing).
@@ -211,7 +213,7 @@ impl Deck {
             key_shift_semitones: 0.0,
             loop_region: None,
             slip_enabled: false,
-            shadow_position_frac: 0.0,
+            shadow_position_frac: None,
             cue_point_ms: None,
             cue_hold_return: None,
             pending_transport: Vec::new(),
@@ -511,6 +513,9 @@ impl Deck {
         let playing = self.state == DeckState::Playing;
         self.motion
             .set_modes(jog_to_motion(top), jog_to_motion(outer), playing);
+        if self.motion.touching() {
+            self.shadow_position_frac = None;
+        }
     }
 
     pub fn set_jog_touch(&mut self, touching: bool) {
@@ -524,9 +529,18 @@ impl Deck {
             self.motion.set_touch(false, playing);
             self.catch_up_slip();
             self.motion.hard_reset_rate();
+            self.shadow_position_frac = None;
             return;
         }
         self.motion.set_touch(touching, playing);
+        if touching
+            && self.slip_enabled
+            && self.shadow_position_frac.is_none()
+            && self.motion.active_mode(playing) == MotionMode::Vinyl
+        {
+            // Slip cursor arms at scratch start; idle playback keeps none.
+            self.shadow_position_frac = Some(self.position_frac);
+        }
         // Lifting the finger off a deck paused under brake must still spin the
         // platter down; otherwise the pause that happened while holding the jog
         // cuts instantly on release.
@@ -603,6 +617,7 @@ impl Deck {
         self.cancel_brake();
         self.position_frames = frames;
         self.position_frac = frames as f64;
+        self.shadow_position_frac = None;
         self.reset_resampler_state();
         self.reset_stretcher_state();
         self.stretch_active = false;
@@ -628,8 +643,9 @@ impl Deck {
         let frames = f64::from(ms) * f64::from(audio.sample_rate) / 1000.0;
         self.position_frac = frames;
         self.position_frames = frames.floor() as i64;
-        if !self.slip_enabled || move_shadow {
-            self.shadow_position_frac = frames;
+        if move_shadow {
+            // Permanent seek: no in-flight manual action to keep a cursor for.
+            self.shadow_position_frac = None;
         }
         self.reset_resampler_state();
         self.reset_stretcher_state();
@@ -646,24 +662,32 @@ impl Deck {
             return Ok(());
         }
         self.slip_enabled = enabled;
-        if enabled {
-            self.shadow_position_frac = self.position_frac;
+        if !enabled {
+            self.shadow_position_frac = None;
         }
         Ok(())
     }
 
     pub fn shadow_position_ms(&self) -> Option<i32> {
         let audio = self.loaded.as_ref()?;
-        Some(secs_to_ms(
-            self.shadow_position_frac / f64::from(audio.sample_rate),
-        ))
+        self.shadow_position_frac
+            .map(|frac| secs_to_ms(frac / f64::from(audio.sample_rate)))
+    }
+
+    /// Arm the slip cursor at the current audible position (idempotent).
+    fn capture_slip_shadow(&mut self) {
+        if self.slip_enabled && self.shadow_position_frac.is_none() {
+            self.shadow_position_frac = Some(self.position_frac);
+        }
     }
 
     fn catch_up_slip(&mut self) {
         if !self.slip_enabled {
             return;
         }
-        let shadow = self.shadow_position_frac;
+        let Some(shadow) = self.shadow_position_frac else {
+            return;
+        };
         self.position_frac = shadow;
         self.position_frames = shadow.floor() as i64;
         self.reset_resampler_state();
@@ -673,8 +697,11 @@ impl Deck {
 
     /// Advance the slip shadow for one output buffer.
     ///
-    /// The shadow tracks the audible playhead only where the deck advances at
-    /// motor speed: normal playback (`Playing`) and a vinyl brake spin-down
+    /// The shadow advances only while a cursor is armed by an in-flight manual
+    /// action; with `None` nothing is calculated.
+    ///
+    /// Where the shadow does advance it tracks the audible playhead, which runs
+    /// at motor speed: normal playback (`Playing`) and a vinyl brake spin-down
     /// (paused but still rendering the ramping motor rate). While the user
     /// scratches, the shadow holds normal speed by design, so those paused
     /// jog-driven states deliberately do not advance it.
@@ -682,6 +709,9 @@ impl Deck {
         if !self.slip_enabled {
             return;
         }
+        let Some(shadow) = self.shadow_position_frac else {
+            return;
+        };
         // Brake renders via `play_interpolated` at `effective_speed`; mirror it
         // exactly so a spin-down cannot leave the shadow behind the playhead.
         // The rate needs no lower clamp: Pad FX envelopes and jog release ramps
@@ -698,11 +728,12 @@ impl Deck {
             return;
         };
         let src_step = rate * f64::from(audio.sample_rate) / f64::from(self.sample_rate);
-        self.shadow_position_frac += src_step * frames as f64;
+        let mut next = shadow + src_step * frames as f64;
         let total = audio.samples.len() / 2;
         if total > 0 {
-            self.shadow_position_frac = self.shadow_position_frac.min(total as f64);
+            next = next.min(total as f64);
         }
+        self.shadow_position_frac = Some(next);
     }
 
     /// Clear loaded audio and reset transport state.
@@ -718,7 +749,7 @@ impl Deck {
         self.resampler = None;
         self.loop_region = None;
         self.slip_enabled = false;
-        self.shadow_position_frac = 0.0;
+        self.shadow_position_frac = None;
         self.cue_point_ms = None;
         self.cue_hold_return = None;
         self.track_bpm = None;
@@ -746,6 +777,7 @@ impl Deck {
         let return_pos = self.position_ms().unwrap_or(0);
         let was_playing = self.state == DeckState::Playing;
         self.cue_hold_return = Some((return_pos, was_playing));
+        self.capture_slip_shadow();
         self.seek_ms_audible_only(cue_ms)?;
         self.play()?;
         Ok(())
@@ -756,8 +788,9 @@ impl Deck {
         let Some((return_pos, was_playing)) = self.cue_hold_return.take() else {
             return Ok(());
         };
-        if self.slip_enabled {
+        if self.slip_enabled && self.shadow_position_frac.is_some() {
             self.catch_up_slip();
+            self.shadow_position_frac = None;
         } else {
             self.seek_ms(return_pos)?;
         }
@@ -772,14 +805,16 @@ impl Deck {
     /// Activate a loop region from source-time milliseconds.
     /// Stores inclusive/exclusive bounds as source frames (not seconds).
     pub fn set_loop_region_ms(&mut self, in_ms: i32, out_ms: i32) -> Result<()> {
-        let audio = self
-            .loaded
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("No track loaded"))?;
+        let rate = f64::from(
+            self.loaded
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("No track loaded"))?
+                .sample_rate,
+        );
         if out_ms <= in_ms {
             return Err(anyhow::anyhow!("Loop out must be after loop in"));
         }
-        let rate = f64::from(audio.sample_rate);
+        self.capture_slip_shadow();
         let in_frames = f64::from(in_ms) * rate / 1000.0;
         let out_frames = f64::from(out_ms) * rate / 1000.0;
         self.loop_region = Some((in_frames, out_frames));
@@ -790,6 +825,7 @@ impl Deck {
     pub fn clear_loop(&mut self) {
         if self.slip_enabled && self.loop_region.is_some() {
             self.catch_up_slip();
+            self.shadow_position_frac = None;
         }
         self.loop_region = None;
     }
@@ -874,7 +910,7 @@ impl Deck {
         self.position_frac = 0.0;
         self.loop_region = None;
         self.slip_enabled = false;
-        self.shadow_position_frac = 0.0;
+        self.shadow_position_frac = None;
         self.cue_point_ms = Some(0);
         self.cue_hold_return = None;
         self.loaded = Some(audio);
@@ -2375,6 +2411,10 @@ mod tests {
             (after - shadow_before).abs() <= 5,
             "exit loop should catch up: after={after} shadow={shadow_before}"
         );
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "exit loop must clear the slip cursor"
+        );
     }
 
     #[test]
@@ -2388,6 +2428,10 @@ mod tests {
         }
         let start = deck.position_ms().unwrap();
         deck.set_jog_touch(true);
+        assert!(
+            (deck.shadow_position_ms().unwrap() - start).abs() <= 5,
+            "jog touch must arm the slip cursor at the playhead"
+        );
         for _ in 0..30 {
             deck.jog_turn(-10);
             deck.process(CHUNK).unwrap();
@@ -2407,6 +2451,97 @@ mod tests {
         assert!(
             (after - shadow).abs() <= 10,
             "scratch release should catch up: after={after} shadow={shadow}"
+        );
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "scratch release must clear the slip cursor"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_stays_none_until_a_manual_action_starts() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "enabling slip must not arm the cursor"
+        );
+        deck.play().unwrap();
+        for _ in 0..50 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "plain playback must not calculate the slip cursor"
+        );
+        let pos = deck.position_ms().unwrap();
+        deck.seek_ms(pos + 100).unwrap();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "permanent seek must not arm the cursor"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_captures_at_loop_and_survives_only_until_exit() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        assert!(deck.shadow_position_ms().is_some());
+        deck.seek_ms(in_ms + 2000).unwrap();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "permanent seek must drop the cursor"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_captures_at_cue_hold_and_clears_on_release() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let hold_start = deck.position_ms().unwrap();
+        deck.set_cue_point_ms(hold_start + 1000).unwrap();
+        deck.begin_cue_hold().unwrap();
+        let shadow = deck
+            .shadow_position_ms()
+            .expect("cue hold must arm the slip cursor");
+        assert!(
+            (shadow - hold_start).abs() <= 5,
+            "cursor must capture the pre-hold position: {shadow} vs {hold_start}"
+        );
+        assert!(
+            deck.position_ms().unwrap() >= hold_start + 900,
+            "audible must jump to the cue"
+        );
+        for _ in 0..20 {
+            deck.process(CHUNK).unwrap();
+        }
+        let advanced = deck.shadow_position_ms().unwrap();
+        assert!(
+            advanced > shadow + 5,
+            "cursor must keep advancing during the hold: {shadow} -> {advanced}"
+        );
+        deck.end_cue_hold().unwrap();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "cue-hold release must clear the cursor"
+        );
+        let after = deck.position_ms().unwrap();
+        assert!(
+            (after - advanced).abs() <= 10,
+            "release must catch up: {after} vs {advanced}"
         );
     }
 
@@ -2722,6 +2857,12 @@ mod tests {
     fn slip_shadow_tracks_audible_through_brake_spin_down() {
         let mut deck = brake_test_deck();
         deck.set_slip_enabled(true).unwrap();
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 2000).unwrap();
+        assert!(
+            deck.shadow_position_ms().is_some(),
+            "loop activation must arm the slip cursor"
+        );
         let before = deck.position_ms().unwrap();
         deck.pause().unwrap();
         assert!(deck.brake.is_some(), "brake must spin down on pause");
@@ -2731,12 +2872,17 @@ mod tests {
         let audible = deck.position_ms().unwrap();
         let shadow = deck.shadow_position_ms().unwrap();
         assert!(
-            audible > before,
+            audible != before,
             "brake must still advance the playhead: before={before} audible={audible}"
         );
         assert!(
             (audible - shadow).abs() <= 5,
             "slip shadow must track the braked playhead: audible={audible} shadow={shadow}"
+        );
+        deck.clear_loop();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "loop exit must clear the slip cursor"
         );
     }
 
@@ -2744,6 +2890,8 @@ mod tests {
     fn slip_shadow_does_not_drift_after_repeated_braked_stops() {
         let mut deck = brake_test_deck();
         deck.set_slip_enabled(true).unwrap();
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 2000).unwrap();
         for _ in 0..3 {
             deck.pause().unwrap();
             assert!(deck.brake.is_some());
@@ -2755,12 +2903,16 @@ mod tests {
                 deck.process(CHUNK).unwrap();
             }
         }
+        let shadow = deck
+            .shadow_position_ms()
+            .expect("loop keeps the slip cursor armed");
+        deck.clear_loop();
         let audible = deck.position_ms().unwrap();
-        let shadow = deck.shadow_position_ms().unwrap();
         assert!(
             (audible - shadow).abs() <= 5,
             "repeated stops must not leave the shadow behind: audible={audible} shadow={shadow}"
         );
+        assert!(deck.shadow_position_ms().is_none());
     }
 
     #[test]
@@ -2769,6 +2921,8 @@ mod tests {
         // Headroom so the negative ramp stays inside the track.
         deck.seek_ms(3500).unwrap();
         deck.set_slip_enabled(true).unwrap();
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
         // A Pad FX envelope is the reachable source of a negative motor rate.
         deck.set_motion_envelope_rate(Some(-1.5));
         deck.pause().unwrap();
@@ -2778,7 +2932,9 @@ mod tests {
             deck.jog_rate()
         );
         let before_pos = deck.position_frac;
-        let before_shadow = deck.shadow_position_frac;
+        let before_shadow = deck
+            .shadow_position_frac
+            .expect("loop activation must arm the slip cursor");
         while deck.brake.is_some() {
             deck.process(CHUNK).unwrap();
         }
@@ -2787,16 +2943,18 @@ mod tests {
             "negative brake must pull the playhead backward: {before_pos} -> {}",
             deck.position_frac
         );
+        let after_shadow = deck.shadow_position_frac.expect("cursor still armed");
         assert!(
-            deck.shadow_position_frac < before_shadow,
-            "shadow must follow the playhead backward: {before_shadow} -> {}",
-            deck.shadow_position_frac
+            after_shadow < before_shadow,
+            "shadow must follow the playhead backward: {before_shadow} -> {after_shadow}"
         );
         let audible_delta = deck.position_frac - before_pos;
-        let shadow_delta = deck.shadow_position_frac - before_shadow;
+        let shadow_delta = after_shadow - before_shadow;
         assert!(
             (audible_delta - shadow_delta).abs() < 1.0,
             "shadow must track audible within a frame: audible={audible_delta} shadow={shadow_delta}"
         );
+        deck.clear_loop();
+        assert!(deck.shadow_position_frac.is_none());
     }
 }

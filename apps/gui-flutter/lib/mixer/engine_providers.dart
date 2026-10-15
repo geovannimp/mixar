@@ -38,8 +38,12 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
         ref.read(deckPlayheadsProvider.notifier).put(id, ms);
       }
       final shadow = evt.slipShadowPositionMs;
-      if (id != null && shadow != null) {
-        ref.read(deckSlipShadowsProvider.notifier).put(id, shadow);
+      if (id != null) {
+        if (shadow != null) {
+          ref.read(deckSlipShadowsProvider.notifier).put(id, shadow);
+        } else {
+          ref.read(deckSlipShadowsProvider.notifier).remove(id);
+        }
       }
       return;
     }
@@ -57,6 +61,8 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
         ref
             .read(deckSlipShadowsProvider.notifier)
             .put(id, evt.slipShadowPositionMs!);
+      } else {
+        ref.read(deckSlipShadowsProvider.notifier).remove(id);
       }
       // External absolute state supersedes in-flight optimistic ownership.
       if (evt.playing != null) {
