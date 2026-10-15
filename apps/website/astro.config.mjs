@@ -3,6 +3,7 @@ import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import posthogRollup from "@posthog/rollup-plugin";
+import trailingSlashRedirects from "./integrations/trailing-slash-redirects.ts";
 
 // Source map upload needs a *personal* API key, which only CI has — the public
 // `phc_` project token used by the browser cannot write symbol sets. Without
@@ -17,12 +18,14 @@ export default defineConfig({
   // (no 301 into trailing-slash form); sitemap + canonicals stay as authored.
   trailingSlash: "never",
   // `directory` output would still be 301'd to a trailing slash by Pages; `file`
-  // emits `foo.html`, which Pages resolves directly at `/foo`.
+  // emits `foo.html`, which Pages resolves directly at `/foo`. The integration
+  // below re-adds a redirect stub at each `/foo/` so pre-existing slash URLs
+  // (old sitemap, bookmarks, inbound links) keep working.
   build: {
     format: "file",
   },
   outDir: "dist",
-  integrations: [mdx(), sitemap()],
+  integrations: [mdx(), sitemap(), trailingSlashRedirects()],
   markdown: {
     // Dual themes emit both `--shiki-light*` and `--shiki-dark*` custom
     // properties; the dark set is activated from DocsLayout because Astro does
