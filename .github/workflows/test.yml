@@ -29,6 +29,15 @@ jobs:
       - name: Setup toolchains
         uses: ./.github/actions/setup-toolchains
 
+      # Only this workflow runs the Rust tests that need nextest (via
+      # `npm run test` -> moon `rust:test`), so the install lives here rather than
+      # in the shared setup-toolchains action that the audit/build/lint/release
+      # jobs also consume — those jobs execute a third-party binary for no reason
+      # otherwise. Same action the standalone rust-beta-audit.yml job uses, so
+      # the tool/version stays in one place.
+      - name: Install cargo-nextest
+        uses: ./.github/actions/install-nextest
+
       - name: Install native deps
         uses: ./.github/actions/install-native-deps
 

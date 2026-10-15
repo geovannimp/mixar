@@ -9,9 +9,6 @@ runs:
       with:
         cache: true
 
-    - name: Install cargo-nextest
-      uses: ./.github/actions/install-nextest
-
     - name: Cache npm
       uses: actions/cache@v6
       with:
