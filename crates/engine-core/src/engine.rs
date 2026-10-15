@@ -195,11 +195,13 @@ impl Engine {
 
         // Index 0 is the pacing ("master clock") device: `resolve_device_stream_plans` sorts a
         // master-hosting plan first when one exists, so the producer paces off its callback.
-        let pacing_callback_count = Arc::clone(&device_streams[0].callback_count);
+        let callback_counts: Vec<Arc<AtomicU64>> = device_streams
+            .iter()
+            .map(|setup| Arc::clone(&setup.callback_count))
+            .collect();
         let pacing_callback_frames_atomic = device_streams[0].callback_frames_atomic.clone();
         let pacing_sample_rate = device_streams[0].sample_rate;
         let pacing_buffer_size = device_streams[0].buffer_size;
-        let pacing_ring_buffer_capacity = device_streams[0].ring_buffer_capacity;
 
         let mut streams = Vec::with_capacity(device_streams.len());
         let mut device_producers = Vec::with_capacity(device_streams.len());
@@ -212,9 +214,8 @@ impl Engine {
             device_producers,
             pacing_sample_rate,
             pacing_buffer_size,
-            pacing_ring_buffer_capacity,
             pacing_callback_frames_atomic.clone(),
-            pacing_callback_count,
+            callback_counts,
         ) {
             Ok(thread) => thread,
             Err(e) => {
@@ -251,7 +252,7 @@ impl Engine {
 
         let mut device_streams = Vec::with_capacity(plans.len());
         for plan in plans {
-            let (producer, consumer, ring_buffer_capacity) =
+            let (producer, consumer) =
                 create_device_ring_buffer(self.config.buffer_size, plan.channels);
 
             let callback_count = Arc::new(AtomicU64::new(0));
@@ -311,7 +312,6 @@ impl Engine {
                 callback_frames_atomic,
                 sample_rate,
                 buffer_size,
-                ring_buffer_capacity,
             });
         }
 
@@ -329,9 +329,8 @@ impl Engine {
         device_producers: Vec<(DeviceStreamPlan, Producer<Sample>)>,
         sample_rate: u32,
         buffer_size: usize,
-        ring_buffer_capacity: usize,
         callback_frames_atomic: Option<Arc<AtomicU32>>,
-        callback_count: Arc<AtomicU64>,
+        callback_counts: Vec<Arc<AtomicU64>>,
     ) -> Result<JoinHandle<()>> {
         let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
             sample_rate,
@@ -365,9 +364,8 @@ impl Engine {
                 running,
                 sample_rate,
                 buffer_size,
-                ring_buffer_capacity,
                 callback_frames_atomic,
-                callback_count,
+                callback_counts,
                 transport_events,
             );
         });
