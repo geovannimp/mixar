@@ -10,6 +10,11 @@ use std::borrow::Cow;
 
 use crate::decode::DecodedMono;
 
+/// Backends require PCM that fits the ±1.0 encode range; see
+/// `docs/audio-analyzer-spec.md` §7. Up to and including this value the buffer
+/// is left untouched, which is the common case.
+pub const PEAK_NORMALIZE_THRESHOLD: f32 = 1.0;
+
 /// PCM that is ready to hand to a backend.
 pub struct PreparedPcm<'a> {
     /// Mono samples, scaled down when the peak exceeded `±1.0`.
@@ -18,17 +23,15 @@ pub struct PreparedPcm<'a> {
     pub sample_rate: u32,
 }
 
-/// Prepare PCM that the caller owns, using the peak the decoder already measured.
+/// Prepare PCM that the caller owns.
 ///
-/// The decode stage averages the channels as it goes, so it can track the peak
-/// of the mono buffer in the same pass. Handing that peak in here avoids a
-/// second full read of the buffer just to recompute it.
-///
-/// Returns the buffer unchanged when it already fits `±1.0`, so only buffers
-/// that actually exceed the range pay for a rescale.
+/// The decoder hands this crate a freshly allocated mono buffer nobody else
+/// holds a reference to, so normalization can happen in place: no copy of the
+/// whole track, and only buffers that actually exceed `±1.0` pay for a pass.
+/// Returns the buffer unchanged when it already fits.
 pub fn prepare_owned(decoded: DecodedMono) -> PreparedPcm<'static> {
     let mut samples = decoded.samples;
-    scale_down(&mut samples, decoded.peak);
+    peak_normalize(&mut samples);
     PreparedPcm {
         samples: Cow::Owned(samples),
         sample_rate: decoded.sample_rate,
@@ -37,23 +40,22 @@ pub fn prepare_owned(decoded: DecodedMono) -> PreparedPcm<'static> {
 
 /// Prepare PCM the caller only borrowed.
 ///
-/// Copies, then applies the same policy as [`prepare_owned`]. The copy is
-/// avoided when the peak already fits `±1.0`, which is the common case for PCM
-/// a caller has already normalized or decoded in range.
+/// Applies the same policy as [`prepare_owned`]. The copy is avoided when the
+/// peak already fits `±1.0`, which is the common case for PCM a caller has
+/// already normalized or decoded in range.
 pub fn prepare<'a>(
     samples: &'a [f32],
     sample_rate: u32,
     _config: &AnalysisConfig,
 ) -> PreparedPcm<'a> {
-    let peak = peak_of(samples);
-    if peak <= 1.0 {
+    if peak_of(samples) <= PEAK_NORMALIZE_THRESHOLD {
         return PreparedPcm {
             samples: Cow::Borrowed(samples),
             sample_rate,
         };
     }
     let mut owned = samples.to_vec();
-    scale_down(&mut owned, peak);
+    peak_normalize(&mut owned);
     PreparedPcm {
         samples: Cow::Owned(owned),
         sample_rate,
@@ -89,12 +91,21 @@ pub fn peak_of(samples: &[f32]) -> f32 {
     peak
 }
 
+/// Scale `samples` in place so its peak is exactly [`PEAK_NORMALIZE_THRESHOLD`].
+///
+/// No-op when the peak is already within range.
+pub fn peak_normalize(samples: &mut [f32]) -> f32 {
+    let peak = peak_of(samples);
+    scale_down(samples, peak);
+    peak
+}
+
 /// Scale `samples` in place so the peak is exactly `1.0`.
 ///
 /// No-op when `peak <= 1.0`. `peak` must be the buffer's actual peak, i.e. the
 /// value [`peak_of`] reports for the same contents.
 fn scale_down(samples: &mut [f32], peak: f32) {
-    if peak > 1.0 {
+    if peak > PEAK_NORMALIZE_THRESHOLD {
         let scale = 1.0 / peak;
         for s in samples {
             *s *= scale;

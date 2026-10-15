@@ -7,8 +7,6 @@
 
 use std::path::Path;
 
-use crate::preprocess::peak_of;
-
 use analyzer_core::AnalysisConfig;
 use anyhow::Result;
 use codec::AudioDecoder;
@@ -20,11 +18,6 @@ pub struct DecodedMono {
     pub samples: Vec<f32>,
     /// Sample rate the samples were decoded at (the file's native rate).
     pub sample_rate: u32,
-    /// Largest absolute value in `samples`, or `0.0` when it is empty.
-    ///
-    /// Measured while the channels were averaged, so the preprocess stage does
-    /// not have to walk the buffer again to find it.
-    pub peak: f32,
 }
 
 /// Frames pulled from the decoder per read.
@@ -33,12 +26,11 @@ pub struct DecodedMono {
 /// interleaved scratch stays in L2 while it is being averaged into the output.
 const DECODE_CHUNK_FRAMES: usize = 8192;
 
-/// Decodes `path` into `mono`, honouring the length cap in `config`.
+/// Decode `path` to mono f32, honouring the length cap in `config`.
 ///
 /// The decoder is read one chunk at a time and each chunk is averaged into the
 /// output as it arrives, so the interleaved samples are never all resident at
-/// once — only the mono result is. `peak` accumulates over the same values the
-/// averaging produces.
+/// once — only the mono result is.
 ///
 /// # Errors
 ///
@@ -58,7 +50,6 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
     // up front, so the vector grows geometrically.
     let mut mono = Vec::with_capacity(max_frames.unwrap_or(0));
     let mut chunk = vec![0.0f32; DECODE_CHUNK_FRAMES * channels];
-    let mut peak: f32 = 0.0;
 
     while max_frames.is_none_or(|limit| mono.len() < limit) {
         let read = decoder.read_frames(&mut chunk)?;
@@ -73,9 +64,7 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
         if room == 0 {
             break;
         }
-        let usable = &chunk[..room * channels];
-        mono.reserve(room);
-        downmix_append(&mut mono, usable, channels, &mut peak);
+        downmix_append(&mut mono, &chunk[..room * channels], channels);
     }
 
     debug_assert!(max_frames.is_none_or(|limit| mono.len() <= limit));
@@ -83,28 +72,23 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
     Ok(DecodedMono {
         samples: mono,
         sample_rate,
-        peak,
     })
 }
 
-/// Average `interleaved` into `mono`, tracking the largest absolute result.
+/// Average `interleaved` into `mono`.
 ///
-/// `interleaved` must contain `channels * n` samples. This is the streaming
-/// form of [`downmix_to_mono`]; the arithmetic per frame is identical. The peak
-/// is taken over the frames this call just wrote, which is the same value a
-/// separate pass over the finished buffer would find, but stays in cache.
-fn downmix_append(mono: &mut Vec<f32>, interleaved: &[f32], channels: usize, peak: &mut f32) {
-    let start = mono.len();
+/// `interleaved` must contain a whole number of frames. This is the streaming
+/// form of [`downmix_to_mono`]; the arithmetic per frame is identical.
+fn downmix_append(mono: &mut Vec<f32>, interleaved: &[f32], channels: usize) {
     if channels <= 1 {
         mono.extend_from_slice(interleaved);
-    } else {
-        let divisor = channels as f32;
-        for frame in interleaved.chunks_exact(channels) {
-            let sum: f32 = frame.iter().copied().sum();
-            mono.push(sum / divisor);
-        }
+        return;
     }
-    *peak = peak.max(peak_of(&mono[start..]));
+    let divisor = channels as f32;
+    for frame in interleaved.chunks_exact(channels) {
+        let sum: f32 = frame.iter().copied().sum();
+        mono.push(sum / divisor);
+    }
 }
 
 /// Average the channels of `interleaved` down to one sample per frame.
@@ -203,20 +187,12 @@ mod tests {
             // must not depend on where the decoder's reads happen to land.
             for chunk_frames in [1usize, 7, 8192, DECODE_CHUNK_FRAMES] {
                 let mut streamed = Vec::new();
-                let mut peak = 0.0f32;
                 for piece in interleaved.chunks(chunk_frames * channels) {
-                    downmix_append(&mut streamed, piece, channels, &mut peak);
+                    downmix_append(&mut streamed, piece, channels);
                 }
                 assert_eq!(
                     streamed, expected,
                     "channels={channels} chunk_frames={chunk_frames} diverged"
-                );
-
-                // Peak is over the same values, so it is independent of chunking.
-                let expected_peak = crate::preprocess::peak_of(&expected);
-                assert!(
-                    (peak - expected_peak).abs() <= f32::EPSILON * expected_peak.abs(),
-                    "channels={channels} chunk_frames={chunk_frames} peak {peak} != {expected_peak}"
                 );
             }
         }
@@ -275,13 +251,6 @@ mod tests {
         let decoded = decode_mono(&wav, &config).unwrap();
         let expected = (f64::from(2500) / 1000.0 * 44100.0).ceil() as usize;
         assert_eq!(decoded.samples.len(), expected);
-        assert_eq!(
-            decoded.peak,
-            decoded
-                .samples
-                .iter()
-                .fold(0.0f32, |peak, sample| peak.max(sample.abs()))
-        );
     }
 
     #[test]
@@ -309,6 +278,5 @@ mod tests {
         for (index, &sample) in decoded.samples.iter().enumerate() {
             assert!(sample == (index % 200) as f32 / 32768.0);
         }
-        assert!(decoded.peak > 0.0);
     }
 }
