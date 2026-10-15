@@ -671,15 +671,31 @@ impl Deck {
         self.stretch_active = false;
     }
 
+    /// Advance the slip shadow for one output buffer.
+    ///
+    /// The shadow tracks the audible playhead only where the deck advances at
+    /// motor speed: normal playback (`Playing`) and a vinyl brake spin-down
+    /// (paused but still rendering the ramping motor rate). While the user
+    /// scratches, the shadow holds normal speed by design, so those paused
+    /// jog-driven states deliberately do not advance it.
     fn advance_slip_shadow(&mut self, frames: usize) {
-        if !self.slip_enabled || self.state != DeckState::Playing {
+        if !self.slip_enabled {
             return;
         }
+        // Brake renders via `play_interpolated` at `effective_speed`; mirror it
+        // exactly so a spin-down cannot leave the shadow behind the playhead.
+        // No clamping: a negative ramp moves both positions backward together.
+        let rate = if self.brake.is_some() {
+            f64::from(self.effective_speed())
+        } else if self.state == DeckState::Playing {
+            f64::from(self.playback_ratio().max(0.01))
+        } else {
+            return;
+        };
         let Some(audio) = self.loaded.as_ref() else {
             return;
         };
-        let src_step = f64::from(self.playback_ratio().max(0.01)) * f64::from(audio.sample_rate)
-            / f64::from(self.sample_rate);
+        let src_step = rate * f64::from(audio.sample_rate) / f64::from(self.sample_rate);
         self.shadow_position_frac += src_step * frames as f64;
         let total = audio.samples.len() / 2;
         if total > 0 {
@@ -2697,6 +2713,51 @@ mod tests {
         assert!(
             rates.last().copied().unwrap_or(1.0) < 0.75,
             "a rendered block must already be spinning down, got {rates:?}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_tracks_audible_through_brake_spin_down() {
+        let mut deck = brake_test_deck();
+        deck.set_slip_enabled(true).unwrap();
+        let before = deck.position_ms().unwrap();
+        deck.pause().unwrap();
+        assert!(deck.brake.is_some(), "brake must spin down on pause");
+        while deck.brake.is_some() {
+            deck.process(CHUNK).unwrap();
+        }
+        let audible = deck.position_ms().unwrap();
+        let shadow = deck.shadow_position_ms().unwrap();
+        assert!(
+            audible > before,
+            "brake must still advance the playhead: before={before} audible={audible}"
+        );
+        assert!(
+            (audible - shadow).abs() <= 5,
+            "slip shadow must track the braked playhead: audible={audible} shadow={shadow}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_does_not_drift_after_repeated_braked_stops() {
+        let mut deck = brake_test_deck();
+        deck.set_slip_enabled(true).unwrap();
+        for _ in 0..3 {
+            deck.pause().unwrap();
+            assert!(deck.brake.is_some());
+            while deck.brake.is_some() {
+                deck.process(CHUNK).unwrap();
+            }
+            deck.play().unwrap();
+            for _ in 0..4 {
+                deck.process(CHUNK).unwrap();
+            }
+        }
+        let audible = deck.position_ms().unwrap();
+        let shadow = deck.shadow_position_ms().unwrap();
+        assert!(
+            (audible - shadow).abs() <= 5,
+            "repeated stops must not leave the shadow behind: audible={audible} shadow={shadow}"
         );
     }
 }
