@@ -62,12 +62,12 @@ impl DetectionFunction {
     /// Process one windowed frame (length `frame_length`) and return the
     /// complex-domain detection value.
     pub fn process_time_domain(&mut self, samples: &[f64]) -> f64 {
-        for i in 0..self.n {
-            self.time[i] = samples[i] * self.window[i];
-        }
         let hs = self.n / 2;
         for i in 0..hs {
-            self.time.swap(i, i + hs);
+            let lo = samples[i] * self.window[i];
+            let hi = samples[i + hs] * self.window[i + hs];
+            self.time[i] = hi;
+            self.time[i + hs] = lo;
         }
         self.fft.forward(&mut self.time, &mut self.re, &mut self.im);
 
