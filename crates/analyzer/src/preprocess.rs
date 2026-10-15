@@ -13,7 +13,7 @@ use crate::decode::DecodedMono;
 /// Backends require PCM that fits the ±1.0 encode range; see
 /// `docs/audio-analyzer-spec.md` §7. Up to and including this value the buffer
 /// is left untouched, which is the common case.
-pub const PEAK_NORMALIZE_THRESHOLD: f32 = 1.0;
+const PEAK_NORMALIZE_THRESHOLD: f32 = 1.0;
 
 /// PCM that is ready to hand to a backend.
 pub struct PreparedPcm<'a> {
@@ -42,8 +42,9 @@ pub fn prepare_owned(decoded: DecodedMono) -> PreparedPcm<'static> {
 ///
 /// Applies the same policy as [`prepare_owned`]. The copy is avoided when the
 /// peak already fits `±1.0`, which is the common case for PCM a caller has
-/// already normalized or decoded in range. When it does not, the rescale is
-/// folded into the copy so the buffer is read once rather than three times.
+/// already normalized or decoded in range. When it does not, the buffer is
+/// scanned twice — once for the peak, once to collect the scaled copy — rather
+/// than three times (copy, scan, scale) as before.
 pub fn prepare<'a>(
     samples: &'a [f32],
     sample_rate: u32,
@@ -71,7 +72,7 @@ pub fn prepare<'a>(
 /// associative, and `0.0` is the identity for the non-negative values being
 /// combined, so the result is bit-identical to a plain left-to-right fold —
 /// including for NaN inputs, which `max` skips over.
-pub fn peak_of(samples: &[f32]) -> f32 {
+fn peak_of(samples: &[f32]) -> f32 {
     /// Samples folded per lane update: one AVX2 `f32x8` register.
     const LANES: usize = 8;
 
@@ -95,7 +96,7 @@ pub fn peak_of(samples: &[f32]) -> f32 {
 /// Scale `samples` in place so its peak is exactly [`PEAK_NORMALIZE_THRESHOLD`].
 ///
 /// No-op when the peak is already within range.
-pub fn peak_normalize(samples: &mut [f32]) -> f32 {
+fn peak_normalize(samples: &mut [f32]) -> f32 {
     let peak = peak_of(samples);
     scale_down(samples, peak);
     peak

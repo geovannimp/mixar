@@ -6,8 +6,8 @@
 //! so a change can be compared by the high-water mark it leaves behind rather
 //! than by an aggregate statistic.
 //!
-//! Run with: `cargo bench -p analyzer --bench memory -- --nocapture` (the report
-//! goes to stdout; the `--nocapture` flag keeps `cargo` from swallowing it).
+//! Run with: `cargo bench -p analyzer --bench memory` (the report goes to
+//! stdout; no criterion arguments are parsed here).
 //!
 //! Page cache is warm, matching the timing benchmarks in `analysis.rs`.
 
@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use analyzer::decode_mono;
 use analyzer::{analyze_file, AnalysisConfig};
 
-/// Real 386.7 s stereo 44.1 kHz master (see `samples/README.md`).
+/// Real 387.1 s stereo 24-bit 44.1 kHz master (see `samples/README.md`).
 const MASTER: &str = "Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav";
 /// `AnalysisDurationMode::Precise` on a real track.
 const PRECISE_MS: i32 = 193_000;
@@ -26,10 +26,18 @@ const FAST_MS: i32 = 30_000;
 /// confirm it is reached by the first pass.
 const REPEATS: usize = 3;
 
-fn sample(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
+/// A fixture inside the repo-root `samples/` tree, or `None` with a printed
+/// reason. See `analysis.rs` for why this is a skip, not a panic.
+fn fixture(name: &str) -> Option<PathBuf> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../samples")
-        .join(name)
+        .join(name);
+    if path.is_file() {
+        Some(path)
+    } else {
+        println!("skipping bench: fixture {} not found", path.display());
+        None
+    }
 }
 
 fn config_for(max_duration_ms: Option<i32>) -> AnalysisConfig {
@@ -71,7 +79,9 @@ fn scenario(name: &str, mut run: impl FnMut()) {
 }
 
 fn main() {
-    let master = sample(MASTER);
+    let Some(master) = fixture(MASTER) else {
+        return;
+    };
 
     scenario("decode_mono/complete/stereo_44k", || {
         decode_mono(&master, &config_for(None)).unwrap();
