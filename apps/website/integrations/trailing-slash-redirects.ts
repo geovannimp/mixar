@@ -8,6 +8,9 @@ import type { AstroIntegration } from "astro";
  * `foo/index.html`, so every previously canonical trailing-slash URL would
  * 404. This integration writes a redirect stub at each trailing-slash path:
  * a meta refresh plus a canonical link pointing at the slashless URL.
+ *
+ * Stub writing is best-effort: a failure logs a warning instead of aborting the
+ * build, so a dist problem can never fail the whole site build.
  */
 export default function trailingSlashRedirects(): AstroIntegration {
   let site: string | undefined;
@@ -20,7 +23,16 @@ export default function trailingSlashRedirects(): AstroIntegration {
       },
       "astro:build:done": async ({ dir, logger }) => {
         const outDir = dir.pathname;
-        const pages = await htmlPages(outDir);
+        let pages: string[];
+        try {
+          pages = await htmlPages(outDir);
+        } catch (error) {
+          logger.warn(`trailing-slash redirects: could not scan ${outDir} (${error}); skipping`);
+          return;
+        }
+        if (pages.length === 0) {
+          logger.warn(`trailing-slash redirects: no pages in ${outDir}; stubs not written`);
+        }
         let written = 0;
         for (const page of pages) {
           const route = relative(outDir, page).replace(/\.html$/, "");
@@ -34,9 +46,13 @@ export default function trailingSlashRedirects(): AstroIntegration {
           }
           // Never clobber a real page (e.g. if the format changes back).
           if (hasStub) continue;
-          await mkdir(dirname(stub), { recursive: true });
-          await writeFile(stub, stubPage(`/${route}`, site));
-          written += 1;
+          try {
+            await mkdir(dirname(stub), { recursive: true });
+            await writeFile(stub, stubPage(`/${route}`, site));
+            written += 1;
+          } catch (error) {
+            logger.warn(`trailing-slash redirects: could not write ${stub} (${error})`);
+          }
         }
         logger.info(`trailing-slash redirects: ${written} stub(s) beside ${pages.length} page(s)`);
       },
@@ -44,38 +60,52 @@ export default function trailingSlashRedirects(): AstroIntegration {
   };
 }
 
-/** Every emitted `*.html` except index and 404 pages. */
 async function htmlPages(outDir: string): Promise<string[]> {
   const out: string[] = [];
   const walk = async (current: string): Promise<void> => {
     const entries = await readdir(current, { withFileTypes: true });
+    const subdirs: string[] = [];
     for (const entry of entries) {
       const path = join(current, entry.name);
       if (entry.isDirectory()) {
-        await walk(path);
+        subdirs.push(path);
         continue;
       }
+      // With `format: "file"` every page emits `<route>.html`, so only the root
+      // `index.html` (and 404) is an actual index page — nested "index" pages
+      // like `docs.html` do get a stub at `docs/index.html`.
       if (!entry.name.endsWith(".html") || entry.name === "index.html" || entry.name === "404.html")
         continue;
       out.push(path);
     }
+    await Promise.all(subdirs.map(walk));
   };
   await walk(outDir);
   return out;
 }
 
+/** Routes are file-system derived, so escape before interpolating into HTML. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function stubPage(slashless: string, site: string | undefined): string {
-  const canonical = site ? `${site.replace(/\/$/, "")}${slashless}` : slashless;
+  const escaped = escapeHtml(slashless);
+  const canonical = escapeHtml(site ? `${site.replace(/\/$/, "")}${slashless}` : slashless);
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="refresh" content="0; url=${slashless}">
+    <meta http-equiv="refresh" content="0; url=${escaped}">
     <link rel="canonical" href="${canonical}">
     <title>Redirecting…</title>
   </head>
   <body>
-    <a href="${slashless}">Redirecting…</a>
+    <a href="${escaped}">Redirecting…</a>
   </body>
 </html>
 `;
