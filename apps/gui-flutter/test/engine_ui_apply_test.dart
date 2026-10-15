@@ -139,6 +139,17 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final ui = container.read(engineUiProvider.notifier);
+      // Boundary: a null shadow before any set removes a non-existent key.
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.position,
+          deckId: 0,
+          positionMs: 1000,
+          slipShadowPositionMs: null,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), isNull);
+      expect(container.read(deckSlipShadowsProvider), isEmpty);
       ui.apply(
         const EngineEvt(
           kind: EngineEvtKind.position,
@@ -175,6 +186,22 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final ui = container.read(engineUiProvider.notifier);
+      // Boundary: a null shadow before any set removes a non-existent key.
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          trackPath: '/a.wav',
+          trackId: 't',
+          durationMs: 8000,
+          durationKnown: true,
+          positionMs: 100,
+          slipEnabled: true,
+          slipShadowPositionMs: null,
+        ),
+      );
+      expect(container.read(deckSlipShadowMsProvider(0)), isNull);
+      expect(container.read(deckSlipShadowsProvider), isEmpty);
       ui.apply(
         const EngineEvt(
           kind: EngineEvtKind.updated,

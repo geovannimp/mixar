@@ -369,7 +369,15 @@ impl Deck {
             self.state
         );
         self.cancel_brake();
+        let resuming = self.state == DeckState::Stopped;
         self.state = DeckState::Playing;
+        if resuming {
+            // `stop()` resets the playhead to 0 while leaving the cursor anchored
+            // at the pre-stop position, so drop it and let the re-arm below
+            // re-anchor any in-flight action from the reset position instead of
+            // catching up by the pre-stop offset.
+            self.shadow_position_frac = None;
+        }
         // A paused deck holds no cursor (see `rearm_slip_shadow`), so an action
         // that was in flight across a pause must re-arm on resume or its exit
         // catch-up would no-op once the deck plays again.
@@ -706,7 +714,15 @@ impl Deck {
     }
 
     /// Arm the slip cursor at the current audible position (idempotent).
+    ///
+    /// Only arms while the cursor can advance — the same can-advance guard
+    /// `rearm_slip_shadow` uses. A fully paused deck would freeze the anchor
+    /// while a scratch keeps moving the playhead, so the next catch-up would
+    /// snap the scratch back to it.
     fn capture_slip_shadow(&mut self) {
+        if self.state != DeckState::Playing && self.brake.is_none() {
+            return;
+        }
         if self.slip_enabled && self.shadow_position_frac.is_none() {
             self.shadow_position_frac = Some(self.position_frac);
         }
@@ -2779,6 +2795,99 @@ mod tests {
         assert!(
             (audible - armed).abs() <= 30,
             "loop exit must still catch up: audible={audible} armed={armed}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_reanchors_after_stop_and_play() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 48_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        // `stop()` resets the playhead while leaving the cursor anchored.
+        deck.stop().unwrap();
+        assert_eq!(deck.position_ms().unwrap(), 0);
+        // Resuming must drop that stale anchor and re-anchor the still-active
+        // loop from the reset position, not catch up by the pre-stop offset.
+        deck.play().unwrap();
+        let rearmed = deck
+            .shadow_position_ms()
+            .expect("resume re-arms the loop's cursor");
+        assert!(
+            rearmed.abs() <= 5,
+            "re-anchored at the reset playhead: {rearmed}"
+        );
+        for _ in 0..20 {
+            deck.process(CHUNK).unwrap();
+        }
+        let before_exit = deck.shadow_position_ms().expect("cursor advances");
+        deck.clear_loop();
+        let audible = deck.position_ms().unwrap();
+        assert!(
+            (audible - before_exit).abs() <= 10,
+            "loop exit must not teleport by the pre-stop offset: {audible} vs {before_exit}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_loop_activation_does_not_arm_on_paused_scratch() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 24_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        deck.pause().unwrap();
+        deck.set_jog_touch(true);
+        for _ in 0..30 {
+            deck.jog_turn(-10);
+            deck.process(CHUNK).unwrap();
+        }
+        let scratched = deck.position_ms().unwrap();
+        // Loop activation on a paused deck must not arm the frozen anchor that a
+        // paused scratch would otherwise be snapped back to.
+        deck.set_loop_region_ms(scratched, scratched + 500).unwrap();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "loop activation on a paused deck must not arm a cursor"
+        );
+        deck.clear_loop();
+        let after = deck.position_ms().unwrap();
+        assert!(
+            (after - scratched).abs() <= 10,
+            "the paused scratch must survive the loop exit: {scratched} -> {after}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_bare_seek_leaves_no_cursor_through_playback() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 24_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        // No loop, no cue hold, no touch: a plain seek must leave no cursor, and
+        // playback must not resurrect one that a later exit would snap back to.
+        let target = deck.position_ms().unwrap() + 120;
+        deck.seek_ms(target).unwrap();
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "a bare seek must not arm a cursor"
+        );
+        for _ in 0..20 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "playback after a bare seek must not resurrect a cursor"
         );
     }
 
