@@ -28,9 +28,8 @@ class SettingsMixerPanel extends StatelessWidget {
           trailing: SettingsHeaderSwitch(
             value: draft.volumeNormalizerEnabled,
             semanticsLabel: l10n.settingsMixerVolumeNormalizer,
-            onChanged: (v) => onChanged(
-              copyAppSettings(draft, volumeNormalizerEnabled: v),
-            ),
+            onChanged: (v) =>
+                onChanged(copyAppSettings(draft, volumeNormalizerEnabled: v)),
           ),
           child: draft.volumeNormalizerEnabled
               ? SettingsField(
