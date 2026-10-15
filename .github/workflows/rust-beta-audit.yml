@@ -49,14 +49,19 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      # Both run regardless of the other's outcome: `&&` would skip the doctest
-      # whenever nextest fails, hiding doctest breakage exactly when the suite
-      # is already red — and contradicting the "surface the full failure list"
-      # intent of .config/nextest.toml. Default shell is `bash -e`, so the exit
-      # codes have to be captured explicitly.
+      # Both must run regardless of the other's outcome: chaining them means the
+      # doctest is skipped whenever nextest fails, hiding doctest breakage exactly
+      # when the suite is already red — and contradicting the "surface the full
+      # failure list" intent of crates/.config/nextest.toml. GitHub's default
+      # shell is `bash -e`, under which a bare `cmd; rc=$?` aborts at a failing
+      # `cmd` before `$?` is captured, so `-e` is disabled explicitly. The step
+      # still fails if either command fails.
       - name: Run tests
         run: |
-          cargo nextest run --workspace; nextest_rc=$?
-          cargo test --doc; doctest_rc=$?
+          set +e
+          cargo nextest run --workspace
+          nextest_rc=$?
+          cargo test --doc
+          doctest_rc=$?
           echo "nextest_rc=$nextest_rc doctest_rc=$doctest_rc"
-          [ "$nextest_rc" -eq 0 ] && [ "$doctest_rc" -eq 0 ]
+          if [ "$nextest_rc" -ne 0 ] || [ "$doctest_rc" -ne 0 ]; then exit 1; fi
