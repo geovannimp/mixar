@@ -6,7 +6,6 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
-import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
@@ -110,16 +109,11 @@ class SettingsDeckPanel extends ConsumerWidget {
         SettingsSectionCard(
           title: l10n.settingsDeckVinylBrakePause,
           subtitle: l10n.settingsDeckVinylBrakePauseHint,
-          trailing: SizedBox(
-            height: 23,
-            child: FittedBox(
-              child: MixarSwitch(
-                value: draft.vinylBrakePause,
-                semanticsLabel: l10n.settingsDeckVinylBrakePauseToggle,
-                onChanged: (v) =>
-                    onChanged(copyAppSettings(draft, vinylBrakePause: v)),
-              ),
-            ),
+          trailing: SettingsHeaderSwitch(
+            value: draft.vinylBrakePause,
+            semanticsLabel: l10n.settingsDeckVinylBrakePauseToggle,
+            onChanged: (v) =>
+                onChanged(copyAppSettings(draft, vinylBrakePause: v)),
           ),
           child: draft.vinylBrakePause
               ? SettingsField(

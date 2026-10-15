@@ -3,7 +3,6 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
-import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsMixerPanel extends StatelessWidget {
@@ -26,16 +25,11 @@ class SettingsMixerPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsMixerNormalizerTitle,
           subtitle: l10n.settingsMixerNormalizerDescription,
-          trailing: SizedBox(
-            height: 23,
-            child: FittedBox(
-              child: MixarSwitch(
-                value: draft.volumeNormalizerEnabled,
-                semanticsLabel: l10n.settingsMixerVolumeNormalizer,
-                onChanged: (v) => onChanged(
-                  copyAppSettings(draft, volumeNormalizerEnabled: v),
-                ),
-              ),
+          trailing: SettingsHeaderSwitch(
+            value: draft.volumeNormalizerEnabled,
+            semanticsLabel: l10n.settingsMixerVolumeNormalizer,
+            onChanged: (v) => onChanged(
+              copyAppSettings(draft, volumeNormalizerEnabled: v),
             ),
           ),
           child: draft.volumeNormalizerEnabled

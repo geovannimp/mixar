@@ -9,7 +9,6 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_slider.dart';
-import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -143,16 +142,11 @@ class SettingsAudioPanel extends ConsumerWidget {
           child: SettingsSectionCard(
             title: l10n.settingsAudioPreviewBusTitle,
             subtitle: l10n.settingsAudioPreviewBusDescription,
-            trailing: SizedBox(
-              height: 23,
-              child: FittedBox(
-                child: MixarSwitch(
-                  value: draft.previewEnabled,
-                  semanticsLabel: l10n.settingsAudioPreviewBus,
-                  onChanged: (v) =>
-                      onChanged(copyAppSettings(draft, previewEnabled: v)),
-                ),
-              ),
+            trailing: SettingsHeaderSwitch(
+              value: draft.previewEnabled,
+              semanticsLabel: l10n.settingsAudioPreviewBus,
+              onChanged: (v) =>
+                  onChanged(copyAppSettings(draft, previewEnabled: v)),
             ),
             child: draft.previewEnabled
                 ? _BusRouteFields(
