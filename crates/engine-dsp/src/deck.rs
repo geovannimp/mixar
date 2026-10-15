@@ -521,7 +521,6 @@ impl Deck {
         // starts the release ramp in exactly that case. A Vinyl→Vinyl switch (or
         // a paused outer PitchBend remap) keeps the finger on a running platter,
         // so a touch-armed cursor must survive to catch up on the real release.
-        // An in-flight loop or cue hold always keeps its cursor.
         let mode = self.motion.active_mode(playing);
         if self.motion.touching()
             && mode != MotionMode::Vinyl
@@ -529,6 +528,15 @@ impl Deck {
             && self.cue_hold_return.is_none()
         {
             self.shadow_position_frac = None;
+        } else if self.motion.touching()
+            && mode == MotionMode::Vinyl
+            && playing
+            && self.slip_enabled
+            && self.shadow_position_frac.is_none()
+        {
+            // Switching to vinyl mid-touch is a scratch start: the pitch-bend
+            // touch armed nothing, so arm here or the release catch-up no-ops.
+            self.shadow_position_frac = Some(self.position_frac);
         }
     }
 
@@ -2772,6 +2780,46 @@ mod tests {
             (audible - armed).abs() <= 30,
             "loop exit must still catch up: audible={audible} armed={armed}"
         );
+    }
+
+    #[test]
+    fn slip_shadow_arms_when_mode_switches_to_vinyl_mid_touch() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 32_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        // Touch in a non-vinyl mode: pitch-bend never arms a cursor.
+        deck.set_jog_mode(JogMode::PitchBend, JogMode::Vinyl);
+        deck.set_jog_touch(true);
+        assert!(
+            deck.shadow_position_ms().is_none(),
+            "a pitch-bend touch must not arm a cursor"
+        );
+        let arm_at = deck.position_ms().unwrap();
+        // Switching to vinyl mid-touch is a scratch start and must arm there.
+        deck.set_jog_mode(JogMode::Vinyl, JogMode::Vinyl);
+        let armed = deck
+            .shadow_position_ms()
+            .expect("the switch to vinyl arms a cursor");
+        assert!(
+            (armed - arm_at).abs() <= 5,
+            "arm at the current position: {armed} vs {arm_at}"
+        );
+        for _ in 0..30 {
+            deck.jog_turn(-10);
+            deck.process(CHUNK).unwrap();
+        }
+        let cursor = deck.shadow_position_ms().expect("cursor kept advancing");
+        deck.set_jog_touch(false);
+        let after = deck.position_ms().unwrap();
+        assert!(
+            (after - cursor).abs() <= 10,
+            "release catches up after a mid-touch mode switch: {after} vs {cursor}"
+        );
+        assert!(deck.shadow_position_ms().is_none());
     }
 
     #[test]
