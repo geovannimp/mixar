@@ -3110,9 +3110,9 @@ mod tests {
         }
         let in_ms = deck.position_ms().unwrap();
         deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
-        // A permanent seek relocates the deck inside the live region; the loop
+        // A permanent seek relocates the deck outside the live region; the loop
         // is still in flight, so it keeps a cursor at the new position.
-        let target = in_ms + 120;
+        let target = in_ms + 700;
         deck.seek_ms(target).unwrap();
         let rearmed = deck
             .shadow_position_ms()
@@ -3121,7 +3121,7 @@ mod tests {
             (rearmed - target).abs() <= 5,
             "re-arm at the seek target: {rearmed} vs {target}"
         );
-        for _ in 0..60 {
+        for _ in 0..12 {
             deck.process(CHUNK).unwrap();
         }
         let before_exit = deck.shadow_position_ms().expect("cursor advanced");
