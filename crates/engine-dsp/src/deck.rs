@@ -684,7 +684,9 @@ impl Deck {
         }
         // Brake renders via `play_interpolated` at `effective_speed`; mirror it
         // exactly so a spin-down cannot leave the shadow behind the playhead.
-        // No clamping: a negative ramp moves both positions backward together.
+        // The rate needs no lower clamp: Pad FX envelopes and jog release ramps
+        // can make it negative, and the shadow must then move backward with the
+        // audible position instead of stalling at zero.
         let rate = if self.brake.is_some() {
             f64::from(self.effective_speed())
         } else if self.state == DeckState::Playing {
@@ -2758,6 +2760,43 @@ mod tests {
         assert!(
             (audible - shadow).abs() <= 5,
             "repeated stops must not leave the shadow behind: audible={audible} shadow={shadow}"
+        );
+    }
+
+    #[test]
+    fn slip_shadow_follows_audible_backward_during_negative_brake() {
+        let mut deck = brake_test_deck();
+        // Headroom so the negative ramp stays inside the track.
+        deck.seek_ms(3500).unwrap();
+        deck.set_slip_enabled(true).unwrap();
+        // A Pad FX envelope is the reachable source of a negative motor rate.
+        deck.set_motion_envelope_rate(Some(-1.5));
+        deck.pause().unwrap();
+        assert!(
+            deck.jog_rate() < 0.0,
+            "brake must start negative, got {}",
+            deck.jog_rate()
+        );
+        let before_pos = deck.position_frac;
+        let before_shadow = deck.shadow_position_frac;
+        while deck.brake.is_some() {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!(
+            deck.position_frac < before_pos,
+            "negative brake must pull the playhead backward: {before_pos} -> {}",
+            deck.position_frac
+        );
+        assert!(
+            deck.shadow_position_frac < before_shadow,
+            "shadow must follow the playhead backward: {before_shadow} -> {}",
+            deck.shadow_position_frac
+        );
+        let audible_delta = deck.position_frac - before_pos;
+        let shadow_delta = deck.shadow_position_frac - before_shadow;
+        assert!(
+            (audible_delta - shadow_delta).abs() < 1.0,
+            "shadow must track audible within a frame: audible={audible_delta} shadow={shadow_delta}"
         );
     }
 }
