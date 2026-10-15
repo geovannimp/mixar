@@ -503,7 +503,7 @@ Mitigations:
 
 ### Acceptance (Phase 1 done when)
 
-- [ ] `cargo test -p analyzer-core -p analyzer-qmdsp -p analyzer` passes on Linux CI.
+- [ ] `cargo nextest run -p analyzer-core -p analyzer-qmdsp -p analyzer` passes on Linux CI.
 - [ ] `library` with `analysis` feature: `analyze_track` persists BPM, key, and beat grid JSON.
 - [ ] Documented backend choice and confidence merge policy.
 - [ ] No new dependencies on audio callback / producer code paths.

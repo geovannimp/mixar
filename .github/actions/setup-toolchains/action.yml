@@ -9,6 +9,13 @@ runs:
       with:
         cache: true
 
+    # Prebuilt release binary (vs. `cargo install`, which compiles from source).
+    # Same pattern as the cargo-audit step in rust-beta-audit.yml.
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-nextest
+
     - name: Cache npm
       uses: actions/cache@v6
       with:

@@ -363,7 +363,7 @@ mod tests {
     ///
     /// Ignored by default because GitHub's `ubuntu-latest` image ships no
     /// comma-decimal locale, so the precondition cannot be created there. Run it
-    /// explicitly with `cargo test -p analyzer-stems -- --ignored`.
+    /// explicitly with `cargo nextest run -p analyzer-stems --run-ignored=only`.
     #[cfg(all(feature = "webgpu", unix))]
     #[test]
     #[ignore = "needs a comma-decimal locale (e.g. pt_BR.UTF-8); not installed on ubuntu-latest"]

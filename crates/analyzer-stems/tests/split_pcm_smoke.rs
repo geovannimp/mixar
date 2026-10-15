@@ -1,7 +1,7 @@
 //! Optional end-to-end smoke: downloads ~166MB HTDemucs ONNX and runs a short split.
 //!
 //! ```text
-//! cargo test -p analyzer-stems --manifest-path crates/Cargo.toml --test split_pcm_smoke -- --ignored --nocapture
+//! cargo nextest run -p analyzer-stems --manifest-path crates/Cargo.toml --test split_pcm_smoke --run-ignored=only --no-capture
 //! ```
 
 use analyzer_stems::{split_interleaved_stereo, StemSplitRequest, DEFAULT_MODEL, STEM_NAMES};

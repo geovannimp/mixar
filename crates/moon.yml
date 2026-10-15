@@ -82,9 +82,28 @@ tasks:
     options:
       runInCI: true
 
+  # nextest cannot run doctests (https://nexte.st/), so they run as their own
+  # task and `test` depends on it — moon runs a task's deps first. `--verbose` is
+  # dropped: nextest's default reporter already prints a per-test PASS line with
+  # timing. Fail-fast behavior is pinned in .config/nextest.toml.
+  #
+  # `runInCI` must be true: moon hard-errors (`run_in_ci_mismatch`) when a task
+  # depends on a task with `runInCI: false`, so a CI-disabled dep would break
+  # `moon run :test` entirely. moon's pipeline dedups tasks by identity, so
+  # doctests still run exactly once (as `test`'s dep).
+  test-doctests:
+    command: 'cargo'
+    args: ['test', '--doc']
+    inputs:
+      - '@group(sources)'
+    options:
+      runInCI: true
+
   test:
     command: 'cargo'
-    args: ['test', '--verbose']
+    args: ['nextest', 'run', '--workspace']
+    deps:
+      - 'test-doctests'
     inputs:
       - '@group(sources)'
     options:

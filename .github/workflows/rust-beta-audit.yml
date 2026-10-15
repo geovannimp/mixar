@@ -38,6 +38,12 @@ jobs:
           shared-key: beta
           cache-on-failure: true
 
+      # Standalone job (no setup-toolchains action), so nextest installs here.
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Check formatting
         run: cargo fmt -- --check
 
@@ -45,4 +51,4 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo nextest run --workspace && cargo test --doc
