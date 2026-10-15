@@ -38,11 +38,10 @@ jobs:
           shared-key: beta
           cache-on-failure: true
 
-      # Standalone job (no setup-toolchains action), so nextest installs here.
+      # Standalone job (no setup-toolchains action), so it invokes the same
+      # install-nextest action — keeps the tool/version in one place.
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
+        uses: ./.github/actions/install-nextest
 
       - name: Check formatting
         run: cargo fmt -- --check
