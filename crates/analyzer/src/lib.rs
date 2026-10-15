@@ -1,8 +1,9 @@
 //! Offline audio analysis: decode files to mono PCM and run the qm-dsp backend.
 
-mod decode;
 mod loudness;
 mod preprocess;
+
+pub mod decode;
 
 use std::path::Path;
 use std::sync::OnceLock;
@@ -13,6 +14,7 @@ pub use analyzer_core::{
     TagMetadata, TrackAnalysis,
 };
 pub use analyzer_qmdsp::QmdspAnalyzer;
+pub use decode::{decode_mono, DecodedMono};
 pub use loudness::integrated_lufs_mono;
 
 static DEFAULT_ANALYZER: OnceLock<QmdspAnalyzer> = OnceLock::new();

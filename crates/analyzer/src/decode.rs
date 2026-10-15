@@ -1,14 +1,34 @@
+//! File decode stage of the offline analysis pipeline.
+//!
+//! [`decode_mono`] turns a file on disk into the mono f32 buffer every analyzer
+//! backend expects. It is part of the crate's public API so callers that only
+//! need the decoded buffer (for example to inspect it, or to reuse the decode
+//! stage across analyses) do not have to re-implement the downmix.
+
 use std::path::Path;
 
 use analyzer_core::AnalysisConfig;
 use anyhow::Result;
 use codec::AudioDecoder;
 
+/// A decoded file, downmixed to mono and truncated to the configured duration.
+#[derive(Clone, Debug)]
 pub struct DecodedMono {
+    /// Mono samples normalized to ±1.0, ordered by time.
     pub samples: Vec<f32>,
+    /// Sample rate the samples were decoded at (the file's native rate).
     pub sample_rate: u32,
 }
 
+/// Decode `path` to mono f32, honouring the length cap in `config`.
+///
+/// Channels are averaged (simple arithmetic mean), matching the downmix the
+/// library applies elsewhere.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be opened, probed, or decoded, or when
+/// the decoder reports an unsupported format.
 pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> {
     let mut decoder = AudioDecoder::from_file(path)?;
     let sample_rate = decoder.sample_rate();
