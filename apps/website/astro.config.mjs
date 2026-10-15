@@ -13,9 +13,14 @@ const uploadSourceMaps = Boolean(posthogApiKey && posthogProjectId);
 
 export default defineConfig({
   site: "https://mixar.top",
-  // Match live GitHub Pages 301s into trailing-slash URLs so sitemap +
-  // canonicals agree with what crawlers already land on.
-  trailingSlash: "always",
+  // Emit page.html per route so GitHub Pages serves slashless URLs directly
+  // (no 301 into trailing-slash form); sitemap + canonicals stay as authored.
+  trailingSlash: "never",
+  // `directory` output would still be 301'd to a trailing slash by Pages; `file`
+  // emits `foo.html`, which Pages resolves directly at `/foo`.
+  build: {
+    format: "file",
+  },
   outDir: "dist",
   integrations: [mdx(), sitemap()],
   markdown: {
