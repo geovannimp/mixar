@@ -5,7 +5,6 @@ import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_slider.dart';
-import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
@@ -29,16 +28,11 @@ class SettingsSessionPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsSessionHistoryTitle,
           subtitle: l10n.settingsSessionHistoryDescription,
-          trailing: SizedBox(
-            height: 23,
-            child: FittedBox(
-              child: MixarSwitch(
-                value: draft.historyEnabled,
-                semanticsLabel: l10n.settingsSessionRecordHistory,
-                onChanged: (enabled) =>
-                    onChanged(copyAppSettings(draft, historyEnabled: enabled)),
-              ),
-            ),
+          trailing: SettingsHeaderSwitch(
+            value: draft.historyEnabled,
+            semanticsLabel: l10n.settingsSessionRecordHistory,
+            onChanged: (enabled) =>
+                onChanged(copyAppSettings(draft, historyEnabled: enabled)),
           ),
           child: draft.historyEnabled
               ? Column(

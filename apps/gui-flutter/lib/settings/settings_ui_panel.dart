@@ -3,7 +3,6 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
-import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsUiPanel extends StatelessWidget {
@@ -101,16 +100,11 @@ class SettingsUiPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsUiMixerMetersTitle,
           subtitle: l10n.settingsUiMixerMetersDescription,
-          trailing: SizedBox(
-            height: 23,
-            child: FittedBox(
-              child: MixarSwitch(
-                value: draft.showMixerMeters,
-                semanticsLabel: l10n.settingsUiShowMixerMeters,
-                onChanged: (v) =>
-                    onChanged(copyAppSettings(draft, showMixerMeters: v)),
-              ),
-            ),
+          trailing: SettingsHeaderSwitch(
+            value: draft.showMixerMeters,
+            semanticsLabel: l10n.settingsUiShowMixerMeters,
+            onChanged: (v) =>
+                onChanged(copyAppSettings(draft, showMixerMeters: v)),
           ),
           child: draft.showMixerMeters
               ? SettingsField(

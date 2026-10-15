@@ -103,18 +103,20 @@ class SettingsDeckPanel extends ConsumerWidget {
                       onChanged(copyAppSettings(draft, defaultKeyLock: v)),
                 ),
               ),
-              SettingsField(
-                label: l10n.settingsDeckVinylBrakePause,
-                hint: l10n.settingsDeckVinylBrakePauseHint,
-                child: SettingsToggle(
-                  label: l10n.settingsDeckVinylBrakePauseToggle,
-                  value: draft.vinylBrakePause,
-                  onChanged: (v) =>
-                      onChanged(copyAppSettings(draft, vinylBrakePause: v)),
-                ),
-              ),
-              if (draft.vinylBrakePause)
-                SettingsField(
+            ],
+          ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsDeckVinylBrakePause,
+          subtitle: l10n.settingsDeckVinylBrakePauseHint,
+          trailing: SettingsHeaderSwitch(
+            value: draft.vinylBrakePause,
+            semanticsLabel: l10n.settingsDeckVinylBrakePauseToggle,
+            onChanged: (v) =>
+                onChanged(copyAppSettings(draft, vinylBrakePause: v)),
+          ),
+          child: draft.vinylBrakePause
+              ? SettingsField(
                   label: l10n.settingsDeckVinylBrakeStopTime,
                   hint: l10n.settingsDeckVinylBrakeStopTimeHint,
                   child: SettingsNumericStepper(
@@ -128,9 +130,8 @@ class SettingsDeckPanel extends ConsumerWidget {
                       copyAppSettings(draft, vinylBrakeStopSecs: v),
                     ),
                   ),
-                ),
-            ],
-          ),
+                )
+              : null,
         ),
         SettingsSectionCard(
           title: l10n.settingsDeckSamplerTitle,
