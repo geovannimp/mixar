@@ -1,0 +1,48 @@
+---
+import { docPath, navLabel, type DocNode } from "../../lib/docs";
+// Self-import: Astro does not expose a component to its own template, so the
+// recursion needs the explicit import.
+import DocsNavNode from "./DocsNavNode.astro";
+
+interface Props {
+  node: DocNode;
+  currentId: string;
+  /** Nesting level: 0 sits on the list's rail, each level below indents once. */
+  depth?: number;
+}
+
+const { node, currentId, depth = 0 } = Astro.props;
+const current = node.entry.id === currentId;
+
+// One shared rail (`border-l` on the list); the active item paints over it, so
+// nesting is indentation only — no second vertical line. Full class literals
+// so Tailwind extracts them.
+const rail = "-ml-px block border-l-2 py-1.5 leading-snug transition";
+const activeRail = "border-accent font-semibold text-fg";
+const idleRail = "border-transparent text-muted hover:border-border-hover hover:text-fg";
+// Per-depth indent; the last entry covers any deeper nesting.
+const depthIndent = ["pl-3", "pl-6 text-[0.875rem]", "pl-9 text-[0.8125rem]"];
+---
+
+<li class="m-0">
+  <a
+    href={docPath(node.entry.id)}
+    aria-current={current ? "page" : undefined}
+    class:list={[
+      rail,
+      depthIndent[Math.min(depth, depthIndent.length - 1)],
+      current ? activeRail : idleRail,
+    ]}
+  >
+    {navLabel(node)}
+  </a>
+  {
+    node.children.length > 0 && (
+      <ul class="m-0 list-none p-0">
+        {node.children.map((child) => (
+          <DocsNavNode node={child} currentId={currentId} depth={depth + 1} />
+        ))}
+      </ul>
+    )
+  }
+</li>

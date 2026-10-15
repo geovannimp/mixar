@@ -2,7 +2,7 @@
 title: "Scripting (Rhai)"
 description: "Lifecycle hooks and script bindings for mapping bundles that declarative actions cannot express."
 section: "MIDI Mappings"
-order: 5
+order: 8
 ---
 
 ## When to script
@@ -134,7 +134,7 @@ Compile errors are reported by `map-check` (`ScriptCompile`); runtime failures a
 
 ## Full DDJ-400 example
 
-The DDJ-400 needs a Pioneer SysEx at startup to stay in PC MIDI mode, plus pad LEDs, so its bundle ships a script. Here is the same shape, trimmed to the essentials:
+The DDJ-400 needs a Pioneer SysEx at startup to stay in PC MIDI mode; every pad and mode LED is declarative (`[outputs.*]` in `map.toml`), so the script owns only the SysEx handshake and the two track-loaded lamps. Here is the shipped `script.rhai`, trimmed to the essentials:
 
 `mappings/ddj-400/script.rhai`:
 
@@ -145,10 +145,11 @@ const PC_MODE_SYSEX = [
 ];
 
 fn on_init() {
-    midi_out(PC_MODE_SYSEX);
-    // Track-loaded pad lights (0x9F note 0/1); harmless if unsupported.
+    // Track-loaded pad lights (Mixxx uses 0x9F note 0/1); harmless if unsupported.
     midi_out([0x9F, 0x00, 0x7F]);
     midi_out([0x9F, 0x01, 0x7F]);
+    // PC MIDI mode + query current knob/fader positions (Mixxx PioneerDDJ400.init).
+    midi_out(PC_MODE_SYSEX);
 }
 
 // Keepalive while stopped — re-assert PC MIDI mode.
@@ -174,8 +175,8 @@ on_shutdown = "on_shutdown"
 Line by line:
 
 - `PC_MODE_SYSEX` is a top-level `const`, so both `on_init` and `idle_heartbeat` can send the identical message without duplicating it.
-- `on_init` sends the mode SysEx first, then lights the two pad LEDs with note-on messages on the `0x9F` channel.
+- `on_init` lights the two track-loaded pads with note-on messages on the `0x9F` channel first, then sends the mode SysEx — which also queries the unit's current knob and fader positions (soft takeover uses the reply to adopt the first value).
 - `idle_heartbeat` re-asserts the same SysEx roughly once a second while the decks are stopped, so the unit does not fall out of PC MIDI mode. The host skips it while a deck is playing.
 - `on_shutdown` clears the two LEDs with note-off (`0x00` velocity).
 
-For the action-catalog side of the same bundle, see [map.toml](/docs/developers/midi-mappings/map-toml).
+For the action-catalog side of the same bundle, see [inputs](/docs/developers/midi-mappings/map-toml/inputs).

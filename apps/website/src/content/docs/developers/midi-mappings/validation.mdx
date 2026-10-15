@@ -2,7 +2,7 @@
 title: "Validation & errors"
 description: "Validate mapping bundles with map-check, understand common errors, and contribute a mapping."
 section: "MIDI Mappings"
-order: 6
+order: 9
 ---
 
 `map-check` is the controller crate's static validator. It loads and checks a mapping bundle **without any hardware**, so you can catch a bad `device.toml` / `map.toml` / `script.rhai` before launching the app. The same checks run in CI over every shipped bundle.
@@ -140,6 +140,8 @@ Messages below use the real shapes, with `...` standing in for a path or bundle 
 | `unknown outputs section 'deck_5'` | `[outputs.…]` uses an invalid section | use a valid section name |
 | `outputs.deck_1.foo: watch key not in closed catalog` | output watch key typo | use a catalog alias |
 | `outputs.deck_1.play_pause.on: alias 'foo_led' missing from device.toml` | output target alias not defined | add the LED/endpoint |
+| `outputs.deck_1.x.blink: 'blink' requires 'signal' (otherwise the binding is never resolved)` | binding declares `blink` without `signal` | add `signal = "…"` — see [outputs](/docs/developers/midi-mappings/map-toml/outputs) |
+| `outputs.deck_1.x: unknown signal 'foo' for 'deck_1'` | signal outside the section's closed catalog | use a catalog signal for that section |
 | `no mapping bundle directories found in '...'` | `--all` pointed at an empty or wrong root | pass the real `mappings/` root |
 | `failed to read '...'` | I/O error (missing root, permissions) | fix the path or permissions |
 
@@ -169,5 +171,7 @@ Keep `map-check` green; CI runs `check_all_mappings` over `mappings/`, so any bu
 ## Where to look next
 
 - [device.toml](/docs/developers/midi-mappings/device-toml) — identity, sections, and endpoint shape.
-- [map.toml](/docs/developers/midi-mappings/map-toml) — `[inputs]`, `[outputs]`, `[lifecycle]`.
+- [inputs](/docs/developers/midi-mappings/map-toml/inputs) — `[inputs]` binding forms, fields, modifiers, soft takeover.
+- [outputs](/docs/developers/midi-mappings/map-toml/outputs) — `[outputs]` signals, LED modes (on/off/blink), caching and refresh.
+- [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle) — `[lifecycle]` hooks and when the session calls them.
 - [Actions](/docs/developers/midi-mappings/actions) — the action ids you can bind.

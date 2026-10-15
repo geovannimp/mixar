@@ -1,0 +1,78 @@
+---
+title: "map.toml"
+description: "Overview of map.toml: file shape plus separate references for [inputs], [outputs], and [lifecycle]."
+section: "MIDI Mappings"
+order: 3
+---
+
+`map.toml` is the behavioral half of a mapping bundle. It binds the controls declared in `device.toml` to engine and library actions, drives device LEDs from watched signals, and names the optional script lifecycle hooks. Each table has its own reference page:
+
+- **[inputs](/docs/developers/midi-mappings/map-toml/inputs)** — binding forms, fields, modifiers, soft takeover, absolute vs relative inputs, rate limiting.
+- **[outputs](/docs/developers/midi-mappings/map-toml/outputs)** — signals, LED modes (on/off/blink), caching, refresh rules, VU meters.
+- **[lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle)** — the three script hooks and when the session calls them.
+
+The two tables point in opposite directions. **[inputs]** is how the **hardware talks to the app**: every control event is mapped to an engine action. **[outputs]** is how the **app talks back to the hardware**: watched engine state is written out as MIDI, almost always to light LEDs. **[lifecycle]** is neither direction — it names `script.rhai` hooks the session calls when a controller attaches, idles, or detaches.
+
+Everything is validated against the closed action and alias catalogs, so a name that is not in the catalog is rejected at load time — see [Actions & aliases](/docs/developers/midi-mappings/actions) for the vocabulary and [device.toml](/docs/developers/midi-mappings/device-toml) for the control declarations `map.toml` refers to.
+
+## Overview
+
+A map has one required key (`schema_version`), two optional tables (`[inputs]` and `[outputs]`), and an optional `[lifecycle]` table. Sections are `deck_1` through `deck_4`, `master`, and `sampler`; `[outputs]` additionally accepts `custom` for host-driven lamps.
+
+```toml
+# map.toml — declares what each device control does.
+schema_version = 1
+
+# Editor-only pointer to the TOML schema. Peeled off before deserialize; ignored at runtime.
+[toml-schema]
+version = "1.0.0"
+location = "../../schemas/map.tosd"
+
+# Optional script hooks. Requires script.rhai in the same mapping bundle.
+[lifecycle]
+on_init = "on_init"
+idle_heartbeat = "idle_heartbeat"
+on_shutdown = "on_shutdown"
+
+# ---- Inputs ---------------------------------------------------------------
+# One table per section: deck_1..deck_4, master, sampler.
+[inputs.deck_1]
+# String form: bind the input alias straight to an action.
+play_pause = "Deck(_)::toggle_play"
+
+# Table form: action + per-binding options.
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+
+# Array form: modifier-selected alternatives (first active modifier wins).
+filter = [
+  { action = "Deck(_)::set_filter", soft_takeover = true },
+  { action = "Deck(_)::set_eq_low", modifier = "custom.shift", soft_takeover = true },
+]
+
+# Relative leaf: the device endpoint must declare `relative = "…"`.
+jog_turn = "Deck(_)::jog_turn"
+
+[inputs.master]
+crossfader = { action = "Mixer::set_crossfader", soft_takeover = true }
+
+# ---- Outputs --------------------------------------------------------------
+# Watched signal -> on/off MIDI (typically LEDs).
+[outputs.deck_1]
+play_pause = { signal = "playing", on = "play_led", off = { type = "note", channel = 1, note = 0x0B, velocity = 0x00 } }
+cue = { signal = "cue_hold", on = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F }, off = { type = "note", channel = 1, note = 0x0C, velocity = 0x00 } }
+```
+
+| Key | Required | Notes |
+| --- | --- | --- |
+| `schema_version` | yes | Must be exactly `1`; any other value is a schema error. |
+| `[toml-schema]` | no | Editor aid only. It is removed from the parsed table before deserialize and never consulted at runtime. |
+| `[inputs]` | no | Per-section input bindings — see [inputs](/docs/developers/midi-mappings/map-toml/inputs). |
+| `[outputs]` | no | Per-section signal-to-MIDI output bindings — see [outputs](/docs/developers/midi-mappings/map-toml/outputs). |
+| `[lifecycle]` | no | Script hook names; only meaningful with `script.rhai` — see [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle). |
+
+## Where to go next
+
+- [Inputs](/docs/developers/midi-mappings/map-toml/inputs) — binding forms, fields, modifiers, soft takeover, absolute vs relative, rate limiting.
+- [Outputs](/docs/developers/midi-mappings/map-toml/outputs) — signals, LED modes (on/off/blink), caching, refresh rules, VU meters.
+- [Lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle) — the three script hooks and when the session calls them.
+- [Actions & aliases](/docs/developers/midi-mappings/actions) · [Scripts](/docs/developers/midi-mappings/scripts) · [Validation](/docs/developers/midi-mappings/validation) · [device.toml](/docs/developers/midi-mappings/device-toml)
