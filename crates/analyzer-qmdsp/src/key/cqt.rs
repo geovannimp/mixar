@@ -198,12 +198,12 @@ impl Chromagram {
     /// `bpo`-length chroma vector.
     pub fn process(&mut self, data: &[f64]) -> &[f64] {
         debug_assert_eq!(data.len(), self.frame_size, "chromagram frame length");
+        for i in 0..self.frame_size {
+            self.windowbuf[i] = data[i] * self.window[i];
+        }
         let half = self.frame_size / 2;
         for i in 0..half {
-            let lo = data[i] * self.window[i];
-            let hi = data[i + half] * self.window[i + half];
-            self.windowbuf[i] = hi;
-            self.windowbuf[i + half] = lo;
+            self.windowbuf.swap(i, i + half);
         }
 
         self.fft
