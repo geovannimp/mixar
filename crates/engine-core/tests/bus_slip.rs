@@ -121,7 +121,7 @@ fn slip_shadow_publishes_only_during_a_manual_action() {
         })
         .expect("setup");
 
-    std::thread::sleep(Duration::from_millis(300));
+    std::thread::sleep(Duration::from_millis(120));
 
     // Plain playback: Position ticks carry no slip cursor.
     let position = recv_evt_kind(&evt, Kind::Position);
@@ -172,4 +172,33 @@ fn slip_shadow_publishes_only_during_a_manual_action() {
         panic!("expected DeckUpdated");
     };
     assert!(cleared.is_none(), "jog release must clear the slip cursor");
+}
+
+#[test]
+fn recall_saved_loop_rejects_invalid_region_without_seeking() {
+    let session = null_session_with_loaded_deck();
+
+    session
+        .with_engine(|engine| {
+            engine.play(0)?;
+            engine.seek_deck(0, 40)?;
+            engine.pause(0)?;
+            Ok(())
+        })
+        .expect("setup");
+
+    let bad = session.with_engine(|engine| engine.recall_deck_saved_loop(0, 1000, 500));
+    assert!(
+        bad.is_err(),
+        "an inverted region must error before any transport change"
+    );
+
+    let position_ms = session
+        .with_engine(|engine| Ok(engine.deck_playback_ms(0).map(|(p, _)| p)))
+        .expect("readback");
+    let pos = position_ms.expect("position");
+    assert!(
+        (pos - 40).abs() <= 5,
+        "a failed recall must leave the playhead parked at the seek: pos={pos}"
+    );
 }

@@ -247,6 +247,11 @@ impl Engine {
                 "Load a track before recalling a saved loop."
             ));
         }
+        if out_ms <= in_ms {
+            return Err(anyhow::anyhow!(
+                "Loop out must be after loop in: in={in_ms} out={out_ms}"
+            ));
+        }
         if let Some(control) = self.deck_control.get_mut(deck_id) {
             control.pending_loop_in_ms = None;
         }
