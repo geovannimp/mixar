@@ -205,9 +205,15 @@ tasks:
           - "**/*.dart"
         passDotWhenNoResults: false
 
+  # `-j "$(nproc)"` instead of package:test's default cores/2: the per-suite kernel
+  # compiles serialize regardless, so the extra concurrency shortens only the body
+  # phase. Measured 4-core A/B: 48.3s/48.0s (-j 2) -> 34.7s (-j 4); wash on 16 cores.
+  # nproc honours the CPU affinity mask, so 4-core CI gets -j 4 and 16-core dev -j 16.
   test:
-    command: "mise"
-    args: ["exec", "--", "flutter", "test"]
+    command: "bash"
+    args:
+      - "-c"
+      - 'exec mise exec -- flutter test -j "$(nproc)"'
     toolchain: "system"
     inputs:
       - "@group(sources)"
