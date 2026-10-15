@@ -165,10 +165,10 @@ const TOP_LEVEL_SEGMENTS = 3;
  * (`<category>/<topic>/<page>`).
  */
 export function parentDocPath(id: string): string | undefined {
-  const segments = id.split("/");
-  if (segments.length <= TOP_LEVEL_SEGMENTS) return undefined;
-  segments.pop();
-  return segments.join("/");
+  const parts = segments(id);
+  if (parts.length <= TOP_LEVEL_SEGMENTS) return undefined;
+  parts.pop();
+  return parts.join("/");
 }
 
 /**
@@ -186,6 +186,10 @@ function buildDocNav(entries: DocEntry[]): DocNode[] {
   for (const node of nodes) {
     const parentPath = parentDocPath(node.entry.id);
     const parent = parentPath === undefined ? undefined : byPath[parentPath];
+    // `parent === node` is the folder's own `overview` page: `docSlug` strips the
+    // trailing `/overview`, so `.../map-toml/overview` hashes to the very route
+    // `parentDocPath` returns for it. Without this guard the overview would
+    // become its own child.
     if (parent === undefined || parent === node) {
       roots.push(node);
       continue;
@@ -198,13 +202,17 @@ function buildDocNav(entries: DocEntry[]): DocNode[] {
 
 /**
  * Sidebar label for a node: nested pages drop the parent title prefix, so
- * `map.toml — [inputs]` renders as `[inputs]` under its `map.toml` parent.
+ * `map.toml — [inputs]` renders as `[inputs]` under its `map.toml` parent. Only
+ * a separator (` — `, ` - `, `: `) counts as a prefix boundary, and anything
+ * that would strip away the whole title keeps the full title instead.
  */
 export function navLabel(node: DocNode): string {
   const title = node.entry.data.title;
   const parentTitle = node.parent?.entry.data.title;
   if (parentTitle === undefined || !title.startsWith(parentTitle)) return title;
-  return title.slice(parentTitle.length).replace(/^\s*[—:-]\s*/, "");
+  const rest = title.slice(parentTitle.length);
+  if (!/^\s*[—:-]/.test(rest)) return title;
+  return rest.replace(/^\s*[—:-]\s*/, "") || title;
 }
 
 /** Entries of the topic an entry belongs to, for prev/next within that topic. */
