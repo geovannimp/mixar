@@ -23,7 +23,7 @@ fn default_analyzer() -> &'static QmdspAnalyzer {
     DEFAULT_ANALYZER.get_or_init(QmdspAnalyzer::new)
 }
 
-/// Analyze already-decoded mono PCM (normalized ±1.0).
+/// Analyze already-decoded mono PCM, normalizing it to ±1.0 first.
 pub fn analyze_pcm(
     samples: &[f32],
     sample_rate: u32,

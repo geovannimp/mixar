@@ -172,6 +172,29 @@ mod tests {
         assert_eq!(zeros, vec![0.0; 4]);
     }
 
+    /// The boundary itself: `peak == PEAK_NORMALIZE_THRESHOLD` is in range, so
+    /// the buffer is left alone. A refactor to `>=` would silently rescale every
+    /// full-scale master.
+    #[test]
+    fn scale_down_keeps_the_threshold_boundary_inclusive() {
+        let mut at_threshold = vec![0.25, PEAK_NORMALIZE_THRESHOLD, -0.5];
+        let expected = at_threshold.clone();
+        scale_down(&mut at_threshold, PEAK_NORMALIZE_THRESHOLD);
+        assert_eq!(
+            at_threshold, expected,
+            "a peak exactly at the threshold must not be rescaled"
+        );
+
+        let mut just_over = vec![0.25, f32::EPSILON * 4.0, -0.5];
+        peak_normalize(&mut just_over);
+        assert!(
+            just_over
+                .iter()
+                .all(|sample| sample.abs() <= PEAK_NORMALIZE_THRESHOLD),
+            "a peak over the threshold must be rescaled down to it"
+        );
+    }
+
     #[test]
     fn prepare_borrows_when_already_in_range() {
         let samples = vec![0.5f32, -0.25, 0.75];

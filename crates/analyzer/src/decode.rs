@@ -26,6 +26,17 @@ pub struct DecodedMono {
 /// interleaved scratch stays in L2 while it is being averaged into the output.
 const DECODE_CHUNK_FRAMES: usize = 8192;
 
+/// Largest frame count the output buffer is sized for up front.
+///
+/// This is the analysis memory budget in `docs/audio-analyzer-spec.md` §12
+/// (500 MB, i.e. 128 M mono f32 frames ≈ 48 minutes at 44.1 kHz) used as a
+/// ceiling rather than a target. A cap larger than this is still honoured — the
+/// read loop stops at EOF — but it is never turned into a single allocation
+/// request, because `max_duration_ms` is a public input and a huge one (say
+/// `i32::MAX`) would otherwise ask the allocator for hundreds of gigabytes
+/// before the first sample arrives.
+const MAX_RESERVED_FRAMES: usize = 128 * 1024 * 1024;
+
 /// Decode `path` to mono f32, honouring the length cap in `config`.
 ///
 /// The decoder is read one chunk at a time and each chunk is averaged into the
@@ -48,7 +59,8 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
     // The cap is an exact frame count, so the output buffer can be sized once
     // instead of grown by doubling. Without a cap the true length is not known
     // up front, so the vector grows geometrically.
-    let mut mono = Vec::with_capacity(max_frames.unwrap_or(0));
+    let reserved = max_frames.map_or(0, |limit| limit.min(MAX_RESERVED_FRAMES));
+    let mut mono = Vec::with_capacity(reserved);
     let mut chunk = vec![0.0f32; DECODE_CHUNK_FRAMES * channels];
 
     while max_frames.is_none_or(|limit| mono.len() < limit) {
@@ -125,28 +137,32 @@ mod tests {
     }
 
     fn write_stereo_wav(path: &Path, frames: u32) {
-        write_wav(path, frames, 2, move |i| {
+        // Both channels identical, so the mean is the channel value itself.
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 44100,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(path, spec).unwrap();
+        for i in 0..frames {
             let sample = (i % 100) as i16;
-            (sample, sample)
-        });
+            writer.write_sample(sample).unwrap();
+            writer.write_sample(sample).unwrap();
+        }
+        writer.finalize().unwrap();
     }
 
     /// Write a stereo WAV whose two channels carry independent values, so the
     /// downmix mean cannot cancel by symmetry.
     fn write_distinct_stereo_wav(path: &Path, frames: u32) {
-        write_wav(path, frames, 2, |i| {
-            ((i % 101) as i16, ((i * 7) % 101) as i16)
-        });
+        write_multichannel_wav(path, frames, 2);
     }
 
-    /// Write `frames` frames; `channels` picks mono or stereo, and a channel the
-    /// closure does not fill is zero.
-    fn write_wav(
-        path: &Path,
-        frames: u32,
-        channels: u16,
-        mut sample: impl FnMut(u32) -> (i16, i16),
-    ) {
+    /// Write `frames` frames of `channels` channels, with channel `c` carrying
+    /// `(i * (c + 1)) % 101` so every channel is distinguishable and the mean is
+    /// independently computable.
+    fn write_multichannel_wav(path: &Path, frames: u32, channels: u16) {
         let spec = hound::WavSpec {
             channels,
             sample_rate: 44100,
@@ -154,11 +170,11 @@ mod tests {
             sample_format: hound::SampleFormat::Int,
         };
         let mut writer = hound::WavWriter::create(path, spec).unwrap();
+        let channel_count = usize::from(channels);
         for i in 0..frames {
-            let (left, right) = sample(i);
-            writer.write_sample(left).unwrap();
-            if channels == 2 {
-                writer.write_sample(right).unwrap();
+            for channel in 0..channel_count {
+                let value = (i as usize * (channel + 1)) % 101;
+                writer.write_sample(value as i16).unwrap();
             }
         }
         writer.finalize().unwrap();
@@ -171,6 +187,70 @@ mod tests {
         assert_eq!(mono.len(), 2);
         assert!((mono[0] - 0.0).abs() < f32::EPSILON);
         assert!((mono[1] - 0.5).abs() < f32::EPSILON);
+    }
+
+    /// The averaging must be over every channel, for every channel count the
+    /// decoder can hand us — not just the stereo path.
+    #[test]
+    fn downmix_averages_every_channel() {
+        for channels in [1u16, 2, 3, 4, 5, 6, 8] {
+            let dir = tempfile::tempdir().unwrap();
+            let wav = dir.path().join("multi.wav");
+            write_multichannel_wav(&wav, 512, channels);
+
+            let decoded = decode_mono(&wav, &AnalysisConfig::default()).unwrap();
+            assert_eq!(decoded.samples.len(), 512);
+            for (index, &sample) in decoded.samples.iter().enumerate() {
+                let channel_count = usize::from(channels) as f32;
+                let sum: f32 = (0..usize::from(channels))
+                    .map(|channel| (index * (channel + 1)) % 101)
+                    .sum::<usize>() as f32;
+                let expected = sum / channel_count / 32768.0;
+                assert!(
+                    (sample - expected).abs() < 1e-6,
+                    "channels={channels} frame {index}: got {sample}, expected {expected}"
+                );
+            }
+        }
+    }
+
+    /// A partial trailing frame — a decoder read that stops mid-frame — is
+    /// dropped, which is what the whole-buffer downmix it replaced did too.
+    /// Mono has nothing to average, so a lone sample still counts as a frame.
+    #[test]
+    fn partial_trailing_frame_is_dropped() {
+        for channels in [2usize, 3, 8] {
+            let mut mono = Vec::new();
+            // Two whole frames plus a partial one.
+            let mut interleaved = (0..2 * channels).map(|i| i as f32).collect::<Vec<_>>();
+            interleaved.extend(std::iter::once(99.0));
+            downmix_append(&mut mono, &interleaved, channels);
+            assert_eq!(
+                mono.len(),
+                2,
+                "channels={channels}: a partial frame must not become a sample"
+            );
+        }
+
+        let mut mono = Vec::new();
+        downmix_append(&mut mono, &[1.0, 2.0, 3.0], 1);
+        assert_eq!(mono, vec![1.0, 2.0, 3.0]);
+    }
+
+    /// A cap larger than any real track must not become an allocation request:
+    /// the decode has to stay within reach and return the file.
+    #[test]
+    fn absurd_duration_cap_does_not_allocate_unboundedly() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("long.wav");
+        write_distinct_stereo_wav(&wav, 44_100);
+
+        let config = AnalysisConfig {
+            max_duration_ms: Some(i32::MAX),
+            ..Default::default()
+        };
+        let decoded = decode_mono(&wav, &config).unwrap();
+        assert_eq!(decoded.samples.len(), 44_100);
     }
 
     #[test]
@@ -206,15 +286,14 @@ mod tests {
 
         let decoded = decode_mono(&wav, &AnalysisConfig::default()).unwrap();
         assert_eq!(decoded.samples.len(), 1000);
-        // L and R are independent pseudo-random values, so the expected mean has
-        // to be computed from the inputs rather than cancelled by symmetry.
+        // Channel c carries (i * (c + 1)) % 101, so the mean is computed from
+        // the inputs rather than cancelled by symmetry.
         for (index, &sample) in decoded.samples.iter().enumerate() {
-            let left = (index % 101) as f32;
-            let right = ((index * 7) % 101) as f32;
-            let expected = (left + right) / 2.0 / 32768.0;
+            let sum: f32 = (0..2).map(|c| (index * (c + 1)) % 101).sum::<usize>() as f32;
+            let expected = sum / 2.0 / 32768.0;
             assert!(
                 (sample - expected).abs() < 1e-6,
-                "frame {index}: got {sample}, expected {expected} (from {left}, {right})"
+                "frame {index}: got {sample}, expected {expected} (from {sum})"
             );
         }
     }
@@ -271,12 +350,12 @@ mod tests {
     fn decode_mono_is_passed_through_unchanged() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("mono.wav");
-        write_wav(&wav, 10_000, 1, |i| ((i % 200) as i16, 0));
+        write_multichannel_wav(&wav, 10_000, 1);
 
         let decoded = decode_mono(&wav, &AnalysisConfig::default()).unwrap();
         assert_eq!(decoded.samples.len(), 10_000);
         for (index, &sample) in decoded.samples.iter().enumerate() {
-            assert!(sample == (index % 200) as f32 / 32768.0);
+            assert_eq!(sample, ((index % 101) as f32) / 32768.0);
         }
     }
 }
