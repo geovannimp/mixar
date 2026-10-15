@@ -42,22 +42,23 @@ pub fn prepare_owned(decoded: DecodedMono) -> PreparedPcm<'static> {
 ///
 /// Applies the same policy as [`prepare_owned`]. The copy is avoided when the
 /// peak already fits `±1.0`, which is the common case for PCM a caller has
-/// already normalized or decoded in range.
+/// already normalized or decoded in range. When it does not, the rescale is
+/// folded into the copy so the buffer is read once rather than three times.
 pub fn prepare<'a>(
     samples: &'a [f32],
     sample_rate: u32,
     _config: &AnalysisConfig,
 ) -> PreparedPcm<'a> {
-    if peak_of(samples) <= PEAK_NORMALIZE_THRESHOLD {
+    let peak = peak_of(samples);
+    if peak <= PEAK_NORMALIZE_THRESHOLD {
         return PreparedPcm {
             samples: Cow::Borrowed(samples),
             sample_rate,
         };
     }
-    let mut owned = samples.to_vec();
-    peak_normalize(&mut owned);
+    let scale = 1.0 / peak;
     PreparedPcm {
-        samples: Cow::Owned(owned),
+        samples: Cow::Owned(samples.iter().map(|sample| sample * scale).collect()),
         sample_rate,
     }
 }
@@ -191,5 +192,21 @@ mod tests {
         assert_eq!(&*prepared.samples, &[0.0f32, 1.0, -0.5]);
         // The caller's buffer is untouched.
         assert_eq!(samples, vec![0.0f32, 4.0, -2.0]);
+    }
+
+    /// The fused copy-and-rescale has to land on exactly the same floats as a
+    /// plain copy followed by the in-place rescale.
+    #[test]
+    fn prepare_fused_scale_matches_copy_then_scale() {
+        let samples: Vec<f32> = (0..5_000)
+            .map(|index| (index as f32 / 997.0).sin() * 2.5 - 1.25)
+            .collect();
+        let peak = peak_of(&samples);
+        let mut expected = samples.clone();
+        peak_normalize(&mut expected);
+
+        let prepared = prepare(&samples, 44_100, &AnalysisConfig::default());
+        assert_eq!(&*prepared.samples, &expected[..]);
+        assert!(peak > PEAK_NORMALIZE_THRESHOLD);
     }
 }
