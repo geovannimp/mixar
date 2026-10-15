@@ -14,3 +14,10 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 # STFT/CQT front ends. Both are pure Rust.
 rustfft = "6"
 realfft = "3"
+
+[features]
+# Sub-stage rows of `examples/qmdsp_timing.rs` reach private modules through
+# the `internals` re-export; `--no-default-features` keeps the example
+# compiling against sources that predate it.
+default = ["sub"]
+sub = []

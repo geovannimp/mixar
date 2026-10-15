@@ -1,0 +1,280 @@
+//! Timing harness for the qm-dsp analysis port.
+//!
+//! Hand-rolled on purpose: Criterion is a workspace dependency but absent from
+//! `Cargo.lock`, and pulling it in would touch the lockfile and the
+//! dev-dependency set of a crate that is otherwise dependency-free. The row set
+//! is exactly the stage boundaries needed to attribute a change.
+//!
+//! Usage:
+//!   cargo run --release -p analyzer-qmdsp --example qmdsp_timing -- [--secs N]
+//!       [--pipeline-only] [--dump PATH]
+//!
+//! One stdout line per row:
+//!   row <name> min_ms=%.3f mean_ms=%.3f reps=%d peak_vmhwm_kb=%d
+//!
+//! The sub-stage rows reach the crate's private modules through
+//! `analyzer_qmdsp::internals`, so they are behind the default-on `sub` feature:
+//! building with `--no-default-features` keeps the example compiling against
+//! sources that predate that re-export.
+
+use std::hint::black_box;
+use std::time::Instant;
+
+use analyzer_core::{AnalysisConfig, AnalysisTargets, AudioAnalyzer};
+use analyzer_qmdsp::QmdspAnalyzer;
+
+const SR: u32 = 44_100;
+const WARMUP: usize = 1;
+const REPS: usize = 5;
+
+/// Chromagram frame size `GetKeyMode` derives at 44.1 kHz.
+#[cfg(feature = "sub")]
+const CQ_FRAME: usize = 4096;
+
+fn corpus(secs: f64) -> Vec<f32> {
+    let n = (f64::from(SR) * secs) as usize;
+    let beat = 60.0 / 128.0;
+    let mut y = vec![0.0f32; n];
+    for (i, slot) in y.iter_mut().enumerate() {
+        let t = i as f64 / f64::from(SR);
+        let env = (-18.0 * (t / beat).fract()).exp();
+        let kick = (2.0 * std::f64::consts::PI * 62.0 * t).sin() * env * 0.6;
+        let hat = (2.0 * std::f64::consts::PI * 3000.0 * t).sin()
+            * (-60.0 * ((t % 0.1) / 0.1)).exp()
+            * 0.3;
+        let chord = 0.25 * (2.0 * std::f64::consts::PI * 261.63 * t).sin()
+            + 0.20 * (2.0 * std::f64::consts::PI * 329.63 * t).sin()
+            + 0.15 * (2.0 * std::f64::consts::PI * 392.0 * t).sin();
+        let lush = 0.5 + 0.5 * (2.0 * std::f64::consts::PI * t / 8.0).sin();
+        *slot = (kick + hat + chord * lush).clamp(-1.0, 1.0) as f32;
+    }
+    y
+}
+
+fn vmhwm_kb() -> Option<u64> {
+    let status = std::fs::read_to_string("/proc/self/status").ok()?;
+    let line = status.lines().find(|l| l.starts_with("VmHWM:"))?;
+    line.split_whitespace().nth(1)?.parse::<u64>().ok()
+}
+
+fn bench<T>(name: &str, warmup: usize, reps: usize, mut f: impl FnMut() -> T) -> T {
+    for _ in 0..warmup {
+        black_box(f());
+    }
+    let mut times = Vec::with_capacity(reps);
+    let mut last = None;
+    for _ in 0..reps {
+        let t0 = Instant::now();
+        last = Some(f());
+        times.push(t0.elapsed().as_secs_f64() * 1000.0);
+    }
+    let min = times.iter().copied().fold(f64::INFINITY, f64::min);
+    let mean = times.iter().sum::<f64>() / reps as f64;
+    let peak = vmhwm_kb().unwrap_or(0);
+    println!("row {name} min_ms={min:.3} mean_ms={mean:.3} reps={reps} peak_vmhwm_kb={peak}");
+    last.expect("at least one rep")
+}
+
+fn fnv1a64(bytes: &[u8]) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in bytes {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+fn fingerprint(beats: &[f32], bpm: Option<f64>, key: Option<&str>, downbeats: &[f32]) {
+    let mut bytes = Vec::new();
+    for &b in beats {
+        bytes.extend_from_slice(&b.to_le_bytes());
+    }
+    for &d in downbeats {
+        bytes.extend_from_slice(&d.to_le_bytes());
+    }
+    let hash = fnv1a64(&bytes);
+    let first = downbeats.first().copied().unwrap_or(0.0);
+    let last = downbeats.last().copied().unwrap_or(0.0);
+    let sum: f64 = downbeats.iter().map(|&d| f64::from(d)).sum();
+    let mean = if downbeats.is_empty() {
+        0.0
+    } else {
+        sum / downbeats.len() as f64
+    };
+    println!(
+        "fingerprint beats={} bpm={} key={} downbeats={} first={:.6} last={:.6} mean={:.6} hash={hash:016x}",
+        beats.len(),
+        bpm.map(|b| format!("{b:.6}")).unwrap_or_else(|| "none".to_string()),
+        key.unwrap_or("none"),
+        downbeats.len(),
+        first,
+        last,
+        mean,
+    );
+}
+
+fn targets(bpm: bool, key: bool, beat_grid: bool) -> AnalysisConfig {
+    AnalysisConfig {
+        targets: AnalysisTargets {
+            bpm,
+            key,
+            beat_grid,
+        },
+        ..AnalysisConfig::default()
+    }
+}
+
+fn main() {
+    let mut secs = 240.0f64;
+    let mut pipeline_only = false;
+    let mut dump: Option<String> = None;
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        match a.as_str() {
+            "--secs" => {
+                if let Some(v) = args.next() {
+                    secs = v.parse().expect("--secs takes a number");
+                }
+            }
+            "--dump" => dump = args.next(),
+            "--pipeline-only" => pipeline_only = true,
+            other => panic!("unknown argument {other}"),
+        }
+    }
+
+    let y = corpus(secs);
+    let analyzer = QmdspAnalyzer::new();
+    let all = targets(true, true, true);
+
+    let full = analyzer.analyze_pcm(&y, SR, &all).expect("analyze_full");
+    let grid = full.beat_grid.as_ref().expect("beat grid");
+    let full_beats = grid.beats.clone();
+    let full_downbeats = grid.downbeats.clone();
+    fingerprint(
+        &full_beats,
+        full.bpm.map(|b| b.bpm),
+        full.key.as_ref().map(|k| k.musical.as_str()),
+        &full_downbeats,
+    );
+    if let Some(path) = &dump {
+        let mut out = String::new();
+        for &b in &full_beats {
+            out.push_str(&format!("{b:e}\n"));
+        }
+        std::fs::write(path, out).expect("write dump");
+    }
+
+    let _ = bench("analyze_full", WARMUP, REPS, || {
+        analyzer.analyze_pcm(&y, SR, &all)
+    });
+
+    let bpm_only = targets(true, false, false);
+    let _ = bench("analyze_bpm", WARMUP, REPS, || {
+        analyzer.analyze_pcm(&y, SR, &bpm_only)
+    });
+
+    let grid_only = targets(false, false, true);
+    let _ = bench("analyze_grid", WARMUP, REPS, || {
+        analyzer.analyze_pcm(&y, SR, &grid_only)
+    });
+
+    let key_only = targets(false, true, false);
+    let _ = bench("analyze_key", WARMUP, REPS, || {
+        analyzer.analyze_pcm(&y, SR, &key_only)
+    });
+
+    let key_run = analyzer
+        .analyze_pcm(&y, SR, &key_only)
+        .expect("analyze_key");
+    fingerprint(
+        &[],
+        None,
+        key_run.key.as_ref().map(|k| k.musical.as_str()),
+        &[],
+    );
+
+    if pipeline_only {
+        return;
+    }
+
+    #[cfg(feature = "sub")]
+    sub_rows(&y, &full_beats);
+}
+
+#[cfg(feature = "sub")]
+fn sub_rows(y: &[f32], full_beats: &[f32]) {
+    use analyzer_qmdsp::internals;
+
+    bench("sub_init", WARMUP, REPS, || {
+        internals::key::GetKeyMode::new(SR)
+    });
+
+    let y64: Vec<f64> = y.iter().map(|&s| f64::from(s)).collect();
+    let step = (f64::from(SR) * 0.01161) as i32 as usize;
+    let window = (SR / 50).next_power_of_two() as usize;
+    println!("framing step={step} window={window}");
+    bench("sub_onset", WARMUP, REPS, || {
+        let mut df = internals::onset::DetectionFunction::new(window);
+        let mut res = Vec::new();
+        internals::overlap::feed(&y64, window, step, |f| {
+            res.push(df.process_time_domain(f));
+        });
+        res
+    });
+
+    // Replicate `detect_beats` framing exactly.
+    let mut df = internals::onset::DetectionFunction::new(window);
+    let mut results: Vec<f64> = Vec::new();
+    internals::overlap::feed(&y64, window, step, |f| {
+        results.push(df.process_time_domain(f));
+    });
+    let mut nonzero = results.len();
+    while nonzero > 0 && results[nonzero - 1] <= 0.0 {
+        nonzero -= 1;
+    }
+    let df_slice: &[f64] = if nonzero >= 2 {
+        &results[2..nonzero]
+    } else {
+        &[]
+    };
+
+    let bp = bench("sub_beat_period", WARMUP, REPS, || {
+        internals::tempo::calculate_beat_period(df_slice)
+    });
+
+    bench("sub_beats_dp", WARMUP, REPS, || {
+        internals::tempo::calculate_beats(df_slice, &bp)
+    });
+
+    // Decimated stream, computed once outside the timed closures.
+    let mut d8 = internals::key::decimator::Decimator::new(y64.len(), 8);
+    let mut dec = vec![0.0; y64.len() / 8];
+    d8.process(&y64, &mut dec);
+
+    let mut chroma = internals::key::cqt::Chromagram::new(internals::key::cqt::ChromagramConfig {
+        fs: f64::from(SR) / 8.0,
+        min: internals::math::pitch_frequency(48, -12.0 / 36.0 * 100.0, 440.0),
+        max: internals::math::pitch_frequency(96, -12.0 / 36.0 * 100.0, 440.0),
+        bpo: 36,
+        cq_thresh: 0.0054,
+    });
+    bench("sub_chroma", WARMUP, REPS, || {
+        let (frames, _) = dec.as_chunks::<CQ_FRAME>();
+        let mut out = Vec::new();
+        for frame in frames {
+            out.push(chroma.process(frame).to_vec());
+        }
+        out
+    });
+
+    bench("sub_decimate8", WARMUP, REPS, || {
+        let mut d = internals::key::decimator::Decimator::new(y64.len(), 8);
+        let mut out = vec![0.0; y64.len() / 8];
+        d.process(&y64, &mut out);
+        out
+    });
+
+    bench("sub_downbeat", WARMUP, REPS, || {
+        internals::downbeat::detect_downbeats(&y64, SR, full_beats, 4)
+    });
+}

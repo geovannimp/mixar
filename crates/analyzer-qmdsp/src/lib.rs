@@ -24,14 +24,21 @@
 // indices (kept for parity/readability) and full-precision coefficient literals.
 #![allow(clippy::needless_range_loop, clippy::excessive_precision)]
 
-mod downbeat;
+pub mod downbeat;
 mod fft;
-mod key;
-mod math;
-mod onset;
-mod overlap;
-mod tempo;
+pub mod key;
+pub mod math;
+pub mod onset;
+pub mod overlap;
+pub mod tempo;
 mod window;
+
+/// Measurement-only re-exports for `examples/qmdsp_timing.rs`. Not part of
+/// the crate's API.
+#[doc(hidden)]
+pub mod internals {
+    pub use crate::{downbeat, key, math, onset, overlap, tempo};
+}
 
 use analyzer_core::{
     AnalysisConfig, AnalysisRunMetadata, AnalyzerError, AudioAnalyzer, BeatGridAnalysis,
