@@ -16,6 +16,7 @@
     "format:staged": "moon run :format-files --affected --status staged",
     "build": "moon run :build",
     "test": "moon run :test",
+    "test:affected": "moon run gui-flutter:test-affected",
     "dev": "moon run gui-flutter:dev-linux",
     "flutter:dev": "moon run gui-flutter:dev-linux",
     "website:dev": "moon run website:dev",

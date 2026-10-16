@@ -221,6 +221,29 @@ tasks:
     options:
       runInCI: true
 
+  # Developer fast path: runs only the suites that transitively import the
+  # changed files (branch diff vs the default branch + staged/unstaged/untracked
+  # changes). Only pubspec.{yaml,lock} force the full suite; every other input is
+  # resolved through the import graph — see scripts/test_impacted.dart.
+  #
+  # CI must keep using `:test` (the full suite) above, never this task. Its
+  # runInCI stays true because moon 2.4.4 cannot *resolve* a runInCI:false task
+  # without --affected (same reason `lint-files`/`format-files` are always
+  # invoked with --affected) — flip it back and this task stops being runnable.
+  test-affected:
+    command: "bash"
+    args:
+      - "-c"
+      - 'exec mise exec -- dart run scripts/test_impacted.dart --run'
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "test/**/*"
+      - "scripts/test_impacted.dart"
+    options:
+      cache: false
+      runInCI: true
+
   generate:
     command: "bash"
     args: ["scripts/ensure-frb-codegen.sh"]
