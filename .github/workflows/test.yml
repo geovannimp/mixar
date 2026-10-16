@@ -1,5 +1,8 @@
 name: Test
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main, develop]
@@ -52,7 +55,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: apps/gui-flutter/build/test_cache
-          key: ${{ runner.os }}-flutter-test-kernel-${{ hashFiles('apps/gui-flutter/pubspec.lock') }}
+          key: ${{ runner.os }}-flutter-test-kernel-${{ hashFiles('apps/gui-flutter/pubspec.lock', 'apps/gui-flutter/pubspec.yaml', 'mise.toml') }}
           restore-keys: |
             ${{ runner.os }}-flutter-test-kernel-
 
