@@ -75,14 +75,35 @@ pub struct Probed {
     pub frames: u64,
 }
 
+/// What a probe's result depends on.
+///
+/// Only the duration cap: `decode_mono` reads nothing else from the config, so
+/// two configs differing only in, say, `targets` decode identically and must
+/// share a cache entry. Keying on this small struct rather than on the whole
+/// `AnalysisConfig` is what makes that true, and it means adding a field to the
+/// config cannot change which entries collide. If `decode_mono` ever starts
+/// reading another field, add it here.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ProbeKey {
+    pub max_duration_ms: Option<i32>,
+}
+
+impl ProbeKey {
+    fn of(config: &AnalysisConfig) -> Self {
+        Self {
+            max_duration_ms: config.max_duration_ms,
+        }
+    }
+}
+
 /// Decode `path` under `config` and report what was decoded, memoized for the
 /// process — or `None` when the scenario cannot run.
 ///
 /// Every throughput denominator and benchmark id is derived from a probe decode
-/// of the fixture. The same (fixture, config) pair can be probed by more than
-/// one target — `decode_mono` and `analyze_file` share three — so the decode is
-/// paid once per process instead of once per target. The probe runs before the
-/// harness starts timing, so it is setup work, not measured work.
+/// of the fixture. The same (fixture, [`ProbeKey`]) pair can be probed by more
+/// than one target — `decode_mono` and `analyze_file` share three — so the
+/// decode is paid once per process instead of once per target. The probe runs
+/// before the harness starts timing, so it is setup work, not measured work.
 ///
 /// `None` means either the fixture is missing or it exists and will not decode,
 /// matching [`fixture`] and `decode_pcm_fixture`: nothing was measured, so the
@@ -90,23 +111,8 @@ pub struct Probed {
 /// a different rate or length than the id and denominator claim is a separate
 /// case and still fails loudly, because there the report *would* describe work
 /// that did not happen.
-///
-/// The cache key is the duration cap because that is the only field of
-/// `AnalysisConfig` that `decode_mono` reads. If decoding ever starts reading
-/// another field, the key has to grow to cover it; until then the `assert!`
-/// below enforces the assumption that a probe is only ever keyed on the cap, so
-/// a non-default field reaching this function is a loud failure rather than a
-/// silently reused answer for the wrong config.
 pub fn probe(path: &Path, config: &AnalysisConfig) -> Option<Probed> {
-    let cap_only = AnalysisConfig {
-        max_duration_ms: config.max_duration_ms,
-        ..AnalysisConfig::default()
-    };
-    assert_eq!(
-        config, &cap_only,
-        "probe() is keyed on max_duration_ms only; add the new field to the key"
-    );
-    let key = (path.to_path_buf(), config.max_duration_ms);
+    let key = (path.to_path_buf(), ProbeKey::of(config));
     if let Some(hit) = PROBES
         .lock()
         .expect("probe cache is never poisoned")
@@ -135,8 +141,8 @@ pub fn probe(path: &Path, config: &AnalysisConfig) -> Option<Probed> {
     Some(probed)
 }
 
-/// Probes keyed by (fixture, duration cap): the properties they establish —
+/// Probes keyed by (fixture, [`ProbeKey`]): the properties they establish —
 /// native sample rate and decoded frame count — depend on both.
-type ProbeCache = Mutex<HashMap<(PathBuf, Option<i32>), Probed>>;
+type ProbeCache = Mutex<HashMap<(PathBuf, ProbeKey), Probed>>;
 
 static PROBES: LazyLock<ProbeCache> = LazyLock::new(|| Mutex::new(HashMap::new()));

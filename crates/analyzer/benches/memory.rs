@@ -27,21 +27,21 @@ use analyzer::{analyze_file, decode_mono};
 /// confirm it is reached by the first pass.
 const REPEATS: usize = 3;
 
-/// Peak resident set size in kibibytes, read from `VmHWM`.
+/// Peak resident set size in kibibytes, read from `VmHWM`, or `None` when the
+/// platform cannot report it.
+///
+/// A minimal `/proc` in a restricted container is a skip, not an abort: the
+/// scenarios already measured stay in the report.
 #[cfg(target_os = "linux")]
-fn peak_rss_kib() -> u64 {
-    let status = std::fs::read_to_string("/proc/self/status")
-        .expect("this benchmark only supports Linux, which always has /proc/self/status");
-    for line in status.lines() {
-        if let Some(rest) = line.strip_prefix("VmHWM:") {
-            return rest
-                .split_whitespace()
-                .next()
-                .and_then(|value| value.parse().ok())
-                .unwrap_or_else(|| panic!("VmHWM value {rest:?} is not a number"));
-        }
-    }
-    panic!("VmHWM missing from /proc/self/status");
+fn peak_rss_kib() -> Option<u64> {
+    let status = std::fs::read_to_string("/proc/self/status").ok()?;
+    let hwm = status.lines().find_map(|line| {
+        line.strip_prefix("VmHWM:")
+            .map(|rest| rest.split_whitespace().next().unwrap_or(""))
+    })?;
+    hwm.parse()
+        .ok()
+        .or_else(|| panic!("VmHWM value {hwm:?} is not a number"))
 }
 
 #[cfg(target_os = "linux")]
@@ -55,14 +55,20 @@ fn scenario(name: &str, mut run: impl FnMut() -> anyhow::Result<()>) {
         println!("skipping bench: {name} could not run: {error}");
         return;
     }
-    let before = peak_rss_kib();
+    let Some(before) = peak_rss_kib() else {
+        println!("skipping bench: {name} needs VmHWM from /proc/self/status, which is unreadable");
+        return;
+    };
     for _ in 0..REPEATS {
         if let Err(error) = run() {
             println!("skipping bench: {name} could not run: {error}");
             return;
         }
     }
-    let after = peak_rss_kib();
+    let Some(after) = peak_rss_kib() else {
+        println!("skipping bench: {name} needs VmHWM from /proc/self/status, which is unreadable");
+        return;
+    };
     println!(
         "{name:<44} VmHWM before {before:>9} KiB   after {after:>9} KiB   delta {:>9} KiB",
         after - before
