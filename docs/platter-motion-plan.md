@@ -25,7 +25,7 @@
 | `crates/engine-dsp/src/platter_motion.rs` | Motion authority |
 | `crates/engine-dsp/src/lib.rs` | `mod platter_motion` |
 | `crates/engine-dsp/src/deck.rs` | Delegate jog fields/methods |
-| `apps/gui-flutter/lib/mixer/deck_jog.dart` | Playhead follow while hardware touching |
+| `apps/gui-flutter/lib/widgets/mixer/deck_jog_host.dart` | Playhead follow while hardware touching |
 | `docs/platter-motion-design.md` | Spec |
 | `docs/deck-spec.md` | Point §5.11 at PlatterMotion |
 
@@ -71,7 +71,7 @@
 ### Task 3: UI platter follows playhead during hardware touch
 
 **Files:**
-- Modify: `apps/gui-flutter/lib/mixer/deck_jog.dart`
+- Modify: `apps/gui-flutter/lib/widgets/mixer/deck_jog_host.dart`
 - Test: extend `apps/gui-flutter/test/deck_jog_test.dart` if present, else add focused test
 
 - [ ] **Step 1: Change `_syncRotationFromPlayhead`** so only `_dragging` skips sync (not `widget.jogTouching`).

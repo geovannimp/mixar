@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/settings/settings_storage_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_storage_panel.dart';
 
 void main() {
   test('formatStorageBytes scales', () {

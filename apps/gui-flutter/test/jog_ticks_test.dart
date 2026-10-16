@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/jog_ticks.dart';
+import 'package:gui_flutter/core/utils/jog_ticks.dart';
 
 void main() {
   test('degreesToJogTicks maps a full turn', () {

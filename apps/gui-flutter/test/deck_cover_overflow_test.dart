@@ -3,19 +3,20 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/artwork_cache.dart';
-import 'package:gui_flutter/mixer/deck_track_info.dart';
-import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/mixer/engine_ui.dart';
-import 'package:gui_flutter/mixer/waveform/peaks.dart';
-import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
-import 'package:gui_flutter/settings/settings_defaults.dart';
-import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/core/models/engine_ui.dart';
+import 'package:gui_flutter/core/models/waveform_peaks.dart';
+import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/library/artwork_cache.dart';
+import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
+
+import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
 
 import 'support/mixar_material_app.dart';
 

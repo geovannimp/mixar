@@ -458,7 +458,7 @@ Extend `Deck` in `engine-dsp` with:
 
 ### 6.3 GUI view model
 
-**Today** (Flutter host view model: `EngineUiSnapshot` / per-deck fields in `apps/gui-flutter/lib/mixer/engine_ui.dart`, fed by FRB `EngineEvt` in `lib/src/rust/api/engine.dart`):
+**Today** (Flutter host view model: `EngineUiSnapshot` / per-deck fields in `apps/gui-flutter/lib/core/models/engine_ui.dart`, fed by FRB `EngineEvt` in `lib/src/rust/api/engine.dart`):
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -689,10 +689,10 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | Resource | Path |
 |----------|------|
 | Engine deck DSP | `crates/engine-dsp/src/deck.rs` |
-| GUI deck panel | `apps/gui-flutter/lib/mixer/deck_panel.dart` |
-| GUI deck grid | `apps/gui-flutter/lib/mixer/deck_grid.dart` |
-| GUI mixer page | `apps/gui-flutter/lib/mixer/mixer_page.dart` |
-| Waveform section | `apps/gui-flutter/lib/mixer/waveform_section.dart` |
+| GUI deck panel | `apps/gui-flutter/lib/widgets/mixer/deck_panel.dart` |
+| GUI deck grid | `apps/gui-flutter/lib/widgets/mixer/deck_grid.dart` |
+| GUI mixer page | `apps/gui-flutter/lib/screens/mixer_page.dart` |
+| Waveform section | `apps/gui-flutter/lib/widgets/mixer/waveform_section.dart` |
 | Waveform spec | `docs/dj-waveform-spec.md` |
 | Analyzer / beat grid | `docs/audio-analyzer-spec.md` |
 

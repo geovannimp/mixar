@@ -1,6 +1,6 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/key_format.dart';
+import 'package:gui_flutter/core/utils/key_format.dart';
 
 void main() {
   test('formatDeckKey musical and camelot Mixed In Key round-trip', () {

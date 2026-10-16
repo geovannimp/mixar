@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
+import 'package:gui_flutter/widgets/mixer/pads/sampler_pads.dart';
 
 void main() {
   test('SamplerSlot.filled requires path or non-empty label', () {

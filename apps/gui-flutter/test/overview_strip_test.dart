@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/mixer/engine_ui.dart';
-import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
-import 'package:gui_flutter/mixer/waveform/peaks.dart';
-import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/core/models/engine_ui.dart';
+import 'package:gui_flutter/core/models/waveform_peaks.dart';
+import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';

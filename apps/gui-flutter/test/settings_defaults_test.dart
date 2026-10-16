@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/settings/settings_defaults.dart';
-import 'package:gui_flutter/shell/desktop.dart';
+import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 void main() {

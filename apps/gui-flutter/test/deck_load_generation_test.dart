@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/deck_load.dart';
-import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/mixer/track_drag.dart';
-import 'package:gui_flutter/shell/app_notice.dart';
+import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/mixer/deck_load.dart';
+import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/shell/app_notice.dart';
 
 TrackDragPayload _payload(String id) => TrackDragPayload(
   source: TrackDragSource.library,

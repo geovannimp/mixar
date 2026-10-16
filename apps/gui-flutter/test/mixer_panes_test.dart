@@ -1,25 +1,29 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/history_providers.dart';
-import 'package:gui_flutter/library/library_list_chrome.dart';
-import 'package:gui_flutter/library/providers.dart';
-import 'package:gui_flutter/mixer/library_panel.dart';
-import 'package:gui_flutter/mixer/mixer_page.dart';
-import 'package:gui_flutter/settings/settings_defaults.dart';
-import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/shell/m_tabs.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:gui_flutter/shell/mixar_input.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/utils/library_list_layout.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/library/history_providers.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/screens/mixer_page.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/mixer/library_panel.dart';
+import 'package:gui_flutter/widgets/shell/mixar_input.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
 
 import 'helpers/collection_tracks_override.dart';
+
+import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
+
 import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
+
+import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

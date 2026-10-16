@@ -2,22 +2,27 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/library_list_chrome.dart';
-import 'package:gui_flutter/library/providers.dart';
-import 'package:gui_flutter/library/track_list_pane.dart';
-import 'package:gui_flutter/settings/settings_defaults.dart';
-import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/shell/app_button.dart';
-import 'package:gui_flutter/shell/desktop.dart';
-import 'package:gui_flutter/shell/m_loader.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:gui_flutter/shell/mixar_menu.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/core/utils/library_list_layout.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/library_pane_toolbar.dart';
+import 'package:gui_flutter/widgets/library/meta_pill.dart';
+import 'package:gui_flutter/widgets/library/track_list_pane.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/m_loader.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'helpers/collection_tracks_override.dart';
+
+import 'package:gui_flutter/widgets/library/track_list_row.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
+
 import 'support/mixar_material_app.dart';
 
 // Both widget types are used elsewhere in the app (m_tabs.dart renders

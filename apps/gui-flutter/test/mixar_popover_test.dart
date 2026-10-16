@@ -1,11 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:gui_flutter/shell/mixar_menu.dart';
-import 'package:gui_flutter/shell/mixar_overlay_controller.dart';
-import 'package:gui_flutter/shell/mixar_popover.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
+
+import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
+import 'package:gui_flutter/widgets/shell/mixar_popover.dart';
 
 import 'support/mixar_material_app.dart';
 

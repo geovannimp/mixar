@@ -1,8 +1,8 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/settings/settings_widgets.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
+
+import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 
 import 'support/mixar_material_app.dart';
 

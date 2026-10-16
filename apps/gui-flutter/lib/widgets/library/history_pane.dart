@@ -1,0 +1,199 @@
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/providers/library/history_providers.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/shell/app_notice.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/library_nav_row.dart';
+import 'package:gui_flutter/widgets/library/library_pane_label.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
+import 'package:gui_flutter/widgets/shell/m_loader.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+/// Sidebar list of performance history sessions.
+class HistoryPane extends ConsumerStatefulWidget {
+  const new({super.key});
+
+  @override
+  ConsumerState<HistoryPane> createState() => _HistoryPaneState();
+}
+
+class _HistoryPaneState extends ConsumerState<HistoryPane> {
+  var _creating = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final colors = theme.colors;
+    final sessions = ref.watch(historySessionsProvider);
+    final selectedId = ref.watch(activeHistorySessionIdProvider);
+    final canResume = ref.watch(historyCanResumeProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 4, 4, 8),
+          child: Row(
+            children: [
+              const Expanded(child: LibraryPaneLabel('History')),
+              AppTooltip(
+                tip: 'New session',
+                child: AppButton.icon(
+                  semanticsLabel: 'New session',
+                  onPress: _creating ? null : () => unawaited(_newSession()),
+                  variant: .ghost,
+                  size: .xs,
+                  child: _creating
+                      ? const MLoader(size: MLoaderSize.sm)
+                      : const Icon(LucideIcons.plus, size: 14),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: sessions.when(
+            skipLoadingOnReload: true,
+            loading: () => const Center(child: MLoader()),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  '$e',
+                  style: theme.typography.body.sm.copyWith(
+                    color: theme.colors.destructive,
+                  ),
+                ),
+              ),
+            ),
+            data: (rows) {
+              if (rows.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No sessions yet',
+                    style: theme.typography.body.sm.copyWith(
+                      color: theme.colors.mutedForeground,
+                    ),
+                  ),
+                );
+              }
+              final resumeSessionId = canResume.maybeWhen(
+                data: (value) => value ? _resumableSessionId(rows) : null,
+                orElse: () => null,
+              );
+              return ListView.builder(
+                itemCount: rows.length,
+                itemBuilder: (context, index) {
+                  final row = rows[index];
+                  return LibraryNavRow(
+                    title: row.title,
+                    subtitle:
+                        '${formatHistoryTimestamp(row.startedAt)} · ${row.entryCount} plays',
+                    selected: row.id == selectedId,
+                    onPress: () => ref
+                        .read(selectedHistorySessionIdProvider.notifier)
+                        .set(row.id),
+                    trailing: row.id == resumeSessionId
+                        ? MTappable.child(
+                            semanticsLabel: 'Resume ${row.title}',
+                            onPress: () => unawaited(_resumeSession()),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(
+                                LucideIcons.iterationCw,
+                                size: 14,
+                                color: colors.mutedForeground,
+                              ),
+                            ),
+                          )
+                        : row.closed
+                        ? null
+                        : Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: _LiveBadge(theme: theme),
+                          ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String? _resumableSessionId(List<HistorySessionSummary> rows) {
+    for (final row in rows) {
+      if (row.closed) {
+        return row.id;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _newSession() async {
+    setState(() => _creating = true);
+    ref.read(appNoticeProvider.notifier).clear();
+    try {
+      final transport = await ref.read(libraryTransportProvider.future);
+      await transport.historyNewSession();
+      invalidateHistory(ref);
+    } catch (e) {
+      if (mounted) {
+        ref.read(appNoticeProvider.notifier).setError('$e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _creating = false);
+      }
+    }
+  }
+
+  Future<void> _resumeSession() async {
+    ref.read(appNoticeProvider.notifier).clear();
+    try {
+      final transport = await ref.read(libraryTransportProvider.future);
+      await transport.historyResumeSession();
+      invalidateHistory(ref);
+    } catch (e) {
+      if (mounted) {
+        ref.read(appNoticeProvider.notifier).setError('$e');
+      }
+    }
+  }
+}
+
+class _LiveBadge extends StatelessWidget {
+  const new({required this.theme});
+
+  static const _liveGreen = Color(0xFF22C55E);
+
+  final MixarThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(color: _liveGreen, shape: BoxShape.circle),
+          child: SizedBox(width: 6, height: 6),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          'live',
+          style: theme.typography.body.xs.copyWith(
+            color: _liveGreen,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}

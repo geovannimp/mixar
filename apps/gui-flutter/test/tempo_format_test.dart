@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/tempo_format.dart';
+import 'package:gui_flutter/core/utils/tempo_format.dart';
 
 void main() {
   test('mid fader is unity pitch', () {

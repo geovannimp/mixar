@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 import 'helpers/collection_tracks_override.dart';

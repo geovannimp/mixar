@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/focused_load.dart';
-import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/library/focused_load.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 LibraryTrackSummary _track({

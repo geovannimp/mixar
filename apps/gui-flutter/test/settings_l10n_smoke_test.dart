@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/models/settings_section.dart';
+import 'package:gui_flutter/core/utils/ui_language.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
-import 'package:gui_flutter/settings/settings_section.dart';
-import 'package:gui_flutter/settings/settings_sidebar.dart';
-import 'package:gui_flutter/settings/ui_language.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';

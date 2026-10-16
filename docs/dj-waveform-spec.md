@@ -365,7 +365,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 
 ## 10 — Mixar Today
 
-**Location:** `audio-core` / library waveform APIs; Flutter paint in `apps/gui-flutter/lib/mixer/waveform/`.
+**Location:** `audio-core` / library waveform APIs; Flutter paint in `apps/gui-flutter/lib/widgets/mixer/waveform/`.
 
 | Aspect | Current implementation |
 |--------|------------------------|
@@ -463,6 +463,6 @@ All product decisions are locked (§12). Remaining items are **engineering choic
 | Resource | Path |
 |----------|------|
 | Current peak generator | `audio-core` / library waveform APIs |
-| GUI scrolling lane | `apps/gui-flutter/lib/mixer/waveform/scrolling_lane.dart` |
-| GUI waveform section | `apps/gui-flutter/lib/mixer/waveform_section.dart` |
+| GUI scrolling lane | `apps/gui-flutter/lib/widgets/mixer/waveform/scrolling_lane.dart` |
+| GUI waveform section | `apps/gui-flutter/lib/widgets/mixer/waveform_section.dart` |
 | Analyzer roadmap (waveforms) | `docs/audio-analyzer-spec.md` §2, §14 |

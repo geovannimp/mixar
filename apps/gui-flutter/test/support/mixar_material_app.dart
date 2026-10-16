@@ -1,8 +1,8 @@
+import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/theme/shad_theme.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/l10n/kit_localizations.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
-import 'package:gui_flutter/shell/shad_theme.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 

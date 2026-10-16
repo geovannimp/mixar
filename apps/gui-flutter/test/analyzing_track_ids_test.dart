@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
 
 void main() {
   test('analyzing tracks keep loaders when a second analyze starts', () {

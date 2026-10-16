@@ -1,0 +1,44 @@
+import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
+import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
+import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
+
+/// Deck A | Mixer (togglable sections) | Deck B in one card.
+class DeckGrid extends StatelessWidget {
+  const new({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(10),
+            child: RepaintBoundary(
+              child: DeckPanel(
+                deckId: 0,
+                label: 'Deck A',
+                accent: FaderAccent.a,
+              ),
+            ),
+          ),
+        ),
+        RepaintBoundary(child: MixerStrip()),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(10),
+            child: RepaintBoundary(
+              child: DeckPanel(
+                deckId: 1,
+                label: 'Deck B',
+                accent: FaderAccent.b,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

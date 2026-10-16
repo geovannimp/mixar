@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/deck_loop_panel.dart';
-import 'package:gui_flutter/mixer/engine_ui.dart';
+import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/mixer/deck_loop_panel.dart';
 
 void main() {
   test('kAutoLoopBeats matches Tauri list', () {

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/engine_ui.dart';
-import 'package:gui_flutter/mixer/pad_modes.dart';
+import 'package:gui_flutter/core/models/engine_ui.dart';
+import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
 void main() {
