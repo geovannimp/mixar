@@ -10,10 +10,10 @@
 #  1. Unset GIT_* first. Flutter's version probe inherits the hook's repo and reports
 #     0.0.0-unknown, which is why `format-files`/`lint-files`/`icons` do the same.
 #  2. Forward moon's passthrough args. `moon run gui-flutter:test -- --plain-name foo`
-#     appends them after the task args. When the command is `bash -c <script>` bash
-#     maps them onto $0/$1..., so an arg-shaped $0 is folded back in; when the script
-#     runs by path, $0 is that path and must NOT be forwarded, or `flutter test` tries
-#     to load it as a suite ("Missing definition of main").
+#     appends them after the task args, so with `bash scripts/flutter_test.sh`
+#     they land in $1.. and "$@" forwards them (verified: a bogus flag fails
+#     loudly, a real filter selects one test). The fold below only covers the
+#     `bash -c '<script>'` form, where bash maps them onto $0/$1... instead.
 #  3. nproc is affinity-aware (4 under `taskset -c 0-3`, unlike getconf, which reports
 #     the full CPU count), so it stays first. getconf _NPROCESSORS_ONLN is the POSIX
 #     fallback for macOS/BSD, where nproc does not exist (there `$(nproc)` expands

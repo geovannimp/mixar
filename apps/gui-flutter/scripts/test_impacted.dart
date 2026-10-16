@@ -85,10 +85,20 @@ List<String>? _tryGit(List<String> args) {
       .toList();
 }
 
+/// Candidate default-branch refs. The repo triggers CI on both `main` and
+/// `develop`, so a branch cut from `develop` must find its base too.
+const _defaultBranchRefs = <String>[
+  'origin/HEAD',
+  'origin/main',
+  'main',
+  'origin/develop',
+  'develop',
+];
+
 /// The merge base with the default branch, or `null` when it cannot be
 /// determined (shallow clone, detached HEAD, no remote refs).
 String? _mergeBase() {
-  for (final ref in const ['origin/main', 'main']) {
+  for (final ref in _defaultBranchRefs) {
     final bases = _tryGit(['merge-base', 'HEAD', ref]);
     if (bases != null && bases.isNotEmpty) return bases.first;
   }
@@ -114,7 +124,17 @@ Set<String> _changedFiles({required void Function() onUnknownBase}) {
   return changed;
 }
 
-/// Targets of every `import` / `export` directive in [file].
+/// Removes comments so a doc comment quoting `import 'x.dart';` cannot fake a
+/// directive (they exist, e.g. in `lib/l10n/app_localizations.dart`).
+String _stripComments(String source) {
+  final withoutBlocks = source.replaceAll(
+    RegExp(r'''/\*.*?\*/''', dotAll: true),
+    ' ',
+  );
+  return withoutBlocks.replaceAll(RegExp(r'''//[^\n]*'''), '');
+}
+
+/// Targets of every `import` / `export` / `part` directive in [file].
 ///
 /// All quoted URIs in a directive are kept, so a conditional import
 /// (stub first, `if (dart.library.io) io.dart` second) contributes both
@@ -125,11 +145,13 @@ Set<String> _changedFiles({required void Function() onUnknownBase}) {
 /// forward-slash output; `path` would emit backslashes on Windows and then
 /// nothing would ever match.
 Set<String> _importsOf(String file) {
-  final source = File(p.join(_projectRoot, file)).readAsStringSync();
+  final source = _stripComments(
+    File(p.join(_projectRoot, file)).readAsStringSync(),
+  );
   const packagePrefix = 'package:gui_flutter/';
   final out = <String>{};
   for (final directive in RegExp(
-    r'''\b(?:import|export)\b[^;]*;''',
+    r'''\b(?:import|export|part)\b[^;]*;''',
     dotAll: true,
   ).allMatches(source)) {
     final uris = RegExp('''['"]([^'"]+)['"]''');
@@ -233,7 +255,15 @@ Future<void> main(List<String> args) async {
   final projectName = p.basename(_projectRoot);
 
   var baseUnknown = false;
-  final changed = _changedFiles(onUnknownBase: () => baseUnknown = true);
+  final Set<String> changed;
+  try {
+    changed = _changedFiles(onUnknownBase: () => baseUnknown = true);
+  } on ProcessException {
+    // _git already printed the command and git's stderr. Rethrowing would
+    // dump a stack trace and exit 255 instead of the intended 1.
+    exitCode = 1;
+    return;
+  }
   if (changed.isEmpty) {
     if (baseUnknown) {
       stderr.writeln(
@@ -314,6 +344,26 @@ Future<void> main(List<String> args) async {
   exitCode = await _flutterTest(impacted);
 }
 
+/// Usable CPU count as a string.
+///
+/// `nproc` first, then the POSIX `getconf`, mirroring `scripts/flutter_test.sh`:
+/// both honour the affinity mask (4 under `taskset -c 0-3`), which
+/// `Platform.numberOfProcessors` does not — it reports every online CPU, so a
+/// mask would over-subscribe `flutter test -j`.
+String _cpuCount() {
+  for (final command in const [
+    ['nproc'],
+    ['getconf', '_NPROCESSORS_ONLN'],
+  ]) {
+    final result = Process.runSync(command.first, command.sublist(1));
+    final count = int.tryParse((result.stdout as String).trim());
+    if (result.exitCode == 0 && count != null && count > 0) {
+      return count.toString();
+    }
+  }
+  return Platform.numberOfProcessors.toString();
+}
+
 /// Runs `flutter test [files]` with the same concurrency the `test` task uses.
 /// Without `-j`, package:test falls back to cores/2 and loses that speedup
 /// (4 cores: 48.3s -> 34.7s).
@@ -322,13 +372,7 @@ Future<int> _flutterTest(List<String> files) async {
   try {
     process = await Process.start(
       'flutter',
-      [
-        'test',
-        '-j',
-        // Affinity-aware on Linux (4 under `taskset -c 0-3`), portable.
-        Platform.numberOfProcessors.toString(),
-        ...files,
-      ],
+      ['test', '-j', _cpuCount(), ...files],
       workingDirectory: _projectRoot,
       mode: ProcessStartMode.inheritStdio,
     );
