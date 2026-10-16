@@ -1,18 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  CONFIDENCE_FLOOR,
-  type DiffAnchors,
-  type ReviewFinding,
-  buildReviewComments,
-  chunk,
-  clampToAnchor,
-  isContiguous,
-  matchesGlob,
-  parseDiffAnchors,
-  parseReviewConfig,
-  splitByConfidence,
-} from './pi-review-extension.ts';
+import { CONFIDENCE_FLOOR } from './src/constants.ts';
+import { chunk, parseReviewConfig } from './src/config.ts';
+import { clampToAnchor, isContiguous, matchesGlob, parseDiffAnchors } from './src/diff.ts';
+import { buildReviewComments, splitByConfidence } from './src/findings.ts';
+import type { DiffAnchors, ReviewFinding } from './src/types.ts';
 
 function finding(overrides: Partial<ReviewFinding> = {}): ReviewFinding {
   return {
