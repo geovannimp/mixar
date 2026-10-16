@@ -85,8 +85,9 @@ List<String>? _tryGit(List<String> args) {
       .toList();
 }
 
-/// Candidate default-branch refs. The repo triggers CI on both `main` and
-/// `develop`, so a branch cut from `develop` must find its base too.
+/// Candidate default-branch refs, in priority order. The repo triggers CI on
+/// both `main` and `develop`; [_mergeBase] takes the first ref that resolves,
+/// so the `develop` entries only matter for a branch based on develop.
 const _defaultBranchRefs = <String>[
   'origin/HEAD',
   'origin/main',
@@ -115,9 +116,11 @@ Set<String> _changedFiles({required void Function() onUnknownBase}) {
   if (base == null) onUnknownBase();
 
   final changed = <String>{
-    if (base != null) ..._git(['diff', '--name-only', base]),
-    ..._git(['diff', '--name-only']), // unstaged
-    ..._git(['diff', '--cached', '--name-only']), // staged
+    // `--` before the pathspec-less diff keeps a file literally named like an
+    // option from being parsed as one.
+    if (base != null) ..._git(['diff', '--name-only', base, '--']),
+    ..._git(['diff', '--name-only', '--']), // unstaged
+    ..._git(['diff', '--cached', '--name-only', '--']), // staged
     // Untracked files: a brand-new lib or test file is not in `git diff`.
     ..._git(['ls-files', '--others', '--exclude-standard']),
   };
