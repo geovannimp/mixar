@@ -266,6 +266,34 @@ would not grant unattended. Resolved by the user unlocking 1Password and
 approving; the commit is signed. Anyone hitting the same failure should check
 `ssh-add -l` against `~/.1password/agent.sock` rather than assuming a broken key.
 
+## Fifth review wave (5 threads; two confirmed edge bugs)
+
+**Fixed — `--secs > 0` still allowed an empty corpus.** Confirmed in release:
+`--secs 1e-6` passed the float guard and panicked at `.expect("analyze_full")`
+with `Analysis("empty audio buffer")`. The guard now asserts on the derived
+sample count, so `1e-6` / `0` / `nan` all fail up front with an actionable
+message, and `--secs 1` still runs.
+
+**Fixed — `decimation_input_len`'s saturating guard still overflowed.**
+Confirmed in a `-O` repro with Mixxx's block: `(preroll.saturating_add(MAX)) /
+block * block + block` wraps to **0** in release (panics in debug). End-to-end
+`saturating_mul` / `saturating_add` keeps it at `usize::MAX`. Pinned by
+`decimation_input_len_saturates_instead_of_wrapping_to_zero` (normal 240 s
+length bit-identical to the old arithmetic; `usize::MAX` stays at `MAX`).
+
+**Fixed — `debug_assert` said power-of-two but checked evenness.** Now uses
+`is_power_of_two()`.
+
+**Declined — rename feature `sub`.** Default-on internal gate; comment already
+documents it. Rename is churn.
+
+**Declined — seed banded Viterbi `arg` at `lo`.** On an all-zero row,
+`get_max_index` returns 0; `arg = 0` matches base. Seeding `lo` would diverge
+silence/degenerate back-pointers from qm-dsp (`0` → `20`).
+
+Parity: fingerprint and dumped beats bit-identical to `e801261c`
+(`hash=bac7cf82f007574f`). Gates: 779 passed / 2 skipped (38 in analyzer-qmdsp).
+
 ## Next ledger items
 
 1. **The whole-track `y: Vec<f64>` (84.8 MiB, ~40 ms of `analyze_full`)** is

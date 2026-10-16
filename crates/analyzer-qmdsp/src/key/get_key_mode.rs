@@ -121,10 +121,14 @@ impl GetKeyMode {
         let block = self.block_size();
         let preroll = block / 2;
         // One window per `block` accumulated, plus the one `finalize` always
-        // emits on top of them. Saturating so a length past `usize::MAX - preroll`
-        // (unreachable from a real slice) wraps to a huge value rather than a tiny
-        // one that would under-size every downstream buffer.
-        (preroll.saturating_add(track_len)) / block * block + block
+        // emits on top of them. Saturating end-to-end so a length past
+        // `usize::MAX - preroll` (unreachable from a real slice) clamps to a
+        // huge value rather than a tiny one that would under-size every
+        // downstream buffer. The bare `+ block` after `/ block * block` is not
+        // enough on its own: at the saturated total it overflows and wraps to
+        // 0 in release.
+        let total = preroll.saturating_add(track_len);
+        (total / block).saturating_mul(block).saturating_add(block)
     }
 
     /// Process one block of `chroma_frame_size` decimated samples; returns the
@@ -252,6 +256,27 @@ mod tests {
         );
         // And the framing must still be Mixxx's 32768-sample block.
         assert_eq!(gkm.block_size(), 4096 * 8);
+    }
+
+    /// The pre-fix form `(preroll.saturating_add(track)) / block * block + block`
+    /// still overflowed the final `+ block` when the sum saturated: in release
+    /// that wrapped to 0. Pin the saturating end-to-end form so a pathological
+    /// length stays huge, and a normal length stays bit-identical.
+    #[test]
+    fn decimation_input_len_saturates_instead_of_wrapping_to_zero() {
+        let gkm = GetKeyMode::new(44100);
+        let block = gkm.block_size();
+        // Normal 240 s corpus: identical to the pre-saturating arithmetic.
+        let normal = 44100 * 240;
+        let got = gkm.decimation_input_len(normal);
+        let preroll = block / 2;
+        assert_eq!(got, (preroll + normal) / block * block + block);
+        assert!(got > normal, "framing must add the finalize window");
+        // Pathological: must not wrap to the tiny value that would under-size
+        // every downstream buffer. (`saturating_add` alone is not enough —
+        // the trailing `+ block` is what overflowed.)
+        let huge = gkm.decimation_input_len(usize::MAX);
+        assert_eq!(huge, usize::MAX);
     }
 
     #[test]

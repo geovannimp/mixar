@@ -72,7 +72,7 @@ impl DetectionFunction {
     /// host process over an input the library itself cannot produce.
     pub fn new(frame_length: usize) -> Self {
         debug_assert!(
-            frame_length.is_multiple_of(2) && frame_length > 0,
+            frame_length.is_power_of_two(),
             "frame_length must be a non-zero power of two"
         );
         let half = frame_length / 2 + 1;

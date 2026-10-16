@@ -149,10 +149,15 @@ fn main() {
             "--secs" => {
                 if let Some(v) = args.next() {
                     secs = v.parse().expect("--secs takes a number");
+                    // Guard the *derived* sample count, not the float: `--secs 1e-6`
+                    // is positive but `(SR as f64 * secs) as usize` truncates to 0
+                    // (NaN/negatives also cast to 0). That is exactly the empty
+                    // buffer `analyze_pcm` rejects.
+                    let samples = (f64::from(SR) * secs) as usize;
                     assert!(
-                        secs > 0.0,
-                        "--secs must be positive, got {secs} (a zero-length corpus\n\
-                         cannot be analyzed: `analyze_pcm` rejects an empty buffer)"
+                        samples > 0,
+                        "--secs {secs} yields a zero-length corpus ({samples} samples): \
+                         `analyze_pcm` rejects an empty buffer"
                     );
                 }
             }
