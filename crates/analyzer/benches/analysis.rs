@@ -105,7 +105,12 @@ fn analyze_file_bench(c: &mut Criterion) {
 }
 
 /// Decode the mono buffer the in-memory scenarios analyze: `PCM_SECS` seconds
-/// of [`MASTER`].
+/// of [`MASTER`], or `None` when the scenario cannot run.
+///
+/// `None` covers both skip cases: the fixture is missing from the repo-root
+/// `samples/` tree, or it exists and will not decode. Either way nothing is
+/// measured, so the scenario is skipped with a printed reason rather than
+/// failing the run.
 ///
 /// `analyze_pcm` applies no duration cap of its own — `preprocess::prepare`
 /// ignores the config and the cap only bounds the decode — so the whole decoded

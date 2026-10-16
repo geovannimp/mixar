@@ -6,6 +6,14 @@
 //! so a change can be compared by the high-water mark it leaves behind rather
 //! than by an aggregate statistic.
 //!
+//! `VmHWM` is a process-wide high-water mark and cannot be reset from inside the
+//! process, so it is monotonic across the whole run. Two consequences for
+//! reading the table: a later scenario's `before` already contains every earlier
+//! scenario's peak, and its `delta` is the *incremental* high-water mark that
+//! scenario adds, not its absolute footprint. The regression signal is therefore
+//! the last row's absolute `after` — the process-wide peak the run leaves behind
+//! — and a non-zero delta anywhere means something in it grew.
+//!
 //! Run with: `cargo bench -p analyzer --bench memory` (the report goes to
 //! stdout; no criterion arguments are parsed here).
 //!
@@ -38,8 +46,11 @@ fn peak_rss_kib() -> u64 {
 
 #[cfg(target_os = "linux")]
 fn scenario(name: &str, mut run: impl FnMut() -> anyhow::Result<()>) {
-    // A fixture that exists but will not decode is a skip, not an abort: the
-    // scenarios already measured stay in the report.
+    // The pre-baseline call is the warm-up: it pulls the fixture through the page
+    // cache and settles the allocator, so `before` describes a warmed process
+    // rather than one still paying start-up costs. A fixture that exists but will
+    // not decode is a skip, not an abort, so scenarios already measured stay in
+    // the report.
     if let Err(error) = run() {
         println!("skipping bench: {name} could not run: {error}");
         return;
