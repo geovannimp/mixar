@@ -224,6 +224,48 @@ the example would not compile. It compiles; nextest and the repo's
 default-on is instead the +0.96% rlib cost and the fact that the documented
 one-command invocation would report 4 rows instead of 11.
 
+## Fourth review wave (12 threads; one real 50% finding)
+
+**Fixed — the zero-magnitude phasor branch reintroduced `atan2`/`cos`/`sin`.**
+The branch fires for every bin of every silent frame, so a silent corpus
+measured 150.3-152.3 ms on `sub_onset` against 91.5 ms for real audio. Guarding
+on `re.is_sign_negative()` — the only case where the answer is not `(1, 0)` —
+halved it: 74.453 / 75.429 / 79.848 ms (serial, 240 s silent corpus, `min_ms`
+over 5 reps, three runs each). `complex_sd_matches_the_reference_definition`
+still passes bit-exactly, so parity is unchanged.
+
+**Declined — decrementing counter instead of `i % factor` in the decimation
+hot loop.** Measured, and the counter was *slower*: `sub_decimate8` 29.0 ->
+35.6 ms, `analyze_key` 82.1 -> 88.8 ms. The loop is bound by the dependent
+recurrence chain on `o[0..7]`; the modulo is not on that chain. Reverted, with
+the measurement recorded at the loop.
+
+**Declined — beat-grid-only downbeat path.** Same question as wave 3's bug B:
+base's downbeat path never used `overlap::feed` at all, it ran the private
+`decimate(y)` over exactly `y.len()` samples. Now pinned by two tests,
+`x8_stream_matches_the_old_two_stage_decimate` (bit-exact vs base across 13
+lengths) and `padded_and_unpadded_downbeat_paths_agree` (the default
+configuration's padded stream and the grid-only stream must agree).
+
+**Fixed — VmHWM was reported per row but is process-wide.** `peak_vmhwm_kb`
+after `sub_decimate8` was 242 552 KB, so every later row inherited it. `bench`
+now reports `vmhwm_delta_kb` alongside it. On the final run the delta is 4 KB for
+`analyze_full`, 0 for the pipeline and other sub rows, and 10 368 KB for
+`sub_decimate8` — correctly identifying the one row that allocates.
+
+Also fixed: the corpus's zero-initialise-then-overwrite pass; `--secs 0`;
+stale `internals` reference; `saturating_add` in `decimation_input_len`; and
+three new tests (signed-zero phasor, silent-to-audio state carryover, padded vs
+unpadded downbeat agreement).
+
+**Process note:** the commit for this wave failed twice with
+`1Password: failed to fill whole buffer` — `SSH_AUTH_SOCK` pointed at GNOME
+Keyring (no identities) while the signing key lives in 1Password's agent at
+`~/.1password/agent.sock`, and signing needs interactive approval the agent
+would not grant unattended. Resolved by the user unlocking 1Password and
+approving; the commit is signed. Anyone hitting the same failure should check
+`ssh-add -l` against `~/.1password/agent.sock` rather than assuming a broken key.
+
 ## Next ledger items
 
 1. **The whole-track `y: Vec<f64>` (84.8 MiB, ~40 ms of `analyze_full`)** is
