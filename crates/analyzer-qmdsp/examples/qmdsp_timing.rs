@@ -281,6 +281,6 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     });
 
     bench("sub_downbeat", WARMUP, REPS, || {
-        internals::downbeat::detect_downbeats(&y64, SR, full_beats, 4)
+        internals::downbeat::detect_downbeats(&dec, SR, full_beats, 4)
     });
 }

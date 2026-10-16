@@ -24,18 +24,21 @@ const DECIMATION: usize = 16;
 
 /// Return downbeat positions (seconds) among `beats` (seconds), for a given
 /// meter. Empty when there is not enough audio or too few beats.
+///
+/// `dec8` is the caller's ×8-decimated stream (shared with the key path); this
+/// adds the ×2 stage for qm-dsp's ~1/16 rate.
 pub fn detect_downbeats(
-    samples: &[f64],
+    dec8: &[f64],
     sample_rate: u32,
     beats: &[f32],
     beats_per_bar: u8,
 ) -> Vec<f32> {
-    if beats.len() < 2 || samples.is_empty() {
+    if beats.len() < 2 || dec8.len() < 2 {
         return Vec::new();
     }
-    let Some(downsampled) = decimate(samples) else {
-        return Vec::new();
-    };
+    let mut stage = Decimator::new(Decimation::By2, dec8.len());
+    let mut downsampled = vec![0.0; dec8.len() / 2];
+    stage.process(dec8, &mut downsampled);
     let ds_rate = sample_rate as f64 / DECIMATION as f64;
 
     let frame_size = next_power_of_two((ds_rate * 1.3) as i32).max(2) as usize;
@@ -107,21 +110,6 @@ pub fn detect_downbeats(
         i += timesig;
     }
     downbeats
-}
-
-/// Decimate by [`DECIMATION`] (8 × 2), as qm-dsp chains two `Decimator`s.
-fn decimate(samples: &[f64]) -> Option<Vec<f64>> {
-    if samples.len() < DECIMATION {
-        return None;
-    }
-    let mut first = Decimator::new(Decimation::By8, samples.len());
-    let mut stage = vec![0.0f64; samples.len() / 8];
-    first.process(samples, &mut stage);
-
-    let mut second = Decimator::new(Decimation::By2, stage.len());
-    let mut out = vec![0.0f64; stage.len() / 2];
-    second.process(&stage, &mut out);
-    Some(out)
 }
 
 /// qm-dsp `DownBeat::measureSpecDiff`: Jensen–Shannon divergence over the first
@@ -199,7 +187,10 @@ mod tests {
             .collect();
         let y64: Vec<f64> = y.iter().map(|&s| f64::from(s)).collect();
 
-        let downbeats = detect_downbeats(&y64, sr, &beats, 4);
+        let mut d8 = Decimator::new(Decimation::By8, y64.len());
+        let mut dec8 = vec![0.0; y64.len() / 8];
+        d8.process(&y64, &mut dec8);
+        let downbeats = detect_downbeats(&dec8, sr, &beats, 4);
         assert!(!downbeats.is_empty());
         // qm-dsp detects the beat with the greatest *incoming* spectral change;
         // a single accented beat changes equally on both sides, so the phase can
