@@ -20,6 +20,8 @@ pub enum Kind {
     BeatGridChanged,
     HistorySessionUpdated,
     Navigate,
+    /// UI-only: move browser focus to the next / previous pane (sidebar ↔ list).
+    Focus,
     Load,
     Error,
     Notice,

@@ -15,6 +15,9 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/track_list_pane.dart';
+import 'package:gui_flutter/core/utils/library_list_layout.dart';
+import 'package:gui_flutter/widgets/library/track_list_row.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -22,10 +25,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import 'helpers/collection_tracks_override.dart';
 
-import 'package:gui_flutter/core/utils/library_list_layout.dart';
-import 'package:gui_flutter/widgets/library/track_list_row.dart';
-import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
-
+import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
 
 /// The row element whose text is [label], for the row-height assertions.
@@ -143,6 +143,77 @@ void main() {
     container.read(analyzingTrackIdsProvider.notifier).add(track.id);
     await tester.pump();
     expect(container.read(focusedTrackRowIndexProvider), 1);
+  });
+
+  testWidgets('the cursor tint follows the pane that owns focus', (
+    tester,
+  ) async {
+    final container = await pumpList(tester, tracks: const [track, trackB]);
+    final theme = MixarThemeData.light();
+    Color rowColor(int index) => fillOf(
+      tester,
+      find
+          .descendant(
+            of: find.byType(TrackListRow).at(index),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+
+    // The list owns focus on open, so its cursor wears the brand tint.
+    expect(
+      container.read(libraryFocusZoneProvider),
+      LibraryFocusZone.trackList,
+    );
+    expect(rowColor(0), libraryListSelectedRowColor(theme));
+
+    // A focus step to the sidebar dims the cursor here instead.
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+    await tester.pump();
+    expect(rowColor(0), libraryListCursorRowColor(theme));
+
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.trackList);
+    await tester.pump();
+    expect(rowColor(0), libraryListSelectedRowColor(theme));
+  });
+
+  testWidgets('a focus step hands keyboard focus to the list', (tester) async {
+    final container = await pumpList(tester, tracks: const [track, trackB]);
+    // Whether the node holding keyboard focus sits inside the list pane.
+    bool listHasKeyboardFocus() {
+      final context = tester.binding.focusManager.primaryFocus?.context;
+      return context != null &&
+          context.findAncestorWidgetOfExactType<TrackListPane>() != null;
+    }
+
+    tester.binding.focusManager.primaryFocus?.unfocus();
+    await tester.pump();
+    expect(listHasKeyboardFocus(), isFalse);
+
+    // Step away and back: the list starts focused, so stepping back is the only
+    // transition that can hand it the keys.
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+    await tester.pump();
+    expect(listHasKeyboardFocus(), isFalse);
+
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.trackList);
+    await tester.pump();
+    expect(listHasKeyboardFocus(), isTrue);
+
+    // Focus moving to the sidebar gives the keys away.
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+    await tester.pump();
+    expect(listHasKeyboardFocus(), isFalse);
   });
 
   testWidgets('publishes the focused row payload for controller load', (

@@ -33,6 +33,9 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
     final sessions = ref.watch(historySessionsProvider);
     final selectedId = ref.watch(activeHistorySessionIdProvider);
     final canResume = ref.watch(historyCanResumeProvider);
+    // The selected row doubles as the cursor while the sidebar owns focus.
+    final sidebarFocused =
+        ref.watch(libraryFocusZoneProvider) == LibraryFocusZone.sidebar;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -96,9 +99,17 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                     subtitle:
                         '${formatHistoryTimestamp(row.startedAt)} · ${row.entryCount} plays',
                     selected: row.id == selectedId,
-                    onPress: () => ref
-                        .read(selectedHistorySessionIdProvider.notifier)
-                        .set(row.id),
+                    focused: sidebarFocused && row.id == selectedId,
+                    onPress: () {
+                      // Focus follows the pointer, the way a row press in the
+                      // track list does.
+                      ref
+                          .read(libraryFocusZoneProvider.notifier)
+                          .set(LibraryFocusZone.sidebar);
+                      ref
+                          .read(selectedHistorySessionIdProvider.notifier)
+                          .set(row.id);
+                    },
                     trailing: row.id == resumeSessionId
                         ? MTappable.child(
                             semanticsLabel: 'Resume ${row.title}',

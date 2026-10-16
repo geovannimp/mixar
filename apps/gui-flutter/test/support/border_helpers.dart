@@ -30,3 +30,17 @@ Border borderOf(WidgetTester tester, Finder finder) {
     'found ${widget.runtimeType}',
   );
 }
+
+/// The background [Color] of the decorated box matched by [finder].
+///
+/// Fails readably (rather than crashing on a cast or a null assertion) when the
+/// decoration is not a filled [BoxDecoration], so a shape change surfaces as an
+/// assertion.
+Color fillOf(WidgetTester tester, Finder finder) {
+  final box = tester.widget<DecoratedBox>(finder);
+  final decoration = box.decoration;
+  expect(decoration, isA<BoxDecoration>());
+  final color = (decoration as BoxDecoration).color;
+  expect(color, isNotNull, reason: 'the decorated box has no fill colour');
+  return color!;
+}

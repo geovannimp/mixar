@@ -127,6 +127,10 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   /// Captured in `initState` because `ref` is unsafe to use from `dispose`.
   FocusedTrackPayload? _focusedPayload;
 
+  /// Focus-zone subscription, closed in `dispose` so the provider does not keep
+  /// this state (and its [_focusNode]) alive after the list is gone.
+  ProviderSubscription<LibraryFocusZone>? _focusZoneListen;
+
   /// Identifies this list as the payload owner, and the mount that owns it.
   final Object _payloadOwner = Object();
 
@@ -135,6 +139,19 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     super.initState();
     _focusedPayload = ref.read(focusedTrackPayloadProvider);
     _scroll.addListener(_requestVisibleRange);
+    // A focus step (rotary press) hands the keys to the pane it names: taking
+    // focus for the list, and dropping it when the sidebar takes over. Manual
+    // because it drives a FocusNode rather than the widget tree.
+    _focusZoneListen = ref.listenManual(libraryFocusZoneProvider, (_, zone) {
+      if (!mounted) {
+        return;
+      }
+      if (zone == LibraryFocusZone.trackList) {
+        _focusNode.requestFocus();
+      } else {
+        _focusNode.unfocus();
+      }
+    });
     // The first result set arrives after this widget's first build, so the row
     // count and focus pin are applied in a post-frame callback. Doing it inline
     // from `build` would mutate a provider mid-build.
@@ -170,6 +187,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     }
     _scroll.removeListener(_requestVisibleRange);
     _scroll.dispose();
+    _focusZoneListen?.close();
     _focusNode.dispose();
     super.dispose();
   }
@@ -461,6 +479,9 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
                           // Clicking a row also grants the list keyboard focus,
                           // so the arrow keys keep working after a press.
                           _focusNode.requestFocus();
+                          ref
+                              .read(libraryFocusZoneProvider.notifier)
+                              .set(LibraryFocusZone.trackList);
                           _select(index);
                         },
                       );

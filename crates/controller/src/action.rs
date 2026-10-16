@@ -340,6 +340,28 @@ pub fn resolve_action(
                     body: LibraryEvtBody::Navigate { delta },
                 });
             }
+            // Rotary-selector press: step browser focus to the next pane.
+            "focus_next" => {
+                if !active {
+                    return None;
+                }
+                return Some(RoutedAction::LibraryEvt {
+                    origin: LibraryOrigin::LibraryNavigation,
+                    kind: LibraryKind::Focus,
+                    body: LibraryEvtBody::Focus { delta: 1 },
+                });
+            }
+            // SHIFT + rotary-selector press: step browser focus back.
+            "focus_prev" => {
+                if !active {
+                    return None;
+                }
+                return Some(RoutedAction::LibraryEvt {
+                    origin: LibraryOrigin::LibraryNavigation,
+                    kind: LibraryKind::Focus,
+                    body: LibraryEvtBody::Focus { delta: -1 },
+                });
+            }
             "load_to_deck" => {
                 if !active {
                     return None;
@@ -1551,5 +1573,55 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn focus_step_publishes_pane_focus_evt_on_press_only() {
+        let snap = ControlSnapshot::default();
+        let next = resolve_action(
+            "LibraryNavigation::focus_next",
+            "master",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match next {
+            RoutedAction::LibraryEvt {
+                origin: LibraryOrigin::LibraryNavigation,
+                kind: LibraryKind::Focus,
+                body: LibraryEvtBody::Focus { delta },
+                ..
+            } => assert_eq!(delta, 1),
+            other => panic!("expected Focus +1, got {other:?}"),
+        }
+        let prev = resolve_action(
+            "LibraryNavigation::focus_prev",
+            "master",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match prev {
+            RoutedAction::LibraryEvt {
+                kind: LibraryKind::Focus,
+                body: LibraryEvtBody::Focus { delta },
+                ..
+            } => assert_eq!(delta, -1),
+            other => panic!("expected Focus -1, got {other:?}"),
+        }
+        // Release edge is not a focus step.
+        assert!(resolve_action(
+            "LibraryNavigation::focus_next",
+            "master",
+            ControlValue::Absolute(0.0),
+            false,
+            false,
+            &snap,
+        )
+        .is_none());
     }
 }

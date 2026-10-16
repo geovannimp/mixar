@@ -8,6 +8,7 @@ import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
+import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
@@ -36,8 +37,10 @@ void main() {
     trackCount: 0,
   );
 
-  List<Override> overrides() => [
-    collectionsProvider.overrideWith((ref) async => [collection]),
+  List<Override> overrides({List<LibraryCollectionSummary>? collections}) => [
+    collectionsProvider.overrideWith(
+      (ref) async => collections ?? [collection],
+    ),
     overrideCollectionTracksValue(const []),
     historySessionsProvider.overrideWith((ref) async => const []),
     historyCanResumeProvider.overrideWith((ref) async => false),
@@ -47,7 +50,11 @@ void main() {
     appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
   ];
 
-  Future<void> pumpSized(WidgetTester tester, {required Widget child}) async {
+  Future<void> pumpSized(
+    WidgetTester tester, {
+    required Widget child,
+    List<LibraryCollectionSummary>? collections,
+  }) async {
     final theme = MixarThemeData.dark();
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
@@ -56,7 +63,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: overrides(),
+        overrides: overrides(collections: collections),
         child: MaterialApp(
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
@@ -124,6 +131,98 @@ void main() {
       MixarThemeData.dark().style.borderWidth,
       reason: 'the toolbar border uses the theme hairline width',
     );
+  });
+
+  testWidgets('a focus step moves the accent onto the sidebar cursor', (
+    tester,
+  ) async {
+    await pumpSized(tester, child: const LibraryPanel());
+    await tester.pumpAndSettle();
+    final theme = MixarThemeData.dark();
+    // The selected collection row: it is the sidebar cursor while the sidebar
+    // owns browser focus.
+    final row = find.ancestor(
+      of: find.text('samples'),
+      matching: find.byType(LibraryNavRow),
+    );
+    expect(row, findsOneWidget);
+    final rowBox = find
+        .descendant(of: row, matching: find.byType(DecoratedBox))
+        .first;
+
+    // Track list owns focus on open: the row carries the selection fill and the
+    // left accent only.
+    expect(fillOf(tester, rowBox), theme.colors.selection);
+    expect(borderOf(tester, rowBox).left.color, theme.colors.primary);
+    expect(borderOf(tester, rowBox).left.width, 2);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LibraryPanel)),
+    );
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+    await tester.pumpAndSettle();
+
+    // Focused row: the left accent grows into a full outline, so a selected row
+    // and a focused row no longer read the same.
+    expect(borderOf(tester, rowBox).top.color, theme.colors.primary);
+    expect(borderOf(tester, rowBox).top.width, 2);
+    expect(fillOf(tester, rowBox), theme.colors.selection);
+
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.trackList);
+    await tester.pumpAndSettle();
+    expect(borderOf(tester, rowBox).top.color, isNot(theme.colors.primary));
+    expect(borderOf(tester, rowBox).left.color, theme.colors.primary);
+    expect(fillOf(tester, rowBox), theme.colors.selection);
+  });
+
+  testWidgets('the sidebar cursor scrolls its row into view', (tester) async {
+    // Far more collections than the sidebar can show, so the cursor can leave
+    // the fold.
+    final many = [
+      for (var i = 0; i < 40; i++)
+        LibraryCollectionSummary(
+          id: 'c$i',
+          name: 'col $i',
+          kind: 'folder',
+          trackCount: 0,
+        ),
+    ];
+    await pumpSized(tester, child: const LibraryPanel(), collections: many);
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LibraryPanel)),
+    );
+    container
+        .read(libraryFocusZoneProvider.notifier)
+        .set(LibraryFocusZone.sidebar);
+
+    // Walk the cursor one row at a time, the way the rotary does, until the row
+    // it lands on is past the fold.
+    for (var i = 1; i <= 20; i++) {
+      container.read(selectedCollectionIdProvider.notifier).set('c$i');
+      await tester.pumpAndSettle();
+    }
+
+    // The cursor's row is inside the viewport, and the list scrolled to get it
+    // there rather than leaving it below the fold.
+    final rowTop = tester.getTopLeft(find.text('col 20')).dy;
+    expect(rowTop, greaterThanOrEqualTo(0));
+    expect(rowTop, lessThan(tester.view.physicalSize.height));
+    final scroller = tester
+        .state<ScrollableState>(
+          find
+              .ancestor(
+                of: find.text('col 20'),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        )
+        .position;
+    expect(scroller.pixels, greaterThan(0));
   });
 
   testWidgets('the filter band darkens while the field is focused', (

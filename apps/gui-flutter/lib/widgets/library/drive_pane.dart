@@ -27,27 +27,6 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
     ref.read(driveCurrentPathProvider.notifier).set(path);
   }
 
-  void _openParent(FsDirectoryListing dir, FsVolumeInfo? volume) {
-    final parent = dir.parent;
-    if (parent == null || !_parentInVolume(parent, volume)) {
-      return;
-    }
-    _openPath(parent);
-  }
-
-  static bool _parentInVolume(String parent, FsVolumeInfo? volume) {
-    if (volume == null) {
-      return false;
-    }
-    if (parent == volume.path) {
-      return true;
-    }
-    if (volume.path == '/') {
-      return parent.startsWith('/');
-    }
-    return parent.startsWith('${volume.path}/');
-  }
-
   Future<void> _createCollection(String folderPath) async {
     final result = await showCreateCollectionDialog(
       context,
@@ -71,6 +50,19 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
     final currentPath = ref.watch(driveCurrentPathProvider);
     final listing = ref.watch(driveListingProvider);
     final selectedVolume = ref.watch(driveActiveVolumeProvider);
+    // The tree row the browse rotary is on, marked only while the sidebar owns
+    // focus (the same rule as the other sidebar tabs).
+    final focusedPath =
+        ref.watch(libraryFocusZoneProvider) == LibraryFocusZone.sidebar
+        ? ref.watch(driveTreeFocusedPathProvider)
+        : null;
+    // Pressing a row parks focus on the sidebar and moves the cursor onto that
+    // row, so the marker follows the pointer here as it does in the other panes.
+    void pressPath(String path) {
+      ref.read(libraryFocusZoneProvider.notifier).set(LibraryFocusZone.sidebar);
+      ref.read(driveTreeCursorProvider.notifier).set(path);
+      _openPath(path);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,7 +101,8 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                   ),
                   data: (items) => _VolumeList(
                     volumes: items,
-                    onSelect: _openPath,
+                    onSelect: pressPath,
+                    focusedPath: focusedPath,
                     emptyColor: colors.mutedForeground,
                     style: theme.typography.body.sm,
                   ),
@@ -133,16 +126,29 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                     final currentName = selectedVolume?.path == dir.path
                         ? (selectedVolume?.name ?? dir.path)
                         : dir.path.split(RegExp(r'[/\\]')).last;
+                    final parentOpenable = driveParentInVolume(
+                      dir.parent,
+                      selectedVolume,
+                    );
                     return ListView(
                       children: [
                         LibraryNavRow(
                           title: currentName,
                           icon: LucideIcons.folder,
                           selected: true,
-                          onPress:
-                              dir.parent != null &&
-                                  _parentInVolume(dir.parent!, selectedVolume)
-                              ? () => _openParent(dir, selectedVolume)
+                          // The "up" row is the current folder, so it already
+                          // carries the selection fill; the cursor adds the
+                          // outline, exactly as it does in the other panes.
+                          // A volume root has no parent row, and a `null`
+                          // focused path must not match one.
+                          focused:
+                              parentOpenable && focusedPath == dir.parent,
+                          onPress: parentOpenable
+                              // Same contract as a subfolder press: park focus
+                              // on the sidebar and move the cursor onto the
+                              // parent row, or the next step starts from a row
+                              // the user never pressed.
+                              ? () => pressPath(dir.parent!)
                               : null,
                           trailing: _CreateCollectionButton(
                             onPress: () => _createCollection(dir.path),
@@ -164,7 +170,8 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                               title: d.name,
                               icon: LucideIcons.folder,
                               indented: true,
-                              onPress: () => _openPath(d.path),
+                              focused: focusedPath == d.path,
+                              onPress: () => pressPath(d.path),
                               trailing: _CreateCollectionButton(
                                 onPress: () => _createCollection(d.path),
                               ),
@@ -312,12 +319,16 @@ class _VolumeList extends StatelessWidget {
   const new({
     required this.volumes,
     required this.onSelect,
+    required this.focusedPath,
     required this.emptyColor,
     required this.style,
   });
 
   final List<FsVolumeInfo> volumes;
   final ValueChanged<String> onSelect;
+
+  /// Path of the row the browse rotary is on, when the sidebar owns focus.
+  final String? focusedPath;
   final Color emptyColor;
   final TextStyle style;
 
@@ -339,6 +350,7 @@ class _VolumeList extends StatelessWidget {
             title: v.name,
             subtitle: v.path,
             icon: v.isRemovable ? LucideIcons.usb : LucideIcons.hardDrive,
+            focused: v.path == focusedPath,
             onPress: () => onSelect(v.path),
           ),
       ],

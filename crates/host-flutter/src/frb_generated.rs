@@ -7977,11 +7977,12 @@ impl SseDecode for crate::api::library::LibraryEvtKind {
             3 => crate::api::library::LibraryEvtKind::Notice,
             4 => crate::api::library::LibraryEvtKind::HotCuesChanged,
             5 => crate::api::library::LibraryEvtKind::Navigate,
-            6 => crate::api::library::LibraryEvtKind::Load,
-            7 => crate::api::library::LibraryEvtKind::LoopsChanged,
-            8 => crate::api::library::LibraryEvtKind::BeatGridChanged,
-            9 => crate::api::library::LibraryEvtKind::HistorySessionUpdated,
-            10 => crate::api::library::LibraryEvtKind::TrackProgress,
+            6 => crate::api::library::LibraryEvtKind::Focus,
+            7 => crate::api::library::LibraryEvtKind::Load,
+            8 => crate::api::library::LibraryEvtKind::LoopsChanged,
+            9 => crate::api::library::LibraryEvtKind::BeatGridChanged,
+            10 => crate::api::library::LibraryEvtKind::HistorySessionUpdated,
+            11 => crate::api::library::LibraryEvtKind::TrackProgress,
             _ => unreachable!("Invalid variant for LibraryEvtKind: {}", inner),
         };
     }
@@ -10597,11 +10598,12 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryEvtKind {
             Self::Notice => 3.into_dart(),
             Self::HotCuesChanged => 4.into_dart(),
             Self::Navigate => 5.into_dart(),
-            Self::Load => 6.into_dart(),
-            Self::LoopsChanged => 7.into_dart(),
-            Self::BeatGridChanged => 8.into_dart(),
-            Self::HistorySessionUpdated => 9.into_dart(),
-            Self::TrackProgress => 10.into_dart(),
+            Self::Focus => 6.into_dart(),
+            Self::Load => 7.into_dart(),
+            Self::LoopsChanged => 8.into_dart(),
+            Self::BeatGridChanged => 9.into_dart(),
+            Self::HistorySessionUpdated => 10.into_dart(),
+            Self::TrackProgress => 11.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -11788,11 +11790,12 @@ impl SseEncode for crate::api::library::LibraryEvtKind {
                 crate::api::library::LibraryEvtKind::Notice => 3,
                 crate::api::library::LibraryEvtKind::HotCuesChanged => 4,
                 crate::api::library::LibraryEvtKind::Navigate => 5,
-                crate::api::library::LibraryEvtKind::Load => 6,
-                crate::api::library::LibraryEvtKind::LoopsChanged => 7,
-                crate::api::library::LibraryEvtKind::BeatGridChanged => 8,
-                crate::api::library::LibraryEvtKind::HistorySessionUpdated => 9,
-                crate::api::library::LibraryEvtKind::TrackProgress => 10,
+                crate::api::library::LibraryEvtKind::Focus => 6,
+                crate::api::library::LibraryEvtKind::Load => 7,
+                crate::api::library::LibraryEvtKind::LoopsChanged => 8,
+                crate::api::library::LibraryEvtKind::BeatGridChanged => 9,
+                crate::api::library::LibraryEvtKind::HistorySessionUpdated => 10,
+                crate::api::library::LibraryEvtKind::TrackProgress => 11,
                 _ => {
                     unimplemented!("");
                 }

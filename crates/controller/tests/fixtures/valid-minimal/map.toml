@@ -16,6 +16,8 @@ volume = [
 
 [inputs.master]
 browse = "LibraryNavigation::navigate"
+rotary_press = "LibraryNavigation::focus_next"
+rotary_press_shift = "LibraryNavigation::focus_prev"
 
 [outputs.deck_1]
 play_pause = { signal = "playing", on = "pause_led", off = "play_led" }
