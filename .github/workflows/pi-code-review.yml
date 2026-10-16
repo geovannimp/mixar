@@ -20,10 +20,12 @@ name: Pi Code Review
 # it runs in, so the workspace is the BASE branch checkout. PR head is checked out into
 # pr-head/ and is read-only input for the reviewer. Never run npm/moon/lefthook there.
 # The reviewer's tools are read/grep/find/ls, the action's built-in get_pr_diff and
-# get_issue_or_pr_thread, and the in-repo extension's reply/resolve tools. The review
-# itself is posted with the action's built-in create_pull_request_review. Mutating
-# built-ins we do not want (create_pull_request, update_pull_request) are left out of
-# the loaded_tools allowlist.
+# get_issue_or_pr_thread, and the in-repo extension's reply/resolve tools. CodeGraph
+# (installed and indexed over pr-head before the agent starts) is wired in as an MCP
+# server and is the PRIMARY way the reviewer locates and understands code; the file
+# tools are the fallback. The review itself is posted with the action's built-in
+# create_pull_request_review. Mutating built-ins we do not want (create_pull_request,
+# update_pull_request) are left out of the loaded_tools allowlist.
 #
 # Residual risk: the LLM still reads untrusted PR content while the step holds
 # GITHUB_TOKEN and OCR_LLM_AUTH_TOKEN, and it can call create_pull_request_review /
@@ -232,6 +234,25 @@ jobs:
         run: |
           echo "::warning::.github/pi is absent from the base checkout; this job cannot review until this PR merges and the workflow runs from the default branch."
 
+      # CodeGraph is the reviewer's primary code-intelligence surface. The index is
+      # built from the PR head tree so the graph reflects the change under review.
+      # Indexing parses code; it never executes anything from the PR.
+      - name: Install CodeGraph
+        env:
+          # Pinned deliberately - the MCP tool names and index format are versioned.
+          CODEGRAPH_VERSION: '1.6.2'
+        run: npm install -g "@colbymchenry/codegraph@${CODEGRAPH_VERSION}"
+
+      # Non-fatal: without an index the MCP server still starts and CodeGraph will
+      # report it has no project, so the reviewer degrades to grep/find rather than
+      # losing the whole review.
+      - name: Index the PR head tree
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          codegraph init -y pr-head
+          codegraph status pr-head | head -20
+
       - name: Pi review
         uses: shaftoe/pi-coding-agent-action@f7496a9aea9798c5d52d39096d98d5c5b16559b3 # v2.30.0
         env:
@@ -251,6 +272,18 @@ jobs:
           model: ${{ vars.OCR_LLM_MODEL }}
           extensions: |
             .github/pi/pi-review-extension.ts
+          # CodeGraph, as the primary code-intelligence tool. `direct` exposure puts
+          # it in the model's tool set: pi names MCP tools mcp__<server>__<tool>, so
+          # the resulting name is mcp__codegraph__codegraph_explore and must appear in
+          # loaded_tools below. -p points the server at the indexed PR head tree.
+          mcp_servers: |
+            {
+              "codegraph": {
+                "command": "codegraph",
+                "args": ["serve", "--mcp", "--no-watch", "-p", "${{ github.workspace }}/pr-head"],
+                "exposure": "direct"
+              }
+            }
           load_builtin_extensions: 'true'
           # Patterns for get_pr_diff to exclude. This is the single source for diff
           # filtering (the agent may add more per call).
@@ -265,6 +298,7 @@ jobs:
           # built-ins (create_pull_request, update_pull_request) stay out of the
           # session. Ours cover the two surfaces the action has no tool for.
           loaded_tools: |
+            mcp__codegraph__codegraph_explore
             read
             grep
             find
@@ -280,14 +314,28 @@ jobs:
             The PR head tree is checked out read-only at pr-head/ under the workspace.
             Read PR files there (for example pr-head/<path>), not the base checkout.
 
-            ## Tools
-            - get_pr_diff: the changed diff. Raise max_lines if a large PR truncates.
-            - get_issue_or_pr_thread: the issue/PR thread. Use it to find the
-              review-comment id of a thread you need to reply to or resolve.
-            - Read .pi-review/config.json from the workspace for path-scoped `rules`,
-              and apply the rule whose `path` matches each file you review.
-            Review every changed file individually; the smaller member of a pair
-            (header/interface vs implementation) is not skipped.
+            ## Tools — use CodeGraph first
+            1. mcp__codegraph__codegraph_explore is the PRIMARY tool for finding and
+               understanding code. It takes a natural-language question or a bag of
+               symbol/file names and returns the relevant symbols' verbatim source,
+               the call path between them (following dynamic dispatch), a blast-radius
+               summary of what depends on them, and it names what it elided. Reach for
+               it BEFORE reading files: to locate a symbol, to find its callers or
+               callees, to judge the impact of a change, or to survey an area.
+            2. get_pr_diff: the change under review. Raise max_lines if it truncates.
+            3. get_issue_or_pr_thread: the discussion; use it to find the review-comment
+               id of a thread you need to reply to or resolve.
+            4. read/grep/find/ls are a LAST RESORT. Use them only when CodeGraph cannot
+               answer: a file type it does not index (YAML/JSON/Markdown/TOML), a file
+               outside the indexed tree, or when its output directs you to a line range
+               it omitted. Never grep for callers, definitions or impact - ask CodeGraph.
+               If CodeGraph returns nothing at all (index missing), say so in the review
+               summary and continue with grep/find.
+
+            Read .pi-review/config.json from the workspace for path-scoped `rules`, and
+            apply the rule whose `path` matches each file you review. Review every changed
+            file individually; the smaller member of a pair (header/interface vs
+            implementation) is not skipped.
 
             ## Role
             You are a professional pull-request code reviewer. Diffs show what changed;
