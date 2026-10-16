@@ -94,9 +94,13 @@ impl DetectionFunction {
 
             self.prev_prev_re[i] = a;
             self.prev_prev_im[i] = b;
-            // A zero-magnitude bin keeps the angle qm-dsp's atan2 recorded,
-            // including the ±π of a negative-zero real part (atan2(+0.0, -0.0)
-            // = π); a constant (1, 0) fallback would silently flip the phasor.
+            // A zero-magnitude bin has no direction to normalise, so keep the
+            // angle qm-dsp's `atan2` recorded rather than substituting a
+            // constant. For the common case (realfft emits `+0.0 + 0.0i` for a
+            // silent bin) `atan2(0.0, 0.0) = 0.0` and this yields `(1, 0)`, the
+            // same as the initial state — the substitution only differs when an
+            // FFT emits a *negative* zero, where `atan2(+0.0, -0.0) = pi` and a
+            // constant `(1, 0)` would flip the phasor's sign.
             let (prev_re, prev_im) = if mag == 0.0 {
                 let theta = im.atan2(r);
                 (theta.cos(), theta.sin())

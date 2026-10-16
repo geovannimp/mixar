@@ -12,12 +12,12 @@
 //! One stdout line per row:
 //!   row <name> min_ms=%.3f mean_ms=%.3f reps=%d peak_vmhwm_kb=%d
 //!
-//! The sub-stage rows reach the crate's private modules through
-//! `analyzer_qmdsp::internals` and take their framing from
-//! `analyzer_qmdsp::measurement`, both behind the default-on `sub` feature.
+//! The sub-stage rows reach the crate's pipeline modules directly
+//! (`analyzer_qmdsp::key::…`) and take their framing from
+//! `analyzer_qmdsp::measurement`, all behind the default-on `sub` feature.
 //! Building with `--no-default-features` compiles the example down to the four
 //! `analyze_*` rows only, which is what lets it run against sources that
-//! predate the re-export.
+//! predate that surface.
 
 use std::hint::black_box;
 use std::time::Instant;
@@ -155,11 +155,13 @@ fn main() {
         &full_downbeats,
     );
     if let Some(path) = &dump {
-        let mut out = String::new();
+        // Streamed: one line per beat, no whole-file intermediate String.
+        use std::io::{BufWriter, Write};
+        let mut out = BufWriter::new(std::fs::File::create(path).expect("create dump"));
         for &b in &full_beats {
-            out.push_str(&format!("{b:e}\n"));
+            writeln!(out, "{b:e}").expect("write dump");
         }
-        std::fs::write(path, out).expect("write dump");
+        out.flush().expect("flush dump");
     }
 
     let _ = bench("analyze_full", WARMUP, REPS, || {
@@ -197,15 +199,18 @@ fn main() {
 
     #[cfg(feature = "sub")]
     sub_rows(&y, &full_beats);
+    #[cfg(not(feature = "sub"))]
+    eprintln!(
+        "note: built without the `sub` feature, so the sub-stage rows are not \
+         measured; re-run with `--features sub` for all 11 rows"
+    );
 }
 
 #[cfg(feature = "sub")]
 fn sub_rows(y: &[f32], full_beats: &[f32]) {
-    use analyzer_qmdsp::{internals, measurement};
+    use analyzer_qmdsp::{downbeat, key, math, measurement, onset, overlap, tempo};
 
-    bench("sub_init", WARMUP, REPS, || {
-        internals::key::GetKeyMode::new(SR)
-    });
+    bench("sub_init", WARMUP, REPS, || key::GetKeyMode::new(SR));
 
     let y64: Vec<f64> = y.iter().map(|&s| f64::from(s)).collect();
     // Framing straight from the library, so these rows cannot drift from
@@ -213,9 +218,9 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     let (window, step) = measurement::frame_and_step(SR);
     println!("framing step={step} window={window}");
     let results = bench("sub_onset", WARMUP, REPS, || {
-        let mut df = internals::onset::DetectionFunction::new(window);
+        let mut df = onset::DetectionFunction::new(window);
         let mut res = Vec::new();
-        internals::overlap::feed(&y64, window, step, |f| {
+        overlap::feed(&y64, window, step, |f| {
             res.push(df.process_time_domain(f));
         });
         res
@@ -226,11 +231,11 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     let df_slice = measurement::beat_tracking_slice(&results);
 
     let bp = bench("sub_beat_period", WARMUP, REPS, || {
-        internals::tempo::calculate_beat_period(df_slice)
+        tempo::calculate_beat_period(df_slice)
     });
 
     bench("sub_beats_dp", WARMUP, REPS, || {
-        internals::tempo::calculate_beats(df_slice, &bp)
+        tempo::calculate_beats(df_slice, &bp)
     });
 
     // The decimated stream, shaped exactly as `analyze_pcm` builds it for the
@@ -238,7 +243,7 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     // `overlap::feed` would append, and the result carries a zero pre-roll in
     // front. `sub_chroma`, `sub_decimate8` and `sub_downbeat` all read this, so
     // they time the same input production hands those stages.
-    let mode = internals::key::GetKeyMode::new(SR);
+    let mode = key::GetKeyMode::new(SR);
     let block = mode.block_size();
     let frame_size = mode.frame_size();
     let preroll = frame_size / 2;
@@ -246,32 +251,30 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     let mut buf = y64.clone();
     buf.resize(y64.len() + pad, 0.0);
     let mut dec8 = vec![0.0; preroll + buf.len() / 8];
-    let mut d8 = internals::key::decimator::Decimator::new(
-        internals::key::decimator::Decimation::By8,
-        buf.len(),
-    );
+    let mut d8 = key::decimator::Decimator::new(key::decimator::Decimation::By8, buf.len());
     d8.process(&buf, &mut dec8[preroll..]);
 
     bench("sub_decimate8", WARMUP, REPS, || {
         let mut out = vec![0.0; preroll + buf.len() / 8];
-        let mut d = internals::key::decimator::Decimator::new(
-            internals::key::decimator::Decimation::By8,
-            buf.len(),
-        );
+        let mut d = key::decimator::Decimator::new(key::decimator::Decimation::By8, buf.len());
         d.process(&buf, &mut out[preroll..]);
         out
     });
 
-    let mut chroma = internals::key::cqt::Chromagram::new(internals::key::cqt::ChromagramConfig {
+    let mut chroma = key::cqt::Chromagram::new(key::cqt::ChromagramConfig {
         fs: f64::from(SR) / 8.0,
-        min: internals::math::pitch_frequency(48, -12.0 / 36.0 * 100.0, 440.0),
-        max: internals::math::pitch_frequency(96, -12.0 / 36.0 * 100.0, 440.0),
+        min: math::pitch_frequency(48, -12.0 / 36.0 * 100.0, 440.0),
+        max: math::pitch_frequency(96, -12.0 / 36.0 * 100.0, 440.0),
         bpo: 36,
         cq_thresh: 0.0054,
     });
     // Fold each frame into a checksum instead of collecting owned copies:
     // `Chromagram::process` returns a borrow of its own buffer, so the chroma
-    // math is what is timed, not a Vec per frame.
+    // math is what is timed, not a Vec per frame. The checksum is a sink that
+    // stops the loop being optimised away — it is deliberately *not* a stable
+    // fingerprint, because `chroma`'s internal state carries across reps (a warm
+    // cache is what a timing row wants) and each rep therefore folds a different
+    // sequence. Nothing parses this value.
     let sub_chroma_frame = frame_size;
     bench("sub_chroma", WARMUP, REPS, || {
         let mut hash = 0xcbf2_9ce4_8422_2325u64;
@@ -287,6 +290,6 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     // The downbeat sees the same slice `analyze_pcm` hands it.
     let downbeat_dec = &dec8[preroll..preroll + y64.len() / 8];
     bench("sub_downbeat", WARMUP, REPS, || {
-        internals::downbeat::detect_downbeats(downbeat_dec, SR, full_beats, 4)
+        downbeat::detect_downbeats(downbeat_dec, SR, full_beats, 4)
     });
 }

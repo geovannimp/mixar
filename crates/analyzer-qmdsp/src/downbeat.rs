@@ -23,7 +23,9 @@ const EPS: f64 = 2.2204e-16;
 const DECIMATION: usize = 16;
 
 /// Return downbeat positions (seconds) among `beats` (seconds), for a given
-/// meter. Empty when there is not enough audio or too few beats.
+/// meter. Empty when there are too few beats or when the decimated stream is
+/// shorter than one beat's worth of samples (`dec8.len() < 2`, which is exactly
+/// the old `samples.len() < 16` guard on the raw track).
 ///
 /// `dec8` is the caller's ×8-decimated stream (shared with the key path); this
 /// adds the ×2 stage for qm-dsp's ~1/16 rate.
@@ -159,6 +161,84 @@ fn spectral_diff(old: &[f64], new: &[f64]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The old `detect_downbeats` took the raw track and ran the private
+    /// `decimate` (which bailed out on `samples.len() < 16`); it now takes the
+    /// caller's ×8 stream and runs only the ×2 stage. This pins that the
+    /// acceptance threshold and the downsampled stream are unchanged.
+    #[test]
+    fn x8_stream_matches_the_old_two_stage_decimate() {
+        for &len in &[
+            1usize, 7, 15, 16, 17, 31, 32, 33, 63, 64, 1000, 44_100, 100_000,
+        ] {
+            let y: Vec<f64> = (0..len)
+                .map(|i| {
+                    let t = i as f64;
+                    (t * 0.037).sin() * 0.6 + (t * 0.11).cos() * 0.3
+                })
+                .collect();
+
+            // Old: `decimate(y)` — bails out below 16 samples.
+            let old: Option<Vec<f64>> = if y.len() < 16 {
+                None
+            } else {
+                let mut first = Decimator::new(Decimation::By8, y.len());
+                let mut stage = vec![0.0; y.len() / 8];
+                first.process(&y, &mut stage);
+                let mut second = Decimator::new(Decimation::By2, stage.len());
+                let mut out = vec![0.0; stage.len() / 2];
+                second.process(&stage, &mut out);
+                Some(out)
+            };
+            // New: the caller's ×8 stream, then the ×2 stage here.
+            let dec8_len = y.len() / 8;
+            let new: Option<Vec<f64>> = if dec8_len < 2 {
+                None
+            } else {
+                let mut d = Decimator::new(Decimation::By8, y.len());
+                let mut dec8 = vec![0.0; dec8_len];
+                d.process(&y, &mut dec8);
+                let mut second = Decimator::new(Decimation::By2, dec8.len());
+                let mut out = vec![0.0; dec8.len() / 2];
+                second.process(&dec8, &mut out);
+                Some(out)
+            };
+
+            // The two decide the same way, for the same reason: `dec8.len() < 2`
+            // is exactly `y.len() < 16`.
+            assert_eq!(
+                old.is_none(),
+                new.is_none(),
+                "acceptance differs at len {len}: old={:?} new={:?}",
+                old.is_none(),
+                new.is_none()
+            );
+            if let (Some(a), Some(b)) = (old, new) {
+                assert_eq!(a.len(), b.len(), "downsampled length differs at len {len}");
+                for (i, (&x, &y)) in a.iter().zip(b.iter()).enumerate() {
+                    assert_eq!(
+                        x.to_bits(),
+                        y.to_bits(),
+                        "downsampled[{i}] differs at len {len}: {x} vs {y}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// The smallest ×8 stream the production guard accepts. Base accepted this
+    /// too (a 16-sample track), and it must not panic.
+    #[test]
+    fn smallest_accepted_stream_does_not_panic() {
+        // One downsampled sample and two beats: the degenerate case both base
+        // and the current guard accept.
+        let dec8 = vec![0.5f64; 2];
+        let beats = [0.0f32, 0.5];
+        let out = detect_downbeats(&dec8, 44_100, &beats, 4);
+        assert_eq!(out, vec![0.0], "phase 0 of a 4-beat bar over 2 beats");
+        // One below the threshold is rejected outright.
+        assert!(detect_downbeats(&[0.5], 44_100, &beats, 4).is_empty());
+    }
 
     #[test]
     fn too_few_beats_is_empty() {

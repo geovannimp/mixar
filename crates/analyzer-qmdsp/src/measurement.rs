@@ -16,6 +16,13 @@ pub(super) const MAXIMUM_BIN_SIZE_HZ: u32 = 50;
 
 /// `(window, step)` the onset detection function is framed with, exactly as
 /// `detect_beats` derives them.
+///
+/// Requires `sample_rate > 0`. A zero step size is not meaningful for onset
+/// detection, so with `sample_rate == 0` this returns `(1, 0)` rather than
+/// panicking: `detect_beats` treats a zero step as "no beats" and returns empty,
+/// and `analyze_pcm` rejects a zero sample rate with an error before this is
+/// ever reached. The `(1, 0)` shape is deliberate so the helper stays pure; the
+/// `framing_step_zero_means_no_beats` test pins it.
 pub fn frame_and_step(sample_rate: u32) -> (usize, usize) {
     let step = (sample_rate as f64 * STEP_SECS) as i32;
     let window = crate::math::next_power_of_two((sample_rate / MAXIMUM_BIN_SIZE_HZ) as i32);
@@ -44,6 +51,13 @@ mod tests {
     fn framing_matches_the_qm_dsp_defaults_at_44k1() {
         // step = 44100 * 0.01161 = 512.0; window = next_pow2(44100/50 = 882) = 1024.
         assert_eq!(frame_and_step(44_100), (1024, 512));
+    }
+
+    #[test]
+    fn framing_step_zero_means_no_beats() {
+        // Not a panic: `detect_beats` treats a zero step as "no beats" and
+        // `analyze_pcm` rejects a zero sample rate before this is reached.
+        assert_eq!(frame_and_step(0), (1, 0));
     }
 
     #[test]

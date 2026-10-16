@@ -54,7 +54,11 @@ pub enum Decimation {
 }
 
 impl Decimation {
-    fn factor(self) -> usize {
+    /// Decimation factor of this stage.
+    ///
+    /// Single source of truth for the factor: `GetKeyMode` derives its framing
+    /// geometry from `Decimation::By8` rather than restating the number.
+    pub const fn factor(self) -> usize {
         match self {
             Self::By2 => 2,
             Self::By8 => 8,

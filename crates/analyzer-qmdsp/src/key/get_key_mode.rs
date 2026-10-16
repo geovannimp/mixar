@@ -3,11 +3,13 @@
 //! (`1..=12` major C..B, `13..=24` minor C..B, `0` = none).
 
 use crate::key::cqt::{Chromagram, ChromagramConfig};
+use crate::key::decimator::Decimation;
 use crate::math::{get_max_index, mean, pitch_frequency};
 
 const BINS_PER_OCTAVE: usize = 36;
-/// Raw samples per key block: the chromagram frame times this decimation.
-const DECIMATION_FACTOR: usize = 8;
+/// Decimation factor the key path applies before the chromagram, taken from the
+/// stage enum so it cannot drift from the `Decimator` `lib.rs` actually builds.
+const DECIMATION_FACTOR: usize = Decimation::By8.factor();
 
 #[rustfmt::skip]
 const MAJ_PROFILE: [f64; BINS_PER_OCTAVE] = [
@@ -231,6 +233,23 @@ mod tests {
         let gkm = GetKeyMode::new(44100);
         // chroma frame size 4096, decimation 8.
         assert_eq!(gkm.frame_size(), 4096);
+    }
+
+    #[test]
+    fn geometry_derives_its_factor_from_the_stage_enum() {
+        let gkm = GetKeyMode::new(44100);
+        // `block_size` and `decimation_input_len` must track the stage the
+        // shared pass in `lib.rs` builds, not a restated number.
+        assert_eq!(
+            gkm.block_size(),
+            gkm.frame_size() * crate::key::decimator::Decimation::By8.factor()
+        );
+        assert_eq!(
+            DECIMATION_FACTOR,
+            crate::key::decimator::Decimation::By8.factor()
+        );
+        // And the framing must still be Mixxx's 32768-sample block.
+        assert_eq!(gkm.block_size(), 4096 * 8);
     }
 
     #[test]

@@ -19,9 +19,11 @@
 //!
 //! **Module visibility:** `downbeat`, `key`, `math`, `onset`, `overlap` and
 //! `tempo` are `pub` only so `examples/qmdsp_timing.rs` — a separate crate —
-//! can reach the pipeline stages it times. `pub(crate)` does not work here: a
-//! `pub use` cannot raise an item above its own visibility, so the example
-//! would not be able to name them. These modules are therefore an unstable,
+//! can reach the pipeline stages it times; a `pub use` cannot re-export an item
+//! that is itself private. The `sub` feature is what makes them `pub`: without
+//! it the crate's public surface is exactly what it was before the harness
+//! existed. `measurement` is published the same way and holds the framing and
+//! trimming rules `detect_beats` itself uses. These modules are an unstable,
 //! measurement-only surface; the crate's real API is [`QmdspAnalyzer`] through
 //! [`AudioAnalyzer`], and nothing outside the workspace or the example should
 //! depend on them.
@@ -63,14 +65,6 @@ pub mod tempo;
 #[cfg(not(feature = "sub"))]
 mod tempo;
 mod window;
-
-/// Measurement-only re-exports for `examples/qmdsp_timing.rs`. Not part of
-/// the crate's API.
-#[cfg(feature = "sub")]
-#[doc(hidden)]
-pub mod internals {
-    pub use crate::{downbeat, key, math, onset, overlap, tempo};
-}
 
 /// The framing and trimming rules the beat pipeline applies, published for
 /// `examples/qmdsp_timing.rs` so the harness cannot drift from them.
@@ -138,10 +132,15 @@ impl AudioAnalyzer for QmdspAnalyzer {
         // `Decimator` this replaced swept: the centred pre-roll contributes only
         // zeros, and the trailing silence is what gave the final chroma frame
         // the filter's ring-out instead of hard zeros.
+        //
+        // `buf` is only ever *extended*, so `&buf[..y_len]` below is always the
+        // raw track whether or not this resize happened.
         if let Some(mode) = &key_mode {
             let pad = mode.decimation_input_len(y_len) - mode.block_size() / 2 - y_len;
+            debug_assert!(pad > 0, "finalize silence must be non-empty");
             buf.resize(y_len + pad, 0.0);
         }
+        debug_assert!(buf.len() >= y_len, "the track buffer is only extended");
         let beats = if need_beats {
             detect_beats(&buf[..y_len], sr)
         } else {
@@ -161,9 +160,16 @@ impl AudioAnalyzer for QmdspAnalyzer {
             None
         };
         let downbeats = if need_downbeats {
+            // `preroll` is non-zero exactly when the key path built the stream,
+            // and the decimated stream always covers `y_len / 8` samples.
             let preroll = key_mode.as_ref().map_or(0, |m| m.frame_size() / 2);
+            let dec = dec8.as_deref().unwrap_or_default();
+            debug_assert!(
+                preroll + y_len / 8 <= dec.len(),
+                "decimated stream too short for the downbeat consumer"
+            );
             downbeat::detect_downbeats(
-                &dec8.as_deref().unwrap_or_default()[preroll..preroll + y_len / 8],
+                &dec[preroll..preroll + y_len / 8],
                 sr,
                 &beats,
                 BEATS_PER_BAR,
@@ -172,6 +178,11 @@ impl AudioAnalyzer for QmdspAnalyzer {
             Vec::new()
         };
         let key_index = if need_key {
+            debug_assert!(key_mode.is_some(), "key mode built for the key target");
+            debug_assert!(
+                dec8.is_some(),
+                "decimation computed when the key target is on"
+            );
             detect_key(
                 key_mode
                     .as_mut()
