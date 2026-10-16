@@ -5,15 +5,18 @@ import type { ReviewCommentPayload, ThreadMessage } from './types.ts';
 
 export async function getReviewThread(rt: Runtime, commentId: number): Promise<string> {
   const octokit = createOctokit(rt.token);
-  const { data: comment } = await octokit.request(
-    'GET /repos/{owner}/{repo}/pulls/comments/{comment_id}',
-    { owner: rt.owner, repo: rt.repo, comment_id: commentId },
-  );
+  const { data: comment } = await octokit.rest.pulls.getReviewComment({
+    owner: rt.owner,
+    repo: rt.repo,
+    comment_id: commentId,
+  });
   const rootId = comment.in_reply_to_id ?? comment.id;
-  const all: ReviewCommentPayload[] = await octokit.paginate(
-    'GET /repos/{owner}/{repo}/pulls/{pull_number}/comments',
-    { owner: rt.owner, repo: rt.repo, pull_number: rt.prNumber, per_page: 100 },
-  );
+  const all: ReviewCommentPayload[] = await octokit.paginate(octokit.rest.pulls.listReviewComments, {
+    owner: rt.owner,
+    repo: rt.repo,
+    pull_number: rt.prNumber,
+    per_page: 100,
+  });
   const thread = all
     .filter((c) => c.id === rootId || c.in_reply_to_id === rootId)
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -45,10 +48,13 @@ export async function replyToReviewComment(
   const marked = body.includes(FINDING_MARKER) ? body : `${FINDING_MARKER}\n${body}`;
   if (rt.dryRun) return `dry run: would reply to comment ${commentId}:\n${marked}`;
   const octokit = createOctokit(rt.token);
-  await octokit.request(
-    'POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies',
-    { owner: rt.owner, repo: rt.repo, pull_number: rt.prNumber, comment_id: commentId, body: marked },
-  );
+  await octokit.rest.pulls.createReplyForReviewComment({
+    owner: rt.owner,
+    repo: rt.repo,
+    pull_number: rt.prNumber,
+    comment_id: commentId,
+    body: marked,
+  });
   return 'replied';
 }
 
@@ -66,10 +72,11 @@ const RESOLVE_MUTATION = `mutation($id: ID!) {
 
 export async function resolveReviewThread(rt: Runtime, commentId: number): Promise<string> {
   const octokit = createOctokit(rt.token);
-  const { data: comment } = await octokit.request(
-    'GET /repos/{owner}/{repo}/pulls/comments/{comment_id}',
-    { owner: rt.owner, repo: rt.repo, comment_id: commentId },
-  );
+  const { data: comment } = await octokit.rest.pulls.getReviewComment({
+    owner: rt.owner,
+    repo: rt.repo,
+    comment_id: commentId,
+  });
   // Only threads this action opened may be resolved: the resolve tool is reachable
   // from a prompt-injected diff, and resolving a human's thread is a visible,
   // irreversible-looking action on someone else's review.
@@ -78,7 +85,7 @@ export async function resolveReviewThread(rt: Runtime, commentId: number): Promi
     rootId === comment.id
       ? comment
       : (
-          await octokit.request('GET /repos/{owner}/{repo}/pulls/comments/{comment_id}', {
+          await octokit.rest.pulls.getReviewComment({
             owner: rt.owner,
             repo: rt.repo,
             comment_id: rootId,

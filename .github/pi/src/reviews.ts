@@ -12,7 +12,7 @@ export async function upsertStickySummary(
   rt: Runtime,
   body: string,
 ): Promise<void> {
-  const comments = await octokit.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
     owner: rt.owner,
     repo: rt.repo,
     issue_number: rt.prNumber,
@@ -26,7 +26,7 @@ export async function upsertStickySummary(
   );
   const keep = anchored[0];
   if (keep) {
-    await octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+    await octokit.rest.issues.updateComment({
       owner: rt.owner,
       repo: rt.repo,
       comment_id: keep.id,
@@ -34,7 +34,7 @@ export async function upsertStickySummary(
     });
     for (const dupe of anchored.slice(1)) {
       try {
-        await octokit.request('DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+        await octokit.rest.issues.deleteComment({
           owner: rt.owner,
           repo: rt.repo,
           comment_id: dupe.id,
@@ -46,7 +46,7 @@ export async function upsertStickySummary(
       }
     }
   } else {
-    await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+    await octokit.rest.issues.createComment({
       owner: rt.owner,
       repo: rt.repo,
       issue_number: rt.prNumber,
@@ -61,7 +61,7 @@ const DETERMINISTIC_BATCH_REJECTIONS = new Set([422]);
 export async function postReview(rt: Runtime, params: PostReviewParams): Promise<string> {
   const octokit = createOctokit(rt.token);
   const { kept, dropped } = splitByConfidence(params.findings);
-  const { data: pr } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+  const { data: pr } = await octokit.rest.pulls.get({
     owner: rt.owner,
     repo: rt.repo,
     pull_number: rt.prNumber,
@@ -84,7 +84,13 @@ export async function postReview(rt: Runtime, params: PostReviewParams): Promise
 
   await upsertStickySummary(octokit, rt, summary);
 
-  const commitId = pr.head.sha;
+  const reviewParams = {
+    owner: rt.owner,
+    repo: rt.repo,
+    pull_number: rt.prNumber,
+    commit_id: pr.head.sha,
+    event: 'COMMENT' as const,
+  };
   const errors: string[] = [];
   let posted = 0;
 
@@ -92,17 +98,9 @@ export async function postReview(rt: Runtime, params: PostReviewParams): Promise
   // upserted, so it already records that the run happened. A body-only review would
   // append another timeline entry per run.
 
-  const reviewParams = {
-    owner: rt.owner,
-    repo: rt.repo,
-    pull_number: rt.prNumber,
-    commit_id: commitId,
-    event: 'COMMENT' as const,
-  };
-
   for (const [i, batch] of chunk(comments, rt.batchSize).entries()) {
     try {
-      await octokit.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews', {
+      await octokit.rest.pulls.createReview({
         ...reviewParams,
         body: i === 0 ? REVIEW_BODY_DONE : `${FINDING_MARKER}\n(continued review batch ${i + 1})`,
         comments: batch,
@@ -121,7 +119,7 @@ export async function postReview(rt: Runtime, params: PostReviewParams): Promise
         );
         for (const c of batch) {
           try {
-            await octokit.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews', {
+            await octokit.rest.pulls.createReview({
               ...reviewParams,
               body: `${FINDING_MARKER}\n(single-comment fallback)`,
               comments: [c],

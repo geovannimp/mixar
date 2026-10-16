@@ -11,14 +11,14 @@ export async function fetchBaseConfig(
   ref: string,
 ): Promise<string | null> {
   try {
-    const { data } = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+    const { data } = await octokit.rest.repos.getContent({
       owner: rt.owner,
       repo: rt.repo,
       path: REVIEW_CONFIG_PATH,
       ref,
     });
-    // This endpoint returns a file object, a directory listing, or an array; only
-    // the file variant carries base64 content.
+    // This endpoint also returns directory listings and symlinks; only the file
+    // variant carries base64 content.
     if (Array.isArray(data) || data.type !== 'file' || !('content' in data) || !data.content) {
       return null;
     }
@@ -41,7 +41,7 @@ export async function getChangedFiles(
   const cached = changedFilesCache.get(key);
   if (cached) return cached;
   // paginate follows every page, so the result is never a silent partial.
-  const files = await octokit.paginate('GET /repos/{owner}/{repo}/pulls/{pull_number}/files', {
+  const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
     owner: rt.owner,
     repo: rt.repo,
     pull_number: rt.prNumber,
@@ -87,7 +87,7 @@ export async function reviewableChangedFiles(
 
 export async function listReviewFiles(rt: Runtime): Promise<string> {
   const octokit = createOctokit(rt.token);
-  const { data: pr } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+  const { data: pr } = await octokit.rest.pulls.get({
     owner: rt.owner,
     repo: rt.repo,
     pull_number: rt.prNumber,
