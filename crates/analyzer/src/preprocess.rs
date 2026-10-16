@@ -16,11 +16,11 @@ use crate::decode::DecodedMono;
 const PEAK_NORMALIZE_THRESHOLD: f32 = 1.0;
 
 /// PCM that is ready to hand to a backend.
-pub struct PreparedPcm<'a> {
+pub(crate) struct PreparedPcm<'a> {
     /// Mono samples, scaled down when the peak exceeded `±1.0`.
-    pub samples: Cow<'a, [f32]>,
+    pub(crate) samples: Cow<'a, [f32]>,
     /// Sample rate the samples were decoded at.
-    pub sample_rate: u32,
+    pub(crate) sample_rate: u32,
 }
 
 /// Prepare PCM that the caller owns.
@@ -29,7 +29,7 @@ pub struct PreparedPcm<'a> {
 /// holds a reference to, so normalization can happen in place: no copy of the
 /// whole track, and only buffers that actually exceed `±1.0` pay for a pass.
 /// Returns the buffer unchanged when it already fits.
-pub fn prepare_owned(decoded: DecodedMono) -> PreparedPcm<'static> {
+pub(crate) fn prepare_owned(decoded: DecodedMono) -> PreparedPcm<'static> {
     let mut samples = decoded.samples;
     peak_normalize(&mut samples);
     PreparedPcm {
@@ -45,7 +45,7 @@ pub fn prepare_owned(decoded: DecodedMono) -> PreparedPcm<'static> {
 /// already normalized or decoded in range. When it does not, the buffer is
 /// scanned twice — once for the peak, once to collect the scaled copy — rather
 /// than three times (copy, scan, scale) as before.
-pub fn prepare<'a>(
+pub(crate) fn prepare<'a>(
     samples: &'a [f32],
     sample_rate: u32,
     _config: &AnalysisConfig,
@@ -80,10 +80,8 @@ fn peak_of(samples: &[f32]) -> f32 {
 /// Scale `samples` in place so its peak is exactly [`PEAK_NORMALIZE_THRESHOLD`].
 ///
 /// No-op when the peak is already within range.
-fn peak_normalize(samples: &mut [f32]) -> f32 {
-    let peak = peak_of(samples);
-    scale_down(samples, peak);
-    peak
+fn peak_normalize(samples: &mut [f32]) {
+    scale_down(samples, peak_of(samples));
 }
 
 /// Scale `samples` in place so the peak is exactly `1.0`.

@@ -35,15 +35,18 @@ const DECODE_CHUNK_FRAMES: usize = 8192;
 ///
 /// This is the analysis memory budget in `docs/audio-analyzer-spec.md` §12
 /// (< 500 MB peak per concurrent analysis job) used as a ceiling rather than a
-/// target: 64 Mi frames × 4 bytes = 256 MiB, i.e. ≈ 25.4 minutes of mono f32 at
-/// 44.1 kHz — the reservation on its own stays inside that budget, leaving room
-/// for the backend's own allocations. A cap larger than this is still honoured —
-/// the read loop stops at EOF and the buffer grows geometrically from here — but
-/// it is never turned into a single allocation request, because
-/// `max_duration_ms` is a public input and a huge one (say `i32::MAX`) would
-/// otherwise ask the allocator for hundreds of gigabytes before the first
-/// sample arrives.
-const MAX_RESERVED_FRAMES: usize = 64 * 1024 * 1024;
+/// target: 128 Mi frames × 4 bytes = 512 MiB, i.e. ≈ 50.7 minutes of mono f32
+/// at 44.1 kHz. It deliberately sits *above* the §12 figure, because the
+/// ceiling's only job is to stop a public `max_duration_ms` from being turned
+/// into one allocation request, and a smaller ceiling is worse for real work: a
+/// cap between the smaller ceiling and this one would exhaust the reservation
+/// and then pay a `Vec` doubling — keeping the old buffer live while the new one
+/// is allocated, and keeping the *larger* capacity in the buffer that is handed
+/// back. A 30-minute cap costs 317 MiB here with no growth at all, which is the
+/// best outcome the budget allows; a cap long enough to need more than this
+/// ceiling exceeds the budget in the decoded data itself, so no ceiling value
+/// can rescue it.
+const MAX_RESERVED_FRAMES: usize = 128 * 1024 * 1024;
 
 /// Frames the output buffer is sized for, clamped to [`MAX_RESERVED_FRAMES`].
 ///
@@ -105,7 +108,8 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
 
 /// Average `interleaved` into `mono`.
 ///
-/// `interleaved` must contain a whole number of frames. This is the streaming
+/// A partial trailing frame — fewer than `channels` samples left over — is
+/// dropped rather than averaged against missing input. This is the streaming
 /// form of [`downmix_to_mono`]; the arithmetic per frame is identical.
 fn downmix_append(mono: &mut Vec<f32>, interleaved: &[f32], channels: usize) {
     if channels <= 1 {

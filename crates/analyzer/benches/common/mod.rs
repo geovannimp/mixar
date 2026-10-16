@@ -83,6 +83,11 @@ pub struct Probed {
 /// one target — `decode_mono` and `analyze_file` share three — so the decode is
 /// paid once per process instead of once per target. The probe runs before the
 /// harness starts timing, so it is setup work, not measured work.
+///
+/// The cache key is the duration cap because that is the only field of
+/// `AnalysisConfig` that `decode_mono` reads. If decoding ever starts reading
+/// another field, the key has to grow to cover it or the cache will answer for
+/// the wrong config.
 pub fn probe(path: &Path, config: &AnalysisConfig) -> Probed {
     let key = (path.to_path_buf(), config.max_duration_ms);
     if let Some(hit) = PROBES

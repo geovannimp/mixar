@@ -72,9 +72,9 @@ fn decode_mono_bench(c: &mut Criterion) {
         // Probe with the scenario's own config: the decoded frame count is the
         // work one iteration performs, and the fixture's rate names the id.
         let probed = probe(&path, &config);
-        let rate_khz = probed.sample_rate / 1000;
+        let rate_khz = f64::from(probed.sample_rate) / 1000.0;
         group.throughput(Throughput::Elements(probed.frames));
-        group.bench_function(format!("{label}_{rate_khz}k"), |b| {
+        group.bench_function(format!("{label}_{rate_khz:.1}k"), |b| {
             b.iter(|| analyzer::decode_mono(&path, &config));
         });
     }
@@ -95,9 +95,9 @@ fn analyze_file_bench(c: &mut Criterion) {
         // The probe's frame count is the decode half of the measured work, so it
         // is the honest denominator for the combined analysis run.
         let probed = probe(&master, &config);
-        let rate_khz = probed.sample_rate / 1000;
+        let rate_khz = f64::from(probed.sample_rate) / 1000.0;
         group.throughput(Throughput::Elements(probed.frames));
-        group.bench_function(format!("{label}_{rate_khz}k"), |b| {
+        group.bench_function(format!("{label}_{rate_khz:.1}k"), |b| {
             b.iter(|| analyze_file(&master, &config));
         });
     }
@@ -130,7 +130,10 @@ fn analyze_pcm_bench(c: &mut Criterion) {
     };
     // The id and the throughput denominator both claim `PCM_SECS` seconds at
     // `MASTER_SR`; pin the fixture to that claim so a swap fails loudly instead
-    // of quietly reporting a different amount of work.
+    // of quietly reporting a different amount of work. Unlike a missing fixture
+    // (a skip, because nothing was measured), a fixture that decodes to the wrong
+    // rate or length would make the report describe work that did not happen, so
+    // that case is a panic.
     assert_eq!(
         decoded.sample_rate, MASTER_SR,
         "the PCM scenario's throughput is derived from MASTER_SR"
@@ -145,12 +148,16 @@ fn analyze_pcm_bench(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("analyze_pcm");
     group.throughput(Throughput::Elements(mono.len() as u64));
-    group.bench_function("mono_90s_44k", |b| {
+    let rate_khz = f64::from(MASTER_SR) / 1000.0;
+    group.bench_function(format!("mono_90s_{rate_khz:.1}k"), |b| {
         b.iter(|| analyze_pcm(&mono, MASTER_SR, &config));
     });
-    group.bench_function("integrated_lufs_mono/mono_90s_44k", |b| {
-        b.iter(|| integrated_lufs_mono(&mono, MASTER_SR));
-    });
+    group.bench_function(
+        format!("integrated_lufs_mono/mono_90s_{rate_khz:.1}k"),
+        |b| {
+            b.iter(|| integrated_lufs_mono(&mono, MASTER_SR));
+        },
+    );
     group.finish();
 }
 
