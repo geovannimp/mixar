@@ -1029,7 +1029,8 @@ void _navigateDriveTree(Ref ref, int delta) {
   final listing = ref.read(driveListingProvider).asData?.value;
   // Mirror the pane's disabled "up" row: a parent outside the active volume is
   // rendered but not openable, so the cursor cannot apply it.
-  final openable = path == null ||
+  final openable =
+      path == null ||
       path != listing?.parent ||
       driveParentInVolume(listing?.parent, ref.read(driveActiveVolumeProvider));
   if (path != null && openable) {
