@@ -231,12 +231,16 @@ mod tests {
         let mut samples = Vec::with_capacity(sample_rate as usize * 2);
         for index in 0..sample_rate as usize * 2 {
             let t = index as f32 / sample_rate as f32;
-            samples.push(4.0 * (2.0 * std::f32::consts::PI * 2.0 * t).sin());
+            // Amplitude-modulated like `write_hot_stereo_wav`, so the tempo has
+            // onsets to lock onto: a bare tone carries none, and the BPM
+            // assertion below would be resting on luck.
+            let beat = (2.0 * std::f32::consts::PI * 2.0 * t).sin();
+            samples.push(4.0 * beat * (2.0 * std::f32::consts::PI * 440.0 * t).sin());
         }
 
         let analysis = analyze_pcm(&samples, sample_rate, &AnalysisConfig::default()).unwrap();
 
-        // A 4.0-peak sine scaled to 1.0: same shape as the 1 kHz reference tone,
+        // A 4.0-peak tone scaled to 1.0: same shape as the 1 kHz reference tone,
         // 2 beats per second, so ~120 BPM.
         let bpm = analysis.bpm.expect("2 Hz click is a detectable tempo");
         assert!((bpm.bpm - 120.0).abs() < 3.0, "got {} BPM", bpm.bpm);

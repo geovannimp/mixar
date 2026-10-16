@@ -11,43 +11,16 @@
 //!
 //! Page cache is warm, matching the timing benchmarks in `analysis.rs`.
 
-use std::path::{Path, PathBuf};
+mod common;
 
-use analyzer::decode_mono;
-use analyzer::{analyze_file, AnalysisConfig};
+use analyzer::{analyze_file, decode_mono};
 
-/// Real 387.1 s stereo 24-bit 44.1 kHz master (see `samples/README.md`).
-const MASTER: &str = "Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav";
-/// `AnalysisDurationMode::Precise` on a real track.
-const PRECISE_MS: i32 = 193_000;
-/// `AnalysisDurationMode::Fast`.
-const FAST_MS: i32 = 30_000;
 /// Repetitions per scenario; the peak is a high-water mark, so repeats only
 /// confirm it is reached by the first pass.
 const REPEATS: usize = 3;
 
-/// A fixture inside the repo-root `samples/` tree, or `None` with a printed
-/// reason. See `analysis.rs` for why this is a skip, not a panic.
-fn fixture(name: &str) -> Option<PathBuf> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../samples")
-        .join(name);
-    if path.is_file() {
-        Some(path)
-    } else {
-        println!("skipping bench: fixture {} not found", path.display());
-        None
-    }
-}
-
-fn config_for(max_duration_ms: Option<i32>) -> AnalysisConfig {
-    AnalysisConfig {
-        max_duration_ms,
-        ..AnalysisConfig::default()
-    }
-}
-
 /// Peak resident set size in kibibytes, read from `VmHWM`.
+#[cfg(target_os = "linux")]
 fn peak_rss_kib() -> u64 {
     let status = std::fs::read_to_string("/proc/self/status")
         .expect("this benchmark only supports Linux, which always has /proc/self/status");
@@ -63,6 +36,7 @@ fn peak_rss_kib() -> u64 {
     panic!("VmHWM missing from /proc/self/status");
 }
 
+#[cfg(target_os = "linux")]
 fn scenario(name: &str, mut run: impl FnMut()) {
     // Warm the code paths and the page cache so the reported peak is the steady
     // state of the operation, not of process start-up.
@@ -78,35 +52,37 @@ fn scenario(name: &str, mut run: impl FnMut()) {
     );
 }
 
-fn main() {
-    #[cfg(not(target_os = "linux"))]
-    println!("skipping bench: peak-RSS reporting reads /proc/self/status and needs Linux");
-    #[cfg(target_os = "linux")]
-    run();
-}
-
 #[cfg(target_os = "linux")]
 fn run() {
-    let Some(master) = fixture(MASTER) else {
+    let Some(master) = common::fixture(common::MASTER) else {
         return;
     };
 
     scenario("decode_mono/complete/stereo_44k", || {
-        decode_mono(&master, &config_for(None)).unwrap();
+        decode_mono(&master, &common::config_for(None)).unwrap();
     });
     scenario("decode_mono/precise/stereo_44k", || {
-        decode_mono(&master, &config_for(Some(PRECISE_MS))).unwrap();
+        decode_mono(&master, &common::config_for(Some(common::PRECISE_MS))).unwrap();
     });
     scenario("decode_mono/fast/stereo_44k", || {
-        decode_mono(&master, &config_for(Some(FAST_MS))).unwrap();
+        decode_mono(&master, &common::config_for(Some(common::FAST_MS))).unwrap();
     });
     scenario("analyze_file/complete/stereo_44k", || {
-        analyze_file(&master, &config_for(None)).unwrap();
+        analyze_file(&master, &common::config_for(None)).unwrap();
     });
     scenario("analyze_file/precise/stereo_44k", || {
-        analyze_file(&master, &config_for(Some(PRECISE_MS))).unwrap();
+        analyze_file(&master, &common::config_for(Some(common::PRECISE_MS))).unwrap();
     });
     scenario("analyze_file/fast/stereo_44k", || {
-        analyze_file(&master, &config_for(Some(FAST_MS))).unwrap();
+        analyze_file(&master, &common::config_for(Some(common::FAST_MS))).unwrap();
     });
+}
+
+fn main() {
+    // Peak-RSS reporting reads `/proc/self/status`, which only exists on Linux;
+    // everywhere else the run is a skip rather than a panic.
+    #[cfg(not(target_os = "linux"))]
+    println!("skipping bench: peak-RSS reporting reads /proc/self/status and needs Linux");
+    #[cfg(target_os = "linux")]
+    run();
 }

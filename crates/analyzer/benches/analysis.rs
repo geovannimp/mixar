@@ -14,64 +14,38 @@
 //! native sample rate and the frame count actually decoded), never from a
 //! hardcoded duration, so a swapped fixture cannot leave the report describing
 //! work that was not measured. The `_k` suffix in each id is the probed rate.
+//! Probes are memoized per process by [`common::probe`]; they run before the
+//! harness times anything, so they are setup work and not part of the measured
+//! iterations.
 //!
 //! Timings are reported to the console; no analysis output values are asserted
 //! here. Deterministic-output checks live in the crate's `#[cfg(test)]` suites.
 
-use std::path::{Path, PathBuf};
+mod common;
+
 use std::time::Duration;
 
-use analyzer::decode_mono;
-use analyzer::{analyze_file, analyze_pcm, integrated_lufs_mono, AnalysisConfig, DecodedMono};
+use analyzer::{analyze_file, analyze_pcm, integrated_lufs_mono, DecodedMono};
+use common::{
+    config_for, fixture, frames_for, probe, FAST_MS, MASTER, MASTER_SR, OPUS, PRECISE_MS,
+};
 use criterion::{criterion_group, Criterion, Throughput};
 
-/// Real 387.1 s stereo 24-bit 44.1 kHz master (see `samples/README.md`).
-const MASTER: &str = "Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav";
-/// Compressed master, exercising the Opus decoder path (181.2 s at 48 kHz).
-const OPUS: &str = "Palawan by SKIRK  Vlog Music [xXRDR-ycIeo].opus";
-
-/// Native rate of [`MASTER`], asserted against the probe so the PCM scenario's
-/// throughput denominator cannot drift away from the fixture.
-const MASTER_SR: u32 = 44_100;
-/// `AnalysisDurationMode::Precise` on a real track.
-const PRECISE_MS: i32 = 193_000;
-/// `AnalysisDurationMode::Fast`.
-const FAST_MS: i32 = 30_000;
 /// In-memory PCM scenario: `AnalysisDurationMode` for a mid-length track.
 const PCM_SECS: f64 = 90.0;
 
-/// A fixture inside the repo-root `samples/` tree, or `None` with a printed
-/// reason.
+/// Milliseconds the PCM scenario caps its decode at.
 ///
-/// The benches are a local measurement instrument, so a missing fixture is a
-/// skip, not a panic in the middle of a run.
-fn fixture(name: &str) -> Option<PathBuf> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../samples")
-        .join(name);
-    if path.is_file() {
-        Some(path)
-    } else {
-        println!("skipping bench: fixture {} not found", path.display());
-        None
-    }
-}
-
-fn config_for(max_duration_ms: Option<i32>) -> AnalysisConfig {
-    AnalysisConfig {
-        max_duration_ms,
-        ..AnalysisConfig::default()
-    }
-}
-
-/// Frame count `decode_mono` decodes for `secs` at [`MASTER_SR`].
-///
-/// `.ceil()` mirrors the decoder's own cap rounding (`decode.rs`: a duration
-/// cap of `secs` becomes that many frames), so the assertion in
-/// [`analyze_pcm_bench`] holds for any `PCM_SECS`, not only values whose frame
-/// count is a whole number.
-fn frames_for(secs: f64) -> u64 {
-    (secs * f64::from(MASTER_SR)).ceil() as u64
+/// `PCM_SECS * 1000.0` is exactly representable and far below `i32::MAX`, so the
+/// cast is lossless; the assert pins that so drift fails loudly rather than
+/// silently truncating the cap.
+fn pcm_cap_ms() -> i32 {
+    let ms = PCM_SECS * 1000.0;
+    assert!(
+        ms.is_finite() && ms >= 0.0 && ms <= f64::from(i32::MAX),
+        "PCM_SECS ({PCM_SECS}) must convert to a non-negative i32 millisecond cap"
+    );
+    ms as i32
 }
 
 fn criterion_bench() -> Criterion {
@@ -97,12 +71,11 @@ fn decode_mono_bench(c: &mut Criterion) {
         let config = config_for(max_ms);
         // Probe with the scenario's own config: the decoded frame count is the
         // work one iteration performs, and the fixture's rate names the id.
-        let probed = decode_mono(&path, &config)
-            .unwrap_or_else(|error| panic!("fixture {} must decode: {error}", path.display()));
+        let probed = probe(&path, &config);
         let rate_khz = probed.sample_rate / 1000;
         group.throughput(Throughput::Elements(probed.samples.len() as u64));
         group.bench_function(format!("{label}_{rate_khz}k"), |b| {
-            b.iter(|| decode_mono(&path, &config));
+            b.iter(|| analyzer::decode_mono(&path, &config));
         });
     }
     group.finish();
@@ -121,8 +94,7 @@ fn analyze_file_bench(c: &mut Criterion) {
         let config = config_for(max_ms);
         // The probe's frame count is the decode half of the measured work, so it
         // is the honest denominator for the combined analysis run.
-        let probed = decode_mono(&master, &config)
-            .unwrap_or_else(|error| panic!("fixture must decode: {error}"));
+        let probed = probe(&master, &config);
         let rate_khz = probed.sample_rate / 1000;
         group.throughput(Throughput::Elements(probed.samples.len() as u64));
         group.bench_function(format!("{label}_{rate_khz}k"), |b| {
@@ -140,7 +112,7 @@ fn analyze_file_bench(c: &mut Criterion) {
 /// buffer is the measured work.
 fn decode_pcm_fixture() -> Option<DecodedMono> {
     let path = fixture(MASTER)?;
-    match decode_mono(&path, &config_for(Some((PCM_SECS * 1000.0) as i32))) {
+    match analyzer::decode_mono(&path, &config_for(Some(pcm_cap_ms()))) {
         Ok(decoded) => Some(decoded),
         Err(error) => {
             println!(
