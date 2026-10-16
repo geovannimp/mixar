@@ -30,7 +30,7 @@ fn peak_rss_kib() -> u64 {
                 .split_whitespace()
                 .next()
                 .and_then(|value| value.parse().ok())
-                .expect("VmHWM is `<value> kB`");
+                .unwrap_or_else(|| panic!("VmHWM value {rest:?} is not a number"));
         }
     }
     panic!("VmHWM missing from /proc/self/status");

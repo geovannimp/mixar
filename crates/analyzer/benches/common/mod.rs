@@ -86,9 +86,19 @@ pub struct Probed {
 ///
 /// The cache key is the duration cap because that is the only field of
 /// `AnalysisConfig` that `decode_mono` reads. If decoding ever starts reading
-/// another field, the key has to grow to cover it or the cache will answer for
-/// the wrong config.
+/// another field, the key has to grow to cover it; until then the `assert!`
+/// below enforces the assumption that a probe is only ever keyed on the cap, so
+/// a non-default field reaching this function is a loud failure rather than a
+/// silently reused answer for the wrong config.
 pub fn probe(path: &Path, config: &AnalysisConfig) -> Probed {
+    let cap_only = AnalysisConfig {
+        max_duration_ms: config.max_duration_ms,
+        ..AnalysisConfig::default()
+    };
+    assert_eq!(
+        config, &cap_only,
+        "probe() is keyed on max_duration_ms only; add the new field to the key"
+    );
     let key = (path.to_path_buf(), config.max_duration_ms);
     if let Some(hit) = PROBES
         .lock()

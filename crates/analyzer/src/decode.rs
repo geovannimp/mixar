@@ -33,26 +33,26 @@ const DECODE_CHUNK_FRAMES: usize = 8192;
 
 /// Largest frame count the output buffer is sized for up front.
 ///
-/// This is the analysis memory budget in `docs/audio-analyzer-spec.md` §12
-/// (< 500 MB peak per concurrent analysis job) used as a ceiling rather than a
-/// target: 128 Mi frames × 4 bytes = 512 MiB, i.e. ≈ 50.7 minutes of mono f32
-/// at 44.1 kHz. Any cap up to that is pre-sized exactly and never grows.
+/// Derived from the analysis memory budget in `docs/audio-analyzer-spec.md` §12
+/// (< 500 MB peak per concurrent analysis job) rather than from a duration: the
+/// mono buffer is the job's largest single consumer, so it is capped at 100 Mi
+/// frames × 4 bytes = 400 MiB (419 MB), leaving ~80 MB inside the budget for the
+/// decode scratch, the backend's working set, and the loudness meter. Any cap up
+/// to ~39.6 minutes at 44.1 kHz (36.4 min at 48 kHz) is pre-sized exactly and
+/// never grows.
 ///
-/// The ceiling bounds the *request*, not the memory: an over-reserved `Vec`
-/// capacity is address space that is never touched, so it never violates §12
-/// and never becomes resident. What it does bound is a pathological public
-/// input — `max_duration_ms: Some(i32::MAX)` is ~9.5e10 frames at 44.1 kHz,
-/// i.e. a ~379 GB reservation request, which is a hard allocation failure under
-/// strict overcommit and on platforms without lazy mapping.
+/// The ceiling bounds the *request*. On a platform with lazy mapping the
+/// untouched capacity costs address space rather than resident memory, but that
+/// cannot be relied on: under strict overcommit, or on a platform that commits
+/// eagerly, the reservation *is* the peak — which is why it is sized against the
+/// budget instead of being treated as a free hint.
 ///
-/// A cap *above* the ceiling still grows, by doubling from here, because the
-/// file's true length is not known until EOF — that is the cost of not being
-/// able to reserve exactly. It is deliberately not avoided by clamping the cap
-/// itself: the cap is a contract (decode this much) and silently truncating a
-/// long track to the ceiling is a worse failure than a later doubling. So the
-/// reservation is a bounded hint and the cap stays exact, which is why the two
-/// are allowed to disagree.
-const MAX_RESERVED_FRAMES: usize = 128 * 1024 * 1024;
+/// A cap above the ceiling still grows, by doubling, because the file's true
+/// length is not known until EOF. It is deliberately not avoided by clamping the
+/// cap itself: the cap is a contract (decode this much) and silently truncating
+/// a long track would be worse than a later doubling. So the reservation is a
+/// bounded hint and the cap stays exact.
+const MAX_RESERVED_FRAMES: usize = 100 * 1024 * 1024;
 
 /// Frames the output buffer is sized for, clamped to [`MAX_RESERVED_FRAMES`].
 ///
@@ -116,7 +116,8 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
 ///
 /// A partial trailing frame — fewer than `channels` samples left over — is
 /// dropped rather than averaged against missing input. This is the streaming
-/// form of [`downmix_to_mono`]; the arithmetic per frame is identical.
+/// form of the test-only `downmix_to_mono` oracle; the arithmetic per frame is
+/// identical.
 fn downmix_append(mono: &mut Vec<f32>, interleaved: &[f32], channels: usize) {
     if channels <= 1 {
         mono.extend_from_slice(interleaved);

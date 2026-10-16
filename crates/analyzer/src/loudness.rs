@@ -17,8 +17,9 @@ pub const UNMEASURABLE_LOUDNESS: &str = "non-finite loudness";
 /// # Errors
 ///
 /// Returns [`AnalyzerError::Analysis`] when the meter cannot be built or fed, and
-/// with [`UNMEASURABLE_LOUDNESS`] when the result is not finite (silence, or a
-/// clip whose whole programme sits below the R128 absolute gate).
+/// the same variant with an "unmeasurable loudness" message when the result is
+/// not finite (silence, or a clip whose whole programme sits below the R128
+/// absolute gate).
 pub fn integrated_lufs_mono(samples: &[f32], sample_rate: u32) -> Result<f64, AnalyzerError> {
     let mut meter = EbuR128::new(1, sample_rate, Mode::I)
         .map_err(|error| AnalyzerError::Analysis(error.to_string()))?;
