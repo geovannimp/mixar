@@ -10,7 +10,8 @@ name: Pi Code Review
 #
 # Triggers:
 #   - pull_request: opened / synchronize / reopened / ready_for_review (same-repo PRs only;
-#     fork PRs get no secrets, so they are skipped)
+#     fork PRs get no LLM secret, so they are skipped. They do get a read-only default
+#     GITHUB_TOKEN, which is why the same-repo gate matters, not the token's absence)
 #   - issue_comment /pi-review or @pi-review on a PR by MEMBER|OWNER|COLLABORATOR
 #   - workflow_dispatch with pr_number
 #
@@ -19,6 +20,13 @@ name: Pi Code Review
 # pr-head/ and is read-only input for the reviewer. Never run npm/moon/lefthook there.
 # The reviewer's tools are restricted to read/grep/find/ls plus the extension's own
 # tools; GitHub mutators are disabled (load_builtin_extensions: 'false').
+#
+# Residual risk: the LLM still reads untrusted PR content while the step holds
+# GITHUB_TOKEN and OCR_LLM_AUTH_TOKEN, and it can call post_review /
+# reply_to_review_comment / resolve_review_thread. A prompt injection in the diff
+# could therefore mutate PR state within those tools. The same-repo gate keeps
+# outside contributors out; a stronger fix (a secret-less reader job, or scoped
+# tokens) is tracked separately.
 
 on:
   pull_request:
@@ -45,6 +53,7 @@ concurrency:
         || (
           github.event_name == 'issue_comment'
           && github.event.issue.pull_request
+          && github.event.comment.user.type != 'Bot'
           && (
             github.event.comment.author_association == 'MEMBER'
             || github.event.comment.author_association == 'OWNER'
@@ -178,6 +187,9 @@ jobs:
           # Read by the extension to resolve the PR number when no event payload.
           PI_REVIEW_PR_NUMBER: ${{ steps.pr-context.outputs.pr_number }}
         with:
+          # required: true in the action manifest — GitHub fails the step without it.
+          # Same secret as the GITHUB_TOKEN env var the extension reads.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: ocr-llm
           model: ${{ vars.OCR_LLM_MODEL }}
           extensions: |

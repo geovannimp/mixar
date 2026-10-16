@@ -292,19 +292,28 @@ function toGitHubHttpError(err: unknown, method: string, path: string): GitHubHt
 
 const OctokitWithRetry = Octokit.plugin(retry);
 
+/** Only these are safe to replay; a retried mutation can duplicate side effects. */
+const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD']);
+
 export function createGitHubClient(token: string): GitHubClient {
   // Retry plugin defaults: 3 retries for 5xx/429/network, none for 4xx
-  // (doNotRetry: 400,401,403,404,410,422,451). Do NOT set request.retries here —
-  // that value lands on every error and defeats doNotRetry.
-  const octokit = new OctokitWithRetry({ auth: token });
-  const graphqlWithAuth = gql.defaults({ headers: { authorization: `token ${token}` } });
+  // (doNotRetry: 400,401,403,404,410,422,451). Do NOT set request.retries on the
+  // client — that value lands on every error and defeats doNotRetry.
+  const octokit = new OctokitWithRetry({ auth: token, request: { timeout: 30_000 } });
+  const graphqlWithAuth = gql.defaults({
+    headers: { authorization: `token ${token}` },
+    request: { timeout: 30_000 },
+  });
 
   const gh = async <T = unknown>(method: string, path: string, body?: unknown): Promise<T> => {
+    const options: Record<string, unknown> = { ...((body ?? {}) as Record<string, unknown>) };
+    // Never replay a mutating request: a lost-response retry would post a second
+    // review/comment/reply. GET and HEAD are safe to retry.
+    if (!IDEMPOTENT_METHODS.has(method.toUpperCase())) {
+      options.request = { retries: 0 };
+    }
     try {
-      const res = await octokit.request(
-        `${method} ${path}`,
-        (body ?? {}) as Record<string, unknown>,
-      );
+      const res = await octokit.request(`${method} ${path}`, options);
       return res.data as T;
     } catch (err) {
       throw toGitHubHttpError(err, method, path);
@@ -342,7 +351,13 @@ interface Runtime {
 
 function readEvent(path: string | undefined): EventPayload {
   if (!path) return {};
-  return JSON.parse(readFileSync(path, 'utf8')) as EventPayload;
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as EventPayload;
+  } catch (err) {
+    throw new Error(
+      `Failed to read GitHub event payload from ${path}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 }
 
 function loadRuntime(env: Env = process.env): Runtime {
@@ -400,11 +415,28 @@ async function fetchBaseConfig(api: GitHubClient, base: string, ref: string): Pr
   }
 }
 
+/** One review run sees a fixed head, so the file list is safe to cache per PR+head. */
+const changedFilesCache = new Map<string, FilePayload[]>();
+
+async function getChangedFiles(
+  api: GitHubClient,
+  base: string,
+  rt: Runtime,
+  headSha: string,
+): Promise<FilePayload[]> {
+  const key = `${rt.owner}/${rt.repo}#${rt.prNumber}@${headSha}`;
+  const cached = changedFilesCache.get(key);
+  if (cached) return cached;
+  const files = await api.list<FilePayload>(`${base}/pulls/${rt.prNumber}/files`);
+  changedFilesCache.set(key, files);
+  return files;
+}
+
 async function listReviewFiles(rt: Runtime): Promise<string> {
   const api = createGitHubClient(rt.token);
   const base = repoPath(rt);
   const pr = await api.gh<PullPayload>('GET', `${base}/pulls/${rt.prNumber}`);
-  const files = await api.list<FilePayload>(`${base}/pulls/${rt.prNumber}/files`);
+  const files = await getChangedFiles(api, base, rt, pr.head.sha);
   const config = parseReviewConfig(await fetchBaseConfig(api, base, pr.base.ref));
 
   const kept: Array<{ path: string; status: string; patch: string | null }> = [];
@@ -509,10 +541,15 @@ async function upsertStickySummary(
   prNumber: number,
   body: string,
 ): Promise<void> {
-  const comments = await api.list<{ id: number; body?: string | null }>(
-    `${base}/issues/${prNumber}/comments`,
+  const comments = await api.list<{
+    id: number;
+    body?: string | null;
+    user?: { type?: string; login?: string } | null;
+  }>(`${base}/issues/${prNumber}/comments`);
+  // Only reuse a bot comment: a human quoting the anchor must not be overwritten.
+  const existing = comments.find(
+    (c) => c.user?.type === 'Bot' && c.body?.includes(SUMMARY_ANCHOR),
   );
-  const existing = comments.find((c) => c.body?.includes(SUMMARY_ANCHOR));
   if (existing) {
     await api.gh('PATCH', `${base}/issues/comments/${existing.id}`, { body });
   } else {
@@ -525,7 +562,7 @@ async function postReview(rt: Runtime, params: PostReviewParams): Promise<string
   const base = repoPath(rt);
   const { kept, dropped } = splitByConfidence(params.findings);
   const pr = await api.gh<PullPayload>('GET', `${base}/pulls/${rt.prNumber}`);
-  const files = await api.list<FilePayload>(`${base}/pulls/${rt.prNumber}/files`);
+  const files = await getChangedFiles(api, base, rt, pr.head.sha);
   const anchors = parseDiffAnchors(files.map((f) => ({ path: f.filename, patch: f.patch })));
   const { comments, outside } = buildReviewComments(kept, anchors);
   const summary = buildSummaryBody(params.summary_markdown, outside);
