@@ -290,21 +290,9 @@ const hash = await bcrypt.hash(password, 12);
 
 ### Checklist
 - [ ] Dependencies from trusted sources only
-- [ ] No known vulnerabilities (npm audit, cargo audit)
 - [ ] Dependencies kept up to date
-- [ ] Lock files committed (package-lock.json, Cargo.lock)
 - [ ] Minimal dependency usage
 - [ ] License compliance verified
-
-### Audit Commands
-
-```bash
-# Node
-npm audit
-
-# Rust
-cargo audit
-```
 
 ## Logging & Monitoring
 

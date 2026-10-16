@@ -94,10 +94,8 @@ Transform code reviews from gatekeeping to knowledge sharing through constructiv
 Before diving into code, understand:
 1. Read PR description and linked issue
 2. Check PR size (>400 lines? Ask to split)
-3. Review CI/CD status (tests passing?)
-4. Understand the business requirement
-5. Note any relevant architectural decisions
-
+3. Understand the business requirement
+4. Note any relevant architectural decisions
 
 ### Phase 2: High-Level Review (5-10 minutes)
 

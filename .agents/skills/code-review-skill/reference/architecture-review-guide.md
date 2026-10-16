@@ -450,19 +450,6 @@ When exceeding the limits:
 
 ---
 
-## Tool Recommendations
-
-| Tool | Purpose | Language support |
-|------|------|----------|
-| **SonarQube** | Code quality, coupling analysis | Multi-language |
-| **NDepend** | Dependency analysis, architecture rules | .NET |
-| **JDepend** | Package dependency analysis | Java |
-| **Madge** | Module dependency graph | JavaScript/TypeScript |
-| **ESLint** | Code standards, complexity checks | JavaScript/TypeScript |
-| **CodeScene** | Technical debt, hotspot analysis | Multi-language |
-
----
-
 ## Reference Resources
 
 - [Clean Architecture - Uncle Bob](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)

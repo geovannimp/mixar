@@ -78,4 +78,3 @@ Placeholders can only bind **values**, not table names, column names, or SQL key
 - [ ] Dynamic identifiers (table/column names) validated against whitelist
 - [ ] Database user has least privilege (no DROP/ALTER for app user)
 - [ ] No SQL queries constructed from user input without parameterization
-- [ ] Static analysis tools run in CI

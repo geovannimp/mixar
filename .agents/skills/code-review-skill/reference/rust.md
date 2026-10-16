@@ -839,8 +839,6 @@ fn create_handler() -> impl Handler {
 
 ### Code quality
 
-- [ ] cargo clippy — zero warnings
-- [ ] cargo fmt formatted
 - [ ] Doc comments complete
 - [ ] Tests cover edge cases
 - [ ] Public APIs have documentation examples

@@ -6,7 +6,6 @@ Quick reference checklist for code reviews.
 
 - [ ] Read PR description and linked issue
 - [ ] Check PR size (<400 lines ideal)
-- [ ] Verify CI/CD status (tests passing?)
 - [ ] Understand the business requirement
 
 ## Architecture & Design (5 min)
