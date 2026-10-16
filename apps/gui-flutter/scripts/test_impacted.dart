@@ -48,10 +48,36 @@ typedef Impact = ({Set<String> seeds, bool full});
 
 String _projectRoot = '.';
 
+/// git and `package:` URIs are always forward-slash, so graph keys match them
+/// and both sides compare on any host platform.
+String _toPosix(String path) => path.replaceAll(r'\', '/');
+
 /// Runs `git` in the project root and returns stdout lines.
+///
+/// A nonzero exit throws: returning an empty list instead would make a failed
+/// `git diff` indistinguishable from "nothing changed", and the tool would exit
+/// 0 having skipped every suite.
 List<String> _git(List<String> args) {
   final result = Process.runSync('git', args, workingDirectory: _projectRoot);
-  if (result.exitCode != 0) return const [];
+  if (result.exitCode != 0) {
+    stderr
+      ..writeln('git ${args.join(' ')} failed in $_projectRoot:')
+      ..writeln((result.stderr as String).trim());
+    exitCode = 1;
+    throw ProcessException('git', args, 'git failed', result.exitCode);
+  }
+  return (result.stdout as String)
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+}
+
+/// Like [_git], but returns null instead of throwing — for probes where a
+/// failure is an expected answer rather than an error.
+List<String>? _tryGit(List<String> args) {
+  final result = Process.runSync('git', args, workingDirectory: _projectRoot);
+  if (result.exitCode != 0) return null;
   return (result.stdout as String)
       .split('\n')
       .map((line) => line.trim())
@@ -63,8 +89,8 @@ List<String> _git(List<String> args) {
 /// determined (shallow clone, detached HEAD, no remote refs).
 String? _mergeBase() {
   for (final ref in const ['origin/main', 'main']) {
-    final bases = _git(['merge-base', 'HEAD', ref]);
-    if (bases.isNotEmpty) return bases.first;
+    final bases = _tryGit(['merge-base', 'HEAD', ref]);
+    if (bases != null && bases.isNotEmpty) return bases.first;
   }
   return null;
 }
@@ -88,19 +114,33 @@ Set<String> _changedFiles({required void Function() onUnknownBase}) {
   return changed;
 }
 
-/// Imports of [file], normalized to paths relative to the app root.
+/// Targets of every `import` / `export` directive in [file].
+///
+/// All quoted URIs in a directive are kept, so a conditional import
+/// (stub first, `if (dart.library.io) io.dart` second) contributes both
+/// branches. On the VM the conditional branch is the compiled one, and keeping
+/// the unused branch only over-selects, which is the safe direction.
+///
+/// Paths are posix-normalized because they are compared against git's
+/// forward-slash output; `path` would emit backslashes on Windows and then
+/// nothing would ever match.
 Set<String> _importsOf(String file) {
   final source = File(p.join(_projectRoot, file)).readAsStringSync();
   const packagePrefix = 'package:gui_flutter/';
   final out = <String>{};
-  for (final match in RegExp(
-    r"""(?:import|export)\s+'([^']+)'""",
+  for (final directive in RegExp(
+    r'''\b(?:import|export)\b[^;]*;''',
+    dotAll: true,
   ).allMatches(source)) {
-    final target = match.group(1)!;
-    if (target.startsWith(packagePrefix)) {
-      out.add(p.join('lib', target.substring(packagePrefix.length)));
-    } else if (!target.startsWith('package:') && !target.startsWith('dart:')) {
-      out.add(p.normalize(p.join(p.dirname(file), target)));
+    final uris = RegExp('''['"]([^'"]+)['"]''');
+    for (final uri in uris.allMatches(directive.group(0)!)) {
+      final target = uri.group(1)!;
+      if (target.startsWith(packagePrefix)) {
+        out.add(p.posix.join('lib', target.substring(packagePrefix.length)));
+      } else if (!target.startsWith('package:') &&
+          !target.startsWith('dart:')) {
+        out.add(p.posix.normalize(p.posix.join(p.posix.dirname(file), target)));
+      }
     }
   }
   return out;
@@ -114,7 +154,7 @@ Map<String, Set<String>> _importGraph() {
     if (!root.existsSync()) continue;
     for (final entity in root.listSync(recursive: true)) {
       if (entity is! File || !entity.path.endsWith('.dart')) continue;
-      final relative = p.relative(entity.path, from: _projectRoot);
+      final relative = _toPosix(p.relative(entity.path, from: _projectRoot));
       graph[relative] = _importsOf(relative);
     }
   }
@@ -146,7 +186,8 @@ String _appRelative(String changed) {
 List<String> _seedsFor(String changed, Set<String> frbFiles) {
   final relative = _appRelative(changed);
   if (_dependencyManifests.contains(relative)) return const [];
-  if (relative.startsWith('lib/l10n/') && relative.endsWith('.arb')) {
+  if (relative == 'l10n.yaml' ||
+      (relative.startsWith('lib/l10n/') && relative.endsWith('.arb'))) {
     return const ['lib/l10n/app_localizations.dart'];
   }
   if (_frbInputs.contains(relative) ||
