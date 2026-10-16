@@ -100,13 +100,37 @@ impl AudioAnalyzer for QmdspAnalyzer {
         } else {
             Vec::new()
         };
-        let downbeats = if config.targets.beat_grid && beats.len() >= 2 {
-            downbeat::detect_downbeats(&y, sr, &beats, BEATS_PER_BAR)
+        // One ×8 pass serves both the key and the downbeat consumer: the
+        // decimator is causal with zero initial state, and the key path's
+        // centred zero pre-roll is recreated after decimation by
+        // `overlap::feed`'s first window (`[0; frame/2] ++ dec[0..frame/2]`),
+        // which zero input maps to exactly zero output.
+        let need_key = config.targets.key;
+        let need_downbeats = config.targets.beat_grid && beats.len() >= 2;
+        let dec8 = if need_key || need_downbeats {
+            let mut dec = key::decimator::Decimator::new(y.len(), 8);
+            let mut out = vec![0.0; y.len() / 8];
+            dec.process(&y, &mut out);
+            Some(out)
+        } else {
+            None
+        };
+        let downbeats = if need_downbeats {
+            downbeat::detect_downbeats(
+                dec8.as_deref().unwrap_or_default(),
+                sr,
+                &beats,
+                BEATS_PER_BAR,
+            )
         } else {
             Vec::new()
         };
-        let key_index = if config.targets.key {
-            detect_key(&y, sr)
+        let key_index = if need_key {
+            detect_key(
+                dec8.as_deref()
+                    .expect("decimation computed for the key target"),
+                sr,
+            )
         } else {
             0
         };
@@ -199,15 +223,16 @@ fn detect_beats(y: &[f64], sample_rate: u32) -> Vec<f32> {
         .collect()
 }
 
-/// Run the Mixxx key pipeline and return the dominant key index (0 = none).
-fn detect_key(y: &[f64], sample_rate: u32) -> i32 {
+/// Run the Mixxx key pipeline over the already ×8-decimated samples and
+/// return the dominant key index (0 = none).
+fn detect_key(dec: &[f64], sample_rate: u32) -> i32 {
     let mut key_mode = key::GetKeyMode::new(sample_rate);
-    let block = key_mode.block_size();
-    let hop = key_mode.hop_size();
+    let frame = key_mode.frame_size();
+    // `frame_overlap_factor = 1`, so frame and hop are equal.
     let mut counts = [0i32; 25];
 
-    overlap::feed(y, block, hop, |frame| {
-        let k = key_mode.process(frame);
+    overlap::feed(dec, frame, frame, |block| {
+        let k = key_mode.process(block);
         if (1..=24).contains(&k) {
             counts[k as usize] += 1;
         }
