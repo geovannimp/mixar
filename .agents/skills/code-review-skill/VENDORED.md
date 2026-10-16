@@ -16,5 +16,10 @@ the Python scripts, and the upstream site files (`README.md`, `index*.html`,
 review session actually loads), and cross-references to removed files were de-linked
 so no reference chases a file that is not here. The retained prose is unchanged.
 
+**Translated** — the retained guides were written in Chinese; all of their prose is now
+English, including comments inside code blocks. Code, identifiers, API names, commands,
+file paths, emoji markers and table structure are untouched. Table-of-contents anchors
+follow their translated headings so they still resolve.
+
 **To re-sync** — `npx skills add awesome-skills/code-review-skill`, diff against this
 directory, and re-apply the trim.

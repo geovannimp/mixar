@@ -173,12 +173,12 @@ Use labels to indicate priority:
 
 ## Language-Specific Guides
 
-根据审查的代码语言，查阅对应的详细指南：
+Consult the guide that matches the language of the code under review:
 
 | Language/Framework | Reference File | Key Topics |
 |-------------------|----------------|------------|
-| **Rust** | [Rust Guide](reference/rust.md) | 所有权/借用, Unsafe 审查, 异步代码, 取消安全性, 错误处理 |
-| **TypeScript** | [TypeScript Guide](reference/typescript.md) | 类型安全, async/await, 不可变性, 测试, 模块解析, TS 5.x |
+| **Rust** | [Rust Guide](reference/rust.md) | ownership/borrowing, unsafe review, async code, cancellation safety, error handling |
+| **TypeScript** | [TypeScript Guide](reference/typescript.md) | type safety, async/await, immutability, testing, module resolution, TS 5.x |
 | **Dart / Flutter** | [Dart Guide](reference/dart.md) | Widget rebuilds, const constructors, null safety, isolates, async in build, Riverpod/Bloc, platform channels, keys, disposal |
 
 ## Cross-Cutting Guides
@@ -188,7 +188,7 @@ Language-agnostic patterns applicable to all code reviews:
 | Topic | Reference File | Key Topics |
 |-------|----------------|------------|
 | **Architecture Review** | [Architecture Review Guide](reference/architecture-review-guide.md) | SOLID, anti-patterns, coupling/cohesion, dependency direction |
-| **Security Review** | [Security Review Guide](reference/security-review-guide.md) | SQLi, XSS, CSRF, SSRF, IDOR, 命令注入, 跨语言示例 |
+| **Security Review** | [Security Review Guide](reference/security-review-guide.md) | SQLi, XSS, CSRF, SSRF, IDOR, command injection, cross-language examples |
 | **Universal Quality** | [Universal Quality Guide](reference/code-quality-universal.md) | Reuse audit, parameter sprawl, leaky abstractions, nested conditionals, stringly-typed code, TOCTOU, no-op updates, redundant state |
 | **Common Bugs** | [Common Bugs Checklist](reference/common-bugs-checklist.md) | Language-specific bug patterns, common pitfalls |
 | **SQL Injection Prevention** | [SQL Injection Guide](reference/cross-cutting/sql-injection-prevention.md) | Parameterized queries, ORM safety, 6 languages, dynamic identifiers, detection |
@@ -198,4 +198,4 @@ Language-agnostic patterns applicable to all code reviews:
 
 ## Additional Resources
 
-- [Review Checklist](assets/review-checklist.md) - 快速参考清单
+- [Review Checklist](assets/review-checklist.md) - quick reference checklist

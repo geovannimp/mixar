@@ -1,143 +1,143 @@
-# 异步与并发模式 — 跨语言通用指南
+# Async and Concurrency Patterns — Cross-Language Guide
 
-> 本文档覆盖并发模型对比、常见陷阱、跨语言最佳实践和结构化并发模式。
+> This document covers a comparison of concurrency models, common pitfalls, cross-language best practices, and structured concurrency patterns.
 
-## 目录
+## Table of Contents
 
-- [并发模型对比](#并发模型对比)
-- [常见陷阱](#常见陷阱)
-- [最佳实践](#最佳实践)
-- [跨语言代码示例](#跨语言代码示例)
+- [Concurrency model comparison](#concurrency-model-comparison)
+- [Common pitfalls](#common-pitfalls)
+- [Best practices](#best-practices)
+- [Cross-language code examples](#cross-language-code-examples)
 - [Review Checklist](#review-checklist)
 
 ---
 
-## 并发模型对比
+## Concurrency model comparison
 
-| 模型 | 语言 | 核心概念 | 优点 | 缺点 |
+| Model | Language | Core concepts | Pros | Cons |
 |------|------|----------|------|------|
-| **Goroutines + Channels** | Go | 轻量级协程 + CSP 通信 | 极简语法、低开销 | 手动取消传播 |
-| **async/await + Event Loop** | Python, TypeScript | 单线程协作式多任务 | 无锁、易推理 | 不能阻塞事件循环 |
-| **async/await + Tokio** | Rust | Futures + 运行时调度 | 零成本抽象、编译期安全 | 学习曲线陡 |
-| **Coroutines + Flow** | Kotlin | 挂起函数 + 结构化并发 | 自动取消、生命周期绑定 | Dispatchers 选择复杂 |
-| **async/await + Actors** | Swift | 结构化并发 + Actor 隔离 | 编译期数据竞争检查 | Swift 6 迁移成本 |
-| **async/await + TPL** | C# | Task + 线程池 | 成熟生态、ConfigureAwait | 隐式线程切换 |
-| **Threads + Mutexes** | C++, Java, 所有 | OS 线程 + 共享内存 | 真正并行 | 锁管理复杂、死锁风险 |
+| **Goroutines + Channels** | Go | Lightweight coroutines + CSP communication | Minimal syntax, low overhead | Manual cancellation propagation |
+| **async/await + Event Loop** | Python, TypeScript | Single-threaded cooperative multitasking | Lock-free, easy to reason about | Cannot block the event loop |
+| **async/await + Tokio** | Rust | Futures + runtime scheduling | Zero-cost abstraction, compile-time safety | Steep learning curve |
+| **Coroutines + Flow** | Kotlin | Suspending functions + structured concurrency | Automatic cancellation, lifecycle binding | Dispatchers selection is complex |
+| **async/await + Actors** | Swift | Structured concurrency + Actor isolation | Compile-time data race checking | Swift 6 migration cost |
+| **async/await + TPL** | C# | Task + thread pool | Mature ecosystem, ConfigureAwait | Implicit thread switching |
+| **Threads + Mutexes** | C++, Java, All | OS threads + shared memory | True parallelism | Complex lock management, deadlock risk |
 
-### 何时选择什么
+### When to choose what
 
 ```
-I/O 密集型（网络、数据库、文件）:
-  → async/await（Python, TS, Rust, Swift, C#）
-  → goroutines（Go）
-  → coroutines（Kotlin）
+I/O-bound (network, database, files):
+  → async/await (Python, TS, Rust, Swift, C#)
+  → goroutines (Go)
+  → coroutines (Kotlin)
 
-CPU 密集型（计算、图像处理）:
-  → 线程池（Java, C++, C#）
-  → multiprocessing（Python）
-  → spawn_blocking（Rust tokio）
-  → Dispatchers.Default（Kotlin）
+CPU-bound (computation, image processing):
+  → thread pool (Java, C++, C#)
+  → multiprocessing (Python)
+  → spawn_blocking (Rust tokio)
+  → Dispatchers.Default (Kotlin)
 
-混合型:
-  → async + spawn_blocking（Rust）
-  → async + run_in_executor（Python）
-  → goroutines + sync.Mutex（Go）
+Mixed:
+  → async + spawn_blocking (Rust)
+  → async + run_in_executor (Python)
+  → goroutines + sync.Mutex (Go)
 ```
 
 ---
 
-## 常见陷阱
+## Common pitfalls
 
-### 陷阱 1: 竞态条件（Race Condition）
+### Pitfall 1: Race Condition
 
-多个并发任务读写共享状态，结果依赖执行顺序。
+Multiple concurrent tasks read and write shared state, and the result depends on execution order.
 
 ```
-// 通用伪代码
+// generic pseudocode
 counter = 0
 
-task1: counter += 1   // 读 counter=0, 写 counter=1
-task2: counter += 1   // 读 counter=0, 写 counter=1
-// 期望 counter=2, 实际 counter=1
+task1: counter += 1   // read counter=0, write counter=1
+task2: counter += 1   // read counter=0, write counter=1
+// expected counter=2, actual counter=1
 ```
 
-**解决方案**：互斥锁、原子操作、或将共享状态封装在 Actor 中。
+**Solution**: mutual exclusion locks, atomic operations, or encapsulating the shared state in an Actor.
 
-### 陷阱 2: 死锁（Deadlock）
+### Pitfall 2: Deadlock
 
-两个或多个任务互相等待对方持有的锁。
-
-```
-task1: lock(A); lock(B);  // 持有 A，等待 B
-task2: lock(B); lock(A);  // 持有 B，等待 A
-// 两者永远等待
-```
-
-**解决方案**：
-- 一致的锁获取顺序
-- 超时锁（tryLock with timeout）
-- 避免嵌套锁
-
-### 陷阱 3: Starvation
-
-低优先级任务永远得不到执行机会。
+Two or more tasks each wait for a lock held by the other.
 
 ```
-// 高优先级任务持续到达，低优先级任务永远排队
+task1: lock(A); lock(B);  // holds A, waits for B
+task2: lock(B); lock(A);  // holds B, waits for A
+// both wait forever
 ```
 
-**解决方案**：公平锁、任务优先级队列、限制并发数。
+**Solution**:
+- Consistent lock acquisition order
+- Timeout locks (tryLock with timeout)
+- Avoid nested locks
 
-### 陷阱 4: Goroutine / Task 泄漏
+### Pitfall 3: Starvation
 
-启动并发任务但没有确保其退出。
+Low-priority tasks never get a chance to execute.
+
+```
+// high-priority tasks keep arriving, low-priority tasks queue forever
+```
+
+**Solution**: fair locks, task priority queues, limiting the degree of concurrency.
+
+### Pitfall 4: Goroutine / Task leak
+
+Starting a concurrent task without ensuring it exits.
 
 ```go
-// ❌ Go: goroutine 泄漏
+// ❌ Go: goroutine leak
 func process() {
     ch := make(chan int)
     go func() {
-        result := <-ch  // 如果没有人发送，goroutine 永远阻塞
+        result := <-ch  // if nobody sends, the goroutine blocks forever
     }()
-    // 函数返回，但 goroutine 仍在等待
+    // the function returns, but the goroutine is still waiting
 }
 ```
 
 ```python
-# ❌ Python: Task 泄漏
+# ❌ Python: Task leak
 async def process():
     task = asyncio.create_task(long_running())
-    # 函数返回，但 task 仍在运行
+    # the function returns, but the task keeps running
 ```
 
-**解决方案**：使用 context/done channel (Go)、TaskGroup (Python)、structured concurrency (Kotlin/Swift)。
+**Solution**: use context/done channel (Go), TaskGroup (Python), structured concurrency (Kotlin/Swift).
 
-### 陷阱 5: 在异步上下文中阻塞
+### Pitfall 5: Blocking in an async context
 
 ```python
-# ❌ Python: 在 async 函数中使用同步 I/O 阻塞事件循环
+# ❌ Python: synchronous I/O in an async function blocks the event loop
 async def handle():
-    result = requests.get(url)  # 阻塞！整个事件循环停滞
+    result = requests.get(url)  # blocking! the entire event loop stalls
     return result
 
-# ✅ 使用异步 I/O 或将阻塞操作放到线程池
+# ✅ use async I/O or move the blocking operation to a thread pool
 async def handle():
-    result = await aiohttp.get(url)  # 非阻塞
+    result = await aiohttp.get(url)  # non-blocking
     return result
 
-# 或将同步代码放到线程池
+# or move the synchronous code to a thread pool
 async def handle():
     result = await asyncio.to_thread(requests.get, url)
     return result
 ```
 
 ```rust
-// ❌ Rust: 在 async 函数中阻塞
+// ❌ Rust: blocking inside an async function
 async fn handle() {
-    let result = std::fs::read_to_string("large.txt");  // 阻塞 tokio 运行时
+    let result = std::fs::read_to_string("large.txt");  // blocks the tokio runtime
 }
 
-// ✅ 使用 spawn_blocking
+// ✅ use spawn_blocking
 async fn handle() {
     let result = tokio::task::spawn_blocking(|| {
         std::fs::read_to_string("large.txt")
@@ -147,30 +147,30 @@ async fn handle() {
 
 ---
 
-## 最佳实践
+## Best practices
 
-### 1. 结构化并发
+### 1. Structured concurrency
 
-确保并发任务的生命周期与创建它们的 scope 绑定。父任务取消时，子任务自动取消。
+Ensure the lifetime of concurrent tasks is bound to the scope that created them. When the parent task is cancelled, child tasks are cancelled automatically.
 
 ```kotlin
-// ✅ Kotlin: coroutineScope 确保子协程在 scope 结束时全部完成
+// ✅ Kotlin: coroutineScope ensures all child coroutines complete when the scope ends
 suspend fun processItems(items: List<Item>) = coroutineScope {
     items.forEach { item ->
-        launch { processItem(item) }  // 子协程
+        launch { processItem(item) }  // child coroutine
     }
-    // scope 结束时等待所有子协程完成
+    // waits for all child coroutines to complete when the scope ends
 }
 
-// 如果 processItems 被取消，所有子协程自动取消
+// if processItems is cancelled, all child coroutines are cancelled automatically
 ```
 
 ```swift
 // ✅ Swift: async let + TaskGroup
 func processItems() async throws {
-    async let resultA = fetchA()  // 并发执行
+    async let resultA = fetchA()  // runs concurrently
     async let resultB = fetchB()
-    let combined = try await (resultA, resultB)  // 等待两者
+    let combined = try await (resultA, resultB)  // waits for both
 }
 ```
 
@@ -180,16 +180,16 @@ async def process_items():
     async with asyncio.TaskGroup() as tg:
         for item in items:
             tg.create_task(process_item(item))
-    # TaskGroup 退出时等待所有任务完成
-    # 如果一个任务失败，其余任务自动取消
+    # waits for all tasks to complete when the TaskGroup exits
+    # if one task fails, the remaining tasks are cancelled automatically
 ```
 
-### 2. 取消传播
+### 2. Cancellation propagation
 
-确保取消信号能正确传播到所有子任务。
+Ensure the cancellation signal propagates correctly to all child tasks.
 
 ```go
-// ✅ Go: context 传播取消
+// ✅ Go: context propagates cancellation
 func processAll(ctx context.Context, items []Item) error {
     g, ctx := errgroup.WithContext(ctx)
     for _, item := range items {
@@ -198,7 +198,7 @@ func processAll(ctx context.Context, items []Item) error {
             return processItem(ctx, item)
         })
     }
-    return g.Wait()  // 任一失败，context 取消，其余任务收到信号
+    return g.Wait()  // if any fails, the context is cancelled and the remaining tasks receive the signal
 }
 ```
 
@@ -214,17 +214,17 @@ async fn process_with_timeout(item: Item) -> Result<Data> {
 }
 ```
 
-### 3. Backpressure（反压）
+### 3. Backpressure
 
-当生产者速度远超消费者时，需要限制队列大小，防止内存膨胀。
+When the producer is far faster than the consumer, the queue size must be bounded to prevent memory growth.
 
 ```go
-// ✅ Go: 有缓冲 channel 作为自然反压
+// ✅ Go: a buffered channel acts as natural backpressure
 func process(items <-chan Item) <-chan Result {
-    results := make(chan Result, 10)  // 缓冲 10 个结果
+    results := make(chan Result, 10)  // buffers 10 results
     go func() {
         for item := range items {
-            results <- processItem(item)  // 缓冲满时阻塞
+            results <- processItem(item)  // blocks when the buffer is full
         }
         close(results)
     }()
@@ -233,24 +233,24 @@ func process(items <-chan Item) <-chan Result {
 ```
 
 ```kotlin
-// ✅ Kotlin: Flow 自带反压
+// ✅ Kotlin: Flow has built-in backpressure
 fun itemsFlow(): Flow<Item> = flow {
     for (item in fetchAll()) {
-        emit(item)  // collector 未准备好时挂起
+        emit(item)  // suspends while the collector is not ready
     }
 }
-// 使用 buffer() 控制缓冲策略
+// use buffer() to control the buffering strategy
 itemsFlow()
     .buffer(capacity = 10, onBufferOverflow = BufferOverflow.SUSPEND)
     .collect { process(it) }
 ```
 
-### 4. 限制并发数
+### 4. Limiting concurrency
 
-防止同时启动过多任务导致资源耗尽。
+Prevent launching too many tasks at once and exhausting resources.
 
 ```python
-# ✅ Python: Semaphore 限制并发
+# ✅ Python: Semaphore limits concurrency
 async def fetch_all(urls: list[str], max_concurrent: int = 10):
     semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -270,8 +270,8 @@ func fetchAll(ctx context.Context, urls []string, maxConcurrent int) error {
     for _, url := range urls {
         url := url
         g.Go(func() error {
-            sem <- struct{}{}        // 获取信号量
-            defer func() { <-sem }() // 释放信号量
+            sem <- struct{}{}        // acquire the semaphore
+            defer func() { <-sem }() // release the semaphore
             return fetch(ctx, url)
         })
     }
@@ -281,16 +281,16 @@ func fetchAll(ctx context.Context, urls []string, maxConcurrent int) error {
 
 ---
 
-## 跨语言代码示例
+## Cross-language code examples
 
 ### Go: Goroutines + Channels + Context
 
 ```go
-// ✅ 完整模式: context 取消 + errgroup + 有界并发
+// ✅ Complete pattern: context cancellation + errgroup + bounded concurrency
 func processBatch(ctx context.Context, items []Item) ([]Result, error) {
     g, ctx := errgroup.WithContext(ctx)
     results := make([]Result, len(items))
-    sem := make(chan struct{}, 10)  // 最多 10 个并发
+    sem := make(chan struct{}, 10)  // at most 10 concurrent
 
     for i, item := range items {
         i, item := i, item
@@ -321,7 +321,7 @@ func processBatch(ctx context.Context, items []Item) ([]Result, error) {
 ### Python: asyncio + TaskGroup
 
 ```python
-# ✅ Python 3.11+: 结构化并发 + 有界并发 + 超时
+# ✅ Python 3.11+: structured concurrency + bounded concurrency + timeout
 import asyncio
 
 async def process_batch(items: list[Item], max_concurrent: int = 10) -> list[Result]:
@@ -340,7 +340,7 @@ async def process_batch(items: list[Item], max_concurrent: int = 10) -> list[Res
 ### Rust: tokio + select + spawn_blocking
 
 ```rust
-// ✅ 有界并发 + 超时 + 阻塞操作隔离
+// ✅ bounded concurrency + timeout + blocking operation isolation
 use tokio::sync::Semaphore;
 use std::sync::Arc;
 
@@ -372,7 +372,7 @@ async fn process_batch(items: Vec<Item>, max_concurrent: usize) -> Result<Vec<Ou
 ### Kotlin: Coroutines + Flow + Dispatchers
 
 ```kotlin
-// ✅ 结构化并发 + 有界并发 + 取消安全
+// ✅ structured concurrency + bounded concurrency + cancellation safety
 suspend fun processBatch(items: List<Item>, maxConcurrent: Int = 10): List<Result> {
     val semaphore = Semaphore(maxConcurrent)
 
@@ -387,7 +387,7 @@ suspend fun processBatch(items: List<Item>, maxConcurrent: Int = 10): List<Resul
     }
 }
 
-// ✅ Flow: 流式处理 + 反压
+// ✅ Flow: streaming + backpressure
 fun itemStream(): Flow<Result> = flow {
     for (item in fetchAllItems()) {
         emit(process(item))
@@ -401,7 +401,7 @@ fun itemStream(): Flow<Result> = flow {
 ### Swift: async/await + TaskGroup + Actors
 
 ```swift
-// ✅ 结构化并发 + actor 隔离
+// ✅ structured concurrency + actor isolation
 actor ResultCollector {
     private var results: [Result] = []
     func add(_ result: Result) { results.append(result) }
@@ -433,7 +433,7 @@ func processBatch(items: [Item], maxConcurrent: Int = 10) async throws -> [Resul
 ### C#: async/await + SemaphoreSlim + CancellationToken
 
 ```csharp
-// ✅ 有界并发 + 取消 + 异常处理
+// ✅ bounded concurrency + cancellation + exception handling
 async Task<List<Result>> ProcessBatchAsync(
     List<Item> items,
     int maxConcurrent = 10,
@@ -458,11 +458,11 @@ async Task<List<Result>> ProcessBatchAsync(
 }
 ```
 
-### TypeScript: Worker-pool 并发限制
+### TypeScript: Worker-pool concurrency limit
 
 ```typescript
-// ✅ Worker-pool pattern: 固定数量 worker 竞争任务队列
-//    结果按原始索引赋值，保证输出顺序与输入一致。
+// ✅ Worker-pool pattern: a fixed number of workers compete for the task queue
+//    results are assigned by original index, keeping output order consistent with input.
 async function processWithLimit<T, R>(
     items: T[],
     fn: (item: T) => Promise<R>,
@@ -487,29 +487,29 @@ async function processWithLimit<T, R>(
 
 ## Review Checklist
 
-### 基本检查
-- [ ] 并发任务有明确的退出机制（不会泄漏）
-- [ ] 共享状态有适当保护（mutex、actor、channel）
-- [ ] 没有在异步上下文中执行阻塞操作
-- [ ] 取消信号正确传播到所有子任务
+### Basic checks
+- [ ] Concurrent tasks have an explicit exit mechanism (no leaks)
+- [ ] Shared state has appropriate protection (mutex, actor, channel)
+- [ ] No blocking operations are performed in an async context
+- [ ] Cancellation signals propagate correctly to all child tasks
 
-### 架构检查
-- [ ] 使用结构化并发（TaskGroup / coroutineScope / errgroup）
-- [ ] 并发数有上限（semaphore / bounded channel）
-- [ ] 长时间运行的任务支持超时
-- [ ] 背压机制防止内存膨胀
+### Architecture checks
+- [ ] Uses structured concurrency (TaskGroup / coroutineScope / errgroup)
+- [ ] Concurrency is bounded (semaphore / bounded channel)
+- [ ] Long-running tasks support timeouts
+- [ ] Backpressure prevents memory growth
 
-### 性能检查
-- [ ] 并发粒度合理（不过细也不过粗）
-- [ ] I/O 密集使用 async，CPU 密集使用线程/进程
-- [ ] 锁的持有时间最小化
-- [ ] 没有不必要的 await（可并行的操作串行执行）
+### Performance checks
+- [ ] Concurrency granularity is reasonable (neither too fine nor too coarse)
+- [ ] Use async for I/O-bound work and threads/processes for CPU-bound work
+- [ ] Lock hold time is minimized
+- [ ] No unnecessary awaits (operations that could be parallel run serially)
 
-### 语言特定
-- [ ] Go: context 传播、errgroup 使用、channel 缓冲合理
-- [ ] Python: 事件循环不阻塞、TaskGroup 管理生命周期
-- [ ] Rust: spawn_blocking 隔离阻塞操作、select! 处理超时
-- [ ] Kotlin: coroutineScope 结构化并发、Dispatchers 选择正确
-- [ ] Swift: @MainActor 保护 UI、actor 隔离可变状态
-- [ ] C#: CancellationToken 传播、ConfigureAwait(false) 在库代码中
-- [ ] TypeScript: Promise.all + 并发限制、AbortController 取消
+### Language-specific
+- [ ] Go: context propagation, errgroup usage, reasonable channel buffering
+- [ ] Python: event loop is not blocked, TaskGroup manages lifecycles
+- [ ] Rust: spawn_blocking isolates blocking operations, select! handles timeouts
+- [ ] Kotlin: coroutineScope structured concurrency, correct Dispatchers selection
+- [ ] Swift: @MainActor guards UI, actor isolates mutable state
+- [ ] C#: CancellationToken propagation, ConfigureAwait(false) in library code
+- [ ] TypeScript: Promise.all + concurrency limiting, AbortController cancellation
