@@ -156,10 +156,14 @@ jobs:
 
       - name: Pi review
         uses: shaftoe/pi-coding-agent-action@v2
+        env:
+          # Read by the extension to register the provider and its API key.
+          OCR_LLM_URL: ${{ vars.OCR_LLM_URL }}
+          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          OCR_LLM_MODEL: ${{ vars.OCR_LLM_MODEL }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          provider: openai
-          base_url: ${{ vars.OCR_LLM_URL }}
+          provider: ocr-llm
           model: ${{ vars.OCR_LLM_MODEL }}
           token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           pr_number: ${{ steps.pr-context.outputs.pr_number }}
