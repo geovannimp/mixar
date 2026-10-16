@@ -59,16 +59,27 @@ List<String> _git(List<String> args) {
       .toList();
 }
 
+/// The merge base with the default branch, or `null` when it cannot be
+/// determined (shallow clone, detached HEAD, no remote refs).
+String? _mergeBase() {
+  for (final ref in const ['origin/main', 'main']) {
+    final bases = _git(['merge-base', 'HEAD', ref]);
+    if (bases.isNotEmpty) return bases.first;
+  }
+  return null;
+}
+
 /// Every path that differs from the base branch plus anything uncommitted.
-Set<String> _changedFiles() {
-  final base = _git(['merge-base', 'HEAD', 'origin/main']).isNotEmpty
-      ? _git(['merge-base', 'HEAD', 'origin/main']).first
-      : (_git(['merge-base', 'HEAD', 'main']).isNotEmpty
-            ? _git(['merge-base', 'HEAD', 'main']).first
-            : 'HEAD');
+///
+/// Calls [onUnknownBase] when the merge base cannot be determined; the
+/// branch diff is then invisible (only working-tree changes are visible), so
+/// the caller must fall back to the full suite rather than under-select.
+Set<String> _changedFiles({required void Function() onUnknownBase}) {
+  final base = _mergeBase();
+  if (base == null) onUnknownBase();
 
   final changed = <String>{
-    ..._git(['diff', '--name-only', base]),
+    if (base != null) ..._git(['diff', '--name-only', base]),
     ..._git(['diff', '--name-only']), // unstaged
     ..._git(['diff', '--cached', '--name-only']), // staged
     // Untracked files: a brand-new lib or test file is not in `git diff`.
@@ -82,7 +93,9 @@ Set<String> _importsOf(String file) {
   final source = File(p.join(_projectRoot, file)).readAsStringSync();
   const packagePrefix = 'package:gui_flutter/';
   final out = <String>{};
-  for (final match in RegExp(r"""import\s+'([^']+)'""").allMatches(source)) {
+  for (final match in RegExp(
+    r"""(?:import|export)\s+'([^']+)'""",
+  ).allMatches(source)) {
     final target = match.group(1)!;
     if (target.startsWith(packagePrefix)) {
       out.add(p.join('lib', target.substring(packagePrefix.length)));
@@ -139,7 +152,7 @@ List<String> _seedsFor(String changed, Set<String> frbFiles) {
   if (_frbInputs.contains(relative) ||
       relative.startsWith('rust_builder/') ||
       relative.startsWith('crates/host-flutter/')) {
-    return frbFiles.toList()..sort();
+    return frbFiles.toList();
   }
   if (relative.endsWith('.dart') &&
       (relative.startsWith('lib/') || relative.startsWith('test/'))) {
@@ -148,11 +161,7 @@ List<String> _seedsFor(String changed, Set<String> frbFiles) {
   return const [];
 }
 
-Impact _impactOf(Set<String> changed, Map<String, Set<String>> graph) {
-  final frbFiles = graph.keys
-      .where((file) => file.startsWith('lib/src/rust/'))
-      .toSet();
-
+Impact _impactOf(Set<String> changed, Set<String> frbFiles) {
   if (changed.any(
     (file) => _dependencyManifests.contains(_appRelative(file)),
   )) {
@@ -182,14 +191,42 @@ Future<void> main(List<String> args) async {
   _projectRoot = p.normalize(p.join(scriptDir, '..'));
   final projectName = p.basename(_projectRoot);
 
-  final changed = _changedFiles();
+  var baseUnknown = false;
+  final changed = _changedFiles(onUnknownBase: () => baseUnknown = true);
   if (changed.isEmpty) {
-    stdout.writeln('No changed files: nothing to run.');
+    if (baseUnknown) {
+      stderr.writeln(
+        'warning: no merge base with the default branch (shallow clone or '
+        'detached HEAD?) — cannot tell what this branch changed.',
+      );
+    } else {
+      stdout.writeln('No changed files: nothing to run.');
+    }
     return;
   }
 
   final graph = _importGraph();
-  final impact = _impactOf(changed, graph);
+  final frbFiles = graph.keys
+      .where((file) => file.startsWith('lib/src/rust/'))
+      .toSet();
+
+  if (baseUnknown) {
+    // The branch diff is invisible here; a targeted run would silently skip
+    // whatever the branch changed, so only the full suite is correct.
+    stderr.writeln(
+      'warning: no merge base with the default branch — running the full '
+      'suite instead of a possibly incomplete selection.',
+    );
+    stdout.writeln('Running the full suite ($projectName).');
+    if (!run) {
+      stdout.writeln('FULL');
+      return;
+    }
+    exitCode = await _flutterTest(const []);
+    return;
+  }
+
+  final impact = _impactOf(changed, frbFiles);
   final suites = _suites(graph);
 
   if (impact.full) {
@@ -210,10 +247,7 @@ Future<void> main(List<String> args) async {
 
   if (verbose) {
     for (final file in changed.toList()..sort()) {
-      final seeds = _seedsFor(
-        file,
-        graph.keys.where((f) => f.startsWith('lib/src/rust/')).toSet(),
-      );
+      final seeds = _seedsFor(file, frbFiles);
       stdout.writeln(
         '  ${_appRelative(file).padRight(52)} -> '
         '${seeds.isEmpty ? 'no test impact' : seeds.take(2).join(', ')}'
@@ -239,11 +273,32 @@ Future<void> main(List<String> args) async {
   exitCode = await _flutterTest(impacted);
 }
 
-Future<int> _flutterTest(List<String> files) {
-  return Process.start(
-    'flutter',
-    ['test', ...files],
-    workingDirectory: _projectRoot,
-    mode: ProcessStartMode.inheritStdio,
-  ).then((process) => process.exitCode);
+/// Runs `flutter test [files]` with the same concurrency the `test` task uses.
+/// Without `-j`, package:test falls back to cores/2 and loses that speedup
+/// (4 cores: 48.3s -> 34.7s).
+Future<int> _flutterTest(List<String> files) async {
+  final Process process;
+  try {
+    process = await Process.start(
+      'flutter',
+      [
+        'test',
+        '-j',
+        // Affinity-aware on Linux (4 under `taskset -c 0-3`), portable.
+        Platform.numberOfProcessors.toString(),
+        ...files,
+      ],
+      workingDirectory: _projectRoot,
+      mode: ProcessStartMode.inheritStdio,
+    );
+  } on ProcessException catch (error) {
+    stderr
+      ..writeln('error: could not start flutter: $error')
+      ..writeln(
+        'Run it through the toolchain: '
+        'mise exec -- dart run scripts/test_impacted.dart --run',
+      );
+    return 1;
+  }
+  return await process.exitCode;
 }
