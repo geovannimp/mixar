@@ -108,6 +108,11 @@ export function parseFindings(value: unknown): ReviewFinding[] {
     ) {
       throw new Error(`${where}.end_line must be a positive integer when set`);
     }
+    // Reject an inverted range here rather than letting buildReviewComments
+    // silently reorder it: this function is the validation gate for the tool.
+    if (f.end_line != null && (f.end_line as number) < (f.start_line as number)) {
+      throw new Error(`${where}.end_line (${f.end_line}) must be >= start_line (${f.start_line})`);
+    }
     if (!SEVERITIES.includes(f.severity as Severity)) {
       throw new Error(`${where}.severity must be one of: ${SEVERITIES.join(', ')}`);
     }

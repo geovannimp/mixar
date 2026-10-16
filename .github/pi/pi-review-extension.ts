@@ -1,6 +1,12 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { registerTools } from './src/tools.ts';
 
+/** Positive integer env override, else the default. */
+function envInt(name: string, fallback: number): number {
+  const n = Number(process.env[name]);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
 export default function (pi: ExtensionAPI): void {
   // The reviewer model is not in Pi's built-in catalog, so register the OCR
   // endpoint as a provider. This must happen here (extensions load before the
@@ -11,7 +17,10 @@ export default function (pi: ExtensionAPI): void {
   if (!ocrModel || !ocrBaseUrl) {
     throw new Error('pi-review extension: OCR_LLM_MODEL and OCR_LLM_URL must be set');
   }
-  pi.registerProvider('ocr-llm', {
+  // One source for the id, set once in the workflow and passed to the action as
+  // `provider:`. A mismatch otherwise fails with a bare "Model not found".
+  const providerId = process.env.PI_REVIEW_PROVIDER?.trim() || 'ocr-llm';
+  pi.registerProvider(providerId, {
     baseUrl: ocrBaseUrl,
     api: 'openai-completions',
     apiKey: '$OCR_LLM_AUTH_TOKEN',
@@ -22,8 +31,9 @@ export default function (pi: ExtensionAPI): void {
         reasoning: false,
         input: ['text'],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: 128000,
-        maxTokens: 4096,
+        // Override when the endpoint's model differs from these defaults.
+        contextWindow: envInt('PI_REVIEW_CONTEXT_WINDOW', 128_000),
+        maxTokens: envInt('PI_REVIEW_MAX_TOKENS', 4096),
       },
     ],
   });

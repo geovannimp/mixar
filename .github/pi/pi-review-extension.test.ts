@@ -246,3 +246,17 @@ test('findings: a null end_line normalizes to undefined', () => {
   assert.equal(parsed[0]!.end_line, undefined);
   assert.equal('end_line' in parsed[0]!, true);
 });
+
+test('findings: an inverted line range is rejected at the validation gate', () => {
+  assert.throws(
+    () => parseFindings([{ ...finding(), start_line: 30, end_line: 10 }]),
+    /end_line \(10\) must be >= start_line \(30\)/,
+  );
+  // Equal bounds, and start-only findings, stay valid.
+  assert.equal(parseFindings([{ ...finding(), start_line: 7, end_line: 7 }]).length, 1);
+  assert.equal(parseFindings([{ ...finding(), start_line: 7, end_line: undefined }]).length, 1);
+  // buildReviewComments still tolerates crossing introduced by anchor clamping.
+  const anchors: DiffAnchors = new Map([['src/a.ts', new Set([10, 14, 30])]]);
+  const { comments } = buildReviewComments([finding({ start_line: 16, end_line: 12 })], anchors);
+  assert.equal(comments[0]!.line, 14);
+});
