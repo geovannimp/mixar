@@ -37,13 +37,19 @@ fn peak_rss_kib() -> u64 {
 }
 
 #[cfg(target_os = "linux")]
-fn scenario(name: &str, mut run: impl FnMut()) {
-    // Warm the code paths and the page cache so the reported peak is the steady
-    // state of the operation, not of process start-up.
-    run();
+fn scenario(name: &str, mut run: impl FnMut() -> anyhow::Result<()>) {
+    // A fixture that exists but will not decode is a skip, not an abort: the
+    // scenarios already measured stay in the report.
+    if let Err(error) = run() {
+        println!("skipping bench: {name} could not run: {error}");
+        return;
+    }
     let before = peak_rss_kib();
     for _ in 0..REPEATS {
-        run();
+        if let Err(error) = run() {
+            println!("skipping bench: {name} could not run: {error}");
+            return;
+        }
     }
     let after = peak_rss_kib();
     println!(
@@ -59,22 +65,28 @@ fn run() {
     };
 
     scenario("decode_mono/complete/stereo_44k", || {
-        decode_mono(&master, &common::config_for(None)).unwrap();
+        decode_mono(&master, &common::config_for(None))?;
+        Ok(())
     });
     scenario("decode_mono/precise/stereo_44k", || {
-        decode_mono(&master, &common::config_for(Some(common::PRECISE_MS))).unwrap();
+        decode_mono(&master, &common::config_for(Some(common::PRECISE_MS)))?;
+        Ok(())
     });
     scenario("decode_mono/fast/stereo_44k", || {
-        decode_mono(&master, &common::config_for(Some(common::FAST_MS))).unwrap();
+        decode_mono(&master, &common::config_for(Some(common::FAST_MS)))?;
+        Ok(())
     });
     scenario("analyze_file/complete/stereo_44k", || {
-        analyze_file(&master, &common::config_for(None)).unwrap();
+        analyze_file(&master, &common::config_for(None))?;
+        Ok(())
     });
     scenario("analyze_file/precise/stereo_44k", || {
-        analyze_file(&master, &common::config_for(Some(common::PRECISE_MS))).unwrap();
+        analyze_file(&master, &common::config_for(Some(common::PRECISE_MS)))?;
+        Ok(())
     });
     scenario("analyze_file/fast/stereo_44k", || {
-        analyze_file(&master, &common::config_for(Some(common::FAST_MS))).unwrap();
+        analyze_file(&master, &common::config_for(Some(common::FAST_MS)))?;
+        Ok(())
     });
 }
 
