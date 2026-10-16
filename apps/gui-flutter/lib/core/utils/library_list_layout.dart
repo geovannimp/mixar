@@ -11,6 +11,7 @@ import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
 /// Focused-row fill — same token as sidebar [librarySelectedRowColor].
 Color libraryListSelectedRowColor(MixarThemeData theme) =>
     librarySelectedRowColor(theme);
+
 /// Focused-row fill for a list that does not own browser focus.
 ///
 /// The cursor stays put (so a focus step back to this pane lands where it left
