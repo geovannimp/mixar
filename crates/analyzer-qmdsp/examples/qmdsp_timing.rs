@@ -13,9 +13,11 @@
 //!   row <name> min_ms=%.3f mean_ms=%.3f reps=%d peak_vmhwm_kb=%d
 //!
 //! The sub-stage rows reach the crate's private modules through
-//! `analyzer_qmdsp::internals`, so they are behind the default-on `sub` feature:
-//! building with `--no-default-features` keeps the example compiling against
-//! sources that predate that re-export.
+//! `analyzer_qmdsp::internals` and take their framing from
+//! `analyzer_qmdsp::measurement`, both behind the default-on `sub` feature.
+//! Building with `--no-default-features` compiles the example down to the four
+//! `analyze_*` rows only, which is what lets it run against sources that
+//! predate the re-export.
 
 use std::hint::black_box;
 use std::time::Instant;
@@ -26,10 +28,6 @@ use analyzer_qmdsp::QmdspAnalyzer;
 const SR: u32 = 44_100;
 const WARMUP: usize = 1;
 const REPS: usize = 5;
-
-/// Chromagram frame size `GetKeyMode` derives at 44.1 kHz.
-#[cfg(feature = "sub")]
-const CQ_FRAME: usize = 4096;
 
 fn corpus(secs: f64) -> Vec<f32> {
     let n = (f64::from(SR) * secs) as usize;
@@ -203,17 +201,18 @@ fn main() {
 
 #[cfg(feature = "sub")]
 fn sub_rows(y: &[f32], full_beats: &[f32]) {
-    use analyzer_qmdsp::internals;
+    use analyzer_qmdsp::{internals, measurement};
 
     bench("sub_init", WARMUP, REPS, || {
         internals::key::GetKeyMode::new(SR)
     });
 
     let y64: Vec<f64> = y.iter().map(|&s| f64::from(s)).collect();
-    let step = (f64::from(SR) * 0.01161) as i32 as usize;
-    let window = (SR / 50).next_power_of_two() as usize;
+    // Framing straight from the library, so these rows cannot drift from
+    // `detect_beats`.
+    let (window, step) = measurement::frame_and_step(SR);
     println!("framing step={step} window={window}");
-    bench("sub_onset", WARMUP, REPS, || {
+    let results = bench("sub_onset", WARMUP, REPS, || {
         let mut df = internals::onset::DetectionFunction::new(window);
         let mut res = Vec::new();
         internals::overlap::feed(&y64, window, step, |f| {
@@ -221,22 +220,10 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
         });
         res
     });
-
-    // Replicate `detect_beats` framing exactly.
-    let mut df = internals::onset::DetectionFunction::new(window);
-    let mut results: Vec<f64> = Vec::new();
-    internals::overlap::feed(&y64, window, step, |f| {
-        results.push(df.process_time_domain(f));
-    });
-    let mut nonzero = results.len();
-    while nonzero > 0 && results[nonzero - 1] <= 0.0 {
-        nonzero -= 1;
-    }
-    let df_slice: &[f64] = if nonzero >= 2 {
-        &results[2..nonzero]
-    } else {
-        &[]
-    };
+    // Same trim `detect_beats` applies, on the very sweep `sub_onset` just ran,
+    // so the tempo rows below see the same detection function the beats path
+    // feeds them.
+    let df_slice = measurement::beat_tracking_slice(&results);
 
     let bp = bench("sub_beat_period", WARMUP, REPS, || {
         internals::tempo::calculate_beat_period(df_slice)
@@ -246,13 +233,34 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
         internals::tempo::calculate_beats(df_slice, &bp)
     });
 
-    // Decimated stream, computed once outside the timed closures.
+    // The decimated stream, shaped exactly as `analyze_pcm` builds it for the
+    // key and downbeat consumers: the ×8 pass sweeps the track plus the silence
+    // `overlap::feed` would append, and the result carries a zero pre-roll in
+    // front. `sub_chroma`, `sub_decimate8` and `sub_downbeat` all read this, so
+    // they time the same input production hands those stages.
+    let mode = internals::key::GetKeyMode::new(SR);
+    let block = mode.block_size();
+    let frame_size = mode.frame_size();
+    let preroll = frame_size / 2;
+    let pad = mode.decimation_input_len(y64.len()) - block / 2 - y64.len();
+    let mut buf = y64.clone();
+    buf.resize(y64.len() + pad, 0.0);
+    let mut dec8 = vec![0.0; preroll + buf.len() / 8];
     let mut d8 = internals::key::decimator::Decimator::new(
         internals::key::decimator::Decimation::By8,
-        y64.len(),
+        buf.len(),
     );
-    let mut dec = vec![0.0; y64.len() / 8];
-    d8.process(&y64, &mut dec);
+    d8.process(&buf, &mut dec8[preroll..]);
+
+    bench("sub_decimate8", WARMUP, REPS, || {
+        let mut out = vec![0.0; preroll + buf.len() / 8];
+        let mut d = internals::key::decimator::Decimator::new(
+            internals::key::decimator::Decimation::By8,
+            buf.len(),
+        );
+        d.process(&buf, &mut out[preroll..]);
+        out
+    });
 
     let mut chroma = internals::key::cqt::Chromagram::new(internals::key::cqt::ChromagramConfig {
         fs: f64::from(SR) / 8.0,
@@ -261,26 +269,24 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
         bpo: 36,
         cq_thresh: 0.0054,
     });
+    // Fold each frame into a checksum instead of collecting owned copies:
+    // `Chromagram::process` returns a borrow of its own buffer, so the chroma
+    // math is what is timed, not a Vec per frame.
+    let sub_chroma_frame = frame_size;
     bench("sub_chroma", WARMUP, REPS, || {
-        let (frames, _) = dec.as_chunks::<CQ_FRAME>();
-        let mut out = Vec::new();
-        for frame in frames {
-            out.push(chroma.process(frame).to_vec());
+        let mut hash = 0xcbf2_9ce4_8422_2325u64;
+        for frame in dec8.chunks_exact(sub_chroma_frame) {
+            for &v in chroma.process(frame) {
+                hash ^= v.to_bits();
+                hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+            }
         }
-        out
+        hash
     });
 
-    bench("sub_decimate8", WARMUP, REPS, || {
-        let mut d = internals::key::decimator::Decimator::new(
-            internals::key::decimator::Decimation::By8,
-            y64.len(),
-        );
-        let mut out = vec![0.0; y64.len() / 8];
-        d.process(&y64, &mut out);
-        out
-    });
-
+    // The downbeat sees the same slice `analyze_pcm` hands it.
+    let downbeat_dec = &dec8[preroll..preroll + y64.len() / 8];
     bench("sub_downbeat", WARMUP, REPS, || {
-        internals::downbeat::detect_downbeats(&dec, SR, full_beats, 4)
+        internals::downbeat::detect_downbeats(downbeat_dec, SR, full_beats, 4)
     });
 }

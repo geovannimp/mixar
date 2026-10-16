@@ -33,31 +33,57 @@
 // indices (kept for parity/readability) and full-precision coefficient literals.
 #![allow(clippy::needless_range_loop, clippy::excessive_precision)]
 
+// These modules are `pub` only so `examples/qmdsp_timing.rs` — a separate crate
+// — can reach the pipeline stages it times; a `pub use` cannot re-export an item
+// that is itself private. Without the `sub` feature they stay private, so the
+// crate's public surface is exactly what it was before the harness existed.
+#[cfg(feature = "sub")]
 pub mod downbeat;
+#[cfg(not(feature = "sub"))]
+mod downbeat;
 mod fft;
+#[cfg(feature = "sub")]
 pub mod key;
+#[cfg(not(feature = "sub"))]
+mod key;
+#[cfg(feature = "sub")]
 pub mod math;
+#[cfg(not(feature = "sub"))]
+mod math;
+#[cfg(feature = "sub")]
 pub mod onset;
+#[cfg(not(feature = "sub"))]
+mod onset;
+#[cfg(feature = "sub")]
 pub mod overlap;
+#[cfg(not(feature = "sub"))]
+mod overlap;
+#[cfg(feature = "sub")]
 pub mod tempo;
+#[cfg(not(feature = "sub"))]
+mod tempo;
 mod window;
 
 /// Measurement-only re-exports for `examples/qmdsp_timing.rs`. Not part of
 /// the crate's API.
+#[cfg(feature = "sub")]
 #[doc(hidden)]
 pub mod internals {
     pub use crate::{downbeat, key, math, onset, overlap, tempo};
 }
+
+/// The framing and trimming rules the beat pipeline applies, published for
+/// `examples/qmdsp_timing.rs` so the harness cannot drift from them.
+#[cfg(feature = "sub")]
+pub mod measurement;
+#[cfg(not(feature = "sub"))]
+mod measurement;
 
 use analyzer_core::{
     AnalysisConfig, AnalysisRunMetadata, AnalyzerError, AudioAnalyzer, BeatGridAnalysis,
     BpmAnalysis, KeyAnalysis, Result, TrackAnalysis,
 };
 
-/// Mixxx's onset step (`kStepSecs`): ~12 ms, 86 Hz resolution.
-const STEP_SECS: f64 = 0.01161;
-/// Mixxx's `kMaximumBinSizeHz` (max analysis window frequency).
-const MAXIMUM_BIN_SIZE_HZ: u32 = 50;
 /// Assumed meter. Stored on the grid; a future meter estimator will replace it.
 const BEATS_PER_BAR: u8 = 4;
 
@@ -204,14 +230,8 @@ impl AudioAnalyzer for QmdspAnalyzer {
 
 /// Run the Mixxx beat pipeline and return beat times in seconds.
 fn detect_beats(y: &[f64], sample_rate: u32) -> Vec<f32> {
-    let step = (sample_rate as f64 * STEP_SECS) as i32;
-    let window = math::next_power_of_two((sample_rate / MAXIMUM_BIN_SIZE_HZ) as i32);
-    if step <= 0 || window <= 0 {
-        return Vec::new();
-    }
-    let step_size = step as usize;
-    let window_size = window as usize;
-    if step_size > window_size {
+    let (window_size, step_size) = measurement::frame_and_step(sample_rate);
+    if step_size == 0 || window_size == 0 || step_size > window_size {
         return Vec::new();
     }
 
@@ -221,17 +241,7 @@ fn detect_beats(y: &[f64], sample_rate: u32) -> Vec<f32> {
         results.push(df.process_time_domain(frame));
     });
 
-    // Trim trailing non-positive values, then skip the first two (noise) frames,
-    // exactly as Mixxx does.
-    let mut nonzero = results.len();
-    while nonzero > 0 && results[nonzero - 1] <= 0.0 {
-        nonzero -= 1;
-    }
-    let df_slice: &[f64] = if nonzero >= 2 {
-        &results[2..nonzero]
-    } else {
-        &[]
-    };
+    let df_slice = measurement::beat_tracking_slice(&results);
 
     let beat_period = tempo::calculate_beat_period(df_slice);
     let beat_frames = tempo::calculate_beats(df_slice, &beat_period);
