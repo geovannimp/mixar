@@ -5,7 +5,7 @@
 //! `constraintempo = false`, `alpha = 0.9`, `tightness = 4.0`), so those are the
 //! only paths ported. Beat periods are in detection-function increment units.
 
-use crate::math::{adaptive_threshold, max_ind, max_val};
+use crate::math::{adaptive_threshold, get_max_index};
 
 /// qm-dsp's arbitrary small constant.
 const EPS: f64 = 0.0000008;
@@ -30,27 +30,24 @@ pub fn calculate_beat_period(df: &[f64]) -> Vec<i32> {
     }
 
     let df_len = df.len() as i64;
-    let mut rcfmat: Vec<Vec<f64>> = Vec::new();
+    let mut rcfmat: Vec<Vec<f64>> = Vec::with_capacity(df.len() / HOP_SIZE + 1);
+    let mut dfframe = vec![0.0f64; WIN_LEN];
+    let mut acf = vec![0.0f64; WIN_LEN];
+    let mut rcf = vec![0.0f64; WV_LEN];
     let mut i: i64 = -(WIN_LEN as i64) / 2;
     while i < df_len - (WIN_LEN as i64) / 2 {
-        let mut dfframe = vec![0.0f64; WIN_LEN];
+        dfframe.fill(0.0);
+        rcf.fill(0.0);
         let k = if i < 0 { -i } else { 0 };
         let l = if i + WIN_LEN as i64 > df_len {
             df_len - i
         } else {
             WIN_LEN as i64
         };
-        let src_start = i + k;
-        let src_end = i + l;
-        let mut dst = k;
-        let mut s = src_start;
-        while s < src_end {
-            dfframe[dst as usize] = df[s as usize];
-            s += 1;
-            dst += 1;
-        }
-
-        rcfmat.push(get_rcf(&dfframe, &wv));
+        let count = (l - k) as usize;
+        let src = (i + k) as usize;
+        dfframe[k as usize..k as usize + count].copy_from_slice(&df[src..src + count]);
+        rcfmat.push(get_rcf(&mut dfframe, &wv, &mut acf, &mut rcf));
         i += HOP_SIZE as i64;
     }
 
@@ -61,12 +58,19 @@ pub fn calculate_beat_period(df: &[f64]) -> Vec<i32> {
 
 /// `TempoTrackV2::get_rcf`: autocorrelation + resonator comb filter bank,
 /// adaptive-thresholded and normalised to unit sum.
-fn get_rcf(dfframe_in: &[f64], wv: &[f64]) -> Vec<f64> {
-    let mut dfframe = dfframe_in.to_vec();
-    adaptive_threshold(&mut dfframe);
+///
+/// `dfframe`, `acf` and `rcf` are caller-owned scratch so the ~95 blocks of a
+/// run share one allocation each. Every slot of `acf` and `rcf` is overwritten
+/// before any read, so no fill is needed.
+fn get_rcf(dfframe: &mut [f64], wv: &[f64], acf: &mut [f64], rcf: &mut [f64]) -> Vec<f64> {
+    debug_assert_eq!(dfframe.len(), WIN_LEN);
+    debug_assert_eq!(acf.len(), WIN_LEN);
+    debug_assert_eq!(rcf.len(), WV_LEN);
+    adaptive_threshold(dfframe);
 
     let len = dfframe.len();
-    let mut acf = vec![0.0f64; len];
+    debug_assert!(acf.len() >= len, "autocorrelation scratch too small");
+    let acf = &mut acf[..len];
     for lag in 0..len {
         let mut sum = 0.0;
         for n in 0..(len - lag) {
@@ -75,7 +79,6 @@ fn get_rcf(dfframe_in: &[f64], wv: &[f64]) -> Vec<f64> {
         acf[lag] = sum / (len - lag) as f64;
     }
 
-    let mut rcf = vec![0.0f64; wv.len()];
     let numelem: i64 = 4;
     for i in 2..rcf.len() {
         for a in 1..=numelem {
@@ -86,17 +89,16 @@ fn get_rcf(dfframe_in: &[f64], wv: &[f64]) -> Vec<f64> {
         }
     }
 
-    adaptive_threshold(&mut rcf);
+    adaptive_threshold(rcf);
 
-    let mut rcfsum = 0.0;
     for v in rcf.iter_mut() {
         *v += EPS;
-        rcfsum += *v;
     }
+    let rcfsum: f64 = rcf.iter().sum();
     for v in rcf.iter_mut() {
         *v /= rcfsum + EPS;
     }
-    rcf
+    rcf.to_vec()
 }
 
 /// `TempoTrackV2::viterbi_decode`.
@@ -108,59 +110,69 @@ fn viterbi_decode(rcfmat: &[Vec<f64>], wv: &[f64], beat_period: &mut [i32]) {
     let q = rcfmat[0].len();
 
     // Gaussian transition matrix; only the 20..Q-20 window is filled.
-    let mut tmat = vec![vec![0.0f64; q]; q];
+    let mut tmat = vec![0.0f64; q * q];
     let sigma = 8.0;
     for i in 20..q.saturating_sub(20) {
         for j in 20..q.saturating_sub(20) {
             let mu = i as f64;
-            tmat[i][j] = (-((j as f64 - mu).powi(2)) / (2.0 * sigma * sigma)).exp();
+            tmat[i * q + j] = (-((j as f64 - mu).powi(2)) / (2.0 * sigma * sigma)).exp();
         }
     }
 
-    let mut delta = vec![vec![0.0f64; q]; t_len];
-    let mut psi = vec![vec![0usize; q]; t_len];
+    let mut delta = vec![0.0f64; t_len * q];
+    let mut psi = vec![0usize; t_len * q];
 
     for j in 0..q {
-        delta[0][j] = wv[j] * rcfmat[0][j];
+        delta[j] = wv[j] * rcfmat[0][j];
     }
     let mut deltasum = 0.0;
-    for d in delta[0].iter() {
+    for d in delta[..q].iter() {
         deltasum += *d;
     }
-    for d in delta[0].iter_mut() {
+    for d in delta[..q].iter_mut() {
         *d /= deltasum + EPS;
     }
 
-    let mut tmp = vec![0.0f64; q];
+    // Only the `20..q-20` transition band is non-zero, and `delta` is
+    // non-negative, so products outside it are `0.0` and can never beat a
+    // running max seeded at `0.0` with strict `>`. Skipping them is exact.
+    let lo = 20usize;
+    let hi = q.saturating_sub(20);
     for t in 1..t_len {
+        let (head, tail) = delta.split_at_mut(t * q);
+        let prev = &head[(t - 1) * q..t * q];
+        let curr = &mut tail[..q];
         for j in 0..q {
-            for i in 0..q {
-                tmp[i] = delta[t - 1][i] * tmat[j][i];
+            let mut best = 0.0f64;
+            let mut arg = 0usize;
+            for i in lo..hi {
+                let v = prev[i] * tmat[j * q + i];
+                if v > best {
+                    best = v;
+                    arg = i;
+                }
             }
-            delta[t][j] = max_val(&tmp);
-            psi[t][j] = max_ind(&tmp);
-            delta[t][j] *= rcfmat[t][j];
+            curr[j] = best * rcfmat[t][j];
+            psi[t * q + j] = arg;
         }
-        let mut ds = 0.0;
-        for d in delta[t].iter() {
-            ds += *d;
-        }
-        for d in delta[t].iter_mut() {
+        let ds: f64 = curr.iter().sum();
+        for d in curr.iter_mut() {
             *d /= ds + EPS;
         }
     }
 
-    let (ind, _) = crate::math::get_max_index(&delta[t_len - 1]);
+    let (ind, _) = crate::math::get_max_index(&delta[(t_len - 1) * q..t_len * q]);
     beat_period[t_len - 1] = ind as i32;
 
     let mut t = t_len as i64 - 2;
     while t > 0 {
-        beat_period[t as usize] =
-            psi[(t + 1) as usize][beat_period[(t + 1) as usize] as usize] as i32;
+        let tu = t as usize;
+        let source = psi[(t + 1) as usize * q + beat_period[tu + 1] as usize];
+        beat_period[tu] = source as i32;
         t -= 1;
     }
     // qm-dsp's "weird but necessary" final step.
-    beat_period[0] = psi[1][beat_period[1] as usize] as i32;
+    beat_period[0] = psi[q + beat_period[1] as usize] as i32;
 }
 
 /// `TempoTrackV2::calculateBeats` with `alpha = 0.9`, `tightness = 4.0`.
@@ -223,7 +235,7 @@ pub fn calculate_beats(df: &[f64], beat_period: &[i32]) -> Vec<f64> {
         }
         i += 1;
     }
-    let mut startpoint = max_ind(&tmp) as i64 + start_i;
+    let mut startpoint = get_max_index(&tmp).0 as i64 + start_i;
     if startpoint < 0 {
         startpoint = 0;
     }

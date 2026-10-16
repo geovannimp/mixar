@@ -48,30 +48,6 @@ pub fn get_max_index(data: &[f64]) -> (usize, f64) {
     )
 }
 
-/// TempoTrackV2's `get_max_val`: max seeded with `0.0` (so all-negative input
-/// yields `0.0`).
-pub fn max_val(data: &[f64]) -> f64 {
-    data.iter().copied().fold(0.0_f64, f64::max)
-}
-
-/// TempoTrackV2's `get_max_ind`: argmax seeded with `0`; the first index wins on
-/// ties (qm-dsp uses strict `>`), so this is not `Iterator::max_by`.
-pub fn max_ind(data: &[f64]) -> usize {
-    data.iter()
-        .enumerate()
-        .fold(
-            (0usize, 0.0_f64),
-            |best, (i, &v)| {
-                if v > best.1 {
-                    (i, v)
-                } else {
-                    best
-                }
-            },
-        )
-        .0
-}
-
 /// In-place unit-max normalisation (`NormaliseUnitMax`).
 pub fn normalise_unit_max(data: &mut [f64]) {
     let max = data.iter().copied().fold(0.0_f64, |m, v| m.max(v.abs()));
@@ -134,9 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn max_helpers_keep_first_index_and_floor_at_zero() {
-        assert_eq!(max_val(&[-1.0, -2.0]), 0.0);
-        assert_eq!(max_ind(&[3.0, 3.0]), 0);
+    fn get_max_index_keeps_first_index_and_handles_empty() {
         assert_eq!(get_max_index(&[3.0, 3.0]), (0, 3.0));
         assert_eq!(get_max_index(&[]), (0, 0.0));
     }
