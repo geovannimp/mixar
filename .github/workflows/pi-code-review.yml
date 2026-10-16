@@ -44,6 +44,9 @@ permissions:
   contents: read
   pull-requests: write
 
+# NOTE: this group predicate must stay in sync with the job `if:` below —
+# GitHub Actions cannot share one boolean expression between `concurrency` and
+# `if:`. A divergence means a run takes the wrong group (see PR review history).
 concurrency:
   group: >-
     ${{
@@ -51,6 +54,7 @@ concurrency:
         (
           github.event_name == 'pull_request'
           && !github.event.pull_request.draft
+          && github.event.pull_request.head.repo.full_name == github.repository
         )
         || github.event_name == 'workflow_dispatch'
         || (
@@ -181,6 +185,15 @@ jobs:
         shell: bash
         working-directory: .github/pi
         run: npm ci --omit=dev
+
+      # The base checkout predates the extension only on the PR that introduces
+      # it. Say so plainly: the run below will fail to resolve the ocr-llm
+      # provider, and a bare "Model not found" hides why.
+      - name: Note extension absent from base
+        if: hashFiles('.github/pi/package.json') == ''
+        shell: bash
+        run: |
+          echo "::warning::.github/pi is absent from the base checkout; this job cannot review until this PR merges and the workflow runs from the default branch."
 
       - name: Pi review
         uses: shaftoe/pi-coding-agent-action@f7496a9aea9798c5d52d39096d98d5c5b16559b3 # v2.30.0
