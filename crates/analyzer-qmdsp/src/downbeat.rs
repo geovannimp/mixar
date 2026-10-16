@@ -13,7 +13,7 @@
 use std::f64::consts::PI;
 
 use crate::fft::RealFft;
-use crate::key::decimator::Decimator;
+use crate::key::decimator::{Decimation, Decimator};
 use crate::math::{adaptive_threshold, get_max_index, next_power_of_two};
 
 /// qm-dsp `MathAliases::EPS`.
@@ -114,11 +114,11 @@ fn decimate(samples: &[f64]) -> Option<Vec<f64>> {
     if samples.len() < DECIMATION {
         return None;
     }
-    let mut first = Decimator::new(samples.len(), 8);
+    let mut first = Decimator::new(Decimation::By8, samples.len());
     let mut stage = vec![0.0f64; samples.len() / 8];
     first.process(samples, &mut stage);
 
-    let mut second = Decimator::new(stage.len(), 2);
+    let mut second = Decimator::new(Decimation::By2, stage.len());
     let mut out = vec![0.0f64; stage.len() / 2];
     second.process(&stage, &mut out);
     Some(out)

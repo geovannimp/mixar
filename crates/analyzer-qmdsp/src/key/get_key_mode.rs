@@ -3,7 +3,7 @@
 //! (`1..=12` major C..B, `13..=24` minor C..B, `0` = none).
 
 use crate::key::cqt::{Chromagram, ChromagramConfig};
-use crate::key::decimator::Decimator;
+use crate::key::decimator::{Decimation, Decimator};
 use crate::math::{get_max_index, mean, pitch_frequency};
 
 const BINS_PER_OCTAVE: usize = 36;
@@ -72,7 +72,7 @@ impl GetKeyMode {
         let chroma_buffer_size = (hpcp_average * fs / chroma_frame_size as f64).ceil() as usize;
         let median_win_size = (median_average * fs / chroma_frame_size as f64).ceil() as usize;
 
-        let decimator = Decimator::new(chroma_frame_size * decimation_factor, decimation_factor);
+        let decimator = Decimator::new(Decimation::By8, chroma_frame_size * decimation_factor);
 
         let maj_mean = mean(&MAJ_PROFILE);
         let min_mean = mean(&MIN_PROFILE);

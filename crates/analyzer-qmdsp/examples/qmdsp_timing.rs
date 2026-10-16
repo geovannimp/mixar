@@ -247,7 +247,10 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     });
 
     // Decimated stream, computed once outside the timed closures.
-    let mut d8 = internals::key::decimator::Decimator::new(y64.len(), 8);
+    let mut d8 = internals::key::decimator::Decimator::new(
+        internals::key::decimator::Decimation::By8,
+        y64.len(),
+    );
     let mut dec = vec![0.0; y64.len() / 8];
     d8.process(&y64, &mut dec);
 
@@ -268,7 +271,10 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     });
 
     bench("sub_decimate8", WARMUP, REPS, || {
-        let mut d = internals::key::decimator::Decimator::new(y64.len(), 8);
+        let mut d = internals::key::decimator::Decimator::new(
+            internals::key::decimator::Decimation::By8,
+            y64.len(),
+        );
         let mut out = vec![0.0; y64.len() / 8];
         d.process(&y64, &mut out);
         out
