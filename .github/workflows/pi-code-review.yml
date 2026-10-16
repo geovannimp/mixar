@@ -102,7 +102,7 @@ jobs:
 
       - name: Resolve PR context
         id: pr-context
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             let prNumber;
@@ -133,7 +133,7 @@ jobs:
       # Trusted checkout: the workspace is the base branch, so the extension, the
       # rules, and the workflow come from the base, never from the PR.
       - name: Checkout base (trusted workspace)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.pr-context.outputs.base_ref }}
           persist-credentials: false
@@ -141,7 +141,7 @@ jobs:
 
       # PR head is untrusted input: read-only, never executed.
       - name: Checkout PR head (read-only tree)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.pr-context.outputs.head_sha }}
           persist-credentials: false
@@ -166,12 +166,13 @@ jobs:
           OCR_LLM_URL: ${{ vars.OCR_LLM_URL }}
           OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           OCR_LLM_MODEL: ${{ vars.OCR_LLM_MODEL }}
+          # Read by the extension's GitHub client (createGitHubClient).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Read by the extension to resolve the PR number when no event payload.
+          PI_REVIEW_PR_NUMBER: ${{ steps.pr-context.outputs.pr_number }}
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: ocr-llm
           model: ${{ vars.OCR_LLM_MODEL }}
-          token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
-          pr_number: ${{ steps.pr-context.outputs.pr_number }}
           extensions: |
             .github/pi/pi-review-extension.ts
           load_builtin_extensions: 'false'

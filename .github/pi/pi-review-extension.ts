@@ -320,22 +320,43 @@ export function createGitHubClient(token: string): GitHubClient {
   };
 
   async function send(url: string, init: { method: string; body?: unknown }): Promise<unknown> {
-    const res = await fetch(url, {
-      method: init.method,
-      headers: {
-        ...headers,
-        ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      },
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new GitHubHttpError(
-        res.status,
-        `GitHub ${init.method} ${url} failed: ${res.status} ${text}`,
-      );
+    const MAX_RETRIES = 3;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: init.method,
+          headers: {
+            ...headers,
+            ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+          },
+          body: init.body === undefined ? undefined : JSON.stringify(init.body),
+        });
+      } catch (err) {
+        if (attempt < MAX_RETRIES) {
+          const delay = 2 ** attempt * 1000;
+          console.warn(`pi-review: network error, retrying in ${delay}ms: ${err instanceof Error ? err.message : String(err)}`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        throw err;
+      }
+      if (res.status >= 500 && attempt < MAX_RETRIES) {
+        const delay = 2 ** attempt * 1000;
+        console.warn(`pi-review: ${res.status} from GitHub, retrying in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      const text = await res.text();
+      if (!res.ok) {
+        throw new GitHubHttpError(
+          res.status,
+          `GitHub ${init.method} ${url} failed: ${res.status} ${text}`,
+        );
+      }
+      return text ? (JSON.parse(text) as unknown) : null;
     }
-    return text ? (JSON.parse(text) as unknown) : null;
+    throw new Error('unreachable');
   }
 
   const gh = async <T = unknown>(method: string, path: string, body?: unknown): Promise<T> =>
@@ -345,11 +366,14 @@ export function createGitHubClient(token: string): GitHubClient {
   const list = async <T>(path: string): Promise<T[]> => {
     const sep = path.includes('?') ? '&' : '?';
     const out: T[] = [];
-    for (let page = 1; ; page++) {
+    const MAX_PAGES = 100; // 10,000 items at per_page=100
+    for (let page = 1; page <= MAX_PAGES; page++) {
       const items = await gh<T[]>('GET', `${path}${sep}per_page=100&page=${page}`);
       out.push(...items);
       if (items.length < 100) return out;
     }
+    console.warn(`pi-review: pagination hit ${MAX_PAGES} pages for ${path}; returning partial results`);
+    return out;
   };
 
   const graphql = async <T>(query: string, variables: Record<string, unknown>): Promise<T> => {
@@ -527,22 +551,15 @@ async function resolveReviewThread(rt: Runtime, commentId: number): Promise<stri
     'GET',
     `${repoPath(rt)}/pulls/comments/${commentId}`,
   );
-  // Look the thread up from the comment's node id: a PR-wide reviewThreads scan
-  // misses threads beyond the first page.
   const data = await api.graphql<{
     node: { pullRequestReviewThread: { id: string; isResolved: boolean } | null } | null;
   }>(THREAD_FOR_COMMENT_QUERY, { id: comment.node_id });
   const thread = data.node?.pullRequestReviewThread;
-  if (!thread) return `thread not found for comment ${commentId}; nothing resolved`;
+  if (!thread) throw new Error(`thread not found for comment ${commentId}`);
   if (thread.isResolved) return `already resolved (thread ${thread.id})`;
   if (rt.dryRun) return `dry run: would resolve thread ${thread.id}`;
-  try {
-    await api.graphql(RESOLVE_MUTATION, { id: thread.id });
-    return `resolved thread ${thread.id}`;
-  } catch (err) {
-    // Typically FORBIDDEN; the reply is already posted and the thread stays open.
-    return `not resolved (thread ${thread.id}): ${err instanceof Error ? err.message : String(err)}`;
-  }
+  await api.graphql(RESOLVE_MUTATION, { id: thread.id });
+  return `resolved thread ${thread.id}`;
 }
 
 async function upsertStickySummary(
