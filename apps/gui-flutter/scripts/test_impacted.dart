@@ -126,6 +126,11 @@ Set<String> _changedFiles({required void Function() onUnknownBase}) {
 
 /// Removes comments so a doc comment quoting `import 'x.dart';` cannot fake a
 /// directive (they exist, e.g. in `lib/l10n/app_localizations.dart`).
+///
+/// Combined with [_directives], only statements whose first token is a
+/// directive keyword are parsed, and only quoted URIs inside them count — so a
+/// URL inside an ordinary string literal never becomes a graph edge. String
+/// literals themselves are not stripped: doing so would remove the URIs.
 String _stripComments(String source) {
   final withoutBlocks = source.replaceAll(
     RegExp(r'''/\*.*?\*/''', dotAll: true),

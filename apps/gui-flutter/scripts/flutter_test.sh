@@ -9,11 +9,12 @@
 #
 #  1. Unset GIT_* first. Flutter's version probe inherits the hook's repo and reports
 #     0.0.0-unknown, which is why `format-files`/`lint-files`/`icons` do the same.
-#  2. Forward moon's passthrough args. `moon run gui-flutter:test -- --plain-name foo`
-#     appends them after the task args, so with `bash scripts/flutter_test.sh`
-#     they land in $1.. and "$@" forwards them (verified: a bogus flag fails
-#     loudly, a real filter selects one test). The fold below only covers the
-#     `bash -c '<script>'` form, where bash maps them onto $0/$1... instead.
+#  2. Forward moon's passthrough args. moon runs this as
+#     `bash scripts/flutter_test.sh <args>`, so they arrive in $1.. and "$@"
+#     forwards them (verified: a bogus flag fails loudly, a real filter selects
+#     one test). There is deliberately no `case "$0" in -*)` fold here: moon
+#     cannot invoke this task as `bash -c '<script>'` anyway, because it mangles
+#     inline script strings (it strips `-- <...>` and `$...` sequences).
 #  3. nproc is affinity-aware (4 under `taskset -c 0-3`, unlike getconf, which reports
 #     the full CPU count), so it stays first. getconf _NPROCESSORS_ONLN is the POSIX
 #     fallback for macOS/BSD, where nproc does not exist (there `$(nproc)` expands
@@ -21,10 +22,6 @@
 set -euo pipefail
 
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
-
-case "$0" in
-  -*) set -- "$0" "$@" ;;
-esac
 
 jobs=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 
