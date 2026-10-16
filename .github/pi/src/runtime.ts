@@ -40,6 +40,3 @@ export function loadRuntime(env: Env = process.env): Runtime {
     dryRun: env.PI_REVIEW_DRY_RUN === '1',
   };
 }
-
-export const repoPath = (rt: Runtime): string =>
-  `/repos/${encodeURIComponent(rt.owner)}/${encodeURIComponent(rt.repo)}`;

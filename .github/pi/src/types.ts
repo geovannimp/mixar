@@ -49,25 +49,12 @@ export interface PostReviewParams {
   findings: ReviewFinding[];
 }
 
-export interface GitHubClient {
-  gh<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
-  list<T>(path: string): Promise<T[]>;
-  graphql<T>(query: string, variables: Record<string, unknown>): Promise<T>;
-  graphqlMutation<T>(query: string, variables: Record<string, unknown>): Promise<T>;
-}
-
 export type EventPayload = {
   pull_request?: { number?: number };
   issue?: { number?: number };
 };
 
 export type Env = Record<string, string | undefined>;
-
-export interface PullPayload {
-  title: string;
-  base: { ref: string };
-  head: { sha: string };
-}
 
 export interface FilePayload {
   filename: string;

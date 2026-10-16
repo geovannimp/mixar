@@ -3,21 +3,21 @@ import { chunk } from './config.ts';
 import { parseDiffAnchors } from './diff.ts';
 import { reviewableChangedFiles } from './files.ts';
 import { buildReviewComments, buildSummaryBody, splitByConfidence } from './findings.ts';
-import { GitHubHttpError, createGitHubClient } from './github.ts';
-import { repoPath, type Runtime } from './runtime.ts';
-import type { GitHubClient, PostReviewParams, PullPayload } from './types.ts';
+import { createOctokit, httpStatus, type GitHubOctokit } from './github.ts';
+import type { Runtime } from './runtime.ts';
+import type { PostReviewParams } from './types.ts';
 
 export async function upsertStickySummary(
-  api: GitHubClient,
-  base: string,
-  prNumber: number,
+  octokit: GitHubOctokit,
+  rt: Runtime,
   body: string,
 ): Promise<void> {
-  const comments = await api.list<{
-    id: number;
-    body?: string | null;
-    user?: { type?: string; login?: string } | null;
-  }>(`${base}/issues/${prNumber}/comments`);
+  const comments = await octokit.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+    owner: rt.owner,
+    repo: rt.repo,
+    issue_number: rt.prNumber,
+    per_page: 100,
+  });
   // Only reuse bot comments: a human quoting the anchor must not be overwritten.
   // If earlier runs left more than one, keep the oldest and delete the rest so the
   // thread does not accumulate stale summaries.
@@ -26,10 +26,19 @@ export async function upsertStickySummary(
   );
   const keep = anchored[0];
   if (keep) {
-    await api.gh('PATCH', `${base}/issues/comments/${keep.id}`, { body });
+    await octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+      owner: rt.owner,
+      repo: rt.repo,
+      comment_id: keep.id,
+      body,
+    });
     for (const dupe of anchored.slice(1)) {
       try {
-        await api.gh('DELETE', `${base}/issues/comments/${dupe.id}`);
+        await octokit.request('DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+          owner: rt.owner,
+          repo: rt.repo,
+          comment_id: dupe.id,
+        });
       } catch (err) {
         console.warn(
           `pi-review: could not delete duplicate summary comment ${dupe.id}: ${err instanceof Error ? err.message : String(err)}`,
@@ -37,7 +46,12 @@ export async function upsertStickySummary(
       }
     }
   } else {
-    await api.gh('POST', `${base}/issues/${prNumber}/comments`, { body });
+    await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+      owner: rt.owner,
+      repo: rt.repo,
+      issue_number: rt.prNumber,
+      body,
+    });
   }
 }
 
@@ -45,11 +59,14 @@ export async function upsertStickySummary(
 const DETERMINISTIC_BATCH_REJECTIONS = new Set([422]);
 
 export async function postReview(rt: Runtime, params: PostReviewParams): Promise<string> {
-  const api = createGitHubClient(rt.token);
-  const base = repoPath(rt);
+  const octokit = createOctokit(rt.token);
   const { kept, dropped } = splitByConfidence(params.findings);
-  const pr = await api.gh<PullPayload>('GET', `${base}/pulls/${rt.prNumber}`);
-  const files = await reviewableChangedFiles(api, base, rt, pr.head.sha, pr.base.ref);
+  const { data: pr } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+    owner: rt.owner,
+    repo: rt.repo,
+    pull_number: rt.prNumber,
+  });
+  const files = await reviewableChangedFiles(octokit, rt, pr.head.sha, pr.base.ref);
   const anchors = parseDiffAnchors(files.map((f) => ({ path: f.filename, patch: f.patch })));
   const { comments, outside } = buildReviewComments(kept, anchors);
   const summary = buildSummaryBody(params.summary_markdown, outside);
@@ -65,10 +82,9 @@ export async function postReview(rt: Runtime, params: PostReviewParams): Promise
     );
   }
 
-  await upsertStickySummary(api, base, rt.prNumber, summary);
+  await upsertStickySummary(octokit, rt, summary);
 
   const commitId = pr.head.sha;
-  const reviewPath = `${base}/pulls/${rt.prNumber}/reviews`;
   const errors: string[] = [];
   let posted = 0;
 
@@ -76,17 +92,24 @@ export async function postReview(rt: Runtime, params: PostReviewParams): Promise
   // upserted, so it already records that the run happened. A body-only review would
   // append another timeline entry per run.
 
+  const reviewParams = {
+    owner: rt.owner,
+    repo: rt.repo,
+    pull_number: rt.prNumber,
+    commit_id: commitId,
+    event: 'COMMENT' as const,
+  };
+
   for (const [i, batch] of chunk(comments, rt.batchSize).entries()) {
     try {
-      await api.gh('POST', reviewPath, {
-        commit_id: commitId,
-        event: 'COMMENT',
+      await octokit.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews', {
+        ...reviewParams,
         body: i === 0 ? REVIEW_BODY_DONE : `${FINDING_MARKER}\n(continued review batch ${i + 1})`,
         comments: batch,
       });
       posted += batch.length;
     } catch (err) {
-      const status = err instanceof GitHubHttpError ? err.status : 0;
+      const status = httpStatus(err);
       // Split the batch only for 422, the one status that means a comment in the
       // batch is itself invalid (usually a bad diff anchor) and would be dropped.
       // 429/403 (rate limits) and 408 are transient: fanning out to one request per
@@ -98,9 +121,8 @@ export async function postReview(rt: Runtime, params: PostReviewParams): Promise
         );
         for (const c of batch) {
           try {
-            await api.gh('POST', reviewPath, {
-              commit_id: commitId,
-              event: 'COMMENT',
+            await octokit.request('POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews', {
+              ...reviewParams,
               body: `${FINDING_MARKER}\n(single-comment fallback)`,
               comments: [c],
             });
@@ -127,9 +149,8 @@ export async function postReview(rt: Runtime, params: PostReviewParams): Promise
     // Re-posting is deliberately not attempted — a failed batch may have landed.
     try {
       await upsertStickySummary(
-        api,
-        base,
-        rt.prNumber,
+        octokit,
+        rt,
         `${summary}\n\n> ⚠️ ${failed} item(s) could not be posted to this pull request. See the workflow log for details.`,
       );
     } catch (err) {

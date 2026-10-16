@@ -1,25 +1,30 @@
 import { REVIEW_CONFIG_PATH } from './constants.ts';
 import { parseReviewConfig } from './config.ts';
 import { matchesGlob } from './diff.ts';
-import { GitHubHttpError, createGitHubClient } from './github.ts';
-import { repoPath, type Runtime } from './runtime.ts';
-import type { FilePayload, GitHubClient, PullPayload, ReviewConfig } from './types.ts';
+import { createOctokit, httpStatus, type GitHubOctokit } from './github.ts';
+import type { Runtime } from './runtime.ts';
+import type { FilePayload, ReviewConfig } from './types.ts';
 
 export async function fetchBaseConfig(
-  api: GitHubClient,
-  base: string,
+  octokit: GitHubOctokit,
+  rt: Runtime,
   ref: string,
 ): Promise<string | null> {
   try {
-    const file = await api.gh<{ type?: string; content?: string }>(
-      'GET',
-      `${base}/contents/${REVIEW_CONFIG_PATH}?ref=${encodeURIComponent(ref)}`,
-    );
-    return file.type === 'file' && file.content
-      ? Buffer.from(file.content, 'base64').toString('utf8')
-      : null;
+    const { data } = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+      owner: rt.owner,
+      repo: rt.repo,
+      path: REVIEW_CONFIG_PATH,
+      ref,
+    });
+    // This endpoint returns a file object, a directory listing, or an array; only
+    // the file variant carries base64 content.
+    if (Array.isArray(data) || data.type !== 'file' || !('content' in data) || !data.content) {
+      return null;
+    }
+    return Buffer.from(data.content, 'base64').toString('utf8');
   } catch (err) {
-    if (err instanceof GitHubHttpError && err.status === 404) return null;
+    if (httpStatus(err) === 404) return null;
     throw err;
   }
 }
@@ -28,15 +33,20 @@ export async function fetchBaseConfig(
 const changedFilesCache = new Map<string, FilePayload[]>();
 
 export async function getChangedFiles(
-  api: GitHubClient,
-  base: string,
+  octokit: GitHubOctokit,
   rt: Runtime,
   headSha: string,
 ): Promise<FilePayload[]> {
   const key = `${rt.owner}/${rt.repo}#${rt.prNumber}@${headSha}`;
   const cached = changedFilesCache.get(key);
   if (cached) return cached;
-  const files = await api.list<FilePayload>(`${base}/pulls/${rt.prNumber}/files`);
+  // paginate follows every page, so the result is never a silent partial.
+  const files = await octokit.paginate('GET /repos/{owner}/{repo}/pulls/{pull_number}/files', {
+    owner: rt.owner,
+    repo: rt.repo,
+    pull_number: rt.prNumber,
+    per_page: 100,
+  });
   changedFilesCache.set(key, files);
   return files;
 }
@@ -65,28 +75,28 @@ export function splitReviewable(
 
 /** Changed files that inline comments may be anchored to. */
 export async function reviewableChangedFiles(
-  api: GitHubClient,
-  base: string,
+  octokit: GitHubOctokit,
   rt: Runtime,
   headSha: string,
   baseRef: string,
 ): Promise<FilePayload[]> {
-  const files = await getChangedFiles(api, base, rt, headSha);
-  const config = parseReviewConfig(await fetchBaseConfig(api, base, baseRef));
+  const files = await getChangedFiles(octokit, rt, headSha);
+  const config = parseReviewConfig(await fetchBaseConfig(octokit, rt, baseRef));
   return splitReviewable(files, config).kept;
 }
 
 export async function listReviewFiles(rt: Runtime): Promise<string> {
-  const api = createGitHubClient(rt.token);
-  const base = repoPath(rt);
-  const pr = await api.gh<PullPayload>('GET', `${base}/pulls/${rt.prNumber}`);
-  const files = await getChangedFiles(api, base, rt, pr.head.sha);
-  const config = parseReviewConfig(await fetchBaseConfig(api, base, pr.base.ref));
+  const octokit = createOctokit(rt.token);
+  const { data: pr } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
+    owner: rt.owner,
+    repo: rt.repo,
+    pull_number: rt.prNumber,
+  });
+  const files = await getChangedFiles(octokit, rt, pr.head.sha);
+  const config = parseReviewConfig(await fetchBaseConfig(octokit, rt, pr.base.ref));
 
   const { kept, skippedExcluded } = splitReviewable(files, config);
-  const rules = config.rules.filter((r) =>
-    kept.some((f) => matchesGlob(f.filename, r.path)),
-  );
+  const rules = config.rules.filter((r) => kept.some((f) => matchesGlob(f.filename, r.path)));
   return JSON.stringify(
     {
       prNumber: rt.prNumber,
