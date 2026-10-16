@@ -7,6 +7,7 @@ import {
   buildReviewComments,
   chunk,
   clampToAnchor,
+  isContiguous,
   matchesGlob,
   parseDiffAnchors,
   parseReviewConfig,
@@ -120,25 +121,43 @@ test('start_line: multi-line finding with unclamped start falls back to the clam
   assert.equal('start_line' in comments[0]!, false);
 });
 
-test('start_line: multi-line finding keeps a clamped start line when it is above the end', () => {
+test('start_line: a contiguous multi-line range keeps its clamped start line', () => {
+  const contig: DiffAnchors = new Map([['src/a.ts', new Set([10, 11, 12, 13, 14])]]);
+  const { comments } = buildReviewComments(
+    [finding({ start_line: 11, end_line: 14 })],
+    contig,
+  );
+  assert.equal(comments[0]!.line, 14);
+  assert.equal(comments[0]!.start_line, 11);
+  assert.equal(comments[0]!.start_side, 'RIGHT');
+});
+
+test('start_line: a range spanning separate diff runs collapses to one line', () => {
+  // 14 and 30 are anchors, but 15..29 are not in the diff: GitHub would 422.
   const { comments } = buildReviewComments(
     [finding({ start_line: 13, end_line: 30 })],
     anchors,
   );
   assert.equal(comments[0]!.line, 30);
-  assert.equal(comments[0]!.start_line, 14);
-  assert.equal(comments[0]!.start_side, 'RIGHT');
+  assert.equal('start_line' in comments[0]!, false);
 });
 
-test('start_line: crossed anchors keep a valid range instead of dropping the span', () => {
+test('start_line: crossed anchors collapse instead of dropping the finding', () => {
   // end 12 snaps down to 10, start 16 snaps up to 14: the anchors cross.
   const { comments } = buildReviewComments(
     [finding({ start_line: 16, end_line: 12 })],
     anchors,
   );
   assert.equal(comments[0]!.line, 14);
-  assert.equal(comments[0]!.start_line, 10);
-  assert.ok(comments[0]!.start_line! < comments[0]!.line);
+  assert.equal('start_line' in comments[0]!, false);
+});
+
+test('contiguity: only fully-anchored ranges count as contiguous', () => {
+  const set = new Set([1, 2, 3]);
+  assert.equal(isContiguous(set, 1, 3), true);
+  assert.equal(isContiguous(set, 1, 2), true);
+  assert.equal(isContiguous(set, 1, 4), false);
+  assert.equal(isContiguous(set, 2, 2), true);
 });
 
 test('confidence floor: 0.55 is kept, 0.549 is dropped', () => {

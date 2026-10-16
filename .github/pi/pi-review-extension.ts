@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { minimatch } from 'minimatch';
 import { Octokit } from '@octokit/rest';
-import { graphql as gql } from '@octokit/graphql';
 import { retry } from '@octokit/plugin-retry';
 
 export const FINDING_MARKER = '<!-- pi-code-review -->';
@@ -149,6 +148,14 @@ export function clampToAnchor(
   return best;
 }
 
+/** Every line in [start, end] is present in the diff (one contiguous run). */
+export function isContiguous(anchors: Set<number>, start: number, end: number): boolean {
+  for (let line = start; line <= end; line++) {
+    if (!anchors.has(line)) return false;
+  }
+  return true;
+}
+
 export function splitByConfidence(
   findings: ReviewFinding[],
   floor = CONFIDENCE_FLOOR,
@@ -194,7 +201,11 @@ export function buildReviewComments(
       side: 'RIGHT',
       body: formatFindingBody(f),
     };
-    if (start < line) {
+    // Multi-line comments are only valid when the whole range is in the diff;
+    // GitHub rejects a range spanning hunks with 422. Collapse to one line when
+    // the two anchors are not contiguous.
+    const fileAnchors = anchors.get(f.path);
+    if (start < line && fileAnchors && isContiguous(fileAnchors, start, line)) {
       comment.start_line = start;
       comment.start_side = 'RIGHT';
     }
@@ -300,10 +311,6 @@ export function createGitHubClient(token: string): GitHubClient {
   // (doNotRetry: 400,401,403,404,410,422,451). Do NOT set request.retries on the
   // client — that value lands on every error and defeats doNotRetry.
   const octokit = new OctokitWithRetry({ auth: token, request: { timeout: 30_000 } });
-  const graphqlWithAuth = gql.defaults({
-    headers: { authorization: `token ${token}` },
-    request: { timeout: 30_000 },
-  });
 
   const gh = async <T = unknown>(method: string, path: string, body?: unknown): Promise<T> => {
     const options: Record<string, unknown> = { ...((body ?? {}) as Record<string, unknown>) };
@@ -334,8 +341,11 @@ export function createGitHubClient(token: string): GitHubClient {
     return out;
   };
 
+  // GraphQL goes through the same retry-wrapped client as REST. Retry is safe
+  // here: THREAD_FOR_COMMENT_QUERY is read-only and resolveReviewThread is
+  // idempotent (resolving an already-resolved thread succeeds).
   const graphql = async <T>(query: string, variables: Record<string, unknown>): Promise<T> =>
-    graphqlWithAuth<T>(query, variables);
+    octokit.graphql<T>(query, variables);
 
   return { gh, list, graphql };
 }
@@ -611,26 +621,32 @@ async function postReview(rt: Runtime, params: PostReviewParams): Promise<string
       });
       posted += batch.length;
     } catch (err) {
-      // Fail-open: retry each comment of the failed batch as its own review.
-      // Accepted risk: the batch POST is non-idempotent, so if GitHub committed
-      // the batch but the response was lost, these per-comment posts duplicate
-      // findings. Reconcile-by-fetch was rejected as more cost than the rare
-      // failure warrants; duplicates are visible and can be resolved by hand.
-      console.log(
-        `pi-review post_review: batch ${i + 1} failed, retrying per comment: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      for (const c of batch) {
-        try {
-          await api.gh('POST', reviewPath, {
-            commit_id: commitId,
-            event: 'COMMENT',
-            body: `${FINDING_MARKER}\n(single-comment fallback)`,
-            comments: [c],
-          });
-          posted += 1;
-        } catch (inner) {
-          errors.push(`${c.path}:${c.line}: ${inner instanceof Error ? inner.message : String(inner)}`);
+      const status = err instanceof GitHubHttpError ? err.status : 0;
+      // Only split the batch when it was rejected deterministically (4xx —
+      // typically 422 from a bad anchor). A 5xx, timeout, or dropped response may
+      // mean the batch already landed, so replaying its comments would
+      // double-post; record it and move on instead.
+      if (status >= 400 && status < 500) {
+        console.log(
+          `pi-review post_review: batch ${i + 1} rejected (${status}), retrying per comment: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        for (const c of batch) {
+          try {
+            await api.gh('POST', reviewPath, {
+              commit_id: commitId,
+              event: 'COMMENT',
+              body: `${FINDING_MARKER}\n(single-comment fallback)`,
+              comments: [c],
+            });
+            posted += 1;
+          } catch (inner) {
+            errors.push(`${c.path}:${c.line}: ${inner instanceof Error ? inner.message : String(inner)}`);
+          }
         }
+      } else {
+        errors.push(
+          `batch ${i + 1} not replayed (status ${status || 'network'}): ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   }

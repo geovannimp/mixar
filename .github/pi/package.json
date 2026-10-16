@@ -8,7 +8,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@octokit/graphql": "^8.2.2",
     "@octokit/plugin-retry": "^8.0.1",
     "@octokit/rest": "^21.1.0",
     "minimatch": "^10.0.1"
