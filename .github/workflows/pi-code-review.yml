@@ -23,9 +23,11 @@ name: Pi Code Review
 # get_issue_or_pr_thread, and the in-repo extension's reply/resolve tools. CodeGraph
 # (installed and indexed over pr-head before the agent starts) is wired in as an MCP
 # server and is the PRIMARY way the reviewer locates and understands code; the file
-# tools are the fallback. The review itself is posted with the action's built-in
-# create_pull_request_review. Mutating built-ins we do not want (create_pull_request,
-# update_pull_request) are left out of the loaded_tools allowlist.
+# tools are the fallback. A pinned third-party review playbook
+# (awesome-skills/code-review-skill) is installed into .agents/skills/ and the prompt
+# points the reviewer at it for review substance. The review itself is posted with the
+# action's built-in create_pull_request_review. Mutating built-ins we do not want
+# (create_pull_request, update_pull_request) are left out of the loaded_tools allowlist.
 #
 # Residual risk: the LLM still reads untrusted PR content while the step holds
 # GITHUB_TOKEN and OCR_LLM_AUTH_TOKEN, and it can call create_pull_request_review /
@@ -253,6 +255,22 @@ jobs:
           codegraph init -y pr-head
           codegraph status pr-head | head -20
 
+      # The reviewer's review-substance playbook. Pinned by commit on purpose: the
+      # skill body is text the model is told to follow, so it must not float. It
+      # installs into .agents/skills/, which pi loads as a project skill; the skill's
+      # own `allowed-tools` is inert in pi, so loaded_tools still governs the tools.
+      - name: Install the code-review skill
+        env:
+          SKILLS_CLI_VERSION: '1.7.2'
+          CODE_REVIEW_SKILL_REV: '4850184dfd7765ea7b3c5c4e9b6cf8e0815ee7cb'
+        run: |
+          set -euo pipefail
+          npx --yes "skills@${SKILLS_CLI_VERSION}" add \
+            "https://github.com/awesome-skills/code-review-skill/tree/${CODE_REVIEW_SKILL_REV}" \
+            -y --copy
+          # Fail loudly rather than let the prompt reference a skill that is not there.
+          test -f .agents/skills/code-review-skill/SKILL.md
+
       - name: Pi review
         uses: shaftoe/pi-coding-agent-action@f7496a9aea9798c5d52d39096d98d5c5b16559b3 # v2.30.0
         env:
@@ -336,6 +354,19 @@ jobs:
             apply the rule whose `path` matches each file you review. Review every changed
             file individually; the smaller member of a pair (header/interface vs
             implementation) is not skipped.
+
+            ## Review playbook (installed skill)
+            A project skill is installed at .agents/skills/code-review-skill/SKILL.md.
+            Read SKILL.md before reviewing, then open the reference for each language you
+            touch (reference/rust.md, reference/typescript.md, reference/dart.md,
+            reference/security-review-guide.md, reference/common-bugs-checklist.md,
+            reference/cross-cutting/*) plus assets/review-checklist.md. Use it for review
+            substance: what to look for, how to weigh severity, and how to phrase a
+            finding so the author can act on it.
+
+            That skill is generic and also describes process, reporting and where to post.
+            Those parts do not apply here: the instructions in this prompt win, especially
+            "Posting the review" below, which is the only way to comment in this repo.
 
             ## Role
             You are a professional pull-request code reviewer. Diffs show what changed;
