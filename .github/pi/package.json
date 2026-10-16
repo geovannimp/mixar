@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "@octokit/plugin-retry": "^8.0.1",
-    "@octokit/rest": "^21.1.0",
-    "minimatch": "^10.0.1"
+    "@octokit/rest": "^21.1.0"
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "1.0.4",

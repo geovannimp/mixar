@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { parseBatchSize, resolvePrNumber } from './config.ts';
 import type { Env, EventPayload } from './types.ts';
 
 export interface Runtime {
@@ -7,7 +6,6 @@ export interface Runtime {
   owner: string;
   repo: string;
   prNumber: number;
-  batchSize: number;
   dryRun: boolean;
 }
 
@@ -20,6 +18,20 @@ function readEvent(path: string | undefined): EventPayload {
       `Failed to read GitHub event payload from ${path}: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
+}
+
+export function resolvePrNumber(env: Env, event: EventPayload): number {
+  const override = env.PI_REVIEW_PR_NUMBER?.trim();
+  if (override) {
+    const n = Number(override);
+    if (Number.isInteger(n) && n > 0) return n;
+    throw new Error(`PI_REVIEW_PR_NUMBER is not a valid PR number: ${override}`);
+  }
+  if (typeof event.pull_request?.number === 'number') return event.pull_request.number;
+  if (typeof event.issue?.number === 'number') return event.issue.number;
+  throw new Error(
+    'cannot resolve PR number: set PI_REVIEW_PR_NUMBER or run on a pull_request/issue event',
+  );
 }
 
 export function loadRuntime(env: Env = process.env): Runtime {
@@ -36,7 +48,6 @@ export function loadRuntime(env: Env = process.env): Runtime {
     owner,
     repo,
     prNumber: resolvePrNumber(env, event),
-    batchSize: parseBatchSize(env.PI_REVIEW_BATCH_SIZE),
     dryRun: env.PI_REVIEW_DRY_RUN === '1',
   };
 }

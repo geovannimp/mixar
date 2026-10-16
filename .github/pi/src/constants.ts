@@ -1,18 +1,7 @@
+/**
+ * Marker required on the root comment of a thread this action may resolve.
+ * The workflow prompt instructs the model to prefix every inline finding body
+ * with it, because the review itself is posted by the action's built-in
+ * `create_pull_request_review` tool rather than by this extension.
+ */
 export const FINDING_MARKER = '<!-- pi-code-review -->';
-export const SUMMARY_ANCHOR = '<!-- pi-code-review-summary -->';
-export const CONFIDENCE_FLOOR = 0.55;
-export const DEFAULT_BATCH_SIZE = 50;
-export const REVIEW_CONFIG_PATH = '.pi-review/config.json';
-export const SEVERITIES = ['critical', 'high', 'medium', 'low'] as const;
-export const CATEGORIES = [
-  'bug',
-  'security',
-  'performance',
-  'maintainability',
-  'test',
-  'style',
-  'documentation',
-  'other',
-] as const;
-
-export const REVIEW_BODY_DONE = `${FINDING_MARKER}\nReview posted; see summary comment.`;

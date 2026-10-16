@@ -5,13 +5,6 @@ const OctokitWithRetry = Octokit.plugin(retry);
 
 export type GitHubOctokit = InstanceType<typeof OctokitWithRetry>;
 
-/** HTTP status of a failed request, or 0 for a network/unknown error. */
-export function httpStatus(err: unknown): number {
-  return typeof err === 'object' && err !== null && 'status' in err && typeof err.status === 'number'
-    ? err.status
-    : 0;
-}
-
 /** Methods safe to replay; every other method is pinned to zero retries. */
 const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD']);
 

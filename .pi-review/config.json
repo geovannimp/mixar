@@ -1,22 +1,4 @@
 {
-  "exclude": [
-    "**/Cargo.lock",
-    "**/pubspec.lock",
-    "**/package-lock.json",
-    "**/*.g.dart",
-    "**/*.freezed.dart",
-    "apps/gui-flutter/lib/src/rust/frb_generated*.dart",
-    "crates/host-flutter/src/frb_generated.rs",
-    ".agents/skills/**",
-    "apps/gui-flutter/build/**",
-    "apps/gui-flutter/.dart_tool/**",
-    "**/target/**",
-    "**/node_modules/**",
-    "**/*.png",
-    "**/*.wav",
-    "**/*.mp3",
-    "**/*.onnx"
-  ],
   "rules": [
     {
       "path": "crates/engine-core/**/*.rs",
