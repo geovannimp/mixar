@@ -52,29 +52,15 @@ const decoded = jwt.verify(token, publicKey, {
 **The #1 rule**: Always use parameterized queries. Never concatenate user input into SQL strings.
 
 Every major language and framework has a parameterized query mechanism:
-- Python: `cursor.execute("SELECT ...", params)` / ORM filter methods
-- Java: `PreparedStatement` / JPA `@Query` with `@Param`
-- Go: `db.Query("SELECT ...", args...)`
 - Node.js: `client.query("SELECT ...", [args])` / Prisma ORM
-- PHP: PDO prepared statements / Laravel Eloquent
-- C#: ADO.NET `SqlParameter` / Dapper / EF Core LINQ
 
 > **See [SQL Injection Prevention Guide](cross-cutting/sql-injection-prevention.md) for complete cross-language examples, ORM unsafe patterns, dynamic identifier handling, and detection tools.**
 
 ### XSS Prevention
 
-**The #1 rule**: Rely on framework auto-escaping. Audit every escape hatch.
-
-Every major framework auto-escapes by default:
-- React: JSX auto-escapes. Audit `dangerouslySetInnerHTML`.
-- Vue: `{{ }}` auto-escapes. Audit `v-html`.
-- Angular: Interpolation auto-escapes. Audit `bypassSecurityTrustHtml`.
-- Svelte: `{ }` auto-escapes. Audit `{@html}`.
-- Django: Templates auto-escape. Audit `mark_safe`.
+**The #1 rule**: Rely on your framework's auto-escaping, and audit every escape hatch it offers.
 
 For defense-in-depth, configure Content Security Policy (CSP) with nonce-based `script-src`.
-
-> **See XSS Prevention Guide for complete cross-framework examples, CSP configuration, input validation vs output encoding, and detection tools.**
 
 ### CSRF Prevention
 
@@ -98,41 +84,6 @@ app.post('/api/data', (req, res) => {
 });
 ```
 
-**Python (Django)**
-```python
-# ✅ Django: built-in CSRF protection
-# settings.py
-MIDDLEWARE = [
-    'django.middleware.csrf.CsrfViewMiddleware',  # enabled by default
-]
-
-# templates: include CSRF token
-# <form method="post">
-#   {% csrf_token %}
-# </form>
-
-# ❌ Disabling CSRF on a view
-@csrf_exempt  # do not use unless absolutely necessary
-def my_view(request):
-    ...
-```
-
-**Java (Spring Boot)**
-```java
-// ✅ Spring Security: CSRF enabled by default
-@Configuration
-@EnableWebSecurity
-public class SecurityConfig {
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) {
-        http.csrf(csrf -> csrf
-            .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-        );
-        return http.build();
-    }
-}
-```
-
 **SameSite Cookie**
 ```typescript
 // ✅ Set SameSite cookie as additional defense
@@ -145,24 +96,6 @@ res.cookie('session', sessionId, {
 ```
 
 ### SSRF Prevention
-
-```python
-# ❌ Vulnerable: user-controlled URL
-import requests
-url = request.GET.get('url')
-response = requests.get(url)
-
-# ✅ Validate URL against whitelist
-ALLOWED_HOSTS = ['api.example.com', 'cdn.example.com']
-
-def is_safe_url(url: str) -> bool:
-    from urllib.parse import urlparse
-    parsed = urlparse(url)
-    return parsed.hostname in ALLOWED_HOSTS
-
-if is_safe_url(url):
-    response = requests.get(url)
-```
 
 ```typescript
 // ❌ Vulnerable: fetching arbitrary URLs
@@ -189,42 +122,7 @@ function isSafeUrl(url: string): boolean {
 }
 ```
 
-```go
-// ✅ Go: validate URL before making requests
-import "net/url"
-
-func isSafeURL(rawURL string) bool {
-    u, err := url.Parse(rawURL)
-    if err != nil {
-        return false
-    }
-    // Block internal IPs
-    if u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" {
-        return false
-    }
-    // Only allow HTTPS
-    if u.Scheme != "https" {
-        return false
-    }
-    return true
-}
-```
-
 ### IDOR (Insecure Direct Object Reference)
-
-```python
-# ❌ Vulnerable: no ownership check
-def get_order(request, order_id):
-    order = Order.objects.get(id=order_id)  # any user can view any order
-    return JsonResponse(order.to_dict())
-
-# ✅ Check ownership before returning
-def get_order(request, order_id):
-    order = Order.objects.filter(id=order_id, user=request.user).first()
-    if not order:
-        return JsonResponse({'error': 'Not found'}, status=404)
-    return JsonResponse(order.to_dict())
-```
 
 ```typescript
 // ❌ Vulnerable: no authorization check
@@ -248,15 +146,6 @@ app.get('/api/orders/:id', async (req, res) => {
 });
 ```
 
-```java
-// ✅ Spring Security: method-level authorization
-@GetMapping("/api/orders/{id}")
-@PreAuthorize("@orderService.isOwner(#id, authentication.principal.id)")
-public Order getOrder(@PathVariable Long id) {
-    return orderService.findById(id);
-}
-```
-
 **UUID vs auto-increment ID**
 ```typescript
 // ❌ auto-increment IDs are enumerable
@@ -270,20 +159,6 @@ public Order getOrder(@PathVariable Long id) {
 ```
 
 ### Command Injection Prevention
-
-**Python**
-```python
-# ❌ Vulnerable: shell=True
-import subprocess
-subprocess.run(f"convert {filename} output.png", shell=True)
-
-# ✅ Use list arguments without shell
-subprocess.run(['convert', filename, 'output.png'], check=True)
-
-# ✅ Validate and sanitize input
-import shlex
-safe_filename = shlex.quote(filename)
-```
 
 **Node.js**
 ```typescript
@@ -303,34 +178,6 @@ exec(`echo ${userInput}`);  // userInput = "; rm -rf /"
 // ✅ Sanitize or use non-shell alternatives
 import { writeFile } from 'node:fs/promises';
 await writeFile('output.txt', userInput);  // No shell involved
-```
-
-**Go**
-```go
-// ❌ Vulnerable: shell command with user input
-cmd := exec.Command("sh", "-c", "echo " + userInput)
-
-// ✅ Use exec.Command with separate arguments
-cmd := exec.Command("echo", userInput)
-
-// ❌ Passing user input to shell
-out, _ := exec.Command("bash", "-c", "cat "+filename).Output()
-
-// ✅ Read file directly without shell
-data, err := os.ReadFile(filename)
-```
-
-**Java**
-```java
-// ❌ Vulnerable: Runtime.exec with string concatenation
-Runtime.getRuntime().exec("convert " + filename + " output.png");
-
-// ✅ Use ProcessBuilder with separate arguments
-ProcessBuilder pb = new ProcessBuilder("convert", filename, "output.png");
-Process process = pb.start();
-
-// ❌ Dangerous: passing user input to shell
-Runtime.getRuntime().exec(new String[]{"sh", "-c", "echo " + userInput});
 ```
 
 ## Data Protection
@@ -450,20 +297,13 @@ const hash = await bcrypt.hash(password, 12);
 - [ ] License compliance verified
 
 ### Audit Commands
-```bash
-# Node.js
-npm audit
-npm audit fix
 
-# Python
-pip-audit
-safety check
+```bash
+# Node
+npm audit
 
 # Rust
 cargo audit
-
-# General
-snyk test
 ```
 
 ## Logging & Monitoring

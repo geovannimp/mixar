@@ -119,8 +119,6 @@ class CartBadge extends StatelessWidget {
 - `ListView(children: [...])` builds every child. Prefer `ListView.builder` / `SliverList` for long lists.
 - Passing a newly allocated `List`/`Map` or a new callback instance into a child that is otherwise `const`-eligible defeats child skip. Capture stable callbacks (`void Function()` stored on State) or use `Widget.canUpdate` identity via `const` / extracted widgets.
 
-For general UI performance patterns see Performance Review Guide.
-
 ---
 
 ## Null Safety & `late`
@@ -666,5 +664,4 @@ Review questions:
 - [Key class](https://api.flutter.dev/flutter/foundation/Key-class.html)
 - [Error Handling Guide](cross-cutting/error-handling-principles.md)
 - [Async & Concurrency Guide](cross-cutting/async-concurrency-patterns.md)
-- Performance Review Guide
 - [Security Review Guide](security-review-guide.md)

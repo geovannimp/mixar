@@ -58,20 +58,6 @@ throw new PaymentTimeoutException(gatewayName, timeoutMs)
 
 Validate preconditions before starting an operation and fail as early as possible. This avoids inconsistent state caused by discovering an error only after partial execution.
 
-```
-// ❌ Invalid arguments discovered halfway through execution
-def process(data, config):
-    result = expensive_computation(data)  # already spent 5 seconds
-    if not config.valid:
-        raise ValueError("invalid config")  # 5 seconds wasted
-
-// ✅ Validate first
-def process(data, config):
-    if not config.valid:
-        raise ValueError("invalid config")
-    result = expensive_computation(data)
-```
-
 ### Principle 5: Handle Each Error Only Once
 
 Do not handle the same error at every layer (logging AND returning AND wrapping). Choose one approach and let the caller decide how to handle it.
@@ -91,119 +77,35 @@ if err:
 
 ## Anti-patterns
 
-### Anti-pattern 1: Empty catch Block
+### Anti-pattern 1: Swallowing an error
 
-```python
-# ❌ Python: an empty except swallows all exceptions (including KeyboardInterrupt)
-try:
-    result = risky()
-except:
-    pass
+The same mistake shows up as an empty `catch`/`except` block, or as an error that is
+captured and then never used: the failure disappears and the caller cannot react.
 
-# ❌ Java: an empty catch swallows the exception
-try {
-    result = risky();
-} catch (Exception e) {
-    // do nothing
-}
-
-# ❌ Go: ignoring error
-result, _ := risky()
-
-# ❌ Rust: unwrap() in production code
+```rust
+// ❌ Rust: unwrap() in production code
 let result = risky().unwrap();  // panic on error
 ```
 
-### Anti-pattern 2: Overly Broad catch
+### Anti-pattern 2: Overly broad catch
 
-```python
-# ❌ Catching all exceptions, cannot distinguish failure types
-try:
-    result = risky()
-except Exception as e:
-    logger.error(f"failed: {e}")
+The handler catches every failure type, so the kinds can no longer be distinguished or
+handled differently. Catch only what you can actually handle.
 
-# ✅ Catching specific exceptions
-try:
-    result = risky()
-except ConnectionError as e:
-    logger.warning(f"network issue, retrying: {e}")
-    result = retry(risky)
-except ValueError as e:
-    logger.error(f"bad input: {e}")
-    raise
-```
+### Anti-pattern 3: Losing the original exception
 
-### Anti-pattern 3: Losing the Original Exception
+A new error is raised without chaining the cause, discarding the original stack trace and
+its information. Attach the original error as the cause.
 
-```python
-# ❌ Lost the original exception's stack and information
-try:
-    result = external_api.call()
-except APIError as e:
-    raise RuntimeError("API failed")  # lost the cause
+### Anti-pattern 4: Using exceptions for flow control
 
-# ✅ Preserve the exception chain
-try:
-    result = external_api.call()
-except APIError as e:
-    raise RuntimeError("API failed") from e
-```
+Ordinary control flow expressed as a raised error, or a panic/abort on input the caller
+could have handled. It is slow, unclear, and hard to reason about.
 
-```java
-// ❌ Losing the original exception
-catch (IOException e) {
-    throw new ServiceException("IO failed");
-}
+### Anti-pattern 5: Ignoring return values
 
-// ✅ Preserving the cause
-catch (IOException e) {
-    throw new ServiceException("IO failed", e);
-}
-```
-
-### Anti-pattern 4: Using Exceptions for Flow Control
-
-```python
-# ❌ Using exceptions for normal flow control (slow and unclear)
-try:
-    user = users[name]
-except KeyError:
-    user = create_default_user(name)
-
-# ✅ Explicit check
-user = users.get(name) or create_default_user(name)
-```
-
-```go
-// ❌ Go: using panic for flow control
-func getUser(id int) User {
-    if id <= 0 {
-        panic("invalid id")
-    }
-}
-
-// ✅ Go: return error
-func getUser(id int) (User, error) {
-    if id <= 0 {
-        return User{}, fmt.Errorf("invalid user id: %d", id)
-    }
-}
-```
-
-### Anti-pattern 5: Ignoring Return Values
-
-```csharp
-// ❌ Ignoring the returned bool/Result
-dict.TryGetValue("key", out var value);
-// value may be the default, but the code continues as if it succeeded
-
-// ✅ Check the return value
-if (!dict.TryGetValue("key", out var value))
-{
-    throw new KeyNotFoundException("key not found");
-}
-```
+An error or status value the API returns is discarded and execution continues as if it
+had succeeded.
 
 ---
 
@@ -232,45 +134,6 @@ if (!dict.TryGetValue("key", out var value))
 1. **Module-level errors inherit from an application-level base class**, which makes global catching easier
 2. **Infrastructure errors are converted to module-level errors at module boundaries**, and are not exposed to upper layers
 3. **Each error type contains enough context** for debugging (ID, timestamp, operation name)
-
-### Example Hierarchy (Python)
-
-```python
-class AppError(Exception):
-    """Application base exception"""
-    pass
-
-class PaymentError(AppError):
-    """Payment module error"""
-    def __init__(self, order_id: str, reason: str):
-        self.order_id = order_id
-        super().__init__(f"payment failed for order {order_id}: {reason}")
-
-class PaymentGatewayTimeout(PaymentError):
-    """Payment gateway timeout"""
-    def __init__(self, order_id: str, gateway: str, timeout_ms: int):
-        self.gateway = gateway
-        self.timeout_ms = timeout_ms
-        super().__init__(order_id, f"gateway {gateway} timed out after {timeout_ms}ms")
-```
-
-### Example Hierarchy (Java)
-
-```java
-public class AppException extends RuntimeException {
-    private final String errorCode;
-    public AppException(String errorCode, String message, Throwable cause) {
-        super(message, cause);
-        this.errorCode = errorCode;
-    }
-}
-
-public class OrderNotFoundException extends AppException {
-    public OrderNotFoundException(Long orderId) {
-        super("ORDER_NOT_FOUND", "Order " + orderId + " not found", null);
-    }
-}
-```
 
 ---
 
@@ -311,51 +174,6 @@ log.error("payment_failed", {
 
 ## Cross-Language Code Examples
 
-### Python
-
-```python
-# ✅ Specific exceptions + context + exception chain
-try:
-    response = http_client.post(url, data=payload)
-    response.raise_for_status()
-except requests.ConnectionError as e:
-    raise PaymentGatewayError(f"cannot reach {gateway_name}") from e
-except requests.HTTPError as e:
-    if response.status_code == 429:
-        raise RateLimitError(f"rate limited by {gateway_name}") from e
-    raise PaymentGatewayError(f"HTTP {response.status_code} from {gateway_name}") from e
-```
-
-### Java
-
-```java
-// ✅ Specific exceptions + context + cause chain
-try {
-    var response = httpClient.send(request, BodyHandlers.ofString());
-    if (response.statusCode() == 404) {
-        throw new OrderNotFoundException(orderId);
-    }
-} catch (IOException e) {
-    throw new PaymentGatewayException(
-        "gateway unreachable: " + gatewayUrl, e);
-}
-```
-
-### Go
-
-```go
-// ✅ Error wrapping + context + %w preserving the chain
-result, err := client.Do(req)
-if err != nil {
-    return fmt.Errorf("payment gateway %s request failed: %w", gatewayName, err)
-}
-defer result.Body.Close()
-
-if result.StatusCode == http.StatusNotFound {
-    return fmt.Errorf("order %d not found: %w", orderID, ErrNotFound)
-}
-```
-
 ### Rust
 
 ```rust
@@ -381,48 +199,6 @@ async fn process_payment(gateway: &str, order_id: u64) -> Result<(), PaymentErro
             source: e,
         })?;
     Ok(())
-}
-```
-
-### C#
-
-```csharp
-// ✅ Specific exceptions + context
-try
-{
-    var response = await httpClient.PostAsync(url, content);
-    response.EnsureSuccessStatusCode();
-}
-catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-{
-    throw new OrderNotFoundException(orderId, ex);
-}
-catch (HttpRequestException ex)
-{
-    throw new PaymentGatewayException($"gateway unreachable: {url}", ex);
-}
-```
-
-### Swift
-
-```swift
-// ✅ Error enum + context
-enum PaymentError: Error {
-    case gatewayUnreachable(name: String, underlying: Error)
-    case orderNotFound(id: Int)
-    case declined(reason: String)
-}
-
-func processPayment(orderId: Int) throws -> Receipt {
-    guard orderId > 0 else {
-        throw PaymentError.orderNotFound(id: orderId)
-    }
-    do {
-        let response = try networkClient.post(url, body: payload)
-        return try Receipt(from: response)
-    } catch let error as NetworkError {
-        throw PaymentError.gatewayUnreachable(name: gateway, underlying: error)
-    }
 }
 ```
 
@@ -470,7 +246,7 @@ async function processPayment(orderId: string): Promise<Receipt> {
 - [ ] No empty catch blocks or silently ignored errors
 - [ ] Error messages include an operation description and key parameters
 - [ ] Specific error types are used (not generic Error/Exception)
-- [ ] Exception chain preserved (from / cause / %w)
+- [ ] Exception chain preserved (cause chain)
 - [ ] Preconditions are validated before the operation starts (fail fast)
 
 ### Architecture Checks
@@ -484,9 +260,4 @@ async function processPayment(orderId: string): Promise<Receipt> {
 - [ ] Log levels are used correctly (ERROR vs WARN vs INFO)
 
 ### Language-Specific
-- [ ] Go: errors are not ignored, wrapped with `%w`
-- [ ] Python: catch specific exceptions, preserve the chain with `from`
-- [ ] Java: exceptions have a cause, specific types are used
 - [ ] Rust: propagate with `?`, custom Error types
-- [ ] C#: when filters, specific exception types
-- [ ] Swift: do-catch, Result for deferred handling
