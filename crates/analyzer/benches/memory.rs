@@ -65,7 +65,7 @@ fn scenario(name: &str, mut run: impl FnMut() -> anyhow::Result<()>) {
     let after = peak_rss_kib();
     println!(
         "{name:<44} VmHWM before {before:>9} KiB   after {after:>9} KiB   delta {:>9} KiB",
-        after as i64 - before as i64
+        after - before
     );
 }
 

@@ -216,6 +216,34 @@ mod tests {
         assert!((mono[1] - 0.5).abs() < f32::EPSILON);
     }
 
+    /// The chunked decode must keep frame alignment for every channel count the
+    /// decoder can hand us, not just stereo: `chunks_exact` in the read loop and
+    /// the decoder's own `pending` buffer both handle a partial trailing frame,
+    /// and a mis-step there would shift the channel phase of every later frame
+    /// and corrupt the downmix. Compared against the whole-buffer oracle, which
+    /// reads through 4096-sample requests — themselves not frame-aligned for
+    /// odd channel counts.
+    #[test]
+    fn chunked_decode_keeps_frame_alignment_for_every_channel_count() {
+        for channels in [1u16, 2, 3, 5, 8] {
+            let frames = DECODE_CHUNK_FRAMES as u32 * 2 + 7;
+            let dir = tempfile::tempdir().unwrap();
+            let wav = dir.path().join("mc.wav");
+            write_multichannel_wav(&wav, frames, channels);
+
+            let decoded = decode_mono(&wav, &AnalysisConfig::default()).unwrap();
+            assert_eq!(decoded.sample_rate, 44100);
+
+            let mut decoder = codec::AudioDecoder::from_file(&wav).unwrap();
+            let expected = downmix_to_mono(&decoder.load_entire_file().unwrap(), channels as usize);
+
+            assert_eq!(
+                decoded.samples, expected,
+                "channels={channels}: chunked decode diverged from the whole-buffer oracle"
+            );
+        }
+    }
+
     /// The averaging must be over every channel, for every channel count the
     /// decoder can hand us — not just the stereo path.
     #[test]

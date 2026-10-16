@@ -76,7 +76,7 @@ pub struct Probed {
 }
 
 /// Decode `path` under `config` and report what was decoded, memoized for the
-/// process.
+/// process — or `None` when the scenario cannot run.
 ///
 /// Every throughput denominator and benchmark id is derived from a probe decode
 /// of the fixture. The same (fixture, config) pair can be probed by more than
@@ -84,13 +84,20 @@ pub struct Probed {
 /// paid once per process instead of once per target. The probe runs before the
 /// harness starts timing, so it is setup work, not measured work.
 ///
+/// `None` means either the fixture is missing or it exists and will not decode,
+/// matching [`fixture`] and `decode_pcm_fixture`: nothing was measured, so the
+/// scenario is skipped rather than aborting the group. A fixture that decodes to
+/// a different rate or length than the id and denominator claim is a separate
+/// case and still fails loudly, because there the report *would* describe work
+/// that did not happen.
+///
 /// The cache key is the duration cap because that is the only field of
 /// `AnalysisConfig` that `decode_mono` reads. If decoding ever starts reading
 /// another field, the key has to grow to cover it; until then the `assert!`
 /// below enforces the assumption that a probe is only ever keyed on the cap, so
 /// a non-default field reaching this function is a loud failure rather than a
 /// silently reused answer for the wrong config.
-pub fn probe(path: &Path, config: &AnalysisConfig) -> Probed {
+pub fn probe(path: &Path, config: &AnalysisConfig) -> Option<Probed> {
     let cap_only = AnalysisConfig {
         max_duration_ms: config.max_duration_ms,
         ..AnalysisConfig::default()
@@ -105,10 +112,18 @@ pub fn probe(path: &Path, config: &AnalysisConfig) -> Probed {
         .expect("probe cache is never poisoned")
         .get(&key)
     {
-        return *hit;
+        return Some(*hit);
     }
-    let decoded = decode_mono(path, config)
-        .unwrap_or_else(|error| panic!("fixture {} must decode: {error}", path.display()));
+    let decoded = match decode_mono(path, config) {
+        Ok(decoded) => decoded,
+        Err(error) => {
+            println!(
+                "skipping bench: {} could not be decoded: {error}",
+                path.display()
+            );
+            return None;
+        }
+    };
     let probed = Probed {
         sample_rate: decoded.sample_rate,
         frames: decoded.samples.len() as u64,
@@ -117,7 +132,7 @@ pub fn probe(path: &Path, config: &AnalysisConfig) -> Probed {
         .lock()
         .expect("probe cache is never poisoned")
         .insert(key, probed);
-    probed
+    Some(probed)
 }
 
 /// Probes keyed by (fixture, duration cap): the properties they establish —

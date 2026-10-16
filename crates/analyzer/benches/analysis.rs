@@ -71,7 +71,9 @@ fn decode_mono_bench(c: &mut Criterion) {
         let config = config_for(max_ms);
         // Probe with the scenario's own config: the decoded frame count is the
         // work one iteration performs, and the fixture's rate names the id.
-        let probed = probe(&path, &config);
+        let Some(probed) = probe(&path, &config) else {
+            continue;
+        };
         let rate_khz = f64::from(probed.sample_rate) / 1000.0;
         group.throughput(Throughput::Elements(probed.frames));
         group.bench_function(format!("{label}_{rate_khz:.1}k"), |b| {
@@ -94,7 +96,9 @@ fn analyze_file_bench(c: &mut Criterion) {
         let config = config_for(max_ms);
         // The probe's frame count is the decode half of the measured work, so it
         // is the honest denominator for the combined analysis run.
-        let probed = probe(&master, &config);
+        let Some(probed) = probe(&master, &config) else {
+            continue;
+        };
         let rate_khz = f64::from(probed.sample_rate) / 1000.0;
         group.throughput(Throughput::Elements(probed.frames));
         group.bench_function(format!("{label}_{rate_khz:.1}k"), |b| {

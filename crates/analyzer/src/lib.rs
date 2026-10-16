@@ -25,11 +25,13 @@ fn default_analyzer() -> &'static QmdspAnalyzer {
 
 /// Analyze already-decoded mono PCM, normalizing it to ±1.0 first.
 ///
-/// Runs the default backend. The [`AudioAnalyzer`] trait is re-exported, so a
-/// caller with a backend of its own invokes that backend's `analyze_pcm`
-/// directly on the buffer, applying the peak-normalization policy in
-/// `docs/audio-analyzer-spec.md` §7 first — this facade offers no entry point
-/// that takes a backend.
+/// Runs the default backend. `analyze_pcm_with` / `analyze_file_with`, which took
+/// a caller-supplied [`AudioAnalyzer`], were removed in this crate: there is no
+/// entry point that accepts a backend, so a custom-backend caller invokes that
+/// backend's `analyze_pcm` directly on the buffer (the trait is re-exported for
+/// exactly that) and applies the peak-normalization policy in
+/// `docs/audio-analyzer-spec.md` §7 itself — the facade's loudness measurement
+/// and grid snapping are not available to it.
 pub fn analyze_pcm(
     samples: &[f32],
     sample_rate: u32,

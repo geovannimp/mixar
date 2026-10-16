@@ -40,11 +40,14 @@ pub(crate) fn prepare_owned(decoded: DecodedMono) -> PreparedPcm<'static> {
 
 /// Prepare PCM the caller only borrowed.
 ///
-/// Applies the same policy as [`prepare_owned`]. The copy is avoided when the
-/// peak already fits `±1.0`, which is the common case for PCM a caller has
-/// already normalized or decoded in range. When it does not, the buffer is
-/// scanned twice — once for the peak, once to collect the scaled copy — rather
-/// than three times (copy, scan, scale) as before.
+/// Applies the same policy as [`prepare_owned`], but not the same memory profile:
+/// `prepare_owned` rescales in place because it owns the decoder's buffer, while
+/// `prepare` must copy — a borrowed buffer can only be scaled into a new
+/// allocation. The copy is avoided when the peak already fits `±1.0`, which is
+/// the common case for PCM a caller has already normalized or decoded in range.
+/// When it does not, the buffer is scanned twice — once for the peak, once to
+/// collect the scaled copy — rather than three times (copy, scan, scale) as
+/// before.
 pub(crate) fn prepare<'a>(
     samples: &'a [f32],
     sample_rate: u32,
