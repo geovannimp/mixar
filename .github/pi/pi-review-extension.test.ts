@@ -38,6 +38,10 @@ test('glob: ** crosses directories and **/ also matches root-level files', () =>
   assert.ok(!matchesGlob('crates/stretch/x.rs', 'crates/{codec,resampler}/**/*.rs'));
 });
 
+test('glob: unterminated brace throws a descriptive error', () => {
+  assert.throws(() => matchesGlob('src/a.ts', 'src/{a,b'), /unterminated '\{' in glob pattern: src\/\{a,b/);
+});
+
 test('glob: * and ? do not cross directory separators', () => {
   assert.ok(!matchesGlob('a/b/c.ts', 'a/*.ts'));
   assert.ok(matchesGlob('a/x.ts', 'a/?.ts'));

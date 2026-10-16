@@ -119,6 +119,7 @@ export function globToRegExp(pattern: string): RegExp {
       re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
     }
   }
+  if (braceDepth > 0) throw new Error(`unterminated '{' in glob pattern: ${pattern}`);
   return new RegExp(`^${re}$`);
 }
 
