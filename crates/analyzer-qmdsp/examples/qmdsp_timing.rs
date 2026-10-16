@@ -32,23 +32,35 @@ const REPS: usize = 5;
 fn corpus(secs: f64) -> Vec<f32> {
     let n = (f64::from(SR) * secs) as usize;
     let beat = 60.0 / 128.0;
-    let mut y = vec![0.0f32; n];
-    for (i, slot) in y.iter_mut().enumerate() {
-        let t = i as f64 / f64::from(SR);
-        let env = (-18.0 * (t / beat).fract()).exp();
-        let kick = (2.0 * std::f64::consts::PI * 62.0 * t).sin() * env * 0.6;
-        let hat = (2.0 * std::f64::consts::PI * 3000.0 * t).sin()
-            * (-60.0 * ((t % 0.1) / 0.1)).exp()
-            * 0.3;
-        let chord = 0.25 * (2.0 * std::f64::consts::PI * 261.63 * t).sin()
-            + 0.20 * (2.0 * std::f64::consts::PI * 329.63 * t).sin()
-            + 0.15 * (2.0 * std::f64::consts::PI * 392.0 * t).sin();
-        let lush = 0.5 + 0.5 * (2.0 * std::f64::consts::PI * t / 8.0).sin();
-        *slot = (kick + hat + chord * lush).clamp(-1.0, 1.0) as f32;
-    }
-    y
+    // Collected directly: a `vec![0.0; n]` plus a fill pass would zero 42 MiB and
+    // then overwrite every element of it, and would count against the peak this
+    // harness reports for the first row.
+    (0..n)
+        .map(|i| {
+            let t = i as f64 / f64::from(SR);
+            let env = (-18.0 * (t / beat).fract()).exp();
+            let kick = (2.0 * std::f64::consts::PI * 62.0 * t).sin() * env * 0.6;
+            let hat = (2.0 * std::f64::consts::PI * 3000.0 * t).sin()
+                * (-60.0 * ((t % 0.1) / 0.1)).exp()
+                * 0.3;
+            let chord = 0.25 * (2.0 * std::f64::consts::PI * 261.63 * t).sin()
+                + 0.20 * (2.0 * std::f64::consts::PI * 329.63 * t).sin()
+                + 0.15 * (2.0 * std::f64::consts::PI * 392.0 * t).sin();
+            let lush = 0.5 + 0.5 * (2.0 * std::f64::consts::PI * t / 8.0).sin();
+            (kick + hat + chord * lush).clamp(-1.0, 1.0) as f32
+        })
+        .collect()
 }
 
+/// Process peak resident set size, from `VmHWM` in `/proc/self/status`.
+///
+/// This is a high-water mark for the whole process: it never decreases, so a row
+/// that runs after a memory-hungry one reports that earlier peak rather than its
+/// own. `bench` therefore also reports `vmhwm_delta_kb` — how much *new* peak the
+/// row itself contributed, i.e. `VmHWM` now minus what it already was before the
+/// row started. The delta is the per-row figure; `peak_vmhwm_kb` is the running
+/// process maximum and is self-attributing only for the first row to set a new
+/// high.
 fn vmhwm_kb() -> Option<u64> {
     let status = std::fs::read_to_string("/proc/self/status").ok()?;
     let line = status.lines().find(|l| l.starts_with("VmHWM:"))?;
@@ -59,6 +71,7 @@ fn bench<T>(name: &str, warmup: usize, reps: usize, mut f: impl FnMut() -> T) ->
     for _ in 0..warmup {
         black_box(f());
     }
+    let before = vmhwm_kb().unwrap_or(0);
     let mut times = Vec::with_capacity(reps);
     let mut last = None;
     for _ in 0..reps {
@@ -69,7 +82,11 @@ fn bench<T>(name: &str, warmup: usize, reps: usize, mut f: impl FnMut() -> T) ->
     let min = times.iter().copied().fold(f64::INFINITY, f64::min);
     let mean = times.iter().sum::<f64>() / reps as f64;
     let peak = vmhwm_kb().unwrap_or(0);
-    println!("row {name} min_ms={min:.3} mean_ms={mean:.3} reps={reps} peak_vmhwm_kb={peak}");
+    let delta = peak.saturating_sub(before);
+    println!(
+        "row {name} min_ms={min:.3} mean_ms={mean:.3} reps={reps} \
+         peak_vmhwm_kb={peak} vmhwm_delta_kb={delta}"
+    );
     last.expect("at least one rep")
 }
 
@@ -132,6 +149,11 @@ fn main() {
             "--secs" => {
                 if let Some(v) = args.next() {
                     secs = v.parse().expect("--secs takes a number");
+                    assert!(
+                        secs > 0.0,
+                        "--secs must be positive, got {secs} (a zero-length corpus\n\
+                         cannot be analyzed: `analyze_pcm` rejects an empty buffer)"
+                    );
                 }
             }
             "--dump" => dump = args.next(),

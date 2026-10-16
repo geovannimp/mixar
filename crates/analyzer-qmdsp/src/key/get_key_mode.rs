@@ -121,8 +121,10 @@ impl GetKeyMode {
         let block = self.block_size();
         let preroll = block / 2;
         // One window per `block` accumulated, plus the one `finalize` always
-        // emits on top of them.
-        (preroll + track_len) / block * block + block
+        // emits on top of them. Saturating so a length past `usize::MAX - preroll`
+        // (unreachable from a real slice) wraps to a huge value rather than a tiny
+        // one that would under-size every downstream buffer.
+        (preroll.saturating_add(track_len)) / block * block + block
     }
 
     /// Process one block of `chroma_frame_size` decimated samples; returns the

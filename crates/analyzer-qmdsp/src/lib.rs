@@ -149,7 +149,11 @@ impl AudioAnalyzer for QmdspAnalyzer {
         let need_downbeats = config.targets.beat_grid && beats.len() >= 2;
         let dec8 = if need_key || need_downbeats {
             // The pre-roll is only in the stream when the key path needs it; the
-            // downbeat slices it straight back off.
+            // downbeat slices it straight back off. `vec![0.0; …]` zero-fills the
+            // whole buffer and `process` writes exactly `buf.len() / 8` samples
+            // into `out[preroll..]`, so `out[..preroll]` is the pre-roll by
+            // construction and the slice below is inside what `process` produced
+            // plus that intended prefix.
             let preroll = key_mode.as_ref().map_or(0, |m| m.frame_size() / 2);
             let mut dec =
                 key::decimator::Decimator::new(key::decimator::Decimation::By8, buf.len());
@@ -432,6 +436,51 @@ mod tests {
             }
             let _ = &mode;
         }
+    }
+
+    /// The `analyze_full` configuration takes a different decimated stream than
+    /// the `beat_grid`-only one: with the key target on, `analyze_pcm` extends
+    /// the track with the finalize silence and the stream carries a zero
+    /// pre-roll, which the detector slices back off. The two must agree.
+    ///
+    /// The unpadded shape is already pinned bit-for-bit against the old
+    /// two-stage `decimate` by `x8_stream_matches_the_old_two_stage_decimate`
+    /// (which is the stream this path hands the downbeat detector), and the
+    /// decimator is causal with zero initial state, so the padded stream's first
+    /// `y_len / 8` samples equal that stream exactly.
+    #[test]
+    fn padded_and_unpadded_downbeat_paths_agree() {
+        use analyzer_core::{AnalysisConfig, AnalysisTargets, AudioAnalyzer};
+        // A length that is not a multiple of the 32768-sample key block, so the
+        // finalize silence is non-empty and the tail is exercised.
+        let sr = 44100u32;
+        let n = sr as usize * 7 + 12345;
+        assert_ne!(n % 32768, 0);
+        let mut y = vec![0.0f32; n];
+        for (i, slot) in y.iter_mut().enumerate() {
+            let t = i as f64 / f64::from(sr);
+            *slot = ((t * 6.0).sin() * 0.5 + (t * 0.3).sin() * 0.3) as f32;
+        }
+        let a = QmdspAnalyzer::new();
+        let cfg = |key: bool| AnalysisConfig {
+            targets: AnalysisTargets {
+                bpm: true,
+                key,
+                beat_grid: true,
+            },
+            ..AnalysisConfig::default()
+        };
+        let grid_only = a
+            .analyze_pcm(&y, sr, &cfg(false))
+            .expect("beat grid only")
+            .beat_grid
+            .expect("beat grid");
+        let both = a.analyze_pcm(&y, sr, &cfg(true)).expect("both targets");
+        let both_grid = both.beat_grid.as_ref().expect("beat grid");
+
+        assert_eq!(grid_only.beats, both_grid.beats, "beats differ");
+        assert_eq!(grid_only.downbeats, both_grid.downbeats, "downbeats differ");
+        assert!(both_grid.downbeats.len() >= 2, "expected real downbeats");
     }
 
     #[test]

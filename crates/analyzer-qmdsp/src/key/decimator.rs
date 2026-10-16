@@ -56,8 +56,10 @@ pub enum Decimation {
 impl Decimation {
     /// Decimation factor of this stage.
     ///
-    /// Single source of truth for the factor: `GetKeyMode` derives its framing
-    /// geometry from `Decimation::By8` rather than restating the number.
+    /// The single source of truth for the enum's factors. `GetKeyMode` aliases
+    /// `Decimation::By8.factor()` as its `DECIMATION_FACTOR` for readability;
+    /// `geometry_derives_its_factor_from_the_stage_enum` pins the two together,
+    /// and the alias is a `const` initialiser so it cannot drift silently.
     pub const fn factor(self) -> usize {
         match self {
             Self::By2 => 2,
@@ -130,6 +132,12 @@ impl Decimator {
             self.o[6] = input * self.b[7] - out * self.a[7];
             // Keep the first `output_len` decimated samples; the rest of the
             // sweep still runs so the state carries.
+            //
+            // `i % self.factor` stays: a decrementing counter was measured and
+            // was *slower* (`sub_decimate8` 29.0 -> 35.6 ms, `analyze_key`
+            // 82.1 -> 88.8 ms, serial, 240 s corpus, `min_ms` over 5 reps).
+            // The loop is bound by the dependent recurrence chain on `o[0..7]`,
+            // not by the modulo, which LLVM already keeps off the critical path.
             if i % self.factor == 0 && written < self.output_len {
                 dst[written] = out;
                 written += 1;
