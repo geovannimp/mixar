@@ -36,10 +36,6 @@ pub struct GetKeyMode {
     min_corr: [f64; BINS_PER_OCTAVE],
     maj_profile_norm: [f64; BINS_PER_OCTAVE],
     min_profile_norm: [f64; BINS_PER_OCTAVE],
-    /// `||maj_profile_norm||^2` and `||min_profile_norm||^2`: the shift-invariant
-    /// half of the Krumhansl denominators, computed once.
-    maj_sum2: f64,
-    min_sum2: f64,
     median_win_size: usize,
     median_buffer: Vec<i32>,
     sorted_buffer: Vec<i32>,
@@ -77,8 +73,6 @@ impl GetKeyMode {
             maj_profile_norm[i] = MAJ_PROFILE[i] - maj_mean;
             min_profile_norm[i] = MIN_PROFILE[i] - min_mean;
         }
-        let maj_sum2: f64 = maj_profile_norm.iter().map(|&v| v * v).sum();
-        let min_sum2: f64 = min_profile_norm.iter().map(|&v| v * v).sum();
 
         Self {
             bpo: BINS_PER_OCTAVE,
@@ -93,8 +87,6 @@ impl GetKeyMode {
             min_corr: [0.0; BINS_PER_OCTAVE],
             maj_profile_norm,
             min_profile_norm,
-            maj_sum2,
-            min_sum2,
             median_win_size,
             median_buffer: vec![0; median_win_size],
             sorted_buffer: vec![0; median_win_size],
@@ -144,24 +136,9 @@ impl GetKeyMode {
             self.mean_hpcp[k] -= mhpcp;
         }
 
-        // `sqrt(||mean_hpcp||^2 * ||profile||^2)` does not depend on the shift,
-        // so the 72 correlations share one value per profile.
-        let sum1: f64 = self.mean_hpcp.iter().map(|&v| v * v).sum();
-        let maj_den = (sum1 * self.maj_sum2).sqrt();
-        let min_den = (sum1 * self.min_sum2).sqrt();
         for k in 0..self.bpo {
-            self.maj_corr[k] = krum_corr(
-                &self.mean_hpcp,
-                &self.maj_profile_norm,
-                k as i32 - 1,
-                maj_den,
-            );
-            self.min_corr[k] = krum_corr(
-                &self.mean_hpcp,
-                &self.min_profile_norm,
-                k as i32 - 1,
-                min_den,
-            );
+            self.maj_corr[k] = krum_corr(&self.mean_hpcp, &self.maj_profile_norm, k as i32 - 1);
+            self.min_corr[k] = krum_corr(&self.mean_hpcp, &self.min_profile_norm, k as i32 - 1);
         }
 
         let (max_maj_bin, max_maj) = get_max_index(&self.maj_corr);
@@ -202,16 +179,18 @@ impl GetKeyMode {
 
 /// qm-dsp `GetKeyMode::krumCorr` (circular cross-correlation of zero-mean
 /// vectors).
-///
-/// `den` is `sqrt(||data||^2 * ||profile||^2)`, invariant under the circular
-/// shift, so the caller hoists it out of the 36 shifts.
-fn krum_corr(data: &[f64], profile: &[f64], shift_profile: i32, den: f64) -> f64 {
+fn krum_corr(data: &[f64], profile: &[f64], shift_profile: i32) -> f64 {
     let len = data.len();
     let mut num = 0.0;
+    let mut sum1 = 0.0;
+    let mut sum2 = 0.0;
     for i in 0..len {
         let k = (i as i32 - shift_profile + len as i32).rem_euclid(len as i32) as usize;
         num += data[i] * profile[k];
+        sum1 += data[i] * data[i];
+        sum2 += profile[k] * profile[k];
     }
+    let den = (sum1 * sum2).sqrt();
     if den > 0.0 {
         num / den
     } else {
