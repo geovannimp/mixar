@@ -159,6 +159,13 @@ jobs:
             exit 1
           fi
 
+      # Extension deps (octokit, minimatch) resolve from this install. Runs on
+      # the trusted base checkout, never on PR-controlled code.
+      - name: Install extension dependencies
+        shell: bash
+        working-directory: .github/pi
+        run: npm ci --omit=dev
+
       - name: Pi review
         uses: shaftoe/pi-coding-agent-action@f7496a9aea9798c5d52d39096d98d5c5b16559b3 # v2.30.0
         env:

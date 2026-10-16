@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { minimatch } from 'minimatch';
+import { Octokit } from '@octokit/rest';
+import { graphql as gql } from '@octokit/graphql';
+import { retry } from '@octokit/plugin-retry';
 
 export const FINDING_MARKER = '<!-- pi-code-review -->';
 export const SUMMARY_ANCHOR = '<!-- pi-code-review-summary -->';
@@ -18,7 +22,6 @@ export const CATEGORIES = [
   'other',
 ] as const;
 
-const API = 'https://api.github.com';
 const REVIEW_BODY_DONE = `${FINDING_MARKER}\nReview posted; see summary comment.`;
 
 export type Severity = (typeof SEVERITIES)[number];
@@ -87,51 +90,17 @@ type Env = Record<string, string | undefined>;
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-/** Translate a glob (`**`, `**\/`, `*`, `?`, `{a,b}`) into an anchored RegExp. */
-export function globToRegExp(pattern: string): RegExp {
-  let re = '';
-  let braceDepth = 0;
-  for (let i = 0; i < pattern.length; i++) {
-    const c = pattern[i]!;
-    if (c === '*') {
-      if (pattern[i + 1] === '*') {
-        if (pattern[i + 2] === '/') {
-          re += '(?:.*/)?';
-          i += 2;
-        } else {
-          re += '.*';
-          i += 1;
-        }
-      } else {
-        re += '[^/]*';
-      }
-    } else if (c === '?') {
-      re += '[^/]';
-    } else if (c === '{') {
-      braceDepth++;
-      re += '(?:';
-    } else if (c === '}' && braceDepth > 0) {
-      braceDepth--;
-      re += ')';
-    } else if (c === ',' && braceDepth > 0) {
-      re += '|';
-    } else {
-      re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-    }
-  }
-  if (braceDepth > 0) throw new Error(`unterminated '{' in glob pattern: ${pattern}`);
-  return new RegExp(`^${re}$`);
-}
-
 /**
  * Dotfiles match wildcards. A pattern without `/` also matches the basename,
  * so `*.lock` matches `packages/app/yarn.lock`.
  */
 export function matchesGlob(filePath: string, pattern: string): boolean {
-  const re = globToRegExp(pattern);
-  if (re.test(filePath)) return true;
-  if (pattern.includes('/')) return false;
-  return re.test(filePath.slice(filePath.lastIndexOf('/') + 1));
+  if (minimatch(filePath, pattern, { dot: true, matchBase: true })) return true;
+  if (!pattern.includes('/')) {
+    const base = filePath.slice(filePath.lastIndexOf('/') + 1);
+    return minimatch(base, pattern, { dot: true });
+  }
+  return false;
 }
 
 const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
@@ -312,55 +281,35 @@ class GitHubHttpError extends Error {
   }
 }
 
+function toGitHubHttpError(err: unknown, method: string, path: string): GitHubHttpError {
+  const status =
+    typeof err === 'object' && err !== null && 'status' in err && typeof err.status === 'number'
+      ? err.status
+      : 0;
+  const detail = err instanceof Error ? err.message : String(err);
+  return new GitHubHttpError(status, `GitHub ${method} ${path} failed: ${detail}`);
+}
+
+const OctokitWithRetry = Octokit.plugin(retry);
+
 export function createGitHubClient(token: string): GitHubClient {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  };
+  // Retry plugin defaults: 3 retries for 5xx/429/network, none for 4xx
+  // (doNotRetry: 400,401,403,404,410,422,451). Do NOT set request.retries here —
+  // that value lands on every error and defeats doNotRetry.
+  const octokit = new OctokitWithRetry({ auth: token });
+  const graphqlWithAuth = gql.defaults({ headers: { authorization: `token ${token}` } });
 
-  async function send(url: string, init: { method: string; body?: unknown }): Promise<unknown> {
-    const MAX_RETRIES = 3;
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      let res: Response;
-      try {
-        res = await fetch(url, {
-          method: init.method,
-          headers: {
-            ...headers,
-            ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-          },
-          body: init.body === undefined ? undefined : JSON.stringify(init.body),
-        });
-      } catch (err) {
-        if (attempt < MAX_RETRIES) {
-          const delay = 2 ** attempt * 1000;
-          console.warn(`pi-review: network error, retrying in ${delay}ms: ${err instanceof Error ? err.message : String(err)}`);
-          await new Promise((r) => setTimeout(r, delay));
-          continue;
-        }
-        throw err;
-      }
-      if (res.status >= 500 && attempt < MAX_RETRIES) {
-        const delay = 2 ** attempt * 1000;
-        console.warn(`pi-review: ${res.status} from GitHub, retrying in ${delay}ms`);
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
-      }
-      const text = await res.text();
-      if (!res.ok) {
-        throw new GitHubHttpError(
-          res.status,
-          `GitHub ${init.method} ${url} failed: ${res.status} ${text}`,
-        );
-      }
-      return text ? (JSON.parse(text) as unknown) : null;
+  const gh = async <T = unknown>(method: string, path: string, body?: unknown): Promise<T> => {
+    try {
+      const res = await octokit.request(
+        `${method} ${path}`,
+        (body ?? {}) as Record<string, unknown>,
+      );
+      return res.data as T;
+    } catch (err) {
+      throw toGitHubHttpError(err, method, path);
     }
-    throw new Error('unreachable');
-  }
-
-  const gh = async <T = unknown>(method: string, path: string, body?: unknown): Promise<T> =>
-    (await send(`${API}${path}`, { method, body })) as T;
+  };
 
   /** Paginate a list endpoint with per_page=100 until a short page is returned. */
   const list = async <T>(path: string): Promise<T[]> => {
@@ -376,16 +325,8 @@ export function createGitHubClient(token: string): GitHubClient {
     return out;
   };
 
-  const graphql = async <T>(query: string, variables: Record<string, unknown>): Promise<T> => {
-    const json = (await send(`${API}/graphql`, {
-      method: 'POST',
-      body: { query, variables },
-    })) as { data?: T; errors?: Array<{ message: string }> };
-    if (json.errors?.length) {
-      throw new Error(`GitHub GraphQL failed: ${json.errors.map((e) => e.message).join('; ')}`);
-    }
-    return json.data as T;
-  };
+  const graphql = async <T>(query: string, variables: Record<string, unknown>): Promise<T> =>
+    graphqlWithAuth<T>(query, variables);
 
   return { gh, list, graphql };
 }
