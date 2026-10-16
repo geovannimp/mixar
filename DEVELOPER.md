@@ -145,6 +145,29 @@ panic = "abort"
 
 Root `npm` scripts / moon drive affected checks (see [`README.md`](README.md)). Rust gates typically include `cargo fmt -- --check`, `cargo clippy -- -D warnings`, and `cargo nextest run` (Rust tests run under [cargo-nextest](https://nexte.st/) — install once with `cargo install cargo-nextest --locked`; doctests are not run by nextest, use `cargo test --doc`). Prefer `backend = "null"` for headless runs. Optional `cargo bench` / criterion for DSP hot paths ([#245](https://github.com/geovannimp/mixar/issues/245)).
 
+### Flutter test selection
+
+`npm run test` always runs the whole Flutter suite, and CI does the same. For local
+iteration, `npm run test:affected` (task `gui-flutter:test-affected`,
+`apps/gui-flutter/scripts/test_impacted.dart`) runs only the suites that transitively
+import the changed files:
+
+- `.dart` under `lib/` or `test/` is resolved through the import graph, so a change to a
+  widely-reached module (e.g. `engine_providers.dart`) still runs every suite that reaches
+  it, and a change to `test/support/mixar_material_app.dart` runs every suite importing it.
+- `pubspec.yaml` / `pubspec.lock` are the **only** inputs that force the full suite.
+- `flutter_rust_bridge.yaml`, `rust_builder/**` and `crates/host-flutter/**` expand to the
+  regenerated `lib/src/rust/**` surface.
+- Everything else — platform glue, assets, other crates, docs, CI config — has no
+  Flutter-test impact, because the Dart suite never loads the Rust dylib (FRB opaque
+  transports are faked, see `test/support/`) and never loads assets.
+
+It diffs the branch against `origin/main` plus staged / unstaged / untracked changes, so
+it is already correct before the first commit. A new file that nothing imports yet selects
+zero suites. Pass `--verbose` (`mise exec -- dart run scripts/test_impacted.dart
+--verbose`) to see how each changed file was classified; drop `--run` to list the suites
+without running them.
+
 Rules of thumb:
 
 - Keep each crate small with a single responsibility.

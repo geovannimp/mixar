@@ -153,3 +153,8 @@ entirely; 423 tests now complete in ~0.01s.
   real blast radius, so it is proposed rather than attempted here.
 - **`flutter test`'s ~20s** is dominated by per-file kernel compilation (52 files ×
   ~1.9s ≈ 100s CPU), not test bodies. No low-risk change found.
+  **Superseded 2026-10-15:** the low-risk levers are runner concurrency plus a CI cache
+  for `build/test_cache` — see `docs/flutter-test-speed-plan.md` (both applied: measured
+  −13.6s on the 4-core CI profile from `-j $(nproc)`, and −18.1s from the kernel cache;
+  suite consolidation measured net negative, and `--experimental-faster-testing` is
+  blocked by an SDK bug).

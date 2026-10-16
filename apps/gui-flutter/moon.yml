@@ -205,14 +205,43 @@ tasks:
           - "**/*.dart"
         passDotWhenNoResults: false
 
+  # Concurrency: `-j <cpus>` instead of package:test's default cores/2, because the
+  # per-suite kernel compiles serialize regardless, so the extra concurrency shortens
+  # only the body phase. Measured 4-core A/B: 48.3s/48.0s (-j 2) -> 34.7s (-j 4); wash
+  # on 16 cores. The wrapper also forwards moon's `-- <args>` passthrough and unsets
+  # GIT_* — see scripts/flutter_test.sh for why each is needed.
   test:
-    command: "mise"
-    args: ["exec", "--", "flutter", "test"]
+    command: "bash"
+    args: ["scripts/flutter_test.sh"]
     toolchain: "system"
     inputs:
       - "@group(sources)"
       - "test/**/*"
+      - "scripts/flutter_test.sh"
     options:
+      runInCI: true
+
+  # Developer fast path: runs only the suites that transitively import the
+  # changed files (branch diff vs the default branch + staged/unstaged/untracked
+  # changes). Only pubspec.{yaml,lock} force the full suite; every other input is
+  # resolved through the import graph — see scripts/test_impacted.dart.
+  #
+  # CI must keep using `:test` (the full suite) above, never this task. Its
+  # runInCI stays true because moon 2.4.4 cannot *resolve* a runInCI:false task
+  # without --affected (same reason `lint-files`/`format-files` are always
+  # invoked with --affected) — flip it back and this task stops being runnable.
+  test-affected:
+    command: "bash"
+    args:
+      - "-c"
+      - 'exec mise exec -- dart run scripts/test_impacted.dart --run'
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "test/**/*"
+      - "scripts/test_impacted.dart"
+    options:
+      cache: false
       runInCI: true
 
   generate:
