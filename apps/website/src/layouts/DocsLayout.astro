@@ -165,8 +165,10 @@ const tocRailClass =
     margin: 0;
   }
 
+  /* `:is()` (not `:where()`) so this rule outranks `.docs-prose p`'s
+     `margin: 0`. Tables are wrapped by DocsTable, hence `.docs-table-wrap`. */
   .docs-prose p + p,
-  .docs-prose :where(ul, ol, table, pre, blockquote, aside) + :where(p, ul, ol) {
+  .docs-prose :is(ul, ol, .docs-table-wrap, pre, blockquote, aside) + :is(p, ul, ol) {
     margin-top: 1rem;
   }
 
