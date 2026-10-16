@@ -120,7 +120,9 @@ export function parseFindings(value: unknown): ReviewFinding[] {
     if (typeof f.body !== 'string' || f.body === '') {
       throw new Error(`${where}.body must be a non-empty string`);
     }
-    if (typeof f.confidence !== 'number' || f.confidence < 0 || f.confidence > 1) {
+    // Number.isFinite is required: NaN is a number that compares false to both
+    // bounds, so it would pass and then be silently dropped by splitByConfidence.
+    if (typeof f.confidence !== 'number' || !Number.isFinite(f.confidence) || f.confidence < 0 || f.confidence > 1) {
       throw new Error(`${where}.confidence must be a number in [0, 1]`);
     }
     return {

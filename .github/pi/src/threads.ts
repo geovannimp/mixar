@@ -62,10 +62,21 @@ const RESOLVE_MUTATION = `mutation($id: ID!) {
 
 export async function resolveReviewThread(rt: Runtime, commentId: number): Promise<string> {
   const api = createGitHubClient(rt.token);
-  const comment = await api.gh<{ node_id: string }>(
-    'GET',
-    `${repoPath(rt)}/pulls/comments/${commentId}`,
-  );
+  const base = repoPath(rt);
+  const comment = await api.gh<ReviewCommentPayload>('GET', `${base}/pulls/comments/${commentId}`);
+  // Only threads this action opened may be resolved: the resolve tool is reachable
+  // from a prompt-injected diff, and resolving a human's thread is a visible,
+  // irreversible-looking action on someone else's review.
+  const rootId = comment.in_reply_to_id ?? comment.id;
+  const root =
+    rootId === comment.id
+      ? comment
+      : await api.gh<ReviewCommentPayload>('GET', `${base}/pulls/comments/${rootId}`);
+  if (!(root.body ?? '').includes(FINDING_MARKER)) {
+    throw new Error(
+      `refusing to resolve thread ${rootId}: root comment is not a pi-review finding (marker missing)`,
+    );
+  }
   const data = await api.graphql<{
     node: { pullRequestReviewThread: { id: string; isResolved: boolean } | null } | null;
   }>(THREAD_FOR_COMMENT_QUERY, { id: comment.node_id });

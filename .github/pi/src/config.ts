@@ -7,9 +7,20 @@ export function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * GitHub rejects oversized review payloads, and a batch too large also makes the
+ * 422 fallback replay everything at once, so cap it.
+ */
+export const MAX_BATCH_SIZE = 100;
+
 export function parseBatchSize(raw: string | undefined): number {
   const n = Number.parseInt(raw ?? '', 10);
-  return Number.isInteger(n) && n > 0 ? n : DEFAULT_BATCH_SIZE;
+  if (!Number.isInteger(n) || n < 1) return DEFAULT_BATCH_SIZE;
+  if (n > MAX_BATCH_SIZE) {
+    console.warn(`pi-review: PI_REVIEW_BATCH_SIZE=${n} exceeds ${MAX_BATCH_SIZE}; clamping`);
+    return MAX_BATCH_SIZE;
+  }
+  return n;
 }
 
 /**

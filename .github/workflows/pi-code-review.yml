@@ -184,7 +184,7 @@ jobs:
         if: hashFiles('.github/pi/package.json') != ''
         shell: bash
         working-directory: .github/pi
-        run: npm ci --omit=dev
+        run: npm ci --omit=dev --ignore-scripts
 
       # The base checkout predates the extension only on the PR that introduces
       # it. Say so plainly: the run below will fail to resolve the ocr-llm

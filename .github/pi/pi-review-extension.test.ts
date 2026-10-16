@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CONFIDENCE_FLOOR } from './src/constants.ts';
-import { chunk, parseReviewConfig } from './src/config.ts';
+import { MAX_BATCH_SIZE, chunk, parseBatchSize, parseReviewConfig } from './src/config.ts';
 import { clampToAnchor, isContiguous, matchesGlob, parseDiffAnchors } from './src/diff.ts';
-import { buildReviewComments, splitByConfidence } from './src/findings.ts';
+import { splitReviewable } from './src/files.ts';
+import { buildReviewComments, parseFindings, splitByConfidence } from './src/findings.ts';
 import type { DiffAnchors, ReviewFinding } from './src/types.ts';
 
 function finding(overrides: Partial<ReviewFinding> = {}): ReviewFinding {
@@ -182,4 +183,43 @@ test('config: null yields defaults; malformed arrays and entries are ignored', (
     ),
     { exclude: ['a/**'], rules: [{ path: 'x/**', rule: 'r' }] },
   );
+});
+
+test('batch size: clamped to the maximum, defaults when invalid', () => {
+  assert.equal(parseBatchSize(undefined), 50);
+  assert.equal(parseBatchSize(''), 50);
+  assert.equal(parseBatchSize('0'), 50);
+  assert.equal(parseBatchSize('-4'), 50);
+  assert.equal(parseBatchSize('abc'), 50);
+  assert.equal(parseBatchSize('1'), 1);
+  assert.equal(parseBatchSize('25'), 25);
+  assert.equal(parseBatchSize(String(MAX_BATCH_SIZE)), MAX_BATCH_SIZE);
+  assert.equal(parseBatchSize('100000'), MAX_BATCH_SIZE);
+});
+
+test('reviewable files: removed and excluded paths are dropped for anchoring too', () => {
+  const files = [
+    { filename: 'src/a.ts', status: 'modified' },
+    { filename: 'src/gone.ts', status: 'removed' },
+    { filename: 'Cargo.lock', status: 'modified' },
+    { filename: 'apps/gui-flutter/build/x.dart', status: 'added' },
+  ];
+  const config = { exclude: ['**/Cargo.lock', 'apps/gui-flutter/build/**'], rules: [] };
+  const { kept, skippedExcluded } = splitReviewable(files, config);
+  assert.deepEqual(
+    kept.map((f) => f.filename),
+    ['src/a.ts'],
+  );
+  assert.deepEqual(skippedExcluded, ['Cargo.lock', 'apps/gui-flutter/build/x.dart']);
+});
+
+test('findings: NaN confidence is rejected instead of silently dropped later', () => {
+  const base = finding();
+  assert.equal(parseFindings([base]).length, 1);
+  assert.throws(() => parseFindings([{ ...base, confidence: Number.NaN }]), /confidence/);
+  assert.throws(() => parseFindings([{ ...base, confidence: Infinity }]), /confidence/);
+  assert.throws(() => parseFindings([{ ...base, confidence: '0.9' }]), /confidence/);
+  assert.throws(() => parseFindings([{ ...base, path: '' }]), /path/);
+  assert.throws(() => parseFindings([{ ...base, severity: 'urgent' }]), /severity/);
+  assert.throws(() => parseFindings('nope'), /array/);
 });

@@ -3,7 +3,7 @@ import { parseReviewConfig } from './config.ts';
 import { matchesGlob } from './diff.ts';
 import { GitHubHttpError, createGitHubClient } from './github.ts';
 import { repoPath, type Runtime } from './runtime.ts';
-import type { FilePayload, GitHubClient, PullPayload } from './types.ts';
+import type { FilePayload, GitHubClient, PullPayload, ReviewConfig } from './types.ts';
 
 export async function fetchBaseConfig(
   api: GitHubClient,
@@ -41,14 +41,16 @@ export async function getChangedFiles(
   return files;
 }
 
-export async function listReviewFiles(rt: Runtime): Promise<string> {
-  const api = createGitHubClient(rt.token);
-  const base = repoPath(rt);
-  const pr = await api.gh<PullPayload>('GET', `${base}/pulls/${rt.prNumber}`);
-  const files = await getChangedFiles(api, base, rt, pr.head.sha);
-  const config = parseReviewConfig(await fetchBaseConfig(api, base, pr.base.ref));
-
-  const kept: Array<{ path: string; status: string; patch: string | null }> = [];
+/**
+ * Drop files the reviewer may not comment on: deleted files have no RIGHT-side
+ * lines, and config exclusions (lockfiles, generated code, binaries) must hold for
+ * inline anchoring too, not just for the file list handed to the model.
+ */
+export function splitReviewable(
+  files: FilePayload[],
+  config: ReviewConfig,
+): { kept: FilePayload[]; skippedExcluded: string[] } {
+  const kept: FilePayload[] = [];
   const skippedExcluded: string[] = [];
   for (const f of files) {
     if (f.status === 'removed') continue;
@@ -56,16 +58,42 @@ export async function listReviewFiles(rt: Runtime): Promise<string> {
       skippedExcluded.push(f.filename);
       continue;
     }
-    kept.push({ path: f.filename, status: f.status, patch: f.patch ?? null });
+    kept.push(f);
   }
-  const rules = config.rules.filter((r) => kept.some((f) => matchesGlob(f.path, r.path)));
+  return { kept, skippedExcluded };
+}
+
+/** Changed files that inline comments may be anchored to. */
+export async function reviewableChangedFiles(
+  api: GitHubClient,
+  base: string,
+  rt: Runtime,
+  headSha: string,
+  baseRef: string,
+): Promise<FilePayload[]> {
+  const files = await getChangedFiles(api, base, rt, headSha);
+  const config = parseReviewConfig(await fetchBaseConfig(api, base, baseRef));
+  return splitReviewable(files, config).kept;
+}
+
+export async function listReviewFiles(rt: Runtime): Promise<string> {
+  const api = createGitHubClient(rt.token);
+  const base = repoPath(rt);
+  const pr = await api.gh<PullPayload>('GET', `${base}/pulls/${rt.prNumber}`);
+  const files = await getChangedFiles(api, base, rt, pr.head.sha);
+  const config = parseReviewConfig(await fetchBaseConfig(api, base, pr.base.ref));
+
+  const { kept, skippedExcluded } = splitReviewable(files, config);
+  const rules = config.rules.filter((r) =>
+    kept.some((f) => matchesGlob(f.filename, r.path)),
+  );
   return JSON.stringify(
     {
       prNumber: rt.prNumber,
       title: pr.title,
       baseRef: pr.base.ref,
       headSha: pr.head.sha,
-      files: kept,
+      files: kept.map((f) => ({ path: f.filename, status: f.status, patch: f.patch ?? null })),
       skippedExcluded,
       rules,
     },
