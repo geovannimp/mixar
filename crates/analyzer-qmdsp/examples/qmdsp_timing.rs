@@ -291,9 +291,14 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     let block = mode.block_size();
     let frame_size = mode.frame_size();
     let preroll = frame_size / 2;
-    let pad = mode.decimation_input_len(y64.len()) - block / 2 - y64.len();
-    let mut buf = y64.clone();
-    buf.resize(y64.len() + pad, 0.0);
+    // Grow `y64` in place rather than cloning the whole corpus for `resize`.
+    // After the onset/tempo rows above, nothing else needs the unpadded
+    // buffer — only its length — so moving avoids a second ~85 MiB live
+    // copy sitting under every later row's absolute VmHWM.
+    let y_len = y64.len();
+    let pad = mode.decimation_input_len(y_len) - block / 2 - y_len;
+    let mut buf = y64;
+    buf.resize(y_len + pad, 0.0);
     let mut dec8 = vec![0.0; preroll + buf.len() / 8];
     let mut d8 = key::decimator::Decimator::new(key::decimator::Decimation::By8, buf.len());
     d8.process(&buf, &mut dec8[preroll..]);
@@ -334,7 +339,7 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     });
 
     // The downbeat sees the same slice `analyze_pcm` hands it.
-    let downbeat_dec = &dec8[preroll..preroll + y64.len() / 8];
+    let downbeat_dec = &dec8[preroll..preroll + y_len / 8];
     bench("sub_downbeat", WARMUP, REPS, || {
         downbeat::detect_downbeats(downbeat_dec, SR, full_beats, 4)
     });
