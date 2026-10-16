@@ -1,0 +1,84 @@
+name: Cursor Code Review
+description: Review PRs with @cursor/sdk (local) + CodeGraph MCP; post inline findings and sticky summary; reply on review threads.
+author: Mixar
+
+inputs:
+  cursor_api_key:
+    description: Cursor API key (CURSOR_API_KEY)
+    required: true
+  github_token:
+    description: GitHub token with pull-requests:write and contents:write
+    required: true
+  mode:
+    description: "auto | review | reply"
+    required: false
+    default: auto
+  model:
+    description: Cursor model id
+    required: false
+    default: composer-2.5
+  pr_number:
+    description: PR number when the event lacks a PR payload
+    required: false
+  base_ref:
+    description: Base branch name
+    required: false
+  head_sha:
+    description: PR head commit SHA
+    required: false
+  working_directory:
+    description: Repo root after checkout
+    required: false
+    default: .
+  codegraph_version:
+    description: Pin for @colbymchenry/codegraph npm package
+    required: false
+    default: "1.6.1"
+  max_files:
+    description: Hard cap on reviewed files; overflow listed in sticky summary
+    required: false
+    default: "80"
+  review_comment_batch_size:
+    description: Max comments per pulls.createReview
+    required: false
+    default: "50"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+
+    - name: Install action dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci
+
+    - name: Install CodeGraph CLI
+      shell: bash
+      env:
+        CODEGRAPH_VERSION: ${{ inputs.codegraph_version }}
+      run: |
+        set -euo pipefail
+        npm install -g "@colbymchenry/codegraph@${CODEGRAPH_VERSION}"
+        codegraph --version
+
+    - name: Run cursor-code-review
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      env:
+        CURSOR_API_KEY: ${{ inputs.cursor_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+        INPUT_BASE_REF: ${{ inputs.base_ref }}
+        INPUT_HEAD_SHA: ${{ inputs.head_sha }}
+        INPUT_WORKING_DIRECTORY: ${{ inputs.working_directory }}
+        INPUT_MAX_FILES: ${{ inputs.max_files }}
+        INPUT_REVIEW_COMMENT_BATCH_SIZE: ${{ inputs.review_comment_batch_size }}
+        CODEGRAPH_MCP_TOOLS: explore,node,search,callers,callees,impact,files,status
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
+      run: node "${GITHUB_ACTION_PATH}/dist/main.js"
