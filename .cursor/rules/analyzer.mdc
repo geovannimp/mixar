@@ -9,6 +9,6 @@ alwaysApply: false
 Reference: `docs/audio-analyzer-spec.md`.
 
 - **Role:** Decode audio via `codec`, preprocess to mono `f32`, run default `StratumAnalyzer`.
-- **Entry points:** `analyze_file`, `analyze_pcm`; custom backends via `analyze_*_with`.
+- **Entry points:** `analyze_file`, `analyze_pcm` (both run the default backend); decode-only callers use `decode_mono`.
 - **Dependencies:** `analyzer-core`, `analyzer-stratum`, `codec` only — not `library` or `engine-dsp`.
 - **Library:** `library` calls `analyze_file` from `analyze_track` (feature `analysis`).

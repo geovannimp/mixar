@@ -16,3 +16,12 @@ ebur128 = "0.1"
 [dev-dependencies]
 hound = "3.5"
 tempfile = "3.0"
+criterion.workspace = true
+
+[[bench]]
+name = "analysis"
+harness = false
+
+[[bench]]
+name = "memory"
+harness = false
