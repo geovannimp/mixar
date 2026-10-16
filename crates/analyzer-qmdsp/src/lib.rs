@@ -64,11 +64,6 @@ impl QmdspAnalyzer {
     pub fn new() -> Self {
         Self
     }
-
-    /// Always available (no external source needed, unlike the FFI oracle).
-    pub fn from_env() -> Option<Self> {
-        Some(Self::new())
-    }
 }
 
 impl AudioAnalyzer for QmdspAnalyzer {
