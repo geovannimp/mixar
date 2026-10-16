@@ -935,7 +935,6 @@ bool _isWithinOrEqual(String root, String path) {
 List<String> _driveTreeRowsFrom({
   required String? currentPath,
   required FsDirectoryListing? listing,
-  required FsVolumeInfo? volume,
   required List<FsVolumeInfo> volumes,
 }) {
   if (currentPath == null) {
@@ -947,14 +946,13 @@ List<String> _driveTreeRowsFrom({
   // The "up" row is always rendered by the pane (disabled when its parent
   // is outside the active volume), so keep it in the row list to keep the
   // provider's indices aligned with the widget's visual rows.
-  return [?listing.parent, for (final d in listing.directories) d.path];
+  return [listing.parent ?? listing.path, for (final d in listing.directories) d.path];
 }
 
 /// Drive rows for the current state, as one read of each source.
 List<String> _driveTreeRows(Ref ref) => _driveTreeRowsFrom(
   currentPath: ref.read(driveCurrentPathProvider),
   listing: ref.read(driveListingProvider).asData?.value,
-  volume: ref.read(driveActiveVolumeProvider),
   volumes: ref.read(driveVolumesProvider).asData?.value ?? const [],
 );
 
@@ -1006,7 +1004,6 @@ final driveTreeFocusedPathProvider = Provider<String?>((ref) {
 List<String> _driveTreeRowsWatched(Ref ref) => _driveTreeRowsFrom(
   currentPath: ref.watch(driveCurrentPathProvider),
   listing: ref.watch(driveListingProvider).asData?.value,
-  volume: ref.watch(driveActiveVolumeProvider),
   volumes: ref.watch(driveVolumesProvider).asData?.value ?? const [],
 );
 

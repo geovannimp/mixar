@@ -163,7 +163,7 @@ class _ScrollFocusedIntoViewState extends State<_ScrollFocusedIntoView> {
           context,
           duration: const Duration(milliseconds: 120),
           alignment: 0.5,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
           curve: Curves.easeOutCubic,
         );
       });

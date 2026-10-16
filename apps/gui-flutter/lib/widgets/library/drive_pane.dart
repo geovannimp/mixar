@@ -142,7 +142,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                           // A volume root has no parent row, and a `null`
                           // focused path must not match one.
                           focused:
-                              dir.parent != null && focusedPath == dir.parent,
+                              parentOpenable && focusedPath == dir.parent,
                           onPress: parentOpenable
                               // Same contract as a subfolder press: park focus
                               // on the sidebar and move the cursor onto the
