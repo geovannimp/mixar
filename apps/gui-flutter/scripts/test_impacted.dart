@@ -264,26 +264,11 @@ Future<void> main(List<String> args) async {
     exitCode = 1;
     return;
   }
-  if (changed.isEmpty) {
-    if (baseUnknown) {
-      stderr.writeln(
-        'warning: no merge base with the default branch (shallow clone or '
-        'detached HEAD?) — cannot tell what this branch changed.',
-      );
-    } else {
-      stdout.writeln('No changed files: nothing to run.');
-    }
-    return;
-  }
-
-  final graph = _importGraph();
-  final frbFiles = graph.keys
-      .where((file) => file.startsWith('lib/src/rust/'))
-      .toSet();
-
   if (baseUnknown) {
-    // The branch diff is invisible here; a targeted run would silently skip
-    // whatever the branch changed, so only the full suite is correct.
+    // The branch diff is invisible here, so a targeted run would silently skip
+    // whatever the branch changed. Must precede the `changed.isEmpty` check:
+    // in a shallow clone (fetch-depth 1) with everything committed, the working
+    // tree is empty and this would exit 0 having run zero suites.
     stderr.writeln(
       'warning: no merge base with the default branch — running the full '
       'suite instead of a possibly incomplete selection.',
@@ -296,6 +281,16 @@ Future<void> main(List<String> args) async {
     exitCode = await _flutterTest(const []);
     return;
   }
+
+  if (changed.isEmpty) {
+    stdout.writeln('No changed files: nothing to run.');
+    return;
+  }
+
+  final graph = _importGraph();
+  final frbFiles = graph.keys
+      .where((file) => file.startsWith('lib/src/rust/'))
+      .toSet();
 
   final impact = _impactOf(changed, frbFiles);
   final suites = _suites(graph);
