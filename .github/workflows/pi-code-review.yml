@@ -75,6 +75,7 @@ jobs:
       || (
         github.event_name == 'issue_comment'
         && github.event.issue.pull_request
+        && github.event.comment.user.type != 'Bot'
         && (
           github.event.comment.author_association == 'MEMBER'
           || github.event.comment.author_association == 'OWNER'
@@ -121,6 +122,10 @@ jobs:
               repo: context.repo.repo,
               pull_number: prNumber,
             });
+            if (pullRequest.head.repo?.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
+              core.setFailed('PR head is in a fork; the Pi review runs only for same-repo PRs because fork PRs get no secrets.');
+              return;
+            }
             core.setOutput('pr_number', String(prNumber));
             core.setOutput('base_ref', pullRequest.base.ref);
             core.setOutput('head_sha', pullRequest.head.sha);
@@ -155,7 +160,7 @@ jobs:
           fi
 
       - name: Pi review
-        uses: shaftoe/pi-coding-agent-action@v2
+        uses: shaftoe/pi-coding-agent-action@f7496a9aea9798c5d52d39096d98d5c5b16559b3 # v2.30.0
         env:
           # Read by the extension to register the provider and its API key.
           OCR_LLM_URL: ${{ vars.OCR_LLM_URL }}

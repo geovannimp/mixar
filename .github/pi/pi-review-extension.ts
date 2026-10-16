@@ -87,9 +87,10 @@ type Env = Record<string, string | undefined>;
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-/** Translate a glob (`**`, `**\/`, `*`, `?`) into an anchored RegExp. */
+/** Translate a glob (`**`, `**\/`, `*`, `?`, `{a,b}`) into an anchored RegExp. */
 export function globToRegExp(pattern: string): RegExp {
   let re = '';
+  let braceDepth = 0;
   for (let i = 0; i < pattern.length; i++) {
     const c = pattern[i]!;
     if (c === '*') {
@@ -106,6 +107,14 @@ export function globToRegExp(pattern: string): RegExp {
       }
     } else if (c === '?') {
       re += '[^/]';
+    } else if (c === '{') {
+      braceDepth++;
+      re += '(?:';
+    } else if (c === '}' && braceDepth > 0) {
+      braceDepth--;
+      re += ')';
+    } else if (c === ',' && braceDepth > 0) {
+      re += '|';
     } else {
       re += c.replace(/[.+^${}()|[\]\\]/g, '\\$&');
     }
@@ -250,7 +259,11 @@ export function parseBatchSize(raw: string | undefined): number {
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_BATCH_SIZE;
 }
 
-/** Parse the base-branch config. Null (absent file) and malformed fields fall back to empty lists. */
+/**
+ * Parse the base-branch config. Null (absent file) yields empty lists. Malformed JSON
+ * throws, so a broken base config fails the review visibly instead of silently reviewing
+ * excluded files.
+ */
 export function parseReviewConfig(raw: string | null): ReviewConfig {
   if (raw == null) return { exclude: [], rules: [] };
   const obj = (JSON.parse(raw) ?? {}) as { exclude?: unknown; rules?: unknown };
@@ -495,16 +508,10 @@ async function replyToReviewComment(rt: Runtime, commentId: number, body: string
   return 'replied';
 }
 
-const THREADS_QUERY = `query($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $number) {
-      reviewThreads(first: 100) {
-        nodes {
-          id
-          isResolved
-          comments(first: 50) { nodes { id } }
-        }
-      }
+const THREAD_FOR_COMMENT_QUERY = `query($id: ID!) {
+  node(id: $id) {
+    ... on PullRequestReviewComment {
+      pullRequestReviewThread { id isResolved }
     }
   }
 }`;
@@ -519,23 +526,12 @@ async function resolveReviewThread(rt: Runtime, commentId: number): Promise<stri
     'GET',
     `${repoPath(rt)}/pulls/comments/${commentId}`,
   );
+  // Look the thread up from the comment's node id: a PR-wide reviewThreads scan
+  // misses threads beyond the first page.
   const data = await api.graphql<{
-    repository: {
-      pullRequest: {
-        reviewThreads: {
-          nodes: Array<{
-            id: string;
-            isResolved: boolean;
-            comments: { nodes: Array<{ id: string }> };
-          }>;
-        };
-      };
-    };
-  }>(THREADS_QUERY, { owner: rt.owner, repo: rt.repo, number: rt.prNumber });
-
-  const thread = data.repository.pullRequest.reviewThreads.nodes.find((t) =>
-    t.comments.nodes.some((c) => c.id === comment.node_id),
-  );
+    node: { pullRequestReviewThread: { id: string; isResolved: boolean } | null } | null;
+  }>(THREAD_FOR_COMMENT_QUERY, { id: comment.node_id });
+  const thread = data.node?.pullRequestReviewThread;
   if (!thread) return `thread not found for comment ${commentId}; nothing resolved`;
   if (thread.isResolved) return `already resolved (thread ${thread.id})`;
   if (rt.dryRun) return `dry run: would resolve thread ${thread.id}`;
@@ -606,8 +602,11 @@ async function postReview(rt: Runtime, params: PostReviewParams): Promise<string
         comments: batch,
       });
       posted += batch.length;
-    } catch {
+    } catch (err) {
       // Fail-open: retry each comment of the failed batch as its own review.
+      console.log(
+        `pi-review post_review: batch ${i + 1} failed, retrying per comment: ${err instanceof Error ? err.message : String(err)}`,
+      );
       for (const c of batch) {
         try {
           await api.gh('POST', reviewPath, {

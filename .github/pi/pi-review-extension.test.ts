@@ -33,6 +33,9 @@ test('glob: ** crosses directories and **/ also matches root-level files', () =>
   assert.ok(matchesGlob('src/c.ts', 'src/**/*.ts'));
   assert.ok(matchesGlob('c.ts', '**/*.ts'));
   assert.ok(!matchesGlob('src/c.md', 'src/**/*.ts'));
+  assert.ok(matchesGlob('crates/codec/src/lib.rs', 'crates/{codec,resampler}/**/*.rs'));
+  assert.ok(matchesGlob('crates/resampler/x.rs', 'crates/{codec,resampler}/**/*.rs'));
+  assert.ok(!matchesGlob('crates/stretch/x.rs', 'crates/{codec,resampler}/**/*.rs'));
 });
 
 test('glob: * and ? do not cross directory separators', () => {

@@ -1,5 +1,4 @@
 {
-  "intent_model": "composer-2.5",
   "exclude": [
     "**/Cargo.lock",
     "**/pubspec.lock",
