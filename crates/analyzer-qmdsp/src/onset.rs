@@ -54,8 +54,8 @@ pub struct DetectionFunction {
     /// Unit phasor of the previous frame, per bin (`1 + 0i` initially).
     prev_re: Vec<f64>,
     prev_im: Vec<f64>,
-    /// Unit phasor of the frame before that, per bin (`1 + 0i`, matching
-    /// `phase_history_old` starting at angle 0).
+    /// Unit phasor of the frame before that, per bin (`1 + 0i` initially —
+    /// qm-dsp's `phase_history_old` started at angle 0).
     prev_prev_re: Vec<f64>,
     prev_prev_im: Vec<f64>,
 }
@@ -87,7 +87,7 @@ impl DetectionFunction {
             mag_history: vec![0.0; half],
             prev_re: vec![1.0; half],
             prev_im: vec![0.0; half],
-            // `phase_history_old` starts at angle 0, i.e. `e^{i*0}` = (1, 0).
+            // qm-dsp's `phase_history_old` started at angle 0, i.e. `e^{i*0}` = (1, 0).
             prev_prev_re: vec![1.0; half],
             prev_prev_im: vec![0.0; half],
         }

@@ -28,6 +28,9 @@ use analyzer_qmdsp::QmdspAnalyzer;
 const SR: u32 = 44_100;
 const WARMUP: usize = 1;
 const REPS: usize = 5;
+/// Hard ceiling on `--secs` so an accidental typo cannot OOM the machine
+/// before any row runs (`--secs 100000` ≈ 17 GB of f32).
+const MAX_SECS: f64 = 3600.0;
 
 fn corpus(secs: f64) -> Vec<f32> {
     let n = (f64::from(SR) * secs) as usize;
@@ -68,15 +71,20 @@ fn vmhwm_kb() -> Option<u64> {
 }
 
 fn bench<T>(name: &str, warmup: usize, reps: usize, mut f: impl FnMut() -> T) -> T {
+    debug_assert!(reps > 0, "bench requires at least one timed rep");
     for _ in 0..warmup {
         black_box(f());
     }
     let before = vmhwm_kb().unwrap_or(0);
     let mut times = Vec::with_capacity(reps);
-    let mut last = None;
-    for _ in 0..reps {
+    // `reps` is always `REPS` (5) at every call site; seed with the first so
+    // the return type stays `T` without an unreachable `expect`.
+    let t0 = Instant::now();
+    let mut last = f();
+    times.push(t0.elapsed().as_secs_f64() * 1000.0);
+    for _ in 1..reps {
         let t0 = Instant::now();
-        last = Some(f());
+        last = f();
         times.push(t0.elapsed().as_secs_f64() * 1000.0);
     }
     let min = times.iter().copied().fold(f64::INFINITY, f64::min);
@@ -87,7 +95,7 @@ fn bench<T>(name: &str, warmup: usize, reps: usize, mut f: impl FnMut() -> T) ->
         "row {name} min_ms={min:.3} mean_ms={mean:.3} reps={reps} \
          peak_vmhwm_kb={peak} vmhwm_delta_kb={delta}"
     );
-    last.expect("at least one rep")
+    last
 }
 
 fn fnv1a64(bytes: &[u8]) -> u64 {
@@ -100,7 +108,7 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
 }
 
 fn fingerprint(beats: &[f32], bpm: Option<f64>, key: Option<&str>, downbeats: &[f32]) {
-    let mut bytes = Vec::new();
+    let mut bytes = Vec::with_capacity((beats.len() + downbeats.len()) * 4);
     for &b in beats {
         bytes.extend_from_slice(&b.to_le_bytes());
     }
@@ -159,6 +167,12 @@ fn main() {
                         "--secs {secs} yields a zero-length corpus ({samples} samples): \
                          `analyze_pcm` rejects an empty buffer"
                     );
+                    assert!(
+                        secs <= MAX_SECS,
+                        "--secs {secs} exceeds the harness ceiling of {MAX_SECS} \
+                         (refuse to allocate {:.1} GiB of corpus)",
+                        (samples as f64 * 4.0) / (1024.0 * 1024.0 * 1024.0)
+                    );
                 }
             }
             "--dump" => dump = args.next(),
@@ -184,11 +198,14 @@ fn main() {
     if let Some(path) = &dump {
         // Streamed: one line per beat, no whole-file intermediate String.
         use std::io::{BufWriter, Write};
-        let mut out = BufWriter::new(std::fs::File::create(path).expect("create dump"));
+        let mut out = BufWriter::new(
+            std::fs::File::create(path).unwrap_or_else(|e| panic!("create dump at {path}: {e}")),
+        );
         for &b in &full_beats {
-            writeln!(out, "{b:e}").expect("write dump");
+            writeln!(out, "{b:e}").unwrap_or_else(|e| panic!("write dump at {path}: {e}"));
         }
-        out.flush().expect("flush dump");
+        out.flush()
+            .unwrap_or_else(|e| panic!("flush dump at {path}: {e}"));
     }
 
     let _ = bench("analyze_full", WARMUP, REPS, || {
@@ -288,8 +305,10 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
         out
     });
 
+    // Derive `fs` from the same stage enum `GetKeyMode` uses, so this row
+    // cannot silently time a different rate if the decimation factor moves.
     let mut chroma = key::cqt::Chromagram::new(key::cqt::ChromagramConfig {
-        fs: f64::from(SR) / 8.0,
+        fs: f64::from(SR) / key::decimator::Decimation::By8.factor() as f64,
         min: math::pitch_frequency(48, -12.0 / 36.0 * 100.0, 440.0),
         max: math::pitch_frequency(96, -12.0 / 36.0 * 100.0, 440.0),
         bpo: 36,

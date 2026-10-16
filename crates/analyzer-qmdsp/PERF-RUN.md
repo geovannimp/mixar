@@ -294,6 +294,30 @@ silence/degenerate back-pointers from qm-dsp (`0` → `20`).
 Parity: fingerprint and dumped beats bit-identical to `e801261c`
 (`hash=bac7cf82f007574f`). Gates: 779 passed / 2 skipped (38 in analyzer-qmdsp).
 
+## Sixth review wave (12 threads; harness/docs mop-up + two false bugs)
+
+Benchmark reconfirmed after all prior waves and after this wave's edits:
+fingerprint `beats=511 bpm=128.000000 key=C downbeats=128 hash=bac7cf82f007574f`
+bit-identical to base; framing `step=512 window=1024`. Representative rows
+(240 s corpus, release, `min_ms` / 5 reps): `analyze_full` ~203–204,
+`analyze_bpm` ~139–142, `analyze_key` ~79, `sub_onset` ~88,
+`sub_decimate8` ~29, `sub_downbeat` ~21.
+
+**Fixed (harness):** `bench` no longer wraps the result in `Option`; fingerprint
+`with_capacity`; `--secs` ceiling at 3600; `--dump` errors include the path;
+chroma row derives `fs` from `Decimation::By8.factor()`.
+
+**Fixed (production hygiene):** Hann cache reuses via `clear`/`extend`; stale
+`phase_history_old` comments; `measurement` module doc clarifies `pub(super)`
+constants; Viterbi `tmat[j*q+i]` comment.
+
+**Declined — `beat_len == 0` division by zero.** `(0..0).map(|j| … / beat_len)`
+never runs the closure; empty range, no division. `continue` would change
+qm-dsp-matching behaviour on collapsed extents.
+
+**Declined — `frame_and_step` overflow at extreme rates.** `sample_rate` is
+`u32`; the claimed overflow needs ~1.85×10¹¹ Hz. Documented on the helper.
+
 ## Next ledger items
 
 1. **The whole-track `y: Vec<f64>` (84.8 MiB, ~40 ms of `analyze_full`)** is

@@ -146,6 +146,9 @@ fn viterbi_decode(rcfmat: &[Vec<f64>], wv: &[f64], beat_period: &mut [i32]) {
             let mut best = 0.0f64;
             let mut arg = 0usize;
             for i in lo..hi {
+                // Flat index matches the original 2D access `tmat[j][i]`
+                // (destination `j`, source `i`). Population wrote
+                // `tmat[i * q + j]`, so this read looks transposed — it is not.
                 let v = prev[i] * tmat[j * q + i];
                 if v > best {
                     best = v;

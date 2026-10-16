@@ -70,9 +70,13 @@ pub fn detect_downbeats(
         let beat_len = beat_end - beat_start;
 
         if hann_len != beat_len {
-            hann_cache = (0..beat_len)
-                .map(|j| 0.5 * (1.0 - (2.0 * PI * j as f64 / beat_len as f64).cos()))
-                .collect();
+            // Reuse the allocation: beat lengths usually vary, so a fresh
+            // `collect()` per beat would undo the cache. `beat_len == 0` is
+            // an empty range (the closure never runs — no division by zero).
+            hann_cache.clear();
+            hann_cache.extend(
+                (0..beat_len).map(|j| 0.5 * (1.0 - (2.0 * PI * j as f64 / beat_len as f64).cos())),
+            );
             hann_len = beat_len;
         }
         let live = beat_len

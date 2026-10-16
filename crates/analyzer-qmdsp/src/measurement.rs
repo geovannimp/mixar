@@ -1,10 +1,15 @@
 //! The framing and trimming rules the beat pipeline applies.
 //!
 //! Published (as `analyzer_qmdsp::measurement`, behind the `sub` feature) purely
-//! so `examples/qmdsp_timing.rs` can time the same stages the analyzer runs.
-//! The example is a separate crate, so it cannot reach a private helper — and
-//! hand-inlining the numbers instead would let the harness silently drift from
-//! the pipeline it is meant to attribute changes to.
+//! so `examples/qmdsp_timing.rs` can call [`frame_and_step`] and
+//! [`beat_tracking_slice`] — the same stages the analyzer runs. The example is
+//! a separate crate, so it cannot reach a crate-private helper, and hand-inlining
+//! the numbers instead would let the harness silently drift from the pipeline it
+//! is meant to attribute changes to.
+//!
+//! The Mixxx constants (`STEP_SECS`, `MAXIMUM_BIN_SIZE_HZ`) stay `pub(super)`:
+//! only [`frame_and_step`] needs to expose them, and keeping the raw numbers
+//! crate-internal stops the example from assembling framing another way.
 //!
 //! `detect_beats` calls every function here, so there is exactly one
 //! implementation of each rule.
@@ -23,6 +28,11 @@ pub(super) const MAXIMUM_BIN_SIZE_HZ: u32 = 50;
 /// and `analyze_pcm` rejects a zero sample rate with an error before this is
 /// ever reached. The `(1, 0)` shape is deliberate so the helper stays pure; the
 /// `framing_step_zero_means_no_beats` test pins it.
+///
+/// Every `u32` sample rate is in range: at `u32::MAX` the step is ~5e7 and the
+/// window argument is ~8.6e7, both well inside `i32` / `u32::next_power_of_two`.
+/// The rates that would overflow (~1.85e11 for the step) are not representable
+/// in the parameter type.
 pub fn frame_and_step(sample_rate: u32) -> (usize, usize) {
     let step = (sample_rate as f64 * STEP_SECS) as i32;
     let window = crate::math::next_power_of_two((sample_rate / MAXIMUM_BIN_SIZE_HZ) as i32);
