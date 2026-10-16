@@ -681,7 +681,8 @@ export default function (pi: ExtensionAPI): void {
   // endpoint as a provider. This must happen here (extensions load before the
   // action resolves the model), and the workflow must not pass base_url.
   const ocrModel = process.env.OCR_LLM_MODEL;
-  const ocrBaseUrl = process.env.OCR_LLM_URL;
+  // The SDK appends /chat/completions to baseUrl, so accept the full endpoint too.
+  const ocrBaseUrl = process.env.OCR_LLM_URL?.replace(/\/chat\/completions\/?$/, '');
   if (!ocrModel || !ocrBaseUrl) {
     throw new Error('pi-review extension: OCR_LLM_MODEL and OCR_LLM_URL must be set');
   }
