@@ -91,16 +91,11 @@ type Env = Record<string, string | undefined>;
 // ---------------------------------------------------------------------------
 
 /**
- * Dotfiles match wildcards. A pattern without `/` also matches the basename,
- * so `*.lock` matches `packages/app/yarn.lock`.
+ * Dotfiles match wildcards. `matchBase` makes a pattern without `/` also match
+ * the basename, so `*.lock` matches `packages/app/yarn.lock`.
  */
 export function matchesGlob(filePath: string, pattern: string): boolean {
-  if (minimatch(filePath, pattern, { dot: true, matchBase: true })) return true;
-  if (!pattern.includes('/')) {
-    const base = filePath.slice(filePath.lastIndexOf('/') + 1);
-    return minimatch(base, pattern, { dot: true });
-  }
-  return false;
+  return minimatch(filePath, pattern, { dot: true, matchBase: true });
 }
 
 const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
@@ -120,7 +115,9 @@ export function parseDiffAnchors(
         continue;
       }
       // '-' lines and '\ No newline' markers do not occupy a new-file line.
-      if (raw.startsWith('+') || raw.startsWith(' ')) {
+      // newLine stays 0 until a @@ header is seen, so a malformed patch must not
+      // contribute a 0 anchor (GitHub line numbers are 1-based).
+      if (newLine > 0 && (raw.startsWith('+') || raw.startsWith(' '))) {
         lines.add(newLine);
         newLine++;
       }
@@ -615,6 +612,10 @@ async function postReview(rt: Runtime, params: PostReviewParams): Promise<string
       posted += batch.length;
     } catch (err) {
       // Fail-open: retry each comment of the failed batch as its own review.
+      // Accepted risk: the batch POST is non-idempotent, so if GitHub committed
+      // the batch but the response was lost, these per-comment posts duplicate
+      // findings. Reconcile-by-fetch was rejected as more cost than the rare
+      // failure warrants; duplicates are visible and can be resolved by hand.
       console.log(
         `pi-review post_review: batch ${i + 1} failed, retrying per comment: ${err instanceof Error ? err.message : String(err)}`,
       );
@@ -678,6 +679,55 @@ function stringParam(params: unknown, key: string): string {
   const value = (params as Record<string, unknown> | null | undefined)?.[key];
   if (typeof value !== 'string') throw new Error(`${key} must be a string`);
   return value;
+}
+
+/**
+ * Validate the findings array before it reaches the comment builder, so a
+ * malformed entry raises a clear tool error instead of an opaque runtime one.
+ */
+function parseFindings(value: unknown): ReviewFinding[] {
+  if (!Array.isArray(value)) throw new Error('findings must be an array');
+  return value.map((raw, i) => {
+    const where = `findings[${i}]`;
+    const f = (raw ?? {}) as Record<string, unknown>;
+    if (typeof f.path !== 'string' || f.path === '') {
+      throw new Error(`${where}.path must be a non-empty string`);
+    }
+    if (!Number.isInteger(f.start_line) || (f.start_line as number) < 1) {
+      throw new Error(`${where}.start_line must be a positive integer`);
+    }
+    if (
+      f.end_line != null &&
+      (!Number.isInteger(f.end_line) || (f.end_line as number) < 1)
+    ) {
+      throw new Error(`${where}.end_line must be a positive integer when set`);
+    }
+    if (!SEVERITIES.includes(f.severity as Severity)) {
+      throw new Error(`${where}.severity must be one of: ${SEVERITIES.join(', ')}`);
+    }
+    if (!CATEGORIES.includes(f.category as Category)) {
+      throw new Error(`${where}.category must be one of: ${CATEGORIES.join(', ')}`);
+    }
+    if (typeof f.title !== 'string' || f.title === '') {
+      throw new Error(`${where}.title must be a non-empty string`);
+    }
+    if (typeof f.body !== 'string' || f.body === '') {
+      throw new Error(`${where}.body must be a non-empty string`);
+    }
+    if (typeof f.confidence !== 'number' || f.confidence < 0 || f.confidence > 1) {
+      throw new Error(`${where}.confidence must be a number in [0, 1]`);
+    }
+    return {
+      path: f.path,
+      start_line: f.start_line as number,
+      end_line: f.end_line as number | undefined,
+      severity: f.severity as Severity,
+      category: f.category as Category,
+      title: f.title,
+      body: f.body,
+      confidence: f.confidence,
+    };
+  });
 }
 
 const commentIdSchema = {
@@ -805,11 +855,10 @@ export default function (pi: ExtensionAPI): void {
     },
     execute: async (_id, params) => {
       const p = (params ?? {}) as { findings?: unknown };
-      if (!Array.isArray(p.findings)) throw new Error('findings must be an array');
       return textResult(
         await postReview(loadRuntime(), {
           summary_markdown: stringParam(p, 'summary_markdown'),
-          findings: p.findings as ReviewFinding[],
+          findings: parseFindings(p.findings),
         }),
       );
     },

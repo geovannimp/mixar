@@ -90,6 +90,11 @@ test('diff anchors: "\\ No newline" markers are ignored and each hunk resets the
   assert.deepEqual([...lines].sort((a, b) => a - b), [1, 2, 20, 21]);
 });
 
+test('diff anchors: a patch with no hunk header contributes no line 0', () => {
+  const lines = parseDiffAnchors([{ path: 'f.ts', patch: '+orphan\n line' }]).get('f.ts')!;
+  assert.equal(lines.size, 0);
+});
+
 test('clamp: exact hit, nearest within tolerance, beyond tolerance, tie', () => {
   assert.equal(clampToAnchor(anchors, 'src/a.ts', 14), 14);
   assert.equal(clampToAnchor(anchors, 'src/a.ts', 13), 14);
