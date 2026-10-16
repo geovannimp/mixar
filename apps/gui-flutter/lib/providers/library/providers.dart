@@ -944,10 +944,10 @@ List<String> _driveTreeRowsFrom({
   if (listing == null) {
     return const [];
   }
-  final parent = driveParentInVolume(listing.parent, volume)
-      ? listing.parent
-      : null;
-  return [?parent, for (final d in listing.directories) d.path];
+  // The "up" row is always rendered by the pane (disabled when its parent
+  // is outside the active volume), so keep it in the row list to keep the
+  // provider's indices aligned with the widget's visual rows.
+  return [?listing.parent, for (final d in listing.directories) d.path];
 }
 
 /// Drive rows for the current state, as one read of each source.

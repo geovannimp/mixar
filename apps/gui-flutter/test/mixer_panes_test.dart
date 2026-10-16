@@ -9,7 +9,6 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
-import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';

@@ -15,16 +15,15 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/track_list_pane.dart';
+import 'package:gui_flutter/core/utils/library_list_layout.dart';
+import 'package:gui_flutter/widgets/library/track_list_row.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import 'helpers/collection_tracks_override.dart';
-
-import 'package:gui_flutter/core/utils/library_list_layout.dart';
-import 'package:gui_flutter/widgets/library/track_list_row.dart';
-import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 
 import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
