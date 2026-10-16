@@ -194,6 +194,36 @@ running `feed`'s finalize padding on the decimated stream.
 
 Fingerprint and dumped beat grids remain byte-identical to base throughout.
 
+## Third review wave (instrumentation only, all 11 resolved)
+
+Both flagged bugs were verified against base and both are non-issues:
+
+- **`dec8.len() < 2` guard** is *exactly* equivalent to base's
+  `samples.len() < 16`. Base's `decimate` required 16 raw samples and produced
+  `floor(len/16) >= 1` downsampled samples — one, not two — so the thread's
+  premise was wrong, and `dec8.len() >= 2` is precisely `y.len() >= 16`.
+  `x8_stream_matches_the_old_two_stage_decimate` rebuilds the old two-stage
+  `decimate` and asserts identical decisions and bit-identical streams across 13
+  lengths spanning the 15/16 boundary. Applying the suggested `dec8.len() < 4`
+  would have *rejected* lengths base accepted (tested: it fails).
+- **`&buf[..y_len]`** is what makes the padding safe: `buf` is only ever
+  extended, so the slice is exactly the raw track whether or not the finalize
+  silence was appended. `debug_assert`s now pin the three related invariants.
+
+Also fixed in this wave: the redundant `internals` re-export deleted;
+`DECIMATION_FACTOR` derived from `Decimation::By8.factor()` (now a `const fn`);
+`--dump` streamed through a `BufWriter`; `frame_and_step`'s `sample_rate > 0`
+precondition documented and pinned; the onset zero-magnitude comment reordered
+to lead with the common case; and a latent `clippy::needless_return` in the
+example that only fired with `sub` off.
+
+**One earlier justification of mine was wrong and is corrected:** I claimed
+opt-in `sub` would break `cargo clippy --all-targets` and `cargo test` because
+the example would not compile. It compiles; nextest and the repo's
+`--all-features` clippy pass with `sub` opt-in. The measured case for
+default-on is instead the +0.96% rlib cost and the fact that the documented
+one-command invocation would report 4 rows instead of 11.
+
 ## Next ledger items
 
 1. **The whole-track `y: Vec<f64>` (84.8 MiB, ~40 ms of `analyze_full`)** is
