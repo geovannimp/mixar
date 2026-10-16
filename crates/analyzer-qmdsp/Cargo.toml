@@ -14,3 +14,13 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 # STFT/CQT front ends. Both are pure Rust.
 rustfft = "6"
 realfft = "3"
+
+[features]
+# Gates the measurement-only surface the timing harness needs: with `sub` off,
+# `analyzer_qmdsp::measurement` and the six pipeline modules do not exist and the
+# crate's public API is exactly what it was before `examples/qmdsp_timing.rs`.
+# Default-on so the documented one-command protocol
+# (`cargo run --release -p analyzer-qmdsp --example qmdsp_timing`) works without
+# flags; `--no-default-features` gives a genuinely smaller surface.
+default = ["sub"]
+sub = []

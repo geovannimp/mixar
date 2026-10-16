@@ -5,19 +5,6 @@
 //! that exist in std (iterator sums/max, `u32::next_power_of_two`) are used
 //! directly; `next_power_of_two` itself only wraps the unsigned std method.
 
-use std::f64::consts::PI;
-
-/// `MathUtilities::princarg`: wrap a phase angle into a 2π interval (qm-dsp
-/// maps π to π, i.e. the interval is effectively `(-π, π]`).
-pub fn princ_arg(ang: f64) -> f64 {
-    mod_floor(ang + PI, -2.0 * PI) + PI
-}
-
-/// Floating-point modulus with floor semantics (`x - y * floor(x / y)`).
-fn mod_floor(x: f64, y: f64) -> f64 {
-    x - y * (x / y).floor()
-}
-
 /// `MathUtilities::nextPowerOfTwo`. Std only provides this for unsigned
 /// integers, so wrap `u32::next_power_of_two` with qm-dsp's `x < 1 → 1` rule.
 pub fn next_power_of_two(x: i32) -> i32 {
@@ -59,30 +46,6 @@ pub fn get_max_index(data: &[f64]) -> (usize, f64) {
             }
         },
     )
-}
-
-/// TempoTrackV2's `get_max_val`: max seeded with `0.0` (so all-negative input
-/// yields `0.0`).
-pub fn max_val(data: &[f64]) -> f64 {
-    data.iter().copied().fold(0.0_f64, f64::max)
-}
-
-/// TempoTrackV2's `get_max_ind`: argmax seeded with `0`; the first index wins on
-/// ties (qm-dsp uses strict `>`), so this is not `Iterator::max_by`.
-pub fn max_ind(data: &[f64]) -> usize {
-    data.iter()
-        .enumerate()
-        .fold(
-            (0usize, 0.0_f64),
-            |best, (i, &v)| {
-                if v > best.1 {
-                    (i, v)
-                } else {
-                    best
-                }
-            },
-        )
-        .0
 }
 
 /// In-place unit-max normalisation (`NormaliseUnitMax`).
@@ -134,14 +97,6 @@ mod tests {
     }
 
     #[test]
-    fn princ_arg_wraps_into_range() {
-        assert!((princ_arg(0.0) - 0.0).abs() < 1e-12);
-        // qm-dsp maps the +pi boundary to +pi (interval is effectively (-pi, pi]).
-        assert!((princ_arg(PI) - PI).abs() < 1e-12);
-        assert!(princ_arg(3.0 * PI).abs() <= PI + 1e-12);
-    }
-
-    #[test]
     fn adaptive_threshold_rectifies() {
         let mut data = vec![0.0, 0.0, 10.0, 0.0, 0.0];
         adaptive_threshold(&mut data);
@@ -155,9 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn max_helpers_keep_first_index_and_floor_at_zero() {
-        assert_eq!(max_val(&[-1.0, -2.0]), 0.0);
-        assert_eq!(max_ind(&[3.0, 3.0]), 0);
+    fn get_max_index_keeps_first_index_and_handles_empty() {
         assert_eq!(get_max_index(&[3.0, 3.0]), (0, 3.0));
         assert_eq!(get_max_index(&[]), (0, 0.0));
     }

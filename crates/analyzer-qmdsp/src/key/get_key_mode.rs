@@ -3,10 +3,13 @@
 //! (`1..=12` major C..B, `13..=24` minor C..B, `0` = none).
 
 use crate::key::cqt::{Chromagram, ChromagramConfig};
-use crate::key::decimator::Decimator;
+use crate::key::decimator::Decimation;
 use crate::math::{get_max_index, mean, pitch_frequency};
 
 const BINS_PER_OCTAVE: usize = 36;
+/// Decimation factor the key path applies before the chromagram, taken from the
+/// stage enum so it cannot drift from the `Decimator` `lib.rs` actually builds.
+const DECIMATION_FACTOR: usize = Decimation::By8.factor();
 
 #[rustfmt::skip]
 const MAJ_PROFILE: [f64; BINS_PER_OCTAVE] = [
@@ -27,7 +30,6 @@ const MIN_PROFILE: [f64; BINS_PER_OCTAVE] = [
 pub struct GetKeyMode {
     bpo: usize,
     chroma: Chromagram,
-    decimator: Decimator,
     chroma_frame_size: usize,
     chroma_buffer_size: usize,
     chroma_buffer: Vec<f64>,
@@ -42,20 +44,15 @@ pub struct GetKeyMode {
     median_buffer: Vec<i32>,
     sorted_buffer: Vec<i32>,
     median_buffer_filling: usize,
-    dec_buffer: Vec<f64>,
-    block_size: usize,
-    hop_size: usize,
 }
 
 impl GetKeyMode {
     pub fn new(sample_rate: u32) -> Self {
-        let decimation_factor: usize = 8;
         let hpcp_average = 10.0;
         let median_average = 10.0;
-        let frame_overlap_factor: usize = 1;
         let tuning_frequency = 440.0;
 
-        let fs = sample_rate as f64 / decimation_factor as f64;
+        let fs = sample_rate as f64 / DECIMATION_FACTOR as f64;
         let cents_offset = -12.0 / BINS_PER_OCTAVE as f64 * 100.0;
         let f_min = pitch_frequency(48, cents_offset, tuning_frequency);
         let f_max = pitch_frequency(96, cents_offset, tuning_frequency);
@@ -68,11 +65,8 @@ impl GetKeyMode {
             cq_thresh: 0.0054,
         });
         let chroma_frame_size = chroma.frame_size();
-        let chroma_hop_size = chroma_frame_size / frame_overlap_factor;
         let chroma_buffer_size = (hpcp_average * fs / chroma_frame_size as f64).ceil() as usize;
         let median_win_size = (median_average * fs / chroma_frame_size as f64).ceil() as usize;
-
-        let decimator = Decimator::new(chroma_frame_size * decimation_factor, decimation_factor);
 
         let maj_mean = mean(&MAJ_PROFILE);
         let min_mean = mean(&MIN_PROFILE);
@@ -86,7 +80,6 @@ impl GetKeyMode {
         Self {
             bpo: BINS_PER_OCTAVE,
             chroma,
-            decimator,
             chroma_frame_size,
             chroma_buffer_size,
             chroma_buffer: vec![0.0; BINS_PER_OCTAVE * chroma_buffer_size],
@@ -101,27 +94,50 @@ impl GetKeyMode {
             median_buffer: vec![0; median_win_size],
             sorted_buffer: vec![0; median_win_size],
             median_buffer_filling: 0,
-            dec_buffer: vec![0.0; chroma_frame_size],
-            block_size: chroma_frame_size * decimation_factor,
-            hop_size: chroma_hop_size * decimation_factor,
         }
     }
 
+    /// Decimated samples per `process` frame.
+    pub fn frame_size(&self) -> usize {
+        self.chroma_frame_size
+    }
+
+    /// Raw samples one key block covers: the chromagram frame times the ×8
+    /// decimation. `overlap::feed` frames the key path in these.
     pub fn block_size(&self) -> usize {
-        self.block_size
+        self.chroma_frame_size * DECIMATION_FACTOR
     }
 
-    pub fn hop_size(&self) -> usize {
-        self.hop_size
+    /// Length of the zero-ended input the shared ×8 pass must cover for the key
+    /// path to stay bit-identical: `overlap::feed`'s whole key window sequence —
+    /// `block_size/2` of centred zero pre-roll, the track, then the silence its
+    /// `finalize` appends to complete the last window.
+    ///
+    /// The per-block `Decimator` this shared pass replaced filtered exactly that
+    /// concatenation, so the final chroma frame carried the filter's ring-out.
+    /// Sweeping only the track would hand that frame hard zeros instead, and on
+    /// clips shorter than one block it would be the only frame.
+    pub fn decimation_input_len(&self, track_len: usize) -> usize {
+        let block = self.block_size();
+        let preroll = block / 2;
+        // One window per `block` accumulated, plus the one `finalize` always
+        // emits on top of them. Saturating end-to-end so a length past
+        // `usize::MAX - preroll` (unreachable from a real slice) clamps to a
+        // huge value rather than a tiny one that would under-size every
+        // downstream buffer. The bare `+ block` after `/ block * block` is not
+        // enough on its own: at the saturated total it overflows and wraps to
+        // 0 in release.
+        let total = preroll.saturating_add(track_len);
+        (total / block).saturating_mul(block).saturating_add(block)
     }
 
-    /// Process one block of `block_size` samples; returns the (median-filtered)
-    /// key index.
-    pub fn process(&mut self, pcm: &[f64]) -> i32 {
-        self.decimator.process(pcm, &mut self.dec_buffer);
+    /// Process one block of `chroma_frame_size` decimated samples; returns the
+    /// (median-filtered) key index.
+    pub fn process(&mut self, dec: &[f64]) -> i32 {
+        debug_assert_eq!(dec.len(), self.chroma_frame_size, "decimated frame length");
 
         let mut chroma_vals = [0.0f64; BINS_PER_OCTAVE];
-        chroma_vals.copy_from_slice(self.chroma.process(&self.dec_buffer));
+        chroma_vals.copy_from_slice(self.chroma.process(dec));
 
         for j in 0..self.bpo {
             self.chroma_buffer[self.buffer_index * self.bpo + j] = chroma_vals[j];
@@ -191,11 +207,6 @@ impl GetKeyMode {
 
         key
     }
-
-    #[allow(dead_code)]
-    fn chroma_frame_size(&self) -> usize {
-        self.chroma_frame_size
-    }
 }
 
 /// qm-dsp `GetKeyMode::krumCorr` (circular cross-correlation of zero-mean
@@ -227,15 +238,51 @@ mod tests {
     fn geometry_matches_mixxx_defaults() {
         let gkm = GetKeyMode::new(44100);
         // chroma frame size 4096, decimation 8.
-        assert_eq!(gkm.chroma_frame_size(), 4096);
+        assert_eq!(gkm.frame_size(), 4096);
+    }
+
+    #[test]
+    fn geometry_derives_its_factor_from_the_stage_enum() {
+        let gkm = GetKeyMode::new(44100);
+        // `block_size` and `decimation_input_len` must track the stage the
+        // shared pass in `lib.rs` builds, not a restated number.
+        assert_eq!(
+            gkm.block_size(),
+            gkm.frame_size() * crate::key::decimator::Decimation::By8.factor()
+        );
+        assert_eq!(
+            DECIMATION_FACTOR,
+            crate::key::decimator::Decimation::By8.factor()
+        );
+        // And the framing must still be Mixxx's 32768-sample block.
         assert_eq!(gkm.block_size(), 4096 * 8);
-        assert_eq!(gkm.hop_size(), 4096 * 8);
+    }
+
+    /// The pre-fix form `(preroll.saturating_add(track)) / block * block + block`
+    /// still overflowed the final `+ block` when the sum saturated: in release
+    /// that wrapped to 0. Pin the saturating end-to-end form so a pathological
+    /// length stays huge, and a normal length stays bit-identical.
+    #[test]
+    fn decimation_input_len_saturates_instead_of_wrapping_to_zero() {
+        let gkm = GetKeyMode::new(44100);
+        let block = gkm.block_size();
+        // Normal 240 s corpus: identical to the pre-saturating arithmetic.
+        let normal = 44100 * 240;
+        let got = gkm.decimation_input_len(normal);
+        let preroll = block / 2;
+        assert_eq!(got, (preroll + normal) / block * block + block);
+        assert!(got > normal, "framing must add the finalize window");
+        // Pathological: must not wrap to the tiny value that would under-size
+        // every downstream buffer. (`saturating_add` alone is not enough —
+        // the trailing `+ block` is what overflowed.)
+        let huge = gkm.decimation_input_len(usize::MAX);
+        assert_eq!(huge, usize::MAX);
     }
 
     #[test]
     fn silence_does_not_panic() {
         let mut gkm = GetKeyMode::new(44100);
-        let block = vec![0.0; gkm.block_size()];
+        let block = vec![0.0; gkm.frame_size()];
         let key = gkm.process(&block);
         assert!((0..=24).contains(&key));
     }
