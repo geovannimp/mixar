@@ -74,7 +74,7 @@ export function registerTools(pi: ExtensionAPI): void {
     parameters: {
       type: 'object',
       properties: {
-        comment_id: { type: 'integer' },
+        comment_id: { type: 'integer', minimum: 1 },
         body: { type: 'string' },
       },
       required: ['comment_id', 'body'],

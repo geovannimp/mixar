@@ -128,7 +128,9 @@ export function parseFindings(value: unknown): ReviewFinding[] {
     return {
       path: f.path,
       start_line: f.start_line as number,
-      end_line: f.end_line as number | undefined,
+      // null passes the `!= null` check above, so normalize it: the field is
+      // typed number | undefined and a stored null would be a type lie.
+      end_line: f.end_line == null ? undefined : (f.end_line as number),
       severity: f.severity as Severity,
       category: f.category as Category,
       title: f.title,

@@ -2,6 +2,10 @@ import { DEFAULT_BATCH_SIZE } from './constants.ts';
 import type { Env, EventPayload, PathRule, ReviewConfig } from './types.ts';
 
 export function chunk<T>(items: T[], size: number): T[][] {
+  // size <= 0 would never advance the cursor and hang the caller.
+  if (!Number.isInteger(size) || size < 1) {
+    throw new Error(`chunk size must be a positive integer, got ${size}`);
+  }
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
@@ -13,9 +17,16 @@ export function chunk<T>(items: T[], size: number): T[][] {
  */
 export const MAX_BATCH_SIZE = 100;
 
+/** Strict, like resolvePrNumber: trailing junk is a typo, not a value to truncate. */
+function parsePositiveInt(raw: string | undefined): number | null {
+  if (raw == null || raw.trim() === '') return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export function parseBatchSize(raw: string | undefined): number {
-  const n = Number.parseInt(raw ?? '', 10);
-  if (!Number.isInteger(n) || n < 1) return DEFAULT_BATCH_SIZE;
+  const n = parsePositiveInt(raw);
+  if (n === null) return DEFAULT_BATCH_SIZE;
   if (n > MAX_BATCH_SIZE) {
     console.warn(`pi-review: PI_REVIEW_BATCH_SIZE=${n} exceeds ${MAX_BATCH_SIZE}; clamping`);
     return MAX_BATCH_SIZE;

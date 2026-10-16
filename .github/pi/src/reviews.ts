@@ -121,8 +121,28 @@ export async function postReview(rt: Runtime, params: PostReviewParams): Promise
   console.log(
     `pi-review post_review: posted=${posted} dropped_low_confidence=${dropped} outside_diff=${outside.length} failed=${failed}`,
   );
+  if (failed > 0) {
+    // The summary was upserted before the batches, so amend it: a tool result the
+    // model may skim is not enough to tell a human that findings went missing.
+    // Re-posting is deliberately not attempted — a failed batch may have landed.
+    try {
+      await upsertStickySummary(
+        api,
+        base,
+        rt.prNumber,
+        `${summary}\n\n> ⚠️ ${failed} item(s) could not be posted to this pull request. See the workflow log for details.`,
+      );
+    } catch (err) {
+      console.warn(
+        `pi-review: could not amend the summary with the post failure: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  const headline = `posted=${posted} dropped_low_confidence=${dropped} outside_diff=${outside.length} failed=${failed}`;
   return [
-    `posted=${posted} dropped_low_confidence=${dropped} outside_diff=${outside.length} failed=${failed}`,
+    failed > 0
+      ? `${headline}\nWARNING: ${failed} item(s) were NOT posted to the pull request (details below). Mention this in your final message.`
+      : headline,
     ...errors,
   ].join('\n');
 }

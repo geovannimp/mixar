@@ -53,6 +53,7 @@ export interface GitHubClient {
   gh<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
   list<T>(path: string): Promise<T[]>;
   graphql<T>(query: string, variables: Record<string, unknown>): Promise<T>;
+  graphqlMutation<T>(query: string, variables: Record<string, unknown>): Promise<T>;
 }
 
 export type EventPayload = {

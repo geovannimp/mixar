@@ -223,3 +223,26 @@ test('findings: NaN confidence is rejected instead of silently dropped later', (
   assert.throws(() => parseFindings([{ ...base, severity: 'urgent' }]), /severity/);
   assert.throws(() => parseFindings('nope'), /array/);
 });
+
+test('batch size: strict parsing rejects trailing junk instead of truncating', () => {
+  // parseInt would return 25 here; strict parsing must fall back to the default.
+  assert.equal(parseBatchSize('25abc'), 50);
+  assert.equal(parseBatchSize(' 25 '), 25);
+  assert.equal(parseBatchSize('25.5'), 50);
+  // parseInt would return 1; strict reads 1000 and clamps.
+  assert.equal(parseBatchSize('1e3'), MAX_BATCH_SIZE);
+  assert.equal(parseBatchSize('0x10'), 16);
+});
+
+test('chunk: a non-positive size throws instead of looping forever', () => {
+  assert.throws(() => chunk([1, 2, 3], 0), /positive integer/);
+  assert.throws(() => chunk([1, 2, 3], -1), /positive integer/);
+  assert.throws(() => chunk([1, 2, 3], 1.5), /positive integer/);
+  assert.deepEqual(chunk([1, 2, 3], 2), [[1, 2], [3]]);
+});
+
+test('findings: a null end_line normalizes to undefined', () => {
+  const parsed = parseFindings([{ ...finding(), end_line: null }]);
+  assert.equal(parsed[0]!.end_line, undefined);
+  assert.equal('end_line' in parsed[0]!, true);
+});

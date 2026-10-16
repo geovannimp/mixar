@@ -84,6 +84,6 @@ export async function resolveReviewThread(rt: Runtime, commentId: number): Promi
   if (!thread) throw new Error(`thread not found for comment ${commentId}`);
   if (thread.isResolved) return `already resolved (thread ${thread.id})`;
   if (rt.dryRun) return `dry run: would resolve thread ${thread.id}`;
-  await api.graphql(RESOLVE_MUTATION, { id: thread.id });
+  await api.graphqlMutation(RESOLVE_MUTATION, { id: thread.id });
   return `resolved thread ${thread.id}`;
 }

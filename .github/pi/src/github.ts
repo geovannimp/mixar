@@ -56,15 +56,24 @@ export function createGitHubClient(token: string): GitHubClient {
       out.push(...items);
       if (items.length < 100) return out;
     }
-    console.warn(`pi-review: pagination hit ${MAX_PAGES} pages for ${path}; returning partial results`);
-    return out;
+    // Callers treat the result as authoritative (the sticky summary looks for an
+    // existing anchor, a thread lookup looks for its root), so a truncated page
+    // walk must not be mistaken for "not found".
+    throw new Error(
+      `pi-review: pagination exceeded ${MAX_PAGES} pages for ${path}; refusing to act on partial results`,
+    );
   };
 
-  // GraphQL goes through the same retry-wrapped client as REST. Retry is safe
-  // here: THREAD_FOR_COMMENT_QUERY is read-only and resolveReviewThread is
-  // idempotent (resolving an already-resolved thread succeeds).
+  // Reads may be replayed: THREAD_FOR_COMMENT_QUERY is read-only.
   const graphql = async <T>(query: string, variables: Record<string, unknown>): Promise<T> =>
     octokit.graphql<T>(query, variables);
 
-  return { gh, list, graphql };
+  // Mutations are never replayed, matching the gh() rule above: a lost response
+  // would otherwise re-issue a state change.
+  const graphqlMutation = async <T>(
+    query: string,
+    variables: Record<string, unknown>,
+  ): Promise<T> => octokit.graphql<T>(query, { ...variables, request: { retries: 0 } });
+
+  return { gh, list, graphql, graphqlMutation };
 }

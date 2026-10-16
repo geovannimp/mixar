@@ -27,7 +27,10 @@ export function loadRuntime(env: Env = process.env): Runtime {
   if (!token) throw new Error('GITHUB_TOKEN is required');
   const [owner, repo, ...rest] = (env.GITHUB_REPOSITORY ?? '').split('/');
   if (!owner || !repo || rest.length > 0) throw new Error('GITHUB_REPOSITORY must be owner/repo');
-  const event = env.PI_REVIEW_PR_NUMBER ? {} : readEvent(env.GITHUB_EVENT_PATH);
+  // Trim here exactly as resolvePrNumber does, or a whitespace-only override would
+  // skip reading the event payload and then fail to resolve a PR that it carries.
+  const override = env.PI_REVIEW_PR_NUMBER?.trim();
+  const event = override ? {} : readEvent(env.GITHUB_EVENT_PATH);
   return {
     token,
     owner,

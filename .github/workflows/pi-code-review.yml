@@ -40,10 +40,6 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: read
-  pull-requests: write
-
 # NOTE: this group predicate must stay in sync with the job `if:` below —
 # GitHub Actions cannot share one boolean expression between `concurrency` and
 # `if:`. A divergence means a run takes the wrong group (see PR review history).
@@ -82,6 +78,10 @@ jobs:
     name: pi-code-review
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # Job-scoped, not workflow-scoped, so a job added later does not inherit write.
+    permissions:
+      contents: read
+      pull-requests: write
     if: |
       (
         github.event_name == 'pull_request'
