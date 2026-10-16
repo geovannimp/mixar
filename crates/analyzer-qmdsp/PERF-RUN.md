@@ -126,18 +126,73 @@ mirror; rayon parallelism (barred by `docs/audio-analyzer-spec.md` §6.2);
 
 ## Unverified items
 
-- **CI was not run.** Repo `AGENTS.md` asks for CI after pushing; the run's
-  constraint forbids pushing, so no CI signal exists for this branch.
+- **CI was run for this branch.** PR #543 (`geovannip/optimize-qmdsp-tempo`,
+  base `ea8041cb`) was pushed and the suite went green: build, test,
+  format + lint, cargo audit and npm audit all pass; `analyzer-stems` builds,
+  so the plan's fallback exclusion was never needed. The two AI review bots
+  (open-code-review, Kody) also ran and all four threads they raised are
+  replied to and resolved — two of them were real bugs this run introduced,
+  fixed in `f42eae39` with enforcing tests (see the corrections section above).
 - **Per-commit gates were crate-scoped** (`cargo nextest run -p analyzer-qmdsp`).
-  The workspace suite ran once, on the final commit: `cargo nextest run
-  --workspace` → 766 passed, 2 skipped; `cargo test --doc` → ok; `cargo clippy
+  The workspace suite was re-run on the final pushed commit: `cargo nextest run
+  --workspace` → 768 passed, 2 skipped (27 in `analyzer-qmdsp`, up from 25 with
+  the two new parity tests); `cargo test --doc` → ok; `cargo clippy
   --all-targets --all-features -- -D warnings` → clean; `cargo fmt --check` →
-  ok. `analyzer-stems` built, so the plan's fallback exclusion was never needed.
+  ok.
 - **C2's and the first C3's commit bodies are pre-measurement drafts.** They
   carry the change and its gates; the measurements that condemned them live in
   the revert commits (`7fbe725e`, `f18bbfce`).
 - The `%`-of-noise calibration rests on two runs of the final commit. Individual
-  row deltas inside ±6% on this host are not reproducible from a single run.
+  row deltas inside ±6% on this host are not reproducible from a single run —
+  re-measuring `f42eae39` hours later put every row 20–40% above the earlier
+  runs from machine load alone, with parity unaffected.
+
+## Post-review corrections (found by this run's own parity checks)
+
+Two bugs, both introduced by this run's own changes, both caught by tests
+written against the pre-change code. Both fixed in `f42eae39`.
+
+**1. The streaming decimation dropped tail state.** `anti_alias_decimating`
+bounded its sweep to `(output_len - 1) * factor`, so for `input_len = 32768,
+factor = 8` it stopped at input 32760 and never swept the last 7 samples. The
+pre-C4 code swept every input and only *read back* `output_len` of them, so the
+state was complete for the next call. Latent in the final code (the shared pass
+is a single call), but it is the reason the shared key path diverged from the
+per-block path it replaced. The sweep now covers every input and keeps the first
+`output_len` samples.
+
+**2. The shared ×8 stream was not what the old key path decimated.** The shared
+sweep stopped at `y.len()`, while the per-block key path swept `overlap::feed`'s
+whole key window sequence — centred zero pre-roll, track, then the silence
+`finalize` appends to complete the last window. So the final chroma frame, and on
+clips shorter than one block the only frame, saw hard zeros where the old path
+saw the filter's ring-out decayed from the real audio; the key vote could differ
+on any length that is not a multiple of the block size. Fixed by deriving the
+pad from the same formula `overlap::feed` uses and sweeping `track ++ pad`, with
+the centred pre-roll prepended in the decimated domain — equivalent, because zero
+initial state maps to exactly zero output, so no large copy is needed.
+`detect_key` reads consecutive `frame_size()` blocks instead of re-cutting them
+with `feed`, which is also what removes `feed`'s per-frame copy and finalize
+padding from this path.
+
+Enforced by `shared_key_decimation_matches_the_old_per_block_path`
+(`src/lib.rs`) — it rebuilds the pre-shared key path with one stateful
+`Decimator` reused across every window `overlap::feed` emits and compares all
+4096 samples of every frame `to_bits()`-exact across 13 track lengths spanning
+sub-block, block-boundary, exact-multiple and non-multiple cases — and by
+`state_survives_a_call_with_a_partial_group` (`decimator.rs`). Both were verified
+to fail against the code they were written for: restoring the truncated sweep
+fails both, and they pass on the fix.
+
+Measured, the correction is also a **6% win** on the pipeline rows:
+`analyze_full` 240.054 → 224.926, `analyze_bpm` 172.234 → 161.456,
+`analyze_grid` 229.199 → 214.482, `analyze_key` 100.651 → 94.949,
+`sub_beat_period` 14.180 → 13.472 (serial, 240 s corpus, `min_ms` over 5 reps
+after 1 warmup, parent and fix measured back to back). The win comes from the
+key path no longer copying every frame through `feed`'s buffer and no longer
+running `feed`'s finalize padding on the decimated stream.
+
+Fingerprint and dumped beat grids remain byte-identical to base throughout.
 
 ## Next ledger items
 
@@ -165,4 +220,5 @@ mirror; rayon parallelism (barred by `docs/audio-analyzer-spec.md` §6.2);
      (`rcfmat.len() < 2`), producing NaN that a comparison silently discards.
    - `decimator.rs`: `process`'s length contract is `debug_assert`-only, so a
      release build silently ignores a too-long `src` and leaves a stale `dst`
-     tail.
+     tail. (Fixed in `f42eae39` by sweeping every input and clamping the write
+     count; the residual item is only that the *asserts* stay debug-only.)
