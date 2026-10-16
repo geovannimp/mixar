@@ -66,31 +66,15 @@ pub fn prepare<'a>(
 
 /// Largest absolute sample in `samples`, or `0.0` when it is empty.
 ///
-/// The reduction is lane-wise over eight samples at a time and then folded
-/// horizontally, so the compiler emits a SIMD max per chunk instead of a serial
-/// dependency chain through the whole buffer. `f32::max` is commutative and
-/// associative, and `0.0` is the identity for the non-negative values being
-/// combined, so the result is bit-identical to a plain left-to-right fold —
-/// including for NaN inputs, which `max` skips over.
+/// A plain left-to-right max fold. `f32::max` is commutative and associative
+/// and `0.0` is the identity for the non-negative values being combined, so the
+/// order is irrelevant to the result; NaN inputs are skipped, because `max`
+/// returns its non-NaN argument. The reduction pattern is one the compiler
+/// auto-vectorizes reliably.
 fn peak_of(samples: &[f32]) -> f32 {
-    /// Samples folded per lane update: one AVX2 `f32x8` register.
-    const LANES: usize = 8;
-
-    let mut lanes = [0.0f32; LANES];
-    for window in samples.as_chunks::<LANES>().0 {
-        for (lane, sample) in lanes.iter_mut().zip(window.iter()) {
-            *lane = lane.max(sample.abs());
-        }
-    }
-    for sample in samples.as_chunks::<LANES>().1 {
-        lanes[0] = lanes[0].max(sample.abs());
-    }
-
-    let mut peak = 0.0f32;
-    for &lane in &lanes {
-        peak = peak.max(lane);
-    }
-    peak
+    samples
+        .iter()
+        .fold(0.0f32, |peak, sample| peak.max(sample.abs()))
 }
 
 /// Scale `samples` in place so its peak is exactly [`PEAK_NORMALIZE_THRESHOLD`].

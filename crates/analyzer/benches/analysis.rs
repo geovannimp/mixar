@@ -73,7 +73,7 @@ fn decode_mono_bench(c: &mut Criterion) {
         // work one iteration performs, and the fixture's rate names the id.
         let probed = probe(&path, &config);
         let rate_khz = probed.sample_rate / 1000;
-        group.throughput(Throughput::Elements(probed.samples.len() as u64));
+        group.throughput(Throughput::Elements(probed.frames));
         group.bench_function(format!("{label}_{rate_khz}k"), |b| {
             b.iter(|| analyzer::decode_mono(&path, &config));
         });
@@ -96,7 +96,7 @@ fn analyze_file_bench(c: &mut Criterion) {
         // is the honest denominator for the combined analysis run.
         let probed = probe(&master, &config);
         let rate_khz = probed.sample_rate / 1000;
-        group.throughput(Throughput::Elements(probed.samples.len() as u64));
+        group.throughput(Throughput::Elements(probed.frames));
         group.bench_function(format!("{label}_{rate_khz}k"), |b| {
             b.iter(|| analyze_file(&master, &config));
         });

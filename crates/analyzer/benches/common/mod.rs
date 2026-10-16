@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
-use analyzer::{decode_mono, AnalysisConfig, DecodedMono};
+use analyzer::{decode_mono, AnalysisConfig};
 
 /// Real 387.1 s stereo 24-bit 44.1 kHz master (see `samples/README.md`).
 pub const MASTER: &str = "Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav";
@@ -63,33 +63,50 @@ pub fn frames_for(secs: f64) -> u64 {
     (secs * f64::from(MASTER_SR)).ceil() as u64
 }
 
-/// Decode `path` under `config`, memoized for the process.
+/// What a probe establishes about a fixture under a config.
+///
+/// Callers only need the fixture's native rate (it names the benchmark id) and
+/// the frame count it actually decodes (it is the throughput denominator), so
+/// the probe hands back these two scalars rather than a copy of the decoded
+/// buffer — the master is ~68 MB of mono f32.
+#[derive(Clone, Copy)]
+pub struct Probed {
+    pub sample_rate: u32,
+    pub frames: u64,
+}
+
+/// Decode `path` under `config` and report what was decoded, memoized for the
+/// process.
 ///
 /// Every throughput denominator and benchmark id is derived from a probe decode
 /// of the fixture. The same (fixture, config) pair can be probed by more than
 /// one target — `decode_mono` and `analyze_file` share three — so the decode is
 /// paid once per process instead of once per target. The probe runs before the
 /// harness starts timing, so it is setup work, not measured work.
-pub fn probe(path: &Path, config: &AnalysisConfig) -> DecodedMono {
+pub fn probe(path: &Path, config: &AnalysisConfig) -> Probed {
     let key = (path.to_path_buf(), config.max_duration_ms);
     if let Some(hit) = PROBES
         .lock()
         .expect("probe cache is never poisoned")
         .get(&key)
     {
-        return hit.clone();
+        return *hit;
     }
     let decoded = decode_mono(path, config)
         .unwrap_or_else(|error| panic!("fixture {} must decode: {error}", path.display()));
+    let probed = Probed {
+        sample_rate: decoded.sample_rate,
+        frames: decoded.samples.len() as u64,
+    };
     PROBES
         .lock()
         .expect("probe cache is never poisoned")
-        .insert(key, decoded.clone());
-    decoded
+        .insert(key, probed);
+    probed
 }
 
 /// Probes keyed by (fixture, duration cap): the properties they establish —
 /// native sample rate and decoded frame count — depend on both.
-type ProbeCache = Mutex<HashMap<(PathBuf, Option<i32>), DecodedMono>>;
+type ProbeCache = Mutex<HashMap<(PathBuf, Option<i32>), Probed>>;
 
 static PROBES: LazyLock<ProbeCache> = LazyLock::new(|| Mutex::new(HashMap::new()));

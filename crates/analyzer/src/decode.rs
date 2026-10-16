@@ -35,13 +35,15 @@ const DECODE_CHUNK_FRAMES: usize = 8192;
 ///
 /// This is the analysis memory budget in `docs/audio-analyzer-spec.md` §12
 /// (< 500 MB peak per concurrent analysis job) used as a ceiling rather than a
-/// target: 128 Mi frames × 4 bytes = 512 MiB, i.e. ≈ 50.7 minutes of mono f32
-/// at 44.1 kHz. A cap larger than this is still honoured — the read loop stops
-/// at EOF — but it is never turned into a single allocation request, because
+/// target: 64 Mi frames × 4 bytes = 256 MiB, i.e. ≈ 25.4 minutes of mono f32 at
+/// 44.1 kHz — the reservation on its own stays inside that budget, leaving room
+/// for the backend's own allocations. A cap larger than this is still honoured —
+/// the read loop stops at EOF and the buffer grows geometrically from here — but
+/// it is never turned into a single allocation request, because
 /// `max_duration_ms` is a public input and a huge one (say `i32::MAX`) would
 /// otherwise ask the allocator for hundreds of gigabytes before the first
 /// sample arrives.
-const MAX_RESERVED_FRAMES: usize = 128 * 1024 * 1024;
+const MAX_RESERVED_FRAMES: usize = 64 * 1024 * 1024;
 
 /// Frames the output buffer is sized for, clamped to [`MAX_RESERVED_FRAMES`].
 ///
