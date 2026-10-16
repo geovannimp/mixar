@@ -106,20 +106,15 @@ impl Decimator {
     /// qm-dsp `Decimator::antiAliasDecimating`: one DF2T IIR sweep writing
     /// directly into `dst`, no whole-track scratch.
     ///
-    /// The sweep is bounded to the last input index whose output is actually
-    /// kept, so exactly `output_len` samples are written. `output_len` is
-    /// `input_len / factor` (floor), which is not the same as the number of
-    /// indices divisible by `factor` in `0..input_len` (ceil) — sweeping the
-    /// whole input would write one sample past `dst` whenever
-    /// `input_len % factor != 0`. Every value the old `buffer[factor * i]`
-    /// lookup produced is still produced, at the same index and bit-for-bit.
+    /// The sweep covers every input so the filter state is complete for the next
+    /// stage or the next call — the old `buffer[factor * i]` lookup swept all
+    /// `input_len` samples and only *read back* `output_len` of them. Stopping
+    /// the sweep at the last kept index would silently drop the tail inputs'
+    /// state, which shows up as a different answer the moment a `Decimator` is
+    /// reused across calls (as `GetKeyMode`'s per-block path did).
     fn anti_alias_decimating(&mut self, src: &[f64], dst: &mut [f64]) {
-        if self.output_len == 0 {
-            return;
-        }
-        let last = (self.output_len - 1) * self.factor;
         let mut written = 0usize;
-        for i in 0..=last {
+        for i in 0..self.input_len {
             let input = src[i];
             let out = input * self.b[0] + self.o[0];
             self.o[0] = input * self.b[1] - out * self.a[1] + self.o[1];
@@ -129,7 +124,9 @@ impl Decimator {
             self.o[4] = input * self.b[5] - out * self.a[5] + self.o[5];
             self.o[5] = input * self.b[6] - out * self.a[6] + self.o[6];
             self.o[6] = input * self.b[7] - out * self.a[7];
-            if i % self.factor == 0 {
+            // Keep the first `output_len` decimated samples; the rest of the
+            // sweep still runs so the state carries.
+            if i % self.factor == 0 && written < self.output_len {
                 dst[written] = out;
                 written += 1;
             }
@@ -226,6 +223,33 @@ mod tests {
         for k in 0..2 {
             let want = y[k * 8];
             assert!((dst[k] - want).abs() <= 1e-9 * want.abs().max(1.0));
+        }
+    }
+
+    /// Every input has to be swept, not just the ones whose output is kept, or a
+    /// reused `Decimator` inherits a truncated state.
+    #[test]
+    fn state_survives_a_call_with_a_partial_group() {
+        let mut d = Decimator::new(Decimation::By2, 20);
+        let first_src: Vec<f64> = (0..20).map(|i| i as f64 / 20.0).collect();
+        let second_src: Vec<f64> = (0..20).map(|i| (i as f64 + 0.5) / 20.0).collect();
+        let mut first = vec![0.0; 10];
+        let mut second = vec![0.0; 10];
+        d.process(&first_src, &mut first);
+        d.process(&second_src, &mut second);
+
+        // The same signal as one continuous run.
+        let mut whole = Decimator::new(Decimation::By2, 40);
+        let mut stream = first_src.clone();
+        stream.extend_from_slice(&second_src);
+        let mut both = vec![0.0; 20];
+        whole.process(&stream, &mut both);
+
+        for (i, &a) in first.iter().enumerate() {
+            assert_eq!(a.to_bits(), both[i].to_bits(), "first[{i}]");
+        }
+        for (i, &b) in second.iter().enumerate() {
+            assert_eq!(b.to_bits(), both[10 + i].to_bits(), "second[{i}]");
         }
     }
 }

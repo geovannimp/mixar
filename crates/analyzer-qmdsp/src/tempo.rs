@@ -60,8 +60,8 @@ pub fn calculate_beat_period(df: &[f64]) -> Vec<i32> {
 /// adaptive-thresholded and normalised to unit sum.
 ///
 /// `dfframe`, `acf` and `rcf` are caller-owned scratch so the ~95 blocks of a
-/// run share one allocation each. Every slot of `acf` and `rcf` is overwritten
-/// before any read, so no fill is needed.
+/// run share one allocation each. `acf` is fully overwritten by the lag loop;
+/// `rcf` accumulates into zeroed scratch, which the caller refills per block.
 fn get_rcf(dfframe: &mut [f64], wv: &[f64], acf: &mut [f64], rcf: &mut [f64]) -> Vec<f64> {
     debug_assert_eq!(dfframe.len(), WIN_LEN);
     debug_assert_eq!(acf.len(), WIN_LEN);

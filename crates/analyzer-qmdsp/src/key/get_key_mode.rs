@@ -6,6 +6,8 @@ use crate::key::cqt::{Chromagram, ChromagramConfig};
 use crate::math::{get_max_index, mean, pitch_frequency};
 
 const BINS_PER_OCTAVE: usize = 36;
+/// Raw samples per key block: the chromagram frame times this decimation.
+const DECIMATION_FACTOR: usize = 8;
 
 #[rustfmt::skip]
 const MAJ_PROFILE: [f64; BINS_PER_OCTAVE] = [
@@ -44,12 +46,11 @@ pub struct GetKeyMode {
 
 impl GetKeyMode {
     pub fn new(sample_rate: u32) -> Self {
-        let decimation_factor: usize = 8;
         let hpcp_average = 10.0;
         let median_average = 10.0;
         let tuning_frequency = 440.0;
 
-        let fs = sample_rate as f64 / decimation_factor as f64;
+        let fs = sample_rate as f64 / DECIMATION_FACTOR as f64;
         let cents_offset = -12.0 / BINS_PER_OCTAVE as f64 * 100.0;
         let f_min = pitch_frequency(48, cents_offset, tuning_frequency);
         let f_max = pitch_frequency(96, cents_offset, tuning_frequency);
@@ -97,6 +98,29 @@ impl GetKeyMode {
     /// Decimated samples per `process` frame.
     pub fn frame_size(&self) -> usize {
         self.chroma_frame_size
+    }
+
+    /// Raw samples one key block covers: the chromagram frame times the ×8
+    /// decimation. `overlap::feed` frames the key path in these.
+    pub fn block_size(&self) -> usize {
+        self.chroma_frame_size * DECIMATION_FACTOR
+    }
+
+    /// Length of the zero-ended input the shared ×8 pass must cover for the key
+    /// path to stay bit-identical: `overlap::feed`'s whole key window sequence —
+    /// `block_size/2` of centred zero pre-roll, the track, then the silence its
+    /// `finalize` appends to complete the last window.
+    ///
+    /// The per-block `Decimator` this shared pass replaced filtered exactly that
+    /// concatenation, so the final chroma frame carried the filter's ring-out.
+    /// Sweeping only the track would hand that frame hard zeros instead, and on
+    /// clips shorter than one block it would be the only frame.
+    pub fn decimation_input_len(&self, track_len: usize) -> usize {
+        let block = self.block_size();
+        let preroll = block / 2;
+        // One window per `block` accumulated, plus the one `finalize` always
+        // emits on top of them.
+        (preroll + track_len) / block * block + block
     }
 
     /// Process one block of `chroma_frame_size` decimated samples; returns the

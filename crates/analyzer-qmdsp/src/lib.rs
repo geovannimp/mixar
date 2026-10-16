@@ -87,32 +87,48 @@ impl AudioAnalyzer for QmdspAnalyzer {
         }
 
         let sr = sample_rate;
-        let y: Vec<f64> = samples.iter().map(|&s| f64::from(s)).collect();
+        let y_len = samples.len();
+        let mut buf: Vec<f64> = samples.iter().map(|&s| f64::from(s)).collect();
 
         let need_beats = config.targets.bpm || config.targets.beat_grid;
+        let need_key = config.targets.key;
+        let mut key_mode = if need_key {
+            Some(key::GetKeyMode::new(sr))
+        } else {
+            None
+        };
+        // One ×8 pass serves both the key and the downbeat consumer. The
+        // decimator is causal with zero initial state, so `[0; preroll] ++
+        // decimate(track ++ finalize_silence)` is exactly what the per-block
+        // `Decimator` this replaced swept: the centred pre-roll contributes only
+        // zeros, and the trailing silence is what gave the final chroma frame
+        // the filter's ring-out instead of hard zeros.
+        if let Some(mode) = &key_mode {
+            let pad = mode.decimation_input_len(y_len) - mode.block_size() / 2 - y_len;
+            buf.resize(y_len + pad, 0.0);
+        }
         let beats = if need_beats {
-            detect_beats(&y, sr)
+            detect_beats(&buf[..y_len], sr)
         } else {
             Vec::new()
         };
-        // One ×8 pass serves both the key and the downbeat consumer: the
-        // decimator is causal with zero initial state, and the key path's
-        // centred zero pre-roll is recreated after decimation by
-        // `overlap::feed`'s first window (`[0; frame/2] ++ dec[0..frame/2]`),
-        // which zero input maps to exactly zero output.
-        let need_key = config.targets.key;
         let need_downbeats = config.targets.beat_grid && beats.len() >= 2;
         let dec8 = if need_key || need_downbeats {
-            let mut dec = key::decimator::Decimator::new(key::decimator::Decimation::By8, y.len());
-            let mut out = vec![0.0; y.len() / 8];
-            dec.process(&y, &mut out);
+            // The pre-roll is only in the stream when the key path needs it; the
+            // downbeat slices it straight back off.
+            let preroll = key_mode.as_ref().map_or(0, |m| m.frame_size() / 2);
+            let mut dec =
+                key::decimator::Decimator::new(key::decimator::Decimation::By8, buf.len());
+            let mut out = vec![0.0; preroll + buf.len() / 8];
+            dec.process(&buf, &mut out[preroll..]);
             Some(out)
         } else {
             None
         };
         let downbeats = if need_downbeats {
+            let preroll = key_mode.as_ref().map_or(0, |m| m.frame_size() / 2);
             downbeat::detect_downbeats(
-                dec8.as_deref().unwrap_or_default(),
+                &dec8.as_deref().unwrap_or_default()[preroll..preroll + y_len / 8],
                 sr,
                 &beats,
                 BEATS_PER_BAR,
@@ -122,9 +138,11 @@ impl AudioAnalyzer for QmdspAnalyzer {
         };
         let key_index = if need_key {
             detect_key(
+                key_mode
+                    .as_mut()
+                    .expect("key mode built for the key target"),
                 dec8.as_deref()
                     .expect("decimation computed for the key target"),
-                sr,
             )
         } else {
             0
@@ -220,18 +238,23 @@ fn detect_beats(y: &[f64], sample_rate: u32) -> Vec<f32> {
 
 /// Run the Mixxx key pipeline over the already ×8-decimated samples and
 /// return the dominant key index (0 = none).
-fn detect_key(dec: &[f64], sample_rate: u32) -> i32 {
-    let mut key_mode = key::GetKeyMode::new(sample_rate);
+///
+/// `dec` starts with `frame_size()/2` zeros, standing in for the centred zero
+/// pre-roll `overlap::feed` gave the per-block path, so the frames are
+/// consecutive `frame_size()`-length blocks of the stream rather than frames
+/// re-cut from it. The block count is exactly the whole number of windows the
+/// old framing emitted, and each block carries the filter's ring-out into the
+/// final one.
+fn detect_key(key_mode: &mut key::GetKeyMode, dec: &[f64]) -> i32 {
     let frame = key_mode.frame_size();
-    // `frame_overlap_factor = 1`, so frame and hop are equal.
     let mut counts = [0i32; 25];
 
-    overlap::feed(dec, frame, frame, |block| {
+    for block in dec.chunks_exact(frame) {
         let k = key_mode.process(block);
         if (1..=24).contains(&k) {
             counts[k as usize] += 1;
         }
-    });
+    }
 
     let mut best = 0i32;
     let mut best_count = 0i32;
@@ -317,6 +340,69 @@ mod time {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::key::GetKeyMode;
+
+    /// The shared ×8 pass must hand the key path exactly the samples the
+    /// per-block `Decimator` it replaced produced — including the filter's
+    /// ring-out in the final chroma frame and the frames that only exist for a
+    /// very short clip.
+    #[test]
+    fn shared_key_decimation_matches_the_old_per_block_path() {
+        let mode = GetKeyMode::new(44100);
+        let block = mode.block_size();
+        let frame = mode.frame_size();
+        let preroll = frame / 2;
+
+        for &len in &[
+            1usize, 7, 100, 16_383, 16_384, 16_385, 32_767, 32_768, 36_384, 65_536, 100_000,
+            200_000, 399_999,
+        ] {
+            let y: Vec<f64> = (0..len)
+                .map(|i| {
+                    let t = i as f64;
+                    (t * 0.037).sin() * 0.6 + (t * 0.11).cos() * 0.3 - 0.05
+                })
+                .collect();
+
+            // Reference: the pre-shared key path. One stateful `Decimator` reused
+            // across every window `overlap::feed` emits, exactly as
+            // `GetKeyMode` used to do internally.
+            let mut d = crate::key::decimator::Decimator::new(
+                crate::key::decimator::Decimation::By8,
+                block,
+            );
+            let mut dbuf = vec![0.0; frame];
+            let mut want: Vec<Vec<f64>> = Vec::new();
+            crate::overlap::feed(&y, block, block, |w| {
+                d.process(w, &mut dbuf);
+                want.push(dbuf.clone());
+            });
+
+            // New: the shared padded stream.
+            let pad = mode.decimation_input_len(len) - block / 2 - len;
+            let mut buf = y.clone();
+            buf.resize(len + pad, 0.0);
+            let mut dec = crate::key::decimator::Decimator::new(
+                crate::key::decimator::Decimation::By8,
+                buf.len(),
+            );
+            let mut out = vec![0.0; preroll + buf.len() / 8];
+            dec.process(&buf, &mut out[preroll..]);
+            let got: Vec<&[f64]> = out.chunks_exact(frame).collect();
+
+            assert_eq!(want.len(), got.len(), "frame count at len {len}");
+            for (k, (w, g)) in want.iter().zip(got.iter()).enumerate() {
+                for (j, (&a, &b)) in w.iter().zip(g.iter()).enumerate() {
+                    assert_eq!(
+                        a.to_bits(),
+                        b.to_bits(),
+                        "len {len} frame {k} bin {j}: old {a}, shared {b}"
+                    );
+                }
+            }
+            let _ = &mode;
+        }
+    }
 
     #[test]
     fn empty_buffer_errors() {

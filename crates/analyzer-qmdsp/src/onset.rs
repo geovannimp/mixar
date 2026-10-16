@@ -94,8 +94,17 @@ impl DetectionFunction {
 
             self.prev_prev_re[i] = a;
             self.prev_prev_im[i] = b;
-            self.prev_re[i] = if mag == 0.0 { 1.0 } else { r / mag };
-            self.prev_im[i] = if mag == 0.0 { 0.0 } else { im / mag };
+            // A zero-magnitude bin keeps the angle qm-dsp's atan2 recorded,
+            // including the ±π of a negative-zero real part (atan2(+0.0, -0.0)
+            // = π); a constant (1, 0) fallback would silently flip the phasor.
+            let (prev_re, prev_im) = if mag == 0.0 {
+                let theta = im.atan2(r);
+                (theta.cos(), theta.sin())
+            } else {
+                (r / mag, im / mag)
+            };
+            self.prev_re[i] = prev_re;
+            self.prev_im[i] = prev_im;
             self.mag_history[i] = mag;
         }
         val
