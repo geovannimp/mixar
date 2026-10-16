@@ -250,6 +250,7 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     let mut d8 = internals::key::decimator::Decimator::new(y64.len(), 8);
     let mut dec = vec![0.0; y64.len() / 8];
     d8.process(&y64, &mut dec);
+
     let mut chroma = internals::key::cqt::Chromagram::new(internals::key::cqt::ChromagramConfig {
         fs: f64::from(SR) / 8.0,
         min: internals::math::pitch_frequency(48, -12.0 / 36.0 * 100.0, 440.0),
@@ -274,6 +275,6 @@ fn sub_rows(y: &[f32], full_beats: &[f32]) {
     });
 
     bench("sub_downbeat", WARMUP, REPS, || {
-        internals::downbeat::detect_downbeats(&dec, SR, full_beats, 4)
+        internals::downbeat::detect_downbeats(&y64, SR, full_beats, 4)
     });
 }
