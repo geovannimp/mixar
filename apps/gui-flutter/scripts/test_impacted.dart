@@ -150,12 +150,9 @@ Set<String> _importsOf(String file) {
   );
   const packagePrefix = 'package:gui_flutter/';
   final out = <String>{};
-  for (final directive in RegExp(
-    r'''\b(?:import|export|part)\b[^;]*;''',
-    dotAll: true,
-  ).allMatches(source)) {
+  for (final directive in _directives(source)) {
     final uris = RegExp('''['"]([^'"]+)['"]''');
-    for (final uri in uris.allMatches(directive.group(0)!)) {
+    for (final uri in uris.allMatches(directive)) {
       final target = uri.group(1)!;
       if (target.startsWith(packagePrefix)) {
         out.add(p.posix.join('lib', target.substring(packagePrefix.length)));
@@ -166,6 +163,48 @@ Set<String> _importsOf(String file) {
     }
   }
   return out;
+}
+
+/// `;`-terminated statements of [source], then only `import` / `export` /
+/// `part`.
+///
+/// Splitting on a bare `;` (or the `[^;]*` regex this replaces) is wrong in
+/// both directions: a `;` inside a string literal cuts a directive short and
+/// drops a real edge, silently under-selecting suites. Tracking quote state
+/// removes that class of error.
+Iterable<String> _directives(String source) {
+  final statements = <String>[];
+  final buffer = StringBuffer();
+  var quote = '';
+  for (var i = 0; i < source.length; i++) {
+    final ch = source[i];
+    if (ch == r'\') {
+      buffer.write(ch);
+      if (i + 1 < source.length) buffer.write(source[++i]);
+      continue;
+    }
+    if (quote.isNotEmpty) {
+      buffer.write(ch);
+      if (ch == quote) quote = '';
+      continue;
+    }
+    if (ch == "'" || ch == '"') {
+      quote = ch;
+      buffer.write(ch);
+      continue;
+    }
+    if (ch == ';') {
+      statements.add(buffer.toString());
+      buffer.clear();
+      continue;
+    }
+    buffer.write(ch);
+  }
+  if (buffer.isNotEmpty) statements.add(buffer.toString());
+  return statements.where(
+    (statement) =>
+        RegExp(r'''^\s*(?:import|export|part)\b''').hasMatch(statement),
+  );
 }
 
 /// Every `.dart` file under `lib/` and `test/`, mapped to its imports.
@@ -369,6 +408,17 @@ Future<int> _flutterTest(List<String> files) async {
       'flutter',
       ['test', '-j', _cpuCount(), ...files],
       workingDirectory: _projectRoot,
+      // Same GIT_* guard as scripts/flutter_test.sh and the format/lint/icon
+      // tasks: Flutter's version probe otherwise inherits the hook's repo and
+      // reports 0.0.0-unknown. `includeParentEnvironment: false` is required —
+      // without it Dart merges the parent environment back in and the removals
+      // are silently undone.
+      includeParentEnvironment: false,
+      environment: Map<String, String>.of(Platform.environment)
+        ..remove('GIT_DIR')
+        ..remove('GIT_WORK_TREE')
+        ..remove('GIT_INDEX_FILE')
+        ..remove('GIT_PREFIX'),
       mode: ProcessStartMode.inheritStdio,
     );
   } on ProcessException catch (error) {
