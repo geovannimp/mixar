@@ -98,7 +98,7 @@ mod tests {
         let result = integrated_lufs_mono(&vec![0.0; 48_000 * 3], 48_000);
 
         assert!(
-            matches!(&result, Err(AnalyzerError::Analysis(message)) if message == UNMEASURABLE_LOUDNESS)
+            matches!(result, Err(AnalyzerError::Analysis(message)) if message == UNMEASURABLE_LOUDNESS)
         );
     }
 }

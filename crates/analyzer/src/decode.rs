@@ -285,8 +285,8 @@ mod tests {
     /// The clamp that keeps an absurd cap from becoming an allocation request.
     ///
     /// Tested as arithmetic rather than through `decode_mono`, which would
-    /// really issue the clamped `Vec::with_capacity` (a 512 MiB request) just
-    /// to observe the result.
+    /// really issue the clamped `Vec::with_capacity` (400 MiB at
+    /// [`MAX_RESERVED_FRAMES`]) just to observe the result.
     #[test]
     fn the_reservation_is_clamped_to_the_ceiling() {
         assert_eq!(reserved_frames(None), 0);
