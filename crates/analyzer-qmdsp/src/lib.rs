@@ -17,6 +17,15 @@
 //! This crate is Mixar's only analysis backend. It has no FFI and no C++
 //! toolchain requirement.
 //!
+//! **Module visibility:** `downbeat`, `key`, `math`, `onset`, `overlap` and
+//! `tempo` are `pub` only so `examples/qmdsp_timing.rs` — a separate crate —
+//! can reach the pipeline stages it times. `pub(crate)` does not work here: a
+//! `pub use` cannot raise an item above its own visibility, so the example
+//! would not be able to name them. These modules are therefore an unstable,
+//! measurement-only surface; the crate's real API is [`QmdspAnalyzer`] through
+//! [`AudioAnalyzer`], and nothing outside the workspace or the example should
+//! depend on them.
+//!
 //! **Licensing:** a port of qm-dsp (GPL-2.0-or-later) is a derivative work and
 //! stays under Mixar's GPLv3.
 
