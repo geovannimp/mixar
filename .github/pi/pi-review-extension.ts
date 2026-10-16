@@ -177,25 +177,28 @@ export function buildReviewComments(
   const comments: ReviewCommentInput[] = [];
   const outside: ReviewFinding[] = [];
   for (const f of findings) {
-    const clamped = clampToAnchor(anchors, f.path, f.end_line ?? f.start_line);
-    if (clamped === null) {
+    const endAnchor = clampToAnchor(anchors, f.path, f.end_line ?? f.start_line);
+    if (endAnchor === null) {
       outside.push(f);
       continue;
     }
-    // A single-line finding must not keep an unclamped start line: it can sit
-    // outside the diff and make GitHub reject the comment.
-    let startLine = clamped;
+    // Span both ends onto anchors, then order them: the two nearest anchors can
+    // cross when the end snaps down and the start snaps up. Emitting max/min keeps
+    // the range valid and preserves the reviewer's span instead of dropping it.
+    let startAnchor = endAnchor;
     if (f.end_line != null && f.end_line !== f.start_line) {
-      startLine = clampToAnchor(anchors, f.path, f.start_line) ?? clamped;
+      startAnchor = clampToAnchor(anchors, f.path, f.start_line) ?? endAnchor;
     }
+    const line = Math.max(startAnchor, endAnchor);
+    const start = Math.min(startAnchor, endAnchor);
     const comment: ReviewCommentInput = {
       path: f.path,
-      line: clamped,
+      line,
       side: 'RIGHT',
       body: formatFindingBody(f),
     };
-    if (startLine < clamped) {
-      comment.start_line = startLine;
+    if (start < line) {
+      comment.start_line = start;
       comment.start_side = 'RIGHT';
     }
     comments.push(comment);
@@ -546,12 +549,24 @@ async function upsertStickySummary(
     body?: string | null;
     user?: { type?: string; login?: string } | null;
   }>(`${base}/issues/${prNumber}/comments`);
-  // Only reuse a bot comment: a human quoting the anchor must not be overwritten.
-  const existing = comments.find(
+  // Only reuse bot comments: a human quoting the anchor must not be overwritten.
+  // If earlier runs left more than one, keep the oldest and delete the rest so the
+  // thread does not accumulate stale summaries.
+  const anchored = comments.filter(
     (c) => c.user?.type === 'Bot' && c.body?.includes(SUMMARY_ANCHOR),
   );
-  if (existing) {
-    await api.gh('PATCH', `${base}/issues/comments/${existing.id}`, { body });
+  const keep = anchored[0];
+  if (keep) {
+    await api.gh('PATCH', `${base}/issues/comments/${keep.id}`, { body });
+    for (const dupe of anchored.slice(1)) {
+      try {
+        await api.gh('DELETE', `${base}/issues/comments/${dupe.id}`);
+      } catch (err) {
+        console.warn(
+          `pi-review: could not delete duplicate summary comment ${dupe.id}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
   } else {
     await api.gh('POST', `${base}/issues/${prNumber}/comments`, { body });
   }
@@ -653,8 +668,8 @@ const textResult = (text: string): ToolResult => ({
 
 function intParam(params: unknown, key: string): number {
   const value = (params as Record<string, unknown> | null | undefined)?.[key];
-  if (typeof value !== 'number' || !Number.isInteger(value)) {
-    throw new Error(`${key} must be an integer`);
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new Error(`${key} must be a positive integer`);
   }
   return value;
 }
@@ -667,7 +682,7 @@ function stringParam(params: unknown, key: string): string {
 
 const commentIdSchema = {
   type: 'object',
-  properties: { comment_id: { type: 'integer' } },
+  properties: { comment_id: { type: 'integer', minimum: 1 } },
   required: ['comment_id'],
 };
 

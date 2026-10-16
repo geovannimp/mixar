@@ -125,6 +125,17 @@ test('start_line: multi-line finding keeps a clamped start line when it is above
   assert.equal(comments[0]!.start_side, 'RIGHT');
 });
 
+test('start_line: crossed anchors keep a valid range instead of dropping the span', () => {
+  // end 12 snaps down to 10, start 16 snaps up to 14: the anchors cross.
+  const { comments } = buildReviewComments(
+    [finding({ start_line: 16, end_line: 12 })],
+    anchors,
+  );
+  assert.equal(comments[0]!.line, 14);
+  assert.equal(comments[0]!.start_line, 10);
+  assert.ok(comments[0]!.start_line! < comments[0]!.line);
+});
+
 test('confidence floor: 0.55 is kept, 0.549 is dropped', () => {
   assert.equal(CONFIDENCE_FLOOR, 0.55);
   const { kept, dropped } = splitByConfidence([

@@ -169,8 +169,11 @@ jobs:
           fi
 
       # Extension deps (octokit, minimatch) resolve from this install. Runs on
-      # the trusted base checkout, never on PR-controlled code.
+      # the trusted base checkout, never on PR-controlled code. Guarded so the PR
+      # that first adds the extension does not fail here (the base has no manifest
+      # until this PR merges).
       - name: Install extension dependencies
+        if: hashFiles('.github/pi/package.json') != ''
         shell: bash
         working-directory: .github/pi
         run: npm ci --omit=dev
