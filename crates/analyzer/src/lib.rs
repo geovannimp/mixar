@@ -24,6 +24,10 @@ fn default_analyzer() -> &'static QmdspAnalyzer {
 }
 
 /// Analyze already-decoded mono PCM, normalizing it to ±1.0 first.
+///
+/// Runs the default backend. Callers with a custom [`AudioAnalyzer`] backend
+/// invoke that backend directly on the buffer, with the peak-normalization
+/// policy in `docs/audio-analyzer-spec.md` §7 applied first.
 pub fn analyze_pcm(
     samples: &[f32],
     sample_rate: u32,
@@ -201,8 +205,8 @@ mod tests {
     fn silent_track_still_loads_with_the_quiet_sentinel() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("silence.wav");
-        write_minimal_wav(&wav);
-        // Rewrite it as pure silence.
+        // Write the file directly as silence; `WavWriter::create` truncates, so
+        // a pre-existing tone would be discarded anyway.
         let spec = hound::WavSpec {
             channels: 1,
             sample_rate: 44100,

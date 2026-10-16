@@ -43,6 +43,15 @@ const DECODE_CHUNK_FRAMES: usize = 8192;
 /// sample arrives.
 const MAX_RESERVED_FRAMES: usize = 128 * 1024 * 1024;
 
+/// Frames the output buffer is sized for, clamped to [`MAX_RESERVED_FRAMES`].
+///
+/// Split out from `decode_mono` so the clamp — the only reason an absurd
+/// `max_duration_ms` cannot become a huge `Vec::with_capacity` — is testable
+/// as arithmetic, without a decode that would really request the allocation.
+fn reserved_frames(max_frames: Option<usize>) -> usize {
+    max_frames.map_or(0, |limit| limit.min(MAX_RESERVED_FRAMES))
+}
+
 /// Decode `path` to mono f32, honouring the length cap in `config`.
 ///
 /// The decoder is read one chunk at a time and each chunk is averaged into the
@@ -65,8 +74,7 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
     // The cap is an exact frame count, so the output buffer can be sized once
     // instead of grown by doubling. Without a cap the true length is not known
     // up front, so the vector grows geometrically.
-    let reserved = max_frames.map_or(0, |limit| limit.min(MAX_RESERVED_FRAMES));
-    let mut mono = Vec::with_capacity(reserved);
+    let mut mono = Vec::with_capacity(reserved_frames(max_frames));
     let mut chunk = vec![0.0f32; DECODE_CHUNK_FRAMES * channels];
 
     while max_frames.is_none_or(|limit| mono.len() < limit) {
@@ -243,20 +251,42 @@ mod tests {
         assert_eq!(mono, vec![1.0, 2.0, 3.0]);
     }
 
-    /// A cap larger than any real track must not become an allocation request:
-    /// the decode has to stay within reach and return the file.
+    /// A cap larger than the file must still return the whole file: the read
+    /// loop stops at EOF rather than at the cap.
     #[test]
-    fn absurd_duration_cap_does_not_allocate_unboundedly() {
+    fn a_cap_beyond_the_file_returns_the_whole_file() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("long.wav");
         write_distinct_stereo_wav(&wav, 44_100);
 
         let config = AnalysisConfig {
-            max_duration_ms: Some(i32::MAX),
+            // A minute of 44.1 kHz audio: well past the file, well under
+            // `MAX_RESERVED_FRAMES`, so the reservation stays small.
+            max_duration_ms: Some(60_000),
             ..Default::default()
         };
         let decoded = decode_mono(&wav, &config).unwrap();
         assert_eq!(decoded.samples.len(), 44_100);
+    }
+
+    /// The clamp that keeps an absurd cap from becoming an allocation request.
+    ///
+    /// Tested as arithmetic rather than through `decode_mono`, which would
+    /// really issue the clamped `Vec::with_capacity` (a 512 MiB request) just
+    /// to observe the result.
+    #[test]
+    fn the_reservation_is_clamped_to_the_ceiling() {
+        assert_eq!(reserved_frames(None), 0);
+        assert_eq!(reserved_frames(Some(1)), 1);
+        assert_eq!(
+            reserved_frames(Some(MAX_RESERVED_FRAMES)),
+            MAX_RESERVED_FRAMES
+        );
+        assert_eq!(
+            reserved_frames(Some(MAX_RESERVED_FRAMES + 1)),
+            MAX_RESERVED_FRAMES
+        );
+        assert_eq!(reserved_frames(Some(usize::MAX)), MAX_RESERVED_FRAMES);
     }
 
     #[test]

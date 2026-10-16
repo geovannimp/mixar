@@ -64,8 +64,14 @@ fn config_for(max_duration_ms: Option<i32>) -> AnalysisConfig {
     }
 }
 
+/// Frame count `decode_mono` decodes for `secs` at [`MASTER_SR`].
+///
+/// `.ceil()` mirrors the decoder's own cap rounding (`decode.rs`: a duration
+/// cap of `secs` becomes that many frames), so the assertion in
+/// [`analyze_pcm_bench`] holds for any `PCM_SECS`, not only values whose frame
+/// count is a whole number.
 fn frames_for(secs: f64) -> u64 {
-    (secs * f64::from(MASTER_SR)).round() as u64
+    (secs * f64::from(MASTER_SR)).ceil() as u64
 }
 
 fn criterion_bench() -> Criterion {

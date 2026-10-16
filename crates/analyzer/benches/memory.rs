@@ -79,6 +79,14 @@ fn scenario(name: &str, mut run: impl FnMut()) {
 }
 
 fn main() {
+    #[cfg(not(target_os = "linux"))]
+    println!("skipping bench: peak-RSS reporting reads /proc/self/status and needs Linux");
+    #[cfg(target_os = "linux")]
+    run();
+}
+
+#[cfg(target_os = "linux")]
+fn run() {
     let Some(master) = fixture(MASTER) else {
         return;
     };
