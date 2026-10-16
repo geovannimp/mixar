@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/providers.dart';
-import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/mixer/engine_ui.dart';
+import 'package:gui_flutter/core/models/engine_ui.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 

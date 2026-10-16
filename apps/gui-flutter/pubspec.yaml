@@ -57,6 +57,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  gui_flutter_lints:
+    path: ../../packages/gui_flutter_lints
   icons_launcher: ^3.1.0
   integration_test:
     sdk: flutter

@@ -1,0 +1,56 @@
+import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/models/pad_modes.dart';
+import 'package:gui_flutter/core/utils/pad_format.dart';
+import 'package:gui_flutter/widgets/mixer/pads/hold_pad_button.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+
+class LoopRollPads extends StatelessWidget {
+  const new({
+    required this.onPress,
+    required this.onRelease,
+    this.disabled = false,
+    super.key,
+  });
+
+  final ValueChanged<int> onPress;
+  final ValueChanged<int> onRelease;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return PadGrid(
+      children: [
+        for (var slot = 0; slot < 8; slot++)
+          () {
+            final beats = kLoopRollBeats[slot];
+            final label = formatBeatLength(beats);
+            return HoldPadButton(
+              disabled: disabled,
+              tooltip: 'Loop roll $label beat${beats == 1 ? '' : 's'} — hold',
+              onBegin: () => onPress(slot),
+              onEnd: () => onRelease(slot),
+              child: Column(
+                mainAxisSize: .min,
+                children: [
+                  Text(
+                    label,
+                    style: theme.typography.body.sm.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    'roll',
+                    style: theme.typography.body.xs.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }(),
+      ],
+    );
+  }
+}

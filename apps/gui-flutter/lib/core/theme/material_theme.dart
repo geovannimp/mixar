@@ -1,0 +1,62 @@
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:material_ui/material_ui.dart';
+
+/// Build `material_ui` [ThemeData] from Mixar tokens.
+ThemeData materialUiThemeFromMixar(
+  MixarThemeData theme, {
+  Color? scaffoldBackgroundColor,
+}) {
+  final c = theme.colors;
+  final body = theme.typography.body;
+  final display = theme.typography.display;
+
+  final textTheme = TextTheme(
+    displayLarge: display.xl5,
+    displayMedium: display.xl4,
+    displaySmall: display.xl3,
+    headlineLarge: display.xl2,
+    headlineMedium: display.xl,
+    headlineSmall: display.lg,
+    titleLarge: body.lg,
+    titleMedium: body.md,
+    titleSmall: body.sm,
+    bodyLarge: body.md,
+    bodyMedium: body.sm,
+    bodySmall: body.xs,
+    labelLarge: body.sm,
+    labelMedium: body.xs,
+    labelSmall: body.xs2,
+  );
+
+  final square = RoundedRectangleBorder(
+    borderRadius: theme.style.borderRadius.md,
+  );
+
+  return ThemeData(
+    colorScheme: ColorScheme(
+      brightness: c.brightness,
+      primary: c.primary,
+      onPrimary: c.primaryForeground,
+      secondary: c.secondary,
+      onSecondary: c.secondaryForeground,
+      error: c.destructive,
+      onError: c.destructiveForeground,
+      surface: c.background,
+      onSurface: c.foreground,
+      // Neutral tint: the M3 default is `primary`, which would wash elevated
+      // Material surfaces (the modal/dialog sheet) with the brand green.
+      surfaceTint: c.background,
+      secondaryContainer: c.muted,
+      onSecondaryContainer: c.mutedForeground,
+    ),
+    fontFamily: body.fontFamily,
+    fontFamilyFallback: body.fontFamilyFallback,
+    textTheme: textTheme,
+    splashFactory: NoSplash.splashFactory,
+    useMaterial3: true,
+    scaffoldBackgroundColor: scaffoldBackgroundColor,
+    cardTheme: CardThemeData(shape: square),
+    dialogTheme: DialogThemeData(shape: square),
+    bottomSheetTheme: BottomSheetThemeData(shape: square),
+  );
+}

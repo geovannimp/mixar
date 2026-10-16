@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/pad_format.dart';
-import 'package:gui_flutter/mixer/pad_modes.dart';
+import 'package:gui_flutter/core/models/pad_modes.dart';
+import 'package:gui_flutter/core/utils/pad_format.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart';
 
 void main() {
   test('pad mode order and short labels match Tauri', () {

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/deck_cue_hold_session.dart';
+import 'package:gui_flutter/core/utils/deck_cue_hold_session.dart';
 
 void main() {
   test('end waits for begin and is ignored without successful begin', () async {

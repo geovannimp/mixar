@@ -211,10 +211,10 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 
 **Files:**
 - Modify: `crates/host-flutter/src/api/engine.rs` (new transport methods + `EngineEvt` fields)
-- Modify: `apps/gui-flutter/lib/mixer/pad_modes.dart`
-- Modify: `apps/gui-flutter/lib/mixer/deck_pads_panel.dart`, `deck_pads_host.dart`
-- Modify: `apps/gui-flutter/lib/mixer/pads/keyboard_pads.dart`, `pads/key_shift_pads.dart`
-- Modify: `apps/gui-flutter/lib/mixer/engine_ui.dart`, `engine_providers.dart`
+- Modify: `apps/gui-flutter/lib/core/models/pad_modes.dart`
+- Modify: `apps/gui-flutter/lib/widgets/mixer/deck_pads_panel.dart`, `deck_pads_host.dart`
+- Modify: `apps/gui-flutter/lib/widgets/mixer/pads/keyboard_pads.dart`, `pads/key_shift_pads.dart`
+- Modify: `apps/gui-flutter/lib/core/models/engine_ui.dart`, `engine_providers.dart`
 - Regenerate: `apps/gui-flutter/lib/src/rust/**` via `moon run gui-flutter:generate`
 - Test: `apps/gui-flutter/test/pad_modes_test.dart`, `engine_ui_test.dart`, `keyboard_key_shift_pads_test.dart`
 

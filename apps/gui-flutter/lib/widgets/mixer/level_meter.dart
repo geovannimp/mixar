@@ -1,0 +1,195 @@
+import 'dart:math' as math;
+
+import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+
+enum LevelMeterMode { mono, stereo }
+
+enum LevelMeterOrientation { vertical, horizontal }
+
+class DeckLevels {
+  const new({
+    required this.peakL,
+    required this.peakR,
+    required this.peakHoldL,
+    required this.peakHoldR,
+  });
+
+  final double peakL;
+  final double peakR;
+  final double peakHoldL;
+  final double peakHoldR;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeckLevels &&
+          peakL == other.peakL &&
+          peakR == other.peakR &&
+          peakHoldL == other.peakHoldL &&
+          peakHoldR == other.peakHoldR;
+
+  @override
+  int get hashCode => Object.hash(peakL, peakR, peakHoldL, peakHoldR);
+}
+
+const zeroDeckLevels = DeckLevels(
+  peakL: 0,
+  peakR: 0,
+  peakHoldL: 0,
+  peakHoldR: 0,
+);
+
+const kLevelMeterSegments = 12;
+const kLevelMeterYellowFrom = 8;
+const kLevelMeterRedFrom = 10;
+const kLevelMeterSegmentGap = 1.0;
+
+bool segmentOn(double level, int indexFromBottom) {
+  final threshold = (indexFromBottom + 1) / kLevelMeterSegments;
+  return level >= threshold - 1e-6;
+}
+
+/// Bottom segment covers [1/SEGMENTS, 2/SEGMENTS). Tiny residual hold must not light.
+int? holdSegment(double hold) {
+  if (hold < 1 / kLevelMeterSegments - 1e-6) return null;
+  return math.min(
+    kLevelMeterSegments - 1,
+    (hold * kLevelMeterSegments).ceil() - 1,
+  );
+}
+
+// Lit bands: teal/amber/red; idle uses Mixar muted (readable on MCard).
+final Color _green = const Color(0xff14b8a6)
+    .withValues(alpha: 0.45); // teal-500/45
+final Color _amber = const Color(0xfffbbf24)
+    .withValues(alpha: 0.45); // amber-400/45
+final Color _red = const Color(0xffef4444)
+    .withValues(alpha: 0.50); // red-500/50
+
+Color _segmentColor(Color off, int fromBottom, {required bool lit}) {
+  if (!lit) return off;
+  if (fromBottom >= kLevelMeterRedFrom) return _red;
+  if (fromBottom >= kLevelMeterYellowFrom) return _amber;
+  return _green;
+}
+
+/// LED ladder matching Tauri `LevelMeter` / `Ladder`.
+class LevelMeter extends StatelessWidget {
+  const new({
+    required this.levels,
+    required this.mode,
+    this.orientation = LevelMeterOrientation.vertical,
+    super.key,
+  });
+
+  final DeckLevels levels;
+  final LevelMeterMode mode;
+  final LevelMeterOrientation orientation;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (mode) {
+      case LevelMeterMode.mono:
+        final peak = math.max(levels.peakL, levels.peakR);
+        final hold = math.max(levels.peakHoldL, levels.peakHoldR);
+        return _Ladder(peak: peak, hold: hold, orientation: orientation);
+      case LevelMeterMode.stereo:
+        final left = _Ladder(
+          peak: levels.peakL,
+          hold: levels.peakHoldL,
+          orientation: orientation,
+        );
+        final right = _Ladder(
+          peak: levels.peakR,
+          hold: levels.peakHoldR,
+          orientation: orientation,
+        );
+        if (orientation == LevelMeterOrientation.horizontal) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              left,
+              const SizedBox(height: kLevelMeterSegmentGap),
+              right,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            left,
+            const SizedBox(width: kLevelMeterSegmentGap),
+            right,
+          ],
+        );
+    }
+  }
+}
+
+class _Ladder extends StatelessWidget {
+  const new({
+    required this.peak,
+    required this.hold,
+    required this.orientation,
+  });
+
+  final double peak;
+  final double hold;
+  final LevelMeterOrientation orientation;
+
+  @override
+  Widget build(BuildContext context) {
+    final off = context.theme.colors.muted;
+    final holdIdx = holdSegment(hold);
+    // DecoratedBox with no child sizes to constraints.smallest — expand.
+    Widget segment(int fromBottom) {
+      return Expanded(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: _segmentColor(
+              off,
+              fromBottom,
+              lit: segmentOn(peak, fromBottom) || holdIdx == fromBottom,
+            ),
+            borderRadius: BorderRadius.circular(1),
+          ),
+          child: const SizedBox.expand(),
+        ),
+      );
+    }
+
+    if (orientation == LevelMeterOrientation.horizontal) {
+      // Quiet (0) at left → loud/red at right.
+      return SizedBox(
+        height: 6,
+        child: Row(
+          children: [
+            for (var i = 0; i < kLevelMeterSegments; i++) ...[
+              if (i > 0) const SizedBox(width: kLevelMeterSegmentGap),
+              segment(i),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Top → bottom visually: high indices first so fromBottom 0 sits at bottom.
+    return SizedBox(
+      width: 6,
+      child: Column(
+        children: [
+          for (
+            var fromTop = kLevelMeterSegments - 1;
+            fromTop >= 0;
+            fromTop--
+          ) ...[
+            if (fromTop < kLevelMeterSegments - 1)
+              const SizedBox(height: kLevelMeterSegmentGap),
+            segment(fromTop),
+          ],
+        ],
+      ),
+    );
+  }
+}

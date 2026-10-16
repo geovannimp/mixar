@@ -1,20 +1,11 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/l10n/app_localizations.dart';
-import 'package:gui_flutter/l10n/kit_localizations.dart';
-import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/settings/ui_language.dart';
-import 'package:gui_flutter/shell/app_shell.dart';
-import 'package:gui_flutter/shell/desktop.dart';
-import 'package:gui_flutter/shell/desktop_chrome.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
-import 'package:gui_flutter/shell/shad_theme.dart';
+import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/screens/application.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
@@ -49,58 +40,4 @@ Future<void> main() async {
   }
 
   runApp(ProviderScope(child: Application(appTitle: appTitle)));
-}
-
-/// Cached Material / Shad themes so [Application.build] and
-/// MaterialApp.builder do not rebuild style graphs every frame.
-final ThemeData _materialLight = materialUiThemeFromMixar(
-  MixarThemeData.light(),
-  scaffoldBackgroundColor: Colors.transparent,
-);
-final ThemeData _materialDark = materialUiThemeFromMixar(
-  MixarThemeData.dark(),
-  scaffoldBackgroundColor: Colors.transparent,
-);
-final ShadThemeData _shadLight = shadThemeFromMixar(MixarThemeData.light());
-final ShadThemeData _shadDark = shadThemeFromMixar(MixarThemeData.dark());
-
-/// Root app: Mixar theme tokens + Shad bridge + mixer shell.
-class Application extends ConsumerWidget {
-  const new({required this.appTitle, super.key});
-
-  final String appTitle;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final locale = ref
-        .watch(appSettingsProvider)
-        .maybeWhen(
-          data: (settings) => localeFromUiLanguage(settings.uiLanguage),
-          orElse: () => null,
-        );
-
-    return MaterialApp(
-      title: appTitle,
-      debugShowCheckedModeBanner: false,
-      locale: locale,
-      localizationsDelegates: mixarLocalizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      theme: _materialLight,
-      darkTheme: _materialDark,
-      builder: (context, child) {
-        final dark = Theme.brightnessOf(context) == Brightness.dark;
-        final data = dark ? MixarThemeData.dark() : MixarThemeData.light();
-        return DesktopChrome(
-          child: MixarTheme(
-            data: data,
-            child: ShadTheme(
-              data: dark ? _shadDark : _shadLight,
-              child: child!,
-            ),
-          ),
-        );
-      },
-      home: AppShell(appTitle: appTitle),
-    );
-  }
 }

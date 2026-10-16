@@ -1,0 +1,498 @@
+import 'package:gui_flutter/core/models/pad_modes.dart';
+import 'package:gui_flutter/core/utils/tempo_format.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/widgets/mixer/level_meter.dart';
+
+class MixerChannelUi {
+  const new({
+    this.volume = 1.0,
+    this.eqLow = 0.5,
+    this.eqMid = 0.5,
+    this.eqHigh = 0.5,
+    this.filter = 0.5,
+    this.gainTrim = 0.5,
+    this.headphoneCue = false,
+  });
+
+  static const defaults = MixerChannelUi();
+
+  final double volume;
+  final double eqLow;
+  final double eqMid;
+  final double eqHigh;
+  final double filter;
+  final double gainTrim;
+  final bool headphoneCue;
+
+  MixerChannelUi patchedFrom(EngineEvt evt) => MixerChannelUi(
+    volume: evt.volume ?? volume,
+    eqLow: evt.eqLow ?? eqLow,
+    eqMid: evt.eqMid ?? eqMid,
+    eqHigh: evt.eqHigh ?? eqHigh,
+    filter: evt.filter ?? filter,
+    gainTrim: evt.gainTrim ?? gainTrim,
+    headphoneCue: evt.headphoneCue ?? headphoneCue,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MixerChannelUi &&
+          volume == other.volume &&
+          eqLow == other.eqLow &&
+          eqMid == other.eqMid &&
+          eqHigh == other.eqHigh &&
+          filter == other.filter &&
+          gainTrim == other.gainTrim &&
+          headphoneCue == other.headphoneCue;
+
+  @override
+  int get hashCode =>
+      Object.hash(volume, eqLow, eqMid, eqHigh, filter, gainTrim, headphoneCue);
+}
+
+class EngineUiSnapshot {
+  const new({
+    required this.running,
+    required this.trackPaths,
+    this.playing = const {},
+    this.channels = const {},
+    this.levels = const {},
+    this.masterLevels = zeroDeckLevels,
+    this.crossfader = 0.5,
+    this.trackIds = const {},
+    this.durationMs = const {},
+    this.speeds = const {},
+    this.tempoRanges = const {},
+    this.keyLocks = const {},
+    this.keyShifts = const {},
+    this.keyboardPages = const {},
+    this.keyShiftPages = const {},
+    this.keyboardRoots = const {},
+    this.padModes = const {},
+    this.stemsReady = const {},
+    this.stemMute = const {},
+    this.stemIsolate = const {},
+    this.syncModes = const {},
+    this.activeLoops = const {},
+    this.pendingLoopInMs = const {},
+    this.quantize = const {},
+    this.slipEnabled = const {},
+    this.jogTouching = const {},
+    this.loudnessLufs = const {},
+    this.autoGainDb = const {},
+    this.activeSamplerBankIds = const {},
+    this.samplerSlots = const {},
+    this.masterDeck = 0,
+    this.masterVolume = 1.0,
+    this.cueVolume = 1.0,
+    this.cueMix = 0.5,
+    this.masterCue = false,
+  });
+
+  static const empty = EngineUiSnapshot(running: false, trackPaths: {});
+
+  final bool running;
+  final Map<int, String> trackPaths;
+  final Map<int, bool> playing;
+  final Map<int, MixerChannelUi> channels;
+  final Map<int, DeckLevels> levels;
+  final DeckLevels masterLevels;
+  final double crossfader;
+  final double masterVolume;
+  final double cueVolume;
+  final double cueMix;
+  final bool masterCue;
+  final Map<int, String> trackIds;
+  final Map<int, int> durationMs;
+  final Map<int, double> speeds;
+  final Map<int, double> tempoRanges;
+  final Map<int, bool> keyLocks;
+  final Map<int, double> keyShifts;
+  final Map<int, int> keyboardPages;
+  final Map<int, int> keyShiftPages;
+  final Map<int, int> keyboardRoots;
+  final Map<int, PadMode> padModes;
+  final Map<int, bool> stemsReady;
+  final Map<int, List<bool>> stemMute;
+  final Map<int, int> stemIsolate;
+  final Map<int, SyncMode> syncModes;
+  final Map<int, ActiveLoopInfo> activeLoops;
+  final Map<int, int> pendingLoopInMs;
+  final Map<int, bool> quantize;
+  final Map<int, bool> slipEnabled;
+  final Map<int, bool> jogTouching;
+  final Map<int, double> loudnessLufs;
+  final Map<int, double> autoGainDb;
+  final Map<int, String> activeSamplerBankIds;
+  final Map<int, List<SamplerSlotChrome>> samplerSlots;
+  final int masterDeck;
+
+  String? trackPathFor(int deckId) => trackPaths[deckId];
+
+  bool isPlaying(int deckId) => playing[deckId] ?? false;
+
+  String? trackIdFor(int deckId) => trackIds[deckId];
+
+  int? durationMsFor(int deckId) => durationMs[deckId];
+
+  double speedFor(int deckId) => speeds[deckId] ?? 0.5;
+
+  double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? kDefaultTempoRange;
+
+  bool keyLockFor(int deckId) => keyLocks[deckId] ?? false;
+
+  double keyShiftFor(int deckId) => keyShifts[deckId] ?? 0.0;
+
+  int keyboardPageFor(int deckId) => keyboardPages[deckId] ?? kDefaultPitchPage;
+
+  int keyShiftPageFor(int deckId) => keyShiftPages[deckId] ?? kDefaultPitchPage;
+
+  int keyboardRootFor(int deckId) => keyboardRoots[deckId] ?? 0;
+
+  PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
+
+  bool stemsReadyFor(int deckId) => stemsReady[deckId] ?? false;
+
+  List<bool> stemMuteFor(int deckId) =>
+      stemMute[deckId] ?? const [false, false, false, false];
+
+  int? stemIsolateFor(int deckId) => stemIsolate[deckId];
+
+  SyncMode syncModeFor(int deckId) => syncModes[deckId] ?? SyncMode.off;
+
+  ActiveLoopInfo? activeLoopFor(int deckId) => activeLoops[deckId];
+
+  int? pendingLoopInMsFor(int deckId) => pendingLoopInMs[deckId];
+
+  bool quantizeFor(int deckId) => quantize[deckId] ?? true;
+
+  bool slipEnabledFor(int deckId) => slipEnabled[deckId] ?? false;
+
+  bool jogTouchingFor(int deckId) => jogTouching[deckId] ?? false;
+
+  double? loudnessLufsFor(int deckId) => loudnessLufs[deckId];
+
+  double autoGainDbFor(int deckId) => autoGainDb[deckId] ?? 0;
+
+  String? activeSamplerBankIdFor(int deckId) => activeSamplerBankIds[deckId];
+
+  List<SamplerSlotChrome> samplerSlotsFor(int deckId) =>
+      samplerSlots[deckId] ?? const [];
+
+  bool isMaster(int deckId) => masterDeck == deckId;
+
+  MixerChannelUi channelFor(int deckId) =>
+      channels[deckId] ?? MixerChannelUi.defaults;
+
+  DeckLevels levelsFor(int deckId) => levels[deckId] ?? zeroDeckLevels;
+
+  EngineUiSnapshot copyWith({
+    bool? running,
+    Map<int, String>? trackPaths,
+    Map<int, bool>? playing,
+    Map<int, MixerChannelUi>? channels,
+    Map<int, DeckLevels>? levels,
+    DeckLevels? masterLevels,
+    double? crossfader,
+    Map<int, String>? trackIds,
+    Map<int, int>? durationMs,
+    Map<int, double>? speeds,
+    Map<int, double>? tempoRanges,
+    Map<int, bool>? keyLocks,
+    Map<int, double>? keyShifts,
+    Map<int, int>? keyboardPages,
+    Map<int, int>? keyShiftPages,
+    Map<int, int>? keyboardRoots,
+    Map<int, PadMode>? padModes,
+    Map<int, bool>? stemsReady,
+    Map<int, List<bool>>? stemMute,
+    Map<int, int>? stemIsolate,
+    Map<int, SyncMode>? syncModes,
+    Map<int, ActiveLoopInfo>? activeLoops,
+    Map<int, int>? pendingLoopInMs,
+    Map<int, bool>? quantize,
+    Map<int, bool>? slipEnabled,
+    Map<int, bool>? jogTouching,
+    Map<int, double>? loudnessLufs,
+    Map<int, double>? autoGainDb,
+    Map<int, String>? activeSamplerBankIds,
+    Map<int, List<SamplerSlotChrome>>? samplerSlots,
+    int? masterDeck,
+    double? masterVolume,
+    double? cueVolume,
+    double? cueMix,
+    bool? masterCue,
+  }) => EngineUiSnapshot(
+    running: running ?? this.running,
+    trackPaths: trackPaths ?? this.trackPaths,
+    playing: playing ?? this.playing,
+    channels: channels ?? this.channels,
+    levels: levels ?? this.levels,
+    masterLevels: masterLevels ?? this.masterLevels,
+    crossfader: crossfader ?? this.crossfader,
+    trackIds: trackIds ?? this.trackIds,
+    durationMs: durationMs ?? this.durationMs,
+    speeds: speeds ?? this.speeds,
+    tempoRanges: tempoRanges ?? this.tempoRanges,
+    keyLocks: keyLocks ?? this.keyLocks,
+    keyShifts: keyShifts ?? this.keyShifts,
+    keyboardPages: keyboardPages ?? this.keyboardPages,
+    keyShiftPages: keyShiftPages ?? this.keyShiftPages,
+    keyboardRoots: keyboardRoots ?? this.keyboardRoots,
+    padModes: padModes ?? this.padModes,
+    stemsReady: stemsReady ?? this.stemsReady,
+    stemMute: stemMute ?? this.stemMute,
+    stemIsolate: stemIsolate ?? this.stemIsolate,
+    syncModes: syncModes ?? this.syncModes,
+    activeLoops: activeLoops ?? this.activeLoops,
+    pendingLoopInMs: pendingLoopInMs ?? this.pendingLoopInMs,
+    quantize: quantize ?? this.quantize,
+    slipEnabled: slipEnabled ?? this.slipEnabled,
+    jogTouching: jogTouching ?? this.jogTouching,
+    loudnessLufs: loudnessLufs ?? this.loudnessLufs,
+    autoGainDb: autoGainDb ?? this.autoGainDb,
+    activeSamplerBankIds: activeSamplerBankIds ?? this.activeSamplerBankIds,
+    samplerSlots: samplerSlots ?? this.samplerSlots,
+    masterDeck: masterDeck ?? this.masterDeck,
+    masterVolume: masterVolume ?? this.masterVolume,
+    cueVolume: cueVolume ?? this.cueVolume,
+    cueMix: cueMix ?? this.cueMix,
+    masterCue: masterCue ?? this.masterCue,
+  );
+}
+
+EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
+  switch (evt.kind) {
+    case EngineEvtKind.status:
+      return prev.copyWith(
+        running: evt.running ?? prev.running,
+        crossfader: evt.crossfader ?? prev.crossfader,
+        masterVolume: evt.masterVolume ?? prev.masterVolume,
+        cueVolume: evt.cueVolume ?? prev.cueVolume,
+        masterDeck: evt.masterDeck ?? prev.masterDeck,
+        cueMix: evt.cueMix ?? prev.cueMix,
+        masterCue: evt.masterCue ?? prev.masterCue,
+      );
+    case EngineEvtKind.updated:
+      final id = evt.deckId;
+      if (id == null) {
+        return prev;
+      }
+      final unloaded = evt.durationKnown && evt.durationMs == null;
+      final nextPaths = Map<int, String>.from(prev.trackPaths);
+      final trackPath = evt.trackPath;
+      if (unloaded) {
+        nextPaths.remove(id);
+      } else if (trackPath != null && trackPath.isNotEmpty) {
+        nextPaths[id] = trackPath;
+      }
+      final nextPlaying = Map<int, bool>.from(prev.playing);
+      if (evt.playing != null) {
+        nextPlaying[id] = evt.playing!;
+      }
+      final nextChannels = Map<int, MixerChannelUi>.from(prev.channels);
+      nextChannels[id] = prev.channelFor(id).patchedFrom(evt);
+      final nextTrackIds = Map<int, String>.from(prev.trackIds);
+      if (unloaded) {
+        nextTrackIds.remove(id);
+      } else if (evt.trackId != null && evt.trackId!.isNotEmpty) {
+        nextTrackIds[id] = evt.trackId!;
+      }
+      final nextDurations = Map<int, int>.from(prev.durationMs);
+      if (unloaded) {
+        nextDurations.remove(id);
+      } else if (evt.durationMs != null) {
+        nextDurations[id] = evt.durationMs!;
+      }
+      final nextSpeeds = Map<int, double>.from(prev.speeds);
+      if (evt.speed != null) {
+        nextSpeeds[id] = evt.speed!;
+      }
+      final nextRanges = Map<int, double>.from(prev.tempoRanges);
+      if (evt.tempoRange != null) {
+        nextRanges[id] = evt.tempoRange!;
+      }
+      final nextKeyLocks = Map<int, bool>.from(prev.keyLocks);
+      if (evt.keyLock != null) {
+        nextKeyLocks[id] = evt.keyLock!;
+      }
+      final nextKeyShifts = Map<int, double>.from(prev.keyShifts);
+      final nextKeyboardPages = Map<int, int>.from(prev.keyboardPages);
+      final nextKeyShiftPages = Map<int, int>.from(prev.keyShiftPages);
+      final nextKeyboardRoots = Map<int, int>.from(prev.keyboardRoots);
+      // Key shift is session-only deck state; reset on unload.
+      if (unloaded) {
+        nextKeyShifts.remove(id);
+      } else if (evt.keyShift != null) {
+        nextKeyShifts[id] = evt.keyShift!;
+      }
+      // Pages / root mirror the keyLocks pattern: apply whenever authored. Each
+      // pad mode keeps its own page, so they never clobber each other.
+      if (evt.keyboardPage != null) {
+        nextKeyboardPages[id] = evt.keyboardPage!;
+      }
+      if (evt.keyShiftPage != null) {
+        nextKeyShiftPages[id] = evt.keyShiftPage!;
+      }
+      if (evt.keyboardRootHotCue != null) {
+        nextKeyboardRoots[id] = evt.keyboardRootHotCue!;
+      }
+      final nextPadModes = Map<int, PadMode>.from(prev.padModes);
+      final enginePadMode = evt.padMode;
+      if (enginePadMode != null) {
+        nextPadModes[id] = enginePadMode;
+      }
+      final nextSyncModes = Map<int, SyncMode>.from(prev.syncModes);
+      if (evt.syncMode != null) {
+        nextSyncModes[id] = evt.syncMode!;
+      }
+      final nextActiveLoops = Map<int, ActiveLoopInfo>.from(prev.activeLoops);
+      if (evt.activeLoopKnown) {
+        final region = evt.activeLoop;
+        if (region != null && region.active) {
+          nextActiveLoops[id] = region;
+        } else {
+          nextActiveLoops.remove(id);
+        }
+      }
+      if (unloaded) {
+        nextActiveLoops.remove(id);
+      }
+      final nextPendingLoopIn = Map<int, int>.from(prev.pendingLoopInMs);
+      if (evt.pendingLoopInMsKnown) {
+        final pending = evt.pendingLoopInMs;
+        if (pending != null) {
+          nextPendingLoopIn[id] = pending;
+        } else {
+          nextPendingLoopIn.remove(id);
+        }
+      }
+      if (unloaded) {
+        nextPendingLoopIn.remove(id);
+      }
+      final nextQuantize = Map<int, bool>.from(prev.quantize);
+      if (evt.quantize != null) {
+        nextQuantize[id] = evt.quantize!;
+      }
+      final nextSlip = Map<int, bool>.from(prev.slipEnabled);
+      if (evt.slipEnabled != null) {
+        nextSlip[id] = evt.slipEnabled!;
+      }
+      final nextJog = Map<int, bool>.from(prev.jogTouching);
+      if (unloaded) {
+        nextJog[id] = false;
+      } else if (evt.jogTouching != null) {
+        nextJog[id] = evt.jogTouching!;
+      }
+      final nextLoudness = Map<int, double>.from(prev.loudnessLufs);
+      final nextAutoGain = Map<int, double>.from(prev.autoGainDb);
+      final nextSamplerBanks = Map<int, String>.from(prev.activeSamplerBankIds);
+      final nextSamplerSlots = Map<int, List<SamplerSlotChrome>>.from(
+        prev.samplerSlots,
+      );
+      if (unloaded) {
+        nextLoudness.remove(id);
+        nextAutoGain.remove(id);
+      } else {
+        if (evt.loudnessLufs != null) {
+          nextLoudness[id] = evt.loudnessLufs!;
+        }
+        if (evt.autoGainDb != null) {
+          nextAutoGain[id] = evt.autoGainDb!;
+        }
+      }
+      // Sampler bank/slots are deck-scoped; Updated always carries them when
+      // known, including on unload — do not clear them with track identity.
+      if (evt.activeSamplerBankIdKnown) {
+        final bankId = evt.activeSamplerBankId;
+        if (bankId != null && bankId.isNotEmpty) {
+          nextSamplerBanks[id] = bankId;
+        } else {
+          nextSamplerBanks.remove(id);
+        }
+      }
+      if (evt.samplerSlotsKnown) {
+        nextSamplerSlots[id] = List<SamplerSlotChrome>.from(
+          evt.samplerSlots ?? const [],
+        );
+      }
+      final nextStemsReady = Map<int, bool>.from(prev.stemsReady);
+      final nextStemMute = Map<int, List<bool>>.from(prev.stemMute);
+      final nextStemIsolate = Map<int, int>.from(prev.stemIsolate);
+      if (unloaded) {
+        nextStemsReady.remove(id);
+        nextStemMute.remove(id);
+        nextStemIsolate.remove(id);
+      } else if (evt.stemsReady != null) {
+        nextStemsReady[id] = evt.stemsReady!;
+        final mute = evt.stemMute;
+        nextStemMute[id] = mute != null && mute.length == 4
+            ? List<bool>.from(mute)
+            : const [false, false, false, false];
+        final iso = evt.stemIsolate;
+        if (iso != null) {
+          nextStemIsolate[id] = iso;
+        } else {
+          nextStemIsolate.remove(id);
+        }
+      }
+      return prev.copyWith(
+        trackPaths: nextPaths,
+        playing: nextPlaying,
+        channels: nextChannels,
+        trackIds: nextTrackIds,
+        durationMs: nextDurations,
+        speeds: nextSpeeds,
+        tempoRanges: nextRanges,
+        keyLocks: nextKeyLocks,
+        keyShifts: nextKeyShifts,
+        keyboardPages: nextKeyboardPages,
+        keyShiftPages: nextKeyShiftPages,
+        keyboardRoots: nextKeyboardRoots,
+        padModes: nextPadModes,
+        syncModes: nextSyncModes,
+        activeLoops: nextActiveLoops,
+        pendingLoopInMs: nextPendingLoopIn,
+        quantize: nextQuantize,
+        slipEnabled: nextSlip,
+        jogTouching: nextJog,
+        loudnessLufs: nextLoudness,
+        autoGainDb: nextAutoGain,
+        activeSamplerBankIds: nextSamplerBanks,
+        samplerSlots: nextSamplerSlots,
+        stemsReady: nextStemsReady,
+        stemMute: nextStemMute,
+        stemIsolate: nextStemIsolate,
+      );
+    case EngineEvtKind.levels:
+      if (evt.peakL == null || evt.peakR == null) {
+        return prev;
+      }
+      final id = evt.deckId;
+      if (id == null) {
+        final prevMaster = prev.masterLevels;
+        return prev.copyWith(
+          masterLevels: DeckLevels(
+            peakL: evt.peakL!,
+            peakR: evt.peakR!,
+            peakHoldL: evt.peakHoldL ?? prevMaster.peakHoldL,
+            peakHoldR: evt.peakHoldR ?? prevMaster.peakHoldR,
+          ),
+        );
+      }
+      final nextLevels = Map<int, DeckLevels>.from(prev.levels);
+      final prevLevels = prev.levelsFor(id);
+      nextLevels[id] = DeckLevels(
+        peakL: evt.peakL!,
+        peakR: evt.peakR!,
+        peakHoldL: evt.peakHoldL ?? prevLevels.peakHoldL,
+        peakHoldR: evt.peakHoldR ?? prevLevels.peakHoldR,
+      );
+      return prev.copyWith(levels: nextLevels);
+    case EngineEvtKind.position:
+    case EngineEvtKind.error:
+    case EngineEvtKind.notice:
+      return prev;
+  }
+}

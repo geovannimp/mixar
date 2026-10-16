@@ -1,10 +1,10 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
-import 'package:gui_flutter/mixer/waveform/layout.dart';
-import 'package:gui_flutter/mixer/waveform/peaks.dart';
-import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
+import 'package:gui_flutter/core/models/waveform_peaks.dart';
+import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
+import 'package:gui_flutter/core/utils/waveform_layout.dart';
+import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 
 void main() {
   test('decodeRgbPeaks maps uint8 triples to 0..1 peaks', () {

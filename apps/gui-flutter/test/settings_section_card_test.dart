@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/settings/settings_field.dart';
-import 'package:gui_flutter/settings/settings_widgets.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
+
+import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 
 import 'support/mixar_material_app.dart';
 

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
-import 'package:gui_flutter/settings/settings_deck_panel.dart';
-import 'package:gui_flutter/settings/settings_defaults.dart';
-import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/shell/app_button.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_deck_panel.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 import 'support/mixar_material_app.dart';
 

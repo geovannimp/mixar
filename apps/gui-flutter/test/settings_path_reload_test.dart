@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
 
 void main() {
   test('path-only decks reload via loadPath after settings restart', () async {

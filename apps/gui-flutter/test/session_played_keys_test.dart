@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/history_providers.dart';
+import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 void main() {

@@ -7,9 +7,13 @@
 
 include: package:very_good_analysis/analysis_options.yaml
 
-# Riverpod-aware lints (https://pub.dev/packages/riverpod_lint).
+# Analyzer plugins (https://dart.dev/tools/analyzer-plugins).
 plugins:
+  # Riverpod-aware lints (https://pub.dev/packages/riverpod_lint).
   riverpod_lint: ^3.1.9
+  # Local one-public-widget-per-file rule (packages/gui_flutter_lints).
+  gui_flutter_lints:
+    path: ../../packages/gui_flutter_lints
 
 analyzer:
   exclude:

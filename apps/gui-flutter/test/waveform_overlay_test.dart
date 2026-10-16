@@ -1,11 +1,11 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
-import 'package:gui_flutter/mixer/waveform/overlay_geometry.dart';
-import 'package:gui_flutter/mixer/waveform/overlay_pictures.dart';
+import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
+import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
 void main() {
   test('msToX maps mid-track to half width', () {

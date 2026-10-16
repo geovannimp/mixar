@@ -1,0 +1,222 @@
+import 'dart:ui';
+
+import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
+import 'package:gui_flutter/core/utils/waveform_layout.dart';
+import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
+
+void _dropPictureAfterFrame(Picture? picture) {
+  if (picture == null) {
+    return;
+  }
+  SchedulerBinding.instance.addPostFrameCallback((_) {
+    picture.dispose();
+  });
+}
+
+Size _stripSize(int durationMs) =>
+    Size(stripWidthPx(durationMs).toDouble(), kWaveformStripHeight);
+
+class StripBeatGridPictureNotifier extends Notifier<Picture?> {
+  new(this.arg);
+
+  final (String, int) arg;
+  Picture? _owned;
+
+  @override
+  Picture? build() {
+    final (trackId, durationMs) = arg;
+    ref.onDispose(() {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+    });
+    final grid = ref.watch(beatGridProvider(trackId));
+    if (grid == null || grid.bpm == null || durationMs <= 0) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final size = _stripSize(durationMs);
+    final marks = beatGridXs(
+      bpm: grid.bpm!,
+      firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
+      originMs: 0,
+      spanMs: durationMs.toDouble(),
+      width: size.width,
+    );
+    final next = recordBeatGridPicture(marks: marks, size: size);
+    _dropPictureAfterFrame(_owned);
+    _owned = next;
+    return next;
+  }
+}
+
+class StripLoopPictureNotifier extends Notifier<Picture?> {
+  new(this.arg);
+
+  final (String, int) arg;
+  Picture? _owned;
+
+  @override
+  Picture? build() {
+    final (trackId, durationMs) = arg;
+    ref.onDispose(() {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+    });
+    if (durationMs <= 0) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final loops =
+        ref.watch(trackSavedLoopsProvider.select((m) => m[trackId])) ??
+        const [];
+    if (loops.isEmpty) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final next = recordLoopPicture(
+      loops: loops,
+      durationMs: durationMs,
+      size: _stripSize(durationMs),
+    );
+    _dropPictureAfterFrame(_owned);
+    _owned = next;
+    return next;
+  }
+}
+
+class StripActiveLoopPictureNotifier extends Notifier<Picture?> {
+  new(this.arg);
+
+  final (int, int) arg;
+  Picture? _owned;
+
+  @override
+  Picture? build() {
+    final (deckId, durationMs) = arg;
+    ref.onDispose(() {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+    });
+    if (durationMs <= 0) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final loop = ref.watch(deckActiveLoopProvider(deckId));
+    final next = recordActiveLoopPicture(
+      loop: loop,
+      durationMs: durationMs,
+      size: _stripSize(durationMs),
+    );
+    _dropPictureAfterFrame(_owned);
+    _owned = next;
+    return next;
+  }
+}
+
+class StripPendingLoopInPictureNotifier extends Notifier<Picture?> {
+  new(this.arg);
+
+  final (int, int) arg;
+  Picture? _owned;
+
+  @override
+  Picture? build() {
+    final (deckId, durationMs) = arg;
+    ref.onDispose(() {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+    });
+    if (durationMs <= 0) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final pending = ref.watch(deckPendingLoopInMsProvider(deckId));
+    final next = recordPendingLoopInPicture(
+      pendingInMs: pending,
+      durationMs: durationMs,
+      size: _stripSize(durationMs),
+    );
+    _dropPictureAfterFrame(_owned);
+    _owned = next;
+    return next;
+  }
+}
+
+class StripCuePictureNotifier extends Notifier<Picture?> {
+  new(this.arg);
+
+  final (String, int) arg;
+  Picture? _owned;
+
+  @override
+  Picture? build() {
+    final (trackId, durationMs) = arg;
+    ref.onDispose(() {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+    });
+    if (durationMs <= 0) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final rows = ref.watch(trackHotCuesProvider.select((m) => m[trackId]));
+    if (rows == null || rows.isEmpty) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final cues = [
+      for (final row in rows)
+        DeckHotCue(
+          slot: row.slot,
+          positionMs: row.positionMs,
+          label: row.label,
+        ),
+    ];
+    final next = recordCuePicture(
+      cues: cues,
+      durationMs: durationMs,
+      size: _stripSize(durationMs),
+    );
+    _dropPictureAfterFrame(_owned);
+    _owned = next;
+    return next;
+  }
+}
+
+final stripBeatGridPictureProvider = NotifierProvider.autoDispose
+    .family<StripBeatGridPictureNotifier, Picture?, (String, int)>(
+      StripBeatGridPictureNotifier.new,
+    );
+
+final stripLoopPictureProvider = NotifierProvider.autoDispose
+    .family<StripLoopPictureNotifier, Picture?, (String, int)>(
+      StripLoopPictureNotifier.new,
+    );
+
+final stripActiveLoopPictureProvider = NotifierProvider.autoDispose
+    .family<StripActiveLoopPictureNotifier, Picture?, (int, int)>(
+      StripActiveLoopPictureNotifier.new,
+    );
+
+final stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
+    .family<StripPendingLoopInPictureNotifier, Picture?, (int, int)>(
+      StripPendingLoopInPictureNotifier.new,
+    );
+
+final stripCuePictureProvider = NotifierProvider.autoDispose
+    .family<StripCuePictureNotifier, Picture?, (String, int)>(
+      StripCuePictureNotifier.new,
+    );

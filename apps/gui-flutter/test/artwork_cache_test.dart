@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/library/artwork_cache.dart';
-import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/providers/library/artwork_cache.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 import 'support/fake_library_transport.dart';
