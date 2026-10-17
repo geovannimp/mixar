@@ -603,7 +603,15 @@ impl LibraryManager {
         options: AnalyzeTrackOptions,
     ) -> Result<AudioSource> {
         let computed = compute_file_analysis(path, options)?;
-        self.persist_file_analysis(path, &computed, true)
+        let (source, plan) = self.persist_file_analysis(path, &computed, true)?;
+        // Only reachable through `WritableLibrary::analyze_track`, whose caller
+        // owns the manager lock — so this path cannot hand the write back. Every
+        // library-owned path (worker `AnalyzeTrack`, deck-load pre-analysis,
+        // native-stem analysis) drops the lock first and executes the plan there.
+        if let Some(plan) = plan {
+            plan.execute();
+        }
+        Ok(source)
     }
 }
 

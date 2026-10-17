@@ -4473,6 +4473,7 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                     &mut deserializer,
                 );
             let api_stems_format = <String>::sse_decode(&mut deserializer);
+            let api_tag_write_back = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -4494,6 +4495,7 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                         &*api_that_guard,
                         api_analysis_duration,
                         api_stems_format,
+                        api_tag_write_back,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -7323,6 +7325,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             <crate::api::settings::AnalysisDurationSetting>::sse_decode(deserializer);
         let mut var_libraryRowDensity =
             <crate::api::settings::LibraryRowDensitySetting>::sse_decode(deserializer);
+        let mut var_tagWriteBack = <bool>::sse_decode(deserializer);
         let mut var_volumeNormalizerEnabled = <bool>::sse_decode(deserializer);
         let mut var_targetLufs = <f32>::sse_decode(deserializer);
         let mut var_samplerPlayMode =
@@ -7370,6 +7373,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             preview_bus: var_previewBus,
             analysis_duration: var_analysisDuration,
             library_row_density: var_libraryRowDensity,
+            tag_write_back: var_tagWriteBack,
             volume_normalizer_enabled: var_volumeNormalizerEnabled,
             target_lufs: var_targetLufs,
             sampler_play_mode: var_samplerPlayMode,
@@ -9891,6 +9895,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.preview_bus.into_into_dart().into_dart(),
             self.analysis_duration.into_into_dart().into_dart(),
             self.library_row_density.into_into_dart().into_dart(),
+            self.tag_write_back.into_into_dart().into_dart(),
             self.volume_normalizer_enabled.into_into_dart().into_dart(),
             self.target_lufs.into_into_dart().into_dart(),
             self.sampler_play_mode.into_into_dart().into_dart(),
@@ -11302,6 +11307,7 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.library_row_density,
             serializer,
         );
+        <bool>::sse_encode(self.tag_write_back, serializer);
         <bool>::sse_encode(self.volume_normalizer_enabled, serializer);
         <f32>::sse_encode(self.target_lufs, serializer);
         <crate::api::settings::SamplerPlayModeSetting>::sse_encode(

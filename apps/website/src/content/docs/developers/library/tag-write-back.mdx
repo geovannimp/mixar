@@ -1,0 +1,56 @@
+---
+title: "Tag write-back"
+description: "The opt-in mirror of track information into file tags: which fields each container gets, what is lossy, and what Mixar refuses to touch."
+section: "Library"
+order: 2
+---
+
+`library.db` is the source of truth for track information. Write-back is the optional second half: when the user turns on **Settings → Library → File tags**, Mixar also writes values into each file's own tags so other software (Rekordbox, Serato, Traktor, Mixxx, Mixed In Key) sees the same ones.
+
+It is the only place Mixar modifies a music file, so it is opt-in, field-scoped, idempotent, and best-effort.
+
+User-facing manual: [Tag write-back](/docs/users/library/tag-write-back) (in [Library](/docs/users/library)). This page covers internals, the field matrix, and the known limits.
+
+- Opt-in: `LibraryConfig::tag_write_back` (`Off` by default; `TagWriteBack::On` from the setting). With it off, no analysis path ever opens a file for writing.
+- Field-scoped: `TrackTags` is a patch, not a rewrite. Only the fields the caller sets are touched — pictures, ReplayGain, Serato frames, and foreign keys survive untouched. A blank string or a non-finite BPM is reported `Absent` and written nowhere.
+- Idempotent: a field already carrying the wanted value is left alone, and a file with nothing to change is never rewritten (no mtime churn, no re-padding on every analyze).
+- Best-effort: an unwritable file is logged and skipped; the library row is already committed.
+
+Implementation: `codec::write_track_tags` (lofty) for the format matrix, called by `library::tags::write_back_track_tags` from `LibraryManager::persist_file_analysis` and the `SaveBeatGrid` worker handler. Neither runs on the audio callback; the beat-grid path plans the write while holding the library lock and performs the file I/O after releasing it.
+
+## Fields per container
+
+|           | ID3v2 (mp3/wav/aiff/aac) | Vorbis comments (flac/ogg/opus) | MP4 `ilst` (m4a)                    | APE (ape/wv/mpc) |
+|-----------|--------------------------|---------------------------------|-------------------------------------|------------------|
+| Title     | `TIT2`                   | `TITLE`                         | `©nam`                              | `Title`          |
+| Artist    | `TPE1`                   | `ARTIST`                        | `©ART`                              | `Artist`         |
+| Album     | `TALB`                   | `ALBUM`                         | `©alb`                              | `Album`          |
+| Genre     | `TCON`                   | `GENRE`                         | `©gen`                              | `Genre`          |
+| BPM       | `TBPM`, **integer**      | `BPM`, text                     | `----:com.apple.iTunes:BPM`, text   | unsupported      |
+| Key       | `TKEY`                   | `INITIALKEY`                    | `----:com.apple.iTunes:initialkey`  | unsupported      |
+
+The mapping matches the TagLib property table, so the keys are the ones MusicBrainz Picard, Mixxx, and the DJ tools above already read and write. Mixxx writes the same Vorbis `BPM` + `INITIALKEY` pair and the same two MP4 freeform atoms.
+
+**What the library mirrors today is BPM and key only** — `library::tags::app_managed_tags` is the one place that decides it. Title/artist/album/genre are file-derived today (a missing title falls back to the file name), so passing the library row would stamp filename guesses into untagged files. A track editor that owns those values extends that one function; the writer already handles them. Derived fields (duration, sample rate, channels, bitrate) are never written — they describe the audio, not user intent.
+
+## Lossiness
+
+- **ID3v2 `TBPM` is an integer frame**, so a fractional BPM is rounded (`FieldWrite::Rounded`). Mixxx and Mixed In Key round too. `library.db` keeps the exact value, so a rescan that prefers the tag can land up to 0.5 BPM away from the stored beat grid.
+- **MP4 gets the freeform `BPM` atom, not `tmpo`.** The freeform field is what Mixed In Key, Serato, and Traktor write and what Mixxx reads first; `tmpo` is an integer atom, which lofty cannot emit from a text tag. Readers that look only at `tmpo` will not see Mixar's BPM.
+- **APE tags have no BPM/key mapping** in the TagLib/lofty table, so those two fields are reported `Unsupported` on `.ape`, `.wv`, and `.mpc` (the text fields work).
+- **Refused shapes** (`FieldWrite::Refused`, file left byte-identical):
+  - native `.stem.mp4` containers — multi-track MP4s whose `stem` manifest Mixar does not own;
+  - FLAC whose only metadata block is STREAMINFO (e.g. after `metaflac --remove-all --dont-use-padding`) — lofty 0.22 would append the new comment block behind a STREAMINFO still flagged last, which decoders then read as audio. Real encoders always emit a comment block.
+- **Legacy aliases are not updated.** Only the recommended keys in the table above are written. A Vorbis file that carries the older `KEY` (or `TEMPO`) alias keeps its stale value, and the same goes for MP4's `----:com.apple.iTunes:KEY`; a reader that prefers the alias over `INITIALKEY`/`BPM` will see the old number. Mixxx additionally updates `KEY` when it is present. Aliases in the wild: Vorbis key `INITIALKEY` (Rekordbox, Serato, Traktor, Mixxx) vs `KEY` (VirtualDJ, Denon Engine DJ); Vorbis BPM `BPM` (MusicBrainz) vs `TEMPO` (Mixxx ≤ 2.0); MP4 key `----:com.apple.iTunes:initialkey` vs `----:com.apple.iTunes:KEY` (Rapid Evolution); MP4 BPM `----:com.apple.iTunes:BPM` vs the integer `tmpo` atom. Mixar *reads* either key alias, but has no mapping for Vorbis `TEMPO`, so a file whose BPM lives only there reads as unknown.
+- **MP4 with a 64-bit `mdat`** (extended size) is a plain I/O failure: lofty 0.22 mis-skips that header by eight bytes and then reports `No "moov" atom found`. The failure is logged and the file is left byte-identical (the write is the last step, so nothing partial can land). Mixar's own stem muxer always writes such an `mdat` — which is why native Stem files are refused by name above — while iTunes, ffmpeg, and Rekordbox write 32-bit sizes and are unaffected.
+- **Clearing a tag is not expressible yet**: `TrackTags` uses `None` for "leave alone", so removing a field needs that added to the patch type first.
+
+## Cues, loops, and beat grids
+
+Not written, and not because nothing exists: there is no *standardized* tag representation, but Serato's proprietary, reverse-engineered field set is the de-facto one, and it is per-format — ID3v2.4 GEOB frames on MP3/AIFF, `SERATO_MARKERS_V2` Vorbis comments on FLAC, `----:com.serato.dj:markersv2` atoms on MP4/M4A, its own layout on Ogg Vorbis, sidecar XML for AAC. Mixxx preserves it (it re-emits the frames it parsed, never authors cues). Mixar keeps cues/loops/grids in `library.db`, as Rekordbox and Traktor do — Rekordbox's route out of the database is USB export (ANLZ files), tracked in [#452](https://github.com/geovannimp/mixar/issues/452); writing Serato's frames is tracked in [#548](https://github.com/geovannimp/mixar/issues/548).
+
+## Verifying a change
+
+- `cargo test -p codec tag_write` — the per-container matrix (text fields, BPM rounding, APE's missing BPM/key), ID3v2/Vorbis round trips, idempotency, and both refusals (including the tagless-FLAC byte comparison).
+- `cargo test -p library --all-features write` — analysis and beat-grid write-back against a real WAV, plus the untouched-file case with the setting off.
+- `cargo test -p host_flutter --test library_tag_write_back` — the whole stack: app setting → `LibraryTransport` → worker analysis → file tags, read back with lofty rather than Mixar's own reader.

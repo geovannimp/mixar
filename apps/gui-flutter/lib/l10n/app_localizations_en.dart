@@ -443,6 +443,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Analyze the full track (slowest, most accurate).';
 
   @override
+  String get settingsLibraryTagWriteBackTitle => 'File tags';
+
+  @override
+  String get settingsLibraryTagWriteBackDescription =>
+      'Mixar keeps BPM and key in its own database. When enabled, it also writes them into each file\'s tags so other DJ software sees the same values. Off by default — Mixar never modifies your files while this is off.';
+
+  @override
+  String get settingsLibraryTagWriteBack => 'Write BPM and key to file tags';
+
+  @override
   String get settingsLibraryMusicalKeyTitle => 'Musical key';
 
   @override

@@ -53,7 +53,8 @@ pub use library_core::{
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
     FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio,
     LoadedAudio, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, ScanReport,
-    StreamAudioSource, StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
+    StreamAudioSource, StreamProvider, TagWriteBack, TrackId, TrackMetadata, UpdateCollection,
+    WritableLibrary,
 };
 
 pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
@@ -106,6 +107,8 @@ pub struct LibraryManager {
     history: HistoryRecorder,
     config: LibraryConfig,
     decode_cache: Mutex<DecodeCache>,
+    /// Serializes file tag writes, which run outside this manager's own lock.
+    tag_write_gate: Arc<Mutex<()>>,
     /// Host-injected omnibus buses (None until [`Self::set_buses`]).
     buses: Option<LibraryBuses>,
 }
@@ -122,6 +125,7 @@ impl LibraryManager {
             history,
             config,
             decode_cache: Mutex::new(DecodeCache::new()),
+            tag_write_gate: Arc::new(Mutex::new(())),
             buses: None,
         })
     }
@@ -137,6 +141,7 @@ impl LibraryManager {
             history,
             config,
             decode_cache: Mutex::new(DecodeCache::new()),
+            tag_write_gate: Arc::new(Mutex::new(())),
             buses: None,
         })
     }
@@ -224,6 +229,16 @@ impl LibraryManager {
         self.config = config;
     }
 
+    /// Enable/disable mirroring app-managed BPM/key into file tags.
+    pub fn set_tag_write_back(&mut self, mode: TagWriteBack) {
+        self.config.tag_write_back = mode;
+    }
+
+    /// Gate that serializes tag writes executed after the manager lock is released.
+    pub(crate) fn tag_write_gate(&self) -> Arc<Mutex<()>> {
+        Arc::clone(&self.tag_write_gate)
+    }
+
     fn lock_library(m: &Mutex<Self>) -> Result<std::sync::MutexGuard<'_, Self>> {
         m.lock().map_err(|_| LibraryError::Backend {
             backend: "library",
@@ -240,20 +255,32 @@ impl LibraryManager {
         })
     }
 
+    /// Persist analysis results, handing back any tag write-back to run later.
+    ///
+    /// The plan is *not* executed here: callers hold the library lock, and the
+    /// write reads and may rewrite the whole file. Callers that own the lock must
+    /// drop it first (see `playback.rs`); the `WritableLibrary::analyze_track`
+    /// path cannot, because its caller owns the lock, and executes inline.
     #[cfg(feature = "analysis")]
     fn persist_file_analysis(
         &self,
         path: &Path,
         computed: &ComputedFileAnalysis,
         persist_waveform: bool,
-    ) -> Result<AudioSource> {
+    ) -> Result<(AudioSource, Option<tags::TagWritePlan>)> {
         let path = normalize_path(path)?;
         let source = self.upsert_file_source(&path, &computed.metadata)?;
         analysis::upsert_track_analysis(&self.db, source.id(), &computed.analysis)?;
         if persist_waveform {
             waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         }
-        Ok(source)
+        let plan = tags::TagWritePlan::new(
+            self.config.tag_write_back,
+            path,
+            tags::app_managed_tags(&computed.metadata),
+            self.tag_write_gate(),
+        );
+        Ok((source, plan))
     }
 
     #[cfg(not(feature = "analysis"))]

@@ -449,7 +449,7 @@ JOIN collections c ON c.id = ? AND c.collection_type = 'folder'
 WHERE t.path = c.fs_path OR t.path LIKE c.fs_path || '/%';
 ```
 
-DJ fields (hot cues, loops, waveforms, stems) use dedicated tables in the same `library.db` (see `library` crate). File-tag read on import uses lofty (via `codec`); optional tag write-back is [#451](https://github.com/geovannimp/mixar/issues/451).
+DJ fields (hot cues, loops, waveforms, stems) use dedicated tables in the same `library.db` (see `library` crate). File-tag read on import uses lofty (via `codec`); optional tag write-back of BPM/key (`LibraryConfig::tag_write_back`, off by default) uses the same crate — see [`audio-analyzer-spec.md` §11.6](audio-analyzer-spec.md#116--tag-write-back-optional) for the eligible fields and per-format lossiness.
 
 ### 5.6 Design decisions (summary)
 

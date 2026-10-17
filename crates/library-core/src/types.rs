@@ -275,9 +275,35 @@ pub struct CollectionEntry {
     pub position: Option<i32>,
 }
 
-/// Library manager configuration (reserved for library-wide options).
+/// Whether app-managed DJ metadata is mirrored into file tags.
+///
+/// `library.db` stays authoritative either way; write-back only makes the same
+/// values visible to other software. See `codec::write_track_tags` for the
+/// per-format fields and their lossiness.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TagWriteBack {
+    /// Never modify files (default).
+    #[default]
+    Off,
+    /// Write BPM/key into the file's tags after analysis and manual beat-grid edits.
+    On,
+}
+
+impl TagWriteBack {
+    /// Whether write-back is enabled.
+    pub fn is_on(self) -> bool {
+        self == Self::On
+    }
+}
+
+/// Library manager configuration.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct LibraryConfig {}
+pub struct LibraryConfig {
+    /// Optional write-back of app-managed DJ fields into file tags.
+    #[serde(default)]
+    pub tag_write_back: TagWriteBack,
+}
 
 /// Parameters for creating a collection (folder or playlist).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

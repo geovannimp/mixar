@@ -1159,3 +1159,162 @@ fn open_persists_to_disk() {
         .unwrap();
     assert_eq!(lib.list_collection_tracks(&folder.id).unwrap().len(), 1);
 }
+
+// --- Optional DJ tag write-back (#451) -------------------------------------
+
+/// 6 s of 120 BPM clicks — the fixture the engine tests use when they need a
+/// detectable tempo. Copied into a temp dir: write-back must never touch a repo file.
+#[cfg(feature = "analysis")]
+fn short_beats_fixture_copy(dir: &Path) -> PathBuf {
+    let source =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-beats.wav");
+    let path = dir.join("short-beats.wav");
+    std::fs::copy(source, &path).unwrap();
+    path
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analyze_track_writes_dj_tags_back_when_enabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = short_beats_fixture_copy(dir.path());
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig {
+        tag_write_back: TagWriteBack::On,
+    })
+    .unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    lib.analyze_track(&id, AnalyzeTrackOptions::force())
+        .unwrap();
+
+    let metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    let bpm = metadata.bpm.expect("analysis should produce a BPM");
+    let tags = crate::tags::read_tags(&wav).unwrap();
+    // The file tag mirrors the library value; ID3v2 TBPM is integer-only.
+    assert_eq!(tags.bpm, Some(bpm.round()));
+    assert_eq!(tags.key, metadata.key);
+
+    // Re-running analysis with the same result must not rewrite the file.
+    let before = std::fs::read(&wav).unwrap();
+    lib.analyze_track(&id, AnalyzeTrackOptions::force())
+        .unwrap();
+    assert_eq!(std::fs::read(&wav).unwrap(), before);
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analyze_track_leaves_files_untouched_when_write_back_is_off() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = short_beats_fixture_copy(dir.path());
+    let before = std::fs::read(&wav).unwrap();
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    assert!(!lib.config().tag_write_back.is_on());
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    lib.analyze_track(&id, AnalyzeTrackOptions::force())
+        .unwrap();
+
+    assert!(lib
+        .get_track(&id)
+        .unwrap()
+        .unwrap()
+        .metadata()
+        .bpm
+        .is_some());
+    assert_eq!(std::fs::read(&wav).unwrap(), before);
+    assert!(crate::tags::read_tags(&wav).unwrap().bpm.is_none());
+}
+
+#[test]
+fn save_beat_grid_cmd_writes_bpm_back_when_enabled() {
+    use library_api::{encode_cmd_body, CmdBody};
+    use std::time::{Duration, Instant};
+
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("grid.wav");
+    write_analysis_wav(&wav);
+
+    let session = LibrarySession::open_in_memory(LibraryConfig {
+        tag_write_back: TagWriteBack::On,
+    })
+    .unwrap();
+    let track_id = {
+        let library = session.library();
+        let lib = library.lock().unwrap();
+        lib.import_file_path(&wav).unwrap().id().clone()
+    };
+
+    let rx = session.subscribe_evt_track(track_id.as_str()).unwrap();
+    session
+        .publish_cmd(
+            Origin::Library,
+            Kind::SaveBeatGrid,
+            encode_cmd_body(&CmdBody::SaveBeatGrid {
+                track_id: track_id.as_str().to_string(),
+                bpm: 124.0,
+                first_beat_secs: 0.25,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut seen = false;
+    while Instant::now() < deadline && !seen {
+        match rx.recv_timeout(Duration::from_millis(50)) {
+            Ok(Some(event)) => {
+                if let Ok(EvtBody::BeatGridChanged { .. }) =
+                    library_api::decode_evt_body(event.payload())
+                {
+                    seen = true;
+                }
+            }
+            Ok(None) => continue,
+            Err(_) => break,
+        }
+    }
+    assert!(seen, "beat grid change should be published");
+
+    let tags = crate::tags::read_tags(&wav).unwrap();
+    assert_eq!(tags.bpm, Some(124.0));
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn persist_file_analysis_defers_tag_write_back_to_its_caller() {
+    use crate::analysis::compute_file_analysis;
+
+    let dir = tempfile::tempdir().unwrap();
+    let wav = short_beats_fixture_copy(dir.path());
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig {
+        tag_write_back: TagWriteBack::On,
+    })
+    .unwrap();
+    lib.import_file_path(&wav).unwrap();
+    let computed = compute_file_analysis(&wav, AnalyzeTrackOptions::force()).unwrap();
+    let bpm = computed
+        .metadata
+        .bpm
+        .expect("analysis should produce a BPM");
+
+    // Planning happens under the lock; the file must not be touched yet, because
+    // callers hold the manager mutex while they call this.
+    let (_, plan) = lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert!(crate::tags::read_tags(&wav).unwrap().bpm.is_none());
+
+    // Executing the plan (callers do this after dropping the lock) writes it.
+    let plan = plan.expect("write-back on should produce a plan");
+    assert!(plan.execute().is_some());
+    assert_eq!(
+        crate::tags::read_tags(&wav).unwrap().bpm,
+        Some(bpm.round()),
+        "planned value should reach the file"
+    );
+
+    // With the setting off there is nothing to run later.
+    let off = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    off.import_file_path(&wav).unwrap();
+    let (_, plan) = off.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert!(plan.is_none());
+}

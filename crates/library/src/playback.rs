@@ -55,11 +55,17 @@ impl LibraryManager {
         };
         let computed = compute_file_analysis(&path, options)?;
 
-        let lib = Self::lock_library(library)?;
-        if !lib.needs_playback_analysis(id)? {
-            return Ok(());
+        let (_, plan) = {
+            let lib = Self::lock_library(library)?;
+            if !lib.needs_playback_analysis(id)? {
+                return Ok(());
+            }
+            lib.persist_file_analysis(&path, &computed, false)?
+        };
+        // File I/O for tag write-back runs after the manager lock is released.
+        if let Some(plan) = plan {
+            plan.execute();
         }
-        lib.persist_file_analysis(&path, &computed, false)?;
         Ok(())
     }
 
@@ -93,11 +99,15 @@ impl LibraryManager {
         #[cfg(feature = "analysis")]
         {
             let computed = compute_file_analysis(&path, options.clone())?;
-            let source = {
+            let (source, plan) = {
                 let lib = Self::lock_library(library)?;
                 lib.ensure_track_still_at_path(id, &path)?;
                 lib.persist_file_analysis(&path, &computed, true)?
             };
+            // File I/O for tag write-back runs after the manager lock is released.
+            if let Some(plan) = plan {
+                plan.execute();
+            }
             Ok(source)
         }
         #[cfg(not(feature = "analysis"))]

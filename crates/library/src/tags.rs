@@ -1,16 +1,95 @@
 //! Map codec file tags into library `TrackMetadata`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use codec::{
     read_file_artwork, read_file_tags, read_replaygain_track_gain_db as codec_replaygain, FileTags,
+    TagWriteReport, TrackTags,
 };
-use library_core::{path_label, TrackMetadata};
+use library_core::{path_label, TagWriteBack, TrackMetadata};
 
 /// Read metadata tags from an audio file.
 pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
     let tags = read_file_tags(path).map_err(|e| io_backend(format!("{e}")))?;
     Ok(track_metadata_from_file_tags(path, tags))
+}
+
+/// Deferred write-back of app-managed tags for one analyzed file.
+///
+/// Planned while the library lock is held (cheap: copies a path and two values)
+/// and executed by the caller *after* releasing it. The write reads the file and
+/// may rewrite it wholesale, which must not sit behind the manager mutex where a
+/// queued UI read would wait on it.
+///
+/// Holding that mutex used to serialize these writes implicitly; `gate` restores
+/// the guarantee now that they run outside it, so two analysis paths reaching the
+/// same file at once (deck-load pre-analysis and a queued `AnalyzeTrack`, say)
+/// still write one at a time.
+pub(crate) struct TagWritePlan {
+    path: PathBuf,
+    tags: TrackTags,
+    gate: Arc<Mutex<()>>,
+}
+
+impl TagWritePlan {
+    /// Plan for `path`, or `None` when the user has not opted in.
+    pub(crate) fn new(
+        mode: TagWriteBack,
+        path: PathBuf,
+        tags: TrackTags,
+        gate: Arc<Mutex<()>>,
+    ) -> Option<Self> {
+        mode.is_on().then_some(Self { path, tags, gate })
+    }
+
+    /// Run the write. Best-effort — failures are logged, never propagated.
+    pub(crate) fn execute(self) -> Option<TagWriteReport> {
+        let _gate = self.gate.lock().unwrap_or_else(|e| e.into_inner());
+        write_back_track_tags(&self.path, &self.tags)
+    }
+}
+
+/// Mirror track information into the file's tags.
+///
+/// Best-effort: a file we cannot write is logged and skipped, never fatal — the
+/// library row is already persisted and `library.db` stays authoritative. Runs on
+/// the analysis / beat-grid paths only, never on the realtime audio path.
+pub(crate) fn write_back_track_tags(path: &Path, tags: &TrackTags) -> Option<TagWriteReport> {
+    match codec::write_track_tags(path, tags) {
+        Ok(report) => {
+            tracing::debug!(
+                path = %path_label(path),
+                container = report.container.map(|c| c.as_str()).unwrap_or("none"),
+                fields = ?report.fields,
+                "tag write-back"
+            );
+            Some(report)
+        }
+        Err(err) => {
+            tracing::warn!(
+                path = %path_label(path),
+                error = %err,
+                "tag write-back failed; file left unchanged"
+            );
+            None
+        }
+    }
+}
+
+/// The fields Mixar owns and mirrors today: BPM and key.
+///
+/// Title/artist/album/genre are deliberately **not** passed even though the
+/// writer supports them: they are file-derived today (`track_metadata_from_file_tags`
+/// falls back to the file name for a missing title), so mirroring the library row
+/// would stamp guesses into files that carry no tags. A track editor that actually
+/// owns those values should extend this function.
+pub(crate) fn app_managed_tags(metadata: &TrackMetadata) -> TrackTags {
+    TrackTags {
+        bpm: metadata.bpm,
+        key: metadata.key.clone(),
+        ..TrackTags::default()
+    }
 }
 
 /// Read the ReplayGain track gain tag, in decibels, when present and valid.

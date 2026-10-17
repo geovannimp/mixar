@@ -891,6 +891,24 @@ abstract class AppLocalizations {
   /// **'Analyze the full track (slowest, most accurate).'**
   String get settingsLibraryAnalysisCompleteSubtitle;
 
+  /// No description provided for @settingsLibraryTagWriteBackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'File tags'**
+  String get settingsLibraryTagWriteBackTitle;
+
+  /// No description provided for @settingsLibraryTagWriteBackDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixar keeps BPM and key in its own database. When enabled, it also writes them into each file\'s tags so other DJ software sees the same values. Off by default — Mixar never modifies your files while this is off.'**
+  String get settingsLibraryTagWriteBackDescription;
+
+  /// No description provided for @settingsLibraryTagWriteBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Write BPM and key to file tags'**
+  String get settingsLibraryTagWriteBack;
+
   /// No description provided for @settingsLibraryMusicalKeyTitle.
   ///
   /// In en, this message translates to:

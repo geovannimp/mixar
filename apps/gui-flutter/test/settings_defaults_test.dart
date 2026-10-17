@@ -100,6 +100,15 @@ void main() {
     );
   });
 
+  test('tagWriteBack defaults off and is dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.tagWriteBack, isFalse);
+    expect(
+      appSettingsDirty(copyAppSettings(baseline, tagWriteBack: true), baseline),
+      isTrue,
+    );
+  });
+
   test('selectStyle defaults auto and is dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.selectStyle, SelectStyleSetting.auto);

@@ -104,6 +104,7 @@ AppSettings defaultAppSettings() {
     previewBus: kDefaultPreviewBus,
     analysisDuration: AnalysisDurationSetting.precise,
     libraryRowDensity: LibraryRowDensitySetting.comfortable,
+    tagWriteBack: false,
     volumeNormalizerEnabled: true,
     targetLufs: kDefaultTargetLufs,
     samplerPlayMode: SamplerPlayModeSetting.oneshot,
@@ -177,6 +178,7 @@ AppSettings copyAppSettings(
   BusRouteSettings? previewBus,
   AnalysisDurationSetting? analysisDuration,
   LibraryRowDensitySetting? libraryRowDensity,
+  bool? tagWriteBack,
   bool? volumeNormalizerEnabled,
   double? targetLufs,
   SamplerPlayModeSetting? samplerPlayMode,
@@ -216,6 +218,7 @@ AppSettings copyAppSettings(
     previewBus: previewBus ?? base.previewBus,
     analysisDuration: analysisDuration ?? base.analysisDuration,
     libraryRowDensity: libraryRowDensity ?? base.libraryRowDensity,
+    tagWriteBack: tagWriteBack ?? base.tagWriteBack,
     volumeNormalizerEnabled:
         volumeNormalizerEnabled ?? base.volumeNormalizerEnabled,
     targetLufs: targetLufs ?? base.targetLufs,
@@ -290,6 +293,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.stemsFormat != baseline.stemsFormat ||
       draft.uiLanguage != baseline.uiLanguage ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||
+      draft.tagWriteBack != baseline.tagWriteBack ||
       !_sameList(
         draft.deckDefaultSamplerBankId,
         baseline.deckDefaultSamplerBankId,
