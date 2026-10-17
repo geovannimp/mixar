@@ -721,11 +721,18 @@ pub(crate) fn prepare_native_stem_for_playback(
         metadata.bpm = merged.bpm;
         metadata.key = merged.key;
         let computed = ComputedFileAnalysis { metadata, analysis };
-        {
+        let plan = {
             let lib = LibraryManager::lock_library(library)?;
             if lib.needs_playback_analysis(&track_id)? {
-                lib.persist_file_analysis(&path, &computed, false)?;
+                let (_, plan) = lib.persist_file_analysis(&path, &computed, false)?;
+                plan
+            } else {
+                None
             }
+        };
+        // File I/O for tag write-back runs after the manager lock is released.
+        if let Some(plan) = plan {
+            plan.execute();
         }
         source = {
             let lib = LibraryManager::lock_library(library)?;

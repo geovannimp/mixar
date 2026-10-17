@@ -685,14 +685,19 @@ fn handle_save_beat_grid(
                     // The manual grid is the user telling us this BPM is the right one.
                     let mut tags = crate::tags::app_managed_tags(metadata);
                     tags.bpm = Some(bpm);
-                    write_back =
-                        Some((lib.config().tag_write_back, file.path().to_path_buf(), tags));
+                    write_back = crate::tags::TagWritePlan::new(
+                        lib.config().tag_write_back,
+                        file.path().to_path_buf(),
+                        tags,
+                        lib.tag_write_gate(),
+                    );
                 }
                 Ok((grid, source))
             })
     };
-    if let Some((mode, path, tags)) = write_back {
-        crate::tags::write_back_track_tags(mode, &path, &tags);
+    // File I/O for tag write-back runs after the manager lock is released.
+    if let Some(plan) = write_back {
+        plan.execute();
     }
     publish_beat_grid_result(evt_bus, revision, track_id, result);
 }

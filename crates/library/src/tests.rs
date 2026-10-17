@@ -1278,3 +1278,43 @@ fn save_beat_grid_cmd_writes_bpm_back_when_enabled() {
     let tags = crate::tags::read_tags(&wav).unwrap();
     assert_eq!(tags.bpm, Some(124.0));
 }
+
+#[test]
+#[cfg(feature = "analysis")]
+fn persist_file_analysis_defers_tag_write_back_to_its_caller() {
+    use crate::analysis::compute_file_analysis;
+
+    let dir = tempfile::tempdir().unwrap();
+    let wav = short_beats_fixture_copy(dir.path());
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig {
+        tag_write_back: TagWriteBack::On,
+    })
+    .unwrap();
+    lib.import_file_path(&wav).unwrap();
+    let computed = compute_file_analysis(&wav, AnalyzeTrackOptions::force()).unwrap();
+    let bpm = computed
+        .metadata
+        .bpm
+        .expect("analysis should produce a BPM");
+
+    // Planning happens under the lock; the file must not be touched yet, because
+    // callers hold the manager mutex while they call this.
+    let (_, plan) = lib.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert!(crate::tags::read_tags(&wav).unwrap().bpm.is_none());
+
+    // Executing the plan (callers do this after dropping the lock) writes it.
+    let plan = plan.expect("write-back on should produce a plan");
+    assert!(plan.execute().is_some());
+    assert_eq!(
+        crate::tags::read_tags(&wav).unwrap().bpm,
+        Some(bpm.round()),
+        "planned value should reach the file"
+    );
+
+    // With the setting off there is nothing to run later.
+    let off = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    off.import_file_path(&wav).unwrap();
+    let (_, plan) = off.persist_file_analysis(&wav, &computed, false).unwrap();
+    assert!(plan.is_none());
+}
