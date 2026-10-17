@@ -6,6 +6,12 @@ export interface Runtime {
   owner: string;
   repo: string;
   prNumber: number;
+  /**
+   * Report what the extension would do without mutating anything. Reads still happen:
+   * the ownership and authorship guards are part of what a dry run is meant to
+   * exercise, and skipping them would make the report less trustworthy than the real
+   * thing. Only the writes are skipped.
+   */
   dryRun: boolean;
 }
 

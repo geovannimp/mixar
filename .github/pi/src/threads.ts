@@ -2,14 +2,51 @@ import { FINDING_MARKER } from './constants.ts';
 import { createOctokit } from './github.ts';
 import type { Runtime } from './runtime.ts';
 
+/**
+ * PR number a review comment belongs to, read from its pull_request_url. The last
+ * path segment is parsed and compared as a number: suffix-matching the string would
+ * accept `.../pulls/123` for a review of PR 23, since that URL ends with "/23" too.
+ */
+function pullNumberFromUrl(url: string | undefined): number | null {
+  const match = /\/(\d+)\/?$/.exec(url ?? '');
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * getReviewComment is scoped by repository and comment id only, so a comment id that
+ * came from the model has to be checked against the PR under review before anything
+ * acts on it - replying included, not just resolving. Exported so the unit test can
+ * pin the PR-number comparison, which is what decides that.
+ */
+export function assertCommentOnPullRequest(
+  rt: Runtime,
+  comment: { pull_request_url?: string },
+): void {
+  const pullNumber = pullNumberFromUrl(comment.pull_request_url);
+  if (pullNumber !== rt.prNumber) {
+    throw new Error(
+      `refusing to act on a comment from ${comment.pull_request_url ?? 'an unknown pull request'}: this run reviews PR #${rt.prNumber}`,
+    );
+  }
+}
+
 export async function replyToReviewComment(
   rt: Runtime,
   commentId: number,
   body: string,
 ): Promise<string> {
   const marked = body.includes(FINDING_MARKER) ? body : `${FINDING_MARKER}\n${body}`;
-  if (rt.dryRun) return `dry run: would reply to comment ${commentId}:\n${marked}`;
   const octokit = createOctokit(rt.token);
+  // Replying is not restricted to threads this action opened - adding context to
+  // someone else's thread is the point - but the comment still has to be on the PR
+  // under review, and the id comes from the model.
+  const { data: comment } = await octokit.rest.pulls.getReviewComment({
+    owner: rt.owner,
+    repo: rt.repo,
+    comment_id: commentId,
+  });
+  assertCommentOnPullRequest(rt, comment);
+  if (rt.dryRun) return `dry run: would reply to comment ${commentId}:\n${marked}`;
   await octokit.rest.pulls.createReplyForReviewComment({
     owner: rt.owner,
     repo: rt.repo,
@@ -40,8 +77,10 @@ export async function resolveReviewThread(rt: Runtime, commentId: number): Promi
     );
 
   const comment = await getComment(commentId);
+  assertCommentOnPullRequest(rt, comment);
   const rootId = comment.in_reply_to_id ?? comment.id;
   const root = rootId === comment.id ? comment : await getComment(rootId);
+  assertCommentOnPullRequest(rt, root);
 
   // Authorisation is based on who *posted* the comment, not on its text. The marker
   // is a public literal, so anyone able to comment could paste it; only a thread this
@@ -50,13 +89,6 @@ export async function resolveReviewThread(rt: Runtime, commentId: number): Promi
   if (root.user?.login !== viewer.login) {
     throw new Error(
       `refusing to resolve thread ${rootId}: root comment was authored by ${root.user?.login ?? 'unknown'}, not by ${viewer.login}`,
-    );
-  }
-  // getReviewComment is scoped by repo + comment id only, so confirm the thread
-  // belongs to the PR being reviewed.
-  if (!root.pull_request_url.endsWith(`/${rt.prNumber}`)) {
-    throw new Error(
-      `refusing to resolve comment ${commentId}: it belongs to ${root.pull_request_url}, not to PR #${rt.prNumber}`,
     );
   }
 

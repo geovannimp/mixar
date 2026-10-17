@@ -18,9 +18,10 @@ name: Pi Code Review
 # `base_url` input.
 #
 # Triggers:
-#   - pull_request: opened / synchronize / reopened / ready_for_review (same-repo PRs only;
-#     fork PRs get no LLM secret, so they are skipped. They do get a read-only default
-#     GITHUB_TOKEN, which is why the same-repo gate matters, not the token's absence)
+#   - pull_request_target: opened / synchronize / reopened / ready_for_review (same-repo
+#     PRs only). Under this trigger a fork PR would be handed this repo's secrets, so
+#     the same-repo gate in the job `if:` - not the absence of a secret - is what keeps
+#     them out; that gate is load-bearing, not a convenience.
 #   - issue_comment /pi-review or @pi-review on a PR by MEMBER|OWNER|COLLABORATOR
 #   - pull_request_review_comment, the same command typed on a line in Files changed
 #   - workflow_dispatch with pr_number
@@ -55,7 +56,12 @@ name: Pi Code Review
 # pr-head, or scoped tokens) is tracked separately.
 
 on:
-  pull_request:
+  # pull_request_target runs this file as it exists on the default branch, not the
+  # PR's merge ref. For `pull_request` an unmerged branch could edit this same file -
+  # widening `mcp_servers` (any command), `extensions` or `loaded_tools` - and have
+  # that run with the job's secrets before any review. PR head is untrusted input
+  # under either trigger and is only ever checked out read-only (pr-head/).
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
   issue_comment:
     types: [created]
@@ -83,7 +89,7 @@ concurrency:
     ${{
       (
         (
-          github.event_name == 'pull_request'
+          github.event_name == 'pull_request_target'
           && !github.event.pull_request.draft
           && github.event.pull_request.head.repo.full_name == github.repository
         )
@@ -137,7 +143,7 @@ jobs:
       pull-requests: write
     if: |
       (
-        github.event_name == 'pull_request'
+        github.event_name == 'pull_request_target'
         && !github.event.pull_request.draft
         && github.event.pull_request.head.repo.full_name == github.repository
       )
@@ -170,19 +176,6 @@ jobs:
         )
       )
     steps:
-      - name: Require LLM settings
-        if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
-        env:
-          PI_REVIEW_AUTH_TOKEN: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
-          PI_REVIEW_MODEL: ${{ vars.PI_REVIEW_MODEL }}
-        run: |
-          for v in PI_REVIEW_AUTH_TOKEN PI_REVIEW_MODEL; do
-            if [ -z "${!v}" ]; then
-              echo "::error::${v} is not set"
-              exit 1
-            fi
-          done
-
       - name: Resolve PR context
         id: pr-context
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
@@ -214,12 +207,10 @@ jobs:
             core.setOutput('base_sha', pullRequest.base.sha);
             core.setOutput('head_sha', pullRequest.head.sha);
 
-      # Trusted checkout: the extension, the review rules and the vendored skill are
-      # loaded from the BASE commit checked out here, never from pr-head. Note the
-      # workflow file itself is NOT covered by that for the `pull_request` trigger:
-      # GitHub runs the merge ref's copy of this file, so a same-repo branch could
-      # edit it. That is contained by the same-repo gate above (the author already has
-      # write access); the comment triggers load the workflow from the default branch.
+      # Trusted checkout: the extension, the review rules, the vendored skill and -
+      # under pull_request_target - the workflow file itself all come from the BASE
+      # commit checked out here, never from pr-head. pr-head/ is untrusted input:
+      # read-only, never executed.
       - name: Checkout base (trusted workspace)
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -259,6 +250,24 @@ jobs:
             echo "::error::HEAD mismatch: expected ${HEAD_SHA}, got ${got}"
             exit 1
           fi
+
+      # Fail fast on missing settings, but not before the workspace has a checkout:
+      # hashFiles() reads the runner workspace, which is empty until `Checkout base`
+      # above, so this guard would be false and the step would never run at all. After
+      # the checkout it reads the trusted tree - the copy that actually loads the
+      # extension - and stays a no-op on the PR that first adds it.
+      - name: Require LLM settings
+        if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
+        env:
+          PI_REVIEW_AUTH_TOKEN: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
+          PI_REVIEW_MODEL: ${{ vars.PI_REVIEW_MODEL }}
+        run: |
+          for v in PI_REVIEW_AUTH_TOKEN PI_REVIEW_MODEL; do
+            if [ -z "${!v}" ]; then
+              echo "::error::${v} is not set"
+              exit 1
+            fi
+          done
 
       # Extension deps (octokit, minimatch) resolve from this install. Runs on
       # the trusted base checkout, never on PR-controlled code. Guarded so the PR

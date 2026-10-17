@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { loadRuntime, resolvePrNumber } from './src/runtime.ts';
+import { assertCommentOnPullRequest } from './src/threads.ts';
+import type { Runtime } from './src/runtime.ts';
 
 test('pr number: event payload is used when no override is set', () => {
   assert.equal(resolvePrNumber({}, { pull_request: { number: 7 } }), 7);
@@ -90,4 +92,18 @@ test('runtime: the process environment is cached, explicit env objects are not',
   const b = { ...a, PI_REVIEW_PR_NUMBER: '2' };
   assert.equal(loadRuntime(a).prNumber, 1);
   assert.equal(loadRuntime(b).prNumber, 2, 'explicit envs must not be served from the cache');
+});
+
+test('comment ownership: only comments on the PR under review are accepted', () => {
+  const rt = { prNumber: 23 } as Runtime;
+  const url = (n: number) => `https://api.github.com/repos/o/r/pulls/${n}`;
+
+  assert.doesNotThrow(() => assertCommentOnPullRequest(rt, { pull_request_url: url(23) }));
+  // An adjacent number is a different PR, not a match.
+  assert.throws(
+    () => assertCommentOnPullRequest(rt, { pull_request_url: url(123) }),
+    /this run reviews PR #23/,
+  );
+  assert.throws(() => assertCommentOnPullRequest(rt, { pull_request_url: url(24) }));
+  assert.throws(() => assertCommentOnPullRequest(rt, {}), /an unknown pull request/);
 });
