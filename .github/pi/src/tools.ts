@@ -24,12 +24,16 @@ function bodyParam(params: unknown, key: string): string {
   return value;
 }
 
-/** One schema for every tool that takes a review-comment id, so the copies cannot drift. */
+/** The comment_id property, shared by both tools so the definition cannot drift. */
+const commentIdProperty = {
+  type: 'integer',
+  minimum: 1,
+  description: 'PR review comment id',
+} as const;
+
 const commentIdSchema = {
   type: 'object',
-  properties: {
-    comment_id: { type: 'integer', minimum: 1, description: 'PR review comment id' },
-  },
+  properties: { comment_id: commentIdProperty },
   required: ['comment_id'],
 } as const;
 
@@ -48,7 +52,7 @@ export function registerTools(pi: ExtensionAPI): void {
       parameters: {
         type: 'object',
         properties: {
-          comment_id: { type: 'integer', minimum: 1, description: 'PR review comment id' },
+          comment_id: commentIdProperty,
           body: { type: 'string' },
         },
         required: ['comment_id', 'body'],

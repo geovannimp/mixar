@@ -160,6 +160,7 @@ jobs:
       )
     steps:
       - name: Require LLM settings
+        if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
         env:
           OCR_LLM_URL: ${{ vars.OCR_LLM_URL }}
           OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
@@ -263,7 +264,7 @@ jobs:
       # it. Say so plainly: the run below will fail to resolve the ocr-llm
       # provider, and a bare "Model not found" hides why.
       - name: Note extension absent from base
-        if: hashFiles('.github/pi/package.json') == ''
+        if: hashFiles('.github/pi/package.json') == '' || hashFiles('.github/pi/package-lock.json') == ''
         shell: bash
         run: |
           echo "::warning::.github/pi is absent from the base checkout; this job cannot review until this PR merges and the workflow runs from the default branch."
@@ -272,7 +273,7 @@ jobs:
       # built from the PR head tree so the graph reflects the change under review.
       # Indexing parses code; it never executes anything from the PR.
       - name: Install CodeGraph
-        if: hashFiles('.github/pi/package.json') != ''
+        if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
         env:
           # Pinned deliberately - the MCP tool names and index format are versioned.
           CODEGRAPH_VERSION: '1.6.2'
@@ -282,7 +283,7 @@ jobs:
       # report it has no project, so the reviewer degrades to grep/find rather than
       # losing the whole review.
       - name: Index the PR head tree
-        if: hashFiles('.github/pi/package.json') != ''
+        if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
         continue-on-error: true
         run: |
           set -euo pipefail
@@ -290,7 +291,7 @@ jobs:
           codegraph status pr-head | head -20
 
       - name: Pi review
-        if: hashFiles('.github/pi/package.json') != ''
+        if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
         uses: shaftoe/pi-coding-agent-action@f7496a9aea9798c5d52d39096d98d5c5b16559b3 # v2.30.0
         env:
           # Read by the extension to register the provider and its API key.

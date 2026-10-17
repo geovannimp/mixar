@@ -20,14 +20,14 @@ export function registerProviders(pi: ExtensionAPI): void {
   // endpoint as a provider. This must happen during extension load (extensions
   // load before the action resolves the model), and the workflow must not pass
   // base_url.
-  const ocrModel = process.env.OCR_LLM_MODEL;
+  // Trimmed: a whitespace-only value is truthy and would register an empty id/URL.
+  const ocrModel = process.env.OCR_LLM_MODEL?.trim();
   // The SDK appends /chat/completions to baseUrl, so accept either the bare base
   // URL or the full endpoint, and normalise a trailing slash so we never build
   // ".../v1//chat/completions".
-  const ocrBaseUrl = process.env.OCR_LLM_URL?.replace(/\/chat\/completions\/?$/, '').replace(
-    /\/+$/,
-    '',
-  );
+  const ocrBaseUrl = process.env.OCR_LLM_URL?.trim()
+    .replace(/\/chat\/completions\/?$/, '')
+    .replace(/\/+$/, '');
   if (!ocrModel || !ocrBaseUrl) {
     throw new Error('pi-review extension: OCR_LLM_MODEL and OCR_LLM_URL must be set');
   }
