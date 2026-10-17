@@ -5,9 +5,13 @@ name: Pi Code Review
 # endpoint configured through the PI_REVIEW_* settings below.
 #
 # Setup (once), under Settings -> Secrets and variables -> Actions:
-#   variable PI_REVIEW_URL        LLM API endpoint (base URL; /chat/completions is appended)
+#   variable PI_REVIEW_URL        LLM API endpoint (base URL or full /chat/completions)
 #   secret   PI_REVIEW_AUTH_TOKEN LLM auth token
 #   variable PI_REVIEW_MODEL      model id served by that endpoint
+#
+# Optional, only if the endpoint's model differs from the assumed limits:
+#   variable PI_REVIEW_CONTEXT_WINDOW  default 128000
+#   variable PI_REVIEW_MAX_TOKENS      default 4096
 #
 # Triggers:
 #   - pull_request: opened / synchronize / reopened / ready_for_review (same-repo PRs only;
@@ -300,6 +304,9 @@ jobs:
           PI_REVIEW_URL: ${{ vars.PI_REVIEW_URL }}
           PI_REVIEW_AUTH_TOKEN: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
           PI_REVIEW_MODEL: ${{ vars.PI_REVIEW_MODEL }}
+          # Optional limits; empty falls back to the defaults in providers.ts.
+          PI_REVIEW_CONTEXT_WINDOW: ${{ vars.PI_REVIEW_CONTEXT_WINDOW }}
+          PI_REVIEW_MAX_TOKENS: ${{ vars.PI_REVIEW_MAX_TOKENS }}
           # Read by the extension's GitHub client (createGitHubClient).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Read by the extension to resolve the PR number when no event payload.
