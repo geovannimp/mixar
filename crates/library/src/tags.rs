@@ -4,13 +4,66 @@ use std::path::Path;
 
 use codec::{
     read_file_artwork, read_file_tags, read_replaygain_track_gain_db as codec_replaygain, FileTags,
+    TagWriteReport, TrackTags,
 };
-use library_core::{path_label, TrackMetadata};
+use library_core::{path_label, TagWriteBack, TrackMetadata};
 
 /// Read metadata tags from an audio file.
 pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
     let tags = read_file_tags(path).map_err(|e| io_backend(format!("{e}")))?;
     Ok(track_metadata_from_file_tags(path, tags))
+}
+
+/// Mirror app-managed track information into the file's tags, when the user
+/// opted in.
+///
+/// Best-effort: a file we cannot write is logged and skipped, never fatal — the
+/// library row is already persisted and `library.db` stays authoritative. Runs on
+/// the analysis / beat-grid paths only, never on the realtime audio path.
+///
+/// Returns `None` when write-back is disabled.
+pub(crate) fn write_back_track_tags(
+    mode: TagWriteBack,
+    path: &Path,
+    tags: &TrackTags,
+) -> Option<TagWriteReport> {
+    if !mode.is_on() {
+        return None;
+    }
+    match codec::write_track_tags(path, tags) {
+        Ok(report) => {
+            tracing::debug!(
+                path = %path_label(path),
+                container = report.container.map(|c| c.as_str()).unwrap_or("none"),
+                fields = ?report.fields,
+                "tag write-back"
+            );
+            Some(report)
+        }
+        Err(err) => {
+            tracing::warn!(
+                path = %path_label(path),
+                error = %err,
+                "tag write-back failed; file left unchanged"
+            );
+            None
+        }
+    }
+}
+
+/// The fields Mixar owns and mirrors today: BPM and key.
+///
+/// Title/artist/album/genre are deliberately **not** passed even though the
+/// writer supports them: they are file-derived today (`track_metadata_from_file_tags`
+/// falls back to the file name for a missing title), so mirroring the library row
+/// would stamp guesses into files that carry no tags. A track editor that actually
+/// owns those values should extend this function.
+pub(crate) fn app_managed_tags(metadata: &TrackMetadata) -> TrackTags {
+    TrackTags {
+        bpm: metadata.bpm,
+        key: metadata.key.clone(),
+        ..TrackTags::default()
+    }
 }
 
 /// Read the ReplayGain track gain tag, in decibels, when present and valid.

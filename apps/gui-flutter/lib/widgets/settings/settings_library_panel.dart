@@ -4,6 +4,7 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
+import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
@@ -112,6 +113,16 @@ class SettingsLibraryPanel extends StatelessWidget {
               onChanged: (mode) =>
                   onChanged(copyAppSettings(draft, analysisDuration: mode)),
             ),
+          ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsLibraryTagWriteBackTitle,
+          subtitle: l10n.settingsLibraryTagWriteBackDescription,
+          trailing: SettingsHeaderSwitch(
+            value: draft.tagWriteBack,
+            semanticsLabel: l10n.settingsLibraryTagWriteBack,
+            onChanged: (enabled) =>
+                onChanged(copyAppSettings(draft, tagWriteBack: enabled)),
           ),
         ),
         SettingsSectionCard(

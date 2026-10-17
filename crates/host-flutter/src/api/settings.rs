@@ -274,6 +274,9 @@ pub struct AppSettings {
     pub analysis_duration: AnalysisDurationSetting,
     #[serde(default)]
     pub library_row_density: LibraryRowDensitySetting,
+    /// Mirror app-managed BPM/key into the file's tags after analysis (off by default).
+    #[serde(default)]
+    pub tag_write_back: bool,
     pub volume_normalizer_enabled: bool,
     pub target_lufs: f32,
     pub sampler_play_mode: SamplerPlayModeSetting,
@@ -330,6 +333,7 @@ struct SettingsHost {
     persist_path: Option<PathBuf>,
     engine_config: EngineConfig,
     library_row_density: LibraryRowDensitySetting,
+    tag_write_back: bool,
     volume_normalizer_enabled: bool,
     target_lufs: f32,
     sampler_play_mode: SamplerPlayModeSetting,
@@ -361,6 +365,7 @@ impl Default for SettingsHost {
             persist_path: None,
             engine_config: default_engine_config(),
             library_row_density: LibraryRowDensitySetting::default(),
+            tag_write_back: false,
             volume_normalizer_enabled: true,
             target_lufs: TARGET_LUFS_DEFAULT,
             sampler_play_mode: SamplerPlayModeSetting::Oneshot,
@@ -636,6 +641,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
             .unwrap_or_else(default_preview_bus_route),
         analysis_duration: config.analysis_duration.into(),
         library_row_density: host.library_row_density,
+        tag_write_back: host.tag_write_back,
         volume_normalizer_enabled: host.volume_normalizer_enabled,
         target_lufs: host.target_lufs,
         sampler_play_mode: host.sampler_play_mode,
@@ -687,6 +693,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     config.validate().map_err(|e| e.to_string())?;
     host.engine_config = config;
     host.library_row_density = settings.library_row_density;
+    host.tag_write_back = settings.tag_write_back;
     host.volume_normalizer_enabled = settings.volume_normalizer_enabled;
     host.target_lufs = settings.target_lufs;
     host.sampler_play_mode = settings.sampler_play_mode;
@@ -893,6 +900,34 @@ mod tests {
             load_host(&path).library_row_density,
             LibraryRowDensitySetting::Compact
         );
+    }
+
+    #[test]
+    fn tag_write_back_defaults_off_and_round_trips_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+
+        // Off unless the user opts in, including for settings files written before
+        // the field existed.
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("tag_write_back");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert!(!settings.tag_write_back);
+
+        let mut settings = sample_settings();
+        settings.tag_write_back = true;
+        let mut host = SettingsHost {
+            persist_path: Some(path.clone()),
+            ..Default::default()
+        };
+        apply_to_host(&mut host, settings).expect("apply");
+        let saved = parse_settings(settings_from_host(&host)).expect("parse");
+        assert!(saved.tag_write_back);
+        write_settings_file(&path, &saved).expect("write");
+        assert!(load_host(&path).tag_write_back);
     }
 
     #[test]

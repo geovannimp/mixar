@@ -66,10 +66,11 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required double minDeckVolume,
   });
 
-  /// Apply library analysis duration and stem format from app settings.
+  /// Apply library analysis duration, stem format, and tag write-back from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
     required String stemsFormat,
+    required bool tagWriteBack,
   });
 
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].

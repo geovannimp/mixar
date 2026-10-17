@@ -10,7 +10,7 @@ use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
     dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, HistoryExportFormat,
     HistorySettings, LibraryBuses, LibraryConfig, LibraryManager, LibraryWorker, NewCollection,
-    SamplerBankRecord, TrackId, WritableLibrary,
+    SamplerBankRecord, TagWriteBack, TrackId, WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -888,14 +888,24 @@ impl LibraryTransport {
         self.buses.clone()
     }
 
-    /// Apply library analysis duration and stem format from app settings.
+    /// Apply library analysis duration, stem format, and tag write-back from app settings.
     pub fn apply_library_settings(
         &self,
         analysis_duration: LibraryAnalysisDurationSetting,
         stems_format: String,
+        tag_write_back: bool,
     ) -> Result<(), String> {
         self.buses.set_analysis_duration(analysis_duration.into());
         self.buses.set_stems_format(stems_format);
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.set_tag_write_back(if tag_write_back {
+            TagWriteBack::On
+        } else {
+            TagWriteBack::Off
+        });
         Ok(())
     }
 

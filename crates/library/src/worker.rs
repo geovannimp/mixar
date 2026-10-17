@@ -671,11 +671,29 @@ fn handle_save_beat_grid(
     };
 
     let id = TrackId::new(track_id.clone());
+    // Tag write-back is planned under the lock but executed after it is released:
+    // a manual grid is the user telling us this BPM is the right one.
+    let mut write_back = None;
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
         lib.save_track_beat_grid(&id, bpm, first_beat_secs)
-            .and_then(|grid| lib.get_track(&id).map(|source| (grid, source)))
+            .and_then(|grid| {
+                let source = lib.get_track(&id)?;
+                let file = source.as_ref().and_then(AudioSource::file);
+                let metadata = source.as_ref().map(AudioSource::metadata);
+                if let (Some(file), Some(metadata)) = (file, metadata) {
+                    // The manual grid is the user telling us this BPM is the right one.
+                    let mut tags = crate::tags::app_managed_tags(metadata);
+                    tags.bpm = Some(bpm);
+                    write_back =
+                        Some((lib.config().tag_write_back, file.path().to_path_buf(), tags));
+                }
+                Ok((grid, source))
+            })
     };
+    if let Some((mode, path, tags)) = write_back {
+        crate::tags::write_back_track_tags(mode, &path, &tags);
+    }
     publish_beat_grid_result(evt_bus, revision, track_id, result);
 }
 

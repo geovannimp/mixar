@@ -53,7 +53,8 @@ pub use library_core::{
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
     FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio,
     LoadedAudio, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, ScanReport,
-    StreamAudioSource, StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
+    StreamAudioSource, StreamProvider, TagWriteBack, TrackId, TrackMetadata, UpdateCollection,
+    WritableLibrary,
 };
 
 pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
@@ -224,6 +225,11 @@ impl LibraryManager {
         self.config = config;
     }
 
+    /// Enable/disable mirroring app-managed BPM/key into file tags.
+    pub fn set_tag_write_back(&mut self, mode: TagWriteBack) {
+        self.config.tag_write_back = mode;
+    }
+
     fn lock_library(m: &Mutex<Self>) -> Result<std::sync::MutexGuard<'_, Self>> {
         m.lock().map_err(|_| LibraryError::Backend {
             backend: "library",
@@ -253,6 +259,12 @@ impl LibraryManager {
         if persist_waveform {
             waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         }
+        // Optional mirror of the app-managed track information into the file's tags.
+        tags::write_back_track_tags(
+            self.config.tag_write_back,
+            &path,
+            &tags::app_managed_tags(&computed.metadata),
+        );
         Ok(source)
     }
 

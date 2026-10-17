@@ -556,6 +556,7 @@ abstract class RustLibApi extends BaseApi {
     required LibraryTransport that,
     required LibraryAnalysisDurationSetting analysisDuration,
     required String stemsFormat,
+    required bool tagWriteBack,
   });
 
   Future<LibraryBusHandle> crateApiLibraryLibraryTransportBuses({
@@ -4115,6 +4116,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required LibraryTransport that,
     required LibraryAnalysisDurationSetting analysisDuration,
     required String stemsFormat,
+    required bool tagWriteBack,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -4129,6 +4131,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(stemsFormat, serializer);
+          sse_encode_bool(tagWriteBack, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -4142,7 +4145,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiLibraryLibraryTransportApplyLibrarySettingsConstMeta,
-        argValues: [that, analysisDuration, stemsFormat],
+        argValues: [that, analysisDuration, stemsFormat, tagWriteBack],
         apiImpl: this,
       ),
     );
@@ -4152,7 +4155,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiLibraryLibraryTransportApplyLibrarySettingsConstMeta =>
       const TaskConstMeta(
         debugName: "LibraryTransport_apply_library_settings",
-        argNames: ["that", "analysisDuration", "stemsFormat"],
+        argNames: ["that", "analysisDuration", "stemsFormat", "tagWriteBack"],
       );
 
   @override
@@ -6448,8 +6451,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 37)
-      throw Exception('unexpected arr length: expect 37 but see ${arr.length}');
+    if (arr.length != 38)
+      throw Exception('unexpected arr length: expect 38 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -6461,33 +6464,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       previewBus: dco_decode_bus_route_settings(arr[7]),
       analysisDuration: dco_decode_analysis_duration_setting(arr[8]),
       libraryRowDensity: dco_decode_library_row_density_setting(arr[9]),
-      volumeNormalizerEnabled: dco_decode_bool(arr[10]),
-      targetLufs: dco_decode_f_32(arr[11]),
-      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[12]),
-      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[13]),
-      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[14]),
-      defaultTopJogMode: dco_decode_jog_mode_setting(arr[15]),
-      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[16]),
-      defaultTempoRange: dco_decode_f_32(arr[17]),
-      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
-      defaultKeyLock: dco_decode_bool(arr[19]),
-      vinylBrakePause: dco_decode_bool(arr[20]),
-      vinylBrakeStopSecs: dco_decode_f_32(arr[21]),
-      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[22]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[23]),
-      keyColorMode: dco_decode_key_color_mode_setting(arr[24]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[25]),
-      historyEnabled: dco_decode_bool(arr[26]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[27]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[28]),
-      historyMinDeckVolume: dco_decode_f_32(arr[29]),
-      showTooltips: dco_decode_bool(arr[30]),
-      showMixerMeters: dco_decode_bool(arr[31]),
-      mixerMetersMono: dco_decode_bool(arr[32]),
-      selectStyle: dco_decode_select_style_setting(arr[33]),
-      dimPlayedTracks: dco_decode_bool(arr[34]),
-      stemsFormat: dco_decode_String(arr[35]),
-      uiLanguage: dco_decode_ui_language_setting(arr[36]),
+      tagWriteBack: dco_decode_bool(arr[10]),
+      volumeNormalizerEnabled: dco_decode_bool(arr[11]),
+      targetLufs: dco_decode_f_32(arr[12]),
+      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[13]),
+      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[14]),
+      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[15]),
+      defaultTopJogMode: dco_decode_jog_mode_setting(arr[16]),
+      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[17]),
+      defaultTempoRange: dco_decode_f_32(arr[18]),
+      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[19]),
+      defaultKeyLock: dco_decode_bool(arr[20]),
+      vinylBrakePause: dco_decode_bool(arr[21]),
+      vinylBrakeStopSecs: dco_decode_f_32(arr[22]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[23]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[24]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[25]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[26]),
+      historyEnabled: dco_decode_bool(arr[27]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[28]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[29]),
+      historyMinDeckVolume: dco_decode_f_32(arr[30]),
+      showTooltips: dco_decode_bool(arr[31]),
+      showMixerMeters: dco_decode_bool(arr[32]),
+      mixerMetersMono: dco_decode_bool(arr[33]),
+      selectStyle: dco_decode_select_style_setting(arr[34]),
+      dimPlayedTracks: dco_decode_bool(arr[35]),
+      stemsFormat: dco_decode_String(arr[36]),
+      uiLanguage: dco_decode_ui_language_setting(arr[37]),
     );
   }
 
@@ -7891,6 +7895,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_libraryRowDensity = sse_decode_library_row_density_setting(
       deserializer,
     );
+    var var_tagWriteBack = sse_decode_bool(deserializer);
     var var_volumeNormalizerEnabled = sse_decode_bool(deserializer);
     var var_targetLufs = sse_decode_f_32(deserializer);
     var var_samplerPlayMode = sse_decode_sampler_play_mode_setting(
@@ -7935,6 +7940,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       previewBus: var_previewBus,
       analysisDuration: var_analysisDuration,
       libraryRowDensity: var_libraryRowDensity,
+      tagWriteBack: var_tagWriteBack,
       volumeNormalizerEnabled: var_volumeNormalizerEnabled,
       targetLufs: var_targetLufs,
       samplerPlayMode: var_samplerPlayMode,
@@ -9819,6 +9825,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bus_route_settings(self.previewBus, serializer);
     sse_encode_analysis_duration_setting(self.analysisDuration, serializer);
     sse_encode_library_row_density_setting(self.libraryRowDensity, serializer);
+    sse_encode_bool(self.tagWriteBack, serializer);
     sse_encode_bool(self.volumeNormalizerEnabled, serializer);
     sse_encode_f_32(self.targetLufs, serializer);
     sse_encode_sampler_play_mode_setting(self.samplerPlayMode, serializer);
@@ -11799,15 +11806,17 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         minDeckVolume: minDeckVolume,
       );
 
-  /// Apply library analysis duration and stem format from app settings.
+  /// Apply library analysis duration, stem format, and tag write-back from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
     required String stemsFormat,
+    required bool tagWriteBack,
   }) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportApplyLibrarySettings(
         that: this,
         analysisDuration: analysisDuration,
         stemsFormat: stemsFormat,
+        tagWriteBack: tagWriteBack,
       );
 
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].

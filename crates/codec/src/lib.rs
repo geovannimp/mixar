@@ -5,6 +5,7 @@
 mod paths;
 mod stem_atom;
 mod stem_mp4;
+mod tag_write;
 mod tags;
 
 pub use paths::{
@@ -15,6 +16,9 @@ pub use stem_atom::{MasteringDsp, StemAtom, StemSlot};
 pub use stem_mp4::{
     decode_stem_file, encode_stem_mp4, stem_container_info, StemMuxFormat, StemPcmBundle,
     OPUS_SAMPLE_RATE,
+};
+pub use tag_write::{
+    write_track_tags, FieldWrite, TagContainer, TagField, TagWriteReport, TrackTags,
 };
 pub use tags::{read_file_artwork, read_file_tags, read_replaygain_track_gain_db, FileTags};
 

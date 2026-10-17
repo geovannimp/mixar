@@ -44,6 +44,9 @@ class AppSettings {
   final BusRouteSettings previewBus;
   final AnalysisDurationSetting analysisDuration;
   final LibraryRowDensitySetting libraryRowDensity;
+
+  /// Mirror app-managed BPM/key into the file's tags after analysis (off by default).
+  final bool tagWriteBack;
   final bool volumeNormalizerEnabled;
   final double targetLufs;
   final SamplerPlayModeSetting samplerPlayMode;
@@ -89,6 +92,7 @@ class AppSettings {
     required this.previewBus,
     required this.analysisDuration,
     required this.libraryRowDensity,
+    required this.tagWriteBack,
     required this.volumeNormalizerEnabled,
     required this.targetLufs,
     required this.samplerPlayMode,
@@ -130,6 +134,7 @@ class AppSettings {
       previewBus.hashCode ^
       analysisDuration.hashCode ^
       libraryRowDensity.hashCode ^
+      tagWriteBack.hashCode ^
       volumeNormalizerEnabled.hashCode ^
       targetLufs.hashCode ^
       samplerPlayMode.hashCode ^
@@ -173,6 +178,7 @@ class AppSettings {
           previewBus == other.previewBus &&
           analysisDuration == other.analysisDuration &&
           libraryRowDensity == other.libraryRowDensity &&
+          tagWriteBack == other.tagWriteBack &&
           volumeNormalizerEnabled == other.volumeNormalizerEnabled &&
           targetLufs == other.targetLufs &&
           samplerPlayMode == other.samplerPlayMode &&

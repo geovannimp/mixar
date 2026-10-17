@@ -5,6 +5,7 @@ import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_controllers_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -180,5 +181,80 @@ void main() {
     expect(find.text('Trust'), findsOneWidget);
     expect(find.text('Attach'), findsOneWidget);
     expect(find.textContaining('v1.0.0'), findsOneWidget);
+  }, semanticsEnabled: false);
+
+  testWidgets('library settings exposes the tag write-back opt-in', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    AppSettings? changed;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: mixarTestMaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SettingsLibraryPanel(
+                draft: defaultAppSettings(),
+                onChanged: (next) => changed = next,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('File tags'), findsOneWidget);
+    expect(defaultAppSettings().tagWriteBack, isFalse);
+    expect(
+      tester
+          .widget<SettingsHeaderSwitch>(find.byType(SettingsHeaderSwitch))
+          .value,
+      isFalse,
+    );
+
+    // The switch sits in the card header row with the title (like vinyl brake),
+    // not as a labelled row in the card body.
+    final headerRow = find
+        .ancestor(
+          of: find.byType(SettingsHeaderSwitch),
+          matching: find.byType(Row),
+        )
+        .first;
+    expect(
+      find.descendant(of: headerRow, matching: find.text('File tags')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byType(SettingsHeaderSwitch));
+    await tester.pumpAndSettle();
+    expect(changed?.tagWriteBack, isTrue);
+
+    // The header switch reflects the draft it is given, so the card reads as
+    // on when the setting is on.
+    await tester.pumpWidget(
+      ProviderScope(
+        child: mixarTestMaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SettingsLibraryPanel(
+                draft: copyAppSettings(
+                  defaultAppSettings(),
+                  tagWriteBack: true,
+                ),
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(
+      tester
+          .widget<SettingsHeaderSwitch>(find.byType(SettingsHeaderSwitch))
+          .value,
+      isTrue,
+    );
   }, semanticsEnabled: false);
 }

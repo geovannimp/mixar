@@ -129,6 +129,7 @@ class FakeLibraryTransport implements LibraryTransport {
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
     required String stemsFormat,
+    required bool tagWriteBack,
   }) async {}
 
   @override

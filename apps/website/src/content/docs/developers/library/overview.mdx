@@ -1,0 +1,34 @@
+---
+title: "Overview"
+description: "How the library crate owns tracks, collections, analysis results, and DJ data — and where each piece is documented."
+section: "Library"
+order: 1
+---
+
+Mixar has exactly one library per user: the `library` crate (`LibraryManager`) implements the `library-core` traits `Library` + `WritableLibrary` and stores everything in a single SQLite file, `library.db`. Storage is an implementation detail — nothing outside the crate depends on the schema.
+
+Runtime contracts: `docs/tech-spec.md` §5 (*Library Manager (Collections Model)*). Analysis policy, storage schema, and tag write-back: `docs/audio-analyzer-spec.md`.
+
+## What lives where
+
+| Data | Home |
+|------|------|
+| Tracks, collections (folders + playlists), membership | `library.db` tables `tracks`, `collections`, `collection_entries` |
+| Offline analysis (BPM, key, confidences, beat grid JSON, loudness) | `track_analysis` |
+| Hot cues and saved loops | `track_hot_cue`, `track_loop` |
+| Waveform overviews | `track_waveform` |
+| Performance history | XSPF files under app support + a session index in `library.db` |
+| Stem caches, models | app-support directories owned by the stem pipeline |
+
+Third-party DJ libraries (Rekordbox, Serato, Traktor, Mixxx) are read through `library-adapters`, which implement `Library` + `Migratable` and write into the user's one library rather than a second parallel manager.
+
+`library.db` is always the source of truth for track information. File tags are an input on import and analysis (see the merge policy in `docs/audio-analyzer-spec.md` §9), and an optional output — see below.
+
+## Pages
+
+- [Tag write-back](/docs/developers/library/tag-write-back) — the opt-in mirror of app-managed BPM/key into file tags, with the per-format field matrix and its lossiness.
+
+## Related
+
+- Engine handoff: `LibraryManager::prepare_track_for_playback` → `PreparedTrackPlayback` (deck load path, including pre-analysis and stem resolution).
+- Deck UI and library table: `docs/deck-spec.md`.

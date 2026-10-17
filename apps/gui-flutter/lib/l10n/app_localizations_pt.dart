@@ -446,6 +446,17 @@ class AppLocalizationsPt extends AppLocalizations {
       'Analisa a faixa inteira (mais lenta e precisa).';
 
   @override
+  String get settingsLibraryTagWriteBackTitle => 'Tags dos arquivos';
+
+  @override
+  String get settingsLibraryTagWriteBackDescription =>
+      'O Mixar guarda BPM e tom no próprio banco. Quando ativado, também grava esses valores nas tags de cada arquivo, para que outros softwares de DJ vejam o mesmo. Desativado por padrão — o Mixar nunca altera seus arquivos enquanto estiver desligado.';
+
+  @override
+  String get settingsLibraryTagWriteBack =>
+      'Gravar BPM e tom nas tags dos arquivos';
+
+  @override
   String get settingsLibraryMusicalKeyTitle => 'Tom musical';
 
   @override
