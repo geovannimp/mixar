@@ -16,32 +16,33 @@ function envInt(name: string, fallback: number): number {
 }
 
 export function registerProviders(pi: ExtensionAPI): void {
-  // The reviewer model is not in Pi's built-in catalog, so register the OCR
-  // endpoint as a provider. This must happen during extension load (extensions
-  // load before the action resolves the model), and the workflow must not pass
-  // base_url.
+  // The reviewer model is not in Pi's built-in catalog, so register the endpoint as
+  // a provider. This must happen during extension load (extensions load before the
+  // action resolves the model), and the workflow must not pass base_url.
   // Trimmed: a whitespace-only value is truthy and would register an empty id/URL.
-  const ocrModel = process.env.OCR_LLM_MODEL?.trim();
+  const model = process.env.PI_REVIEW_MODEL?.trim();
   // The SDK appends /chat/completions to baseUrl, so accept either the bare base
   // URL or the full endpoint, and normalise a trailing slash so we never build
   // ".../v1//chat/completions".
-  const ocrBaseUrl = process.env.OCR_LLM_URL?.trim()
+  const baseUrl = process.env.PI_REVIEW_URL?.trim()
     .replace(/\/chat\/completions\/?$/, '')
     .replace(/\/+$/, '');
-  if (!ocrModel || !ocrBaseUrl) {
-    throw new Error('pi-review extension: OCR_LLM_MODEL and OCR_LLM_URL must be set');
+  if (!model || !baseUrl) {
+    throw new Error('pi-review extension: PI_REVIEW_MODEL and PI_REVIEW_URL must be set');
   }
   // One source for the id, set once in the workflow and passed to the action as
   // `provider:`. A mismatch otherwise fails with a bare "Model not found".
-  const providerId = process.env.PI_REVIEW_PROVIDER?.trim() || 'ocr-llm';
+  const providerId = process.env.PI_REVIEW_PROVIDER?.trim() || 'pi-review';
   pi.registerProvider(providerId, {
-    baseUrl: ocrBaseUrl,
+    baseUrl,
     api: 'openai-completions',
-    apiKey: '$OCR_LLM_AUTH_TOKEN',
+    // The SDK expands `$NAME` from the process environment, so the workflow has to
+    // export the secret under exactly this name.
+    apiKey: '$PI_REVIEW_AUTH_TOKEN',
     models: [
       {
-        id: ocrModel,
-        name: `OCR review model (${ocrModel})`,
+        id: model,
+        name: `Pi review model (${model})`,
         reasoning: false,
         input: ['text'],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

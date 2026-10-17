@@ -1,12 +1,13 @@
 name: Pi Code Review
 
 # AI PR review via shaftoe/pi-coding-agent-action with the in-repo Pi extension
-# (.github/pi/pi-review-extension.ts). Uses the same LLM endpoint as OCR.
+# (.github/pi/pi-review-extension.ts). The reviewer runs on an OpenAI-compatible
+# endpoint configured through the PI_REVIEW_* settings below.
 #
 # Setup (once), under Settings -> Secrets and variables -> Actions:
-#   variable OCR_LLM_URL       LLM API endpoint (shared with OCR)
-#   secret   OCR_LLM_AUTH_TOKEN LLM auth token (shared with OCR)
-#   variable OCR_LLM_MODEL     model name (shared with OCR)
+#   variable PI_REVIEW_URL        LLM API endpoint (base URL; /chat/completions is appended)
+#   secret   PI_REVIEW_AUTH_TOKEN LLM auth token
+#   variable PI_REVIEW_MODEL      model id served by that endpoint
 #
 # Triggers:
 #   - pull_request: opened / synchronize / reopened / ready_for_review (same-repo PRs only;
@@ -37,7 +38,7 @@ name: Pi Code Review
 # extension.
 #
 # Residual risk: the LLM still reads untrusted PR content while the step holds
-# GITHUB_TOKEN and OCR_LLM_AUTH_TOKEN, and it can call create_pull_request_review /
+# GITHUB_TOKEN and PI_REVIEW_AUTH_TOKEN, and it can call create_pull_request_review /
 # reply_to_review_comment / resolve_review_thread. A prompt injection in the diff
 # could therefore mutate PR state within those tools. The codegraph binary installed
 # above is a further third-party surface: it runs as the MCP server inside this step,
@@ -61,8 +62,9 @@ on:
 
 env:
   # Single source for the provider id: the extension registers the provider under
-  # this name and the action below resolves the model through it.
-  PI_REVIEW_PROVIDER: ocr-llm
+  # this name and the action below resolves the model through it. The two have to
+  # match or the action fails with a bare "Model not found".
+  PI_REVIEW_PROVIDER: pi-review
 
 # NOTE: this group predicate must stay in sync with the job `if:` below —
 # GitHub Actions cannot share one boolean expression between `concurrency` and
@@ -162,11 +164,11 @@ jobs:
       - name: Require LLM settings
         if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
         env:
-          OCR_LLM_URL: ${{ vars.OCR_LLM_URL }}
-          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
-          OCR_LLM_MODEL: ${{ vars.OCR_LLM_MODEL }}
+          PI_REVIEW_URL: ${{ vars.PI_REVIEW_URL }}
+          PI_REVIEW_AUTH_TOKEN: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
+          PI_REVIEW_MODEL: ${{ vars.PI_REVIEW_MODEL }}
         run: |
-          for v in OCR_LLM_URL OCR_LLM_AUTH_TOKEN OCR_LLM_MODEL; do
+          for v in PI_REVIEW_URL PI_REVIEW_AUTH_TOKEN PI_REVIEW_MODEL; do
             if [ -z "${!v}" ]; then
               echo "::error::${v} is not set"
               exit 1
@@ -261,7 +263,7 @@ jobs:
         run: npm ci --omit=dev --ignore-scripts
 
       # The base checkout predates the extension only on the PR that introduces
-      # it. Say so plainly: the run below will fail to resolve the ocr-llm
+      # it. Say so plainly: the run below will fail to resolve the pi-review
       # provider, and a bare "Model not found" hides why.
       - name: Note extension absent from base
         if: hashFiles('.github/pi/package.json') == '' || hashFiles('.github/pi/package-lock.json') == ''
@@ -295,9 +297,9 @@ jobs:
         uses: shaftoe/pi-coding-agent-action@f7496a9aea9798c5d52d39096d98d5c5b16559b3 # v2.30.0
         env:
           # Read by the extension to register the provider and its API key.
-          OCR_LLM_URL: ${{ vars.OCR_LLM_URL }}
-          OCR_LLM_AUTH_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
-          OCR_LLM_MODEL: ${{ vars.OCR_LLM_MODEL }}
+          PI_REVIEW_URL: ${{ vars.PI_REVIEW_URL }}
+          PI_REVIEW_AUTH_TOKEN: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
+          PI_REVIEW_MODEL: ${{ vars.PI_REVIEW_MODEL }}
           # Read by the extension's GitHub client (createGitHubClient).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Read by the extension to resolve the PR number when no event payload.
@@ -307,7 +309,7 @@ jobs:
           # Same secret as the GITHUB_TOKEN env var the extension reads.
           github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: ${{ env.PI_REVIEW_PROVIDER }}
-          model: ${{ vars.OCR_LLM_MODEL }}
+          model: ${{ vars.PI_REVIEW_MODEL }}
           extensions: |
             .github/pi/pi-review-extension.ts
           # CodeGraph, as the primary code-intelligence tool. `direct` exposure puts
