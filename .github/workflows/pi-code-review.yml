@@ -39,9 +39,11 @@ name: Pi Code Review
 # Residual risk: the LLM still reads untrusted PR content while the step holds
 # GITHUB_TOKEN and OCR_LLM_AUTH_TOKEN, and it can call create_pull_request_review /
 # reply_to_review_comment / resolve_review_thread. A prompt injection in the diff
-# could therefore mutate PR state within those tools. The same-repo gate keeps
-# outside contributors out; a stronger fix (a secret-less reader job, or scoped
-# tokens) is tracked separately.
+# could therefore mutate PR state within those tools. The codegraph binary installed
+# above is a further third-party surface: it runs as the MCP server inside this step,
+# inherits both tokens, and parses the untrusted pr-head tree. The same-repo gate keeps
+# outside contributors out; a stronger fix (a secret-less reader job that only reads
+# pr-head, or scoped tokens) is tracked separately.
 
 on:
   pull_request:
@@ -107,6 +109,11 @@ concurrency:
       || format('pi-cr-noop-{0}', github.run_id)
     }}
   cancel-in-progress: true
+
+# Read-only default. The review job widens this for itself below; anything added
+# later starts from no write access rather than inheriting the token default.
+permissions:
+  contents: read
 
 jobs:
   pi-code-review:
@@ -193,14 +200,21 @@ jobs:
             }
             core.setOutput('pr_number', String(prNumber));
             core.setOutput('base_ref', pullRequest.base.ref);
+            core.setOutput('base_sha', pullRequest.base.sha);
             core.setOutput('head_sha', pullRequest.head.sha);
 
-      # Trusted checkout: the workspace is the base branch, so the extension, the
-      # rules, and the workflow come from the base, never from the PR.
+      # Trusted checkout: the extension, the review rules and the vendored skill are
+      # loaded from the BASE commit checked out here, never from pr-head. Note the
+      # workflow file itself is NOT covered by that for the `pull_request` trigger:
+      # GitHub runs the merge ref's copy of this file, so a same-repo branch could
+      # edit it. That is contained by the same-repo gate above (the author already has
+      # write access); the comment triggers load the workflow from the default branch.
       - name: Checkout base (trusted workspace)
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ steps.pr-context.outputs.base_ref }}
+          # Pinned to the base commit, not the branch name: the extension and the
+          # vendored skill are loaded from here, so the run must see an immutable ref.
+          ref: ${{ steps.pr-context.outputs.base_sha }}
           persist-credentials: false
           fetch-depth: 1
 
@@ -212,6 +226,17 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
           path: pr-head
+
+      - name: Verify base checkout
+        env:
+          BASE_SHA: ${{ steps.pr-context.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          got="$(git rev-parse HEAD)"
+          if [ "${got}" != "${BASE_SHA}" ]; then
+            echo "::error::base mismatch: expected ${BASE_SHA}, got ${got}"
+            exit 1
+          fi
 
       - name: Verify PR head checkout
         env:
@@ -229,7 +254,7 @@ jobs:
       # that first adds the extension does not fail here (the base has no manifest
       # until this PR merges).
       - name: Install extension dependencies
-        if: hashFiles('.github/pi/package.json') != ''
+        if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
         shell: bash
         working-directory: .github/pi
         run: npm ci --omit=dev --ignore-scripts
@@ -251,7 +276,7 @@ jobs:
         env:
           # Pinned deliberately - the MCP tool names and index format are versioned.
           CODEGRAPH_VERSION: '1.6.2'
-        run: npm install -g "@colbymchenry/codegraph@${CODEGRAPH_VERSION}"
+        run: npm install -g --ignore-scripts "@colbymchenry/codegraph@${CODEGRAPH_VERSION}"
 
       # Non-fatal: without an index the MCP server still starts and CodeGraph will
       # report it has no project, so the reviewer degrades to grep/find rather than
@@ -298,11 +323,13 @@ jobs:
             }
           load_builtin_extensions: 'true'
           # Patterns for get_pr_diff to exclude. This is the single source for diff
-          # filtering (the agent may add more per call).
+          # filtering (the agent may add more per call). Folded on purpose: the action
+          # splits this input on whitespace, whereas loaded_tools below is parsed
+          # newline-by-newline and therefore needs the literal block scalar.
           diff_ignore_patterns: >-
             **/Cargo.lock **/pubspec.lock **/package-lock.json **/*.g.dart
             **/*.freezed.dart apps/gui-flutter/lib/src/rust/frb_generated*.dart
-            crates/host-flutter/src/frb_generated.rs .agents/skills/**
+            crates/host-flutter/src/frb_generated.rs
             apps/gui-flutter/build/** apps/gui-flutter/.dart_tool/** **/target/**
             **/node_modules/** **/*.png **/*.wav **/*.mp3 **/*.onnx
           # Exact tool names: unknown entries fail the run early. The action's
@@ -344,9 +371,10 @@ jobs:
                If CodeGraph returns nothing at all (index missing), say so in the review
                summary and continue with grep/find.
 
-            Read .pi-review/config.json from the workspace for path-scoped `rules`, and
-            apply the rule whose `path` matches each file you review. Review every changed
-            file individually; the smaller member of a pair (header/interface vs
+            Read .opencodereview/rule.json from the workspace for path-scoped `rules`, and
+            apply every rule whose `path` matches a file you review (they are additive: the
+            catch-all `**/*` rule applies alongside a more specific one). Review every
+            changed file individually; the smaller member of a pair (header/interface vs
             implementation) is not skipped.
 
             ## Review playbook (vendored skill)
@@ -375,8 +403,9 @@ jobs:
 
             ## Workflow
             1. Understand each changed unit (function/type/module) on the added/modified lines.
-            2. Use read/grep/find to follow callers and definitions. Never claim a symbol is
-               missing or undefined without searching.
+            2. Follow callers and definitions with mcp__codegraph__codegraph_explore, per the
+               Tools section above; read/grep/find only when it cannot answer. Never claim a
+               symbol is missing or undefined without searching.
             3. Challenge: null/empty, concurrency/races, type/signature breaks, unseen call
                paths, cache invalidation, wrong delegate/target, realtime/audio-callback hazards.
             4. Respond with Premise -> Path -> Verdict findings. Root cause must sit on
@@ -405,11 +434,12 @@ jobs:
                 it in `body` instead of `comments`.
               * Prefer `line` alone; use `start_line` only for a contiguous range that
                 is entirely inside the diff.
-              * Start every comment body with the marker <!-- pi-code-review -->.
-                Without it the thread cannot be resolved later.
+              * Start every comment body with the marker <!-- pi-code-review --> so a
+                human can tell a bot finding from a person's comment. Resolution does not
+                depend on it.
 
             ## Threads
             - reply_to_review_comment(comment_id, body): reply once in an existing thread
               when a reply adds substance.
             - resolve_review_thread(comment_id): use only for a thread whose finding you
-              have verified is fixed. It refuses threads that are not ours.
+              have verified is fixed. It refuses any thread this action did not open.

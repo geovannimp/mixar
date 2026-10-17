@@ -20,13 +20,24 @@ function readEvent(path: string | undefined): EventPayload {
   }
 }
 
-export function resolvePrNumber(env: Env, event: EventPayload): number {
-  const override = env.PI_REVIEW_PR_NUMBER?.trim();
-  if (override) {
-    const n = Number(override);
-    if (Number.isInteger(n) && n > 0) return n;
-    throw new Error(`PI_REVIEW_PR_NUMBER is not a valid PR number: ${override}`);
+/**
+ * The PI_REVIEW_PR_NUMBER override, or null when it is unset. Single place that trims
+ * and validates it, so `loadRuntime` (which must know whether to read the event
+ * payload) and `resolvePrNumber` cannot drift apart.
+ */
+function prNumberOverride(env: Env): number | null {
+  const raw = env.PI_REVIEW_PR_NUMBER?.trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`PI_REVIEW_PR_NUMBER is not a valid PR number: ${raw}`);
   }
+  return n;
+}
+
+export function resolvePrNumber(env: Env, event: EventPayload): number {
+  const override = prNumberOverride(env);
+  if (override !== null) return override;
   if (typeof event.pull_request?.number === 'number') return event.pull_request.number;
   if (typeof event.issue?.number === 'number') return event.issue.number;
   throw new Error(
@@ -34,20 +45,32 @@ export function resolvePrNumber(env: Env, event: EventPayload): number {
   );
 }
 
+/**
+ * Cached only for the real process environment: the runtime is fixed for the life of
+ * a run, so tools do not need to re-validate the environment or re-read the event
+ * payload on every call. Passing an explicit env (tests) bypasses the cache.
+ */
+let processRuntime: Runtime | undefined;
+
 export function loadRuntime(env: Env = process.env): Runtime {
+  if (env === process.env && processRuntime) return processRuntime;
+
   const token = env.GITHUB_TOKEN;
   if (!token) throw new Error('GITHUB_TOKEN is required');
-  const [owner, repo, ...rest] = (env.GITHUB_REPOSITORY ?? '').split('/');
+  // Trim each segment: "owner/ " is non-empty, so a truthiness check alone would let
+  // a padded value through into URL building.
+  const [owner, repo, ...rest] = (env.GITHUB_REPOSITORY ?? '').split('/').map((s) => s.trim());
   if (!owner || !repo || rest.length > 0) throw new Error('GITHUB_REPOSITORY must be owner/repo');
-  // Trim here exactly as resolvePrNumber does, or a whitespace-only override would
-  // skip reading the event payload and then fail to resolve a PR that it carries.
-  const override = env.PI_REVIEW_PR_NUMBER?.trim();
-  const event = override ? {} : readEvent(env.GITHUB_EVENT_PATH);
-  return {
+  // Ask the same helper resolvePrNumber uses, or a whitespace-only override would skip
+  // reading the event payload and then fail to resolve a PR that it carries.
+  const event = prNumberOverride(env) !== null ? {} : readEvent(env.GITHUB_EVENT_PATH);
+  const runtime: Runtime = {
     token,
     owner,
     repo,
     prNumber: resolvePrNumber(env, event),
     dryRun: env.PI_REVIEW_DRY_RUN === '1',
   };
+  if (env === process.env) processRuntime = runtime;
+  return runtime;
 }

@@ -34,32 +34,32 @@ const RESOLVE_MUTATION = `mutation($id: ID!) {
 
 export async function resolveReviewThread(rt: Runtime, commentId: number): Promise<string> {
   const octokit = createOctokit(rt.token);
-  const { data: comment } = await octokit.rest.pulls.getReviewComment({
-    owner: rt.owner,
-    repo: rt.repo,
-    comment_id: commentId,
-  });
-  // Only threads this action opened may be resolved: the resolve tool is reachable
-  // from a prompt-injected diff, and resolving a human's thread is a visible,
-  // irreversible-looking action on someone else's review. The marker is what
-  // distinguishes our findings, and the workflow prompt requires it on every
-  // inline finding body the model posts.
+  const getComment = (id: number) =>
+    octokit.rest.pulls.getReviewComment({ owner: rt.owner, repo: rt.repo, comment_id: id }).then(
+      (r) => r.data,
+    );
+
+  const comment = await getComment(commentId);
   const rootId = comment.in_reply_to_id ?? comment.id;
-  const root =
-    rootId === comment.id
-      ? comment
-      : (
-          await octokit.rest.pulls.getReviewComment({
-            owner: rt.owner,
-            repo: rt.repo,
-            comment_id: rootId,
-          })
-        ).data;
-  if (!(root.body ?? '').includes(FINDING_MARKER)) {
+  const root = rootId === comment.id ? comment : await getComment(rootId);
+
+  // Authorisation is based on who *posted* the comment, not on its text. The marker
+  // is a public literal, so anyone able to comment could paste it; only a thread this
+  // token itself opened may be resolved.
+  const { data: viewer } = await octokit.rest.users.getAuthenticated();
+  if (root.user?.login !== viewer.login) {
     throw new Error(
-      `refusing to resolve thread ${rootId}: root comment is not a pi-review finding (marker missing)`,
+      `refusing to resolve thread ${rootId}: root comment was authored by ${root.user?.login ?? 'unknown'}, not by ${viewer.login}`,
     );
   }
+  // getReviewComment is scoped by repo + comment id only, so confirm the thread
+  // belongs to the PR being reviewed.
+  if (!root.pull_request_url.endsWith(`/${rt.prNumber}`)) {
+    throw new Error(
+      `refusing to resolve comment ${commentId}: it belongs to ${root.pull_request_url}, not to PR #${rt.prNumber}`,
+    );
+  }
+
   const data = await octokit.graphql<{
     node: { pullRequestReviewThread: { id: string; isResolved: boolean } | null } | null;
   }>(THREAD_FOR_COMMENT_QUERY, { id: comment.node_id });

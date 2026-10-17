@@ -70,3 +70,24 @@ test('runtime: an unreadable event payload names the path', () => {
     /Failed to read GitHub event payload from \/nonexistent\/event\.json/,
   );
 });
+
+test('runtime: padded GITHUB_REPOSITORY segments are rejected, not silently used', () => {
+  const base = { GITHUB_TOKEN: 't' };
+  assert.throws(
+    () => loadRuntime({ ...base, GITHUB_REPOSITORY: 'owner/ ' }),
+    /GITHUB_REPOSITORY must be owner\/repo/,
+  );
+  assert.throws(
+    () => loadRuntime({ ...base, GITHUB_REPOSITORY: ' /repo' }),
+    /GITHUB_REPOSITORY must be owner\/repo/,
+  );
+  // Surrounding whitespace around the whole value is still accepted.
+  assert.equal(loadRuntime({ ...base, GITHUB_REPOSITORY: ' o/r ', PI_REVIEW_PR_NUMBER: '3' }).repo, 'r');
+});
+
+test('runtime: the process environment is cached, explicit env objects are not', () => {
+  const a = { GITHUB_TOKEN: 't', GITHUB_REPOSITORY: 'o/r', PI_REVIEW_PR_NUMBER: '1' };
+  const b = { ...a, PI_REVIEW_PR_NUMBER: '2' };
+  assert.equal(loadRuntime(a).prNumber, 1);
+  assert.equal(loadRuntime(b).prNumber, 2, 'explicit envs must not be served from the cache');
+});

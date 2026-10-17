@@ -1,9 +1,18 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 
-/** Positive integer env override, else the default. */
+/**
+ * Positive integer env override. An override that is present but not a positive
+ * integer is a misconfiguration, so it throws instead of quietly falling back to the
+ * default and hiding the typo.
+ */
 function envInt(name: string, fallback: number): number {
-  const n = Number(process.env[name]);
-  return Number.isInteger(n) && n > 0 ? n : fallback;
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`pi-review extension: ${name} must be a positive integer, got "${raw}"`);
+  }
+  return n;
 }
 
 export function registerProviders(pi: ExtensionAPI): void {
@@ -12,8 +21,13 @@ export function registerProviders(pi: ExtensionAPI): void {
   // load before the action resolves the model), and the workflow must not pass
   // base_url.
   const ocrModel = process.env.OCR_LLM_MODEL;
-  // The SDK appends /chat/completions to baseUrl, so accept the full endpoint too.
-  const ocrBaseUrl = process.env.OCR_LLM_URL?.replace(/\/chat\/completions\/?$/, '');
+  // The SDK appends /chat/completions to baseUrl, so accept either the bare base
+  // URL or the full endpoint, and normalise a trailing slash so we never build
+  // ".../v1//chat/completions".
+  const ocrBaseUrl = process.env.OCR_LLM_URL?.replace(/\/chat\/completions\/?$/, '').replace(
+    /\/+$/,
+    '',
+  );
   if (!ocrModel || !ocrBaseUrl) {
     throw new Error('pi-review extension: OCR_LLM_MODEL and OCR_LLM_URL must be set');
   }

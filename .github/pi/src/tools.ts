@@ -1,22 +1,9 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import type { ExtensionAPI, ToolDefinition } from '@earendil-works/pi-coding-agent';
 import { loadRuntime } from './runtime.ts';
 import { replyToReviewComment, resolveReviewThread } from './threads.ts';
 
-interface ToolSpec {
-  name: string;
-  label: string;
-  description: string;
-  parameters: Record<string, unknown>;
-  execute: (toolCallId: string, params: unknown) => Promise<ToolResult>;
-}
-
-interface ToolResult {
-  content: Array<{ type: 'text'; text: string }>;
-  details: Record<string, never>;
-}
-
-const textResult = (text: string): ToolResult => ({
-  content: [{ type: 'text', text }],
+const textResult = (text: string) => ({
+  content: [{ type: 'text' as const, text }],
   details: {},
 });
 
@@ -28,17 +15,23 @@ function intParam(params: unknown, key: string): number {
   return value;
 }
 
-function stringParam(params: unknown, key: string): string {
+/** Unlike a bare typeof check, this rejects an empty or whitespace-only body. */
+function bodyParam(params: unknown, key: string): string {
   const value = (params as Record<string, unknown> | null | undefined)?.[key];
-  if (typeof value !== 'string') throw new Error(`${key} must be a string`);
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${key} must be a non-empty string`);
+  }
   return value;
 }
 
+/** One schema for every tool that takes a review-comment id, so the copies cannot drift. */
 const commentIdSchema = {
   type: 'object',
-  properties: { comment_id: { type: 'integer', minimum: 1 } },
+  properties: {
+    comment_id: { type: 'integer', minimum: 1, description: 'PR review comment id' },
+  },
   required: ['comment_id'],
-};
+} as const;
 
 /**
  * The only two tools this extension provides: the action's built-in GitHub tools
@@ -46,39 +39,39 @@ const commentIdSchema = {
  * there replies to a review comment or resolves a review thread.
  */
 export function registerTools(pi: ExtensionAPI): void {
-  const register = (tool: ToolSpec) =>
-    pi.registerTool(tool as unknown as Parameters<ExtensionAPI['registerTool']>[0]);
-
-  register({
-    name: 'reply_to_review_comment',
-    label: 'Reply to review comment',
-    description:
-      'Reply in an inline PR review thread. The reply is tagged with the bot marker.',
-    parameters: {
-      type: 'object',
-      properties: {
-        comment_id: { type: 'integer', minimum: 1 },
-        body: { type: 'string' },
+  const tools: ToolDefinition[] = [
+    {
+      name: 'reply_to_review_comment',
+      label: 'Reply to review comment',
+      description:
+        'Reply in an inline PR review thread. The reply is tagged with the bot marker.',
+      parameters: {
+        type: 'object',
+        properties: {
+          comment_id: { type: 'integer', minimum: 1, description: 'PR review comment id' },
+          body: { type: 'string' },
+        },
+        required: ['comment_id', 'body'],
       },
-      required: ['comment_id', 'body'],
-    },
-    execute: async (_id, params) =>
-      textResult(
-        await replyToReviewComment(
-          loadRuntime(),
-          intParam(params, 'comment_id'),
-          stringParam(params, 'body'),
+      execute: async (_toolCallId, params) =>
+        textResult(
+          await replyToReviewComment(
+            loadRuntime(),
+            intParam(params, 'comment_id'),
+            bodyParam(params, 'body'),
+          ),
         ),
-      ),
-  });
+    },
+    {
+      name: 'resolve_review_thread',
+      label: 'Resolve review thread',
+      description:
+        'Resolve the inline review thread containing the given PR review comment. Only threads opened by this action on this PR can be resolved.',
+      parameters: commentIdSchema,
+      execute: async (_toolCallId, params) =>
+        textResult(await resolveReviewThread(loadRuntime(), intParam(params, 'comment_id'))),
+    },
+  ];
 
-  register({
-    name: 'resolve_review_thread',
-    label: 'Resolve review thread',
-    description:
-      'Resolve the inline review thread containing the given PR review comment. Only threads whose root comment carries the pi-review marker are resolved.',
-    parameters: commentIdSchema,
-    execute: async (_id, params) =>
-      textResult(await resolveReviewThread(loadRuntime(), intParam(params, 'comment_id'))),
-  });
+  for (const tool of tools) pi.registerTool(tool);
 }
