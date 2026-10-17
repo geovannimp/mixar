@@ -946,7 +946,10 @@ List<String> _driveTreeRowsFrom({
   // The "up" row is always rendered by the pane (disabled when its parent
   // is outside the active volume), so keep it in the row list to keep the
   // provider's indices aligned with the widget's visual rows.
-  return [listing.parent ?? listing.path, for (final d in listing.directories) d.path];
+  return [
+    listing.parent ?? listing.path,
+    for (final d in listing.directories) d.path,
+  ];
 }
 
 /// Drive rows for the current state, as one read of each source.
