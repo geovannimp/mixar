@@ -6,13 +6,13 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_bus_route_fields.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
-import 'package:gui_flutter/widgets/settings/settings_toggle.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -78,7 +78,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                           onChanged(copyAppSettings(draft, backend: backend)),
                     ),
                   ),
-                  SettingsToggle(
+                  SettingsCheckbox(
                     label: l10n.settingsAudioLowLatency,
                     value: draft.lowLatency,
                     onChanged: (v) =>

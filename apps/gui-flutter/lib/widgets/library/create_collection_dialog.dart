@@ -1,7 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
-import 'package:gui_flutter/widgets/settings/settings_toggle.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
@@ -230,14 +230,14 @@ class _CreateCollectionDialogBodyState
                         ),
                       ),
                     ),
-                    SettingsToggle(
+                    SettingsCheckbox(
                       label: 'Scan subfolders',
                       value: _scanSubfolders,
                       onChanged: (value) =>
                           setState(() => _scanSubfolders = value),
                     ),
                   ] else ...[
-                    SettingsToggle(
+                    SettingsCheckbox(
                       label: 'Sortable',
                       value: _sortable,
                       onChanged: (value) => setState(() => _sortable = value),

@@ -2,12 +2,12 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
-import 'package:gui_flutter/widgets/settings/settings_toggle.dart';
 
 class SettingsUiPanel extends StatelessWidget {
   const SettingsUiPanel({
@@ -76,7 +76,7 @@ class SettingsUiPanel extends StatelessWidget {
                       onChanged(copyAppSettings(draft, uiLanguage: language)),
                 ),
               ),
-              SettingsToggle(
+              SettingsCheckbox(
                 label: l10n.settingsShowTooltips,
                 value: draft.showTooltips,
                 onChanged: (enabled) =>
@@ -137,7 +137,7 @@ class SettingsUiPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              SettingsToggle(
+              SettingsCheckbox(
                 label: l10n.settingsLibraryDimPlayedTracks,
                 value: draft.dimPlayedTracks,
                 onChanged: (enabled) =>
