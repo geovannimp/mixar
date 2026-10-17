@@ -1,17 +1,21 @@
 name: Pi Code Review
 
 # AI PR review via shaftoe/pi-coding-agent-action with the in-repo Pi extension
-# (.github/pi/pi-review-extension.ts). The reviewer runs on an OpenAI-compatible
-# endpoint configured through the PI_REVIEW_* settings below.
+# (.github/pi/pi-review-extension.ts). The reviewer model is resolved through pi's
+# built-in provider catalog: endpoint, wire protocol and context limits all come from
+# that catalog entry rather than from this workflow.
 #
 # Setup (once), under Settings -> Secrets and variables -> Actions:
-#   variable PI_REVIEW_URL        LLM API endpoint (base URL or full /chat/completions)
-#   secret   PI_REVIEW_AUTH_TOKEN LLM auth token
-#   variable PI_REVIEW_MODEL      model id served by that endpoint
+#   secret   PI_REVIEW_AUTH_TOKEN API key for PI_REVIEW_PROVIDER. The action hands it
+#     to pi as that provider's credential (the `token:` input below).
+#   variable PI_REVIEW_MODEL      model id from that provider's catalog, e.g.
+#     deepseek-v4.1-flash for opencode-go
 #
-# Optional, only if the endpoint's model differs from the assumed limits:
-#   variable PI_REVIEW_CONTEXT_WINDOW  default 128000
-#   variable PI_REVIEW_MAX_TOKENS      default 4096
+# PI_REVIEW_PROVIDER (below) must name a provider from pi's built-in catalog
+# (packages/ai in earendil-works/pi). Nothing here registers a provider of its own,
+# so a model id outside the named provider's catalog fails as "Model not found". If
+# the account needs a different host than the catalog default, set the action's
+# `base_url` input.
 #
 # Triggers:
 #   - pull_request: opened / synchronize / reopened / ready_for_review (same-repo PRs only;
@@ -65,10 +69,11 @@ on:
         type: string
 
 env:
-  # Single source for the provider id: the extension registers the provider under
-  # this name and the action below resolves the model through it. The two have to
-  # match or the action fails with a bare "Model not found".
-  PI_REVIEW_PROVIDER: pi-review
+  # A provider id from pi's built-in catalog. The action resolves PI_REVIEW_MODEL
+  # through that provider's catalog, and nothing in this repo registers its own
+  # provider, so this value and the model variable have to come from the same place.
+  # "opencode-go" is the OpenCode Go subscription endpoint.
+  PI_REVIEW_PROVIDER: opencode-go
 
 # NOTE: this group predicate must stay in sync with the job `if:` below —
 # GitHub Actions cannot share one boolean expression between `concurrency` and
@@ -168,11 +173,10 @@ jobs:
       - name: Require LLM settings
         if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
         env:
-          PI_REVIEW_URL: ${{ vars.PI_REVIEW_URL }}
           PI_REVIEW_AUTH_TOKEN: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
           PI_REVIEW_MODEL: ${{ vars.PI_REVIEW_MODEL }}
         run: |
-          for v in PI_REVIEW_URL PI_REVIEW_AUTH_TOKEN PI_REVIEW_MODEL; do
+          for v in PI_REVIEW_AUTH_TOKEN PI_REVIEW_MODEL; do
             if [ -z "${!v}" ]; then
               echo "::error::${v} is not set"
               exit 1
@@ -267,8 +271,8 @@ jobs:
         run: npm ci --omit=dev --ignore-scripts
 
       # The base checkout predates the extension only on the PR that introduces
-      # it. Say so plainly: the run below will fail to resolve the pi-review
-      # provider, and a bare "Model not found" hides why.
+      # it. Say so plainly: the run below cannot resolve the reviewer model, and a
+      # bare "Model not found" hides why.
       - name: Note extension absent from base
         if: hashFiles('.github/pi/package.json') == '' || hashFiles('.github/pi/package-lock.json') == ''
         shell: bash
@@ -300,13 +304,6 @@ jobs:
         if: hashFiles('.github/pi/package.json') != '' && hashFiles('.github/pi/package-lock.json') != ''
         uses: shaftoe/pi-coding-agent-action@f7496a9aea9798c5d52d39096d98d5c5b16559b3 # v2.30.0
         env:
-          # Read by the extension to register the provider and its API key.
-          PI_REVIEW_URL: ${{ vars.PI_REVIEW_URL }}
-          PI_REVIEW_AUTH_TOKEN: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
-          PI_REVIEW_MODEL: ${{ vars.PI_REVIEW_MODEL }}
-          # Optional limits; empty falls back to the defaults in providers.ts.
-          PI_REVIEW_CONTEXT_WINDOW: ${{ vars.PI_REVIEW_CONTEXT_WINDOW }}
-          PI_REVIEW_MAX_TOKENS: ${{ vars.PI_REVIEW_MAX_TOKENS }}
           # Read by the extension's GitHub client (createGitHubClient).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Read by the extension to resolve the PR number when no event payload.
@@ -317,6 +314,9 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: ${{ env.PI_REVIEW_PROVIDER }}
           model: ${{ vars.PI_REVIEW_MODEL }}
+          # Applied as the chosen provider's credential by the action itself, so the
+          # key needs no provider-specific environment variable here.
+          token: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
           extensions: |
             .github/pi/pi-review-extension.ts
           # CodeGraph, as the primary code-intelligence tool. `direct` exposure puts
