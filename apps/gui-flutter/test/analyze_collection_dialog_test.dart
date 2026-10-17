@@ -6,7 +6,7 @@ import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/analyze_collection_dialog.dart';
 import 'package:gui_flutter/widgets/library/collection_actions_menu.dart';
-import 'package:gui_flutter/widgets/shell/mixar_switch.dart';
+import 'package:gui_flutter/widgets/shell/mixar_checkbox.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -97,11 +97,11 @@ void main() {
       ).then((value) => result = value),
     );
     await tester.pumpAndSettle();
-    final switches = find.byType(MixarSwitch);
-    expect(switches, findsNWidgets(2));
-    await tester.tap(switches.at(0));
+    final checkboxes = find.byType(MixarCheckbox);
+    expect(checkboxes, findsNWidgets(2));
+    await tester.tap(checkboxes.at(0));
     await tester.pump();
-    await tester.tap(switches.at(1));
+    await tester.tap(checkboxes.at(1));
     await tester.pump();
     await tester.tap(find.text('Start analysis'));
     await tester.pumpAndSettle();

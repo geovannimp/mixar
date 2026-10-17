@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/widgets/settings/settings_toggle.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -74,13 +74,13 @@ class _AnalyzeCollectionDialogBodyState
             ),
           ),
           const SizedBox(height: 16),
-          SettingsToggle(
+          SettingsCheckbox(
             label: 'Force re-analysis',
             value: _force,
             onChanged: (value) => setState(() => _force = value),
           ),
           const SizedBox(height: 8),
-          SettingsToggle(
+          SettingsCheckbox(
             label: 'Also generate stems',
             value: _generateStems,
             onChanged: (value) => setState(() => _generateStems = value),

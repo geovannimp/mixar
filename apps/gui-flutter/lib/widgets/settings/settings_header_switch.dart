@@ -1,10 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/shell/mixar_switch.dart';
 
-/// `MixarSwitch` in the fixed sizing used by card headers and settings rows.
+/// `MixarSwitch` in the fixed sizing used by card/section headers.
 ///
 /// Keeps the `SizedBox(height: 23) + FittedBox` convention in one place so it
-/// cannot drift across panels.
+/// cannot drift across panels. Non-header settings rows use
+/// `SettingsCheckbox` instead.
 class SettingsHeaderSwitch extends StatelessWidget {
   const new({
     required this.value,

@@ -6,13 +6,13 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
-import 'package:gui_flutter/widgets/settings/settings_toggle.dart';
 
 class SettingsDeckPanel extends ConsumerWidget {
   const new({required this.draft, required this.onChanged, super.key});
@@ -101,7 +101,7 @@ class SettingsDeckPanel extends ConsumerWidget {
               SettingsField(
                 label: l10n.settingsDeckDefaultKeyLock,
                 hint: l10n.settingsDeckDefaultKeyLockHint,
-                child: SettingsToggle(
+                child: SettingsCheckbox(
                   label: l10n.settingsDeckKeyLock,
                   value: draft.defaultKeyLock,
                   onChanged: (v) =>
