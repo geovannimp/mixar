@@ -29,12 +29,14 @@ name: Pi Code Review
 # Trust model: the pi action auto-loads extensions and reads config from the workspace
 # it runs in, so the workspace is the BASE branch checkout. PR head is checked out into
 # pr-head/ and is read-only input for the reviewer. Never run npm/moon/lefthook there.
-# The reviewer's tools are read/grep/find/ls, the action's built-in get_pr_diff and
-# get_issue_or_pr_thread, and the in-repo extension's reply/resolve tools. CodeGraph
-# (installed and indexed over pr-head before the agent starts) is wired in as an MCP
-# server and is the PRIMARY way the reviewer locates and understands code; the file
-# tools are the fallback. A trimmed fork of the awesome-skills/code-review-skill
-# playbook is vendored at .agents/skills/code-review-skill (pi loads project skills from
+# The reviewer's tools are read/grep/find/ls, tool_search (which loads the
+# deferred CodeGraph tools on demand), the action's built-in get_pr_diff and
+# get_issue_or_pr_thread, and the in-repo extension's reply/resolve tools.
+# CodeGraph (installed and indexed over pr-head before the agent starts) is
+# wired in as a deferred MCP server and is the PRIMARY way the reviewer locates
+# and understands code; the file tools are the fallback. A trimmed fork of the
+# awesome-skills/code-review-skill playbook is vendored at
+# .agents/skills/code-review-skill (pi loads project skills from
 # that directory) and the prompt points the reviewer at it for review substance. The
 # review itself is posted with the action's built-in create_pull_request_review.
 # Mutating built-ins we do not want (create_pull_request, update_pull_request) are left
@@ -328,19 +330,31 @@ jobs:
           token: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
           extensions: |
             .github/pi/pi-review-extension.ts
-          # CodeGraph, as the primary code-intelligence tool. `direct` exposure puts
-          # it in the model's tool set: pi names MCP tools mcp__<server>__<tool>, so
-          # the resulting name is mcp__codegraph__codegraph_explore and must appear in
-          # loaded_tools below. -p points the server at the indexed PR head tree.
+          # CodeGraph, the primary code-intelligence tool. `deferred` exposure: the
+          # tools register but are not declared to the model until tool_search loads
+          # them (pi names them mcp__<server>__<tool>, so the primary tool is
+          # mcp__codegraph__codegraph_explore). They must NOT be listed in
+          # loaded_tools below: the action validates that allowlist before MCP
+          # servers connect (connection happens at session_start, emitted by
+          # bindExtensions() after the validation), so any mcp__* name there fails
+          # the run as "unknown tool name". pi's allowlist keeps every MCP tool
+          # unless one of its entries starts with mcp__, so dropping the name keeps
+          # the whole codegraph surface available — intended: codegraph is the only
+          # MCP server and is read-only analysis over pr-head. `description` feeds
+          # tool_search ranking. -p points the server at the indexed PR head tree.
           mcp_servers: |
             {
               "codegraph": {
                 "command": "codegraph",
                 "args": ["serve", "--mcp", "--no-watch", "-p", "${{ github.workspace }}/pr-head"],
-                "exposure": "direct"
+                "exposure": "deferred",
+                "description": "Code intelligence over the indexed PR head tree: symbols with verbatim source, callers/callees, impact, exploration."
               }
             }
           load_builtin_extensions: 'true'
+          # Required so the deferred CodeGraph tools (mcp_servers above) can be
+          # loaded on demand; the allowlist below must name tool_search too.
+          enable_tool_search: 'true'
           # Patterns for get_pr_diff to exclude. This is the single source for diff
           # filtering (the agent may add more per call). Folded on purpose: the action
           # splits this input on whitespace, whereas loaded_tools below is parsed
@@ -354,9 +368,12 @@ jobs:
           # Exact tool names: unknown entries fail the run early. The action's
           # read-only and review tools are listed explicitly, so the other mutating
           # built-ins (create_pull_request, update_pull_request) stay out of the
-          # session. Ours cover the two surfaces the action has no tool for.
+          # session. tool_search is listed (and enabled above) so the deferred
+          # CodeGraph tools can be loaded on demand. No entry starts with mcp__ —
+          # required, see the mcp_servers comment — which keeps all codegraph tools
+          # registered. Ours cover the two surfaces the action has no tool for.
           loaded_tools: |
-            mcp__codegraph__codegraph_explore
+            tool_search
             read
             grep
             find
@@ -373,6 +390,11 @@ jobs:
             Read PR files there (for example pr-head/<path>), not the base checkout.
 
             ## Tools — use CodeGraph first
+            0. CodeGraph's tools are deferred: they are not in your tool set until
+               you load them. Your FIRST call is tool_search (query: e.g. "codegraph
+               explore callers") to load the CodeGraph tools; they stay available
+               for the rest of the review. If tool_search returns no matches, treat
+               CodeGraph as absent (item 4).
             1. mcp__codegraph__codegraph_explore is the PRIMARY tool for finding and
                understanding code. It takes a natural-language question or a bag of
                symbol/file names and returns the relevant symbols' verbatim source,
@@ -380,6 +402,9 @@ jobs:
                summary of what depends on them, and it names what it elided. Reach for
                it BEFORE reading files: to locate a symbol, to find its callers or
                callees, to judge the impact of a change, or to survey an area.
+               CodeGraph also exposes targeted tools (search, callers, callees,
+               impact, node, status, files) for follow-up queries; discover their
+               exact names with tool_search.
             2. get_pr_diff: the change under review. Raise max_lines if it truncates.
             3. get_issue_or_pr_thread: the discussion; use it to find the review-comment
                id of a thread you need to reply to or resolve.
@@ -387,8 +412,9 @@ jobs:
                answer: a file type it does not index (YAML/JSON/Markdown/TOML), a file
                outside the indexed tree, or when its output directs you to a line range
                it omitted. Never grep for callers, definitions or impact - ask CodeGraph.
-               If CodeGraph returns nothing at all (index missing), say so in the review
-               summary and continue with grep/find.
+               In the review summary, state whether CodeGraph answered your queries.
+               If it returns nothing at all (index missing), say so and continue with
+               grep/find.
 
             Read .opencodereview/rule.json from the workspace for path-scoped `rules`, and
             apply every rule whose `path` matches a file you review (they are additive: the
@@ -422,7 +448,8 @@ jobs:
 
             ## Workflow
             1. Understand each changed unit (function/type/module) on the added/modified lines.
-            2. Follow callers and definitions with mcp__codegraph__codegraph_explore, per the
+            2. Follow callers and definitions with mcp__codegraph__codegraph_explore (after
+               loading it with tool_search), per the
                Tools section above; read/grep/find only when it cannot answer. Never claim a
                symbol is missing or undefined without searching.
             3. Challenge: null/empty, concurrency/races, type/signature breaks, unseen call
