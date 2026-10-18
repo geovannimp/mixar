@@ -187,11 +187,45 @@ pub fn delete_loop(db: &Db, track_id: &TrackId, slot_index: u8) -> Result<()> {
 }
 
 impl LibraryManager {
-    pub fn update_track_isrc(&self, track_id: &TrackId, isrc: Option<String>) -> Result<()> {
-        self.store()
-            .update_track_isrc(track_id, isrc, &unix_secs_string())
+    /// Overwrite the user-editable metadata of a track in the library DB.
+    ///
+    /// Strings are trimmed and blanked to `None`; `key` is normalized to
+    /// musical notation (Camelot/Open Key input is accepted); `bpm` must be
+    /// finite and positive. Unknown track ids are a no-op.
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_track_metadata(
+        &self,
+        track_id: &TrackId,
+        title: Option<String>,
+        artist: Option<String>,
+        album: Option<String>,
+        genre: Option<String>,
+        bpm: Option<f64>,
+        key: Option<String>,
+        isrc: Option<String>,
+    ) -> Result<()> {
+        self.store().update_track_metadata(
+            track_id,
+            normalize_optional_text(title),
+            normalize_optional_text(artist),
+            normalize_optional_text(album),
+            normalize_optional_text(genre),
+            bpm.filter(|v| v.is_finite() && *v > 0.0),
+            normalize_optional_text(key.map(|v| tags::normalize_key_notation(&v))),
+            normalize_optional_text(isrc),
+            &unix_secs_string(),
+        )
     }
 }
+
+/// Trim; an empty (or whitespace-only) value clears the field.
+fn normalize_optional_text(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let trimmed = value.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+}
+
 impl LibraryManager {
     /// Load hot cues and saved loops for a track.
     pub fn list_track_hot_cues(&self, id: &TrackId) -> Result<Vec<HotCueRecord>> {

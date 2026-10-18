@@ -131,7 +131,7 @@ fn track_metadata_from_file_tags(path: &Path, tags: FileTags) -> TrackMetadata {
 }
 
 /// Convert Camelot/Open Key codes to musical notation; pass through other values.
-fn normalize_key_notation(raw: &str) -> String {
+pub(crate) fn normalize_key_notation(raw: &str) -> String {
     let trimmed = raw.trim();
     if trimmed.len() < 2 {
         return trimmed.to_string();

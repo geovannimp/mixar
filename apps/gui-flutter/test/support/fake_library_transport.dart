@@ -24,6 +24,19 @@ class FakeLibraryTransport implements LibraryTransport {
   final StreamController<LibraryEvt> _events;
   final List<String> getTrackCalls = [];
   final List<String> listCollectionEntriesCalls = [];
+  final List<
+    ({
+      String trackId,
+      String? title,
+      String? artist,
+      String? album,
+      String? genre,
+      double? bpm,
+      String? key,
+      String? isrc,
+    })
+  >
+  updateTrackMetadataCalls = [];
   int outstandingGetTracks = 0;
   int maxOutstandingGetTracks = 0;
   var _disposed = false;
@@ -259,5 +272,25 @@ class FakeLibraryTransport implements LibraryTransport {
   Future<int> syncStemCache() async => 0;
 
   @override
-  Future<void> updateTrackIsrc({required String trackId, String? isrc}) async {}
+  Future<void> updateTrackMetadata({
+    required String trackId,
+    String? title,
+    String? artist,
+    String? album,
+    String? genre,
+    double? bpm,
+    String? key,
+    String? isrc,
+  }) async {
+    updateTrackMetadataCalls.add((
+      trackId: trackId,
+      title: title,
+      artist: artist,
+      album: album,
+      genre: genre,
+      bpm: bpm,
+      key: key,
+      isrc: isrc,
+    ));
+  }
 }

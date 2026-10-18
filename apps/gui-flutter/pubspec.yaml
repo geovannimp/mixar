@@ -53,6 +53,9 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
+  flutter_hook_form: ^4.0.0
+  flutter_hooks: ^0.21.3+1
+  hooks_riverpod: ^3.4.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -92,6 +92,33 @@ fn import_track_inserts_missing_file_track() {
 }
 
 #[test]
+fn update_track_metadata_normalizes_key_and_blank_fields() {
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let imported = lib
+        .import_track(Path::new("/music/gone.flac"), &TrackMetadata::default())
+        .unwrap();
+    let id = imported.source.id().clone();
+
+    lib.update_track_metadata(
+        &id,
+        Some("  ".into()),
+        None,
+        None,
+        None,
+        None,
+        Some("8A".into()),
+        Some("  USRC1  ".into()),
+    )
+    .unwrap();
+
+    let fetched = lib.get_track(&id).unwrap().unwrap();
+    let metadata = fetched.metadata();
+    assert_eq!(metadata.key.as_deref(), Some("Am"), "Camelot normalized");
+    assert_eq!(metadata.title, None, "whitespace-only clears the field");
+    assert_eq!(metadata.isrc.as_deref(), Some("USRC1"), "trimmed");
+}
+
+#[test]
 fn prepare_track_for_playback_reuses_cached_decode() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("track.wav");

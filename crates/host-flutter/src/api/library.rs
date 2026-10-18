@@ -1160,21 +1160,34 @@ impl LibraryTransport {
         reveal_path_in_file_manager(&dir)
     }
 
-    pub fn update_track_isrc(&self, track_id: String, isrc: Option<String>) -> Result<(), String> {
-        let normalized = isrc.and_then(|value| {
-            let trimmed = value.trim();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed.to_string())
-            }
-        });
+    /// Save the user-editable metadata of a track (library DB only).
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_track_metadata(
+        &self,
+        track_id: String,
+        title: Option<String>,
+        artist: Option<String>,
+        album: Option<String>,
+        genre: Option<String>,
+        bpm: Option<f64>,
+        key: Option<String>,
+        isrc: Option<String>,
+    ) -> Result<(), String> {
         let lib = self
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.update_track_isrc(&TrackId::new(track_id), normalized)
-            .map_err(|e| e.to_string())
+        lib.update_track_metadata(
+            &TrackId::new(track_id),
+            title,
+            artist,
+            album,
+            genre,
+            bpm,
+            key,
+            isrc,
+        )
+        .map_err(|e| e.to_string())
     }
 
     /// Sampler banks stored in the library DB.

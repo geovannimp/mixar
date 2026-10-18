@@ -184,7 +184,21 @@ impl<'a> Store<'a> {
         row.map(model::track_source).transpose()
     }
 
-    pub fn update_track_isrc(&self, id: &TrackId, isrc: Option<String>, now: &str) -> Result<()> {
+    /// Overwrite only the user-editable metadata columns; technical fields and
+    /// `added_at` are left untouched. Unknown id is a no-op (no phantom row).
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_track_metadata(
+        &self,
+        id: &TrackId,
+        title: Option<String>,
+        artist: Option<String>,
+        album: Option<String>,
+        genre: Option<String>,
+        bpm: Option<f64>,
+        key: Option<String>,
+        isrc: Option<String>,
+        now: &str,
+    ) -> Result<()> {
         let Some(row) = TrackEntity::find_by_id(id.as_str())
             .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?
@@ -192,6 +206,12 @@ impl<'a> Store<'a> {
             return Ok(());
         };
         let mut active: tracks::ActiveModel = row.into();
+        active.title = Set(title);
+        active.artist = Set(artist);
+        active.album = Set(album);
+        active.genre = Set(genre);
+        active.bpm = Set(bpm);
+        active.key = Set(key);
         active.isrc = Set(isrc);
         active.updated_at = Set(now.to_string());
         active
@@ -649,5 +669,76 @@ mod tests {
         let fetched = store.get_track(&id).unwrap().unwrap();
         assert_eq!(fetched.metadata().title.as_deref(), Some("a"));
         assert_eq!(fetched.metadata().duration_ms, Some(12_500));
+    }
+
+    #[test]
+    fn update_track_metadata_replaces_editable_columns_only() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/edit.wav");
+        let meta = TrackMetadata {
+            title: Some("Old".into()),
+            artist: Some("OldA".into()),
+            album: Some("OldAl".into()),
+            genre: Some("OldG".into()),
+            bpm: Some(100.0),
+            key: Some("C".into()),
+            isrc: Some("OLD1".into()),
+            duration_ms: Some(1000),
+            sample_rate: Some(44_100),
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(&id, Path::new("/music/edit.wav"), &meta, "1")
+            .unwrap();
+
+        store
+            .update_track_metadata(
+                &id,
+                Some("New".into()),
+                None,
+                Some("NewAl".into()),
+                None,
+                Some(128.0),
+                Some("Am".into()),
+                Some("NEW1".into()),
+                "2",
+            )
+            .unwrap();
+
+        let fetched = store.get_track(&id).unwrap().unwrap();
+        let metadata = fetched.metadata();
+        assert_eq!(metadata.title.as_deref(), Some("New"));
+        assert_eq!(metadata.artist, None, "blank artist clears the column");
+        assert_eq!(metadata.album.as_deref(), Some("NewAl"));
+        assert_eq!(metadata.genre, None, "blank genre clears the column");
+        assert_eq!(metadata.bpm, Some(128.0));
+        assert_eq!(metadata.key.as_deref(), Some("Am"));
+        assert_eq!(metadata.isrc.as_deref(), Some("NEW1"));
+        assert_eq!(metadata.duration_ms, Some(1000), "technical fields stay");
+        assert_eq!(metadata.sample_rate, Some(44_100));
+    }
+
+    #[test]
+    fn update_track_metadata_unknown_id_is_a_noop() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/absent.wav");
+
+        store
+            .update_track_metadata(
+                &id,
+                Some("New".into()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                "2",
+            )
+            .unwrap();
+
+        assert!(store.get_track(&id).unwrap().is_none(), "no phantom row");
     }
 }

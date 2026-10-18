@@ -214,7 +214,17 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Returns how many on-disk files were deleted under the stems root.
   Future<int> syncStemCache();
 
-  Future<void> updateTrackIsrc({required String trackId, String? isrc});
+  /// Save the user-editable metadata of a track (library DB only).
+  Future<void> updateTrackMetadata({
+    required String trackId,
+    String? title,
+    String? artist,
+    String? album,
+    String? genre,
+    double? bpm,
+    String? key,
+    String? isrc,
+  });
 }
 
 /// Result of adding a folder collection and syncing it.

@@ -24,6 +24,7 @@ class MixarInput extends StatelessWidget {
     this.inputFormatters,
     this.style,
     this.padding,
+    this.errorText,
     this.borderless = false,
     this.maxLines = 1,
   });
@@ -44,6 +45,10 @@ class MixarInput extends StatelessWidget {
   final TextInputAction? textInputAction;
   final List<TextInputFormatter>? inputFormatters;
   final TextStyle? style;
+
+  /// Validation message. Renders below the field and puts the border in its
+  /// error state, the same way [ShadInputFormField] reports errors.
+  final String? errorText;
 
   /// Overrides [ShadInput]'s theme padding. Used by dense toolbars that need a
   /// shorter field than the default vertical padding produces.
@@ -74,7 +79,7 @@ class MixarInput extends StatelessWidget {
       style: style,
       maxLines: maxLines,
       padding: padding,
-      decoration: borderless ? ShadDecoration.none : null,
+      decoration: _decoration(context),
       placeholder: hint == null
           ? null
           : Text(
@@ -86,23 +91,44 @@ class MixarInput extends StatelessWidget {
       leading: leading,
       trailing: trailing,
     );
-    if (label == null) {
-      return field;
-    }
+    final hasError = errorText != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        DefaultTextStyle.merge(
-          style: theme.typography.body.sm.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colors.foreground,
+        if (label != null) ...[
+          DefaultTextStyle.merge(
+            style: theme.typography.body.sm.copyWith(
+              fontWeight: FontWeight.w600,
+              color: hasError
+                  ? theme.colors.destructive
+                  : theme.colors.foreground,
+            ),
+            child: label!,
           ),
-          child: label!,
-        ),
-        const SizedBox(height: 6),
+          const SizedBox(height: 6),
+        ],
         field,
+        if (hasError) ...[
+          const SizedBox(height: 6),
+          DefaultTextStyle.merge(
+            style: theme.typography.body.sm.copyWith(
+              fontWeight: FontWeight.w500,
+              color: theme.colors.destructive,
+            ),
+            child: Text(errorText!),
+          ),
+        ],
       ],
     );
+  }
+
+  /// Borderless fields stay flat; an error state overrides that so the invalid
+  /// field still reads as invalid.
+  ShadDecoration? _decoration(BuildContext context) {
+    if (errorText == null) {
+      return borderless ? ShadDecoration.none : null;
+    }
+    return const ShadDecoration(hasError: true);
   }
 }
