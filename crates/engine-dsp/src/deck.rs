@@ -243,6 +243,7 @@ impl Deck {
     }
 
     /// Get the deck ID
+    /// Returns the deck identifier used across engine and UI layers.
     pub fn id(&self) -> usize {
         self.id
     }
