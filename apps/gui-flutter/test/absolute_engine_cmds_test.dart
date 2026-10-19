@@ -306,6 +306,13 @@ void main() {
       return captured!;
     }
 
+    void expectDivisionMirror(ProviderContainer container, int index) {
+      expect(
+        fxDivisionIndexFrom(container.read(fxSlotsProvider).single.params),
+        index,
+      );
+    }
+
     Future<(ProviderContainer, WidgetRef)> captureEngine(
       WidgetTester tester,
       FutureOr<EngineTransport?> Function() transport,
@@ -359,18 +366,12 @@ void main() {
 
       // The evt merge must not discard the owned division: the stepper
       // derives its next target from this mirror.
-      expect(
-        fxDivisionIndexFrom(container.read(fxSlotsProvider).single.params),
-        4,
-      );
+      expectDivisionMirror(container, 4);
 
       gate.complete(engine);
       await pending;
       expect(engine.fxUnitParams, [(0, 0, fxDivisionNorm(4))]);
-      expect(
-        fxDivisionIndexFrom(container.read(fxSlotsProvider).single.params),
-        4,
-      );
+      expectDivisionMirror(container, 4);
     });
 
     testWidgets('arm toggles twice before the engine echoes', (tester) async {
