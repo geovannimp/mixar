@@ -201,7 +201,9 @@ impl LibraryManager {
             album: normalize_optional_text(edit.album),
             genre: normalize_optional_text(edit.genre),
             bpm: edit.bpm,
-            key: normalize_optional_text(edit.key.map(|v| tags::normalize_key_notation(&v))),
+            // Trim/blank first, then normalize notation, so there is a single
+            // trim (and a Camelot code is never normalized from whitespace).
+            key: normalize_optional_text(edit.key).map(|v| tags::normalize_key_notation(&v)),
             isrc: normalize_optional_text(edit.isrc),
         };
         self.store()
@@ -210,10 +212,19 @@ impl LibraryManager {
 }
 
 /// Trim; an empty (or whitespace-only) value clears the field.
+///
+/// An already-trimmed value keeps its allocation, so the common path (code
+/// that sent a clean value) does not copy.
 fn normalize_optional_text(value: Option<String>) -> Option<String> {
     value.and_then(|value| {
         let trimmed = value.trim();
-        (!trimmed.is_empty()).then(|| trimmed.to_string())
+        if trimmed.is_empty() {
+            return None;
+        }
+        if trimmed.len() == value.len() {
+            return Some(value);
+        }
+        Some(trimmed.to_string())
     })
 }
 

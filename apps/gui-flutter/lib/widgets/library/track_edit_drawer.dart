@@ -6,6 +6,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -244,7 +245,11 @@ class _TrackEditPanel extends HookConsumerWidget {
         );
         container
           ..invalidate(collectionTracksProvider)
-          ..invalidate(driveResolvedByPathProvider);
+          ..invalidate(driveResolvedByPathProvider)
+          // The deck card reads the row through this family when the visible
+          // table does not carry it (History/Drive tabs), so it would keep the
+          // old title/key otherwise.
+          ..invalidate(libraryTrackByIdProvider);
         if (dismissed.value) {
           return;
         }
@@ -388,20 +393,22 @@ class _TrackEditPanel extends HookConsumerWidget {
   }
 
   /// `128.0` renders as `128`; everything else renders as its shortest exact
-  /// text, so a stored `124.035` shows as `124.035` and round-trips through
-  /// the field without being committed as a rounded value. Extreme magnitudes
-  /// fall back to fixed-point (never scientific) — `double.tryParse` reads
-  /// both forms, and neither can throw on a non-finite input here.
+  /// text, so a stored `124.035` shows as `124.035` and round-trips through the
+  /// field. Dart spells a whole number `128.0`, so the `.0` is stripped rather
+  /// than calling `round()` — rounding a value beyond the 64-bit range (a
+  /// stored `1e20` is valid: the store only rejects non-positive/non-finite)
+  /// would clamp it into a wrong number. Extreme magnitudes fall back to
+  /// fixed-point rather than scientific notation; `double.tryParse` reads both.
   static String _formatBpm(double? bpm) {
     if (bpm == null || !bpm.isFinite) {
       return '';
     }
-    if (bpm == bpm.roundToDouble()) {
-      return bpm.round().toString();
-    }
     final shortest = bpm.toString();
-    return shortest.contains('e') || shortest.contains('E')
-        ? bpm.toStringAsFixed(12)
+    if (shortest.contains('e') || shortest.contains('E')) {
+      return bpm.toStringAsFixed(12);
+    }
+    return shortest.endsWith('.0')
+        ? shortest.substring(0, shortest.length - 2)
         : shortest;
   }
 }

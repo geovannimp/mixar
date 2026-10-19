@@ -11,6 +11,10 @@ typedef ListCollectionEntriesHandler =
 ///
 /// Mirrors the transport signature, so a parameter change to the method (or
 /// to this record) is a compile error at the call sites instead of drift.
+typedef UpdateTrackMetadataHandler = Future<void> Function(
+  UpdateTrackMetadataCall call,
+);
+
 typedef UpdateTrackMetadataCall = ({
   String trackId,
   String? title,
@@ -37,8 +41,7 @@ class FakeLibraryTransport implements LibraryTransport {
 
   /// Optional hook so a test can make a save fail (or inspect the one value
   /// being written). Called after the call is recorded; it may throw.
-  Future<void> Function(UpdateTrackMetadataCall call)?
-  updateTrackMetadataHandler;
+  UpdateTrackMetadataHandler? updateTrackMetadataHandler;
   List<LibraryTrackSummary> entries;
   List<LibraryCollectionSummary> collections;
   final StreamController<LibraryEvt> _events;

@@ -202,13 +202,17 @@ impl<'a> Store<'a> {
         else {
             return Ok(());
         };
-        // The column owns the invariant: an invalid BPM cannot be introduced.
-        // Re-persisting a value that is already stored (the untouched field of
-        // a full-replacement write) passes, so an unrelated edit never has to
-        // clear a column to satisfy the invariant.
+        // This write path may not introduce an invalid BPM; re-persisting the
+        // value already stored (the untouched field of a full-replacement
+        // write) passes, so an unrelated edit never has to clear a column to
+        // satisfy the rule. Compare numerically rather than by bits: `==`
+        // treats `-0.0` and `0.0` as equal (both `<= 0`, so both take this
+        // branch) while NaN needs its own arm to round-trip at all.
         if let Some(v) = edit.bpm {
             let invalid = !v.is_finite() || v <= 0.0;
-            let unchanged = row.bpm.is_some_and(|old| old.to_bits() == v.to_bits());
+            let unchanged = row
+                .bpm
+                .is_some_and(|old| old == v || (old.is_nan() && v.is_nan()));
             if invalid && !unchanged {
                 return Err(library_core::LibraryError::Backend {
                     backend: "library",
@@ -811,6 +815,40 @@ mod tests {
             "unchanged corrupt value round-trips instead of being cleared"
         );
         assert_eq!(fetched.metadata().title.as_deref(), Some("Edited"));
+
+        // `-0.0` is `<= 0` (so it may not be *introduced*) yet compares equal
+        // to the stored value, so an untouched round-trip must not reject it.
+        let zero_id = TrackId::new("/music/negative-zero.wav");
+        let zero_meta = TrackMetadata {
+            bpm: Some(-0.0),
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(
+                &zero_id,
+                Path::new("/music/negative-zero.wav"),
+                &zero_meta,
+                "1",
+            )
+            .unwrap();
+        store
+            .update_track_metadata(
+                &zero_id,
+                &TrackMetadataEdit {
+                    title: Some("Edited".into()),
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: Some(-0.0),
+                    key: None,
+                    isrc: None,
+                },
+                "2",
+            )
+            .unwrap();
+        let zero = store.get_track(&zero_id).unwrap().unwrap();
+        assert_eq!(zero.metadata().title.as_deref(), Some("Edited"));
+        assert_eq!(zero.metadata().bpm, Some(-0.0), "still zero, not rejected");
 
         // Introducing an invalid value is rejected by the column owner.
         let err = store
