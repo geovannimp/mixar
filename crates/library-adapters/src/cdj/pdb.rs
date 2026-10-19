@@ -289,9 +289,9 @@ pub fn build(
         Some(assign_artwork(&artwork_chunks, &mut next))
     };
 
-    // `STANDARD_PAGES` (= 53, one past the last candidate page) is what the
-    // reference exporter uses when no table needs overflow pages; `next` can
-    // exceed it once a table spills.
+    // `STANDARD_PAGES` (41: pages 0-40) is the size the reference exporter
+    // writes when no table spills; `next` only exceeds `OVERFLOW_START` once a
+    // table has overflow pages of its own.
     let num_pages = if next > OVERFLOW_START {
         next as usize
     } else {
@@ -1642,12 +1642,14 @@ fn playlist_entry_rows(playlists: &[CdjPlaylist]) -> Vec<Vec<u8>> {
 /// Write the file header and the 20 table pointers, as
 /// `(table type, empty-candidate page, first page, last page)`.
 ///
-/// `next_unused_page` is the first page after the last candidate page, so on a
-/// standard-size export it points past the end of the file (page 53 of 53).
-/// Reference exports checked here are 41- and 42-page files whose
-/// `next_unused_page` is 46/51 with candidate pages up to 45: pointing beyond
-/// EOF, and letting empty candidates reference pages that were never written,
-/// is the format's own convention rather than a truncation bug.
+/// `next_unused_page` is the page the allocator would hand out next, not a
+/// table pointer: a standard export is 41 pages (0-40) while the field is 53
+/// (the start of the overflow zone) and the fixed tables' empty candidates
+/// reserve pages 41-52. Reference exports written by Rekordbox do the same —
+/// the 41- and 42-page ones checked here carry `next_unused_page` 46/51 with
+/// empty candidates up to 45, all past EOF, and a 720-page one keeps it at 721.
+/// Pointing beyond EOF, and letting an empty candidate name a page that was
+/// never written, is the format's own "grow here" convention.
 fn write_file_header(
     file: &mut FileBuf,
     num_pages: usize,
