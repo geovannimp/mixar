@@ -79,7 +79,7 @@ class MixarInput extends StatelessWidget {
       style: style,
       maxLines: maxLines,
       padding: padding,
-      decoration: _decoration(context),
+      decoration: _decoration(),
       placeholder: hint == null
           ? null
           : Text(
@@ -123,12 +123,14 @@ class MixarInput extends StatelessWidget {
     );
   }
 
-  /// Borderless fields stay flat; an error state overrides that so the invalid
-  /// field still reads as invalid.
-  ShadDecoration? _decoration(BuildContext context) {
+  /// Borderless fields stay flat; an error state merges into the existing
+  /// decoration so the invalid field still reads as invalid without losing
+  /// the caller's border intent.
+  ShadDecoration? _decoration() {
     if (errorText == null) {
       return borderless ? ShadDecoration.none : null;
     }
-    return const ShadDecoration(hasError: true);
+    final base = borderless ? ShadDecoration.none : const ShadDecoration();
+    return base.merge(const ShadDecoration(hasError: true));
   }
 }

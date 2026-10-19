@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_hook_form/flutter_hook_form.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
@@ -18,8 +19,9 @@ const trackEditDrawerWidth = 420.0;
 
 /// Fields of the track edit drawer, in form order.
 ///
-/// Validators live in the schema so each field owns its rule and the whole
-/// surface validates in one call.
+/// Validators live in the schema so each field owns its rule. Only fields
+/// the user has interacted with are validated on save, so a pre-existing
+/// invalid value in an untouched field does not block unrelated edits.
 enum TrackFormField implements FieldSchema<String> {
   title,
   artist,
@@ -35,6 +37,19 @@ enum TrackFormField implements FieldSchema<String> {
   final List<Validator<String>>? validators;
 }
 
+/// Trimmed BPM text → positive finite double, or null when empty/invalid.
+///
+/// Single source of truth for BPM parsing so the validator and the save path
+/// can never diverge.
+double? parseBpm(String? raw) {
+  final trimmed = raw?.trim() ?? '';
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  final parsed = double.tryParse(trimmed);
+  return parsed != null && parsed.isFinite && parsed > 0 ? parsed : null;
+}
+
 /// `BPM` must be a positive finite number, or empty to clear it.
 class BpmValidator extends FieldValidator<String> {
   const new() : super(errorCode: 'invalid_bpm');
@@ -45,11 +60,7 @@ class BpmValidator extends FieldValidator<String> {
     if (trimmed.isEmpty) {
       return null;
     }
-    final parsed = double.tryParse(trimmed);
-    if (parsed == null || !parsed.isFinite || parsed <= 0) {
-      return 'BPM must be a positive number';
-    }
-    return null;
+    return parseBpm(trimmed) != null ? null : 'BPM must be a positive number';
   };
 }
 
@@ -75,44 +86,58 @@ class KeyNotationValidator extends FieldValidator<String> {
 
 /// Modal right-edge drawer editing every user-editable metadata field of a
 /// track. Edits are library-DB only: file tags are not rewritten.
+///
+/// Blank fields clear the corresponding column (the Rust write path treats
+/// blank as `None`). Send the full field set on every save — the store
+/// replaces all seven columns.
 Future<void> showTrackEditDrawer(
   BuildContext context,
   WidgetRef ref, {
   required String trackId,
 }) async {
-  final transport = await ref.read(libraryTransportProvider.future);
-  final track = await transport.getTrack(trackId: trackId);
-  if (!context.mounted || track == null) {
-    return;
-  }
-  await showGeneralDialog<void>(
-    context: context,
-    barrierDismissible: true,
-    barrierLabel: 'Edit track',
-    transitionBuilder: (context, animation, _, child) {
-      return SlideTransition(
-        position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-            .animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+  try {
+    final transport = await ref.read(libraryTransportProvider.future);
+    final track = await transport.getTrack(trackId: trackId);
+    if (track == null) {
+      ref
+          .read(appNoticeProvider.notifier)
+          .setError('Track no longer exists in the library');
+      return;
+    }
+    if (!context.mounted) {
+      return;
+    }
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Edit track',
+      transitionBuilder: (context, animation, _, child) {
+        return SlideTransition(
+          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
+              .animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+          child: child,
+        );
+      },
+      pageBuilder: (ctx, _, _) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: SizedBox(
+            width: math.min(trackEditDrawerWidth, MediaQuery.sizeOf(ctx).width),
+            height: double.infinity,
+            child: _TrackEditPanel(
+              transport: transport,
+              trackId: trackId,
+              track: track,
             ),
-        child: child,
-      );
-    },
-    pageBuilder: (ctx, _, _) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: SizedBox(
-          width: math.min(trackEditDrawerWidth, MediaQuery.sizeOf(ctx).width),
-          height: double.infinity,
-          child: _TrackEditPanel(
-            transport: transport,
-            trackId: trackId,
-            track: track,
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+  } on Object catch (e) {
+    ref.read(appNoticeProvider.notifier).setError('$e');
+  }
 }
 
 class _TrackEditPanel extends HookConsumerWidget {
@@ -152,13 +177,23 @@ class _TrackEditPanel extends HookConsumerWidget {
       (get) => form.hasChanged,
     );
 
+    final saving = useState(false);
+
     Future<void> save() async {
-      if (!form.validate()) {
-        ref
-            .read(appNoticeProvider.notifier)
-            .setError('Fix the highlighted fields');
+      if (saving.value) {
         return;
       }
+      // Validate only fields the user has interacted with; untouched fields
+      // may carry pre-existing invalid values that should not block edits.
+      for (final field in TrackFormField.values) {
+        if (form.isDirty({field}) && !form.validateField(field)) {
+          ref
+              .read(appNoticeProvider.notifier)
+              .setError('Fix the highlighted fields');
+          return;
+        }
+      }
+      saving.value = true;
       try {
         // Raw strings: trimming and key normalization happen Rust-side.
         await transport.updateTrackMetadata(
@@ -167,7 +202,7 @@ class _TrackEditPanel extends HookConsumerWidget {
           artist: form.getValue(TrackFormField.artist),
           album: form.getValue(TrackFormField.album),
           genre: form.getValue(TrackFormField.genre),
-          bpm: _parseBpm(form.getValue(TrackFormField.bpm)),
+          bpm: parseBpm(form.getValue(TrackFormField.bpm)),
           key: form.getValue(TrackFormField.key),
           isrc: form.getValue(TrackFormField.isrc),
         );
@@ -179,6 +214,8 @@ class _TrackEditPanel extends HookConsumerWidget {
         }
       } on Object catch (e) {
         ref.read(appNoticeProvider.notifier).setError('$e');
+      } finally {
+        saving.value = false;
       }
     }
 
@@ -275,7 +312,7 @@ class _TrackEditPanel extends HookConsumerWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: AppButton(
-                onPress: canSave ? save : null,
+                onPress: canSave && !saving.value ? save : null,
                 child: const Text('Save'),
               ),
             ),
@@ -306,16 +343,14 @@ class _TrackEditPanel extends HookConsumerWidget {
   }
 
   /// `128.0` renders as `128`; fractional BPMs keep their decimals.
+  /// Fixed-point format avoids scientific notation for extreme values.
   static String _formatBpm(double? bpm) {
     if (bpm == null) {
       return '';
     }
-    return bpm == bpm.roundToDouble() ? bpm.round().toString() : '$bpm';
-  }
-
-  /// Empty clears the field; the schema guarantees a positive finite value.
-  static double? _parseBpm(String? raw) {
-    final trimmed = raw?.trim() ?? '';
-    return trimmed.isEmpty ? null : double.tryParse(trimmed);
+    if (bpm == bpm.roundToDouble()) {
+      return bpm.round().toString();
+    }
+    return bpm.toStringAsFixed(2);
   }
 }

@@ -30,8 +30,13 @@ const _track = LibraryTrackSummary(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<FakeLibraryTransport> pumpDrawer(WidgetTester tester) async {
-    final fake = FakeLibraryTransport(getTrackHandler: (id) async => _track);
+  Future<FakeLibraryTransport> pumpDrawer(
+    WidgetTester tester, [
+    FakeLibraryTransport? transport,
+  ]) async {
+    final fake =
+        transport ??
+        FakeLibraryTransport(getTrackHandler: (id) async => _track);
     addTearDown(fake.dispose);
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -179,6 +184,40 @@ void main() {
       container.read(appNoticeProvider)?.message,
       'Fix the highlighted fields',
     );
+  });
+  testWidgets('an untouched invalid prefill does not block other edits', (
+    tester,
+  ) async {
+    // A track stored with a bogus BPM (e.g. a malformed file tag) must not
+    // stop the user from editing the title.
+    final fake = FakeLibraryTransport(
+      getTrackHandler: (id) async => const LibraryTrackSummary(
+        id: 't1',
+        displayName: 'Track',
+        title: 'Track',
+        bpm: -4,
+        path: '/tmp/t1.wav',
+      ),
+    );
+    addTearDown(fake.dispose);
+    await pumpDrawer(tester, fake);
+
+    expect(
+      tester.widget<EditableText>(fieldFor('BPM')).controller.text,
+      '-4',
+      reason: 'pre-existing invalid value is shown as-is',
+    );
+
+    await tester.enterText(fieldFor('Title'), 'Edited');
+    await tester.pump();
+    expect(saveEnabled(tester), isTrue);
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final call = fake.updateTrackMetadataCalls.single;
+    expect(call.title, 'Edited');
+    expect(find.text('Save'), findsNothing, reason: 'drawer popped on save');
   });
 
   testWidgets('an invalid key is reported inline', (tester) async {

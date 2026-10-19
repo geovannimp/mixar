@@ -186,6 +186,10 @@ impl<'a> Store<'a> {
 
     /// Overwrite only the user-editable metadata columns; technical fields and
     /// `added_at` are left untouched. Unknown id is a no-op (no phantom row).
+    ///
+    /// **Full replacement:** every `None` column is written as `NULL`, so
+    /// blanking a field clears the stored value. Callers must send the
+    /// complete field set — there is no partial update.
     #[allow(clippy::too_many_arguments)]
     pub fn update_track_metadata(
         &self,
