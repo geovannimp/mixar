@@ -21,7 +21,8 @@ pub use tag_write::{
     write_track_tags, FieldWrite, TagContainer, TagField, TagWriteReport, TrackTags,
 };
 pub use tags::{
-    read_file_artwork, read_file_artwork_thumbnail, read_file_tags, read_replaygain_track_gain_db,
+    encode_artwork_thumbnail, read_file_artwork, read_file_artwork_probe,
+    read_file_artwork_thumbnail, read_file_tags, read_replaygain_track_gain_db, ArtworkProbe,
     FileTags,
 };
 

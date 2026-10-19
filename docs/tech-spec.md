@@ -378,9 +378,11 @@ and the CDJ/XDJ USB exporter ([#452](https://github.com/geovannimp/mixar/issues/
 `library-adapters::CdjExporter`): DeviceSQL `export.pdb` (tracks, playlists, artwork
 rows) plus ANLZ analysis files and cover thumbnails under `PIONEER/`, audio below
 `Contents/`. Hosts hand the exporter
-`library::LockedExportSource`, which locks the manager per call so browsing stays
-responsive during a long run. Format details, placement rules and the fidelity
-list live in [`library-adapters/README.md`](../crates/library-adapters/README.md).
+`library::ExportSession`, which holds the manager lock only for database reads
+and decode-cache access — decode, DSP and cover encoding run without it — so
+browsing stays responsive during a long run. Format details, placement rules and
+the fidelity list live in
+[`library-adapters/README.md`](../crates/library-adapters/README.md).
 
 ```text
 External format          User library manager            External format

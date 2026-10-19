@@ -1,16 +1,20 @@
 //! Tag and artwork probing for audio files (lofty + stem container overrides).
 //!
-//! Artwork can be read as the original embedded bytes ([`read_file_artwork`]) or
-//! re-encoded to a small JPEG thumbnail ([`read_file_artwork_thumbnail`]), which
-//! is what consumers that only show or ship a cover want.
+//! Artwork can be read as the original embedded bytes ([`read_file_artwork`]),
+//! probed together with the container's bit depth ([`read_file_artwork_probe`]),
+//! or re-encoded to a small JPEG thumbnail ([`read_file_artwork_thumbnail`] /
+//! [`encode_artwork_thumbnail`]), which is what consumers that only show or ship
+//! a cover want. Decoding runs under explicit [`Limits`]: cover art is untrusted
+//! input and must never be able to allocate unbounded memory.
 
+use std::io::Cursor;
 use std::path::Path;
 use std::time::Duration;
 
 use audio_core::secs_to_ms;
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
-use image::{DynamicImage, ExtendedColorType, ImageEncoder, Rgb, RgbImage};
+use image::{DynamicImage, ExtendedColorType, ImageEncoder, ImageReader, Limits, Rgb, RgbImage};
 use lofty::file::{AudioFile, TaggedFile, TaggedFileExt};
 use lofty::probe::Probe;
 use lofty::tag::{Accessor, ItemKey};
@@ -73,18 +77,44 @@ pub fn read_replaygain_track_gain_db(path: &Path) -> anyhow::Result<Option<f64>>
 
 /// Read embedded album artwork, if present.
 pub fn read_file_artwork(path: &Path) -> anyhow::Result<Option<Vec<u8>>> {
+    Ok(read_file_artwork_probe(path)?.picture)
+}
+
+/// Embedded picture bytes plus container facts, from a single tag probe.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ArtworkProbe {
+    /// Raw embedded picture bytes, when the file carries one.
+    pub picture: Option<Vec<u8>>,
+    /// Source bit depth in bits, when the container reports it.
+    pub bit_depth: Option<u8>,
+}
+
+/// Read the embedded picture and the source bit depth with a single tag probe.
+///
+/// Callers that want both — export reads a file's cover *and* its bit depth for
+/// every track — would otherwise parse the container twice. `Err` only when the
+/// file cannot be probed at all; a file that simply has no artwork is `Ok` with
+/// [`ArtworkProbe::picture`] `None`.
+pub fn read_file_artwork_probe(path: &Path) -> anyhow::Result<ArtworkProbe> {
     let tagged = Probe::open(path)
         .map_err(|e| anyhow::anyhow!("open {}: {e}", path.display()))?
         .read()
         .map_err(|e| anyhow::anyhow!("read tags {}: {e}", path.display()))?;
 
-    let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) else {
-        return Ok(None);
-    };
-    let Some(picture) = tag.pictures().first() else {
-        return Ok(None);
-    };
-    Ok(Some(picture.data().to_vec()))
+    Ok(ArtworkProbe {
+        picture: first_picture(&tagged),
+        bit_depth: tagged.properties().bit_depth(),
+    })
+}
+
+/// Raw bytes of the first embedded picture, if the file carries one.
+///
+/// Primary tag first, then any tag: the same pick the artwork readers have
+/// always made.
+fn first_picture(tagged: &TaggedFile) -> Option<Vec<u8>> {
+    let tag = tagged.primary_tag().or_else(|| tagged.first_tag())?;
+    let picture = tag.pictures().first()?;
+    Some(picture.data().to_vec())
 }
 
 /// Quality of the JPEG re-encode [`read_file_artwork_thumbnail`] performs.
@@ -92,6 +122,33 @@ pub fn read_file_artwork(path: &Path) -> anyhow::Result<Option<Vec<u8>>> {
 /// 85 is the usual "no visible loss" point and keeps a small thumbnail at a few
 /// kilobytes, which matters because device formats store a cover per track.
 const THUMBNAIL_JPEG_QUALITY: u8 = 85;
+
+/// Hard ceiling on either edge of an embedded cover we are willing to decode.
+///
+/// Embedded covers are untrusted input: a crafted PNG or BMP header declares its
+/// dimensions in the first few bytes, and a decoder sizes its buffers from that
+/// declaration alone. Real covers are far smaller — even high-resolution album
+/// scans stay near 3000 px — so 8000 px leaves room for double-page artwork while
+/// bounding a single decode to a few hundred megabytes.
+const MAX_ARTWORK_EDGE_PX: u32 = 8_000;
+
+/// Ceiling on the bytes one cover decode may allocate in total (256 MiB).
+///
+/// The budget covers the whole decode — decoder scratch plus the output buffer —
+/// so it rejects a picture whose *area* is enormous even when neither edge
+/// exceeds [`MAX_ARTWORK_EDGE_PX`]: roughly 25 megapixels of RGB, or 16 megapixels
+/// of RGBA, fit; anything bigger is treated as a decompression bomb. Skipping a
+/// cover is always safe, because artwork is decoration, never required data.
+const MAX_ARTWORK_ALLOC_BYTES: u64 = 256 * 1024 * 1024;
+
+/// Decoding limits for embedded artwork (see the two constants above).
+fn artwork_limits() -> Limits {
+    let mut limits = Limits::no_limits();
+    limits.max_image_width = Some(MAX_ARTWORK_EDGE_PX);
+    limits.max_image_height = Some(MAX_ARTWORK_EDGE_PX);
+    limits.max_alloc = Some(MAX_ARTWORK_ALLOC_BYTES);
+    limits
+}
 
 /// Read the embedded picture and re-encode it as a JPEG whose longest edge is at
 /// most `max_edge` pixels.
@@ -113,22 +170,24 @@ pub fn read_file_artwork_thumbnail(path: &Path, max_edge: u32) -> anyhow::Result
         .read()
         .map_err(|e| anyhow::anyhow!("read tags {}: {e}", path.display()))?;
 
-    let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) else {
-        return Ok(None);
-    };
-    let Some(picture) = tag.pictures().first() else {
-        return Ok(None);
-    };
-
-    Ok(thumbnail_jpeg(picture.data(), max_edge))
+    Ok(first_picture(&tagged).and_then(|picture| encode_artwork_thumbnail(&picture, max_edge)))
 }
 
 /// Re-encode raw picture bytes as a JPEG thumbnail.
 ///
-/// `None` when the bytes are not an image we can decode (JPEG, PNG, BMP), or
-/// when they are too damaged for the decoder to reconstruct.
-fn thumbnail_jpeg(picture: &[u8], max_edge: u32) -> Option<Vec<u8>> {
-    let decoded = image::load_from_memory(picture).ok()?;
+/// This is the half of [`read_file_artwork_thumbnail`] that does not read tags,
+/// for callers that already hold the picture bytes — and maybe want to cache the
+/// result per cover instead of decoding it again per track.
+///
+/// `None` when the bytes are not an image we can decode (JPEG, PNG, BMP), when
+/// they are too damaged for the decoder to reconstruct, when they exceed the
+/// limits above, or when `max_edge == 0`.
+pub fn encode_artwork_thumbnail(picture: &[u8], max_edge: u32) -> Option<Vec<u8>> {
+    if max_edge == 0 {
+        return None;
+    }
+
+    let decoded = decode_picture(picture)?;
 
     let longest = decoded.width().max(decoded.height());
     let scaled = if longest > max_edge {
@@ -153,6 +212,19 @@ fn thumbnail_jpeg(picture: &[u8], max_edge: u32) -> Option<Vec<u8>> {
         )
         .ok()?;
     Some(jpeg)
+}
+
+/// Decode picture bytes under [`artwork_limits`].
+///
+/// `None` when the format cannot be guessed from the bytes, when they are
+/// damaged, or when the picture breaks a limit — callers treat all three the
+/// same, as "no artwork".
+fn decode_picture(picture: &[u8]) -> Option<DynamicImage> {
+    let mut reader = ImageReader::new(Cursor::new(picture))
+        .with_guessed_format()
+        .ok()?;
+    reader.limits(artwork_limits());
+    reader.decode().ok()
 }
 
 /// Composite an image over opaque white and drop alpha.
@@ -502,5 +574,126 @@ mod tests {
             read_file_artwork(&path).unwrap().as_deref(),
             Some(&original[..])
         );
+    }
+
+    #[test]
+    fn artwork_probe_reports_cover_and_bit_depth_together() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cover.wav");
+        let original = png_bytes(300, 200);
+        write_wav_with_picture(&path, MimeType::Png, original.clone());
+
+        let probe = read_file_artwork_probe(&path).unwrap();
+        assert_eq!(probe.picture.as_deref(), Some(&original[..]));
+        // One probe answers what the two readers would have answered separately.
+        assert_eq!(probe.picture, read_file_artwork(&path).unwrap());
+        assert_eq!(probe.bit_depth, read_file_tags(&path).unwrap().bit_depth);
+
+        let bare = dir.path().join("bare.wav");
+        write_wav(&bare);
+        let probe = read_file_artwork_probe(&bare).unwrap();
+        assert!(probe.picture.is_none());
+    }
+
+    /// One PNG chunk: length, type, data, CRC over type and data.
+    fn png_chunk(kind: &[u8; 4], data: &[u8]) -> Vec<u8> {
+        let mut crc_input = kind.to_vec();
+        crc_input.extend_from_slice(data);
+
+        let mut chunk = Vec::from(u32::try_from(data.len()).unwrap().to_be_bytes());
+        chunk.extend_from_slice(&crc_input);
+        chunk.extend_from_slice(&png_crc32(&crc_input).to_be_bytes());
+        chunk
+    }
+
+    /// CRC-32 as PNG defines it (reflected, polynomial `0xEDB8_8320`).
+    fn png_crc32(bytes: &[u8]) -> u32 {
+        let mut crc = 0xFFFF_FFFFu32;
+        for byte in bytes {
+            crc ^= u32::from(*byte);
+            for _ in 0..8 {
+                crc = if crc & 1 == 1 {
+                    (crc >> 1) ^ 0xEDB8_8320
+                } else {
+                    crc >> 1
+                };
+            }
+        }
+        !crc
+    }
+
+    /// A PNG that *declares* `width`×`height` and carries no pixels.
+    ///
+    /// This is what a decompression bomb looks like: a few dozen bytes that ask a
+    /// decoder for gigabytes. The chunk CRCs are correct, so a decoder cannot
+    /// dismiss it as corrupt before it looks at the declared size; the empty
+    /// `IDAT`/`IEND` are only there so the stream parses as a complete PNG.
+    fn png_header_only(width: u32, height: u32) -> Vec<u8> {
+        let mut ihdr = Vec::new();
+        ihdr.extend_from_slice(&width.to_be_bytes());
+        ihdr.extend_from_slice(&height.to_be_bytes());
+        ihdr.extend_from_slice(&[8, 2, 0, 0, 0]); // 8-bit RGB, no interlace
+
+        let mut png = Vec::from([0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]);
+        png.extend_from_slice(&png_chunk(b"IHDR", &ihdr));
+        png.extend_from_slice(&png_chunk(b"IDAT", &[]));
+        png.extend_from_slice(&png_chunk(b"IEND", &[]));
+        png
+    }
+
+    #[test]
+    fn oversized_cover_is_refused_by_the_decode_limits() {
+        let bomb = png_header_only(60_000, 60_000);
+
+        // The header is genuine: a reader without dimension limits takes the
+        // declared size straight from it, and would then allocate 10 GB for it.
+        let declared = image::ImageReader::new(std::io::Cursor::new(&bomb))
+            .with_guessed_format()
+            .unwrap()
+            .into_dimensions()
+            .unwrap();
+        assert_eq!(declared, (60_000, 60_000));
+
+        // Under our limits the very same bytes are refused, and the refusal is a
+        // limit (not a corrupt-header error).
+        let mut reader = image::ImageReader::new(std::io::Cursor::new(&bomb))
+            .with_guessed_format()
+            .unwrap();
+        reader.limits(artwork_limits());
+        let error = reader
+            .decode()
+            .expect_err("a 60k×60k cover must not decode");
+        assert!(
+            matches!(error, image::ImageError::Limits(_)),
+            "expected a limit error, got {error:?}"
+        );
+
+        assert_eq!(encode_artwork_thumbnail(&bomb, 80), None);
+
+        // A file carrying it as its cover reads as coverless, not as broken.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("bomb.wav");
+        write_wav_with_picture(&path, MimeType::Png, bomb);
+        assert!(read_file_artwork_thumbnail(&path, 80).unwrap().is_none());
+    }
+
+    #[test]
+    fn a_multi_megapixel_cover_still_thumbnails() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cover.wav");
+        // 3 megapixels: far beyond a thumbnail, well inside the limits, and the
+        // size real high-resolution album scans actually reach.
+        write_wav_with_picture(&path, MimeType::Png, png_bytes(2_000, 1_500));
+
+        let jpeg = read_file_artwork_thumbnail(&path, 80)
+            .unwrap()
+            .expect("limits must not refuse a normal cover");
+        let decoded = image::load_from_memory(&jpeg).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (80, 60));
+    }
+
+    #[test]
+    fn encode_artwork_thumbnail_without_an_edge_is_none() {
+        assert_eq!(encode_artwork_thumbnail(&png_bytes(300, 200), 0), None);
     }
 }

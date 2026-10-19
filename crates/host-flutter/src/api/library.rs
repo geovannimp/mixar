@@ -8,10 +8,10 @@ use std::time::Duration;
 
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
-    dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, HistoryExportFormat,
-    HistorySettings, LibraryBuses, LibraryConfig, LibraryManager, LibraryWorker,
-    LockedExportSource, NewCollection, SamplerBankRecord, TagWriteBack, TrackId,
-    TrackMetadataEdit, WritableLibrary,
+    dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, ExportSession,
+    HistoryExportFormat, HistorySettings, LibraryBuses, LibraryConfig, LibraryManager,
+    LibraryWorker, NewCollection, SamplerBankRecord, TagWriteBack, TrackId, TrackMetadataEdit,
+    WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -601,9 +601,10 @@ impl LibraryTransport {
             folders: folders.into_iter().map(CollectionId::from).collect(),
             refresh_files,
         };
-        // The exporter reads the manager through the host lock, one call at a
-        // time, so the export never freezes the rest of the library UI.
-        let source = LockedExportSource::new(&self.library);
+        // The exporter reads the manager through the host lock: the session
+        // takes that lock only for database reads and decode-cache access, so
+        // the export never freezes the rest of the library UI.
+        let source = ExportSession::new(&self.library);
         let report = library_adapters::CdjExporter
             .export(&source, Path::new(&destination), &options)
             .map_err(|e| e.to_string())?;

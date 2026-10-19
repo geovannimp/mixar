@@ -63,7 +63,7 @@ pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
     LoopRecord,
 };
-pub use export::LockedExportSource;
+pub use export::ExportSession;
 pub use history::{
     crossfader_gain, export_document, history_dir_for_db, DeckPlaySnapshot, HistoryDocument,
     HistoryEntry, HistoryExportFormat, HistoryRecorder, HistoryRestorePrompt, HistorySessionRow,
