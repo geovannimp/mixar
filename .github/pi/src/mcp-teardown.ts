@@ -131,15 +131,27 @@ export function registerMcpTeardown(pi: ExtensionAPI, options: McpTeardownOption
   const terminate = (): void => {
     cancel();
     const pids = terminateServers();
+    process.stderr.write(`[mcp-teardown-diag] terminate() signalled ${pids.length} pid(s): ${pids.join(', ')}\n`);
     // The step log is the only place the teardown shows up: without this, a run
     // that hangs because the server survived is indistinguishable from one that
     // never reached the teardown.
     if (pids.length > 0) console.error(`[mcp-teardown] terminated codegraph pids: ${pids.join(', ')}`);
   };
 
-  pi.on('agent_start', () => cancel());
-  pi.on('agent_settled', () => terminate());
+  const trace = (msg: string): void => {
+    process.stderr.write(`[mcp-teardown-diag] ${msg}\n`);
+  };
+  trace('teardown registered');
+  pi.on('agent_start', () => {
+    trace(`agent_start (pending=${pending !== undefined})`);
+    cancel();
+  });
+  pi.on('agent_settled', () => {
+    trace('agent_settled');
+    terminate();
+  });
   pi.on('agent_end', () => {
+    trace('agent_end');
     cancel();
     pending = setTimeout(terminate, graceMs);
     // Never let the timer itself hold the event loop open: the leaked MCP child
