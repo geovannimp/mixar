@@ -46,8 +46,10 @@ class MixarInput extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextStyle? style;
 
-  /// Validation message. Renders below the field and puts the border in its
-  /// error state, the same way [ShadInputFormField] reports errors.
+  /// Validation message. Renders below the field and requests the field's
+  /// error border. This widget draws its own label and message instead of
+  /// using `ShadInputDecorator`, so the presentation mirrors
+  /// [ShadInputFormField]'s intent rather than sharing its implementation.
   final String? errorText;
 
   /// Overrides [ShadInput]'s theme padding. Used by dense toolbars that need a

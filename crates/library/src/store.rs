@@ -184,8 +184,11 @@ impl<'a> Store<'a> {
         row.map(model::track_source).transpose()
     }
 
-    /// Overwrite only the user-editable metadata columns; technical fields and
-    /// `added_at` are left untouched. Unknown id is a no-op (no phantom row).
+    /// Overwrite only the user-editable metadata columns; the technical fields
+    /// (`duration_ms`, `sample_rate`, `channels`, `bitrate_kbps`,
+    /// `replaygain_track_gain_db`, `last_sampler_bank_id`) and `added_at` are
+    /// left untouched. `updated_at` is stamped with `now` on every call.
+    /// Unknown id is a no-op (no phantom row).
     ///
     /// **Full replacement:** every `None` column is written as `NULL`, so
     /// blanking a field clears the stored value. Callers must send the
