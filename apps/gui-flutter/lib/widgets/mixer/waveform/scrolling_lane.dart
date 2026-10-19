@@ -14,10 +14,16 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
-  const new({required this.deckId, required this.label, super.key});
+  const new({required this.deckId, required this.label, this.nowMs, super.key});
 
   final int deckId;
   final String label;
+
+  /// Monotonic millisecond clock for the scrub-seek throttle.
+  ///
+  /// Defaults to a real wall clock. Tests inject a controllable clock so the
+  /// 32 ms window does not depend on how fast the runner pumps events.
+  final int Function()? nowMs;
 
   @override
   ConsumerState<ScrollingLane> createState() => _ScrollingLaneState();
@@ -29,7 +35,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   var _scrubbing = false;
   var _scrubAnchorX = 0.0;
   var _scrubAnchorMs = 0.0;
-  final _seekClock = Stopwatch();
+  final _seekClock = Stopwatch()..start();
+  int? _lastSeekMs;
 
   @override
   void initState() {
@@ -391,13 +398,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     );
   }
 
+  int get _clockMs => widget.nowMs?.call() ?? _seekClock.elapsedMilliseconds;
+
   void _throttledSeek(int ms) {
-    if (_seekClock.isRunning && _seekClock.elapsedMilliseconds < 32) {
+    final now = _clockMs;
+    final last = _lastSeekMs;
+    if (last != null && now - last < 32) {
       return;
     }
-    _seekClock
-      ..reset()
-      ..start();
+    _lastSeekMs = now;
     unawaited(_seek(ms));
   }
 

@@ -123,6 +123,7 @@ Future<ProviderContainer> _pumpLane(
   bool jogTouching = false,
   int positionMs = 0,
   FakeEngineTransport? engine,
+  int Function()? nowMs,
 }) async {
   debugOverrideDesktopWindow = false;
   addTearDown(() => debugOverrideDesktopWindow = null);
@@ -151,11 +152,11 @@ Future<ProviderContainer> _pumpLane(
       child: MaterialApp(
         theme: materialUiThemeFromMixar(theme),
         builder: mixarMaterialAppBuilder(theme),
-        home: const Scaffold(
+        home: Scaffold(
           body: SizedBox(
             width: _viewportWidth,
             height: _viewportHeight,
-            child: ScrollingLane(deckId: 0, label: 'A'),
+            child: ScrollingLane(deckId: 0, label: 'A', nowMs: nowMs),
           ),
         ),
       ),
@@ -321,6 +322,9 @@ void main() {
   testWidgets(
     'scrub move seeks are throttled to 32ms; pointer up always seeks',
     (tester) async {
+      // Injected clock: the throttle window is stepped explicitly, so the
+      // assertion does not depend on real elapsed time between pumps.
+      var nowMs = 0;
       final engine = FakeEngineTransport();
       await _pumpLane(
         tester,
@@ -328,6 +332,7 @@ void main() {
         positionMs: 50000,
         strip: _strip(),
         engine: engine,
+        nowMs: () => nowMs,
       );
 
       final center = tester.getCenter(find.byType(ScrollingLane));
@@ -343,10 +348,8 @@ void main() {
       await tester.pump();
       expect(engine.seeks.length, 1);
 
-      // ScrollingLane throttles with a wall-clock Stopwatch; escape FakeAsync.
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 40)),
-      );
+      // Step past the 32 ms window of the injected clock.
+      nowMs += 40;
       await gesture.moveBy(const Offset(-10, 0));
       await tester.pump();
       // Drain fire-and-forget _seek → seekDeck microtasks before asserting.
