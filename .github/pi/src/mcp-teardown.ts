@@ -131,10 +131,11 @@ export function registerMcpTeardown(pi: ExtensionAPI, options: McpTeardownOption
   const terminate = (): void => {
     cancel();
     const pids = terminateServers();
-    // The step log is the only place the teardown shows up: without this, a run
-    // that hangs because the server survived is indistinguishable from one that
-    // never reached the teardown.
-    if (pids.length > 0) console.error(`[mcp-teardown] terminated codegraph pids: ${pids.join(', ')}`);
+    // The step log is the only place the teardown shows up, and a run that hangs
+    // because a server survived has to be distinguishable from one that never
+    // reached the teardown. Written to stderr directly: extension console output
+    // does not reach the step log, this does.
+    process.stderr.write(`[mcp-teardown] ended ${pids.length} codegraph process(es)\n`);
   };
 
   pi.on('agent_start', () => cancel());
