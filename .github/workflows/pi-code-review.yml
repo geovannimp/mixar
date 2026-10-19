@@ -27,7 +27,10 @@ name: Pi Code Review
 #   - workflow_dispatch with pr_number
 #
 # Trust model: the pi action auto-loads extensions and reads config from the workspace
-# it runs in, so the workspace is the BASE branch checkout. PR head is checked out into
+# it runs in, so the workspace is the BASE branch checkout - the branch's current tip,
+# not the PR's creation-time base commit: `base.sha` is frozen by the API when a PR
+# opens, so pinning it would hold a PR opened before a change to .github/pi or to the
+# vendored rules on the old copy for its whole life. PR head is checked out into
 # pr-head/ and is read-only input for the reviewer. Never run npm/moon/lefthook there.
 # The reviewer's tools are read/grep/find/ls, tool_search (which loads the
 # deferred CodeGraph tools on demand), the action's built-in get_pr_diff and
@@ -208,19 +211,23 @@ jobs:
             }
             core.setOutput('pr_number', String(prNumber));
             core.setOutput('base_ref', pullRequest.base.ref);
-            core.setOutput('base_sha', pullRequest.base.sha);
             core.setOutput('head_sha', pullRequest.head.sha);
 
       # Trusted checkout: the extension, the review rules, the vendored skill and -
       # under pull_request_target - the workflow file itself all come from the BASE
-      # commit checked out here, never from pr-head. pr-head/ is untrusted input:
+      # branch checked out here, never from pr-head. pr-head/ is untrusted input:
       # read-only, never executed.
       - name: Checkout base (trusted workspace)
+        id: base-checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          # Pinned to the base commit, not the branch name: the extension and the
-          # vendored skill are loaded from here, so the run must see an immutable ref.
-          ref: ${{ steps.pr-context.outputs.base_sha }}
+          # The base BRANCH, deliberately not the `base.sha` the API reports for the
+          # PR: that sha is frozen when the PR opens, so a PR opened before a change
+          # to .github/pi or the vendored skill would keep loading the old copy for
+          # its whole life - and that copy is what decides whether the review step
+          # can finish. The branch tip is trusted exactly as the workflow file is
+          # under pull_request_target, and the step below pins what was checked out.
+          ref: ${{ steps.pr-context.outputs.base_ref }}
           persist-credentials: false
           fetch-depth: 1
 
@@ -235,14 +242,16 @@ jobs:
 
       - name: Verify base checkout
         env:
-          BASE_SHA: ${{ steps.pr-context.outputs.base_sha }}
+          BASE_REF: ${{ steps.pr-context.outputs.base_ref }}
+          CHECKOUT_COMMIT: ${{ steps.base-checkout.outputs.commit }}
         run: |
           set -euo pipefail
           got="$(git rev-parse HEAD)"
-          if [ "${got}" != "${BASE_SHA}" ]; then
-            echo "::error::base mismatch: expected ${BASE_SHA}, got ${got}"
+          if [ "${got}" != "${CHECKOUT_COMMIT}" ]; then
+            echo "::error::base checkout mismatch: checkout resolved ${CHECKOUT_COMMIT}, HEAD is ${got}"
             exit 1
           fi
+          echo "base checkout: ${BASE_REF} at ${got}"
 
       - name: Verify PR head checkout
         env:
