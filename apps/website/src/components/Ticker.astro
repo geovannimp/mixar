@@ -1,0 +1,37 @@
+---
+/**
+ * Full-bleed marquee ticker used as a section divider — the SWSH industry
+ * carousel / Kurosawa ticker-strip pattern. Decorative (`aria-hidden`):
+ * the words it repeats also appear in real copy elsewhere on the page.
+ * Static row under prefers-reduced-motion.
+ */
+interface Props {
+  items: readonly string[];
+  /** Marquee loop duration; tune per ticker length. */
+  duration?: string;
+}
+
+const { items, duration = "90s" } = Astro.props;
+// Six copies: the -50% loop stays seamless (halves identical) while the track
+// stays wider than any realistic viewport at every animation offset — two
+// copies left the band's right side empty mid-loop on wide screens.
+const repeated = Array.from({ length: 6 }, () => items).flat();
+---
+
+<div
+  class="relative overflow-hidden border-y border-border bg-bg-elevated py-4"
+  aria-hidden="true"
+>
+  <div class="marquee-track flex w-max" style={`--marquee-duration: ${duration}`}>
+    {
+      repeated.map((item) => (
+        <span class="flex items-center whitespace-nowrap">
+          <span class="px-7 font-mono text-[0.8125rem] font-medium uppercase tracking-[0.2em] text-muted">
+            {item}
+          </span>
+          <span class="font-mono text-[0.8125rem] text-accent">//</span>
+        </span>
+      ))
+    }
+  </div>
+</div>

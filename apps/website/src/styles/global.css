@@ -235,3 +235,87 @@
     min-width: 0;
   }
 }
+
+/* --- Pass-2 depth language (references: Moto Finance, Butter, SWSH, Kurosawa) --- */
+
+/* Marquee ticker divider: duplicated content track shifted by exactly -50%. */
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee var(--marquee-duration, 90s) linear infinite;
+}
+
+/* Soft continuous float for the hero product object (Butter's hanging-object
+   motion, softened to a deck-light drift). */
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .float-soft {
+    animation: none;
+  }
+}
+
+/* Ghost outline display word (Kurosawa). SVG text so the stroke can
+   dash-animate; decoration only. */
+.ghost-word-text {
+  fill: transparent;
+  stroke: color-mix(in srgb, var(--text) 1%, transparent);
+  stroke-width: 2.3px;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+/* Progressive outline draw (traced to the Heron preloader stroke reveal):
+   dash length covers any single glyph contour, so all five letters trace
+   simultaneously and finish together. Drawn by default under reduced
+   motion — the observer's class just runs the same end state. */
+@media (prefers-reduced-motion: no-preference) {
+  .ghost-word-text {
+    stroke-dasharray: 2000;
+    stroke-dashoffset: 2000;
+    transition: stroke-dashoffset 1.8s ease-out;
+  }
+
+  .ghost-word.is-drawn .ghost-word-text {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Teal contrast band: tints the whole section to the teal primary scale so
+   it pops against zinc neighbours without a white flash. Single surface
+   tone — the card matches the band so there is no second green stripe;
+   separation comes from the alpha hairline border, not a lighter fill. */
+[data-theme="dark"] .band-teal {
+  --bg: #042f2e; /* teal-950 */
+  --bg-elevated: #042f2e;
+  --bg-card: #042f2e; /* same as band — one teal tone, border does the lift */
+  --border: rgba(45, 212, 191, 0.18);
+  --border-hover: rgba(45, 212, 191, 0.34);
+}
+
+[data-theme="light"] .band-teal {
+  --bg: #f0fdfa; /* teal-50 */
+  --bg-elevated: #f0fdfa;
+  --bg-card: #f0fdfa; /* same as band — one teal tone */
+  --border: rgba(13, 148, 136, 0.18);
+  --border-hover: rgba(13, 148, 136, 0.34);
+}

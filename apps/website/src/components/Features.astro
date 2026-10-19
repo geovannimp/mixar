@@ -14,8 +14,12 @@ import SectionHeader from "./ui/SectionHeader.astro";
 const iconProps = { size: 24, "stroke-width": 2 };
 ---
 
-<section id="features" class="border-t border-border bg-bg-elevated px-section py-24 lg:py-28">
+<section
+  id="features"
+  class="relative overflow-hidden border-t border-border bg-bg-elevated px-section py-24 lg:py-28"
+>
   <SectionHeader
+    eyebrow="01 / Features"
     title="The whole booth"
     description="Two decks, a full mixer, performance pads, and offline analysis. All of it under GPL-3.0."
   >
@@ -23,15 +27,27 @@ const iconProps = { size: 24, "stroke-width": 2 };
   </SectionHeader>
   <div
     id="features-grid"
-    class="mx-auto grid max-w-content gap-6 sm:grid-cols-2 lg:grid-cols-3"
+    class="relative mx-auto grid max-w-content gap-6 sm:grid-cols-2 lg:grid-cols-4"
     data-reveal-group
   >
-    <FeatureCard revealIndex={0} iconTone="deck-a" title="Dual decks">
+    <!-- Ghost word sits behind the cards (Kurosawa outline layering):
+         absolutely placed so the cards float over it. -->
+    <svg
+      class="ghost-word pointer-events-none absolute left-1/2 z-0 block w-[90vw] -translate-x-1/2"
+      viewBox="0 0 1000 290"
+      focusable="false"
+      aria-hidden="true"
+    >
+      <text class="ghost-word-text" x="500" y="250" text-anchor="middle" font-size="315">
+        BOOTH
+      </text>
+    </svg>
+    <FeatureCard revealIndex={0} iconTone="deck-a" title="Dual decks" wide>
       <Disc3 slot="icon" {...iconProps} />
       Two full decks with overview and scrolling waveforms, beat grid, play/pause, seek,
       tempo, and key lock to change speed without changing pitch.
     </FeatureCard>
-    <FeatureCard revealIndex={1} iconTone="deck-b" title="Mixer and metering">
+    <FeatureCard revealIndex={1} iconTone="deck-b" title="Mixer and metering" wide>
       <SlidersHorizontal slot="icon" {...iconProps} />
       Gain, 3-band EQ, filter, volume, crossfader, cue/PFL, and VU meters across the mix
       bus.
@@ -57,3 +73,8 @@ const iconProps = { size: 24, "stroke-width": 2 };
     </FeatureCard>
   </div>
 </section>
+
+<script>
+  import { drawGhostWordOnEnter } from "../lib/ghost-word";
+  drawGhostWordOnEnter();
+</script>

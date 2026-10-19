@@ -9,8 +9,9 @@ const iconProps = { size: 18, "stroke-width": 2 };
 ---
 
 <section class="border-y border-border bg-bg-elevated px-section py-24 lg:py-28">
-  <div class="mx-auto max-w-content">
+  <div class="mx-auto max-w-content" data-reveal-group>
     <SectionHeader
+      eyebrow="02 / Architecture"
       title="Architecture"
       description="UI, controllers, and engine stay in sync over cmd/evt buses. MessagePack moves both ways, with a focused Rust crate per domain."
     >
@@ -21,7 +22,7 @@ const iconProps = { size: 18, "stroke-width": 2 };
         aria-hidden="true"
       />
     </SectionHeader>
-    <div class="rounded-xl border border-border bg-bg-card p-4 sm:p-8">
+    <div data-reveal class="rounded-xl border border-border bg-bg-card p-4 sm:p-8">
       <ArchitectureDiagram />
     </div>
     <div class="mt-8 text-center">

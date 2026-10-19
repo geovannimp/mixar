@@ -3,9 +3,11 @@ interface Props {
   iconTone?: "deck-a" | "deck-b" | "accent";
   title: string;
   revealIndex?: number;
+  /** Bento span: double-width card on lg+ grids (SWSH card pattern). */
+  wide?: boolean;
 }
 
-const { iconTone = "accent", title, revealIndex } = Astro.props;
+const { iconTone = "accent", title, revealIndex, wide = false } = Astro.props;
 
 const iconTones = {
   "deck-a": "bg-sky-500/15 text-deck-a",
@@ -27,10 +29,21 @@ const revealStyle =
   data-reveal
   style={revealStyle}
   class:list={[
-    "rounded-xl border border-border bg-bg-card p-7 transition-[border-color,transform] hover:-translate-y-0.5 sm:p-8",
+    "relative rounded-xl border border-border bg-bg-card p-7 transition-[border-color,transform,box-shadow] duration-200 hover:-translate-y-1 hover:border-border-hover hover:shadow-[0_18px_44px_-18px_rgb(0_0_0_0.55)] sm:p-8",
+    wide && "lg:col-span-2",
     cardTones[iconTone],
   ]}
 >
+  {
+    revealIndex !== undefined && (
+      <span
+        class="absolute top-5 right-5 font-mono text-[0.6875rem] tracking-[0.1em] text-muted"
+        aria-hidden="true"
+      >
+        {String(revealIndex + 1).padStart(2, "0")}
+      </span>
+    )
+  }
   <div
     class:list={[
       "mb-5 flex h-14 w-14 items-center justify-center rounded-xl [&_svg]:size-6",
