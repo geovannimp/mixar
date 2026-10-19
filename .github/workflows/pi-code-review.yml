@@ -34,8 +34,10 @@ name: Pi Code Review
 # get_issue_or_pr_thread, and the in-repo extension's reply/resolve tools.
 # CodeGraph (installed and indexed over pr-head before the agent starts) is
 # wired in as a deferred MCP server and is the PRIMARY way the reviewer locates
-# and understands code; the file tools are the fallback. A trimmed fork of the
-# awesome-skills/code-review-skill playbook is vendored at
+# and understands code; the file tools are the fallback. The extension ends that
+# MCP server when the run settles (pi does not close MCP servers in this SDK
+# path, and a live child would keep the step alive until the job timeout). A
+# trimmed fork of the awesome-skills/code-review-skill playbook is vendored at
 # .agents/skills/code-review-skill (pi loads project skills from
 # that directory) and the prompt points the reviewer at it for review substance. The
 # review itself is posted with the action's built-in create_pull_request_review.
@@ -340,8 +342,12 @@ jobs:
           # the run as "unknown tool name". pi's allowlist keeps every MCP tool
           # unless one of its entries starts with mcp__, so dropping the name keeps
           # the whole codegraph surface available — intended: codegraph is the only
-          # MCP server and is read-only analysis over pr-head. `description` feeds
-          # tool_search ranking. -p points the server at the indexed PR head tree.
+          # MCP server and is read-only analysis over pr-head. The extension
+          # (.github/pi/src/mcp-teardown.ts) terminates that stdio child once the run
+          # settles: pi never closes MCP servers in the SDK path the action drives, and
+          # a live child keeps the step's Node process alive until the job timeout.
+          # `description` feeds tool_search ranking. -p points the server at the
+          # indexed PR head tree.
           mcp_servers: |
             {
               "codegraph": {
