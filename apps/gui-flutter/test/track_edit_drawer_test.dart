@@ -390,9 +390,11 @@ void main() {
   testWidgets('dismissing during the save re-read still persists the edit', (
     tester,
   ) async {
-    // Kody case: tap Save, then dismiss while the re-read is in flight. The
-    // save was requested, so it must complete — dismissing may not silently
-    // throw the edit away.
+    // Tap Save, then dismiss while the re-read is in flight. `dismissed` only
+    // flips on disposal (useEffect cleanup), so the pop is run to completion
+    // before the gate opens — otherwise the test would pass even with a
+    // pre-write `if (dismissed.value) return;` guard, i.e. it would not cover
+    // the regression it exists for.
     var reads = 0;
     final gate = Completer<void>();
     final fake = FakeLibraryTransport(
@@ -409,10 +411,15 @@ void main() {
     await tester.enterText(fieldFor('Title'), 'Edited');
     await tester.pump();
     await tester.tap(find.text('Save'));
-    await tester.pump(); // Save starts; the re-read is now blocked on the gate
+    await tester.pump(); // Save is in flight, blocked on the gate
+    expect(fake.updateTrackMetadataCalls, isEmpty);
 
     await tester.tap(find.bySemanticsLabel('Close'));
-    await tester.pump();
+    // Finish the pop transition so the panel is disposed and `dismissed` is
+    // true when the re-read resumes.
+    await tester.pumpAndSettle();
+    expect(find.text('Save'), findsNothing, reason: 'panel disposed');
+
     gate.complete();
     await tester.pumpAndSettle();
 
@@ -421,7 +428,6 @@ void main() {
       'Edited',
       reason: 'the requested save is not abandoned by dismissal',
     );
-    expect(find.text('Save'), findsNothing, reason: 'drawer closed');
   });
 
   testWidgets('clearing a field sends blank so the column is cleared', (
