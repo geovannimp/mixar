@@ -48,11 +48,11 @@ function readProcesses(reader: ProcReader): Processes {
 /**
  * Every process of every CodeGraph MCP server this host started, parents first.
  *
- * The MCP server is a stdio child of the process that started the session, and
- * that shim is the handle pi's client holds. The shim runs the platform binary,
- * which runs a watchdog, so terminating only the shim releases the handle but
- * leaves two servers behind for the runner to reap — hence the whole subtree,
- * found by parentage (the watchdog's own command line names nothing).
+ * The server is a stdio child of the process that started the session, and that
+ * shim is the handle pi's client holds. The shim runs the platform binary, which
+ * runs a watchdog, so the tree is terminated explicitly — leaves first — instead
+ * of trusting those grandchildren to notice the shim is gone. Only the direct
+ * child is matched by command line; the rest follow from parentage.
  */
 export function mcpServerPids(selfPid: number, reader: ProcReader = procReader): number[] {
   const { parent, cmdline } = readProcesses(reader);
