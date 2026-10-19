@@ -1,0 +1,60 @@
+---
+title: "Beat FX"
+description: "Use the shared Beat FX unit: pick Echo or Reverb, set the beat division and level, arm it, and route decks through it."
+section: "Mixer"
+order: 2
+---
+
+**Beat FX** is one effect unit shared by both decks, driven from the thin strip pinned to the bottom of the mixer screen. It works like the Beat FX section of a DDJ-400: a single effect at a time, one level knob, and an on/off key — the difference is that you choose which decks feed it from the deck header.
+
+## The strip
+
+| Control | What it does |
+|---------|--------------|
+| **Effect select** | Picks the effect: **Echo** or **Reverb** |
+| **BEAT ◀ ▶** | Steps the echo's beat division. Hidden for effects that have no beat time (reverb) |
+| **LEVEL** | Wet/dry mix — how much of the effect you hear |
+| **BEAT FX** | Arms the unit. The label lights up while it is on |
+
+The select has no "off" entry: the unit always holds an effect, and the **BEAT FX** key decides whether it processes anything. A fresh session loads **Echo**, unarmed, at `1/2` beat with `LEVEL` in the middle.
+
+## Routing a deck
+
+The unit is shared, but a deck only runs through it when you ask:
+
+1. Press **FX** in the deck header. The key lights while that deck is routed.
+2. Press it again to send the deck back to a dry signal.
+
+Both decks run the **same** effect and settings — routing is what differs. Each deck keeps its own delay or reverb state, so tails never bleed from one deck into the other.
+
+## Beat-synced echo
+
+The echo's delay is a **beat division**, not a time in milliseconds, so it always sits on the grid:
+
+`1/16 · 1/8 · 1/4 · 1/2 · 3/4 · 1/1 · 2/1`
+
+The division is measured against the **master deck's** tempo, including its tempo fader — so nudging the master's pitch bends the repeats with it. Press **Master** (the crown) on the deck that should own the tempo. While the master deck has no analysed BPM, the unit falls back to **120 BPM**.
+
+Reverb has no beat time, so the **BEAT ◀ ▶** pair disappears when you select it.
+
+## Where the effect sits
+
+The unit is an **insert on the channel**, after the EQ and filter and before the channel fader:
+
+- The channel meter and your headphones already include the effect, so you can cue a wet deck before bringing it in.
+- The channel fader and the crossfader scale the effect exactly like the dry signal.
+- Changing the effect, or switching the unit off, clears the stored tail; the next hit starts clean.
+
+## Quick start
+
+1. Pick **Echo** in the select.
+2. Step **BEAT** to the division you want — `1/4` for a short slap, `1/2` or `3/4` for a wider trail.
+3. Press **FX** in the header of the deck you want effecting.
+4. Set **LEVEL** to taste, then press **BEAT FX** to arm it.
+
+## Not there yet
+
+- The select lists single effects. Named **presets** (chains of effects, Rekordbox-style) will land in the same select.
+- The engine also carries echo **feedback** and reverb **size/damping**; those knobs arrive with the preset editor.
+- Effect settings and routing are **session state** — they reset when the engine restarts, like filter, EQ and volume.
+- FX has no MIDI mapping yet; it is driven from the strip.

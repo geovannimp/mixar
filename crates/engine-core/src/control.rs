@@ -336,6 +336,8 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         eq: snap.eq,
         filter: snap.filter,
         gain_trim: snap.gain_trim,
+        fx_routed: snap.fx_routed,
+        fx: snap.fx,
         headphone_cue: snap.headphone_cue,
         sync_mode: snap.sync_mode,
         cue_point_ms: snap.cue_point_ms,
@@ -485,6 +487,11 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetKeyShiftPage, CmdBody::SetKeyShiftPage { .. })
         | (Kind::SetFilter, CmdBody::SetFilter { .. })
         | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
+        | (Kind::SetFxUnitSlot, CmdBody::SetFxUnitSlot { .. })
+        | (Kind::SetFxUnitSlotEnabled, CmdBody::SetFxUnitSlotEnabled { .. })
+        | (Kind::SetFxUnitWet, CmdBody::SetFxUnitWet { .. })
+        | (Kind::SetFxUnitParam, CmdBody::SetFxUnitParam { .. })
+        | (Kind::SetDeckFxRouted, CmdBody::SetDeckFxRouted { .. })
         | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
         | (Kind::ToggleSync, CmdBody::ToggleSync { .. })
         | (Kind::SetQuantize, CmdBody::SetQuantize { .. })
@@ -744,6 +751,13 @@ fn dispatch_deck_cmd(
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_deck_gain_trim_db(deck_id, crate::control_norm::norm_to_strip_db(gain_trim))?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetDeckFxRouted => {
+            let CmdBody::SetDeckFxRouted { routed } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_fx_routed(deck_id, routed)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetHeadphoneCue => {
@@ -1173,6 +1187,38 @@ fn dispatch_mixer_cmd(
             let enabled = !eng.master_cue().unwrap_or(false);
             eng.set_master_cue(enabled)?;
             Ok(CmdOutcome::EngineStatus)
+        }
+        Kind::SetFxUnitSlot => {
+            let CmdBody::SetFxUnitSlot { slot, kind } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_fx_unit_slot(slot, crate::status::map_fx_kind(kind))?;
+            Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
+        }
+        Kind::SetFxUnitSlotEnabled => {
+            let CmdBody::SetFxUnitSlotEnabled { slot, enabled } =
+                decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.set_fx_unit_slot_enabled(slot, enabled)?;
+            Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
+        }
+        Kind::SetFxUnitWet => {
+            let CmdBody::SetFxUnitWet { slot, wet } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_fx_unit_wet(slot, wet)?;
+            Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
+        }
+        Kind::SetFxUnitParam => {
+            let CmdBody::SetFxUnitParam { slot, param, value } =
+                decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.set_fx_unit_param(slot, param, value)?;
+            Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),
     })

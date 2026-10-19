@@ -134,6 +134,34 @@ impl From<EqBand> for engine_api::EqBand {
     }
 }
 
+/// FX unit effect selection (FRB mirror of `engine_api::FxKind`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FxKind {
+    Off,
+    Echo,
+    Reverb,
+}
+
+impl From<FxKind> for engine_api::FxKind {
+    fn from(kind: FxKind) -> Self {
+        match kind {
+            FxKind::Off => Self::Off,
+            FxKind::Echo => Self::Echo,
+            FxKind::Reverb => Self::Reverb,
+        }
+    }
+}
+
+impl From<engine_api::FxKind> for FxKind {
+    fn from(kind: engine_api::FxKind) -> Self {
+        match kind {
+            engine_api::FxKind::Off => Self::Off,
+            engine_api::FxKind::Echo => Self::Echo,
+            engine_api::FxKind::Reverb => Self::Reverb,
+        }
+    }
+}
+
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PadMode {
@@ -200,6 +228,26 @@ pub struct SamplerSlotChrome {
     pub track_id: Option<String>,
     pub path: Option<String>,
     pub duration_ms: Option<i32>,
+}
+
+/// Per-slot FX state surfaced to the UI.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FxSlotChrome {
+    pub kind: FxKind,
+    pub enabled: bool,
+    /// Wet/dry `0..1` (`0` = dry).
+    pub wet: f32,
+    /// Normalized knob positions for `kind` (unused entries `0.0`).
+    pub params: Vec<f32>,
+}
+
+fn fx_slot_chrome(slot: &engine_api::FxSlotState) -> FxSlotChrome {
+    FxSlotChrome {
+        kind: slot.kind.into(),
+        enabled: slot.enabled,
+        wet: slot.wet,
+        params: slot.params.to_vec(),
+    }
 }
 
 fn empty_deck_sampler_chrome() -> Vec<SamplerSlotChrome> {
@@ -311,6 +359,10 @@ pub struct EngineEvt {
     pub eq_high: Option<f32>,
     pub filter: Option<f32>,
     pub gain_trim: Option<f32>,
+    /// FX unit slot state when authored on this evt (`FX_SLOT_COUNT` entries).
+    pub fx: Option<Vec<FxSlotChrome>>,
+    /// True when this deck's pre-fader signal runs through the FX unit.
+    pub fx_routed: Option<bool>,
     pub headphone_cue: Option<bool>,
     pub crossfader: Option<f32>,
     pub master_volume: Option<f32>,
@@ -390,6 +442,8 @@ impl EngineEvt {
             eq_high: None,
             filter: None,
             gain_trim: None,
+            fx: None,
+            fx_routed: None,
             headphone_cue: None,
             crossfader: None,
             master_volume: None,
@@ -705,6 +759,54 @@ impl EngineTransport {
                 filter,
                 soft_takeover: false,
             },
+        )
+    }
+
+    /// FX unit slot `0..=2` effect selection; `off` clears the slot.
+    pub fn set_fx_unit_slot(&self, slot: u8, kind: FxKind) -> Result<(), String> {
+        self.publish_body(
+            Origin::Mixer,
+            Kind::SetFxUnitSlot,
+            &CmdBody::SetFxUnitSlot {
+                slot,
+                kind: kind.into(),
+            },
+        )
+    }
+
+    /// FX unit slot on/off (wet/dry and knobs are kept).
+    pub fn set_fx_unit_slot_enabled(&self, slot: u8, enabled: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Mixer,
+            Kind::SetFxUnitSlotEnabled,
+            &CmdBody::SetFxUnitSlotEnabled { slot, enabled },
+        )
+    }
+
+    /// FX unit slot wet/dry `0..1`.
+    pub fn set_fx_unit_wet(&self, slot: u8, wet: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Mixer,
+            Kind::SetFxUnitWet,
+            &CmdBody::SetFxUnitWet { slot, wet },
+        )
+    }
+
+    /// FX unit slot knob `param` `0..=2`, normalized `0..1`.
+    pub fn set_fx_unit_param(&self, slot: u8, param: u8, value: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Mixer,
+            Kind::SetFxUnitParam,
+            &CmdBody::SetFxUnitParam { slot, param, value },
+        )
+    }
+
+    /// Route deck `deck_id` through the shared FX unit.
+    pub fn set_deck_fx_routed(&self, deck_id: u16, routed: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetDeckFxRouted,
+            &CmdBody::SetDeckFxRouted { routed },
         )
     }
 
@@ -1467,6 +1569,8 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.eq_high = Some(snap.eq.high);
     evt.filter = Some(snap.filter);
     evt.gain_trim = Some(snap.gain_trim);
+    evt.fx = Some(snap.fx.iter().map(fx_slot_chrome).collect());
+    evt.fx_routed = Some(snap.fx_routed);
     evt.headphone_cue = Some(snap.headphone_cue);
     evt.duration_ms = snap.duration_ms;
     evt.duration_known = true;
@@ -1527,6 +1631,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             eq,
             filter,
             gain_trim,
+            fx,
+            fx_routed,
             headphone_cue,
             duration_ms,
             speed,
@@ -1564,6 +1670,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.eq_high = Some(eq.high);
             evt.filter = Some(filter);
             evt.gain_trim = Some(gain_trim);
+            evt.fx = Some(fx.iter().map(fx_slot_chrome).collect());
+            evt.fx_routed = Some(fx_routed);
             evt.headphone_cue = Some(headphone_cue);
             evt.duration_ms = duration_ms;
             evt.duration_known = true;
@@ -1679,6 +1787,8 @@ mod tests {
             },
             filter: 0.5,
             gain_trim: 0.5,
+            fx_routed: false,
+            fx: Default::default(),
             headphone_cue: true,
             sync_mode: SyncMode::Off,
             cue_point_ms: None,

@@ -16,8 +16,18 @@ import 'package:gui_flutter/src/rust/api/library.dart'
 import 'package:gui_flutter/widgets/mixer/level_meter.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
-/// Bool deck mirrors that use optimistic absolute cmds + generation rollback.
-enum OptimisticDeckBoolField { playing, quantize, slip, keyLock }
+/// Bool mirrors that use optimistic absolute cmds + generation rollback.
+///
+/// `fxRouted` is keyed by deck id; `fxArmed` is keyed by FX slot index because
+/// the FX unit is shared by every deck.
+enum OptimisticDeckBoolField {
+  playing,
+  quantize,
+  slip,
+  keyLock,
+  fxRouted,
+  fxArmed,
+}
 
 class EngineUi extends Notifier<EngineUiSnapshot> {
   /// Per-field / per-deck generation so rollback only runs while our write owns
@@ -76,6 +86,16 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       if (evt.keyLock != null) {
         _invalidateOptimistic(OptimisticDeckBoolField.keyLock, id);
       }
+      if (evt.fxRouted != null) {
+        _invalidateOptimistic(OptimisticDeckBoolField.fxRouted, id);
+      }
+      final publishedFx = evt.fx;
+      if (publishedFx != null) {
+        // Any published slot config supersedes an in-flight arm command.
+        for (var slot = 0; slot < publishedFx.length; slot++) {
+          _invalidateOptimistic(OptimisticDeckBoolField.fxArmed, slot);
+        }
+      }
     }
   }
 
@@ -99,6 +119,35 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
   }
 
   void setRunning(bool running) => state = state.copyWith(running: running);
+
+  /// Optimistic write for a deck's FX routing switch; engine evts supersede it.
+  void setFxRouted(int deckId, bool value) {
+    final next = Map<int, MixerChannelUi>.from(state.channels);
+    next[deckId] = state.channelFor(deckId).withFxRouted(value);
+    state = state.copyWith(channels: next);
+  }
+
+  /// Optimistic write for the shared unit's arm flag (`slot` = chain index).
+  ///
+  /// No-op until a snapshot describes that slot, so the strip keeps showing the
+  /// engine's state instead of inventing one.
+  void setFxUnitArmed(int slot, bool value) {
+    if (slot >= state.fxSlots.length) {
+      return;
+    }
+    final current = state.fxSlots[slot];
+    if (current.enabled == value) {
+      return;
+    }
+    final next = List<FxSlotChrome>.from(state.fxSlots);
+    next[slot] = FxSlotChrome(
+      kind: current.kind,
+      enabled: value,
+      wet: current.wet,
+      params: current.params,
+    );
+    state = state.copyWith(fxSlots: next);
+  }
 
   void setDeckTrackPath(int deckId, String? path) {
     final next = Map<int, String>.from(state.trackPaths);
@@ -656,6 +705,17 @@ final ProviderFamily<MixerChannelUi, int> deckMixerChannelProvider =
           ref.watch(engineUiProvider.select((s) => s.channelFor(deckId))),
     );
 
+final ProviderFamily<bool, int> deckFxRoutedProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) => ref.watch(
+        engineUiProvider.select((s) => s.channelFor(deckId).fxRouted),
+      ),
+    );
+
+final fxSlotsProvider = Provider<List<FxSlotChrome>>(
+  (ref) => ref.watch(engineUiProvider.select((s) => s.fxSlots)),
+);
+
 final ProviderFamily<DeckLevels, int> deckLevelsProvider =
     Provider.family<DeckLevels, int>(
       (ref, deckId) =>
@@ -844,6 +904,51 @@ Future<void> setDeckEqBand(
 Future<void> setDeckFilter(WidgetRef ref, int deckId, double filter) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setFilter(deckId: deckId, filter: filter);
+}
+
+Future<void> setDeckFxRouted(WidgetRef ref, int deckId, bool routed) async {
+  await _withOptimisticDeckBool(
+    ref: ref,
+    deckId: deckId,
+    field: OptimisticDeckBoolField.fxRouted,
+    desired: routed,
+    read: (snap) => snap.channelFor(deckId).fxRouted,
+    write: (ui, value) => ui.setFxRouted(deckId, value),
+    send: (engine) => engine.setDeckFxRouted(deckId: deckId, routed: routed),
+  );
+}
+
+Future<void> setFxUnitSlot(WidgetRef ref, int slot, FxKind kind) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setFxUnitSlot(slot: slot, kind: kind);
+}
+
+Future<void> setFxUnitSlotEnabled(WidgetRef ref, int slot, bool enabled) async {
+  // Shared unit: optimism is keyed by slot index rather than deck id.
+  await _withOptimisticDeckBool(
+    ref: ref,
+    deckId: slot,
+    field: OptimisticDeckBoolField.fxArmed,
+    desired: enabled,
+    read: (snap) => snap.fxSlots.length > slot && snap.fxSlots[slot].enabled,
+    write: (ui, value) => ui.setFxUnitArmed(slot, value),
+    send: (engine) => engine.setFxUnitSlotEnabled(slot: slot, enabled: enabled),
+  );
+}
+
+Future<void> setFxUnitWet(WidgetRef ref, int slot, double wet) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setFxUnitWet(slot: slot, wet: wet);
+}
+
+Future<void> setFxUnitParam(
+  WidgetRef ref,
+  int slot,
+  int param,
+  double value,
+) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setFxUnitParam(slot: slot, param: param, value: value);
 }
 
 Future<void> setDeckGainTrim(WidgetRef ref, int deckId, double gainTrim) async {

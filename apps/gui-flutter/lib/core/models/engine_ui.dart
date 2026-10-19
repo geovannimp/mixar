@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -11,6 +12,7 @@ class MixerChannelUi {
     this.eqHigh = 0.5,
     this.filter = 0.5,
     this.gainTrim = 0.5,
+    this.fxRouted = false,
     this.headphoneCue = false,
   });
 
@@ -22,6 +24,7 @@ class MixerChannelUi {
   final double eqHigh;
   final double filter;
   final double gainTrim;
+  final bool fxRouted;
   final bool headphoneCue;
 
   MixerChannelUi patchedFrom(EngineEvt evt) => MixerChannelUi(
@@ -31,7 +34,20 @@ class MixerChannelUi {
     eqHigh: evt.eqHigh ?? eqHigh,
     filter: evt.filter ?? filter,
     gainTrim: evt.gainTrim ?? gainTrim,
+    fxRouted: evt.fxRouted ?? fxRouted,
     headphoneCue: evt.headphoneCue ?? headphoneCue,
+  );
+
+  /// Optimistic write for the FX routing switch (engine evts supersede it).
+  MixerChannelUi withFxRouted(bool value) => MixerChannelUi(
+    volume: volume,
+    eqLow: eqLow,
+    eqMid: eqMid,
+    eqHigh: eqHigh,
+    filter: filter,
+    gainTrim: gainTrim,
+    fxRouted: value,
+    headphoneCue: headphoneCue,
   );
 
   @override
@@ -44,11 +60,20 @@ class MixerChannelUi {
           eqHigh == other.eqHigh &&
           filter == other.filter &&
           gainTrim == other.gainTrim &&
+          fxRouted == other.fxRouted &&
           headphoneCue == other.headphoneCue;
 
   @override
-  int get hashCode =>
-      Object.hash(volume, eqLow, eqMid, eqHigh, filter, gainTrim, headphoneCue);
+  int get hashCode => Object.hash(
+    volume,
+    eqLow,
+    eqMid,
+    eqHigh,
+    filter,
+    gainTrim,
+    fxRouted,
+    headphoneCue,
+  );
 }
 
 class EngineUiSnapshot {
@@ -83,6 +108,7 @@ class EngineUiSnapshot {
     this.autoGainDb = const {},
     this.activeSamplerBankIds = const {},
     this.samplerSlots = const {},
+    this.fxSlots = const [],
     this.masterDeck = 0,
     this.masterVolume = 1.0,
     this.cueVolume = 1.0,
@@ -126,6 +152,7 @@ class EngineUiSnapshot {
   final Map<int, double> autoGainDb;
   final Map<int, String> activeSamplerBankIds;
   final Map<int, List<SamplerSlotChrome>> samplerSlots;
+  final List<FxSlotChrome> fxSlots;
   final int masterDeck;
 
   String? trackPathFor(int deckId) => trackPaths[deckId];
@@ -218,6 +245,7 @@ class EngineUiSnapshot {
     Map<int, double>? autoGainDb,
     Map<int, String>? activeSamplerBankIds,
     Map<int, List<SamplerSlotChrome>>? samplerSlots,
+    List<FxSlotChrome>? fxSlots,
     int? masterDeck,
     double? masterVolume,
     double? cueVolume,
@@ -254,6 +282,7 @@ class EngineUiSnapshot {
     autoGainDb: autoGainDb ?? this.autoGainDb,
     activeSamplerBankIds: activeSamplerBankIds ?? this.activeSamplerBankIds,
     samplerSlots: samplerSlots ?? this.samplerSlots,
+    fxSlots: fxSlots ?? this.fxSlots,
     masterDeck: masterDeck ?? this.masterDeck,
     masterVolume: masterVolume ?? this.masterVolume,
     cueVolume: cueVolume ?? this.cueVolume,
@@ -417,6 +446,13 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
           evt.samplerSlots ?? const [],
         );
       }
+      // The FX unit is shared across decks, so any deck's Updated carries it.
+      // Keep the previous list when the payload is unchanged: its identity is
+      // what `fxSlotsProvider` compares, and the generated `FxSlotChrome ==`
+      // compares the `Float32List` params by identity, so compare fields here.
+      final nextFxSlots = evt.fx == null || _fxSlotsEqual(prev.fxSlots, evt.fx!)
+          ? prev.fxSlots
+          : List<FxSlotChrome>.from(evt.fx!);
       final nextStemsReady = Map<int, bool>.from(prev.stemsReady);
       final nextStemMute = Map<int, List<bool>>.from(prev.stemMute);
       final nextStemIsolate = Map<int, int>.from(prev.stemIsolate);
@@ -461,6 +497,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         autoGainDb: nextAutoGain,
         activeSamplerBankIds: nextSamplerBanks,
         samplerSlots: nextSamplerSlots,
+        fxSlots: nextFxSlots,
         stemsReady: nextStemsReady,
         stemMute: nextStemMute,
         stemIsolate: nextStemIsolate,
@@ -496,3 +533,25 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       return prev;
   }
 }
+
+/// Value comparison for published FX slots; see the `nextFxSlots` note above.
+bool _fxSlotsEqual(List<FxSlotChrome> a, List<FxSlotChrome> b) {
+  if (identical(a, b)) {
+    return true;
+  }
+  if (a.length != b.length) {
+    return false;
+  }
+  for (var index = 0; index < a.length; index++) {
+    if (!_fxSlotEqual(a[index], b[index])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool _fxSlotEqual(FxSlotChrome a, FxSlotChrome b) =>
+    a.kind == b.kind &&
+    a.enabled == b.enabled &&
+    a.wet == b.wet &&
+    listEquals(a.params, b.params);

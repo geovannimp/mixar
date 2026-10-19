@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/mixer/deck_grid.dart';
+import 'package:gui_flutter/widgets/mixer/fx_bar.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/mixer/waveform_section.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
@@ -75,6 +76,8 @@ class _MixerPageState extends State<MixerPage> {
                 // colour as the rest of the library chrome.
                 MDivider(padding: .zero, color: context.theme.colors.border),
                 const Expanded(child: LibraryPanel()),
+                MDivider(padding: .zero, color: context.theme.colors.border),
+                const SizedBox(height: FxBar.height, child: FxBar()),
               ],
             ),
           ),

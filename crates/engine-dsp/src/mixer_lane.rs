@@ -52,6 +52,11 @@ impl MixerLane {
         &mut self.channel
     }
 
+    /// Push the sync tempo into this lane's FX chain.
+    pub fn set_fx_tempo(&mut self, bpm: f32) {
+        self.channel.fx_mut().set_tempo(bpm);
+    }
+
     pub fn sampler(&self) -> &Sampler {
         &self.sampler
     }

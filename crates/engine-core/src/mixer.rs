@@ -120,6 +120,86 @@ impl Engine {
         }
     }
 
+    /// FX unit slot effect selection, applied to every deck's chain.
+    pub fn set_fx_unit_slot(&mut self, slot: u8, kind: engine_dsp::FxKind) -> Result<()> {
+        self.for_each_fx_slot(
+            |fx_slot| {
+                fx_slot.set_kind(kind);
+                Ok(())
+            },
+            slot,
+        )
+    }
+
+    /// FX unit slot on/off, applied to every deck's chain.
+    pub fn set_fx_unit_slot_enabled(&mut self, slot: u8, enabled: bool) -> Result<()> {
+        self.for_each_fx_slot(
+            |fx_slot| {
+                fx_slot.set_enabled(enabled);
+                Ok(())
+            },
+            slot,
+        )
+    }
+
+    /// FX unit slot wet/dry, applied to every deck's chain.
+    pub fn set_fx_unit_wet(&mut self, slot: u8, wet: f32) -> Result<()> {
+        self.for_each_fx_slot(
+            |fx_slot| {
+                fx_slot.set_wet(wet);
+                Ok(())
+            },
+            slot,
+        )
+    }
+
+    /// FX unit slot knob, applied to every deck's chain.
+    pub fn set_fx_unit_param(&mut self, slot: u8, param: u8, value: f32) -> Result<()> {
+        self.for_each_fx_slot(|fx_slot| fx_slot.set_param(param as usize, value), slot)
+    }
+
+    /// Route `deck_id` through the shared FX unit (deck-scoped).
+    pub fn set_deck_fx_routed(&mut self, deck_id: usize, routed: bool) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let channel = dsp
+            .mixer_mut()
+            .channel_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
+        channel.set_fx_routed(routed);
+        Ok(())
+    }
+
+    /// Apply `apply` to slot `slot` of every deck's chain (the FX unit is shared, so
+    /// per-deck chains must stay identical).
+    fn for_each_fx_slot(
+        &mut self,
+        mut apply: impl FnMut(&mut engine_dsp::FxSlot) -> Result<()>,
+        slot: u8,
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let num_decks = dsp.num_decks();
+        for deck_id in 0..num_decks {
+            let channel = dsp
+                .mixer_mut()
+                .channel_mut(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
+            let fx_slot = channel
+                .fx_mut()
+                .slot_mut(slot as usize)
+                .ok_or_else(|| anyhow::anyhow!("Invalid FX slot: {slot}"))?;
+            apply(fx_slot)?;
+        }
+        Ok(())
+    }
+
     /// Channel strip + tempo readbacks as wire `0..1` for soft-takeover compares.
     pub fn deck_strip_norms(&self, deck_id: usize) -> Option<DeckStripNorms> {
         let dsp_engine = self.dsp_engine.as_ref()?;

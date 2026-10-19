@@ -12,6 +12,8 @@ class MixarSlider extends StatelessWidget {
     this.divisions,
     this.enabled = true,
     this.semanticFormatterCallback,
+    this.trackHeight,
+    this.thumbRadius,
   });
 
   final double value;
@@ -22,6 +24,13 @@ class MixarSlider extends StatelessWidget {
   final bool enabled;
   final String Function(double value)? semanticFormatterCallback;
 
+  /// Track thickness; `null` uses the theme default (8).
+  final double? trackHeight;
+
+  /// Thumb radius; `null` uses the theme default (10). Compact rows pass
+  /// smaller values so the thumb stops dominating the strip.
+  final double? thumbRadius;
+
   @override
   Widget build(BuildContext context) {
     return ShadSlider(
@@ -30,6 +39,8 @@ class MixarSlider extends StatelessWidget {
       max: max,
       divisions: divisions,
       enabled: enabled,
+      trackHeight: trackHeight,
+      thumbRadius: thumbRadius,
       onChanged: onChanged,
       semanticFormatterCallback: semanticFormatterCallback,
     );

@@ -159,6 +159,8 @@ fn deck_snapshot_from_dsp(
         },
         filter: crate::control_norm::strip_db_to_norm(channel.filter_db()),
         gain_trim: crate::control_norm::strip_db_to_norm(channel.gain_trim_db()),
+        fx_routed: channel.fx_routed(),
+        fx: std::array::from_fn(|slot| fx_slot_state(channel.fx(), slot)),
         headphone_cue: channel.headphone_cue(),
         sync_mode: control.sync_mode,
         cue_point_ms: deck.cue_point_ms(),
@@ -206,6 +208,32 @@ pub(crate) fn map_jog_mode(mode: engine_api::JogMode) -> engine_dsp::JogMode {
         engine_api::JogMode::Vinyl => engine_dsp::JogMode::Vinyl,
         engine_api::JogMode::PitchBend => engine_dsp::JogMode::PitchBend,
         engine_api::JogMode::Ignore => engine_dsp::JogMode::Ignore,
+    }
+}
+
+fn fx_slot_state(fx: &engine_dsp::FxChain, slot: usize) -> engine_api::FxSlotState {
+    let fx_slot = fx.slot(slot).expect("FX slot index is in range");
+    engine_api::FxSlotState {
+        kind: map_fx_kind_to_api(fx_slot.kind()),
+        enabled: fx_slot.enabled(),
+        wet: fx_slot.wet(),
+        params: fx_slot.params(),
+    }
+}
+
+pub(crate) fn map_fx_kind(kind: engine_api::FxKind) -> engine_dsp::FxKind {
+    match kind {
+        engine_api::FxKind::Off => engine_dsp::FxKind::Off,
+        engine_api::FxKind::Echo => engine_dsp::FxKind::Echo,
+        engine_api::FxKind::Reverb => engine_dsp::FxKind::Reverb,
+    }
+}
+
+fn map_fx_kind_to_api(kind: engine_dsp::FxKind) -> engine_api::FxKind {
+    match kind {
+        engine_dsp::FxKind::Off => engine_api::FxKind::Off,
+        engine_dsp::FxKind::Echo => engine_api::FxKind::Echo,
+        engine_dsp::FxKind::Reverb => engine_api::FxKind::Reverb,
     }
 }
 
