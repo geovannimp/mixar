@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `library_buses`, `subscribe_evt_all`
 
 /// Default Mixxx database path for the current OS, when it exists.
@@ -89,6 +89,16 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
   Future<void> deleteLoop({required String trackId, required int slot});
+
+  /// Export the selected playlists (and folder collections) into `destination`
+  /// in the Pioneer CDJ/XDJ USB layout. `destination` is a mounted USB drive or
+  /// a folder; it is created when missing.
+  Future<CdjExportReport> exportCdjUsb({
+    required String destination,
+    required List<String> playlists,
+    required List<String> folders,
+    required bool refreshFiles,
+  });
 
   Future<void> exportHistorySession({
     required String sessionId,
@@ -215,6 +225,10 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   Future<int> syncStemCache();
 
   /// Save the user-editable metadata of a track (library DB only).
+  ///
+  /// The generated Dart side takes these as named arguments; this layer
+  /// groups them into [TrackMetadataEdit] so the Rust chain below is not
+  /// positional.
   Future<void> updateTrackMetadata({
     required String trackId,
     String? title,
@@ -307,6 +321,50 @@ class BeatGridData {
           beats == other.beats &&
           downbeats == other.downbeats &&
           bpm == other.bpm;
+}
+
+/// Outcome of exporting the library into the Pioneer CDJ/XDJ USB layout.
+class CdjExportReport {
+  final int tracks;
+  final int tracksReused;
+  final int playlists;
+  final int folders;
+  final BigInt bytesCopied;
+  final List<String> errors;
+  final List<String> warnings;
+
+  const CdjExportReport({
+    required this.tracks,
+    required this.tracksReused,
+    required this.playlists,
+    required this.folders,
+    required this.bytesCopied,
+    required this.errors,
+    required this.warnings,
+  });
+
+  @override
+  int get hashCode =>
+      tracks.hashCode ^
+      tracksReused.hashCode ^
+      playlists.hashCode ^
+      folders.hashCode ^
+      bytesCopied.hashCode ^
+      errors.hashCode ^
+      warnings.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CdjExportReport &&
+          runtimeType == other.runtimeType &&
+          tracks == other.tracks &&
+          tracksReused == other.tracksReused &&
+          playlists == other.playlists &&
+          folders == other.folders &&
+          bytesCopied == other.bytesCopied &&
+          errors == other.errors &&
+          warnings == other.warnings;
 }
 
 /// One committed play in a history session.
@@ -608,7 +666,8 @@ class LibraryTrackSummary {
   final String path;
   final String? isrc;
 
-  /// Embedded artwork bytes when loaded via [`LibraryTransport::get_track`].
+  /// Cover thumbnail (JPEG, at most `library::ARTWORK_UI_EDGE_PX` on its
+  /// longest edge) when loaded via [`LibraryTransport::get_track`].
   /// Lists leave this `None` until artwork is persisted in the library DB.
   final Uint8List? artwork;
 

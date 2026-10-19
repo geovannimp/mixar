@@ -18,11 +18,15 @@ pub use encode::{peaks_to_rgb_bytes, rgb_bytes_to_peaks};
 pub const MIN_WAVEFORM_BUCKETS: usize = 4_096;
 /// Maximum buckets (caps memory and generation time for long files).
 pub const MAX_WAVEFORM_BUCKETS: usize = 16_384;
+/// Maximum buckets for whole-track passes that need a far finer fixed
+/// resolution than a display window: 150 entries per second for 60 minutes,
+/// the detail tier device exports write.
+pub const MAX_FULL_TRACK_BUCKETS: usize = 540_000;
 /// Target temporal resolution when choosing an adaptive bucket count (~13 ms).
 pub const WAVEFORM_MS_PER_BUCKET: f64 = 13.0;
 
 /// Three-band peak envelope for spectral waveform coloring.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SpectralPeak {
     pub low: f32,
     pub mid: f32,
@@ -132,7 +136,54 @@ pub fn compute_spectral_envelope_frames(
     buckets: usize,
     config: &WaveformAnalysisConfig,
 ) -> Vec<SpectralPeak> {
-    let buckets = buckets.clamp(16, MAX_WAVEFORM_BUCKETS);
+    envelope_frames(
+        samples,
+        sample_rate,
+        channels,
+        start_frame,
+        end_frame,
+        buckets,
+        config,
+        MAX_WAVEFORM_BUCKETS,
+    )
+}
+
+/// Whole-track envelope at a fixed, much finer resolution than the display
+/// path: device exports sample the detail waveform at 150 entries per second,
+/// well past [`MAX_WAVEFORM_BUCKETS`]. Memory and time scale with `buckets`
+/// (capped at [`MAX_FULL_TRACK_BUCKETS`]), so callers pass a count derived from
+/// the track length rather than a display width.
+pub fn compute_full_track_envelope(
+    audio: &LoadedAudio,
+    buckets: usize,
+    config: &WaveformAnalysisConfig,
+) -> Vec<SpectralPeak> {
+    let channels = usize::from(audio.channels.max(1));
+    let frame_count = audio.samples.len() / channels;
+    envelope_frames(
+        &audio.samples,
+        audio.sample_rate,
+        channels,
+        0,
+        frame_count,
+        buckets,
+        config,
+        MAX_FULL_TRACK_BUCKETS,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn envelope_frames(
+    samples: &[f32],
+    sample_rate: u32,
+    channels: usize,
+    start_frame: usize,
+    end_frame: usize,
+    buckets: usize,
+    config: &WaveformAnalysisConfig,
+    max_buckets: usize,
+) -> Vec<SpectralPeak> {
+    let buckets = buckets.clamp(16, max_buckets);
     let frame_count = end_frame.saturating_sub(start_frame);
 
     if frame_count == 0 || channels == 0 {

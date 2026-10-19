@@ -839,6 +839,102 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get cdjExportTitle => 'Export to CDJ USB';
+
+  @override
+  String get cdjExportDescription =>
+      'Write playlists and folder collections to a Pioneer CDJ/XDJ USB drive, so players browse them without Rekordbox. Each export adds to what the drive already holds.';
+
+  @override
+  String get cdjExportDestination => 'Destination';
+
+  @override
+  String get cdjExportDestinationHint => 'USB drive or folder';
+
+  @override
+  String get cdjExportDestinationMissing =>
+      'Choose a destination drive or folder.';
+
+  @override
+  String get cdjExportBrowse => 'Browse…';
+
+  @override
+  String get cdjExportCollection => 'Collection';
+
+  @override
+  String get cdjExportOverride => 'Override files already on the drive';
+
+  @override
+  String get cdjExportConfirmAction => 'Export';
+
+  @override
+  String get cdjExporting => 'Exporting…';
+
+  @override
+  String get cdjExportFailed => 'CDJ USB export failed';
+
+  @override
+  String cdjExportFinishedWithErrors(int count) {
+    return 'CDJ USB export finished with $count error(s)';
+  }
+
+  @override
+  String cdjExportFinishedWithWarnings(int count) {
+    return 'CDJ USB export finished with $count warning(s)';
+  }
+
+  @override
+  String cdjExportExported(String parts) {
+    return 'Exported $parts';
+  }
+
+  @override
+  String get cdjExportNothing => 'Nothing to export';
+
+  @override
+  String cdjCountTracks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tracks',
+      one: '1 track',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cdjCountReused(int count) {
+    return '$count reused';
+  }
+
+  @override
+  String cdjCountPlaylists(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count playlists',
+      one: '1 playlist',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cdjCountFolders(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count folders',
+      one: '1 folder',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cdjCountCopied(String size) {
+    return '$size copied';
+  }
+
+  @override
   String get settingsStorageStemAlreadyInSync => 'Stem cache already in sync';
 
   @override

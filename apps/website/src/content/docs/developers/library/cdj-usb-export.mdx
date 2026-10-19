@@ -1,0 +1,125 @@
+---
+title: "CDJ USB export"
+description: "The DeviceSQL database and ANLZ analysis writers that make a Mixar library playable on CDJ/XDJ hardware, and how the output is verified."
+section: "Library"
+order: 2
+---
+
+`library_adapters::CdjExporter` implements `library_core::Exportable` and writes the USB layout
+rekordbox writes: audio under `Contents/`, the DeviceSQL device database at
+`PIONEER/rekordbox/export.pdb`, and per-track analysis files under `PIONEER/USBANLZ/`.
+
+User guide: [Export to a CDJ USB drive](/docs/users/library/export-to-cdj-usb). Exhaustive
+per-field reference, the fidelity list and the provenance of every constant:
+[`library-adapters` README](https://github.com/geovannimp/mixar/blob/main/crates/library-adapters/README.md).
+
+## Flow
+
+```text
+ExportOptions { playlists, folders, refresh_files }
+        │
+        ▼
+cdj::plan    selection → tracks, device paths, playlists
+        │      (folders mirror their tree; playlists keep order)
+        ▼
+cdj::mod     per track: stat → copy or reuse → analysis
+        │      (analysis comes from ExportSource)
+        ▼
+cdj::pdb     PIONEER/rekordbox/export.pdb   (one write per run)
+cdj::anlz    PIONEER/USBANLZ/…/ANLZ0000.{DAT,EXT}   (per track)
+```
+
+## Modules
+
+| Module | Role |
+| --- | --- |
+| `cdj/mod.rs` | `CdjExporter`: the run loop, copying, per-track reporting, `Exportable` impl. |
+| `cdj/plan.rs` | Selection → `PlanTrack` / `PlanPlaylist`; folder-vs-metadata placement (reusing paths the drive already holds, reserving the rest); warnings for unknown or mistyped collection ids. |
+| `cdj/manifest.rs` | `PIONEER/rekordbox/mixar-export.json`: the tracks, playlists and artwork ids the drive has accumulated, plus the `export.pdb` length and fingerprint that invalidate it. |
+| `cdj/layout.rs` | FAT32-safe, case-insensitively de-duplicated on-drive paths. |
+| `cdj/pdb.rs` | `export.pdb`: page allocator, row serializers, the fixed tables the hardware browses. |
+| `cdj/anlz.rs` | `ANLZ0000.DAT` / `.EXT` section writers (path, VBR, beat grid, waveforms, cue lists). |
+| `cdj/waveform.rs` | Mixar's peak tiers → PWAV/PWV2/PWV3/PWV4/PWV5 encodings. |
+| `cdj/device_sql.rs`, `cdj/keys.rs`, `cdj/path_hash.rs` | DeviceSQL strings, the 24-row key table, the analysis-directory hash. |
+
+The three format writers are public (`cdj::pdb`, `cdj::anlz`, `cdj::waveform`) and take flat
+inputs (`CdjTrack`, `CdjPlaylist`, `AnlzInput`), so a tool can build one artifact without a
+drive; `CdjExporter` is the entry point that needs a library and a destination.
+
+## Details that decide whether hardware accepts the drive
+
+- **Analysis directories are re-derived by the player.** CDJs ignore the `analyze_path` in the
+  database and hash the on-drive audio path themselves, so analysis files must sit at exactly
+  `PIONEER/USBANLZ/P{p:03X}/{hash:08X}/`. `CdjExporter::analysis_dir` is that function;
+  `cdj::path_hash` documents the algorithm and pins it with vectors captured from real exports.
+- **Placement is decided once per track.** A track reachable through a selected folder
+  collection keeps its mirrored path (`Contents/<folder>/<relative tree>`); everything else is
+  `Contents/<Artist>/<Album>/<file>`. Folder collections also become playlists, because a
+  player's playlist browser cannot see the file tree.
+- **The `.EXT` file is not optional.** CDJ-3000-class players re-analyze a track when it is
+  missing, so the exporter always writes both files.
+- **Analysis is rebuilt at export time.** The detail waveform the players want is 150 entries
+  per second — finer than the resolution the library keeps for its own displays — so exporting
+  a track decodes it once (`ExportSource::export_data`) and hands back the beat grid, cue points
+  and both waveform tiers. Tracks with no analysis data are still registered and reported as a
+  warning; the player analyzes them on load.
+- **Reuse beats rewrite.** Audio is reused when the on-drive name and size match, analysis files
+  when both already exist; the dialog's **Override files already on the drive** checkbox sets
+  `ExportOptions::refresh_files`, which forces a rewrite. Nothing on the drive is ever deleted.
+- **A run merges into the drive.** One export covers one collection, but the database has to
+  describe every track and playlist on the drive, so each run rewrites
+  `PIONEER/rekordbox/mixar-export.json` and rebuilds the database from it plus the current
+  selection. Tracks keep the path they already have (paths of unselected tracks stay
+  reserved), playlists are replaced per source collection, and artwork ids continue after the
+  highest id on the drive. The state file also fingerprints the `export.pdb` it wrote: if that
+  file changed since (rekordbox rewrote the drive), the state is dropped with a warning and the
+  drive is rebuilt from the current selection — as it is when the state file is missing or
+  unreadable, or when a database sits on the drive with no state beside it.
+- **Artwork is scaled at the source.** `library_core::ExportArtwork` carries a JPEG thumbnail
+  (`EXPORT_ARTWORK_EDGE_PX`, 80 px — the size Rekordbox writes) produced by
+  `codec::read_file_artwork_thumbnail`, so the writer never decodes a cover itself. Covers are
+  interned by content (hash plus byte compare): one file and one artwork row per distinct cover,
+  with tracks referencing it through `artwork_id`.
+
+## Host wiring
+
+`LibraryTransport::export_cdj_usb(destination, playlists, folders, refresh_files)` builds
+`ExportOptions` and calls the exporter with `library::ExportSession`, which locks the
+manager **per call** rather than for the whole run, so browsing and editing the library stay
+responsive while a long export is in flight. The returned `CdjExportReport` feeds the summary,
+warning and error toasts of the export dialog, which the collection's three-dot menu opens
+(`widgets/library/collection_actions_menu.dart` →
+`widgets/library/export_cdj_usb_dialog.dart`; the destination comes from the platform's own
+directory picker).
+
+## Verification
+
+| Check | Where |
+| --- | --- |
+| Every written file is re-parsed with `rekordcrate` — an independent implementation of both formats — and asserted field by field (tracks, playlist order, beat grid, waveform entry counts, cues and loops). | `crates/library-adapters/tests/cdj_export.rs` |
+| Layout rules, key mapping, DeviceSQL strings, path hash and the page/row writers. | unit tests in `crates/library-adapters/src/cdj/` |
+| A 40-track export whose tables span several database pages, re-read end to end. | same integration test |
+| Artwork rows, ids and file layout, including sharing one cover across tracks, continuing ids across runs, and the no-artwork path. | unit tests in `cdj/pdb.rs` and `cdj/tests.rs` |
+| Merging across runs: two exports into one drive, a re-export after a playlist entry is removed, and a database rewritten outside Mixar. | `tests/cdj_export.rs`, `cdj/manifest.rs` unit tests |
+| The fixed tables (keys, colors, columns, menu, table `0x12`, history) byte-compare with two rekordbox-written exports. | done while developing; noted in `cdj/pdb.rs` |
+| Host → exporter wiring. | `crates/host-flutter/tests/cdj_export.rs` |
+
+<Callout type="warning" title="Not hardware-verified">
+Physical CDJ/XDJ validation has not been done for this implementation. The layout follows the
+published reverse-engineering work (Deep Symmetry's format references and Kaitai specs, the
+*fourfour* CDJ-3000 notes, and `sustain`'s XDJ-validated writer, GPL-3.0-or-later, which this
+GPL-3.0 writer is modelled on for page allocation and the fixed tables). `rekordcrate`
+(MPL-2.0) is pinned as a **dev-dependency** for the verification above.
+</Callout>
+
+## Known drops
+
+Rating/year/track/disc numbers, comments and colour labels ([#571](https://github.com/geovannimp/mixar/issues/571)),
+history, My Tags ([#572](https://github.com/geovannimp/mixar/issues/572)), stems
+([#573](https://github.com/geovannimp/mixar/issues/573)), and the OneLibrary `exportLibrary.db`
+([#559](https://github.com/geovannimp/mixar/issues/559)) plus `.2EX` 3-band waveforms
+([#574](https://github.com/geovannimp/mixar/issues/574)) newer players prefer. The high-resolution
+`_m` cover variant Rekordbox writes beside the primary thumbnail is not written either. Long
+path components are truncated and de-duplicated, and the undocumented bytes rekordbox fills in
+extended cue entries are written zeroed. The full list lives in the
+[`library-adapters` README](https://github.com/geovannimp/mixar/blob/main/crates/library-adapters/README.md).

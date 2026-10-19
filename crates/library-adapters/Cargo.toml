@@ -9,13 +9,26 @@ description = "Third-party library adapters for Mixar (Mixxx, Rekordbox, Serato,
 [dependencies]
 library-core = { path = "../library-core" }
 rusqlite = { workspace = true, optional = true }
+chrono = { version = "0.4", optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { version = "1.0", optional = true }
 
 [features]
-default = ["mixxx"]
+default = ["mixxx", "cdj"]
 # Third-party format adapters.
 mixxx = ["dep:rusqlite"]
+# Pioneer CDJ/XDJ USB export (DeviceSQL database + ANLZ analysis files).
+cdj = ["dep:chrono", "dep:serde", "dep:serde_json"]
 # Future: rekordbox = [], serato = [], traktor = [], virtualdj = [], engine = []
 
 [dev-dependencies]
 library = { path = "../library" }
 tempfile = "3.0"
+binrw = "0.15"
+fallible-iterator = "0.3"
+# Cover fixtures + assertions on the thumbnails the exporter writes.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+# Independent parser for the device formats, used to verify what we write.
+# Pinned to the upstream revision that parses the formats Rekordbox writes
+# today (the released 0.3.0 predates its cue-point and waveform fixes).
+rekordcrate = { git = "https://github.com/Holzhaus/rekordcrate", rev = "14d54eded7b0d2f6fe67c7871533dca35a73e5fa", default-features = false, features = ["json"] }

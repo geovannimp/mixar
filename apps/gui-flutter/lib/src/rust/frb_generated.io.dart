@@ -283,6 +283,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BusRouteSettings dco_decode_bus_route_settings(dynamic raw);
 
   @protected
+  CdjExportReport dco_decode_cdj_export_report(dynamic raw);
+
+  @protected
   ControllerDeviceDirection dco_decode_controller_device_direction(dynamic raw);
 
   @protected
@@ -838,6 +841,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BusRouteSettings sse_decode_bus_route_settings(SseDeserializer deserializer);
+
+  @protected
+  CdjExportReport sse_decode_cdj_export_report(SseDeserializer deserializer);
 
   @protected
   ControllerDeviceDirection sse_decode_controller_device_direction(
@@ -1520,6 +1526,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_bus_route_settings(
     BusRouteSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_cdj_export_report(
+    CdjExportReport self,
     SseSerializer serializer,
   );
 

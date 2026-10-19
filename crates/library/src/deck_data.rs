@@ -234,7 +234,11 @@ impl LibraryManager {
         crate::deck_data::list_hot_cues(&self.db, id)
     }
 
-    /// Read embedded album artwork bytes for a library track, if present.
+    /// Read a track's embedded album artwork as a UI thumbnail, if present.
+    ///
+    /// JPEG bytes at most [`tags::ARTWORK_UI_EDGE_PX`] on the longest edge
+    /// (never the full-resolution cover). `None` when the track is a stream,
+    /// the file is gone, or it carries no decodable cover.
     pub fn get_track_artwork(&self, id: &TrackId) -> Result<Option<Vec<u8>>> {
         let Some(source) = self.get_track(id)? else {
             return Ok(None);

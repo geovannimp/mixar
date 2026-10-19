@@ -8,9 +8,10 @@ use std::time::Duration;
 
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
-    dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, HistoryExportFormat,
-    HistorySettings, LibraryBuses, LibraryConfig, LibraryManager, LibraryWorker, NewCollection,
-    SamplerBankRecord, TagWriteBack, TrackId, TrackMetadataEdit, WritableLibrary,
+    dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, ExportSession,
+    HistoryExportFormat, HistorySettings, LibraryBuses, LibraryConfig, LibraryManager,
+    LibraryWorker, NewCollection, SamplerBankRecord, TagWriteBack, TrackId, TrackMetadataEdit,
+    WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -18,7 +19,7 @@ use library_api::{
 };
 use library_core::{
     AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, CollectionType,
-    Library, Migratable, MigrateOptions,
+    ExportOptions, Exportable as _, Library, Migratable, MigrateOptions,
 };
 
 use crate::frb_generated::StreamSink;
@@ -108,7 +109,8 @@ pub struct LibraryTrackSummary {
     pub duration_ms: Option<i32>,
     pub path: String,
     pub isrc: Option<String>,
-    /// Embedded artwork bytes when loaded via [`LibraryTransport::get_track`].
+    /// Cover thumbnail (JPEG, at most `library::ARTWORK_UI_EDGE_PX` on its
+    /// longest edge) when loaded via [`LibraryTransport::get_track`].
     /// Lists leave this `None` until artwork is persisted in the library DB.
     pub artwork: Option<Vec<u8>>,
 }
@@ -313,6 +315,18 @@ pub struct MixxxImportReport {
     pub collections_skipped: u32,
     pub failed: u32,
     pub errors: Vec<String>,
+}
+
+/// Outcome of exporting the library into the Pioneer CDJ/XDJ USB layout.
+#[derive(Clone, Debug)]
+pub struct CdjExportReport {
+    pub tracks: u32,
+    pub tracks_reused: u32,
+    pub playlists: u32,
+    pub folders: u32,
+    pub bytes_copied: u64,
+    pub errors: Vec<String>,
+    pub warnings: Vec<String>,
 }
 
 /// Saturating `usize` → `u32`. Counts are far below `u32::MAX` in practice; a
@@ -569,6 +583,39 @@ impl LibraryTransport {
             collections_skipped: count_u32(report.collections_skipped),
             failed: count_u32(report.failed),
             errors: report.errors,
+        })
+    }
+
+    /// Export the selected playlists (and folder collections) into `destination`
+    /// in the Pioneer CDJ/XDJ USB layout. `destination` is a mounted USB drive or
+    /// a folder; it is created when missing.
+    pub fn export_cdj_usb(
+        &self,
+        destination: String,
+        playlists: Vec<String>,
+        folders: Vec<String>,
+        refresh_files: bool,
+    ) -> Result<CdjExportReport, String> {
+        let options = ExportOptions {
+            playlists: playlists.into_iter().map(CollectionId::from).collect(),
+            folders: folders.into_iter().map(CollectionId::from).collect(),
+            refresh_files,
+        };
+        // The exporter reads the manager through the host lock: the session
+        // takes that lock only for database reads and decode-cache access, so
+        // the export never freezes the rest of the library UI.
+        let source = ExportSession::new(&self.library);
+        let report = library_adapters::CdjExporter
+            .export(&source, Path::new(&destination), &options)
+            .map_err(|e| e.to_string())?;
+        Ok(CdjExportReport {
+            tracks: count_u32(report.tracks),
+            tracks_reused: count_u32(report.tracks_reused),
+            playlists: count_u32(report.playlists),
+            folders: count_u32(report.folders),
+            bytes_copied: report.bytes_copied,
+            errors: report.errors,
+            warnings: report.warnings,
         })
     }
 

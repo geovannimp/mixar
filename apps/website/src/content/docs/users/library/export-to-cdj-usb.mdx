@@ -1,0 +1,121 @@
+---
+title: "Export to a CDJ USB drive"
+description: "Write playlists and folder collections to a USB drive that Pioneer CDJ/XDJ players read natively, without rekordbox."
+section: "Library"
+order: 2
+---
+
+Mixar can write your playlists and folder collections to a USB drive in the layout Pioneer
+players expect, so you can plug the drive straight into a CDJ/XDJ and browse your own sets —
+no rekordbox installation involved.
+
+The drive keeps working with rekordbox too: what Mixar writes is the same arrangement
+rekordbox exports (a device database plus per-track analysis files next to the audio).
+
+## What you need
+
+- A USB drive (or any folder, for a dry run) with room for the tracks you select.
+- For playback on hardware, the drive must be formatted **FAT32 or exFAT** — that is the
+  players' requirement, not Mixar's.
+- Your music and playlists in the [library](/docs/users/library).
+
+## Exporting
+
+1. Plug in the drive (or pick any folder, for a dry run).
+2. Open the collection you want on the drive and use the **⋮** menu at the top right
+   of its track list → **Export to CDJ USB…**. The collection you have open is the one
+   that gets written, so repeat this for every playlist or folder collection you want
+   on the drive.
+3. In the dialog, set **Destination** to the drive's mount point: type the path, or press
+   **Browse…** to pick it in your system's own folder chooser. The dialog names the
+   collection it is about to write.
+4. Leave **Override files already on the drive** unchecked unless you want a full rewrite:
+   with it off, a file already on the drive with the same name and size is reused as is.
+5. Press **Export**. While it runs the dialog shows **Exporting…**, then a toast
+   summarises the result — for example *Exported 42 tracks, 3 reused, 1 playlist,
+   1.2 GB copied*. If anything was skipped or dropped, that toast becomes a
+   warning (with the count and the first few details) or an error toast instead.
+
+A big export takes a while: every track in the collection is copied and its analysis is
+computed while the export runs. You can keep browsing the library meanwhile — the export holds the
+library only for short moments, not for the whole run.
+
+## What lands on the drive
+
+```text
+<drive>/
+  Contents/<Artist>/<Album>/<file>     audio files
+  PIONEER/Artwork/<id>/a1.jpg          cover thumbnails
+  PIONEER/rekordbox/export.pdb         tracks + playlists
+  PIONEER/rekordbox/mixar-export.json  what Mixar has already put on the drive
+  PIONEER/USBANLZ/<hash>/ANLZ0000.DAT  beat grid, waveforms, cues
+  PIONEER/USBANLZ/<hash>/ANLZ0000.EXT
+```
+
+| Part | What it gives the player |
+| --- | --- |
+| `Contents/…` | The audio. Tracks are named after artist and album (sanitized for FAT32). |
+| `Artwork/…` | The cover each track shows in the browse list. Covers come from the artwork embedded in your files, scaled down; an album's cover is stored once however many of its tracks you export. |
+| `export.pdb` | The track list, its metadata, and every playlist you exported. |
+| `mixar-export.json` | Mixar's own note of what it has written, so later exports add to the drive instead of replacing it. Players ignore the file. |
+| `USBANLZ/…` | Beat grids, the rolling waveform, hot cues, memory cues and saved loops. |
+
+- A **folder collection** is reproduced as a real directory tree under
+  `Contents/<folder name>/…`, so the files stay organised the way they are on your disk, and it
+  also becomes a **playlist** of the same name — you can reach it from the player's playlist
+  browser rather than by walking the file tree.
+- Every **playlist** you export becomes a playlist on the player, in its stored order.
+- Tracks that share an artist/album keep sharing one directory; a name that would collide gets
+  a ` (2)` suffix, so no track is ever overwritten by another.
+
+## Re-exporting
+
+Exports **add to** the drive. Each run rewrites the player's database from everything Mixar put
+there before plus the collection you just selected, so exporting playlist by playlist builds one
+library on the drive instead of each run replacing the last.
+
+- Nothing is deleted: audio, covers and analysis files from earlier exports (or from rekordbox)
+  stay on the drive. A collection you stop exporting also stays in the player's database — it is
+  no longer written, but nothing removes it. Format the drive, or delete
+  `PIONEER/rekordbox/export.pdb` and `PIONEER/rekordbox/mixar-export.json` together, for a clean
+  start.
+- With **Override files already on the drive** unchecked, a track whose on-drive name and size
+  already match is left alone, and its analysis files are reused when they already exist. Tick
+  it to write everything again.
+- If something other than Mixar rewrites the database on the drive — rekordbox, or another tool
+  — Mixar notices on the next export, says so in a warning, and rebuilds the database from the
+  collection you selected. The tracks and files already on the drive are kept. The same happens
+  to a drive rekordbox built: its database is replaced (with a warning) by the one for what you
+  export, while the audio already on the drive is left alone.
+
+## What is not exported
+
+These have no destination in the device format, so exports leave them behind:
+
+- The rating/year/comment/colour-label fields rekordbox keeps per track (Mixar's library has
+  no place to set them yet).
+- **Play history**, My Tags, stems, and sampler banks.
+- The newer **OneLibrary** format and `.2EX` 3-band waveforms. Newer players (CDJ-3000X,
+  XDJ-AZ, OPUS-QUAD) read the format Mixar writes; they just draw lower-resolution waveforms
+  from it.
+- Covers only travel if the file carries one: a track whose audio has no embedded artwork
+  shows no cover on the player.
+
+## If something looks wrong
+
+| Symptom | Likely cause |
+| --- | --- |
+| The player says no database / shows nothing | The drive is not FAT32 or exFAT, or `PIONEER/rekordbox/export.pdb` is missing — re-export to the drive root. |
+| A track plays but shows no waveform | It had no analysis data when it was exported. The player analyzes it on first load; re-export after analyzing it in Mixar to get the waveform immediately. |
+| The export toast counts fewer tracks than the collection holds | Some tracks could not be written — the toast's error list names them (usually a file that moved or was deleted since it was imported). |
+| A stale track or playlist is still on the player | Nothing is deleted on re-export; remove it in Mixar and format the drive for a clean start. |
+
+<Callout type="note" title="First release">
+This exporter is new. The files it writes are checked by re-reading them with an independent
+parser of the same formats, and the fixed parts of the database match what rekordbox writes
+byte for byte — but it has not yet been verified on physical CDJ/XDJ hardware. If a player
+rejects a drive that checks out against the table above, please report it.
+</Callout>
+
+Internals — the layout rules, the database and analysis writers, and how the drive is verified:
+[CDJ USB export (developers)](/docs/developers/library/cdj-usb-export).

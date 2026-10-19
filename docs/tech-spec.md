@@ -365,8 +365,24 @@ library-adapters/   # third-party formats (modules / features over time)
 | `WritableLibrary` | `add_collection` / `sync_collection`; edit playlist membership; set `sortable` |
 | `Migratable` | Copy tracks + collections into a `WritableLibrary` (typically native) |
 | `Exportable` | Write a target format (Rekordbox XML, CDJ USB layout, M3U, …) from a `Library` |
+| `ExportSource` | Analysis/waveform/cue access a format needs beyond `Library`; implemented by `LibraryManager` |
 
-`library` (`LibraryManager`) implements `Library` + `WritableLibrary`. Persistence is an implementation detail of that crate. Adapters in `library-adapters` implement `Library` + `Migratable`, and optionally `Exportable` / limited write-back. Migration always targets the **user’s one library**, not a second parallel manager.
+`library` (`LibraryManager`) implements `Library` + `WritableLibrary` and
+`ExportSource`. Persistence is an implementation detail of that crate. Adapters
+in `library-adapters` implement `Library` + `Migratable`, and optionally
+`Exportable` / limited write-back. Migration always targets the **user’s one
+library**, not a second parallel manager.
+
+Shipped: the Mixxx importer ([#57](https://github.com/geovannimp/mixar/issues/57))
+and the CDJ/XDJ USB exporter ([#452](https://github.com/geovannimp/mixar/issues/452),
+`library-adapters::CdjExporter`): DeviceSQL `export.pdb` (tracks, playlists, artwork
+rows) plus ANLZ analysis files and cover thumbnails under `PIONEER/`, audio below
+`Contents/`. Hosts hand the exporter
+`library::ExportSession`, which holds the manager lock only for database reads
+and decode-cache access — decode, DSP and cover encoding run without it — so
+browsing stays responsive during a long run. Format details, placement rules and
+the fidelity list live in
+[`library-adapters/README.md`](../crates/library-adapters/README.md).
 
 ```text
 External format          User library manager            External format

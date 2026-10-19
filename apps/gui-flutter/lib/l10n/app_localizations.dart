@@ -1516,6 +1516,126 @@ abstract class AppLocalizations {
   /// **'{count} updated'**
   String mixxxCountUpdated(int count);
 
+  /// No description provided for @cdjExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to CDJ USB'**
+  String get cdjExportTitle;
+
+  /// No description provided for @cdjExportDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Write playlists and folder collections to a Pioneer CDJ/XDJ USB drive, so players browse them without Rekordbox. Each export adds to what the drive already holds.'**
+  String get cdjExportDescription;
+
+  /// No description provided for @cdjExportDestination.
+  ///
+  /// In en, this message translates to:
+  /// **'Destination'**
+  String get cdjExportDestination;
+
+  /// No description provided for @cdjExportDestinationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'USB drive or folder'**
+  String get cdjExportDestinationHint;
+
+  /// No description provided for @cdjExportDestinationMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a destination drive or folder.'**
+  String get cdjExportDestinationMissing;
+
+  /// No description provided for @cdjExportBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse…'**
+  String get cdjExportBrowse;
+
+  /// No description provided for @cdjExportCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'Collection'**
+  String get cdjExportCollection;
+
+  /// No description provided for @cdjExportOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'Override files already on the drive'**
+  String get cdjExportOverride;
+
+  /// No description provided for @cdjExportConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get cdjExportConfirmAction;
+
+  /// No description provided for @cdjExporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting…'**
+  String get cdjExporting;
+
+  /// No description provided for @cdjExportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'CDJ USB export failed'**
+  String get cdjExportFailed;
+
+  /// No description provided for @cdjExportFinishedWithErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'CDJ USB export finished with {count} error(s)'**
+  String cdjExportFinishedWithErrors(int count);
+
+  /// No description provided for @cdjExportFinishedWithWarnings.
+  ///
+  /// In en, this message translates to:
+  /// **'CDJ USB export finished with {count} warning(s)'**
+  String cdjExportFinishedWithWarnings(int count);
+
+  /// No description provided for @cdjExportExported.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported {parts}'**
+  String cdjExportExported(String parts);
+
+  /// No description provided for @cdjExportNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to export'**
+  String get cdjExportNothing;
+
+  /// No description provided for @cdjCountTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 track} other{{count} tracks}}'**
+  String cdjCountTracks(int count);
+
+  /// No description provided for @cdjCountReused.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} reused'**
+  String cdjCountReused(int count);
+
+  /// No description provided for @cdjCountPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 playlist} other{{count} playlists}}'**
+  String cdjCountPlaylists(int count);
+
+  /// No description provided for @cdjCountFolders.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 folder} other{{count} folders}}'**
+  String cdjCountFolders(int count);
+
+  /// No description provided for @cdjCountCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} copied'**
+  String cdjCountCopied(String size);
+
   /// No description provided for @settingsStorageStemAlreadyInSync.
   ///
   /// In en, this message translates to:

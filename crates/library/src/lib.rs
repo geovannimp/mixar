@@ -24,6 +24,7 @@ mod db;
 mod deck_data;
 mod decode_cache;
 mod entity;
+mod export;
 mod history;
 mod model;
 mod playback;
@@ -62,6 +63,7 @@ pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
     LoopRecord,
 };
+pub use export::ExportSession;
 pub use history::{
     crossfader_gain, export_document, history_dir_for_db, DeckPlaySnapshot, HistoryDocument,
     HistoryEntry, HistoryExportFormat, HistoryRecorder, HistoryRestorePrompt, HistorySessionRow,
@@ -80,7 +82,7 @@ pub use stems::{
     StemProgressFn, TrackStemsInfo,
 };
 pub use store::TrackMetadataEdit;
-pub use tags::read_artwork;
+pub use tags::{read_artwork, ARTWORK_UI_EDGE_PX};
 pub use waveform::{
     clear_all_track_waveforms, waveform_cache_bytes, BeatGridSnapshot, TrackWaveformOverview,
 };
