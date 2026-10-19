@@ -375,8 +375,9 @@ library**, not a second parallel manager.
 
 Shipped: the Mixxx importer ([#57](https://github.com/geovannimp/mixar/issues/57))
 and the CDJ/XDJ USB exporter ([#452](https://github.com/geovannimp/mixar/issues/452),
-`library-adapters::CdjExporter`): DeviceSQL `export.pdb` plus ANLZ analysis files
-under `PIONEER/`, audio below `Contents/`. Hosts hand the exporter
+`library-adapters::CdjExporter`): DeviceSQL `export.pdb` (tracks, playlists, artwork
+rows) plus ANLZ analysis files and cover thumbnails under `PIONEER/`, audio below
+`Contents/`. Hosts hand the exporter
 `library::LockedExportSource`, which locks the manager per call so browsing stays
 responsive during a long run. Format details, placement rules and the fidelity
 list live in [`library-adapters/README.md`](../crates/library-adapters/README.md).
