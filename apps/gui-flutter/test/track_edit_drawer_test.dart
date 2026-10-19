@@ -199,7 +199,6 @@ void main() {
         path: '/tmp/t1.wav',
       ),
     );
-    addTearDown(fake.dispose);
     await pumpDrawer(tester, fake);
 
     expect(
@@ -218,6 +217,44 @@ void main() {
     final call = fake.updateTrackMetadataCalls.single;
     expect(call.title, 'Edited');
     expect(find.text('Save'), findsNothing, reason: 'drawer popped on save');
+  });
+
+  testWidgets('untouched fields round-trip verbatim', (tester) async {
+    // Stored 124.035 must show as 124.035 (not a rounded form) so an edit to
+    // the title can never commit a BPM the user never saw.
+    final fake = FakeLibraryTransport(
+      getTrackHandler: (id) async => const LibraryTrackSummary(
+        id: 't1',
+        displayName: 'Track',
+        title: 'Track',
+        album: 'Al',
+        genre: 'House',
+        bpm: 124.035,
+        key: 'Am',
+        isrc: 'OLD1',
+        path: '/tmp/t1.wav',
+      ),
+    );
+    await pumpDrawer(tester, fake);
+
+    expect(
+      tester.widget<EditableText>(fieldFor('BPM')).controller.text,
+      '124.035',
+    );
+
+    await tester.enterText(fieldFor('Title'), 'Edited');
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final call = fake.updateTrackMetadataCalls.single;
+    expect(call.title, 'Edited');
+    expect(call.bpm, 124.035, reason: 'stored precision kept');
+    expect(call.album, 'Al');
+    expect(call.genre, 'House');
+    expect(call.key, 'Am');
+    expect(call.isrc, 'OLD1');
+    expect(call.artist, isNull, reason: 'a null stays null');
   });
 
   testWidgets('an invalid key is reported inline', (tester) async {

@@ -87,9 +87,10 @@ class KeyNotationValidator extends FieldValidator<String> {
 /// Modal right-edge drawer editing every user-editable metadata field of a
 /// track. Edits are library-DB only: file tags are not rewritten.
 ///
-/// Blank fields clear the corresponding column (the Rust write path treats
-/// blank as `None`). Send the full field set on every save — the store
-/// replaces all seven columns.
+/// The store is a full replacement of the seven metadata columns, so a blank
+/// field clears the stored value and untouched fields are sent back verbatim
+/// (see `_TrackEditPanel.save`) — an edit never rewrites a field the user did
+/// not touch.
 Future<void> showTrackEditDrawer(
   BuildContext context,
   WidgetRef ref, {
@@ -97,14 +98,19 @@ Future<void> showTrackEditDrawer(
 }) async {
   try {
     final transport = await ref.read(libraryTransportProvider.future);
+    // `ref` belongs to the caller's element, so it may only be used while that
+    // element is mounted — check before every await resumes.
+    if (!context.mounted) {
+      return;
+    }
     final track = await transport.getTrack(trackId: trackId);
+    if (!context.mounted) {
+      return;
+    }
     if (track == null) {
       ref
           .read(appNoticeProvider.notifier)
           .setError('Track no longer exists in the library');
-      return;
-    }
-    if (!context.mounted) {
       return;
     }
     await showGeneralDialog<void>(
@@ -136,7 +142,10 @@ Future<void> showTrackEditDrawer(
       },
     );
   } on Object catch (e) {
-    ref.read(appNoticeProvider.notifier).setError('$e');
+    // Same channel as the rest of the shell: AppNoticeBridge toasts it.
+    if (context.mounted) {
+      ref.read(appNoticeProvider.notifier).setError('$e');
+    }
   }
 }
 
@@ -157,8 +166,6 @@ class _TrackEditPanel extends HookConsumerWidget {
     final title = track.title ?? track.displayName;
     final artist = track.artist;
 
-    // Seeded from the row; the form's own change tracking drives Save
-    // enablement, so reverting a field disables it again.
     final form = useForm<TrackFormField>(
       initialValues: {
         TrackFormField.title: track.title ?? '',
@@ -171,13 +178,17 @@ class _TrackEditPanel extends HookConsumerWidget {
       },
     );
 
-    // Rebuild on any field change so Save reflects the live dirty state.
     final canSave = form.listen(
       TrackFormField.values.toSet(),
       (get) => form.hasChanged,
     );
-
     final saving = useState(false);
+    final dismissed = useRef(false);
+    useEffect(
+      () =>
+          () => dismissed.value = true,
+      [],
+    );
 
     Future<void> save() async {
       if (saving.value) {
@@ -193,29 +204,49 @@ class _TrackEditPanel extends HookConsumerWidget {
           return;
         }
       }
+      // Captured before the await: after it, `context`/`ref` may be unusable.
+      final navigator = Navigator.of(context);
+      final route = ModalRoute.of(context);
+      // A field the user never touched writes back exactly what was loaded,
+      // so an edit cannot rewrite or clear it (and an untouched BPM keeps its
+      // stored precision instead of being re-parsed from the prefill text).
+      String? edited(TrackFormField f, String? stored) =>
+          form.isDirty({f}) ? form.getValue<String>(f) : stored;
       saving.value = true;
       try {
         // Raw strings: trimming and key normalization happen Rust-side.
         await transport.updateTrackMetadata(
           trackId: trackId,
-          title: form.getValue(TrackFormField.title),
-          artist: form.getValue(TrackFormField.artist),
-          album: form.getValue(TrackFormField.album),
-          genre: form.getValue(TrackFormField.genre),
-          bpm: parseBpm(form.getValue(TrackFormField.bpm)),
-          key: form.getValue(TrackFormField.key),
-          isrc: form.getValue(TrackFormField.isrc),
+          title: edited(TrackFormField.title, track.title),
+          artist: edited(TrackFormField.artist, track.artist),
+          album: edited(TrackFormField.album, track.album),
+          genre: edited(TrackFormField.genre, track.genre),
+          bpm: form.isDirty({TrackFormField.bpm})
+              ? parseBpm(form.getValue(TrackFormField.bpm))
+              : track.bpm,
+          key: edited(TrackFormField.key, track.key),
+          isrc: edited(TrackFormField.isrc, track.isrc),
         );
+        if (dismissed.value) {
+          return;
+        }
         ref
           ..invalidate(collectionTracksProvider)
           ..invalidate(driveResolvedByPathProvider);
-        if (context.mounted) {
-          Navigator.of(context).pop();
+        // A dismissed route is still `mounted` while it animates out, so
+        // `isCurrent` — not `context.mounted` — is the guard that stops a
+        // second pop from taking the route underneath the drawer.
+        if (route == null || route.isCurrent) {
+          navigator.pop();
         }
       } on Object catch (e) {
-        ref.read(appNoticeProvider.notifier).setError('$e');
+        if (!dismissed.value) {
+          ref.read(appNoticeProvider.notifier).setError('$e');
+        }
       } finally {
-        saving.value = false;
+        if (!dismissed.value) {
+          saving.value = false;
+        }
       }
     }
 
@@ -278,27 +309,27 @@ class _TrackEditPanel extends HookConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _field('Title', TrackFormField.title),
+                    _buildField('Title', TrackFormField.title),
                     const SizedBox(height: 12),
-                    _field('Artist', TrackFormField.artist),
+                    _buildField('Artist', TrackFormField.artist),
                     const SizedBox(height: 12),
-                    _field('Album', TrackFormField.album),
+                    _buildField('Album', TrackFormField.album),
                     const SizedBox(height: 12),
-                    _field('Genre', TrackFormField.genre),
+                    _buildField('Genre', TrackFormField.genre),
                     const SizedBox(height: 12),
-                    _field(
+                    _buildField(
                       'BPM',
                       TrackFormField.bpm,
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 12),
-                    _field(
+                    _buildField(
                       'Key',
                       TrackFormField.key,
                       hint: 'e.g. Am, or Camelot 8A',
                     ),
                     const SizedBox(height: 12),
-                    _field(
+                    _buildField(
                       'ISRC',
                       TrackFormField.isrc,
                       hint: 'International Standard Recording Code',
@@ -322,7 +353,7 @@ class _TrackEditPanel extends HookConsumerWidget {
     );
   }
 
-  Widget _field(
+  Widget _buildField(
     String label,
     TrackFormField field, {
     String? hint,
@@ -342,15 +373,21 @@ class _TrackEditPanel extends HookConsumerWidget {
     );
   }
 
-  /// `128.0` renders as `128`; fractional BPMs keep their decimals.
-  /// Fixed-point format avoids scientific notation for extreme values.
+  /// `128.0` renders as `128`; everything else renders as its shortest exact
+  /// text, so a stored `124.035` shows as `124.035` and round-trips through
+  /// the field without being committed as a rounded value. Extreme magnitudes
+  /// fall back to fixed-point (never scientific) — `double.tryParse` reads
+  /// both forms, and neither can throw on a non-finite input here.
   static String _formatBpm(double? bpm) {
-    if (bpm == null) {
+    if (bpm == null || !bpm.isFinite) {
       return '';
     }
     if (bpm == bpm.roundToDouble()) {
       return bpm.round().toString();
     }
-    return bpm.toStringAsFixed(2);
+    final shortest = bpm.toString();
+    return shortest.contains('e') || shortest.contains('E')
+        ? bpm.toStringAsFixed(12)
+        : shortest;
   }
 }

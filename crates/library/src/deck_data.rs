@@ -190,9 +190,10 @@ impl LibraryManager {
     /// Overwrite the user-editable metadata of a track in the library DB.
     ///
     /// Strings are trimmed and blanked to `None`; `key` is normalized to
-    /// musical notation (Camelot/Open Key input is accepted). `bpm` must be
-    /// finite and positive — an invalid non-`None` value returns an error
-    /// rather than silently clearing the column. Unknown track ids are a no-op.
+    /// musical notation (Camelot/Open Key input is accepted). An invalid
+    /// non-`None` `bpm` returns an error rather than silently clearing the
+    /// column (enforced by [`Store::update_track_metadata`], which owns the
+    /// column invariant). Unknown track ids are a no-op.
     #[allow(clippy::too_many_arguments)]
     pub fn update_track_metadata(
         &self,
@@ -205,15 +206,6 @@ impl LibraryManager {
         key: Option<String>,
         isrc: Option<String>,
     ) -> Result<()> {
-        let bpm = match bpm {
-            Some(v) if !v.is_finite() || v <= 0.0 => {
-                return Err(LibraryError::Backend {
-                    backend: "library",
-                    message: format!("invalid BPM: {v}"),
-                });
-            }
-            other => other,
-        };
         self.store().update_track_metadata(
             track_id,
             normalize_optional_text(title),

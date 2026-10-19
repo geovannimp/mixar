@@ -209,6 +209,20 @@ impl<'a> Store<'a> {
         else {
             return Ok(());
         };
+        // The column owns the invariant: an invalid BPM cannot be introduced.
+        // Re-persisting a value that is already stored (the untouched field of
+        // a full-replacement write) passes, so an unrelated edit never has to
+        // clear a column to satisfy the invariant.
+        if let Some(v) = bpm {
+            let invalid = !v.is_finite() || v <= 0.0;
+            let unchanged = row.bpm.is_some_and(|old| old.to_bits() == v.to_bits());
+            if invalid && !unchanged {
+                return Err(library_core::LibraryError::Backend {
+                    backend: "library",
+                    message: format!("invalid BPM: {v}"),
+                });
+            }
+        }
         let mut active: tracks::ActiveModel = row.into();
         active.title = Set(title);
         active.artist = Set(artist);
@@ -744,5 +758,52 @@ mod tests {
             .unwrap();
 
         assert!(store.get_track(&id).unwrap().is_none(), "no phantom row");
+    }
+
+    #[test]
+    fn update_track_metadata_round_trips_stored_invalid_bpm_but_rejects_new() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/corrupt.wav");
+        // A malformed file tag can have put a non-positive BPM in the column.
+        let meta = TrackMetadata {
+            bpm: Some(-4.0),
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(&id, Path::new("/music/corrupt.wav"), &meta, "1")
+            .unwrap();
+
+        // Re-persisting the value that is already stored passes, so editing an
+        // unrelated field neither fails nor clears the untouched column.
+        store
+            .update_track_metadata(
+                &id,
+                Some("Edited".into()),
+                None,
+                None,
+                None,
+                Some(-4.0),
+                None,
+                None,
+                "2",
+            )
+            .unwrap();
+        let fetched = store.get_track(&id).unwrap().unwrap();
+        assert_eq!(
+            fetched.metadata().bpm,
+            Some(-4.0),
+            "unchanged corrupt value round-trips instead of being cleared"
+        );
+        assert_eq!(fetched.metadata().title.as_deref(), Some("Edited"));
+
+        // Introducing an invalid value is rejected by the column owner.
+        let err = store
+            .update_track_metadata(&id, None, None, None, None, Some(0.0), None, None, "3")
+            .expect_err("a newly supplied invalid BPM must be rejected");
+        assert!(
+            format!("{err}").contains("invalid BPM"),
+            "unexpected error: {err}"
+        );
     }
 }

@@ -7,6 +7,21 @@ typedef GetTrackHandler = Future<LibraryTrackSummary?> Function(String trackId);
 typedef ListCollectionEntriesHandler =
     Future<List<LibraryTrackSummary>> Function(String collectionId);
 
+/// One recorded `LibraryTransport.updateTrackMetadata` call.
+///
+/// Mirrors the transport signature, so a parameter change to the method (or
+/// to this record) is a compile error at the call sites instead of drift.
+typedef UpdateTrackMetadataCall = ({
+  String trackId,
+  String? title,
+  String? artist,
+  String? album,
+  String? genre,
+  double? bpm,
+  String? key,
+  String? isrc,
+});
+
 /// Minimal [LibraryTransport] fake: override getTrack / list / events as needed.
 class FakeLibraryTransport implements LibraryTransport {
   FakeLibraryTransport({
@@ -24,19 +39,7 @@ class FakeLibraryTransport implements LibraryTransport {
   final StreamController<LibraryEvt> _events;
   final List<String> getTrackCalls = [];
   final List<String> listCollectionEntriesCalls = [];
-  final List<
-    ({
-      String trackId,
-      String? title,
-      String? artist,
-      String? album,
-      String? genre,
-      double? bpm,
-      String? key,
-      String? isrc,
-    })
-  >
-  updateTrackMetadataCalls = [];
+  final List<UpdateTrackMetadataCall> updateTrackMetadataCalls = [];
   int outstandingGetTracks = 0;
   int maxOutstandingGetTracks = 0;
   var _disposed = false;

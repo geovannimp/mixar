@@ -123,14 +123,22 @@ class MixarInput extends StatelessWidget {
     );
   }
 
-  /// Borderless fields stay flat; an error state merges into the existing
-  /// decoration so the invalid field still reads as invalid without losing
-  /// the caller's border intent.
+  /// Decoration for the current field state.
+  ///
+  /// - No error: `null` for a normal field (the theme's input decoration is
+  ///   merged in by `ShadInput` itself), `ShadDecoration.none` when borderless
+  ///   — so nothing about a caller's border intent is ever replaced wholesale.
+  /// - Error: only the `hasError` flag is merged on, which makes `ShadInput`
+  ///   paint its error border on a normal field. A borderless field keeps
+  ///   `ShadBorder.none` (`none.canMerge` is false, so it wins the merge and
+  ///   stays flat): its invalid state reads through the red label and the
+  ///   message [MixarInput] renders below, not through a border.
   ShadDecoration? _decoration() {
     if (errorText == null) {
       return borderless ? ShadDecoration.none : null;
     }
-    final base = borderless ? ShadDecoration.none : const ShadDecoration();
-    return base.merge(const ShadDecoration(hasError: true));
+    return borderless
+        ? ShadDecoration.none.merge(const ShadDecoration(hasError: true))
+        : const ShadDecoration(hasError: true);
   }
 }
