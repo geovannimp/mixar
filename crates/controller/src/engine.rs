@@ -14,7 +14,7 @@ use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
-use engine_api::PadMode;
+use engine_api::{FxSlotState, PadMode};
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -333,6 +333,8 @@ pub struct ControllerEngine {
     /// attached session so a hot-plugged controller starts in sync.
     deck_feedback: [DeckFeedback; 4],
     master_cue: bool,
+    /// Shared Beat FX unit slot 0 (engine boot state until the host mirrors).
+    fx: FxSlotState,
 }
 
 impl ControllerEngine {
@@ -364,6 +366,7 @@ impl ControllerEngine {
             attached: HashMap::new(),
             deck_feedback: [DeckFeedback::default(); 4],
             master_cue: false,
+            fx: FxSlotState::boot(),
         };
         this.ensure_seeded()?;
         Ok(this)
@@ -807,6 +810,7 @@ impl ControllerEngine {
                 session.set_deck_feedback(i as u16, fb, &mut sink);
             }
             session.set_master_cue(self.master_cue, &mut sink);
+            session.set_fx_state(&self.fx, &mut sink);
         }
         self.suppressed_ports.remove(&port_name);
         self.attached.insert(
@@ -983,6 +987,13 @@ impl ControllerEngine {
         self.for_each_attached_sink(|session, sink| {
             session.set_master_cue(enabled, sink);
         });
+    }
+
+    /// Mirror the shared Beat FX unit slot 0 (ON/OFF LED + soft-takeover anchor).
+    pub fn set_fx_state(&mut self, fx: FxSlotState) {
+        self.fx = fx;
+        let state = self.fx.clone();
+        self.for_each_attached_sink(|session, sink| session.set_fx_state(&state, sink));
     }
 
     pub fn on_deck_playing(&mut self, deck: u16, playing: bool) {

@@ -12,20 +12,23 @@ import 'package:gui_flutter/widgets/mixer/fx_bar.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
 /// Echo as the engine publishes it; `divisionNorm` is param 0 (0 = 1/16 … 1 = 2/1).
-FxSlotChrome echoSlot({bool enabled = false, double divisionNorm = 0.5}) =>
-    FxSlotChrome(
-      kind: FxKind.echo,
-      enabled: enabled,
-      wet: 0.5,
-      params: Float32List.fromList([divisionNorm, 0.5, 0.0]),
-    );
+FxSlotChrome echoSlot({
+  bool enabled = false,
+  double wet = 0.5,
+  double divisionNorm = 0.5,
+}) => FxSlotChrome(
+  kind: FxKind.echo,
+  enabled: enabled,
+  wet: wet,
+  params: Float32List.fromList([divisionNorm, 0.5, 0.0]),
+);
 
 FxSlotChrome reverbSlot() => FxSlotChrome(
   kind: FxKind.reverb,
@@ -273,6 +276,34 @@ void main() {
     expect(engine.fxUnitWets, hasLength(1));
     expect(engine.fxUnitWets.single.$1, 0, reason: 'slot');
     expect(engine.fxUnitWets.single.$2, greaterThan(0.5));
+  });
+
+  testWidgets('an engine echo moves the LEVEL thumb', (tester) async {
+    final harness = await pumpBar(tester, fxSlots: [echoSlot(wet: 0.2)]);
+    ShadSlider levelSlider() =>
+        tester.widget<ShadSlider>(find.byType(ShadSlider));
+
+    expect(levelSlider().controller!.value, closeTo(0.2, 1e-6));
+
+    // A hardware knob reaches the app as a DeckUpdated echo. The thumb must
+    // follow it; ShadSlider alone ignores external value changes.
+    harness.container
+        .read(engineUiProvider.notifier)
+        .apply(
+          EngineEvt(
+            kind: EngineEvtKind.updated,
+            deckId: 0,
+            fx: [echoSlot(wet: 0.9)],
+            fxRouted: true,
+          ),
+        );
+    await tester.pumpAndSettle();
+
+    expect(
+      levelSlider().controller!.value,
+      closeTo(0.9, 1e-6),
+      reason: 'the LEVEL thumb must mirror the engine value',
+    );
   });
 
   testWidgets('a stopped engine leaves the strip inert', (tester) async {

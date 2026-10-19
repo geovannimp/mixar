@@ -11,8 +11,8 @@ use controller::{
     HOT_CUE_SLOT_COUNT, LOOP_SLOT_COUNT,
 };
 use engine_api::{
-    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, DeckSavedLoop, EvtBody, Kind, Origin,
-    SyncMode,
+    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, DeckSavedLoop, EvtBody, FxSlotState,
+    Kind, Origin, SyncMode,
 };
 use engine_core::EngineBuses;
 use library::LibraryBuses;
@@ -489,6 +489,20 @@ fn apply_keyboard_root(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, slot: u8) 
     ctrl.set_deck_keyboard_root(deck, slot);
 }
 
+/// Mirror the shared FX unit onto the attached controller.
+///
+/// The unit is shared, so every deck reports the same slots: the first
+/// non-empty list is canonical (deck 0).
+fn apply_fx_slots(eng: &Arc<Mutex<ControllerEngine>>, fx: &[FxSlotState]) {
+    let Some(slot) = fx.first() else {
+        return;
+    };
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_fx_state(slot.clone());
+}
+
 fn apply_position(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, position_ms: i32) {
     let Ok(mut ctrl) = eng.lock() else {
         return;
@@ -554,6 +568,7 @@ fn apply_engine_mirror(
             position_ms,
             hot_cues,
             saved_loops,
+            fx,
             ..
         } => {
             let idx = (id as usize).min(3);
@@ -585,6 +600,7 @@ fn apply_engine_mirror(
             if let Some(ms) = position_ms {
                 apply_position(controller, id, ms);
             }
+            apply_fx_slots(controller, &fx);
         }
         EvtBody::Position { position_ms, .. } => {
             let Origin::Deck(id) = ev.origin().clone() else {
@@ -631,6 +647,9 @@ fn apply_engine_mirror(
                 }
             }
             apply_master_feedback(controller, status.master_cue);
+            if let Some(deck) = status.decks.first() {
+                apply_fx_slots(controller, &deck.fx);
+            }
         }
         _ => {}
     }

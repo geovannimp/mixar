@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 pub const FX_SLOT_COUNT: usize = 3;
 /// Maximum knobs per effect; keep in sync with `engine_dsp::fx::FX_PARAM_COUNT`.
 pub const FX_PARAM_COUNT: usize = 3;
+/// Beat/division steps for Echo `param 0`; mirrors
+/// `engine_dsp::fx::echo::ECHO_DIVISIONS.len()` (normalized value = index / (count - 1)).
+pub const FX_DIVISION_COUNT: usize = 7;
 
 /// Which EQ band a single-band set targets (MIDI soft-takeover).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,6 +44,22 @@ pub struct FxSlotState {
     pub wet: f32,
     /// Normalized knob positions `0..1` for [`Self::kind`]; unused entries `0.0`.
     pub params: [f32; FX_PARAM_COUNT],
+}
+
+impl FxSlotState {
+    /// Slot state the engine boots with: Echo loaded, unarmed, `1/2` beat.
+    ///
+    /// Mirrors `engine_dsp::fx::FxChain::new`; `engine-core` pins the two
+    /// together in `tests/wire_constants.rs`, so a changed DSP default fails
+    /// that test instead of drifting from what controllers mirror at boot.
+    pub fn boot() -> Self {
+        Self {
+            kind: FxKind::Echo,
+            enabled: false,
+            wet: 0.5,
+            params: [0.5, 0.5, 0.0],
+        }
+    }
 }
 
 impl Default for FxSlotState {
@@ -503,6 +522,8 @@ pub enum CmdBody {
     SetFxUnitWet {
         slot: u8,
         wet: f32,
+        /// Absolute-control gate (MIDI knobs); `false` hard-sets and clears the latch.
+        soft_takeover: bool,
     },
     /// FX unit slot `slot` knob `param` (`0..=2`), normalized `0..1`.
     SetFxUnitParam {

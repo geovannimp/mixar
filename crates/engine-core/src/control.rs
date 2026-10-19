@@ -591,10 +591,7 @@ fn dispatch_deck_cmd(
                 .deck_strip_norms(deck_id)
                 .map(|s| s.volume)
                 .unwrap_or(0.0);
-            if !eng
-                .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, volume)
-            {
+            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, volume) {
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_deck_volume(deck_id, volume)?;
@@ -1096,6 +1093,21 @@ fn dispatch_assign_sampler_track(
     })
 }
 
+/// Shared soft-takeover gate for mixer-origin absolute controls.
+///
+/// Adopt-first when unseen, then block until the control catches up; keeping
+/// the policy in one place stops a new mixer knob from drifting from the rest.
+fn gate_mixer_soft_takeover(
+    eng: &mut Engine,
+    key: &str,
+    soft_takeover: bool,
+    current: f32,
+    requested: f32,
+) -> bool {
+    eng.soft_takeover_mut()
+        .allow(key, soft_takeover, current, requested)
+}
+
 fn dispatch_mixer_cmd(
     kind: Kind,
     payload: &[u8],
@@ -1112,10 +1124,7 @@ fn dispatch_mixer_cmd(
             };
             let key = soft_takeover::key_mixer("crossfader");
             let current = eng.crossfader().unwrap_or(0.5);
-            if !eng
-                .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, position)
-            {
+            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, position) {
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_crossfader(position)?;
@@ -1131,10 +1140,7 @@ fn dispatch_mixer_cmd(
             };
             let key = soft_takeover::key_mixer("master_volume");
             let current = eng.master_volume().unwrap_or(1.0);
-            if !eng
-                .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, volume)
-            {
+            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, volume) {
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_master_volume(volume)?;
@@ -1150,10 +1156,7 @@ fn dispatch_mixer_cmd(
             };
             let key = soft_takeover::key_mixer("cue_volume");
             let current = eng.cue_volume().unwrap_or(1.0);
-            if !eng
-                .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, volume)
-            {
+            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, volume) {
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_cue_volume(volume)?;
@@ -1166,10 +1169,7 @@ fn dispatch_mixer_cmd(
             };
             let key = soft_takeover::key_mixer("cue_mix");
             let current = eng.cue_mix().unwrap_or(0.5);
-            if !eng
-                .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, mix)
-            {
+            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, mix) {
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_cue_mix(mix)?;
@@ -1205,9 +1205,19 @@ fn dispatch_mixer_cmd(
             Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
         }
         Kind::SetFxUnitWet => {
-            let CmdBody::SetFxUnitWet { slot, wet } = decode_cmd_body_for(kind, payload)? else {
+            let CmdBody::SetFxUnitWet {
+                slot,
+                wet,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
                 unreachable!()
             };
+            let key = soft_takeover::key_mixer(&format!("fx_wet{slot}"));
+            let current = eng.fx_unit_wet(slot).unwrap_or(0.5);
+            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, wet) {
+                return Ok(CmdOutcome::Silent);
+            }
             eng.set_fx_unit_wet(slot, wet)?;
             Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
         }

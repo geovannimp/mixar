@@ -8,7 +8,7 @@ use std::thread;
 use std::time::Duration;
 
 use controller::{DeckFeedback, MappingSession, MidiOut, BLINK_HALF_PERIOD};
-use engine_api::{CmdBody, Kind, Origin, PadMode};
+use engine_api::{CmdBody, FxKind, FxSlotState, Kind, Origin, PadMode};
 
 /// Deck 1 button channel, pad channels, master channel, beat-FX channel.
 const D1: u8 = 0x90;
@@ -18,6 +18,7 @@ const PAD1_SHIFT: u8 = 0x98;
 const PAD2: u8 = 0x99;
 const PAD2_SHIFT: u8 = 0x9A;
 const MASTER: u8 = 0x96;
+const BEATFX: u8 = 0x94;
 
 struct CaptureMidi {
     frames: Vec<Vec<u8>>,
@@ -407,6 +408,36 @@ fn sync_lamp_lights_when_deck_is_sync_master() {
     assert!(
         sorted(&midi).contains(&[D1, 0x58, 0x7F]),
         "SYNC lamp must light for the master / synced deck"
+    );
+}
+
+/// Beat FX slot 0 as the host mirrors it (armed or not).
+fn fx(enabled: bool) -> FxSlotState {
+    FxSlotState {
+        kind: FxKind::Echo,
+        enabled,
+        wet: 0.5,
+        params: [0.5, 0.5, 0.0],
+    }
+}
+
+#[test]
+fn beat_fx_on_lamp_follows_the_shared_unit() {
+    let (mut s, mut midi) = attached();
+
+    s.set_fx_state(&fx(true), &mut midi);
+    assert_eq!(
+        sorted(&midi),
+        sorted_of(&[[BEATFX, 0x47, 0x7F], [BEATFX, 0x43, 0x7F]]),
+        "arming the unit lights both ON/OFF lamp banks"
+    );
+
+    midi.frames.clear();
+    s.set_fx_state(&fx(false), &mut midi);
+    assert_eq!(
+        sorted(&midi),
+        sorted_of(&[[BEATFX, 0x47, 0x00], [BEATFX, 0x43, 0x00]]),
+        "disarming must dark both lamp banks"
     );
 }
 

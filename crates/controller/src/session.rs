@@ -4,8 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use engine_api::{
-    key_shift_page_action, keyboard_page_action, CmdBody, Kind, Origin, PadMode, PitchPadAction,
-    KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
+    key_shift_page_action, keyboard_page_action, CmdBody, FxSlotState, Kind, Origin, PadMode,
+    PitchPadAction, KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
 };
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
@@ -93,6 +93,13 @@ pub struct MappingSession {
     playing_decks: [bool; 4],
     /// Last CC publish time per "section.alias".
     cc_last: HashMap<String, Instant>,
+    /// Last absolute value published per `<section>.<alias>|<action>`.
+    ///
+    /// The DDJ-400 answers the idle heartbeat's position query with a full dump
+    /// every second, so unchanged absolute positions arrive continuously. Republishing
+    /// them would fight the UI sliders (a hard set would be reverted within a second)
+    /// and burn bus traffic, so identical values are dropped.
+    cc_last_value: HashMap<String, f32>,
     /// Latest CC not yet published (rate-limited); flushed by [`Self::flush_coalesced`].
     cc_pending: HashMap<String, PendingCc>,
     /// 14-bit CC pair state: "section.alias" → (msb, lsb).
@@ -131,6 +138,7 @@ impl MappingSession {
             modifiers: HashSet::new(),
             playing_decks: [false; 4],
             cc_last: HashMap::new(),
+            cc_last_value: HashMap::new(),
             cc_pending: HashMap::new(),
             cc14_state: HashMap::new(),
             note_state: HashMap::new(),
@@ -294,6 +302,15 @@ impl MappingSession {
     /// Mirror mixer state (MASTER CUE LED).
     pub fn set_master_cue(&mut self, enabled: bool, midi: &mut impl MidiOut) {
         self.snapshot.master_cue = enabled;
+        self.refresh_leds(crate::device::SECTION_MASTER, midi);
+    }
+
+    /// Mirror the shared Beat FX unit slot (host `DeckUpdated` / attach replay).
+    pub fn set_fx_state(&mut self, fx: &FxSlotState, midi: &mut impl MidiOut) {
+        if self.snapshot.fx == *fx {
+            return;
+        }
+        self.snapshot.fx = fx.clone();
         self.refresh_leds(crate::device::SECTION_MASTER, midi);
     }
 
@@ -651,6 +668,14 @@ impl MappingSession {
         };
 
         if is_cc {
+            if let ControlValue::Absolute(norm) = value {
+                let dedupe_key = format!("{key}|{action}");
+                if self.cc_last_value.get(&dedupe_key) == Some(&norm) {
+                    self.cc_last.insert(key.to_string(), Instant::now());
+                    return (true, None);
+                }
+                self.cc_last_value.insert(dedupe_key, norm);
+            }
             self.cc_last.insert(key.to_string(), Instant::now());
         }
         match &routed {
@@ -659,14 +684,31 @@ impl MappingSession {
                 kind,
                 body,
             } => {
-                self.mirror_engine_cmd(o.clone(), kind, body, midi);
-                bus.publish_engine(o.clone(), kind.clone(), body.clone());
+                self.publish_engine_cmds(&[(o.clone(), kind.clone(), body.clone())], bus, midi);
             }
+            // Exclusive groups (e.g. CH SELECT) publish every cmd in order.
+            RoutedAction::EngineCmds(cmds) => self.publish_engine_cmds(cmds, bus, midi),
             RoutedAction::LibraryEvt { origin, kind, body } => {
                 bus.publish_library(origin.clone(), kind.clone(), body.clone());
             }
         }
         (true, None)
+    }
+
+    /// Mirror a routed engine command group into the snapshot, then publish it.
+    ///
+    /// Single-command actions and exclusive groups share this, so the
+    /// mirror-then-publish order (and the clones it needs) is defined once.
+    fn publish_engine_cmds(
+        &mut self,
+        cmds: &[(Origin, Kind, CmdBody)],
+        bus: &mut impl ActionPublish,
+        midi: &mut impl MidiOut,
+    ) {
+        for (origin, kind, body) in cmds {
+            self.mirror_engine_cmd(origin.clone(), kind, body, midi);
+            bus.publish_engine(origin.clone(), kind.clone(), body.clone());
+        }
     }
 
     /// Mirror a routed engine cmd into the local snapshot, then refresh the
@@ -785,6 +827,35 @@ impl MappingSession {
         } else if origin == Origin::Mixer {
             match kind {
                 Kind::ToggleMasterCue => self.snapshot.master_cue = !self.snapshot.master_cue,
+                Kind::SetFxUnitSlotEnabled => {
+                    if let CmdBody::SetFxUnitSlotEnabled { enabled, .. } = body {
+                        self.snapshot.fx.enabled = *enabled;
+                    }
+                }
+                // Selecting an effect reloads its knobs, but `FxSlot::set_kind`
+                // keeps the slot's armed flag, so the mirror must keep it too
+                // (clearing it would darken the lamps until the engine echo).
+                Kind::SetFxUnitSlot => {
+                    if let CmdBody::SetFxUnitSlot { kind: next, .. } = body {
+                        if self.snapshot.fx.kind != *next {
+                            self.snapshot.fx.kind = *next;
+                            self.snapshot.fx.params = FxSlotState::boot().params;
+                        }
+                    }
+                }
+                // Tracked so rapid BEAT presses step from the pending division.
+                Kind::SetFxUnitParam => {
+                    if let CmdBody::SetFxUnitParam { param, value, .. } = body {
+                        if let Some(slot) = self.snapshot.fx.params.get_mut(*param as usize) {
+                            *slot = *value;
+                        }
+                    }
+                }
+                Kind::SetFxUnitWet => {
+                    if let CmdBody::SetFxUnitWet { wet, .. } = body {
+                        self.snapshot.fx.wet = *wet;
+                    }
+                }
                 _ => {
                     if let CmdBody::SetMasterCue { enabled } = body {
                         self.snapshot.master_cue = *enabled;
@@ -1151,5 +1222,57 @@ mod tests {
             CmdBody::JogTurn { delta } => assert_eq!(*delta, 4),
             other => panic!("expected JogTurn sum, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn coalesced_absolute_turn_drops_a_return_to_the_published_value() {
+        let mut s = session();
+        let mut bus = CaptureBus { cmds: vec![] };
+
+        // A publishes immediately and becomes the dedupe baseline.
+        s.handle_midi(&[0xB0, 0x13, 64], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 1);
+
+        // B then A arrive inside the coalesce window; only the latest (A) stays
+        // pending, so the flush returns to the value already in the engine.
+        s.handle_midi(&[0xB0, 0x13, 96], &mut bus, &mut NullMidi);
+        s.handle_midi(&[0xB0, 0x13, 64], &mut bus, &mut NullMidi);
+        s.age_cc_coalesce_for_test("deck_1.volume");
+        s.flush_coalesced(&mut bus, &mut NullMidi);
+        assert_eq!(
+            bus.cmds.len(),
+            1,
+            "returning to the published value publishes nothing"
+        );
+
+        // The baseline is the flushed value, so the next real move still lands.
+        s.age_cc_coalesce_for_test("deck_1.volume");
+        s.handle_midi(&[0xB0, 0x13, 96], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 2);
+    }
+
+    #[test]
+    fn repeated_absolute_cc_value_is_not_republished() {
+        let mut s = session();
+        let mut bus = CaptureBus { cmds: vec![] };
+
+        s.handle_midi(&[0xB0, 0x13, 64], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 1);
+
+        // The DDJ-400 answers the idle heartbeat with a full position dump every
+        // second; re-publishing an unchanged value would fight the GUI sliders.
+        s.age_cc_coalesce_for_test("deck_1.volume");
+        s.handle_midi(&[0xB0, 0x13, 64], &mut bus, &mut NullMidi);
+        s.flush_coalesced(&mut bus, &mut NullMidi);
+        assert_eq!(
+            bus.cmds.len(),
+            1,
+            "unchanged absolute value must be dropped"
+        );
+
+        // A real move still reaches the engine.
+        s.age_cc_coalesce_for_test("deck_1.volume");
+        s.handle_midi(&[0xB0, 0x13, 65], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 2);
     }
 }

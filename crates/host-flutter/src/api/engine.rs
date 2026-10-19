@@ -788,7 +788,11 @@ impl EngineTransport {
         self.publish_body(
             Origin::Mixer,
             Kind::SetFxUnitWet,
-            &CmdBody::SetFxUnitWet { slot, wet },
+            &CmdBody::SetFxUnitWet {
+                slot,
+                wet,
+                soft_takeover: false,
+            },
         )
     }
 
