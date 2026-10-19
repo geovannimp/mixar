@@ -7,17 +7,30 @@ import SectionHeader from "./ui/SectionHeader.astro";
 const iconProps = { size: 24, "stroke-width": 2 };
 ---
 
-<section class="px-section py-24 lg:py-28">
+<section class="relative overflow-hidden px-section py-24 lg:py-28">
   <SectionHeader
+    eyebrow="01 / Stack"
     title="Stack"
     description="Engine-first boundaries between audio, library, and UI."
   >
     <Layers slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
   </SectionHeader>
   <div
-    class="mx-auto grid max-w-content gap-6 sm:grid-cols-2 lg:grid-cols-3"
+    class="relative mx-auto grid max-w-content gap-6 sm:grid-cols-2 lg:grid-cols-3"
     data-reveal-group
   >
+    <!-- Ghost word behind the cards (Kurosawa outline layering), same as the
+         landing Features grid; draws itself in on entry. -->
+    <svg
+      class="ghost-word pointer-events-none absolute left-1/2 z-0 block w-[90vw] -translate-x-1/2"
+      viewBox="0 0 1000 290"
+      focusable="false"
+      aria-hidden="true"
+    >
+      <text class="ghost-word-text" x="500" y="250" text-anchor="middle" font-size="315">
+        STACK
+      </text>
+    </svg>
     <FeatureCard revealIndex={0} iconTone="deck-a" title="Rust engine">
       <Volume2 slot="icon" {...iconProps} />
       Real-time audio and mixing in Rust. The audio callback allocates nothing, so timing
@@ -50,3 +63,8 @@ const iconProps = { size: 24, "stroke-width": 2 };
     </FeatureCard>
   </div>
 </section>
+
+<script>
+ import { drawGhostWordOnEnter } from "../lib/ghost-word";
+ drawGhostWordOnEnter();
+</script>

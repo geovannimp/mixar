@@ -2,13 +2,22 @@
 interface Props {
   title: string;
   description?: string;
+  /** Console-plate section index, e.g. "01 / Features" — mono, letterspaced. */
+  eyebrow?: string;
 }
 
-const { title, description } = Astro.props;
+const { title, description, eyebrow } = Astro.props;
 const hasIcon = Astro.slots.has("icon");
 ---
 
 <div class="mx-auto mb-12 max-w-content text-center">
+  {
+    eyebrow && (
+      <p class="mb-4 font-mono text-[0.75rem] font-medium uppercase tracking-[0.18em] text-muted">
+        {eyebrow}
+      </p>
+    )
+  }
   <h2
     class:list={[
       "mb-4 text-[clamp(2rem,5vw,2.75rem)] font-bold leading-[1.1] tracking-[-0.03em]",

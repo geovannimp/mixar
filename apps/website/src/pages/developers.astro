@@ -4,6 +4,18 @@ import DevHero from "../components/DevHero.astro";
 import DevStack from "../components/DevStack.astro";
 import DevArchitecture from "../components/DevArchitecture.astro";
 import DevDocs from "../components/DevDocs.astro";
+import Ticker from "../components/Ticker.astro";
+
+/** Divider vocabulary for the developer page — mirrors the landing tickers. */
+const stackTicker = [
+  "Rust engine",
+  "Flutter UI",
+  "Async buses",
+  "GPL-3.0",
+  "CPAL",
+  "MessagePack",
+  "Offline analysis",
+] as const;
 ---
 
 <BaseLayout
@@ -12,6 +24,7 @@ import DevDocs from "../components/DevDocs.astro";
   currentPage="developers"
 >
   <DevHero />
+  <Ticker items={stackTicker} />
   <DevStack />
   <DevArchitecture />
   <DevDocs />

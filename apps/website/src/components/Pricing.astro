@@ -13,8 +13,9 @@ const rows = [
 ] as const;
 ---
 
-<section id="pricing" class="scroll-mt-20 border-y border-border bg-bg-elevated px-section py-24 lg:py-28">
+<section id="pricing" class="band-teal scroll-mt-20 border-y border-border bg-bg px-section py-24 lg:py-28">
   <SectionHeader
+    eyebrow="03 / Pricing"
     title="DJ software without the asterisks"
     description="Every Mixar feature ships under GPL-3.0. Here is how that stacks up against subscription DJ apps."
   >
@@ -31,7 +32,7 @@ const rows = [
               <th scope="col" role="columnheader" class="p-5 align-bottom text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-muted sm:p-6">
                 Compare
               </th>
-              <th scope="col" role="columnheader" class="bg-accent-dim p-5 align-bottom sm:p-6">
+              <th scope="col" role="columnheader" class="p-5 align-bottom sm:p-6">
                 <span class="block font-serif text-[2.75rem] font-bold leading-none tracking-[-0.03em] text-accent">
                   $0
                 </span>
@@ -58,7 +59,7 @@ const rows = [
                   >
                     {row.label}
                   </th>
-                  <td role="cell" class="bg-accent-dim p-5 align-middle sm:p-6">
+                  <td role="cell" class="p-5 align-middle sm:p-6">
                     <span class="flex items-center gap-2 text-[0.9375rem] font-medium text-fg">
                       <Check {...checkProps} class="size-4 shrink-0 text-accent" aria-hidden="true" />
                       {row.mixar}

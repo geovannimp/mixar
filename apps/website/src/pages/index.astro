@@ -1,11 +1,23 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Hero from "../components/Hero.astro";
+import Ticker from "../components/Ticker.astro";
 import Features from "../components/Features.astro";
 import Stems from "../components/Stems.astro";
 import Pricing from "../components/Pricing.astro";
 import Platforms from "../components/Platforms.astro";
 import DevelopersSection from "../components/DevelopersSection.astro";
+
+/** Repeated divider vocabulary — the words double as on-page copy elsewhere. */
+const featureTicker = [
+  "Dual decks",
+  "Full mixer",
+  "Hot cues",
+  "Loops",
+  "NI Stems",
+  "MIDI mapping",
+  "GPL-3.0",
+] as const;
 ---
 
 <BaseLayout
@@ -14,6 +26,7 @@ import DevelopersSection from "../components/DevelopersSection.astro";
   currentPage="home"
 >
   <Hero />
+  <Ticker items={featureTicker} />
   <Features />
   <Stems />
   <Pricing />

@@ -6,9 +6,10 @@ import Button from "./ui/Button.astro";
 const iconProps = { size: 18, "stroke-width": 2 };
 ---
 
-<section class="px-section py-24 lg:pb-28">
+<section class="band-teal border-y border-border bg-bg px-section py-24 lg:py-28" data-reveal-group>
   <div
-    class="mx-auto max-w-content rounded-2xl border border-accent/25 bg-accent-dim px-8 py-14 text-center sm:px-14 sm:py-16"
+    data-reveal
+    class="mx-auto max-w-content rounded-2xl border border-border bg-bg-card px-8 py-14 text-center sm:px-14 sm:py-16"
   >
     <Handshake class="mx-auto mb-6 size-20 text-accent" stroke-width={1.75} aria-hidden="true" />
     <h2
