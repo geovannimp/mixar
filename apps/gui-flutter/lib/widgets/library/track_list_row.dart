@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/widgets/library/track_list_menu_button.dart';
@@ -75,9 +76,16 @@ class TrackListRow extends ConsumerWidget {
         : Stack(children: [content, overlay!]);
     final payload = payloadOf(ref);
     // Watch engine here so drag attaches after start without rebuilding the
-    // surrounding list.
+    // surrounding list. The notifier lets the drag report its start/end to the
+    // drawer without the row rebuilding on each drag.
+    final dragActive = ref.watch(libraryTrackDragActiveProvider.notifier);
     final row = payload != null && ref.watch(engineRunningProvider)
-        ? libraryTrackDragSource(payload: payload, child: stacked)
+        ? libraryTrackDragSource(
+            payload: payload,
+            onDragStart: dragActive.begin,
+            onDragEnd: dragActive.end,
+            child: stacked,
+          )
         : stacked;
     final dimmed = dimmedOf?.call(ref) ?? false;
     // Pointer-down (not tap): super_dnd's drag recognizer often wins the

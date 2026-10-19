@@ -6,6 +6,7 @@ import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/widgets/library/library_pane_label.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -101,14 +102,26 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                     selected: row.id == selectedId,
                     focused: sidebarFocused && row.id == selectedId,
                     onPress: () {
-                      // Focus follows the pointer, the way a row press in the
-                      // track list does.
-                      ref
-                          .read(libraryFocusZoneProvider.notifier)
-                          .set(LibraryFocusZone.sidebar);
                       ref
                           .read(selectedHistorySessionIdProvider.notifier)
                           .set(row.id);
+                      // Focus follows the pointer, the way a row press in the
+                      // track list does. On a narrow surface the press is a
+                      // page change, so focus goes to the track list page
+                      // instead of parking on the sidebar.
+                      if (LibraryLayoutScope.maybeOf(context)?.narrow ??
+                          false) {
+                        ref
+                            .read(libraryFocusZoneProvider.notifier)
+                            .set(LibraryFocusZone.trackList);
+                        ref
+                            .read(libraryNarrowPageProvider.notifier)
+                            .set(LibraryNarrowPage.content);
+                      } else {
+                        ref
+                            .read(libraryFocusZoneProvider.notifier)
+                            .set(LibraryFocusZone.sidebar);
+                      }
                     },
                     trailing: row.id == resumeSessionId
                         ? MTappable.child(

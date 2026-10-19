@@ -8,6 +8,10 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
 
+/// Library surface width at or above which the sidebar + content split shows.
+/// Below it the surface pages: the sidebar first, then the content pane.
+const double kLibraryWideMinWidth = 1024;
+
 /// Focused-row fill — same token as sidebar [librarySelectedRowColor].
 Color libraryListSelectedRowColor(MixarThemeData theme) =>
     librarySelectedRowColor(theme);
@@ -154,14 +158,37 @@ String formatTrackDuration(int? ms) {
 /// Wraps a list row in the shared drag source. Both the tracks and history
 /// lists drag a [TrackDragPayload] onto a deck, so the drag item, its platform
 /// format and its drag card live here rather than in each pane.
+///
+/// [onDragStart] / [onDragEnd] report the drag lifecycle. `DragItemWidget`
+/// exposes no callbacks, but the session's `dragCompleted` listenable fires on
+/// both drop and cancel, and the framework itself relies on it to retire
+/// sessions — so an end reported here tracks the real drag.
 Widget libraryTrackDragSource({
   required TrackDragPayload payload,
   required Widget child,
+  VoidCallback? onDragStart,
+  VoidCallback? onDragEnd,
 }) {
   return DragItemWidget(
-    dragItemProvider: (_) async =>
-        DragItem(localData: payload.toLocalData(), suggestedName: payload.title)
-          ..add(Formats.plainText(encodeTrackDragPlainText(payload))),
+    dragItemProvider: (request) async {
+      onDragStart?.call();
+      // A provider may run more than once for one session; report the end once.
+      var reported = false;
+      void end() {
+        if (reported) {
+          return;
+        }
+        reported = true;
+        request.session.dragCompleted.removeListener(end);
+        onDragEnd?.call();
+      }
+
+      request.session.dragCompleted.addListener(end);
+      return DragItem(
+        localData: payload.toLocalData(),
+        suggestedName: payload.title,
+      )..add(Formats.plainText(encodeTrackDragPlainText(payload)));
+    },
     allowedOperations: () => [DropOperation.copy],
     dragBuilder: (context, _) => LibraryDragCard(title: payload.title),
     child: DraggableWidget(

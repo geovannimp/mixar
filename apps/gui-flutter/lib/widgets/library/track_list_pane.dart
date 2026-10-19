@@ -13,7 +13,9 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/collection_actions_menu.dart';
+import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_list_message.dart';
+import 'package:gui_flutter/widgets/library/library_pane_back_button.dart';
 import 'package:gui_flutter/widgets/library/library_pane_toolbar.dart';
 import 'package:gui_flutter/widgets/library/library_row_density_button.dart';
 import 'package:gui_flutter/widgets/library/track_artwork_thumb.dart';
@@ -62,6 +64,9 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LibraryPaneToolbar(
+          leading: (LibraryLayoutScope.maybeOf(context)?.narrow ?? false)
+              ? const LibraryPaneBackButton()
+              : null,
           hint: 'Filter tracks…',
           onChanged: (value) =>
               ref.read(trackFilterProvider.notifier).set(value),

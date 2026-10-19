@@ -558,6 +558,22 @@ final libraryFocusZoneProvider =
       LibraryFocusZoneNotifier.new,
     );
 
+/// Which library page the narrow (sub-1024px) layout shows: the sidebar list,
+/// or the content pane it navigates to.
+enum LibraryNarrowPage { list, content }
+
+class LibraryNarrowPageNotifier extends Notifier<LibraryNarrowPage> {
+  @override
+  LibraryNarrowPage build() => LibraryNarrowPage.list;
+
+  void set(LibraryNarrowPage page) => state = page;
+}
+
+final libraryNarrowPageProvider =
+    NotifierProvider<LibraryNarrowPageNotifier, LibraryNarrowPage>(
+      LibraryNarrowPageNotifier.new,
+    );
+
 /// The active list's focused-row payload, so controller / MIDI "load focused
 /// row" acts on whichever list is on screen (library or history).
 ///

@@ -9,6 +9,7 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_list_message.dart';
 import 'package:gui_flutter/widgets/library/library_list_surface.dart';
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
@@ -160,6 +161,19 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
         _syncFromItems();
       }
     });
+    // Narrow library pages remount this list on every navigation, so the zone
+    // is already `trackList` and `_focusZoneListen` never fires for this mount.
+    // `getInheritedWidgetOfExactType` (not `dependOn…`) because initState must
+    // not create a dependency.
+    if ((context.getInheritedWidgetOfExactType<LibraryLayoutScope>()?.narrow ??
+            false) &&
+        ref.read(libraryFocusZoneProvider) == LibraryFocusZone.trackList) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_focusNode.hasFocus) {
+          _focusNode.requestFocus();
+        }
+      });
+    }
   }
 
   @override
