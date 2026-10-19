@@ -650,6 +650,11 @@ impl<'a> Store<'a> {
 /// Grouped so a caller names the field it is setting instead of passing a run
 /// of `Option`s positionally — seven same-typed parameters would let a
 /// transposition (`artist`/`album`, `genre`/`key`) compile silently.
+///
+/// The derived [`Default`] is "every column `None`", which under the
+/// full-replacement write means **clear all seven columns** — never a
+/// leave-unchanged value. Build it field by field instead of reaching for
+/// `..Default::default()` in code that only edits one column.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TrackMetadataEdit {
     pub title: Option<String>,

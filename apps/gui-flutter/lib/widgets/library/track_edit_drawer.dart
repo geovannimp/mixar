@@ -213,6 +213,12 @@ class _TrackEditPanel extends HookConsumerWidget {
         // folder refresh, is at least not rolled back by this save — this only
         // narrows the read-then-write window, it does not close it).
         final current = await transport.getTrack(trackId: trackId);
+        // Dismissed while the re-read was in flight: the form's hook state is
+        // disposed, so nothing below (form.isDirty/getValue/validateField) may
+        // run. The user threw the edits away before saving, so drop them.
+        if (dismissed.value) {
+          return;
+        }
         if (current == null) {
           // The row is gone: Store::update_track_metadata is a no-op for an
           // unknown id, so writing would report success, close the drawer and
@@ -254,8 +260,10 @@ class _TrackEditPanel extends HookConsumerWidget {
           ..invalidate(driveResolvedByPathProvider)
           // The deck card reads the row through this family when the visible
           // table does not carry it (History/Drive tabs), so it would keep the
-          // old title/key otherwise.
-          ..invalidate(libraryTrackByIdProvider);
+          // old title/key otherwise. Invalidating only this id's instance
+          // avoids re-reading every cached row (each one an artwork-carrying
+          // getTrack) on every save.
+          ..invalidate(libraryTrackByIdProvider(trackId));
         if (dismissed.value) {
           return;
         }
@@ -345,7 +353,11 @@ class _TrackEditPanel extends HookConsumerWidget {
                     _buildField(
                       'BPM',
                       TrackFormField.bpm,
-                      keyboardType: TextInputType.number,
+                      // Decimal allowed: fractional BPMs are supported end to
+                      // end (parseBpm, _formatBpm, the stored column).
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _buildField(
