@@ -18,11 +18,12 @@ use std::time::Duration;
 pub use audio_source::{LoadableAudio, LoadedAudio};
 pub use time::{ms_to_secs, secs_to_ms};
 pub use waveform::{
-    compute_overview_envelope, compute_peak_envelope, compute_spectral_envelope,
-    compute_spectral_window, peaks_to_rgb_bytes, rgb_bytes_to_peaks, waveform_buckets_for_duration,
-    waveform_buckets_for_window, SpectralPeak, WaveformAmplitudeMode, WaveformAnalysisConfig,
-    WaveformChannelMode, WaveformFilterKind, MAX_WAVEFORM_BUCKETS, MIN_WAVEFORM_BUCKETS,
-    OVERVIEW_SAMPLE_COUNT, WAVEFORM_SCHEMA_VERSION,
+    compute_full_track_envelope, compute_overview_envelope, compute_peak_envelope,
+    compute_spectral_envelope, compute_spectral_window, peaks_to_rgb_bytes, rgb_bytes_to_peaks,
+    waveform_buckets_for_duration, waveform_buckets_for_window, SpectralPeak,
+    WaveformAmplitudeMode, WaveformAnalysisConfig, WaveformChannelMode, WaveformFilterKind,
+    MAX_FULL_TRACK_BUCKETS, MAX_WAVEFORM_BUCKETS, MIN_WAVEFORM_BUCKETS, OVERVIEW_SAMPLE_COUNT,
+    WAVEFORM_SCHEMA_VERSION,
 };
 
 // Re-export dasp fundamentals for samples, frames, and slice conversions

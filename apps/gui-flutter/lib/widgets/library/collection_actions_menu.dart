@@ -7,6 +7,7 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/analyze_collection_dialog.dart';
+import 'package:gui_flutter/widgets/library/export_cdj_usb_dialog.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
@@ -15,8 +16,9 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Three-dot menu for a collection (browse in Drive for folders, queue
-/// collection-wide analysis). Lives in the track-list topbar — mirroring the
-/// history session actions menu — acting on the active collection.
+/// collection-wide analysis, export to a CDJ USB drive). Lives in the
+/// track-list topbar — mirroring the history session actions menu — acting on
+/// the active collection.
 class CollectionActionsMenu extends ConsumerWidget {
   const new({required this.collection, super.key});
 
@@ -52,6 +54,17 @@ class CollectionActionsMenu extends ConsumerWidget {
     );
   }
 
+  Future<void> _exportCdjUsb(
+    BuildContext context,
+    MixarOverlayController controller,
+  ) async {
+    controller.hide();
+    if (!context.mounted) {
+      return;
+    }
+    await showExportCdjUsbDialog(context, collection: collection);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final browsePath = collection.kind == 'folder' ? collection.path : null;
@@ -76,6 +89,12 @@ class CollectionActionsMenu extends ConsumerWidget {
                 title: const Text('Analyze tracks…'),
                 onPress: () {
                   unawaited(_analyze(context, ref, controller));
+                },
+              ),
+              MixarMenuItem(
+                title: const Text('Export to CDJ USB…'),
+                onPress: () {
+                  unawaited(_exportCdjUsb(context, controller));
                 },
               ),
             ],

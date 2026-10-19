@@ -48,20 +48,22 @@ Future<void> pumpMenu(
 }
 
 void main() {
-  testWidgets('folder menu offers browse and analyze', (tester) async {
+  testWidgets('folder menu offers browse, analyze and export', (tester) async {
     await pumpMenu(tester, _folder);
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
     expect(find.text('Browse in Drive'), findsOneWidget);
     expect(find.text('Analyze tracks…'), findsOneWidget);
+    expect(find.text('Export to CDJ USB…'), findsOneWidget);
   });
 
-  testWidgets('playlist menu offers analyze only', (tester) async {
+  testWidgets('playlist menu offers analyze and export', (tester) async {
     await pumpMenu(tester, _playlist);
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
     expect(find.text('Browse in Drive'), findsNothing);
     expect(find.text('Analyze tracks…'), findsOneWidget);
+    expect(find.text('Export to CDJ USB…'), findsOneWidget);
   });
 
   testWidgets('analyze opens the options dialog with skip-first copy', (

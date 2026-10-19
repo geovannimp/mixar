@@ -391,6 +391,82 @@
       }
     }
   },
+  "cdjExportTitle": "Exportar para CDJ USB",
+  "cdjExportDescription": "Grava playlists e coleções de pastas em um pendrive para CDJ/XDJ Pioneer, para os players navegarem sem o Rekordbox.",
+  "cdjExportDestination": "Destino",
+  "cdjExportDestinationHint": "Pendrive ou pasta",
+  "cdjExportDestinationMissing": "Escolha um destino (pendrive ou pasta).",
+  "cdjExportBrowse": "Procurar…",
+  "cdjExportCollection": "Coleção",
+  "cdjExportOverride": "Sobrescrever arquivos já no pendrive",
+  "cdjExportConfirmAction": "Exportar",
+  "cdjExporting": "Exportando…",
+  "cdjExportFailed": "Falha na exportação para CDJ USB",
+  "cdjExportFinishedWithErrors": "Exportação para CDJ USB terminou com {count} erro(s)",
+  "@cdjExportFinishedWithErrors": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjExportFinishedWithWarnings": "Exportação para CDJ USB terminou com {count} aviso(s)",
+  "@cdjExportFinishedWithWarnings": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjExportExported": "Exportado {parts}",
+  "@cdjExportExported": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "cdjExportNothing": "Nada para exportar",
+  "cdjCountTracks": "{count, plural, =1{1 faixa} other{{count} faixas}}",
+  "@cdjCountTracks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjCountReused": "{count} reaproveitadas",
+  "@cdjCountReused": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjCountPlaylists": "{count, plural, =1{1 playlist} other{{count} playlists}}",
+  "@cdjCountPlaylists": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjCountFolders": "{count, plural, =1{1 pasta} other{{count} pastas}}",
+  "@cdjCountFolders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjCountCopied": "{size} copiados",
+  "@cdjCountCopied": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "settingsStorageStemAlreadyInSync": "Cache de stems já sincronizado",
   "settingsStorageRemovedOrphans": "{count, plural, =1{Removido 1 arquivo de stem órfão} other{Removidos {count} arquivos de stem órfãos}}",
   "@settingsStorageRemovedOrphans": {

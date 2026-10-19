@@ -1,13 +1,21 @@
-//! Map codec file tags into library `TrackMetadata`.
+//! Map codec file tags into library `TrackMetadata`, and embedded artwork into
+//! UI-sized thumbnails.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use codec::{
-    read_file_artwork, read_file_tags, read_replaygain_track_gain_db as codec_replaygain, FileTags,
-    TagWriteReport, TrackTags,
+    read_file_artwork_thumbnail, read_file_tags, read_replaygain_track_gain_db as codec_replaygain,
+    FileTags, TagWriteReport, TrackTags,
 };
 use library_core::{path_label, TagWriteBack, TrackMetadata};
+
+/// Longest edge of the artwork thumbnails this crate hands to the UI, in pixels.
+///
+/// The largest surface showing artwork is the deck info panel at 64 logical px;
+/// 256 covers HiDPI tiers and keeps the FRB payload small next to the user's
+/// full-resolution cover.
+pub const ARTWORK_UI_EDGE_PX: u32 = 256;
 
 /// Read metadata tags from an audio file.
 pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
@@ -97,9 +105,14 @@ pub(crate) fn read_replaygain_track_gain_db(path: &Path) -> library_core::Result
     codec_replaygain(path).map_err(|e| io_backend(format!("{e}")))
 }
 
-/// Read embedded album artwork from an audio file, if present.
+/// Read embedded album artwork as a UI thumbnail, if the file has any.
+///
+/// The cover is re-encoded to a JPEG of at most [`ARTWORK_UI_EDGE_PX`] on the
+/// longest edge, so the UI (and the FRB boundary) never carries the user's
+/// full-resolution artwork. `None` when the file has no cover or one we cannot
+/// decode.
 pub fn read_artwork(path: &Path) -> library_core::Result<Option<Vec<u8>>> {
-    read_file_artwork(path)
+    read_file_artwork_thumbnail(path, ARTWORK_UI_EDGE_PX)
         .map_err(|e| io_backend(format!("read artwork {}: {e}", path_label(path))))
 }
 

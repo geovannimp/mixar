@@ -32,7 +32,7 @@ mixar/
 │  ├─ fs-browser/         # volume listing + directory browse for audio pickers
 │  ├─ library-api/        # shared library transport contracts
 │  ├─ library/            # library manager (canonical writable store)
-│  ├─ library-adapters/   # third-party formats (Mixxx, Rekordbox, …)
+│  ├─ library-adapters/   # third-party formats (Mixxx import, CDJ USB export, …)
 │  ├─ analyzer-core/      # offline analysis traits and types
 │  ├─ analyzer-qmdsp/     # pure-Rust qm-dsp (Mixxx) beat/key backend
 │  ├─ analyzer/           # decode + analyze_file facade

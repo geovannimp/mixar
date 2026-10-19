@@ -851,6 +851,102 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get cdjExportTitle => 'Exportar para CDJ USB';
+
+  @override
+  String get cdjExportDescription =>
+      'Grava playlists e coleções de pastas em um pendrive para CDJ/XDJ Pioneer, para os players navegarem sem o Rekordbox.';
+
+  @override
+  String get cdjExportDestination => 'Destino';
+
+  @override
+  String get cdjExportDestinationHint => 'Pendrive ou pasta';
+
+  @override
+  String get cdjExportDestinationMissing =>
+      'Escolha um destino (pendrive ou pasta).';
+
+  @override
+  String get cdjExportBrowse => 'Procurar…';
+
+  @override
+  String get cdjExportCollection => 'Coleção';
+
+  @override
+  String get cdjExportOverride => 'Sobrescrever arquivos já no pendrive';
+
+  @override
+  String get cdjExportConfirmAction => 'Exportar';
+
+  @override
+  String get cdjExporting => 'Exportando…';
+
+  @override
+  String get cdjExportFailed => 'Falha na exportação para CDJ USB';
+
+  @override
+  String cdjExportFinishedWithErrors(int count) {
+    return 'Exportação para CDJ USB terminou com $count erro(s)';
+  }
+
+  @override
+  String cdjExportFinishedWithWarnings(int count) {
+    return 'Exportação para CDJ USB terminou com $count aviso(s)';
+  }
+
+  @override
+  String cdjExportExported(String parts) {
+    return 'Exportado $parts';
+  }
+
+  @override
+  String get cdjExportNothing => 'Nada para exportar';
+
+  @override
+  String cdjCountTracks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count faixas',
+      one: '1 faixa',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cdjCountReused(int count) {
+    return '$count reaproveitadas';
+  }
+
+  @override
+  String cdjCountPlaylists(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count playlists',
+      one: '1 playlist',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cdjCountFolders(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pastas',
+      one: '1 pasta',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String cdjCountCopied(String size) {
+    return '$size copiados';
+  }
+
+  @override
   String get settingsStorageStemAlreadyInSync =>
       'Cache de stems já sincronizado';
 

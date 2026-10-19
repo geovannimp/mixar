@@ -45,7 +45,7 @@ fn write_wav_with_artwork(path: &Path, artwork: &[u8]) {
         0,
         Picture::new_unchecked(
             PictureType::CoverFront,
-            Some(MimeType::Jpeg),
+            Some(MimeType::Png),
             None,
             artwork.to_vec(),
         ),
@@ -53,6 +53,30 @@ fn write_wav_with_artwork(path: &Path, artwork: &[u8]) {
     tagged
         .save_to_path(path, WriteOptions::default())
         .expect("save artwork tag");
+
+    // Fail loudly when the container dropped the picture: a silently
+    // unsupported container must not read as "this track has no artwork".
+    let reread = Probe::open(path).unwrap().read().unwrap();
+    assert_eq!(
+        reread.primary_tag().expect("id3 tag").pictures().len(),
+        1,
+        "lofty must read back the picture it wrote"
+    );
+}
+
+/// 300×200 PNG cover — larger than the UI thumbnail edge, so it gets resized.
+fn cover_png() -> Vec<u8> {
+    let rgb = image::RgbImage::from_fn(300, 200, |x, y| {
+        image::Rgb([(x % 256) as u8, (y % 256) as u8, 32])
+    });
+    let mut bytes = Vec::new();
+    image::DynamicImage::ImageRgb8(rgb)
+        .write_to(
+            &mut std::io::Cursor::new(&mut bytes),
+            image::ImageFormat::Png,
+        )
+        .expect("encode cover");
+    bytes
 }
 
 #[test]
@@ -60,9 +84,9 @@ fn add_folder_resolve_and_track_artwork_metadata() {
     let dir = tempfile::tempdir().unwrap();
     let bare = dir.path().join("track_a.wav");
     write_minimal_wav(&bare);
-    let art_bytes: &[u8] = &[0xFF, 0xD8, 0xFF, 0xD9, 0x01, 0x02, 0x03];
+    let cover = cover_png();
     let with_art = dir.path().join("track_cover.wav");
-    write_wav_with_artwork(&with_art, art_bytes);
+    write_wav_with_artwork(&with_art, &cover);
 
     let transport = LibraryTransport::open_in_memory().unwrap();
     let added = transport
@@ -99,8 +123,12 @@ fn add_folder_resolve_and_track_artwork_metadata() {
     assert_eq!(resolved.len(), 1);
     assert_eq!(resolved[0].track.id, bare_row.id);
 
-    let full_cover = transport.get_track(cover_row.id.clone()).unwrap().unwrap();
-    assert_eq!(full_cover.artwork.as_deref(), Some(art_bytes));
+    // Artwork comes back as a UI thumbnail, never as the full-resolution cover.
+    let fetched = transport.get_track(cover_row.id.clone()).unwrap().unwrap();
+    let artwork = fetched.artwork.expect("cover artwork");
+    assert_ne!(artwork, cover, "the full-size cover must not be shipped");
+    let decoded = image::load_from_memory(&artwork).expect("artwork is an image");
+    assert!(decoded.width().max(decoded.height()) <= library::ARTWORK_UI_EDGE_PX);
 }
 
 #[test]

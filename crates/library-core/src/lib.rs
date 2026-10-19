@@ -3,11 +3,16 @@
 //! Backends implement [`Library`] and [`WritableLibrary`]. The canonical manager
 //! lives in `library`; third-party adapters live in `library-adapters`.
 //!
+//! [`Exportable`] formats write the manager's collections out to a foreign
+//! layout; they read through [`ExportSource`] (the `library` crate's manager
+//! implements it) so format code never touches the canonical store.
+//!
 //! [`AudioSource`] implements [`LoadableAudio`] so library entries load directly
 //! into the engine: `engine.load_track(0, AudioSource::File(FileAudioSource::from_path(...)))?`.
 
 mod audio_source;
 mod error;
+mod export;
 mod key_format;
 mod path;
 mod source;
@@ -15,8 +20,12 @@ mod traits;
 mod types;
 
 pub use analyzer_core::AnalysisDurationMode;
-pub use audio_core::{LoadableAudio, LoadedAudio};
+pub use audio_core::{LoadableAudio, LoadedAudio, SpectralPeak};
 pub use error::{path_label, LibraryError, Result};
+pub use export::{
+    ExportArtwork, ExportBeatGrid, ExportCue, ExportOptions, ExportReport, ExportSource,
+    Exportable, TrackExportData, EXPORT_ARTWORK_EDGE_PX, EXPORT_WAVEFORM_ENTRIES_PER_SECOND,
+};
 pub use key_format::{
     camelot_code_to_musical, camelot_to_musical, format_key, musical_to_camelot, KeyDisplayMode,
     MAJOR_KEYS, MINOR_KEYS,

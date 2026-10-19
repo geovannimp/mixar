@@ -394,6 +394,82 @@
       }
     }
   },
+  "cdjExportTitle": "Export to CDJ USB",
+  "cdjExportDescription": "Write playlists and folder collections to a Pioneer CDJ/XDJ USB drive, so players browse them without Rekordbox.",
+  "cdjExportDestination": "Destination",
+  "cdjExportDestinationHint": "USB drive or folder",
+  "cdjExportDestinationMissing": "Choose a destination drive or folder.",
+  "cdjExportBrowse": "Browse…",
+  "cdjExportCollection": "Collection",
+  "cdjExportOverride": "Override files already on the drive",
+  "cdjExportConfirmAction": "Export",
+  "cdjExporting": "Exporting…",
+  "cdjExportFailed": "CDJ USB export failed",
+  "cdjExportFinishedWithErrors": "CDJ USB export finished with {count} error(s)",
+  "@cdjExportFinishedWithErrors": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjExportFinishedWithWarnings": "CDJ USB export finished with {count} warning(s)",
+  "@cdjExportFinishedWithWarnings": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjExportExported": "Exported {parts}",
+  "@cdjExportExported": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "cdjExportNothing": "Nothing to export",
+  "cdjCountTracks": "{count, plural, =1{1 track} other{{count} tracks}}",
+  "@cdjCountTracks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjCountReused": "{count} reused",
+  "@cdjCountReused": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjCountPlaylists": "{count, plural, =1{1 playlist} other{{count} playlists}}",
+  "@cdjCountPlaylists": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjCountFolders": "{count, plural, =1{1 folder} other{{count} folders}}",
+  "@cdjCountFolders": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cdjCountCopied": "{size} copied",
+  "@cdjCountCopied": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "settingsStorageStemAlreadyInSync": "Stem cache already in sync",
   "settingsStorageRemovedOrphans": "{count, plural, =1{Removed 1 orphan stem file} other{Removed {count} orphan stem files}}",
   "@settingsStorageRemovedOrphans": {

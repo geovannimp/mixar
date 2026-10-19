@@ -1,9 +1,16 @@
 //! Tag and artwork probing for audio files (lofty + stem container overrides).
+//!
+//! Artwork can be read as the original embedded bytes ([`read_file_artwork`]) or
+//! re-encoded to a small JPEG thumbnail ([`read_file_artwork_thumbnail`]), which
+//! is what consumers that only show or ship a cover want.
 
 use std::path::Path;
 use std::time::Duration;
 
 use audio_core::secs_to_ms;
+use image::codecs::jpeg::JpegEncoder;
+use image::imageops::FilterType;
+use image::{DynamicImage, ExtendedColorType, ImageEncoder, Rgb, RgbImage};
 use lofty::file::{AudioFile, TaggedFile, TaggedFileExt};
 use lofty::probe::Probe;
 use lofty::tag::{Accessor, ItemKey};
@@ -27,6 +34,9 @@ pub struct FileTags {
     pub sample_rate: Option<u32>,
     pub channels: Option<u16>,
     pub bitrate_kbps: Option<u32>,
+    /// Source bit depth in bits, when the container reports it. Lossy formats
+    /// usually do not (the decoder's own output is always `f32`).
+    pub bit_depth: Option<u8>,
     pub replaygain_track_gain_db: Option<f64>,
     pub isrc: Option<String>,
 }
@@ -77,6 +87,93 @@ pub fn read_file_artwork(path: &Path) -> anyhow::Result<Option<Vec<u8>>> {
     Ok(Some(picture.data().to_vec()))
 }
 
+/// Quality of the JPEG re-encode [`read_file_artwork_thumbnail`] performs.
+///
+/// 85 is the usual "no visible loss" point and keeps a small thumbnail at a few
+/// kilobytes, which matters because device formats store a cover per track.
+const THUMBNAIL_JPEG_QUALITY: u8 = 85;
+
+/// Read the embedded picture and re-encode it as a JPEG whose longest edge is at
+/// most `max_edge` pixels.
+///
+/// Aspect ratio is preserved; images are never upscaled (a smaller cover comes
+/// back unchanged in size). Alpha is flattened onto white, because JPEG has none.
+/// `Ok(None)` when the file has no picture — or one we cannot decode, since an
+/// exotic cover must not fail an import or an export.
+///
+/// `max_edge == 0` means "no thumbnail": it returns `Ok(None)` without opening
+/// the file.
+pub fn read_file_artwork_thumbnail(path: &Path, max_edge: u32) -> anyhow::Result<Option<Vec<u8>>> {
+    if max_edge == 0 {
+        return Ok(None);
+    }
+
+    let tagged = Probe::open(path)
+        .map_err(|e| anyhow::anyhow!("open {}: {e}", path.display()))?
+        .read()
+        .map_err(|e| anyhow::anyhow!("read tags {}: {e}", path.display()))?;
+
+    let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) else {
+        return Ok(None);
+    };
+    let Some(picture) = tag.pictures().first() else {
+        return Ok(None);
+    };
+
+    Ok(thumbnail_jpeg(picture.data(), max_edge))
+}
+
+/// Re-encode raw picture bytes as a JPEG thumbnail.
+///
+/// `None` when the bytes are not an image we can decode (JPEG, PNG, BMP), or
+/// when they are too damaged for the decoder to reconstruct.
+fn thumbnail_jpeg(picture: &[u8], max_edge: u32) -> Option<Vec<u8>> {
+    let decoded = image::load_from_memory(picture).ok()?;
+
+    let longest = decoded.width().max(decoded.height());
+    let scaled = if longest > max_edge {
+        let ratio = f64::from(max_edge) / f64::from(longest);
+        let width = ((f64::from(decoded.width()) * ratio).round() as u32).max(1);
+        let height = ((f64::from(decoded.height()) * ratio).round() as u32).max(1);
+        // Triangle: cover art at thumbnail size does not benefit from a wider
+        // kernel, and this keeps the cost of a full-resolution cover low.
+        decoded.resize(width, height, FilterType::Triangle)
+    } else {
+        decoded
+    };
+
+    let rgb = flatten_onto_white(&scaled);
+    let mut jpeg = Vec::new();
+    JpegEncoder::new_with_quality(&mut jpeg, THUMBNAIL_JPEG_QUALITY)
+        .write_image(
+            rgb.as_raw(),
+            rgb.width(),
+            rgb.height(),
+            ExtendedColorType::Rgb8,
+        )
+        .ok()?;
+    Some(jpeg)
+}
+
+/// Composite an image over opaque white and drop alpha.
+///
+/// JPEG has no alpha channel; transparent cover pixels are meant to read as
+/// paper-white, not as the black a naive channel drop would give.
+fn flatten_onto_white(image: &DynamicImage) -> RgbImage {
+    let rgba = image.to_rgba8();
+    RgbImage::from_fn(rgba.width(), rgba.height(), |x, y| {
+        let pixel = rgba.get_pixel(x, y);
+        let alpha = u32::from(pixel[3]);
+        let over_white =
+            |channel: u8| ((u32::from(channel) * alpha + 255 * (255 - alpha) + 127) / 255) as u8;
+        Rgb([
+            over_white(pixel[0]),
+            over_white(pixel[1]),
+            over_white(pixel[2]),
+        ])
+    })
+}
+
 fn read_stem_file_tags(path: &Path) -> anyhow::Result<FileTags> {
     let mut tags = match Probe::open(path).and_then(|probe| probe.read()) {
         Ok(tagged) => {
@@ -118,6 +215,7 @@ fn file_tags_from_tagged(tagged: &TaggedFile) -> FileTags {
         sample_rate: properties.sample_rate(),
         channels: properties.channels().map(|c| c as u16),
         bitrate_kbps: properties.audio_bitrate(),
+        bit_depth: properties.bit_depth(),
         ..FileTags::default()
     };
 
@@ -182,7 +280,9 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    use lofty::config::WriteOptions;
     use lofty::file::{FileType, TaggedFile};
+    use lofty::picture::{MimeType, Picture, PictureType};
     use lofty::properties::FileProperties;
     use lofty::tag::{Tag, TagType};
 
@@ -242,6 +342,165 @@ mod tests {
         assert_eq!(
             read_replaygain_track_gain_db(Path::new("/music/Track.stem.mp4")).unwrap(),
             None
+        );
+    }
+
+    /// 1s of 16-bit mono PCM at 8 kHz: a WAV lofty probes fine.
+    fn write_wav(path: &Path) {
+        let sample_rate = 8_000u32;
+        let pcm = vec![0u8; sample_rate as usize * 2];
+        let data_size = pcm.len() as u32;
+        let mut file = std::fs::File::create(path).unwrap();
+        file.write_all(b"RIFF").unwrap();
+        file.write_all(&(36 + data_size).to_le_bytes()).unwrap();
+        file.write_all(b"WAVEfmt ").unwrap();
+        file.write_all(&16u32.to_le_bytes()).unwrap();
+        file.write_all(&1u16.to_le_bytes()).unwrap();
+        file.write_all(&1u16.to_le_bytes()).unwrap();
+        file.write_all(&sample_rate.to_le_bytes()).unwrap();
+        file.write_all(&(sample_rate * 2).to_le_bytes()).unwrap();
+        file.write_all(&2u16.to_le_bytes()).unwrap();
+        file.write_all(&16u16.to_le_bytes()).unwrap();
+        file.write_all(b"data").unwrap();
+        file.write_all(&data_size.to_le_bytes()).unwrap();
+        file.write_all(&pcm).unwrap();
+    }
+
+    /// Embed `picture` as the front cover of a WAV (`id3 ` chunk → ID3v2 APIC).
+    ///
+    /// Asserts lofty reads the picture back, so a container that silently drops
+    /// it cannot make the "no artwork" cases pass for the wrong reason.
+    fn write_wav_with_picture(path: &Path, mime: MimeType, picture: Vec<u8>) {
+        write_wav(path);
+
+        let mut tagged = Probe::open(path).unwrap().read().unwrap();
+        if tagged.primary_tag().is_none() {
+            tagged.insert_tag(Tag::new(TagType::Id3v2));
+        }
+        tagged.primary_tag_mut().expect("id3v2 tag").set_picture(
+            0,
+            Picture::new_unchecked(PictureType::CoverFront, Some(mime), None, picture),
+        );
+        tagged
+            .save_to_path(path, WriteOptions::default())
+            .expect("save artwork tag");
+
+        let reread = Probe::open(path).unwrap().read().unwrap();
+        assert_eq!(
+            reread.primary_tag().expect("id3v2 tag").pictures().len(),
+            1,
+            "lofty must read back the picture it wrote"
+        );
+    }
+
+    fn encode(image: DynamicImage, format: image::ImageFormat) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        image
+            .write_to(&mut std::io::Cursor::new(&mut bytes), format)
+            .expect("encode test cover");
+        bytes
+    }
+
+    fn png_bytes(width: u32, height: u32) -> Vec<u8> {
+        let rgb = RgbImage::from_fn(width, height, |x, y| {
+            Rgb([(x % 256) as u8, (y % 256) as u8, 128])
+        });
+        encode(DynamicImage::ImageRgb8(rgb), image::ImageFormat::Png)
+    }
+
+    fn transparent_red_png_bytes(width: u32, height: u32) -> Vec<u8> {
+        let rgba = image::RgbaImage::from_pixel(width, height, image::Rgba([255, 0, 0, 0]));
+        encode(DynamicImage::ImageRgba8(rgba), image::ImageFormat::Png)
+    }
+
+    #[test]
+    fn thumbnail_resizes_a_large_cover_keeping_aspect() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cover.wav");
+        write_wav_with_picture(&path, MimeType::Png, png_bytes(300, 200));
+
+        let jpeg = read_file_artwork_thumbnail(&path, 80)
+            .unwrap()
+            .expect("thumbnail");
+        assert_eq!(jpeg[..2], [0xFF, 0xD8], "encoded bytes are a JPEG (SOI)");
+
+        let decoded = image::load_from_memory(&jpeg).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (80, 53));
+        assert!(decoded.width().max(decoded.height()) <= 80);
+    }
+
+    #[test]
+    fn thumbnail_does_not_upscale_a_small_cover() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cover.wav");
+        write_wav_with_picture(&path, MimeType::Png, png_bytes(40, 40));
+
+        let jpeg = read_file_artwork_thumbnail(&path, 80)
+            .unwrap()
+            .expect("thumbnail");
+        let decoded = image::load_from_memory(&jpeg).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (40, 40));
+    }
+
+    #[test]
+    fn thumbnail_flattens_alpha_onto_white() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cover.wav");
+        write_wav_with_picture(&path, MimeType::Png, transparent_red_png_bytes(200, 100));
+
+        let jpeg = read_file_artwork_thumbnail(&path, 80)
+            .unwrap()
+            .expect("thumbnail");
+        let decoded = image::load_from_memory(&jpeg).unwrap().to_rgb8();
+        // Fully transparent red composites to white, not to black.
+        let pixel = decoded.get_pixel(decoded.width() / 2, decoded.height() / 2);
+        assert!(
+            pixel.0.iter().all(|channel| *channel >= 240),
+            "transparent pixels must flatten onto white, got {pixel:?}"
+        );
+    }
+
+    #[test]
+    fn thumbnail_of_a_coverless_file_is_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("bare.wav");
+        write_wav(&path);
+
+        assert!(read_file_artwork_thumbnail(&path, 80).unwrap().is_none());
+    }
+
+    #[test]
+    fn thumbnail_of_an_undecodable_picture_is_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("garbage.wav");
+        write_wav_with_picture(
+            &path,
+            MimeType::Jpeg,
+            vec![0xFF, 0xD8, 0xFF, 0xD9, 0x01, 0x02, 0x03],
+        );
+
+        assert!(read_file_artwork_thumbnail(&path, 80).unwrap().is_none());
+    }
+
+    #[test]
+    fn zero_max_edge_skips_thumbnailing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cover.wav");
+        write_wav_with_picture(&path, MimeType::Png, png_bytes(300, 200));
+
+        assert!(read_file_artwork_thumbnail(&path, 0).unwrap().is_none());
+    }
+
+    #[test]
+    fn read_file_artwork_keeps_the_original_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cover.wav");
+        let original = png_bytes(300, 200);
+        write_wav_with_picture(&path, MimeType::Png, original.clone());
+
+        assert_eq!(
+            read_file_artwork(&path).unwrap().as_deref(),
+            Some(&original[..])
         );
     }
 }

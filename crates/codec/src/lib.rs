@@ -20,7 +20,10 @@ pub use stem_mp4::{
 pub use tag_write::{
     write_track_tags, FieldWrite, TagContainer, TagField, TagWriteReport, TrackTags,
 };
-pub use tags::{read_file_artwork, read_file_tags, read_replaygain_track_gain_db, FileTags};
+pub use tags::{
+    read_file_artwork, read_file_artwork_thumbnail, read_file_tags, read_replaygain_track_gain_db,
+    FileTags,
+};
 
 use anyhow::Result;
 use audio_core::Sample;

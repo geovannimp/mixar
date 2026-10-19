@@ -26,11 +26,24 @@ typedef UpdateTrackMetadataCall = ({
   String? isrc,
 });
 
+/// One captured `exportCdjUsb` request.
+typedef CdjExportRequest = ({
+  String destination,
+  List<String> playlists,
+  List<String> folders,
+  bool refreshFiles,
+});
+
+typedef ExportCdjUsbHandler = Future<CdjExportReport> Function(
+  CdjExportRequest request,
+);
+
 /// Minimal [LibraryTransport] fake: override getTrack / list / events as needed.
 class FakeLibraryTransport implements LibraryTransport {
   FakeLibraryTransport({
     this.getTrackHandler,
     this.listCollectionEntriesHandler,
+    this.exportCdjUsbHandler,
     this.entries = const [],
     this.collections = const [],
     StreamController<LibraryEvt>? events,
@@ -42,12 +55,14 @@ class FakeLibraryTransport implements LibraryTransport {
   /// Optional hook so a test can make a save fail (or inspect the one value
   /// being written). Called after the call is recorded; it may throw.
   UpdateTrackMetadataHandler? updateTrackMetadataHandler;
+  ExportCdjUsbHandler? exportCdjUsbHandler;
   List<LibraryTrackSummary> entries;
   List<LibraryCollectionSummary> collections;
   final StreamController<LibraryEvt> _events;
   final List<String> getTrackCalls = [];
   final List<String> listCollectionEntriesCalls = [];
   final List<UpdateTrackMetadataCall> updateTrackMetadataCalls = [];
+  final List<CdjExportRequest> exportCdjUsbCalls = [];
   int outstandingGetTracks = 0;
   int maxOutstandingGetTracks = 0;
   var _disposed = false;
@@ -173,6 +188,27 @@ class FakeLibraryTransport implements LibraryTransport {
 
   @override
   Future<void> deleteLoop({required String trackId, required int slot}) async {}
+
+  @override
+  Future<CdjExportReport> exportCdjUsb({
+    required String destination,
+    required List<String> playlists,
+    required List<String> folders,
+    required bool refreshFiles,
+  }) {
+    final request = (
+      destination: destination,
+      playlists: playlists,
+      folders: folders,
+      refreshFiles: refreshFiles,
+    );
+    exportCdjUsbCalls.add(request);
+    final handler = exportCdjUsbHandler;
+    if (handler != null) {
+      return handler(request);
+    }
+    throw UnimplementedError('exportCdjUsb');
+  }
 
   @override
   Future<void> exportHistorySession({
