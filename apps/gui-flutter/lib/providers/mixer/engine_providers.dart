@@ -69,6 +69,8 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       }
       return;
     }
+    // The pre-evt mirror still carries any in-flight optimistic writes.
+    final beforeEvt = state;
     state = applyEngineEvt(state, evt);
     if (evt.kind == EngineEvtKind.updated && evt.deckId != null) {
       final id = evt.deckId!;
@@ -104,21 +106,65 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       }
       final publishedFx = evt.fx;
       if (publishedFx != null) {
+        final slots = List<FxSlotChrome>.of(state.fxSlots);
+        var patched = false;
         for (var slot = 0; slot < publishedFx.length; slot++) {
           final published = publishedFx[slot];
           // A deck update covers both decks, so the shared unit is republished
           // even when nothing about it changed; only a payload that moved away
           // from the pre-optimistic value supersedes an in-flight command.
           final armedBase = _optimisticBase[OptimisticField.fxArmed]![slot];
-          if (armedBase is! bool || armedBase != published.enabled) {
+          final keepArmed = armedBase is bool && armedBase == published.enabled;
+          if (!keepArmed) {
             _invalidateOptimistic(OptimisticField.fxArmed, slot);
           }
           final divisionBase =
               _optimisticBase[OptimisticField.fxDivision]![slot];
-          if (divisionBase is! int ||
-              divisionBase != fxDivisionIndexFrom(published.params)) {
+          final keepDivision =
+              divisionBase is int &&
+              divisionBase == fxDivisionIndexFrom(published.params);
+          if (!keepDivision) {
             _invalidateOptimistic(OptimisticField.fxDivision, slot);
           }
+          if ((!keepArmed && !keepDivision) ||
+              slot >= beforeEvt.fxSlots.length ||
+              slot >= slots.length) {
+            continue;
+          }
+          // The merge above replaced the unit with the engine's pre-command
+          // state; restore the values our command still owns so the strip (and
+          // the next step derived from it) keeps the optimistic reading.
+          final optimistic = beforeEvt.fxSlots[slot];
+          var current = slots[slot];
+          if (keepArmed && current.enabled != optimistic.enabled) {
+            current = FxSlotChrome(
+              kind: current.kind,
+              enabled: optimistic.enabled,
+              wet: current.wet,
+              params: current.params,
+            );
+            patched = true;
+          }
+          if (keepDivision &&
+              optimistic.params.isNotEmpty &&
+              (current.params.isEmpty ||
+                  current.params.first != optimistic.params.first)) {
+            final params = Float32List.fromList(current.params);
+            if (params.isNotEmpty) {
+              params[0] = optimistic.params.first;
+              current = FxSlotChrome(
+                kind: current.kind,
+                enabled: current.enabled,
+                wet: current.wet,
+                params: params,
+              );
+              patched = true;
+            }
+          }
+          slots[slot] = current;
+        }
+        if (patched) {
+          state = state.copyWith(fxSlots: slots);
         }
       }
     }

@@ -306,17 +306,23 @@ void main() {
       return captured!;
     }
 
+    Future<(ProviderContainer, WidgetRef)> captureEngine(
+      WidgetTester tester,
+      FutureOr<EngineTransport?> Function() transport,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [engineTransportProvider.overrideWith((ref) => transport())],
+      );
+      addTearDown(container.dispose);
+      final ref = await captureRef(tester, container);
+      return (container, ref);
+    }
+
     testWidgets('deck routing toggles twice before the engine echoes', (
       tester,
     ) async {
       final engine = FakeEngineTransport();
-      final container = ProviderContainer(
-        overrides: [
-          engineTransportProvider.overrideWith((ref) async => engine),
-        ],
-      );
-      addTearDown(container.dispose);
-      final ref = await captureRef(tester, container);
+      final (container, ref) = await captureEngine(tester, () async => engine);
 
       expect(container.read(engineUiProvider).channelFor(0).fxRouted, isFalse);
       await setDeckFxRouted(ref, 0, true);
@@ -332,11 +338,7 @@ void main() {
     ) async {
       final engine = FakeEngineTransport();
       final gate = Completer<EngineTransport?>();
-      final container = ProviderContainer(
-        overrides: [engineTransportProvider.overrideWith((ref) => gate.future)],
-      );
-      addTearDown(container.dispose);
-      final ref = await captureRef(tester, container);
+      final (container, ref) = await captureEngine(tester, () => gate.future);
 
       final slot = FxSlotChrome(
         kind: FxKind.echo,
@@ -355,20 +357,25 @@ void main() {
           .read(engineUiProvider.notifier)
           .apply(EngineEvt(kind: EngineEvtKind.updated, deckId: 1, fx: [slot]));
 
+      // The evt merge must not discard the owned division: the stepper
+      // derives its next target from this mirror.
+      expect(
+        fxDivisionIndexFrom(container.read(fxSlotsProvider).single.params),
+        4,
+      );
+
       gate.complete(engine);
       await pending;
       expect(engine.fxUnitParams, [(0, 0, fxDivisionNorm(4))]);
+      expect(
+        fxDivisionIndexFrom(container.read(fxSlotsProvider).single.params),
+        4,
+      );
     });
 
     testWidgets('arm toggles twice before the engine echoes', (tester) async {
       final engine = FakeEngineTransport();
-      final container = ProviderContainer(
-        overrides: [
-          engineTransportProvider.overrideWith((ref) async => engine),
-        ],
-      );
-      addTearDown(container.dispose);
-      final ref = await captureRef(tester, container);
+      final (container, ref) = await captureEngine(tester, () async => engine);
 
       container
           .read(engineUiProvider.notifier)
