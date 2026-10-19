@@ -2592,6 +2592,7 @@ dependencies = [
  "library-core",
  "rekordcrate",
  "rusqlite",
+ "serde",
  "serde_json",
  "tempfile",
 ]

@@ -34,7 +34,8 @@ cdj::anlz    PIONEER/USBANLZ/…/ANLZ0000.{DAT,EXT}   (per track)
 | Module | Role |
 | --- | --- |
 | `cdj/mod.rs` | `CdjExporter`: the run loop, copying, per-track reporting, `Exportable` impl. |
-| `cdj/plan.rs` | Selection → `PlanTrack` / `PlanPlaylist`; folder-vs-metadata placement; warnings for unknown or mistyped collection ids. |
+| `cdj/plan.rs` | Selection → `PlanTrack` / `PlanPlaylist`; folder-vs-metadata placement (reusing paths the drive already holds, reserving the rest); warnings for unknown or mistyped collection ids. |
+| `cdj/manifest.rs` | `PIONEER/rekordbox/mixar-export.json`: the tracks, playlists and artwork ids the drive has accumulated, plus the `export.pdb` length and fingerprint that invalidate it. |
 | `cdj/layout.rs` | FAT32-safe, case-insensitively de-duplicated on-drive paths. |
 | `cdj/pdb.rs` | `export.pdb`: page allocator, row serializers, the fixed tables the hardware browses. |
 | `cdj/anlz.rs` | `ANLZ0000.DAT` / `.EXT` section writers (path, VBR, beat grid, waveforms, cue lists). |
@@ -65,6 +66,14 @@ drive; `CdjExporter` is the entry point that needs a library and a destination.
 - **Reuse beats rewrite.** Audio is reused when the on-drive name and size match, analysis files
   when both already exist; the dialog's **Override files already on the drive** checkbox sets
   `ExportOptions::refresh_files`, which forces a rewrite. Nothing on the drive is ever deleted.
+- **A run merges into the drive.** One export covers one collection, but the database has to
+  describe every track and playlist on the drive, so each run rewrites
+  `PIONEER/rekordbox/mixar-export.json` and rebuilds the database from it plus the current
+  selection. Tracks keep the path they already have (paths of unselected tracks stay
+  reserved), playlists are replaced per source collection, and artwork ids continue after the
+  highest id on the drive. The state file also fingerprints the `export.pdb` it wrote: if that
+  file changed since (rekordbox rewrote the drive), the state is dropped with a warning and the
+  drive is rebuilt from the current selection.
 - **Artwork is scaled at the source.** `library_core::ExportArtwork` carries a JPEG thumbnail
   (`EXPORT_ARTWORK_EDGE_PX`, 80 px — the size Rekordbox writes) produced by
   `codec::read_file_artwork_thumbnail`, so the writer never decodes a cover itself. Covers are
@@ -74,7 +83,7 @@ drive; `CdjExporter` is the entry point that needs a library and a destination.
 ## Host wiring
 
 `LibraryTransport::export_cdj_usb(destination, playlists, folders, refresh_files)` builds
-`ExportOptions` and calls the exporter with `library::LockedExportSource`, which locks the
+`ExportOptions` and calls the exporter with `library::ExportSession`, which locks the
 manager **per call** rather than for the whole run, so browsing and editing the library stay
 responsive while a long export is in flight. The returned `CdjExportReport` feeds the summary,
 warning and error toasts of the export dialog, which the collection's three-dot menu opens
@@ -89,7 +98,8 @@ directory picker).
 | Every written file is re-parsed with `rekordcrate` — an independent implementation of both formats — and asserted field by field (tracks, playlist order, beat grid, waveform entry counts, cues and loops). | `crates/library-adapters/tests/cdj_export.rs` |
 | Layout rules, key mapping, DeviceSQL strings, path hash and the page/row writers. | unit tests in `crates/library-adapters/src/cdj/` |
 | A 40-track export whose tables span several database pages, re-read end to end. | same integration test |
-| Artwork rows, ids and file layout, including sharing one cover across tracks and the no-artwork path. | unit tests in `cdj/pdb.rs` and `cdj/tests.rs` |
+| Artwork rows, ids and file layout, including sharing one cover across tracks, continuing ids across runs, and the no-artwork path. | unit tests in `cdj/pdb.rs` and `cdj/tests.rs` |
+| Merging across runs: two exports into one drive, a re-export after a playlist entry is removed, and a database rewritten outside Mixar. | `tests/cdj_export.rs`, `cdj/manifest.rs` unit tests |
 | The fixed tables (keys, colors, columns, menu, table `0x12`, history) byte-compare with two rekordbox-written exports. | done while developing; noted in `cdj/pdb.rs` |
 | Host → exporter wiring. | `crates/host-flutter/tests/cdj_export.rs` |
 

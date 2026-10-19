@@ -5,9 +5,10 @@
 //! pipeline.
 
 use library_core::{ExportBeatGrid, ExportCue, SpectralPeak};
+use serde::{Deserialize, Serialize};
 
 /// Pioneer's file-type discriminant, written into each track row.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[repr(u16)]
 pub enum CdjFileType {
     /// Not a file type the hardware can play.
@@ -44,7 +45,10 @@ impl CdjFileType {
 /// One track written into the device database and analysis files.
 ///
 /// Paths are relative to the export root and start with `/`.
-#[derive(Clone, Debug, PartialEq)]
+///
+/// Serialized into the drive's export manifest, so repeated runs can merge with
+/// what earlier runs wrote.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CdjTrack {
     /// Track title.
     pub title: String,
@@ -90,7 +94,7 @@ pub struct CdjTrack {
 ///
 /// `entries` index into the track slice handed to the writer, in playlist
 /// order.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CdjPlaylist {
     /// Playlist name shown on the device.
     pub name: String,
@@ -102,7 +106,7 @@ pub struct CdjPlaylist {
 ///
 /// Every distinct cover gets exactly one row and one file, referenced by the
 /// tracks that use it.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CdjArtwork {
     /// Artwork-table id, 1-based and in the order the exporter interned the
     /// covers.

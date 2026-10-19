@@ -392,7 +392,7 @@
     }
   },
   "cdjExportTitle": "Exportar para CDJ USB",
-  "cdjExportDescription": "Grava playlists e coleções de pastas em um pendrive para CDJ/XDJ Pioneer, para os players navegarem sem o Rekordbox.",
+  "cdjExportDescription": "Grava playlists e coleções de pastas em um pendrive para CDJ/XDJ Pioneer, para os players navegarem sem o Rekordbox. Cada exportação é somada ao que o pendrive já tem.",
   "cdjExportDestination": "Destino",
   "cdjExportDestinationHint": "Pendrive ou pasta",
   "cdjExportDestinationMissing": "Escolha um destino (pendrive ou pasta).",

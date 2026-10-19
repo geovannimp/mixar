@@ -1525,7 +1525,7 @@ abstract class AppLocalizations {
   /// No description provided for @cdjExportDescription.
   ///
   /// In en, this message translates to:
-  /// **'Write playlists and folder collections to a Pioneer CDJ/XDJ USB drive, so players browse them without Rekordbox.'**
+  /// **'Write playlists and folder collections to a Pioneer CDJ/XDJ USB drive, so players browse them without Rekordbox. Each export adds to what the drive already holds.'**
   String get cdjExportDescription;
 
   /// No description provided for @cdjExportDestination.

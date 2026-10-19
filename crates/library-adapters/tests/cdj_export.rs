@@ -726,3 +726,163 @@ fn exports_a_library_spanning_several_pages() {
         }
     }
 }
+
+/// Playlist names, in the order the parser walks the tree table.
+fn playlist_names(destination: &Path) -> Vec<String> {
+    let mut db = open_pdb(destination);
+    let mut rows = db.iter_rows::<PlaylistTreeNode>().expect("playlist tree");
+    let mut names = Vec::new();
+    while let Some(node) = rows.next().expect("playlist node") {
+        names.push(node.name.to_string());
+    }
+    names
+}
+
+/// Number of playlist rows across every playlist on the drive.
+fn entry_count(destination: &Path) -> usize {
+    let mut db = open_pdb(destination);
+    db.iter_rows::<PlaylistEntry>()
+        .expect("playlist entries")
+        .count()
+        .expect("count entries")
+}
+
+#[test]
+fn a_second_export_merges_with_what_the_drive_holds() {
+    let fixture = Fixture::new();
+    let destination = fixture.dir.path().join("drive");
+
+    // The UI exports one collection at a time, so a run has to add to the drive
+    // rather than replace what earlier runs wrote.
+    fixture.export(
+        &destination,
+        &ExportOptions {
+            playlists: Vec::new(),
+            folders: vec![fixture.folder.id.clone()],
+            refresh_files: false,
+        },
+    );
+    let second = fixture.export(
+        &destination,
+        &ExportOptions {
+            playlists: vec![fixture.playlist.id.clone()],
+            folders: Vec::new(),
+            refresh_files: false,
+        },
+    );
+    assert!(second.warnings.is_empty(), "{:?}", second.warnings);
+    assert_eq!(second.tracks, 2);
+
+    let mut db = open_pdb(&destination);
+    assert_eq!(
+        db.iter_rows::<Track>()
+            .expect("tracks")
+            .count()
+            .expect("count tracks"),
+        2,
+        "the folder's tracks survive the playlist export"
+    );
+    drop(db);
+
+    assert_eq!(playlist_names(&destination), vec!["music", "Warmup"]);
+    // The playlist-only run reuses the folder placement instead of duplicating
+    // the files under the artist/album tree.
+    assert!(destination.join(fixture.device_path("One.wav")).is_file());
+    assert!(!destination.join("Contents/Artist/Album/One.wav").exists());
+}
+
+#[test]
+fn re_exporting_a_collection_updates_it_without_dropping_others() {
+    let mut fixture = Fixture::new();
+    let destination = fixture.dir.path().join("drive");
+
+    fixture.export(&destination, &fixture.options());
+    assert_eq!(
+        entry_count(&destination),
+        4,
+        "both playlists list both tracks"
+    );
+
+    // Dropping a playlist entry and re-exporting only that playlist rewrites its
+    // rows; the folder's own playlist and the tracks stay.
+    let entry = fixture
+        .library
+        .list_collection_entries(&fixture.playlist.id)
+        .expect("playlist entries")[0]
+        .id
+        .clone();
+    fixture
+        .library
+        .remove_collection_entry(&fixture.playlist.id, &entry)
+        .expect("remove entry");
+    let report = fixture.export(
+        &destination,
+        &ExportOptions {
+            playlists: vec![fixture.playlist.id.clone()],
+            folders: Vec::new(),
+            refresh_files: false,
+        },
+    );
+
+    assert_eq!(
+        report.tracks, 1,
+        "the run writes the one track the playlist lists"
+    );
+    let mut db = open_pdb(&destination);
+    assert_eq!(
+        db.iter_rows::<Track>()
+            .expect("tracks")
+            .count()
+            .expect("count tracks"),
+        2,
+        "the track the playlist dropped is still on the drive"
+    );
+    drop(db);
+    // The first run wrote the selected playlist and then the folder's own
+    // playlist; rewriting one keeps the order the drive already had.
+    assert_eq!(playlist_names(&destination), vec!["Warmup", "music"]);
+    assert_eq!(
+        entry_count(&destination),
+        3,
+        "the rewritten playlist has one row fewer"
+    );
+}
+
+#[test]
+fn a_drive_changed_outside_mixar_is_rebuilt() {
+    let fixture = Fixture::new();
+    let destination = fixture.dir.path().join("drive");
+
+    fixture.export(&destination, &fixture.options());
+
+    // Something else rewrote the database (Rekordbox, another tool), so the
+    // state file no longer describes it and its playlists must not come back.
+    fs::write(
+        destination.join("PIONEER/rekordbox/export.pdb"),
+        b"not ours",
+    )
+    .expect("clobber export.pdb");
+    let report = fixture.export(
+        &destination,
+        &ExportOptions {
+            playlists: vec![fixture.playlist.id.clone()],
+            folders: Vec::new(),
+            refresh_files: false,
+        },
+    );
+
+    assert!(
+        report
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("changed outside Mixar")),
+        "warnings: {:?}",
+        report.warnings
+    );
+    assert_eq!(
+        playlist_names(&destination),
+        vec!["Warmup"],
+        "the folder's playlist went with the database it was in"
+    );
+    assert_eq!(entry_count(&destination), 2);
+}

@@ -270,8 +270,23 @@ fn different_covers_get_their_own_ids() {
         .export(&two, &drive, &two.options())
         .expect("second");
 
-    // Each run builds its own database and interning order, so both covers sit
-    // at id 1 of their run; the files must not collide.
-    assert!(drive.join("PIONEER/Artwork/00001/a1.jpg").is_file());
-    assert_eq!(artwork_rows(&drive).len(), 1);
+    // The second run merges into the drive, so its cover takes the next free id
+    // instead of overwriting the first one's file or row.
+    let rows = artwork_rows(&drive);
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["id"].as_u64(), Some(1));
+    assert_eq!(rows[1]["id"].as_u64(), Some(2));
+    assert_eq!(
+        std::fs::read(drive.join("PIONEER/Artwork/00001/a1.jpg")).expect("first cover file"),
+        b"cover-one"
+    );
+    assert_eq!(
+        std::fs::read(drive.join("PIONEER/Artwork/00002/a1.jpg")).expect("second cover file"),
+        b"cover-two"
+    );
+    assert_eq!(
+        track_artwork_ids(&drive),
+        vec![1, 2],
+        "each of the drive's tracks points at its own cover"
+    );
 }

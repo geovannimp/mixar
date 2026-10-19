@@ -855,7 +855,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get cdjExportDescription =>
-      'Grava playlists e coleções de pastas em um pendrive para CDJ/XDJ Pioneer, para os players navegarem sem o Rekordbox.';
+      'Grava playlists e coleções de pastas em um pendrive para CDJ/XDJ Pioneer, para os players navegarem sem o Rekordbox. Cada exportação é somada ao que o pendrive já tem.';
 
   @override
   String get cdjExportDestination => 'Destino';

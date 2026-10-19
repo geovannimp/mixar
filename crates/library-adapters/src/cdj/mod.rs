@@ -63,6 +63,7 @@ pub mod anlz;
 mod device_sql;
 mod keys;
 mod layout;
+mod manifest;
 mod model;
 mod path_hash;
 pub mod pdb;
@@ -72,10 +73,7 @@ pub mod waveform;
 #[cfg(test)]
 mod tests;
 
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 pub use model::{AnlzInput, CdjArtwork, CdjFileType, CdjPlaylist, CdjTrack};
@@ -112,30 +110,33 @@ impl Exportable for CdjExporter {
         destination: &Path,
         options: &ExportOptions,
     ) -> Result<ExportReport> {
-        let plan = plan::build(source, options)?;
-        let mut report = ExportReport {
-            folders: plan.folders,
-            warnings: plan.warnings.clone(),
-            ..ExportReport::default()
-        };
+        let mut report = ExportReport::default();
+        let mut manifest = manifest::Manifest::load(destination, &mut report);
+        let plan = plan::build(source, options, &manifest.previous_placement())?;
+        report.folders = plan.folders;
+        report.warnings.extend(plan.warnings.clone());
 
         // Plan order is database order; skipped tracks keep no slot, so
         // playlist entries are remapped through `writer_index`.
-        let mut writer_tracks: Vec<CdjTrack> = Vec::with_capacity(plan.tracks.len());
+        let mut run_tracks: Vec<manifest::ManifestTrack> = Vec::with_capacity(plan.tracks.len());
         let mut writer_index: Vec<Option<usize>> = Vec::with_capacity(plan.tracks.len());
-        let mut artworks = ArtworkSet::default();
+        let mut written_paths: Vec<String> = Vec::with_capacity(plan.tracks.len());
         for track in &plan.tracks {
             match export_track(
                 source,
                 destination,
                 options,
                 track,
-                &mut artworks,
+                &mut manifest,
                 &mut report,
             ) {
                 Ok(Some(cdj_track)) => {
-                    writer_index.push(Some(writer_tracks.len()));
-                    writer_tracks.push(cdj_track);
+                    writer_index.push(Some(run_tracks.len()));
+                    written_paths.push(cdj_track.device_audio_path.clone());
+                    run_tracks.push(manifest::ManifestTrack {
+                        source_id: track.track_id.to_string(),
+                        track: cdj_track,
+                    });
                 }
                 Ok(None) => writer_index.push(None),
                 Err(err) => {
@@ -147,30 +148,43 @@ impl Exportable for CdjExporter {
             }
         }
 
-        let playlists: Vec<CdjPlaylist> = plan
+        // This run's playlists, by on-drive path so the merge never depends on
+        // track indices.
+        let run_playlists: Vec<(String, Option<String>, Vec<String>)> = plan
             .playlists
             .iter()
-            .map(|playlist| CdjPlaylist {
-                name: playlist.name.clone(),
-                entries: playlist
+            .map(|playlist| {
+                let entries = playlist
                     .entries
                     .iter()
-                    .filter_map(|index| writer_index[*index])
-                    .collect(),
+                    .filter_map(|index| {
+                        writer_index[*index].map(|slot| written_paths[slot].clone())
+                    })
+                    .collect();
+                (playlist.name.clone(), playlist.source.clone(), entries)
             })
             .collect();
 
-        let database =
-            pdb::build(&writer_tracks, &playlists, &artworks.rows(), &today()).map_err(|err| {
-                LibraryError::Backend {
-                    backend: "cdj-export",
-                    message: err.to_string(),
-                }
-            })?;
-        write_file(&destination.join(PDB_PATH), &database)?;
+        // Merge into what the drive already carries: the UI exports one
+        // collection at a time, and a run must not drop the others.
+        let written = run_tracks.len();
+        manifest.merge_tracks(run_tracks);
+        for (name, source_id, entries) in &run_playlists {
+            manifest.record_playlist(name, source_id.as_deref(), entries.clone());
+        }
 
-        report.tracks = writer_tracks.len();
-        report.playlists = playlists.len();
+        let (tracks, playlists, artworks) = manifest.writer_inputs();
+        let database = pdb::build(&tracks, &playlists, &artworks, &today()).map_err(|err| {
+            LibraryError::Backend {
+                backend: "cdj-export",
+                message: err.to_string(),
+            }
+        })?;
+        write_file(&destination.join(PDB_PATH), &database)?;
+        let _ = manifest.save(destination, &database, &mut report);
+
+        report.tracks = written;
+        report.playlists = run_playlists.len();
         Ok(report)
     }
 }
@@ -184,7 +198,7 @@ fn export_track(
     destination: &Path,
     options: &ExportOptions,
     track: &plan::PlanTrack,
-    artworks: &mut ArtworkSet,
+    manifest: &mut manifest::Manifest,
     report: &mut ExportReport,
 ) -> Result<Option<CdjTrack>> {
     let label = path_label(&track.source_path);
@@ -224,13 +238,23 @@ fn export_track(
     };
     write_analysis_files(destination, track, data.as_ref(), options, report)?;
     let artwork_id = match data.as_ref().and_then(|data| data.artwork.as_ref()) {
-        Some(artwork) => artworks.intern(
-            &artwork.jpeg,
-            destination,
-            options.refresh_files,
-            &label,
-            report,
-        ),
+        Some(artwork) => {
+            // Ids come from the drive's state, so a cover keeps its id (and its
+            // file) across runs instead of restarting at 1.
+            let (id, path) = manifest.artwork_for(&artwork.jpeg);
+            match write_artwork_file(destination, &path, &artwork.jpeg, options.refresh_files) {
+                Ok(copied) => {
+                    report.bytes_copied += copied;
+                    id
+                }
+                Err(err) => {
+                    report
+                        .warnings
+                        .push(format!("{label}: artwork not written ({err})"));
+                    0
+                }
+            }
+        }
         None => 0,
     };
 
@@ -267,86 +291,6 @@ fn export_track(
     }))
 }
 
-/// Distinct covers on the drive: one file and one artwork row per unique JPEG,
-/// shared by every track that carries it.
-///
-/// Tracks reference covers by id, so the same album art is written once no
-/// matter how many tracks use it.
-#[derive(Default)]
-struct ArtworkSet {
-    /// JPEG length + content hash → index into `items`, so identical covers
-    /// collapse without comparing every pair.
-    by_key: HashMap<(usize, u64), usize>,
-    items: Vec<ArtworkItem>,
-}
-
-struct ArtworkItem {
-    jpeg: Vec<u8>,
-    id: u32,
-    path: String,
-    written: bool,
-}
-
-impl ArtworkSet {
-    /// Id (1-based) for this cover, writing its file the first time it appears.
-    ///
-    /// A cover we cannot write is reported as a warning and leaves the track
-    /// without artwork, rather than failing the track.
-    fn intern(
-        &mut self,
-        jpeg: &[u8],
-        destination: &Path,
-        refresh: bool,
-        label: &str,
-        report: &mut ExportReport,
-    ) -> u32 {
-        let key = (jpeg.len(), hash_bytes(jpeg));
-        let index = match self.by_key.get(&key) {
-            Some(index) if self.items[*index].jpeg == jpeg => *index,
-            _ => {
-                let id = self.items.len() as u32 + 1;
-                let path = artwork_path(id);
-                self.items.push(ArtworkItem {
-                    jpeg: jpeg.to_vec(),
-                    id,
-                    path,
-                    written: false,
-                });
-                self.by_key.insert(key, self.items.len() - 1);
-                self.items.len() - 1
-            }
-        };
-
-        let item = &mut self.items[index];
-        if !item.written {
-            match write_artwork_file(destination, &item.path, &item.jpeg, refresh) {
-                Ok(copied) => {
-                    item.written = true;
-                    report.bytes_copied += copied;
-                }
-                Err(err) => {
-                    report
-                        .warnings
-                        .push(format!("{label}: artwork not written ({err})"));
-                    return 0;
-                }
-            }
-        }
-        item.id
-    }
-
-    /// Rows for the device database, in id order.
-    fn rows(&self) -> Vec<CdjArtwork> {
-        self.items
-            .iter()
-            .map(|item| CdjArtwork {
-                id: item.id,
-                path: item.path.clone(),
-            })
-            .collect()
-    }
-}
-
 /// On-drive path of an artwork thumbnail, following Rekordbox's layout.
 fn artwork_path(id: u32) -> String {
     format!("/PIONEER/Artwork/{id:05}/a1.jpg")
@@ -361,9 +305,11 @@ fn write_artwork_file(
     refresh: bool,
 ) -> Result<u64> {
     let path = destination.join(relative_path(device_path));
+    // Artwork ids identify a slot, not an image: compare the bytes so a
+    // re-export never leaves a stale cover under a reused id.
     let already_there = !refresh
-        && fs::metadata(&path)
-            .map(|metadata| metadata.len() == jpeg.len() as u64)
+        && fs::read(&path)
+            .map(|on_drive| on_drive == jpeg)
             .unwrap_or(false);
     if already_there {
         return Ok(0);
@@ -374,14 +320,6 @@ fn write_artwork_file(
     }
     fs::write(&path, jpeg).map_err(|err| export_error(&path, err))?;
     Ok(jpeg.len() as u64)
-}
-
-/// Content hash used only to bucket artwork bytes; every hash hit is confirmed
-/// by comparing the bytes themselves.
-fn hash_bytes(bytes: &[u8]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    bytes.hash(&mut hasher);
-    hasher.finish()
 }
 
 /// Copy `source` to `device_path` unless an identically sized file is already

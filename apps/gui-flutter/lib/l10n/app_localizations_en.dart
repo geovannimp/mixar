@@ -843,7 +843,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cdjExportDescription =>
-      'Write playlists and folder collections to a Pioneer CDJ/XDJ USB drive, so players browse them without Rekordbox.';
+      'Write playlists and folder collections to a Pioneer CDJ/XDJ USB drive, so players browse them without Rekordbox. Each export adds to what the drive already holds.';
 
   @override
   String get cdjExportDestination => 'Destination';

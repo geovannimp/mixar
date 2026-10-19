@@ -155,6 +155,7 @@ without Rekordbox.
 <destination>/
   Contents/<Artist>/<Album>/<file>                 audio (folder collections mirror their tree)
   PIONEER/rekordbox/export.pdb                     DeviceSQL database: tracks + playlists
+  PIONEER/rekordbox/mixar-export.json              state: everything Mixar has put on the drive
   PIONEER/USBANLZ/P###/########/ANLZ0000.DAT       beat grid, preview waveforms, cue lists
   PIONEER/USBANLZ/P###/########/ANLZ0000.EXT       detail waveforms, extended cue lists
 ```
@@ -165,6 +166,31 @@ the hardware itself uses, so a track's analysis files must sit at exactly that
 hash path (`CdjExporter::analysis_dir`) — otherwise the player ignores them and
 re-analyzes the track on load.
 
+### Merging into an existing drive
+
+The UI exports one collection at a time, while the device database has to
+describe everything on the drive, so a run merges rather than replaces. What
+earlier runs wrote is recorded in `PIONEER/rekordbox/mixar-export.json` (players
+ignore the file): every track with its library id and on-drive path, every
+playlist with the collection it came from, and every cover with its artwork id.
+
+- A track that already has a path keeps it, even when the run reaches it through
+  a different collection, so re-exporting never duplicates files under a ` (2)`
+  name. Paths of tracks that are *not* in the current selection stay reserved,
+  so a newly added track cannot land on one.
+- Playlists are keyed by source collection: re-exporting a collection replaces
+  its playlist in place, and the drive keeps the playlists of collections that
+  are not part of the run.
+- Artwork ids continue after the highest id on the drive, so a new cover never
+  takes an id another track still references.
+- The state file stores the length and fingerprint of the `export.pdb` it
+  describes. If the database on the drive is not that file — rekordbox or
+  another tool rewrote it — the state is discarded with a warning and the drive
+  is rebuilt from the current selection; a missing or unreadable state file is
+  treated the same way.
+- `ExportReport` counts describe the run, not the drive: a playlist-only run
+  reports the tracks it wrote while the drive keeps the rest.
+
 User guide: [Export to a CDJ USB drive](https://mixar.top/docs/users/library/export-to-cdj-usb);
 internals: [CDJ USB export](https://mixar.top/docs/developers/library/cdj-usb-export).
 
@@ -172,6 +198,7 @@ internals: [CDJ USB export](https://mixar.top/docs/developers/library/cdj-usb-ex
 | --- | --- |
 | `cdj/mod.rs` | `CdjExporter`: the `Exportable` run loop, file copying, cover thumbnails, report |
 | `cdj/plan.rs` | selection → tracks, placements and playlists |
+| `cdj/manifest.rs` | `mixar-export.json`: what the drive already holds, so runs merge |
 | `cdj/layout.rs` | FAT32-safe, de-duplicated on-drive paths |
 | `cdj/pdb.rs` | `export.pdb` writer (pages, tables, rows) |
 | `cdj/anlz.rs` | `ANLZ0000.DAT` / `.EXT` writers |
@@ -190,6 +217,9 @@ internals: [CDJ USB export](https://mixar.top/docs/developers/library/cdj-usb-ex
   everything else is placed as `Contents/<artist>/<album>/<file name>`. Names
   are sanitized and de-duplicated case-insensitively, so every track is copied
   once and playlist entries point at the single copy.
+- A track the drive already holds keeps the path recorded for it, and paths of
+  tracks outside the selection are reserved first, so a new placement can never
+  take over an existing file.
 - `ExportOptions::refresh_files` re-copies audio and rewrites analysis files
   even when files of the same size (audio) or the files themselves (analysis)
   are already on the drive. By default they are reused, which makes re-exports

@@ -13,12 +13,12 @@
 //!
 //! Streams cannot be written to a drive and are skipped.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use library_core::{
-    Collection, CollectionId, CollectionType, ExportOptions, ExportSource, FileAudioSource, Result,
-    TrackId, TrackMetadata,
+    AudioSource, Collection, CollectionId, CollectionType, ExportOptions, ExportSource,
+    FileAudioSource, Result, TrackId, TrackMetadata,
 };
 
 use super::layout::DevicePaths;
@@ -44,6 +44,12 @@ pub struct PlanTrack {
 pub struct PlanPlaylist {
     /// Playlist name shown on the device.
     pub name: String,
+    /// Library collection the playlist came from.
+    ///
+    /// Folder collections also produce a playlist (so the player can reach their
+    /// tracks); the id lets the export manifest replace a collection's previous
+    /// playlist instead of duplicating it.
+    pub source: Option<String>,
     /// Indices into [`Plan::tracks`], in play order.
     pub entries: Vec<usize>,
 }
@@ -66,14 +72,18 @@ pub struct Plan {
 /// Reading the library is the only failure mode; individual tracks and
 /// collections that cannot be resolved are reported as warnings so the run
 /// still exports what it can.
-pub fn build(source: &dyn ExportSource, options: &ExportOptions) -> Result<Plan> {
+pub fn build(
+    source: &dyn ExportSource,
+    options: &ExportOptions,
+    previous: &HashMap<String, String>,
+) -> Result<Plan> {
     let collections = source.list_collections()?;
     let mut plan = Plan::default();
-    let mut index: HashMap<TrackId, usize> = HashMap::new();
-    let mut paths = DevicePaths::default();
 
-    // Folders first: they decide the placement of the tracks they contain.
-    let mut folders: Vec<(&Collection, Vec<TrackId>)> = Vec::new();
+    // Resolve the whole selection before placing anything: the paths of
+    // unselected tracks from earlier runs stay reserved, so a new track cannot
+    // take one of them.
+    let mut folders: Vec<(&Collection, Vec<AudioSource>)> = Vec::new();
     for folder in select(
         &collections,
         &options.folders,
@@ -81,13 +91,45 @@ pub fn build(source: &dyn ExportSource, options: &ExportOptions) -> Result<Plan>
         "folder",
         &mut plan.warnings,
     ) {
-        let tracks = match source.list_collection_tracks(&folder.id) {
-            Ok(tracks) => tracks,
+        match source.list_collection_tracks(&folder.id) {
+            Ok(tracks) => folders.push((folder, tracks)),
+            Err(err) => plan.warnings.push(format!("folder {}: {err}", folder.name)),
+        }
+    }
+    let mut playlists: Vec<(&Collection, Vec<AudioSource>)> = Vec::new();
+    for playlist in select(
+        &collections,
+        &options.playlists,
+        CollectionType::Playlist,
+        "playlist",
+        &mut plan.warnings,
+    ) {
+        match source.list_collection_tracks(&playlist.id) {
+            Ok(tracks) => playlists.push((playlist, tracks)),
             Err(err) => {
-                plan.warnings.push(format!("folder {}: {err}", folder.name));
-                continue;
+                plan.warnings
+                    .push(format!("playlist {}: {err}", playlist.name));
             }
-        };
+        }
+    }
+
+    let selected: HashSet<&str> = folders
+        .iter()
+        .chain(playlists.iter())
+        .flat_map(|(_, tracks)| tracks.iter())
+        .filter_map(|track| track.file().map(|file| file.id.as_str()))
+        .collect();
+    let mut index: HashMap<TrackId, usize> = HashMap::new();
+    let mut paths = DevicePaths::default();
+    for (source_id, device_path) in previous {
+        if !selected.contains(source_id.as_str()) {
+            paths.reserve(device_path);
+        }
+    }
+
+    // Folders first: they decide the placement of the tracks they contain.
+    let mut folder_members: Vec<(&Collection, Vec<TrackId>)> = Vec::new();
+    for (folder, tracks) in &folders {
         let root = folder.fs_path().map(Path::to_path_buf);
         let mut member_ids = Vec::new();
         for track in tracks {
@@ -98,32 +140,23 @@ pub fn build(source: &dyn ExportSource, options: &ExportOptions) -> Result<Plan>
             if index.contains_key(&file.id) {
                 continue;
             }
-            let relative = root
-                .as_deref()
-                .and_then(|root| file.path().strip_prefix(root).ok())
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| file_name(file));
-            let device_audio_path = paths.folder_mirror(&folder.name, &relative);
+            let device_audio_path = match previous.get(file.id.as_str()) {
+                Some(path) => paths.take(path),
+                None => {
+                    let relative = root
+                        .as_deref()
+                        .and_then(|root| file.path().strip_prefix(root).ok())
+                        .map(Path::to_path_buf)
+                        .unwrap_or_else(|| file_name(file));
+                    paths.folder_mirror(&folder.name, &relative)
+                }
+            };
             push_track(&mut plan, &mut index, file, device_audio_path);
         }
-        folders.push((folder, member_ids));
+        folder_members.push((folder, member_ids));
     }
 
-    for playlist in select(
-        &collections,
-        &options.playlists,
-        CollectionType::Playlist,
-        "playlist",
-        &mut plan.warnings,
-    ) {
-        let tracks = match source.list_collection_tracks(&playlist.id) {
-            Ok(tracks) => tracks,
-            Err(err) => {
-                plan.warnings
-                    .push(format!("playlist {}: {err}", playlist.name));
-                continue;
-            }
-        };
+    for (playlist, tracks) in &playlists {
         let mut entries = Vec::new();
         for track in tracks {
             let Some(file) = track.file() else {
@@ -132,14 +165,17 @@ pub fn build(source: &dyn ExportSource, options: &ExportOptions) -> Result<Plan>
             let track_index = match index.get(&file.id) {
                 Some(track_index) => *track_index,
                 None => {
-                    let device_audio_path = paths.artist_album(
-                        file.metadata.artist.as_deref(),
-                        file.metadata.album.as_deref(),
-                        file.path()
-                            .file_name()
-                            .and_then(|name| name.to_str())
-                            .unwrap_or_default(),
-                    );
+                    let device_audio_path = match previous.get(file.id.as_str()) {
+                        Some(path) => paths.take(path),
+                        None => paths.artist_album(
+                            file.metadata.artist.as_deref(),
+                            file.metadata.album.as_deref(),
+                            file.path()
+                                .file_name()
+                                .and_then(|name| name.to_str())
+                                .unwrap_or_default(),
+                        ),
+                    };
                     push_track(&mut plan, &mut index, file, device_audio_path)
                 }
             };
@@ -147,20 +183,22 @@ pub fn build(source: &dyn ExportSource, options: &ExportOptions) -> Result<Plan>
         }
         plan.playlists.push(PlanPlaylist {
             name: playlist.name.clone(),
+            source: Some(playlist.id.to_string()),
             entries,
         });
     }
 
     // Folders are reachable in the player's playlist browser only as
     // playlists, so each one also lists its tracks.
-    plan.folders = folders.len();
-    for (folder, member_ids) in folders {
+    plan.folders = folder_members.len();
+    for (folder, member_ids) in folder_members {
         let entries = member_ids
             .iter()
             .filter_map(|id| index.get(id).copied())
             .collect();
         plan.playlists.push(PlanPlaylist {
             name: folder.name.clone(),
+            source: Some(folder.id.to_string()),
             entries,
         });
     }
@@ -381,6 +419,7 @@ mod tests {
                 folders: vec![folder.id.clone()],
                 refresh_files: false,
             },
+            &HashMap::new(),
         )
         .expect("plan");
 
@@ -401,6 +440,7 @@ mod tests {
         );
         assert_eq!(plan.playlists.len(), 1);
         assert_eq!(plan.playlists[0].name, "House");
+        assert_eq!(plan.playlists[0].source.as_deref(), Some("folder-1"));
         assert_eq!(plan.playlists[0].entries, vec![0, 1]);
         assert!(plan.warnings.is_empty(), "{:?}", plan.warnings);
     }
@@ -423,6 +463,7 @@ mod tests {
                 folders: Vec::new(),
                 refresh_files: false,
             },
+            &HashMap::new(),
         )
         .expect("plan");
 
@@ -451,6 +492,7 @@ mod tests {
                 folders: vec![folder.id.clone()],
                 refresh_files: false,
             },
+            &HashMap::new(),
         )
         .expect("plan");
 
@@ -476,6 +518,7 @@ mod tests {
                 folders: Vec::new(),
                 refresh_files: false,
             },
+            &HashMap::new(),
         )
         .expect("plan");
 
@@ -505,10 +548,80 @@ mod tests {
                 folders: Vec::new(),
                 refresh_files: false,
             },
+            &HashMap::new(),
         )
         .expect("plan");
 
         assert_eq!(plan.tracks.len(), 1);
         assert_eq!(plan.playlists[0].entries, vec![0]);
+    }
+    #[test]
+    fn a_previous_placement_keeps_a_track_at_its_path() {
+        let mut library = FakeLibrary::new();
+        let playlist = library.playlist("pl-1", "Warmup", true);
+        let id = library.file(
+            "pl-1",
+            "/elsewhere/Deep/Tune.mp3",
+            "Slam",
+            "Positive Education",
+        );
+        let previous = HashMap::from([(
+            id.to_string(),
+            "/Contents/Slam/Positive Education/Tune.mp3".to_string(),
+        )]);
+
+        let plan = build(
+            &library,
+            &ExportOptions {
+                playlists: vec![playlist.id.clone()],
+                folders: Vec::new(),
+                refresh_files: false,
+            },
+            &previous,
+        )
+        .expect("plan");
+
+        assert_eq!(
+            plan.tracks[0].device_audio_path, "/Contents/Slam/Positive Education/Tune.mp3",
+            "a re-export keeps the path the track already has on the drive"
+        );
+    }
+
+    #[test]
+    fn a_previous_track_outside_the_selection_keeps_its_path() {
+        let mut library = FakeLibrary::new();
+        // The collection holding the track is not part of this export.
+        library.playlist("pl-1", "Warmup", true);
+        let kept = library.file(
+            "pl-1",
+            "/elsewhere/Deep/Tune.mp3",
+            "Slam",
+            "Positive Education",
+        );
+        // Another collection holds a same-named file, which would otherwise be
+        // placed at exactly the same device path.
+        let other = library.playlist("pl-2", "Other", true);
+        library.file("pl-2", "/other/Deep/Tune.mp3", "Slam", "Positive Education");
+        let previous = HashMap::from([(
+            kept.to_string(),
+            "/Contents/Slam/Positive Education/Tune.mp3".to_string(),
+        )]);
+
+        let plan = build(
+            &library,
+            &ExportOptions {
+                playlists: vec![other.id.clone()],
+                folders: Vec::new(),
+                refresh_files: false,
+            },
+            &previous,
+        )
+        .expect("plan");
+
+        assert_eq!(plan.tracks.len(), 1);
+        assert_eq!(
+            plan.tracks[0].device_audio_path, "/Contents/Slam/Positive Education/Tune (2).mp3",
+            "a track left on the drive keeps its path"
+        );
     }
 }

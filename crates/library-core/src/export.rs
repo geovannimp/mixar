@@ -72,8 +72,10 @@ impl ExportOptions {
 /// [`errors`]: ExportReport::errors
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExportReport {
-    /// Tracks registered in the target (and copied when their file was not
-    /// already there).
+    /// Tracks this run registered in the target (and copied when their file was
+    /// not already there). Exports that merge into an existing target — the CDJ
+    /// USB drive accumulates per-collection runs — leave what earlier runs wrote
+    /// alone, so these counts describe the run, not the whole target.
     pub tracks: usize,
     /// Tracks whose audio file was already present at the target path and was
     /// reused unchanged.

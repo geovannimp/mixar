@@ -198,16 +198,20 @@ fn beat_grid_section(input: &AnlzInput<'_>) -> Vec<u8> {
 
 /// Beat grid entries as `(bar position, centi-BPM, time in milliseconds)`.
 ///
-/// A stored grid is written as-is, with the tempo taken from `bpm` (which is
-/// what rekordbox analyzes) or, failing that, from the median beat spacing.
-/// Without a stored grid a constant one is laid across the track from `bpm`;
-/// tracks with no usable BPM, or shorter than [`MIN_GRIDDED_MS`], stay ungridded.
+/// A stored grid is written as-is, and each entry's tempo comes from the beat
+/// spacing (so a hand-set grid keeps its own tempo even when the file's BPM tag
+/// disagrees). Without a stored grid a constant one is laid across the track
+/// from `bpm`, which is what a rekordbox analysis would have produced; tracks
+/// with no usable BPM, or shorter than [`MIN_GRIDDED_MS`], stay ungridded.
 fn beat_entries(input: &AnlzInput<'_>) -> Vec<(u16, u16, u32)> {
     if let Some(grid) = input.beat_grid {
         if !grid.beats.is_empty() {
             let per_bar = usize::from(grid.beats_per_bar.max(1));
-            let tempo = tempo_from_bpm(input.bpm)
-                .or_else(|| tempo_from_spacing(&grid.beats))
+            // A stored grid is authoritative for its own tempo: the beat spacing
+            // agrees with the grid even when the file's BPM tag is wrong, so the
+            // tag is only the fallback when a gap cannot be measured.
+            let fallback = tempo_from_spacing(&grid.beats)
+                .or_else(|| tempo_from_bpm(input.bpm))
                 .unwrap_or(0);
             return grid
                 .beats
@@ -216,7 +220,7 @@ fn beat_entries(input: &AnlzInput<'_>) -> Vec<(u16, u16, u32)> {
                 .map(|(index, seconds)| {
                     (
                         ((index % per_bar) + 1) as u16,
-                        tempo,
+                        tempo_at(&grid.beats, index).unwrap_or(fallback),
                         millis(f64::from(*seconds) * 1_000.0),
                     )
                 })
@@ -260,6 +264,16 @@ fn centi_bpm(bpm: f64) -> u16 {
 /// BPM as the centi-BPM word the beat grid stores, when the BPM is usable.
 fn tempo_from_bpm(bpm: Option<f64>) -> Option<u16> {
     usable_bpm(bpm).map(centi_bpm)
+}
+
+/// Tempo of one beat in a stored grid: the gap to the next beat, or the gap
+/// from the previous one for the final beat.
+fn tempo_at(beats: &[f32], index: usize) -> Option<u16> {
+    let gap = beats
+        .get(index + 1)
+        .map(|next| next - beats[index])
+        .or_else(|| index.checked_sub(1).map(|prev| beats[index] - beats[prev]))?;
+    (gap.is_finite() && gap > 0.0).then(|| centi_bpm(60.0 / f64::from(gap)))
 }
 
 /// The tempo of a stored grid whose BPM is unknown: the median beat spacing.
@@ -774,6 +788,30 @@ mod tests {
         assert_eq!((grid.beats[1].beat_number, grid.beats[1].time), (2, 469));
         assert_eq!((grid.beats[4].beat_number, grid.beats[4].time), (1, 1_875));
         assert_eq!(grid.beats[128].time, 60_000);
+    }
+
+    #[test]
+    fn a_stored_grid_keeps_its_own_tempo_over_the_bpm_tag() {
+        let mut fixture = Fixture::new("/Contents/track.mp3", 3_000);
+        // A hand-set grid with a tag that disagrees, which is the usual case:
+        // the device has to show the tempo the beats actually have.
+        fixture.bpm = Some(128.0);
+        fixture.grid = Some(ExportBeatGrid {
+            beats: vec![0.0, 0.5, 1.0, 1.5, 2.0],
+            beats_per_bar: 4,
+        });
+
+        let bytes = dat_bytes(&fixture.input());
+        let sections = raw_sections(&bytes);
+        let section = sections_named(&sections, b"PQTZ")[0];
+        let tempos: Vec<u16> = (0..5)
+            .map(|index| u16_at(section.body, 12 + index * 8 + 2))
+            .collect();
+
+        assert_eq!(
+            tempos, [12_000; 5],
+            "0.5 s beats are 120 BPM, not the tag's 128"
+        );
     }
 
     #[test]

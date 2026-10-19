@@ -45,6 +45,22 @@ pub struct DevicePaths {
 }
 
 impl DevicePaths {
+    /// Keep `path` from being handed to a different track.
+    ///
+    /// Used for paths earlier runs already occupy: the export merges into the
+    /// drive's existing database, so a newly added track must not collide with
+    /// an unselected one.
+    pub fn reserve(&mut self, path: &str) {
+        self.used.insert(path.to_lowercase());
+    }
+
+    /// Take a path a track already occupies, so a re-export keeps it instead of
+    /// duplicating the file under a ` (2)` suffix.
+    pub fn take(&mut self, path: &str) -> String {
+        self.used.insert(path.to_lowercase());
+        path.to_string()
+    }
+
     /// Device path for a track placed by metadata.
     pub fn artist_album(
         &mut self,
