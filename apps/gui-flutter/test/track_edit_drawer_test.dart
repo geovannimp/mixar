@@ -216,6 +216,9 @@ void main() {
 
     final call = fake.updateTrackMetadataCalls.single;
     expect(call.title, 'Edited');
+    // The untouched invalid BPM is sent back as stored: neither cleared nor
+    // allowed to fail the save (the store accepts an unchanged value).
+    expect(call.bpm, -4);
     expect(find.text('Save'), findsNothing, reason: 'drawer popped on save');
   });
 
