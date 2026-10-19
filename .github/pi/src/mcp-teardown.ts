@@ -20,34 +20,65 @@ const procReader: ProcReader = {
   read: (path) => readFileSync(path, 'utf8'),
 };
 
-/**
- * Direct children of `selfPid` that look like the CodeGraph MCP server.
- *
- * MCP servers are stdio children of the process that started the session, so
- * "child of this process whose command line mentions codegraph serve" is exactly
- * the process that has to be terminated. Any unreadable entry is skipped: the
- * process most likely exited between listing and reading.
- */
-export function mcpServerChildPids(selfPid: number, reader: ProcReader = procReader): number[] {
-  const pids: number[] = [];
-  for (const entry of reader.list()) {
-    if (!/^\d+$/.test(entry)) continue;
-    try {
-      const parent = Number(/^PPid:\s+(\d+)$/m.exec(reader.read(`/proc/${entry}/status`))?.[1]);
-      if (parent !== selfPid) continue;
-      const cmdline = reader.read(`/proc/${entry}/cmdline`);
-      if (MCP_SERVER_TOKENS.every((token) => cmdline.includes(token))) pids.push(Number(entry));
-    } catch {
-      // Not a readable process entry: nothing to terminate.
-    }
-  }
-  return pids;
+interface Processes {
+  /** pid → parent pid */
+  parent: Map<number, number>;
+  /** pid → command line, NUL-separated as /proc reports it */
+  cmdline: Map<number, string>;
 }
 
-/** SIGTERM every CodeGraph MCP server this process started; returns the pids signalled. */
+function readProcesses(reader: ProcReader): Processes {
+  const parent = new Map<number, number>();
+  const cmdline = new Map<number, string>();
+  for (const entry of reader.list()) {
+    if (!/^\d+$/.test(entry)) continue;
+    const pid = Number(entry);
+    try {
+      parent.set(pid, Number(/^PPid:\s+(\d+)$/m.exec(reader.read(`/proc/${entry}/status`))?.[1]));
+      cmdline.set(pid, reader.read(`/proc/${entry}/cmdline`));
+    } catch {
+      // Not a readable process entry (it exited, or it is another user's).
+      parent.delete(pid);
+      cmdline.delete(pid);
+    }
+  }
+  return { parent, cmdline };
+}
+
+/**
+ * Every process of every CodeGraph MCP server this host started, parents first.
+ *
+ * The MCP server is a stdio child of the process that started the session, and
+ * that shim is the handle pi's client holds. The shim runs the platform binary,
+ * which runs a watchdog, so terminating only the shim releases the handle but
+ * leaves two servers behind for the runner to reap — hence the whole subtree,
+ * found by parentage (the watchdog's own command line names nothing).
+ */
+export function mcpServerPids(selfPid: number, reader: ProcReader = procReader): number[] {
+  const { parent, cmdline } = readProcesses(reader);
+  const roots = [...parent]
+    .filter(
+      ([pid, pidParent]) =>
+        pidParent === selfPid && MCP_SERVER_TOKENS.every((t) => cmdline.get(pid)?.includes(t)),
+    )
+    .map(([pid]) => pid);
+
+  const tree: number[] = [];
+  let frontier = roots;
+  while (frontier.length > 0) {
+    tree.push(...frontier);
+    const parents = new Set(frontier);
+    frontier = [...parent].filter(([, pidParent]) => parents.has(pidParent)).map(([pid]) => pid);
+  }
+  return tree;
+}
+
+/** SIGTERM every CodeGraph MCP server process this host started; returns the pids signalled. */
 export function terminateMcpServers(selfPid: number = process.pid): number[] {
   const terminated: number[] = [];
-  for (const pid of mcpServerChildPids(selfPid)) {
+  // Leaves first: killing a parent reparents its children, and a reparented
+  // process is no longer reached by pid from a stale pid list.
+  for (const pid of mcpServerPids(selfPid).reverse()) {
     try {
       process.kill(pid, 'SIGTERM');
       terminated.push(pid);

@@ -7,7 +7,7 @@ import { setTimeout as pause } from 'node:timers/promises';
 
 import { loadRuntime, resolvePrNumber } from './src/runtime.ts';
 import { assertCommentOnPullRequest } from './src/threads.ts';
-import { mcpServerChildPids, registerMcpTeardown } from './src/mcp-teardown.ts';
+import { mcpServerPids, registerMcpTeardown } from './src/mcp-teardown.ts';
 import type { Runtime } from './src/runtime.ts';
 
 test('pr number: event payload is used when no override is set', () => {
@@ -110,23 +110,31 @@ test('comment ownership: only comments on the PR under review are accepted', () 
   assert.throws(() => assertCommentOnPullRequest(rt, {}), /an unknown pull request/);
 });
 
-/** The MCP server pi spawns is a child of this process; the teardown must find it. */
-test('mcp teardown: only this process\'s codegraph serve children are selected', () => {
+/**
+ * The MCP server pi spawns is a child of this process; the teardown must find it
+ * and the processes it starts, or those are left for the runner to reap.
+ */
+test('mcp teardown: the whole codegraph serve subtree of this process is selected', () => {
   const files: Record<string, string> = {
     '/proc/11/status': 'Name:\tnode\nPPid:\t100\n',
     '/proc/11/cmdline': 'node\0/usr/lib/node_modules/codegraph/bin/codegraph\0serve\0--mcp\0--no-watch\0',
+    // The platform binary 11 runs, and the watchdog 21 runs: neither names the
+    // tokens on its own, and both must go with the shim.
+    '/proc/21/status': 'Name:\tnode\nPPid:\t11\n',
+    '/proc/21/cmdline': 'node\0--liftoff-only\0codegraph.js\0serve\0--mcp\0',
+    '/proc/22/status': 'Name:\tnode\nPPid:\t21\n',
+    '/proc/22/cmdline': 'node\0-e\0const parentPid = Number(process.argv[1]);\0',
     // Right command, different parent: not ours to kill.
     '/proc/12/status': 'Name:\tnode\nPPid:\t1\n',
     '/proc/12/cmdline': 'codegraph\0serve\0--mcp\0',
-    // Our child, but not the MCP server.
+    // Our children, but not the MCP server.
     '/proc/13/status': 'Name:\tgit\nPPid:\t100\n',
     '/proc/13/cmdline': 'git\0status\0',
-    // Our child, a codegraph command that is not the server.
     '/proc/14/status': 'Name:\tnode\nPPid:\t100\n',
     '/proc/14/cmdline': 'codegraph\0status\0pr-head\0',
   };
   const reader = {
-    list: () => ['memory', 'cgroup', '11', '12', '13', '14', '15'],
+    list: () => ['memory', 'cgroup', '11', '12', '13', '14', '21', '22', '15'],
     read: (path: string) => {
       const content = files[path];
       // /proc/15 vanished between listing and reading, as processes do.
@@ -135,9 +143,10 @@ test('mcp teardown: only this process\'s codegraph serve children are selected',
     },
   };
 
-  assert.deepEqual(mcpServerChildPids(100, reader), [11]);
-  assert.deepEqual(mcpServerChildPids(1, reader), [12]);
-  assert.deepEqual(mcpServerChildPids(999, reader), []);
+  // Parents first: terminateMcpServers reverses this to signal leaves first.
+  assert.deepEqual(mcpServerPids(100, reader), [11, 21, 22]);
+  assert.deepEqual(mcpServerPids(1, reader), [12]);
+  assert.deepEqual(mcpServerPids(999, reader), []);
 });
 
 /** The run has to end the server itself; agent_end must not outlive a retry. */
