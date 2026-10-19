@@ -101,13 +101,15 @@ fn update_track_metadata_normalizes_key_and_blank_fields() {
 
     lib.update_track_metadata(
         &id,
-        Some("  ".into()),
-        None,
-        None,
-        None,
-        None,
-        Some("8A".into()),
-        Some("  USRC1  ".into()),
+        TrackMetadataEdit {
+            title: Some("  ".into()),
+            artist: None,
+            album: None,
+            genre: None,
+            bpm: None,
+            key: Some("8A".into()),
+            isrc: Some("  USRC1  ".into()),
+        },
     )
     .unwrap();
 
@@ -128,7 +130,18 @@ fn update_track_metadata_rejects_invalid_bpm() {
 
     for invalid in [0.0, -5.0, f64::NAN, f64::INFINITY] {
         let err = lib
-            .update_track_metadata(&id, None, None, None, None, Some(invalid), None, None)
+            .update_track_metadata(
+                &id,
+                TrackMetadataEdit {
+                    title: None,
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: Some(invalid),
+                    key: None,
+                    isrc: None,
+                },
+            )
             .expect_err("invalid BPM must be an error, not a silent clear");
         assert!(
             format!("{err}").contains("invalid BPM"),
@@ -137,7 +150,7 @@ fn update_track_metadata_rejects_invalid_bpm() {
     }
 
     // None still clears the column — only a non-None invalid value errors.
-    lib.update_track_metadata(&id, None, None, None, None, None, None, None)
+    lib.update_track_metadata(&id, TrackMetadataEdit::default())
         .unwrap();
     let fetched = lib.get_track(&id).unwrap().unwrap();
     assert_eq!(fetched.metadata().bpm, None);

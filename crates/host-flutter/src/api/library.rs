@@ -10,7 +10,7 @@ use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
     dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, HistoryExportFormat,
     HistorySettings, LibraryBuses, LibraryConfig, LibraryManager, LibraryWorker, NewCollection,
-    SamplerBankRecord, TagWriteBack, TrackId, WritableLibrary,
+    SamplerBankRecord, TagWriteBack, TrackId, TrackMetadataEdit, WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -1161,6 +1161,10 @@ impl LibraryTransport {
     }
 
     /// Save the user-editable metadata of a track (library DB only).
+    ///
+    /// The generated Dart side takes these as named arguments; this layer
+    /// groups them into [TrackMetadataEdit] so the Rust chain below is not
+    /// positional.
     #[allow(clippy::too_many_arguments)]
     pub fn update_track_metadata(
         &self,
@@ -1179,13 +1183,15 @@ impl LibraryTransport {
             .map_err(|_| "library lock poisoned".to_string())?;
         lib.update_track_metadata(
             &TrackId::new(track_id),
-            title,
-            artist,
-            album,
-            genre,
-            bpm,
-            key,
-            isrc,
+            TrackMetadataEdit {
+                title,
+                artist,
+                album,
+                genre,
+                bpm,
+                key,
+                isrc,
+            },
         )
         .map_err(|e| e.to_string())
     }

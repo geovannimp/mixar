@@ -8,7 +8,7 @@ use library_core::{Library, LibraryError, Result, TrackId};
 
 use crate::db::{self, Db};
 use crate::entity::{track_hot_cue, track_loop, TrackHotCueEntity, TrackLoopEntity};
-use crate::{tags, unix_secs_string, LibraryManager};
+use crate::{tags, unix_secs_string, LibraryManager, TrackMetadataEdit};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HotCueRecord {
@@ -192,31 +192,20 @@ impl LibraryManager {
     /// Strings are trimmed and blanked to `None`; `key` is normalized to
     /// musical notation (Camelot/Open Key input is accepted). An invalid
     /// non-`None` `bpm` returns an error rather than silently clearing the
-    /// column (enforced by [`Store::update_track_metadata`], which owns the
-    /// column invariant). Unknown track ids are a no-op.
-    #[allow(clippy::too_many_arguments)]
-    pub fn update_track_metadata(
-        &self,
-        track_id: &TrackId,
-        title: Option<String>,
-        artist: Option<String>,
-        album: Option<String>,
-        genre: Option<String>,
-        bpm: Option<f64>,
-        key: Option<String>,
-        isrc: Option<String>,
-    ) -> Result<()> {
-        self.store().update_track_metadata(
-            track_id,
-            normalize_optional_text(title),
-            normalize_optional_text(artist),
-            normalize_optional_text(album),
-            normalize_optional_text(genre),
-            bpm,
-            normalize_optional_text(key.map(|v| tags::normalize_key_notation(&v))),
-            normalize_optional_text(isrc),
-            &unix_secs_string(),
-        )
+    /// column (enforced by `crate::store::Store::update_track_metadata`, which
+    /// owns the column invariant). Unknown track ids are a no-op.
+    pub fn update_track_metadata(&self, track_id: &TrackId, edit: TrackMetadataEdit) -> Result<()> {
+        let normalized = TrackMetadataEdit {
+            title: normalize_optional_text(edit.title),
+            artist: normalize_optional_text(edit.artist),
+            album: normalize_optional_text(edit.album),
+            genre: normalize_optional_text(edit.genre),
+            bpm: edit.bpm,
+            key: normalize_optional_text(edit.key.map(|v| tags::normalize_key_notation(&v))),
+            isrc: normalize_optional_text(edit.isrc),
+        };
+        self.store()
+            .update_track_metadata(track_id, &normalized, &unix_secs_string())
     }
 }
 

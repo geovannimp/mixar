@@ -64,12 +64,12 @@ class BpmValidator extends FieldValidator<String> {
   };
 }
 
-/// `Key` must be musical notation, or a Camelot/Open Key code the Rust write
-/// path normalizes.
+/// `Key` must be a notation this app can actually resolve — `camelotSlotForKey`
+/// is the shared predicate the UI uses for colouring and harmonic matching, so
+/// it rejects spellings that would store but then render as an unknown token
+/// (`am`, `Cb`, `B#`, `E#`, `Fb`).
 class KeyNotationValidator extends FieldValidator<String> {
   const new() : super(errorCode: 'invalid_key');
-
-  static final _musical = RegExp(r'^[A-Ga-g][#b]?m?$');
 
   @override
   FieldValidatorFn<String> get validator => (value) {
@@ -77,15 +77,19 @@ class KeyNotationValidator extends FieldValidator<String> {
     if (trimmed.isEmpty) {
       return null;
     }
-    if (_musical.hasMatch(trimmed) || camelotToMusical(trimmed) != null) {
-      return null;
-    }
-    return 'Use a musical key (Am) or Camelot code (8A)';
+    return camelotSlotForKey(trimmed) != null
+        ? null
+        : 'Use a musical key (Am) or Camelot code (8A)';
   };
 }
 
 /// Modal right-edge drawer editing every user-editable metadata field of a
 /// track. Edits are library-DB only: file tags are not rewritten.
+///
+/// **A folder refresh or collection re-scan overwrites these edits**: the
+/// import path rewrites every metadata column from the file's tags, so the
+/// stored edit reverts unless the tags themselves change (tag write-back is
+/// tracked separately, issue #451).
 ///
 /// The store is a full replacement of the seven metadata columns, so a blank
 /// field clears the stored value and untouched fields are sent back verbatim
@@ -205,44 +209,54 @@ class _TrackEditPanel extends HookConsumerWidget {
         }
       }
       // Captured before the await: after it, `context`/`ref` may be unusable.
+      // The container outlives this widget, so the outcome of the write is
+      // always published — invalidating and reporting must not depend on the
+      // drawer still being open.
+      final container = ProviderScope.containerOf(context, listen: false);
       final navigator = Navigator.of(context);
       final route = ModalRoute.of(context);
-      // A field the user never touched writes back exactly what was loaded,
-      // so an edit cannot rewrite or clear it (and an untouched BPM keeps its
-      // stored precision instead of being re-parsed from the prefill text).
-      String? edited(TrackFormField f, String? stored) =>
-          form.isDirty({f}) ? form.getValue<String>(f) : stored;
       saving.value = true;
       try {
+        // Re-read immediately before writing: untouched fields take the
+        // *current* row (a concurrent analysis persisting a beat grid, or a
+        // folder refresh, must not be rolled back by this save), falling back
+        // to the snapshot only if the row is gone — in which case the store's
+        // unknown-id no-op keeps the write harmless anyway.
+        final current = await transport.getTrack(trackId: trackId);
+        final base = current ?? track;
+        // A field the user never touched writes back what is stored, so an
+        // edit cannot rewrite or clear it (and an untouched BPM keeps its
+        // stored precision instead of being re-parsed from the prefill text).
+        String? edited(TrackFormField f, String? loaded) =>
+            form.isDirty({f}) ? form.getValue<String>(f) : loaded;
         // Raw strings: trimming and key normalization happen Rust-side.
         await transport.updateTrackMetadata(
           trackId: trackId,
-          title: edited(TrackFormField.title, track.title),
-          artist: edited(TrackFormField.artist, track.artist),
-          album: edited(TrackFormField.album, track.album),
-          genre: edited(TrackFormField.genre, track.genre),
+          title: edited(TrackFormField.title, base.title),
+          artist: edited(TrackFormField.artist, base.artist),
+          album: edited(TrackFormField.album, base.album),
+          genre: edited(TrackFormField.genre, base.genre),
           bpm: form.isDirty({TrackFormField.bpm})
               ? parseBpm(form.getValue(TrackFormField.bpm))
-              : track.bpm,
-          key: edited(TrackFormField.key, track.key),
-          isrc: edited(TrackFormField.isrc, track.isrc),
+              : base.bpm,
+          key: edited(TrackFormField.key, base.key),
+          isrc: edited(TrackFormField.isrc, base.isrc),
         );
+        container
+          ..invalidate(collectionTracksProvider)
+          ..invalidate(driveResolvedByPathProvider);
         if (dismissed.value) {
           return;
         }
-        ref
-          ..invalidate(collectionTracksProvider)
-          ..invalidate(driveResolvedByPathProvider);
         // A dismissed route is still `mounted` while it animates out, so
         // `isCurrent` — not `context.mounted` — is the guard that stops a
-        // second pop from taking the route underneath the drawer.
-        if (route == null || route.isCurrent) {
+        // second pop from taking the route underneath the drawer. A null route
+        // means we cannot identify this drawer, so we do not pop at all.
+        if (route != null && route.isCurrent) {
           navigator.pop();
         }
       } on Object catch (e) {
-        if (!dismissed.value) {
-          ref.read(appNoticeProvider.notifier).setError('$e');
-        }
+        container.read(appNoticeProvider.notifier).setError('$e');
       } finally {
         if (!dismissed.value) {
           saving.value = false;

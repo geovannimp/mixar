@@ -190,17 +190,10 @@ impl<'a> Store<'a> {
     /// **Full replacement:** every `None` column is written as `NULL`, so
     /// blanking a field clears the stored value. Callers must send the
     /// complete field set — there is no partial update.
-    #[allow(clippy::too_many_arguments)]
     pub fn update_track_metadata(
         &self,
         id: &TrackId,
-        title: Option<String>,
-        artist: Option<String>,
-        album: Option<String>,
-        genre: Option<String>,
-        bpm: Option<f64>,
-        key: Option<String>,
-        isrc: Option<String>,
+        edit: &TrackMetadataEdit,
         now: &str,
     ) -> Result<()> {
         let Some(row) = TrackEntity::find_by_id(id.as_str())
@@ -213,7 +206,7 @@ impl<'a> Store<'a> {
         // Re-persisting a value that is already stored (the untouched field of
         // a full-replacement write) passes, so an unrelated edit never has to
         // clear a column to satisfy the invariant.
-        if let Some(v) = bpm {
+        if let Some(v) = edit.bpm {
             let invalid = !v.is_finite() || v <= 0.0;
             let unchanged = row.bpm.is_some_and(|old| old.to_bits() == v.to_bits());
             if invalid && !unchanged {
@@ -224,13 +217,13 @@ impl<'a> Store<'a> {
             }
         }
         let mut active: tracks::ActiveModel = row.into();
-        active.title = Set(title);
-        active.artist = Set(artist);
-        active.album = Set(album);
-        active.genre = Set(genre);
-        active.bpm = Set(bpm);
-        active.key = Set(key);
-        active.isrc = Set(isrc);
+        active.title = Set(edit.title.clone());
+        active.artist = Set(edit.artist.clone());
+        active.album = Set(edit.album.clone());
+        active.genre = Set(edit.genre.clone());
+        active.bpm = Set(edit.bpm);
+        active.key = Set(edit.key.clone());
+        active.isrc = Set(edit.isrc.clone());
         active.updated_at = Set(now.to_string());
         active
             .update(self.db.conn()?.as_connection())
@@ -645,6 +638,22 @@ impl<'a> Store<'a> {
     }
 }
 
+/// The seven user-editable metadata columns.
+///
+/// Grouped so a caller names the field it is setting instead of passing a run
+/// of `Option`s positionally — seven same-typed parameters would let a
+/// transposition (`artist`/`album`, `genre`/`key`) compile silently.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct TrackMetadataEdit {
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub genre: Option<String>,
+    pub bpm: Option<f64>,
+    pub key: Option<String>,
+    pub isrc: Option<String>,
+}
+
 /// Snapshot of track fields used when writing a manual beat grid.
 pub struct TrackBeatGridContext {
     pub duration_ms: i32,
@@ -713,13 +722,15 @@ mod tests {
         store
             .update_track_metadata(
                 &id,
-                Some("New".into()),
-                None,
-                Some("NewAl".into()),
-                None,
-                Some(128.0),
-                Some("Am".into()),
-                Some("NEW1".into()),
+                &TrackMetadataEdit {
+                    title: Some("New".into()),
+                    artist: None,
+                    album: Some("NewAl".into()),
+                    genre: None,
+                    bpm: Some(128.0),
+                    key: Some("Am".into()),
+                    isrc: Some("NEW1".into()),
+                },
                 "2",
             )
             .unwrap();
@@ -746,13 +757,15 @@ mod tests {
         store
             .update_track_metadata(
                 &id,
-                Some("New".into()),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
+                &TrackMetadataEdit {
+                    title: Some("New".into()),
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: None,
+                    key: None,
+                    isrc: None,
+                },
                 "2",
             )
             .unwrap();
@@ -779,13 +792,15 @@ mod tests {
         store
             .update_track_metadata(
                 &id,
-                Some("Edited".into()),
-                None,
-                None,
-                None,
-                Some(-4.0),
-                None,
-                None,
+                &TrackMetadataEdit {
+                    title: Some("Edited".into()),
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: Some(-4.0),
+                    key: None,
+                    isrc: None,
+                },
                 "2",
             )
             .unwrap();
@@ -799,7 +814,19 @@ mod tests {
 
         // Introducing an invalid value is rejected by the column owner.
         let err = store
-            .update_track_metadata(&id, None, None, None, None, Some(0.0), None, None, "3")
+            .update_track_metadata(
+                &id,
+                &TrackMetadataEdit {
+                    title: None,
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: Some(0.0),
+                    key: None,
+                    isrc: None,
+                },
+                "3",
+            )
             .expect_err("a newly supplied invalid BPM must be rejected");
         assert!(
             format!("{err}").contains("invalid BPM"),
