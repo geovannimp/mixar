@@ -208,17 +208,33 @@ class _TrackEditPanel extends HookConsumerWidget {
       final route = ModalRoute.of(context);
       saving.value = true;
       try {
-        // Re-read immediately before writing: untouched fields take the
-        // *current* row (a concurrent analysis persisting a beat grid, or a
-        // folder refresh, is at least not rolled back by this save — this only
-        // narrows the read-then-write window, it does not close it).
-        final current = await transport.getTrack(trackId: trackId);
-        // Dismissed while the re-read was in flight: the form's hook state is
-        // disposed, so nothing below (form.isDirty/getValue/validateField) may
-        // run. The user threw the edits away before saving, so drop them.
-        if (dismissed.value) {
-          return;
+        // Snapshot the form before the first await. This settles two things at
+        // once: after an await the hook form may be disposed (so it must not be
+        // read), and because the snapshot is what gets written, a keystroke
+        // landing during the re-read can never reach the full-replacement write
+        // unvalidated — the values validated here are the values sent.
+        final dirty = {
+          for (final field in TrackFormField.values)
+            field: form.isDirty({field}),
+        };
+        final values = {
+          for (final field in TrackFormField.values)
+            field: form.getValue<String>(field),
+        };
+        bool isDirty(TrackFormField field) => dirty[field] ?? false;
+        for (final field in TrackFormField.values) {
+          if (isDirty(field) && !form.validateField(field)) {
+            container
+                .read(appNoticeProvider.notifier)
+                .setError('Fix the highlighted fields');
+            return;
+          }
         }
+        // Re-read for the untouched-field base: a concurrent analysis
+        // persisting a beat grid, or a folder refresh, is at least not rolled
+        // back by this save — this narrows the read-then-write window, it does
+        // not close it (that needs a version check in the store).
+        final current = await transport.getTrack(trackId: trackId);
         if (current == null) {
           // The row is gone: Store::update_track_metadata is a no-op for an
           // unknown id, so writing would report success, close the drawer and
@@ -226,22 +242,11 @@ class _TrackEditPanel extends HookConsumerWidget {
           throw StateError('Track no longer exists in the library');
         }
         final base = current;
-        // Validate *after* the await: a keystroke landing while the re-read is
-        // in flight would otherwise reach the full-replacement write without
-        // being checked (there is no await between here and the write).
-        for (final field in TrackFormField.values) {
-          if (form.isDirty({field}) && !form.validateField(field)) {
-            container
-                .read(appNoticeProvider.notifier)
-                .setError('Fix the highlighted fields');
-            return;
-          }
-        }
         // A field the user never touched writes back what is stored, so an
         // edit cannot rewrite or clear it (and an untouched BPM keeps its
         // stored precision instead of being re-parsed from the prefill text).
-        String? edited(TrackFormField f, String? loaded) =>
-            form.isDirty({f}) ? form.getValue<String>(f) : loaded;
+        String? edited(TrackFormField field, String? loaded) =>
+            isDirty(field) ? values[field] : loaded;
         // Raw strings: trimming and key normalization happen Rust-side.
         await transport.updateTrackMetadata(
           trackId: trackId,
@@ -249,8 +254,8 @@ class _TrackEditPanel extends HookConsumerWidget {
           artist: edited(TrackFormField.artist, base.artist),
           album: edited(TrackFormField.album, base.album),
           genre: edited(TrackFormField.genre, base.genre),
-          bpm: form.isDirty({TrackFormField.bpm})
-              ? parseBpm(form.getValue(TrackFormField.bpm))
+          bpm: isDirty(TrackFormField.bpm)
+              ? parseBpm(values[TrackFormField.bpm])
               : base.bpm,
           key: edited(TrackFormField.key, base.key),
           isrc: edited(TrackFormField.isrc, base.isrc),

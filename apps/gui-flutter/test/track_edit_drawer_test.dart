@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
@@ -383,6 +385,43 @@ void main() {
       contains('Track no longer exists'),
     );
     expect(saveEnabled(tester), isTrue, reason: 'saving reset, retry possible');
+  });
+
+  testWidgets('dismissing during the save re-read still persists the edit', (
+    tester,
+  ) async {
+    // Kody case: tap Save, then dismiss while the re-read is in flight. The
+    // save was requested, so it must complete — dismissing may not silently
+    // throw the edit away.
+    var reads = 0;
+    final gate = Completer<void>();
+    final fake = FakeLibraryTransport(
+      getTrackHandler: (id) async {
+        reads++;
+        if (reads == 2) {
+          await gate.future;
+        }
+        return _track;
+      },
+    );
+    await pumpDrawer(tester, fake);
+
+    await tester.enterText(fieldFor('Title'), 'Edited');
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pump(); // Save starts; the re-read is now blocked on the gate
+
+    await tester.tap(find.bySemanticsLabel('Close'));
+    await tester.pump();
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(
+      fake.updateTrackMetadataCalls.single.title,
+      'Edited',
+      reason: 'the requested save is not abandoned by dismissal',
+    );
+    expect(find.text('Save'), findsNothing, reason: 'drawer closed');
   });
 
   testWidgets('clearing a field sends blank so the column is cleared', (
