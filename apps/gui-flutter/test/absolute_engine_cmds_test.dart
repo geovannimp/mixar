@@ -125,20 +125,14 @@ void main() {
       final ui = container.read(engineUiProvider.notifier);
 
       ui.setPlaying(0, true);
-      final gen = ui.claimOptimistic(OptimisticDeckBoolField.playing, 0);
-      expect(
-        ui.isOptimisticCurrent(OptimisticDeckBoolField.playing, 0, gen),
-        isTrue,
-      );
+      final gen = ui.claimOptimistic(OptimisticField.playing, 0);
+      expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isTrue);
 
       // MIDI confirms the same absolute play state.
       ui.apply(
         const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
       );
-      expect(
-        ui.isOptimisticCurrent(OptimisticDeckBoolField.playing, 0, gen),
-        isFalse,
-      );
+      expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isFalse);
       expect(container.read(engineUiProvider).isPlaying(0), isTrue);
     });
   });

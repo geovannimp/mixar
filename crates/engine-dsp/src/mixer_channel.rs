@@ -112,6 +112,11 @@ impl MixerChannel {
     }
 
     pub fn set_fx_routed(&mut self, routed: bool) {
+        if self.fx_routed != routed {
+            // Bypassing skips the chain, so its buffers freeze; drop them so a
+            // later re-route cannot replay audio captured before the deck was dry.
+            self.fx.reset();
+        }
         self.fx_routed = routed;
     }
 
@@ -566,6 +571,46 @@ mod tests {
         assert!(
             repeat.abs_diff(HALF_BEAT_FRAMES) <= 2,
             "repeat at {repeat} frames, expected {HALF_BEAT_FRAMES}"
+        );
+    }
+
+    #[test]
+    fn re_routing_drops_the_frozen_echo_tail() {
+        const HALF_BEAT_FRAMES: usize = 12_000;
+
+        let mut channel = MixerChannel::new(48_000);
+        channel.set_fx_routed(true);
+        {
+            let slot = channel.fx_mut().slot_mut(0).expect("slot 0 exists");
+            slot.set_kind(crate::FxKind::Echo);
+            slot.set_enabled(true);
+            slot.set_tempo(120.0);
+        }
+
+        // Prime the delay line, then bypass before the repeat is due.
+        let primed = render_strip(&mut channel, HALF_BEAT_FRAMES / 2, |frame| {
+            if frame == 0 {
+                (1.0, 1.0)
+            } else {
+                (0.0, 0.0)
+            }
+        });
+        assert!(primed.iter().any(|sample| sample.abs() > 1e-6));
+
+        channel.set_fx_routed(false);
+        let dry = render_strip(&mut channel, HALF_BEAT_FRAMES, |_| (0.0, 0.0));
+        assert!(
+            dry.iter().all(|sample| sample.abs() < 1e-6),
+            "a bypassed deck must stay silent"
+        );
+
+        // The stale repeat would land HALF_BEAT_FRAMES after the impulse in
+        // chain time, i.e. here. Re-routing must not replay it.
+        channel.set_fx_routed(true);
+        let after = render_strip(&mut channel, HALF_BEAT_FRAMES + 2, |_| (0.0, 0.0));
+        assert!(
+            after.iter().all(|sample| sample.abs() < 1e-6),
+            "re-routing must not replay the pre-bypass tail"
         );
     }
 

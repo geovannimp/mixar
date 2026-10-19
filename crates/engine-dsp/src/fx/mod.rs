@@ -125,11 +125,17 @@ impl FxSlot {
     /// Enabling while `kind == Off` stays disabled.
     pub fn set_enabled(&mut self, enabled: bool) {
         if !enabled {
-            if let Some(fx) = self.fx.as_mut() {
-                fx.reset();
-            }
+            self.reset();
         }
         self.enabled = enabled && self.fx.is_some();
+    }
+
+    /// Clear the effect's stored state (delay line, feedback, tails), keeping
+    /// the kind, enable flag, wet, and knobs.
+    pub fn reset(&mut self) {
+        if let Some(fx) = self.fx.as_mut() {
+            fx.reset();
+        }
     }
 
     /// Wet/dry `0..1` (`0` = dry), clamped.
@@ -192,6 +198,16 @@ impl FxChain {
 
     pub fn slots(&self) -> &[FxSlot; FX_SLOT_COUNT] {
         &self.slots
+    }
+
+    /// Clear every slot's stored effect state.
+    ///
+    /// Routing changes call this: an unrouted chain is not advanced, so its
+    /// buffers would otherwise hold audio captured before the deck went dry.
+    pub fn reset(&mut self) {
+        for slot in &mut self.slots {
+            slot.reset();
+        }
     }
 
     pub fn slot(&self, index: usize) -> Option<&FxSlot> {

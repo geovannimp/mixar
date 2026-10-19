@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -162,7 +163,12 @@ void main() {
 
     await tester.tap(find.byIcon(LucideIcons.chevronLeft));
     await tester.pumpAndSettle();
-    expect(engine.fxUnitParams.last.$3, closeTo(2 / 6, 1e-9), reason: '→ 1/4');
+    // The mirror stepped with the first tap, so down returns to 1/2.
+    expect(
+      engine.fxUnitParams.last.$3,
+      closeTo(3 / 6, 1e-9),
+      reason: '3/4 → 1/2',
+    );
 
     // The engine echo shows the new division: the readout follows it.
     container
@@ -311,5 +317,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(fxSlotsProvider).single.enabled, isFalse);
     expect(engine.fxUnitSlotEnabled, [(0, true), (0, false)]);
+  });
+
+  testWidgets('two quick division taps step twice before the engine echoes', (
+    tester,
+  ) async {
+    final (:container, :engine) = await pumpBar(tester, fxSlots: [echoSlot()]);
+
+    expect(find.text('1/2'), findsOneWidget);
+    await tester.tap(find.byIcon(LucideIcons.chevronRight));
+    await tester.pumpAndSettle();
+    // The mirror stepped even though no DeckUpdated echoed.
+    expect(find.text('3/4'), findsOneWidget);
+    await tester.tap(find.byIcon(LucideIcons.chevronRight));
+    await tester.pumpAndSettle();
+    expect(find.text('1/1'), findsOneWidget);
+    expect(
+      container.read(fxSlotsProvider).single.params.first,
+      closeTo(fxDivisionNorm(5), 1e-6),
+      reason: 'the mirror stores the knob as f32',
+    );
+    expect(engine.fxUnitParams, [
+      (0, 0, fxDivisionNorm(4)),
+      (0, 0, fxDivisionNorm(5)),
+    ]);
   });
 }

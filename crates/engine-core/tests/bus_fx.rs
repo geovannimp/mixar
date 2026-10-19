@@ -38,6 +38,15 @@ fn deck_fx(evt: &TestReceiver, deck_id: u16) -> [FxSlotState; FX_SLOT_COUNT] {
     }
 }
 
+/// Assert the next evt is an `Error` whose message contains `needle`.
+fn expect_error_contains(evt: &TestReceiver, needle: &str) {
+    let event = recv_evt_kind(evt, Kind::Error);
+    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
+        panic!("expected Error");
+    };
+    assert!(message.contains(needle), "unexpected message: {message}");
+}
+
 fn publish(session: &EngineSession, origin: Origin, kind: Kind, body: &CmdBody) {
     session
         .publish_cmd(origin, kind, encode_cmd_body(body).unwrap())
@@ -215,14 +224,7 @@ fn set_fx_unit_param_rejects_out_of_range() {
         },
     );
 
-    let event = recv_evt_kind(&evt, Kind::Error);
-    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
-        panic!("expected Error");
-    };
-    assert!(
-        message.contains("Invalid FX parameter: 2"),
-        "unexpected message: {message}"
-    );
+    expect_error_contains(&evt, "Invalid FX parameter: 2");
 }
 
 #[test]
@@ -243,12 +245,5 @@ fn set_fx_unit_slot_rejects_out_of_range_slot() {
         },
     );
 
-    let event = recv_evt_kind(&evt, Kind::Error);
-    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
-        panic!("expected Error");
-    };
-    assert!(
-        message.contains("Invalid FX slot: 3"),
-        "unexpected message: {message}"
-    );
+    expect_error_contains(&evt, "Invalid FX slot: 3");
 }

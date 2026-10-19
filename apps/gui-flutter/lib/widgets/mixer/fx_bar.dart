@@ -64,11 +64,7 @@ class FxBar extends ConsumerWidget {
           enabled: selected,
           onStep: (index) {
             unawaited(
-              _fxCmd(
-                context,
-                () =>
-                    setFxUnitParam(ref, kBeatFxSlot, 0, fxDivisionNorm(index)),
-              ),
+              _fxCmd(context, () => setFxUnitDivision(ref, kBeatFxSlot, index)),
             );
           },
         ),

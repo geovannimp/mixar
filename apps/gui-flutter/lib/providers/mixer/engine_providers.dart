@@ -1,9 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, ProviderFamily;
 import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/core/utils/jog_ticks.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
@@ -16,24 +19,25 @@ import 'package:gui_flutter/src/rust/api/library.dart'
 import 'package:gui_flutter/widgets/mixer/level_meter.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
-/// Bool mirrors that use optimistic absolute cmds + generation rollback.
+/// Mirrors that use optimistic absolute cmds + generation rollback.
 ///
-/// `fxRouted` is keyed by deck id; `fxArmed` is keyed by FX slot index because
-/// the FX unit is shared by every deck.
-enum OptimisticDeckBoolField {
+/// `fxRouted` is keyed by deck id; `fxArmed` and `fxDivision` are keyed by FX
+/// slot index because the unit is shared by every deck.
+enum OptimisticField {
   playing,
   quantize,
   slip,
   keyLock,
   fxRouted,
   fxArmed,
+  fxDivision,
 }
 
 class EngineUi extends Notifier<EngineUiSnapshot> {
   /// Per-field / per-deck generation so rollback only runs while our write owns
   /// the mirror. EngineEvt bumps the token and wins over a failed send.
-  final Map<OptimisticDeckBoolField, Map<int, int>> _optimisticGen = {
-    for (final field in OptimisticDeckBoolField.values) field: <int, int>{},
+  final Map<OptimisticField, Map<int, int>> _optimisticGen = {
+    for (final field in OptimisticField.values) field: <int, int>{},
   };
 
   @override
@@ -75,45 +79,43 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       }
       // External absolute state supersedes in-flight optimistic ownership.
       if (evt.playing != null) {
-        _invalidateOptimistic(OptimisticDeckBoolField.playing, id);
+        _invalidateOptimistic(OptimisticField.playing, id);
       }
       if (evt.quantize != null) {
-        _invalidateOptimistic(OptimisticDeckBoolField.quantize, id);
+        _invalidateOptimistic(OptimisticField.quantize, id);
       }
       if (evt.slipEnabled != null) {
-        _invalidateOptimistic(OptimisticDeckBoolField.slip, id);
+        _invalidateOptimistic(OptimisticField.slip, id);
       }
       if (evt.keyLock != null) {
-        _invalidateOptimistic(OptimisticDeckBoolField.keyLock, id);
+        _invalidateOptimistic(OptimisticField.keyLock, id);
       }
       if (evt.fxRouted != null) {
-        _invalidateOptimistic(OptimisticDeckBoolField.fxRouted, id);
+        _invalidateOptimistic(OptimisticField.fxRouted, id);
       }
       final publishedFx = evt.fx;
       if (publishedFx != null) {
         // Any published slot config supersedes an in-flight arm command.
         for (var slot = 0; slot < publishedFx.length; slot++) {
-          _invalidateOptimistic(OptimisticDeckBoolField.fxArmed, slot);
+          _invalidateOptimistic(OptimisticField.fxArmed, slot);
+          _invalidateOptimistic(OptimisticField.fxDivision, slot);
         }
       }
     }
   }
 
   /// Claim ownership after an optimistic mirror write; returns a generation.
-  int claimOptimistic(OptimisticDeckBoolField field, int deckId) {
+  int claimOptimistic(OptimisticField field, int deckId) {
     final map = _optimisticGen[field]!;
     final next = (map[deckId] ?? 0) + 1;
     map[deckId] = next;
     return next;
   }
 
-  bool isOptimisticCurrent(
-    OptimisticDeckBoolField field,
-    int deckId,
-    int generation,
-  ) => (_optimisticGen[field]![deckId] ?? 0) == generation;
+  bool isOptimisticCurrent(OptimisticField field, int deckId, int generation) =>
+      (_optimisticGen[field]![deckId] ?? 0) == generation;
 
-  void _invalidateOptimistic(OptimisticDeckBoolField field, int deckId) {
+  void _invalidateOptimistic(OptimisticField field, int deckId) {
     final map = _optimisticGen[field]!;
     map[deckId] = (map[deckId] ?? 0) + 1;
   }
@@ -145,6 +147,26 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       enabled: value,
       wet: current.wet,
       params: current.params,
+    );
+    state = state.copyWith(fxSlots: next);
+  }
+
+  /// Optimistic BEAT division (knob 0) for the shared unit's [slot].
+  void setFxUnitDivisionNorm(int slot, double divisionNorm) {
+    if (slot >= state.fxSlots.length) {
+      return;
+    }
+    final current = state.fxSlots[slot];
+    if (current.params.isEmpty || current.params[0] == divisionNorm) {
+      return;
+    }
+    final params = Float32List.fromList(current.params)..[0] = divisionNorm;
+    final next = List<FxSlotChrome>.from(state.fxSlots);
+    next[slot] = FxSlotChrome(
+      kind: current.kind,
+      enabled: current.enabled,
+      wet: current.wet,
+      params: params,
     );
     state = state.copyWith(fxSlots: next);
   }
@@ -797,7 +819,7 @@ Future<void> setDeckPlaying(WidgetRef ref, int deckId, bool playing) async {
   await _withOptimisticDeckBool(
     ref: ref,
     deckId: deckId,
-    field: OptimisticDeckBoolField.playing,
+    field: OptimisticField.playing,
     desired: playing,
     read: (snap) => snap.isPlaying(deckId),
     write: (ui, value) => ui.setPlaying(deckId, value),
@@ -824,17 +846,17 @@ Future<void> sendDeckPlaying({
   }
 }
 
-/// Optimistic absolute bool cmd: mirror first, roll back if transport is
-/// missing or the send fails — unless an intervening EngineEvt invalidated
-/// our generation (MIDI dual-control), including when it set the same value.
+/// Optimistic absolute cmd: mirror first, roll back if transport is missing
+/// or the send fails — unless an intervening EngineEvt invalidated our
+/// generation (MIDI dual-control), including when it set the same value.
 ///
 /// If ownership is lost while awaiting the transport, skip [send] so a stale
 /// UI intent cannot override a newer absolute controller/EngineEvt state.
 @visibleForTesting
-Future<void> runOptimisticDeckBool<T extends Object>({
-  required bool previous,
-  required bool desired,
-  required void Function(bool value) write,
+Future<void> runOptimisticDeckValue<V extends Object, T extends Object>({
+  required V previous,
+  required V desired,
+  required void Function(V value) write,
   required int Function() claim,
   required bool Function(int generation) stillOurs,
   required Future<T?> Function() resolveEngine,
@@ -862,17 +884,37 @@ Future<void> runOptimisticDeckBool<T extends Object>({
   }
 }
 
-Future<void> _withOptimisticDeckBool({
+/// [runOptimisticDeckValue] for the bool deck toggles.
+@visibleForTesting
+Future<void> runOptimisticDeckBool<T extends Object>({
+  required bool previous,
+  required bool desired,
+  required void Function(bool value) write,
+  required int Function() claim,
+  required bool Function(int generation) stillOurs,
+  required Future<T?> Function() resolveEngine,
+  required Future<void> Function(T engine) send,
+}) => runOptimisticDeckValue<bool, T>(
+  previous: previous,
+  desired: desired,
+  write: write,
+  claim: claim,
+  stillOurs: stillOurs,
+  resolveEngine: resolveEngine,
+  send: send,
+);
+
+Future<void> _withOptimisticDeckValue<V extends Object>({
   required WidgetRef ref,
   required int deckId,
-  required OptimisticDeckBoolField field,
-  required bool desired,
-  required bool Function(EngineUiSnapshot snap) read,
-  required void Function(EngineUi ui, bool value) write,
+  required OptimisticField field,
+  required V desired,
+  required V Function(EngineUiSnapshot snap) read,
+  required void Function(EngineUi ui, V value) write,
   required Future<void> Function(EngineTransport engine) send,
 }) async {
   final previous = read(ref.read(engineUiProvider));
-  await runOptimisticDeckBool<EngineTransport>(
+  await runOptimisticDeckValue<V, EngineTransport>(
     previous: previous,
     desired: desired,
     write: (value) => write(ref.read(engineUiProvider.notifier), value),
@@ -885,6 +927,24 @@ Future<void> _withOptimisticDeckBool({
     send: send,
   );
 }
+
+Future<void> _withOptimisticDeckBool({
+  required WidgetRef ref,
+  required int deckId,
+  required OptimisticField field,
+  required bool desired,
+  required bool Function(EngineUiSnapshot snap) read,
+  required void Function(EngineUi ui, bool value) write,
+  required Future<void> Function(EngineTransport engine) send,
+}) => _withOptimisticDeckValue<bool>(
+  ref: ref,
+  deckId: deckId,
+  field: field,
+  desired: desired,
+  read: read,
+  write: write,
+  send: send,
+);
 
 Future<void> setDeckVolume(WidgetRef ref, int deckId, double volume) async {
   final engine = await ref.read(engineTransportProvider.future);
@@ -910,7 +970,7 @@ Future<void> setDeckFxRouted(WidgetRef ref, int deckId, bool routed) async {
   await _withOptimisticDeckBool(
     ref: ref,
     deckId: deckId,
-    field: OptimisticDeckBoolField.fxRouted,
+    field: OptimisticField.fxRouted,
     desired: routed,
     read: (snap) => snap.channelFor(deckId).fxRouted,
     write: (ui, value) => ui.setFxRouted(deckId, value),
@@ -928,7 +988,7 @@ Future<void> setFxUnitSlotEnabled(WidgetRef ref, int slot, bool enabled) async {
   await _withOptimisticDeckBool(
     ref: ref,
     deckId: slot,
-    field: OptimisticDeckBoolField.fxArmed,
+    field: OptimisticField.fxArmed,
     desired: enabled,
     read: (snap) => snap.fxSlots.length > slot && snap.fxSlots[slot].enabled,
     write: (ui, value) => ui.setFxUnitArmed(slot, value),
@@ -936,19 +996,28 @@ Future<void> setFxUnitSlotEnabled(WidgetRef ref, int slot, bool enabled) async {
   );
 }
 
+/// Optimistic BEAT division step for the shared unit's [slot].
+///
+/// The target index is mirrored before the engine echo, so rapid ◀ ▶ taps
+/// step the division instead of collapsing into the build-time index.
+Future<void> setFxUnitDivision(WidgetRef ref, int slot, int index) async {
+  final norm = fxDivisionNorm(index);
+  await _withOptimisticDeckValue<int>(
+    ref: ref,
+    deckId: slot,
+    field: OptimisticField.fxDivision,
+    desired: index,
+    read: (snap) => snap.fxSlots.length > slot
+        ? fxDivisionIndexFrom(snap.fxSlots[slot].params)
+        : index,
+    write: (ui, value) => ui.setFxUnitDivisionNorm(slot, fxDivisionNorm(value)),
+    send: (engine) => engine.setFxUnitParam(slot: slot, param: 0, value: norm),
+  );
+}
+
 Future<void> setFxUnitWet(WidgetRef ref, int slot, double wet) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setFxUnitWet(slot: slot, wet: wet);
-}
-
-Future<void> setFxUnitParam(
-  WidgetRef ref,
-  int slot,
-  int param,
-  double value,
-) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  await engine?.setFxUnitParam(slot: slot, param: param, value: value);
 }
 
 Future<void> setDeckGainTrim(WidgetRef ref, int deckId, double gainTrim) async {
@@ -1013,7 +1082,7 @@ Future<void> setDeckKeyLock(WidgetRef ref, int deckId, bool enabled) async {
   await _withOptimisticDeckBool(
     ref: ref,
     deckId: deckId,
-    field: OptimisticDeckBoolField.keyLock,
+    field: OptimisticField.keyLock,
     desired: enabled,
     read: (snap) => snap.keyLockFor(deckId),
     write: (ui, value) => ui.setKeyLock(deckId, value),
@@ -1039,7 +1108,7 @@ Future<void> setDeckQuantize(WidgetRef ref, int deckId, bool enabled) async {
   await _withOptimisticDeckBool(
     ref: ref,
     deckId: deckId,
-    field: OptimisticDeckBoolField.quantize,
+    field: OptimisticField.quantize,
     desired: enabled,
     read: (snap) => snap.quantizeFor(deckId),
     write: (ui, value) => ui.setQuantize(deckId, value),
@@ -1051,7 +1120,7 @@ Future<void> setDeckSlip(WidgetRef ref, int deckId, bool enabled) async {
   await _withOptimisticDeckBool(
     ref: ref,
     deckId: deckId,
-    field: OptimisticDeckBoolField.slip,
+    field: OptimisticField.slip,
     desired: enabled,
     read: (snap) => snap.slipEnabledFor(deckId),
     write: (ui, value) => ui.setSlipEnabled(deckId, value),
