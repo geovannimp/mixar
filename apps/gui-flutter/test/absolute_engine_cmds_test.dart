@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
@@ -323,6 +325,39 @@ void main() {
       await setDeckFxRouted(ref, 0, false);
       expect(container.read(engineUiProvider).channelFor(0).fxRouted, isFalse);
       expect(engine.deckFxRouted, [(0, true), (0, false)]);
+    });
+
+    testWidgets('an unchanged fx republish keeps a pending division tap', (
+      tester,
+    ) async {
+      final engine = FakeEngineTransport();
+      final gate = Completer<EngineTransport?>();
+      final container = ProviderContainer(
+        overrides: [engineTransportProvider.overrideWith((ref) => gate.future)],
+      );
+      addTearDown(container.dispose);
+      final ref = await captureRef(tester, container);
+
+      final slot = FxSlotChrome(
+        kind: FxKind.echo,
+        enabled: false,
+        wet: 0.5,
+        params: Float32List.fromList([0.5, 0.5, 0.0]),
+      );
+      container
+          .read(engineUiProvider.notifier)
+          .apply(EngineEvt(kind: EngineEvtKind.updated, deckId: 0, fx: [slot]));
+
+      // Tap while the transport is still resolving.
+      final pending = setFxUnitDivision(ref, 0, 4);
+      // The other deck's update republishes the unchanged unit.
+      container
+          .read(engineUiProvider.notifier)
+          .apply(EngineEvt(kind: EngineEvtKind.updated, deckId: 1, fx: [slot]));
+
+      gate.complete(engine);
+      await pending;
+      expect(engine.fxUnitParams, [(0, 0, fxDivisionNorm(4))]);
     });
 
     testWidgets('arm toggles twice before the engine echoes', (tester) async {

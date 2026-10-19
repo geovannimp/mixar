@@ -40,6 +40,15 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     for (final field in OptimisticField.values) field: <int, int>{},
   };
 
+  /// Pre-optimistic value per field/deck while a command is in flight.
+  ///
+  /// `evt.fx` republishes the whole unit on every deck update, so ownership is
+  /// revoked only when the published value differs from this base; an
+  /// unchanged echo from the engine must not cancel a pending tap.
+  final Map<OptimisticField, Map<int, Object>> _optimisticBase = {
+    for (final field in OptimisticField.values) field: <int, Object>{},
+  };
+
   @override
   EngineUiSnapshot build() => EngineUiSnapshot.empty;
 
@@ -95,17 +104,34 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       }
       final publishedFx = evt.fx;
       if (publishedFx != null) {
-        // Any published slot config supersedes an in-flight arm command.
         for (var slot = 0; slot < publishedFx.length; slot++) {
-          _invalidateOptimistic(OptimisticField.fxArmed, slot);
-          _invalidateOptimistic(OptimisticField.fxDivision, slot);
+          final published = publishedFx[slot];
+          // A deck update covers both decks, so the shared unit is republished
+          // even when nothing about it changed; only a payload that moved away
+          // from the pre-optimistic value supersedes an in-flight command.
+          final armedBase = _optimisticBase[OptimisticField.fxArmed]![slot];
+          if (armedBase is! bool || armedBase != published.enabled) {
+            _invalidateOptimistic(OptimisticField.fxArmed, slot);
+          }
+          final divisionBase =
+              _optimisticBase[OptimisticField.fxDivision]![slot];
+          if (divisionBase is! int ||
+              divisionBase != fxDivisionIndexFrom(published.params)) {
+            _invalidateOptimistic(OptimisticField.fxDivision, slot);
+          }
         }
       }
     }
   }
 
   /// Claim ownership after an optimistic mirror write; returns a generation.
-  int claimOptimistic(OptimisticField field, int deckId) {
+  ///
+  /// [base] is the mirrored value before the write, used to tell an unchanged
+  /// engine republish from a real supersede.
+  int claimOptimistic(OptimisticField field, int deckId, {Object? base}) {
+    if (base != null) {
+      _optimisticBase[field]![deckId] = base;
+    }
     final map = _optimisticGen[field]!;
     final next = (map[deckId] ?? 0) + 1;
     map[deckId] = next;
@@ -116,6 +142,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       (_optimisticGen[field]![deckId] ?? 0) == generation;
 
   void _invalidateOptimistic(OptimisticField field, int deckId) {
+    _optimisticBase[field]!.remove(deckId);
     final map = _optimisticGen[field]!;
     map[deckId] = (map[deckId] ?? 0) + 1;
   }
@@ -918,8 +945,9 @@ Future<void> _withOptimisticDeckValue<V extends Object>({
     previous: previous,
     desired: desired,
     write: (value) => write(ref.read(engineUiProvider.notifier), value),
-    claim: () =>
-        ref.read(engineUiProvider.notifier).claimOptimistic(field, deckId),
+    claim: () => ref
+        .read(engineUiProvider.notifier)
+        .claimOptimistic(field, deckId, base: previous),
     stillOurs: (generation) => ref
         .read(engineUiProvider.notifier)
         .isOptimisticCurrent(field, deckId, generation),
