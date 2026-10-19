@@ -73,6 +73,7 @@ pub mod waveform;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -121,6 +122,8 @@ impl Exportable for CdjExporter {
         let mut run_tracks: Vec<manifest::ManifestTrack> = Vec::with_capacity(plan.tracks.len());
         let mut writer_index: Vec<Option<usize>> = Vec::with_capacity(plan.tracks.len());
         let mut written_paths: Vec<String> = Vec::with_capacity(plan.tracks.len());
+        // One write per distinct cover per run: an album's tracks share it.
+        let mut written_artwork: HashSet<String> = HashSet::new();
         for track in &plan.tracks {
             match export_track(
                 source,
@@ -128,6 +131,7 @@ impl Exportable for CdjExporter {
                 options,
                 track,
                 &mut manifest,
+                &mut written_artwork,
                 &mut report,
             ) {
                 Ok(Some(cdj_track)) => {
@@ -199,6 +203,7 @@ fn export_track(
     options: &ExportOptions,
     track: &plan::PlanTrack,
     manifest: &mut manifest::Manifest,
+    written_artwork: &mut HashSet<String>,
     report: &mut ExportReport,
 ) -> Result<Option<CdjTrack>> {
     let label = path_label(&track.source_path);
@@ -242,16 +247,20 @@ fn export_track(
             // Ids come from the drive's state, so a cover keeps its id (and its
             // file) across runs instead of restarting at 1.
             let (id, path) = manifest.artwork_for(&artwork.jpeg);
-            match write_artwork_file(destination, &path, &artwork.jpeg, options.refresh_files) {
-                Ok(copied) => {
-                    report.bytes_copied += copied;
-                    id
-                }
-                Err(err) => {
-                    report
-                        .warnings
-                        .push(format!("{label}: artwork not written ({err})"));
-                    0
+            if !written_artwork.insert(path.clone()) {
+                id
+            } else {
+                match write_artwork_file(destination, &path, &artwork.jpeg, options.refresh_files) {
+                    Ok(copied) => {
+                        report.bytes_copied += copied;
+                        id
+                    }
+                    Err(err) => {
+                        report
+                            .warnings
+                            .push(format!("{label}: artwork not written ({err})"));
+                        0
+                    }
                 }
             }
         }

@@ -588,6 +588,48 @@ mod tests {
     }
 
     #[test]
+    fn a_stored_path_two_tracks_claim_is_disambiguated() {
+        let mut library = FakeLibrary::new();
+        let playlist = library.playlist("pl-1", "Warmup", true);
+        let first = library.file("pl-1", "/a/Tune.mp3", "Slam", "Positive Education");
+        let second = library.file("pl-1", "/b/Tune.mp3", "Slam", "Positive Education");
+        // Only a state file that names one path twice can produce this.
+        let previous = HashMap::from([
+            (
+                first.to_string(),
+                "/Contents/Slam/Positive Education/Tune.mp3".to_string(),
+            ),
+            (
+                second.to_string(),
+                "/Contents/Slam/Positive Education/Tune.mp3".to_string(),
+            ),
+        ]);
+
+        let plan = build(
+            &library,
+            &ExportOptions {
+                playlists: vec![playlist.id.clone()],
+                folders: Vec::new(),
+                refresh_files: false,
+            },
+            &previous,
+        )
+        .expect("plan");
+
+        assert_eq!(
+            plan.tracks
+                .iter()
+                .map(|track| track.device_audio_path.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "/Contents/Slam/Positive Education/Tune.mp3",
+                "/Contents/Slam/Positive Education/Tune (2).mp3",
+            ],
+            "two tracks never share one file"
+        );
+    }
+
+    #[test]
     fn a_previous_track_outside_the_selection_keeps_its_path() {
         let mut library = FakeLibrary::new();
         // The collection holding the track is not part of this export.

@@ -227,6 +227,22 @@ fn one_cover_is_written_and_shared_by_every_track() {
     assert_eq!(rows[0]["path"], "/PIONEER/Artwork/00001/a1.jpg");
     assert_eq!(track_artwork_ids(&drive), vec![1, 1]);
 
+    // A forced rewrite still writes and counts the shared cover once.
+    let refreshed = CdjExporter
+        .export(
+            &source,
+            &drive,
+            &ExportOptions {
+                refresh_files: true,
+                ..source.options()
+            },
+        )
+        .expect("export again with refresh");
+    assert_eq!(
+        refreshed.bytes_copied,
+        ("audio bytes".len() * 2 + "jpeg-bytes".len()) as u64
+    );
+
     // A re-run reuses the file (nothing copied for artwork) and keeps one row.
     let again = CdjExporter
         .export(&source, &drive, &source.options())

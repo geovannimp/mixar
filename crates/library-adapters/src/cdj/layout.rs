@@ -56,9 +56,22 @@ impl DevicePaths {
 
     /// Take a path a track already occupies, so a re-export keeps it instead of
     /// duplicating the file under a ` (2)` suffix.
+    ///
+    /// A stored path that another track has already claimed — only a duplicate
+    /// in the drive's state file can produce one — is disambiguated like any
+    /// other collision, so two tracks never share one file.
     pub fn take(&mut self, path: &str) -> String {
-        self.used.insert(path.to_lowercase());
-        path.to_string()
+        if self.used.insert(path.to_lowercase()) {
+            return path.to_string();
+        }
+        let (directory, file_name) = path.rsplit_once('/').unwrap_or((CONTENTS_DIR, path));
+        let directory = directory.trim_start_matches('/');
+        let directory = if directory.is_empty() {
+            CONTENTS_DIR
+        } else {
+            directory
+        };
+        self.allocate(directory, file_name)
     }
 
     /// Device path for a track placed by metadata.

@@ -147,6 +147,13 @@ impl Manifest {
             );
             return Self::default();
         }
+        if !manifest.paths_are_inside_the_destination() {
+            report.warnings.push(
+                "export state names files outside the destination; rebuilding the drive from this export"
+                    .to_string(),
+            );
+            return Self::default();
+        }
 
         match read_database(destination) {
             Some(database) => {
@@ -170,11 +177,27 @@ impl Manifest {
         }
     }
 
+    /// Whether every path in the state stays under the export root.
+    ///
+    /// Checked once on load, which is what makes the paths handed out by
+    /// [`Self::previous_placement`], [`Self::artwork_for`] and
+    /// [`Self::writer_inputs`] safe to join onto the destination.
+    fn paths_are_inside_the_destination(&self) -> bool {
+        self.tracks.iter().all(|entry| {
+            is_device_path(&entry.track.device_audio_path)
+                && is_device_path(&entry.track.analyze_path)
+        }) && self
+            .artworks
+            .iter()
+            .all(|artwork| is_device_path(&artwork.path))
+    }
+
     /// Source track id → on-drive path for everything a previous run wrote.
     ///
     /// The planner reuses these paths for the same track so re-exporting a
     /// collection never duplicates its files, and reserves the rest so a new
-    /// track cannot take a path an unselected track already occupies.
+    /// track cannot take a path an unselected track already occupies. Every path
+    /// was checked against the destination root when the state was loaded.
     pub fn previous_placement(&self) -> HashMap<String, String> {
         self.tracks
             .iter()
@@ -221,14 +244,21 @@ impl Manifest {
     /// Register this run's tracks, replacing previous rows for the same source
     /// track (by on-drive path) and keeping everything else.
     pub fn merge_tracks(&mut self, run: Vec<ManifestTrack>) {
+        // One pass over the state instead of a scan per run track: a drive
+        // accumulates thousands of tracks and each run rewrites all of them.
+        let mut positions: HashMap<String, usize> = self
+            .tracks
+            .iter()
+            .enumerate()
+            .map(|(position, entry)| (entry.track.device_audio_path.clone(), position))
+            .collect();
         for entry in run {
-            match self
-                .tracks
-                .iter_mut()
-                .find(|existing| existing.track.device_audio_path == entry.track.device_audio_path)
-            {
-                Some(existing) => *existing = entry,
-                None => self.tracks.push(entry),
+            match positions.get(&entry.track.device_audio_path).copied() {
+                Some(position) => self.tracks[position] = entry,
+                None => {
+                    positions.insert(entry.track.device_audio_path.clone(), self.tracks.len());
+                    self.tracks.push(entry);
+                }
             }
         }
     }
@@ -327,6 +357,23 @@ fn read_database(destination: &Path) -> Option<Vec<u8>> {
 
 /// FNV-1a over the bytes: stable across runs and cheap enough to hash a database
 /// and a thumbnail, with no extra dependency.
+/// Whether a path from the state file stays inside the export root.
+///
+/// The state file lives on a drive the user plugs in, so everything it names is
+/// as untrusted as the rest of the drive: a `device_audio_path` of
+/// `/../../.config/autostart/x` would otherwise be joined onto the destination
+/// and written outside it. The fingerprint guard is no defence — whoever
+/// rewrote the manifest controls the database it fingerprints too. Absolute
+/// (leading `/`), forward slashes only, no `.`/`..` and no empty component.
+fn is_device_path(path: &str) -> bool {
+    path.starts_with('/')
+        && !path.contains('\\')
+        && path
+            .split('/')
+            .skip(1)
+            .all(|part| !part.is_empty() && part != "." && part != "..")
+}
+
 pub(super) fn fingerprint(bytes: &[u8]) -> u64 {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for byte in bytes {
@@ -500,6 +547,46 @@ mod tests {
             "warnings: {:?}",
             report.warnings
         );
+    }
+
+    #[test]
+    fn state_that_names_files_outside_the_destination_is_discarded() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("PIONEER/rekordbox")).unwrap();
+        std::fs::write(dir.path().join(crate::cdj::PDB_PATH), b"database").unwrap();
+
+        // What a tampered drive could carry. The fingerprint matches the
+        // database it ships with, so only the path check stands between this
+        // and a file written outside the export root.
+        for evil in [
+            "/../../tmp/mixar-escaped.wav",
+            "/Contents/../outside.wav",
+            "/Contents\\..\\outside.wav",
+            "Contents/no-leading-slash.wav",
+            "/Contents//double-slash.wav",
+        ] {
+            let mut report = ExportReport::default();
+            let mut manifest = Manifest::default();
+            manifest.merge_tracks(vec![track("evil", evil)]);
+            manifest.save(dir.path(), b"database", &mut report).unwrap();
+
+            let mut report = ExportReport::default();
+            let loaded = Manifest::load(dir.path(), &mut report);
+
+            assert!(loaded.tracks.is_empty(), "{evil} was accepted");
+            assert!(
+                loaded.previous_placement().is_empty(),
+                "{evil} was accepted"
+            );
+            assert!(
+                report
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.contains("outside the destination")),
+                "{evil}: {:?}",
+                report.warnings
+            );
+        }
     }
 
     #[test]
