@@ -52,6 +52,8 @@ pub struct Mixer {
     lane_node_ids: Vec<petgraph::graph::NodeIndex>,
     resampler_quality: String,
     sample_rate: u32,
+    /// Lane index whose deck provides the FX sync tempo (master).
+    master_deck: usize,
     /// Post-fader peaks of the last master bus render.
     master_level_peaks: LevelPeaks,
 }
@@ -110,6 +112,7 @@ impl Mixer {
             lane_node_ids,
             resampler_quality: resampler_quality.to_string(),
             sample_rate,
+            master_deck: 0,
             master_level_peaks: LevelPeaks::default(),
         }
     }
@@ -156,6 +159,19 @@ impl Mixer {
     /// Get a mutable mixer channel by index.
     pub fn channel_mut(&mut self, index: usize) -> Option<&mut MixerChannel> {
         self.lane_mut(index).map(|lane| lane.channel_mut())
+    }
+
+    /// Set the lane whose deck provides the FX sync tempo (master deck).
+    pub fn set_master_deck(&mut self, index: usize) {
+        self.master_deck = index.min(self.lane_node_ids.len().saturating_sub(1));
+    }
+
+    /// Effective BPM of the master deck, or the fallback tempo when it is unknown.
+    fn fx_sync_bpm(&self) -> f32 {
+        self.lane(self.master_deck)
+            .and_then(|lane| lane.deck().effective_bpm())
+            .filter(|bpm| bpm.is_finite() && *bpm > 0.0)
+            .unwrap_or(crate::fx::DEFAULT_FX_BPM)
     }
 
     /// Set loudness-normalization target for all channels and lane samplers (`None` = off).
@@ -254,11 +270,13 @@ impl Mixer {
         self.mix_buffer.fill(0.0);
         self.master_level_peaks = LevelPeaks::default();
 
+        let fx_bpm = self.fx_sync_bpm();
         for i in 0..self.lane_node_ids.len() {
-            self.lane_mut(i)
-                .expect("lane node index must identify a lane")
-                .channel_mut()
-                .clear_capture();
+            let lane = self
+                .lane_mut(i)
+                .expect("lane node index must identify a lane");
+            lane.channel_mut().clear_capture();
+            lane.set_fx_tempo(fx_bpm);
         }
 
         let (gain_a, gain_b) = Self::crossfader_gains(self.crossfader);

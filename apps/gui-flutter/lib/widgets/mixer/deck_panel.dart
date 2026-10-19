@@ -49,6 +49,7 @@ class DeckPanel extends ConsumerWidget {
     final engineRunning = ref.watch(engineRunningProvider);
     final loading = ref.watch(deckLoadingProvider(deckId));
     final quantize = ref.watch(deckQuantizeProvider(deckId));
+    final fxRouted = ref.watch(deckFxRoutedProvider(deckId));
     final slip = ref.watch(deckSlipEnabledProvider(deckId));
     final settings = ref.watch(appSettingsProvider).value;
     final loadDisabled = loading || !engineRunning;
@@ -141,6 +142,21 @@ class DeckPanel extends ConsumerWidget {
                 final enabled = !slip;
                 unawaited(
                   _engineCmd(context, () => setDeckSlip(ref, deckId, enabled)),
+                );
+              },
+            ),
+            const SizedBox(width: 4),
+            _FxButton(
+              routed: fxRouted,
+              disabled: !engineRunning,
+              onPress: () {
+                // Absolute desired state from visible chrome (never re-invert later).
+                final routed = !fxRouted;
+                unawaited(
+                  _engineCmd(
+                    context,
+                    () => setDeckFxRouted(ref, deckId, routed),
+                  ),
                 );
               },
             ),
@@ -470,6 +486,46 @@ class _SlipButton extends StatelessWidget {
           style: TextStyle(
             fontWeight: .w600,
             color: on ? slipOn : theme.colors.mutedForeground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FxButton extends StatelessWidget {
+  const new({
+    required this.onPress,
+    required this.routed,
+    this.disabled = false,
+  });
+
+  final VoidCallback onPress;
+  final bool routed;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final on = routed && !disabled;
+    final tip = routed ? 'FX on' : 'FX off';
+    return AppTooltip(
+      tip: tip,
+      description: 'Route this deck through the FX unit.',
+      child: MixerButton(
+        variant: .outline,
+        size: .xs,
+        mainAxisSize: .min,
+        selected: on,
+        onPress: disabled ? null : onPress,
+        semanticsLabel: tip,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        backgroundColor: on ? theme.colors.primaryTint : null,
+        child: Text(
+          'FX',
+          style: TextStyle(
+            fontWeight: .w600,
+            color: on ? kMixerLiveOn : theme.colors.mutedForeground,
           ),
         ),
       ),

@@ -341,6 +341,18 @@ impl Deck {
         crate::tempo::norm_to_playback_ratio(self.speed, self.tempo_range)
     }
 
+    /// Track BPM from library analysis (`None` when unknown).
+    pub fn track_bpm(&self) -> Option<f64> {
+        self.track_bpm
+    }
+
+    /// Track BPM scaled by the current playback ratio (Jog excluded): the tempo a
+    /// beat-synced effect must follow.
+    pub fn effective_bpm(&self) -> Option<f32> {
+        self.track_bpm
+            .map(|bpm| (bpm as f32) * self.playback_ratio())
+    }
+
     /// Set tempo fader position `0..1` (clears sync ratio override).
     pub fn set_speed(&mut self, speed: f32) -> Result<()> {
         if !(0.0..=1.0).contains(&speed) {

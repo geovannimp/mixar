@@ -330,6 +330,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FsVolumeInfo dco_decode_fs_volume_info(dynamic raw);
 
   @protected
+  FxKind dco_decode_fx_kind(dynamic raw);
+
+  @protected
+  FxSlotChrome dco_decode_fx_slot_chrome(dynamic raw);
+
+  @protected
   HistoryEntryInfo dco_decode_history_entry_info(dynamic raw);
 
   @protected
@@ -405,6 +411,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<FsVolumeInfo> dco_decode_list_fs_volume_info(dynamic raw);
+
+  @protected
+  List<FxSlotChrome> dco_decode_list_fx_slot_chrome(dynamic raw);
 
   @protected
   List<HistoryEntryInfo> dco_decode_list_history_entry_info(dynamic raw);
@@ -516,6 +525,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<bool>? dco_decode_opt_list_bool(dynamic raw);
+
+  @protected
+  List<FxSlotChrome>? dco_decode_opt_list_fx_slot_chrome(dynamic raw);
 
   @protected
   List<HotCueInfo>? dco_decode_opt_list_hot_cue_info(dynamic raw);
@@ -902,6 +914,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FsVolumeInfo sse_decode_fs_volume_info(SseDeserializer deserializer);
 
   @protected
+  FxKind sse_decode_fx_kind(SseDeserializer deserializer);
+
+  @protected
+  FxSlotChrome sse_decode_fx_slot_chrome(SseDeserializer deserializer);
+
+  @protected
   HistoryEntryInfo sse_decode_history_entry_info(SseDeserializer deserializer);
 
   @protected
@@ -993,6 +1011,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<FsVolumeInfo> sse_decode_list_fs_volume_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<FxSlotChrome> sse_decode_list_fx_slot_chrome(
     SseDeserializer deserializer,
   );
 
@@ -1132,6 +1155,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<bool>? sse_decode_opt_list_bool(SseDeserializer deserializer);
+
+  @protected
+  List<FxSlotChrome>? sse_decode_opt_list_fx_slot_chrome(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<HotCueInfo>? sse_decode_opt_list_hot_cue_info(
@@ -1598,6 +1626,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_fs_volume_info(FsVolumeInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_fx_kind(FxKind self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_fx_slot_chrome(FxSlotChrome self, SseSerializer serializer);
+
+  @protected
   void sse_encode_history_entry_info(
     HistoryEntryInfo self,
     SseSerializer serializer,
@@ -1711,6 +1745,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_fs_volume_info(
     List<FsVolumeInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_fx_slot_chrome(
+    List<FxSlotChrome> self,
     SseSerializer serializer,
   );
 
@@ -1887,6 +1927,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_list_bool(List<bool>? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_list_fx_slot_chrome(
+    List<FxSlotChrome>? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_list_hot_cue_info(

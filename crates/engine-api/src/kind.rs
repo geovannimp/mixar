@@ -20,6 +20,16 @@ pub enum Kind {
     SetKeyShiftPage,
     SetFilter,
     SetGainTrim,
+    /// FX unit (shared, mixer-scoped) slot effect selection.
+    SetFxUnitSlot,
+    /// FX unit slot on/off.
+    SetFxUnitSlotEnabled,
+    /// FX unit slot wet/dry.
+    SetFxUnitWet,
+    /// FX unit slot knob.
+    SetFxUnitParam,
+    /// Route this deck's pre-fader signal through the FX unit (deck-scoped).
+    SetDeckFxRouted,
     SetHeadphoneCue,
     ToggleHeadphoneCue,
     SetCrossfader,

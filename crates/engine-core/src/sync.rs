@@ -524,6 +524,11 @@ impl Engine {
             return Err(anyhow::anyhow!("Invalid deck ID: {deck_id}"));
         }
         self.master_deck = deck_id;
+        if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+            if let Ok(mut dsp) = dsp_engine.lock() {
+                dsp.mixer_mut().set_master_deck(deck_id);
+            }
+        }
         let mut updated = Vec::with_capacity(self.deck_control.len());
         for id in 0..self.deck_control.len() {
             updated.push(id);

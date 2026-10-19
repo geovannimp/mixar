@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -338,6 +340,111 @@ void main() {
 
       expect(container.read(deckPlayheadsProvider)[0], 1000);
       expect(engine.jogTurns, [(0, kJogIntervalsPerRev)]);
+    });
+  });
+
+  group('EngineUi.apply → shared FX unit', () {
+    test('updated evt stores the shared slots and this deck routing', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container
+          .read(engineUiProvider.notifier)
+          .apply(
+            EngineEvt(
+              kind: EngineEvtKind.updated,
+              deckId: 0,
+              fxRouted: true,
+              fx: [
+                FxSlotChrome(
+                  kind: FxKind.echo,
+                  enabled: true,
+                  wet: 0.25,
+                  params: Float32List.fromList([0.5, 0.5, 0.0]),
+                ),
+                FxSlotChrome(
+                  kind: FxKind.reverb,
+                  enabled: false,
+                  wet: 0.5,
+                  params: Float32List(3),
+                ),
+                FxSlotChrome(
+                  kind: FxKind.off,
+                  enabled: false,
+                  wet: 0.5,
+                  params: Float32List(3),
+                ),
+              ],
+            ),
+          );
+
+      final snapshot = container.read(engineUiProvider);
+      expect(snapshot.fxSlots.length, 3);
+      expect(snapshot.fxSlots.first.kind, FxKind.echo);
+      expect(snapshot.fxSlots.first.enabled, isTrue);
+      expect(snapshot.channelFor(0).fxRouted, isTrue);
+      // Other decks keep the default: routing is per deck.
+      expect(snapshot.channelFor(1).fxRouted, isFalse);
+    });
+
+    test('an updated evt with an unchanged FX payload keeps the list', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      EngineEvt echoEvt({required bool enabled}) => EngineEvt(
+        kind: EngineEvtKind.updated,
+        deckId: 0,
+        fx: [
+          FxSlotChrome(
+            kind: FxKind.echo,
+            enabled: enabled,
+            wet: 0.25,
+            params: Float32List.fromList([0.5, 0.5, 0.0]),
+          ),
+        ],
+      );
+
+      ui.apply(echoEvt(enabled: true));
+      final before = container.read(engineUiProvider).fxSlots;
+      expect(before, hasLength(1));
+
+      // A fresh list carrying the same values must not notify FX listeners.
+      ui.apply(echoEvt(enabled: true));
+      expect(container.read(engineUiProvider).fxSlots, same(before));
+
+      // A real change replaces it.
+      ui.apply(echoEvt(enabled: false));
+      final after = container.read(engineUiProvider).fxSlots;
+      expect(after, isNot(same(before)));
+      expect(after.single.enabled, isFalse);
+    });
+
+    test('an updated evt without FX fields keeps the last shared config', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      ui.apply(
+        EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          fx: [
+            FxSlotChrome(
+              kind: FxKind.echo,
+              enabled: true,
+              wet: 0.25,
+              params: Float32List.fromList([1.0, 0.5, 0.0]),
+            ),
+          ],
+        ),
+      );
+      final before = container.read(engineUiProvider).fxSlots;
+
+      ui.apply(
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, volume: 0.4),
+      );
+
+      expect(container.read(engineUiProvider).fxSlots, same(before));
+      expect(container.read(engineUiProvider).channelFor(0).fxRouted, isFalse);
     });
   });
 }

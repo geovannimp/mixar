@@ -1,7 +1,14 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
+
+import 'support/fake_engine_transport.dart';
 
 void main() {
   group('sendDeckPlaying', () {
@@ -120,20 +127,14 @@ void main() {
       final ui = container.read(engineUiProvider.notifier);
 
       ui.setPlaying(0, true);
-      final gen = ui.claimOptimistic(OptimisticDeckBoolField.playing, 0);
-      expect(
-        ui.isOptimisticCurrent(OptimisticDeckBoolField.playing, 0, gen),
-        isTrue,
-      );
+      final gen = ui.claimOptimistic(OptimisticField.playing, 0);
+      expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isTrue);
 
       // MIDI confirms the same absolute play state.
       ui.apply(
         const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
       );
-      expect(
-        ui.isOptimisticCurrent(OptimisticDeckBoolField.playing, 0, gen),
-        isFalse,
-      );
+      expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isFalse);
       expect(container.read(engineUiProvider).isPlaying(0), isTrue);
     });
   });
@@ -282,6 +283,123 @@ void main() {
       );
       expect(sends, isEmpty);
       expect(value, isFalse);
+    });
+  });
+
+  group('FX toggles are optimistic absolute mirrors', () {
+    Future<WidgetRef> captureRef(
+      WidgetTester tester,
+      ProviderContainer container,
+    ) async {
+      WidgetRef? captured;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) {
+              captured = ref;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      return captured!;
+    }
+
+    void expectDivisionMirror(ProviderContainer container, int index) {
+      expect(
+        fxDivisionIndexFrom(container.read(fxSlotsProvider).single.params),
+        index,
+      );
+    }
+
+    Future<(ProviderContainer, WidgetRef)> captureEngine(
+      WidgetTester tester,
+      FutureOr<EngineTransport?> Function() transport,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [engineTransportProvider.overrideWith((ref) => transport())],
+      );
+      addTearDown(container.dispose);
+      final ref = await captureRef(tester, container);
+      return (container, ref);
+    }
+
+    testWidgets('deck routing toggles twice before the engine echoes', (
+      tester,
+    ) async {
+      final engine = FakeEngineTransport();
+      final (container, ref) = await captureEngine(tester, () async => engine);
+
+      expect(container.read(engineUiProvider).channelFor(0).fxRouted, isFalse);
+      await setDeckFxRouted(ref, 0, true);
+      // The mirror flips before any EngineEvt, so the second press sees "on".
+      expect(container.read(engineUiProvider).channelFor(0).fxRouted, isTrue);
+      await setDeckFxRouted(ref, 0, false);
+      expect(container.read(engineUiProvider).channelFor(0).fxRouted, isFalse);
+      expect(engine.deckFxRouted, [(0, true), (0, false)]);
+    });
+
+    testWidgets('an unchanged fx republish keeps a pending division tap', (
+      tester,
+    ) async {
+      final engine = FakeEngineTransport();
+      final gate = Completer<EngineTransport?>();
+      final (container, ref) = await captureEngine(tester, () => gate.future);
+
+      final slot = FxSlotChrome(
+        kind: FxKind.echo,
+        enabled: false,
+        wet: 0.5,
+        params: Float32List.fromList([0.5, 0.5, 0.0]),
+      );
+      container
+          .read(engineUiProvider.notifier)
+          .apply(EngineEvt(kind: EngineEvtKind.updated, deckId: 0, fx: [slot]));
+
+      // Tap while the transport is still resolving.
+      final pending = setFxUnitDivision(ref, 0, 4);
+      // The other deck's update republishes the unchanged unit.
+      container
+          .read(engineUiProvider.notifier)
+          .apply(EngineEvt(kind: EngineEvtKind.updated, deckId: 1, fx: [slot]));
+
+      // The evt merge must not discard the owned division: the stepper
+      // derives its next target from this mirror.
+      expectDivisionMirror(container, 4);
+
+      gate.complete(engine);
+      await pending;
+      expect(engine.fxUnitParams, [(0, 0, fxDivisionNorm(4))]);
+      expectDivisionMirror(container, 4);
+    });
+
+    testWidgets('arm toggles twice before the engine echoes', (tester) async {
+      final engine = FakeEngineTransport();
+      final (container, ref) = await captureEngine(tester, () async => engine);
+
+      container
+          .read(engineUiProvider.notifier)
+          .apply(
+            EngineEvt(
+              kind: EngineEvtKind.updated,
+              deckId: 0,
+              fx: [
+                FxSlotChrome(
+                  kind: FxKind.echo,
+                  enabled: false,
+                  wet: 0.5,
+                  params: Float32List.fromList([0.5, 0.5, 0.0]),
+                ),
+              ],
+            ),
+          );
+      expect(container.read(fxSlotsProvider).single.enabled, isFalse);
+      await setFxUnitSlotEnabled(ref, 0, true);
+      expect(container.read(fxSlotsProvider).single.enabled, isTrue);
+      await setFxUnitSlotEnabled(ref, 0, false);
+      expect(container.read(fxSlotsProvider).single.enabled, isFalse);
+      expect(engine.fxUnitSlotEnabled, [(0, true), (0, false)]);
     });
   });
 }

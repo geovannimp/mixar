@@ -11,6 +11,11 @@ class FakeEngineTransport implements EngineTransport {
   final List<double> masterVolumes = [];
   final List<double> cueVolumes = [];
   final List<double> cueMixes = [];
+  final List<(int slot, FxKind kind)> fxUnitSlots = [];
+  final List<(int slot, bool enabled)> fxUnitSlotEnabled = [];
+  final List<(int slot, double wet)> fxUnitWets = [];
+  final List<(int slot, int param, double value)> fxUnitParams = [];
+  final List<(int deckId, bool routed)> deckFxRouted = [];
 
   @override
   void dispose() {}
@@ -213,6 +218,41 @@ class FakeEngineTransport implements EngineTransport {
 
   @override
   Future<void> setFilter({required int deckId, required double filter}) async {}
+
+  @override
+  Future<void> setDeckFxRouted({
+    required int deckId,
+    required bool routed,
+  }) async {
+    deckFxRouted.add((deckId, routed));
+  }
+
+  @override
+  Future<void> setFxUnitParam({
+    required int slot,
+    required int param,
+    required double value,
+  }) async {
+    fxUnitParams.add((slot, param, value));
+  }
+
+  @override
+  Future<void> setFxUnitSlot({required int slot, required FxKind kind}) async {
+    fxUnitSlots.add((slot, kind));
+  }
+
+  @override
+  Future<void> setFxUnitSlotEnabled({
+    required int slot,
+    required bool enabled,
+  }) async {
+    fxUnitSlotEnabled.add((slot, enabled));
+  }
+
+  @override
+  Future<void> setFxUnitWet({required int slot, required double wet}) async {
+    fxUnitWets.add((slot, wet));
+  }
 
   @override
   Future<void> setGainTrim({

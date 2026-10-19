@@ -14,6 +14,7 @@ use std::collections::HashMap;
 pub mod deck;
 pub mod eq;
 pub mod filter;
+pub mod fx;
 pub mod headphone_monitor;
 pub mod level_meter;
 pub mod mixer;
@@ -29,6 +30,7 @@ pub use deck::{
 };
 pub use eq::{clamp_gain_db, DeckEqGains, ThreeBandEq, EQ_MAX_DB, EQ_MIN_DB};
 pub use filter::{db_to_linear, DjFilter};
+pub use fx::{FxChain, FxKind, FxSlot, FX_PARAM_COUNT, FX_SLOT_COUNT};
 pub use headphone_monitor::HeadphoneMonitor;
 pub use level_meter::{measure_stereo_peaks, LevelPeaks};
 pub use mixer::Mixer;
@@ -152,6 +154,11 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
+    /// Engine rate for FX tests (a multiple of the mixer's 64-frame chunk).
+    const FX_SAMPLE_RATE: u32 = 48_000;
+    /// Frames rendered per `process` call in FX tests.
+    const FX_CHUNK: u32 = 512;
+
     #[test]
     fn test_dsp_engine_creation() {
         let engine = DspEngine::new(48000, 512, 2, "medium", SamplerStripRoute::BeforeStrip);
@@ -216,5 +223,114 @@ mod tests {
             .map(|&s| s.abs())
             .fold(0.0_f32, f32::max);
         assert!(cue_max < 1e-6, "cue should be silent without headphone cue");
+    }
+
+    /// Unleashed full-scale frame at the start of the track, then silence.
+    fn impulse_audio(frames: usize) -> Arc<LoadedAudio> {
+        let mut samples = vec![0.0f32; frames * 2];
+        samples[0] = 1.0;
+        samples[1] = 1.0;
+        Arc::new(LoadedAudio {
+            samples,
+            sample_rate: FX_SAMPLE_RATE,
+            channels: 2,
+            source_id: "impulse.wav".to_string(),
+        })
+    }
+
+    /// Echo delay of a half beat at `bpm`, in output frames.
+    fn half_beat_frames(bpm: f64) -> usize {
+        (60_000.0 / bpm * 0.5 * f64::from(FX_SAMPLE_RATE) / 1000.0).round() as usize
+    }
+
+    /// Render `frames` of the master bus with an impulse track on deck 0 and the
+    /// shared echo in slot 0 (wet-only, so the direct impulse is removed).
+    fn render_master_echo(
+        bpm: f64,
+        ratio: f32,
+        master_deck: usize,
+        echo_enabled: bool,
+        frames: usize,
+    ) -> Vec<f32> {
+        let mut engine = DspEngine::new(
+            FX_SAMPLE_RATE,
+            FX_CHUNK,
+            2,
+            "medium",
+            SamplerStripRoute::BeforeStrip,
+        );
+        {
+            let deck = engine.deck_mut(0).expect("deck 0");
+            deck.load(impulse_audio(FX_SAMPLE_RATE as usize))
+                .expect("load impulse");
+            deck.set_track_bpm(Some(bpm));
+            deck.set_playback_ratio(ratio).expect("ratio");
+            deck.play().expect("play");
+        }
+        engine.mixer_mut().set_master_deck(master_deck);
+        {
+            let channel = engine.mixer_mut().channel_mut(0).expect("deck 0 channel");
+            channel.set_fx_routed(true);
+            let slot = channel.fx_mut().slot_mut(0).expect("slot 0");
+            slot.set_kind(FxKind::Echo);
+            slot.set_wet(1.0);
+            slot.set_enabled(echo_enabled);
+        }
+
+        let mut out = Vec::with_capacity(frames);
+        let mut buses = HashMap::new();
+        buses.insert(BusId::new("master"), vec![0.0; FX_CHUNK as usize * 2]);
+        for _ in 0..(frames / FX_CHUNK as usize) {
+            engine.process(FX_CHUNK, &mut buses).expect("process");
+            let master = &buses[&BusId::new("master")];
+            for frame in 0..FX_CHUNK as usize {
+                out.push(master[frame * 2]);
+            }
+        }
+        out
+    }
+
+    fn onset(samples: &[f32]) -> Option<usize> {
+        samples.iter().position(|sample| sample.abs() > 0.05)
+    }
+
+    /// Render `bpm`/`ratio` with `master_deck` as the tempo source and assert the
+    /// echo repeat lands half a beat of `sync_bpm` after the dry impulse.
+    fn assert_echo_repeat(bpm: f64, ratio: f32, master_deck: usize, sync_bpm: f64) {
+        let frames = FX_SAMPLE_RATE as usize * 3;
+        // Reference: same deck with the slot bypassed, so the direct impulse
+        // measures the deck/lane latency both renders share.
+        let direct = onset(&render_master_echo(bpm, ratio, master_deck, false, frames))
+            .expect("dry impulse must reach the master bus");
+        let expected = half_beat_frames(sync_bpm);
+
+        let wet = render_master_echo(bpm, ratio, master_deck, true, frames);
+        let repeat = onset(&wet).expect("echo repeat");
+        assert!(
+            repeat.abs_diff(direct + expected) <= 2,
+            "repeat {repeat}, direct {direct}, expected offset {expected} \
+             (sync {sync_bpm} BPM, master deck {master_deck})"
+        );
+        // Wet 1.0 replaces the dry signal with the delayed one.
+        assert!(wet[direct].abs() < 1e-6, "dry impulse must be replaced");
+    }
+
+    #[test]
+    fn fx_echo_repeat_follows_master_deck_tempo() {
+        // Half a beat at 140 BPM = 214.29 ms = 10286 frames.
+        assert_echo_repeat(140.0, 1.0, 0, 140.0);
+
+        // The tempo fader shortens the repeat: 140 BPM x 2.0 = 280 BPM.
+        assert_echo_repeat(140.0, 2.0, 0, 280.0);
+
+        // The sync tempo comes from the *master* deck: deck 1 has no BPM, so the
+        // unit falls back to 120 BPM even though deck 0 is 140 BPM.
+        let fallback = f64::from(crate::fx::DEFAULT_FX_BPM);
+        assert_ne!(
+            half_beat_frames(fallback),
+            half_beat_frames(140.0),
+            "fallback must differ from deck 0"
+        );
+        assert_echo_repeat(140.0, 1.0, 1, fallback);
     }
 }

@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+/// FX chain capacity per deck (bounds a preset's effect count); keep in sync
+/// with `engine_dsp::fx::FX_SLOT_COUNT`.
+pub const FX_SLOT_COUNT: usize = 3;
+/// Maximum knobs per effect; keep in sync with `engine_dsp::fx::FX_PARAM_COUNT`.
+pub const FX_PARAM_COUNT: usize = 3;
+
 /// Which EQ band a single-band set targets (MIDI soft-takeover).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -15,6 +21,37 @@ pub struct DeckEq {
     pub low: f32,
     pub mid: f32,
     pub high: f32,
+}
+
+/// FX unit effect selection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FxKind {
+    Off,
+    Echo,
+    Reverb,
+}
+
+/// Published per-slot FX state (shared across decks; see `DeckSnapshot::fx`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FxSlotState {
+    pub kind: FxKind,
+    pub enabled: bool,
+    /// Wet/dry `0..1` (`0` = dry).
+    pub wet: f32,
+    /// Normalized knob positions `0..1` for [`Self::kind`]; unused entries `0.0`.
+    pub params: [f32; FX_PARAM_COUNT],
+}
+
+impl Default for FxSlotState {
+    fn default() -> Self {
+        Self {
+            kind: FxKind::Off,
+            enabled: false,
+            wet: 0.5,
+            params: [0.0; FX_PARAM_COUNT],
+        }
+    }
 }
 
 /// Deck sync follow mode (slave → master).
@@ -161,6 +198,12 @@ pub struct DeckSnapshot {
     pub filter: f32,
     /// Gain trim knob `0..1` (center `0.5` = 0 dB).
     pub gain_trim: f32,
+    /// True when this deck's pre-fader signal runs through the shared FX unit.
+    #[serde(default)]
+    pub fx_routed: bool,
+    /// Shared FX unit slots (identical for every deck).
+    #[serde(default)]
+    pub fx: [FxSlotState; FX_SLOT_COUNT],
     pub headphone_cue: bool,
     pub sync_mode: SyncMode,
     pub cue_point_ms: Option<i32>,
@@ -446,6 +489,31 @@ pub enum CmdBody {
         top: JogMode,
         outer: JogMode,
     },
+    /// FX unit slot `slot` (`0..=2`) effect selection.
+    SetFxUnitSlot {
+        slot: u8,
+        kind: FxKind,
+    },
+    /// FX unit slot `slot` on/off; wet/dry and knobs are kept.
+    SetFxUnitSlotEnabled {
+        slot: u8,
+        enabled: bool,
+    },
+    /// FX unit slot `slot` wet/dry `0..1`.
+    SetFxUnitWet {
+        slot: u8,
+        wet: f32,
+    },
+    /// FX unit slot `slot` knob `param` (`0..=2`), normalized `0..1`.
+    SetFxUnitParam {
+        slot: u8,
+        param: u8,
+        value: f32,
+    },
+    /// Route this deck through the shared FX unit (deck-scoped).
+    SetDeckFxRouted {
+        routed: bool,
+    },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].
@@ -487,6 +555,10 @@ pub enum EvtBody {
         eq: DeckEq,
         filter: f32,
         gain_trim: f32,
+        #[serde(default)]
+        fx_routed: bool,
+        #[serde(default)]
+        fx: [FxSlotState; FX_SLOT_COUNT],
         headphone_cue: bool,
         sync_mode: SyncMode,
         cue_point_ms: Option<i32>,

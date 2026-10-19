@@ -325,6 +325,7 @@ impl Engine {
                     deck.set_vinyl_brake(vinyl_brake, vinyl_brake_stop);
                 }
             }
+            dsp.mixer_mut().set_master_deck(self.master_deck);
         }
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 

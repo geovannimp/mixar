@@ -6,6 +6,7 @@ use dasp_graph::{Buffer, Input, Node};
 
 use crate::eq::{clamp_gain_db, DeckEqGains, ThreeBandEq};
 use crate::filter::{db_to_linear, DjFilter};
+use crate::fx::FxChain;
 use crate::level_meter::LevelPeaks;
 
 /// Maximum auto-gain applied when normalizing (± dB).
@@ -29,6 +30,10 @@ pub struct MixerChannel {
     target_lufs: Option<f32>,
     eq: ThreeBandEq,
     filter: DjFilter,
+    /// Pre-fader FX insert chain (after the filter, before the meter/fader).
+    fx: FxChain,
+    /// Whether this deck's signal runs through the shared FX unit.
+    fx_routed: bool,
     volume: f32,
     headphone_cue: bool,
     level_peaks: LevelPeaks,
@@ -44,6 +49,8 @@ impl MixerChannel {
             target_lufs: None,
             eq: ThreeBandEq::new(sample_rate),
             filter: DjFilter::new(sample_rate),
+            fx: FxChain::new(sample_rate),
+            fx_routed: false,
             volume: 1.0,
             headphone_cue: false,
             level_peaks: LevelPeaks::default(),
@@ -90,6 +97,27 @@ impl MixerChannel {
     pub fn set_filter_db(&mut self, filter_db: f32) -> Result<()> {
         self.filter.set_filter_db(filter_db);
         Ok(())
+    }
+
+    pub fn fx(&self) -> &FxChain {
+        &self.fx
+    }
+
+    pub fn fx_mut(&mut self) -> &mut FxChain {
+        &mut self.fx
+    }
+
+    pub fn fx_routed(&self) -> bool {
+        self.fx_routed
+    }
+
+    pub fn set_fx_routed(&mut self, routed: bool) {
+        if self.fx_routed != routed {
+            // Bypassing skips the chain, so its buffers freeze; drop them so a
+            // later re-route cannot replay audio captured before the deck was dry.
+            self.fx.reset();
+        }
+        self.fx_routed = routed;
     }
 
     pub fn gain_trim_db(&self) -> f32 {
@@ -210,6 +238,9 @@ impl MixerChannel {
         let chunk = &mut self.pre_fader_buffer[chunk_start..];
         self.eq.process_buffer(chunk);
         self.filter.process_buffer(chunk);
+        if self.fx_routed {
+            self.fx.process_buffer(chunk);
+        }
 
         let chunk_peaks = LevelPeaks::from_buffer(chunk);
         self.level_peaks.peak_l = self.level_peaks.peak_l.max(chunk_peaks.peak_l);
@@ -477,5 +508,134 @@ mod tests {
         assert!(mixer_channel.pre_fader_buffer().is_empty());
         assert_eq!(mixer_channel.level_peaks().peak_l, 0.0);
         assert_eq!(mixer_channel.level_peaks().peak_r, 0.0);
+    }
+
+    /// Render `frames` through the strip in `Buffer::LEN` chunks.
+    fn render_strip(
+        channel: &mut MixerChannel,
+        frames: usize,
+        mut input_at: impl FnMut(usize) -> (f32, f32),
+    ) -> Vec<f32> {
+        let mut out = Vec::with_capacity(frames * 2);
+        let mut outputs = [Buffer::SILENT, Buffer::SILENT];
+        let mut frame = 0;
+        while frame < frames {
+            let chunk = (frames - frame).min(Buffer::LEN);
+            let mut dry = Vec::with_capacity(chunk * 2);
+            for i in 0..chunk {
+                let (left, right) = input_at(frame + i);
+                dry.push(left);
+                dry.push(right);
+            }
+            channel.clear_capture();
+            channel.process_dry_chunk(chunk, &dry, &mut outputs);
+            for (left, right) in outputs[0].iter().zip(outputs[1].iter()).take(chunk) {
+                out.push(*left);
+                out.push(*right);
+            }
+            frame += chunk;
+        }
+        out
+    }
+
+    #[test]
+    fn fx_slot_echo_delays_the_dry_signal() {
+        const HALF_BEAT_FRAMES: usize = 12_000;
+
+        let mut channel = MixerChannel::new(48_000);
+        channel.set_fx_routed(true);
+        {
+            let slot = channel.fx_mut().slot_mut(0).expect("slot 0 exists");
+            slot.set_kind(crate::FxKind::Echo);
+            slot.set_enabled(true);
+            slot.set_tempo(120.0);
+        }
+
+        let out = render_strip(&mut channel, 24_000, |frame| {
+            if frame == 0 {
+                (1.0, 1.0)
+            } else {
+                (0.0, 0.0)
+            }
+        });
+
+        // Dry impulse passes at wet 0.5.
+        assert!((out[0] - 0.5).abs() < 1e-6, "dry path: {}", out[0]);
+        let repeat = out
+            .chunks(2)
+            .enumerate()
+            .skip(100)
+            .find(|(_, frame)| frame[0].abs() > 0.4)
+            .map(|(index, _)| index)
+            .expect("echo repeat must be audible");
+        assert!(
+            repeat.abs_diff(HALF_BEAT_FRAMES) <= 2,
+            "repeat at {repeat} frames, expected {HALF_BEAT_FRAMES}"
+        );
+    }
+
+    #[test]
+    fn re_routing_drops_the_frozen_echo_tail() {
+        const HALF_BEAT_FRAMES: usize = 12_000;
+
+        let mut channel = MixerChannel::new(48_000);
+        channel.set_fx_routed(true);
+        {
+            let slot = channel.fx_mut().slot_mut(0).expect("slot 0 exists");
+            slot.set_kind(crate::FxKind::Echo);
+            slot.set_enabled(true);
+            slot.set_tempo(120.0);
+        }
+
+        // Prime the delay line, then bypass before the repeat is due.
+        let primed = render_strip(&mut channel, HALF_BEAT_FRAMES / 2, |frame| {
+            if frame == 0 {
+                (1.0, 1.0)
+            } else {
+                (0.0, 0.0)
+            }
+        });
+        assert!(primed.iter().any(|sample| sample.abs() > 1e-6));
+
+        channel.set_fx_routed(false);
+        let dry = render_strip(&mut channel, HALF_BEAT_FRAMES, |_| (0.0, 0.0));
+        assert!(
+            dry.iter().all(|sample| sample.abs() < 1e-6),
+            "a bypassed deck must stay silent"
+        );
+
+        // The stale repeat would land HALF_BEAT_FRAMES after the impulse in
+        // chain time, i.e. here. Re-routing must not replay it.
+        channel.set_fx_routed(true);
+        let after = render_strip(&mut channel, HALF_BEAT_FRAMES + 2, |_| (0.0, 0.0));
+        assert!(
+            after.iter().all(|sample| sample.abs() < 1e-6),
+            "re-routing must not replay the pre-bypass tail"
+        );
+    }
+
+    #[test]
+    fn bypassed_fx_slot_leaves_signal_dry() {
+        let mut channel = MixerChannel::new(48_000);
+        channel.set_fx_routed(true);
+        {
+            let slot = channel.fx_mut().slot_mut(0).expect("slot 0 exists");
+            slot.set_kind(crate::FxKind::Echo);
+            slot.set_tempo(120.0);
+        }
+
+        let out = render_strip(&mut channel, 24_000, |frame| {
+            if frame == 0 {
+                (1.0, 1.0)
+            } else {
+                (0.0, 0.0)
+            }
+        });
+
+        assert!((out[0] - 1.0).abs() < 1e-6, "dry impulse: {}", out[0]);
+        assert!(
+            out.iter().skip(2).all(|sample| *sample == 0.0),
+            "disabled slot must not delay the signal"
+        );
     }
 }

@@ -10,9 +10,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
@@ -156,6 +156,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Cue/headphone bus volume `0..1`.
   Future<void> setCueVolume({required double volume});
 
+  /// Route deck `deck_id` through the shared FX unit.
+  Future<void> setDeckFxRouted({required int deckId, required bool routed});
+
   /// Single EQ band as `0..1` (center `0.5` = 0 dB).
   Future<void> setEqBand({
     required int deckId,
@@ -165,6 +168,22 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Filter knob `0..1`.
   Future<void> setFilter({required int deckId, required double filter});
+
+  /// FX unit slot knob `param` `0..=2`, normalized `0..1`.
+  Future<void> setFxUnitParam({
+    required int slot,
+    required int param,
+    required double value,
+  });
+
+  /// FX unit slot `0..=2` effect selection; `off` clears the slot.
+  Future<void> setFxUnitSlot({required int slot, required FxKind kind});
+
+  /// FX unit slot on/off (wet/dry and knobs are kept).
+  Future<void> setFxUnitSlotEnabled({required int slot, required bool enabled});
+
+  /// FX unit slot wet/dry `0..1`.
+  Future<void> setFxUnitWet({required int slot, required double wet});
 
   /// Gain trim knob `0..1`.
   Future<void> setGainTrim({required int deckId, required double gainTrim});
@@ -297,6 +316,12 @@ class EngineEvt {
   final double? eqHigh;
   final double? filter;
   final double? gainTrim;
+
+  /// FX unit slot state when authored on this evt (`FX_SLOT_COUNT` entries).
+  final List<FxSlotChrome>? fx;
+
+  /// True when this deck's pre-fader signal runs through the FX unit.
+  final bool? fxRouted;
   final bool? headphoneCue;
   final double? crossfader;
   final double? masterVolume;
@@ -384,6 +409,8 @@ class EngineEvt {
     this.eqHigh,
     this.filter,
     this.gainTrim,
+    this.fx,
+    this.fxRouted,
     this.headphoneCue,
     this.crossfader,
     this.masterVolume,
@@ -441,6 +468,8 @@ class EngineEvt {
       eqHigh.hashCode ^
       filter.hashCode ^
       gainTrim.hashCode ^
+      fx.hashCode ^
+      fxRouted.hashCode ^
       headphoneCue.hashCode ^
       crossfader.hashCode ^
       masterVolume.hashCode ^
@@ -500,6 +529,8 @@ class EngineEvt {
           eqHigh == other.eqHigh &&
           filter == other.filter &&
           gainTrim == other.gainTrim &&
+          fx == other.fx &&
+          fxRouted == other.fxRouted &&
           headphoneCue == other.headphoneCue &&
           crossfader == other.crossfader &&
           masterVolume == other.masterVolume &&
@@ -568,6 +599,42 @@ class EngineStartConfig {
 
 /// EQ band for [`EngineTransport::set_eq_band`].
 enum EqBand { low, mid, high }
+
+/// FX unit effect selection (FRB mirror of `engine_api::FxKind`).
+enum FxKind { off, echo, reverb }
+
+/// Per-slot FX state surfaced to the UI.
+class FxSlotChrome {
+  final FxKind kind;
+  final bool enabled;
+
+  /// Wet/dry `0..1` (`0` = dry).
+  final double wet;
+
+  /// Normalized knob positions for `kind` (unused entries `0.0`).
+  final Float32List params;
+
+  const FxSlotChrome({
+    required this.kind,
+    required this.enabled,
+    required this.wet,
+    required this.params,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^ enabled.hashCode ^ wet.hashCode ^ params.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FxSlotChrome &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          enabled == other.enabled &&
+          wet == other.wet &&
+          params == other.params;
+}
 
 /// Output device summary for the Flutter settings / smoke UI.
 class OutputDevice {

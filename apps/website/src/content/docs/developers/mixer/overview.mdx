@@ -1,0 +1,59 @@
+---
+title: "Overview"
+description: "How the mixer subsystem is put together: the lane graph, the channel strip order, the buses, and where FX sits in the chain."
+section: "Mixer"
+order: 1
+---
+
+The mixer is a `dasp_graph` graph of one node per deck. Each node owns that deck's playback, its sampler, and its channel strip, so the whole path from PCM to bus lives in `engine-dsp` with no I/O.
+
+User-facing docs: [Mixer overview](/docs/users/mixer) and [Beat FX](/docs/users/mixer/beat-fx). This topic covers the implementation; the FX unit has its own page: [FX chain](/docs/developers/mixer/fx-chain).
+
+## Signal path
+
+```text
+Deck (resample / stretch / jog)
+        │  dry PCM chunk
+        ▼
+MixerChannel strip
+  auto gain + gain trim
+        │
+        3-band EQ
+        │
+        DJ filter
+        │
+        FX chain            ← only when fx_routed; see /docs/developers/mixer/fx-chain
+        │
+        ├─► level peaks + pre-fader buffer (cue / PFL tap)
+        │
+        channel fader
+        ▼
+crossfader gains (equal power)  ──►  master mix  ──►  master bus
+        │
+        └─► cue bus (pre-fader taps of cue-enabled channels + optional master tap)
+```
+
+The pre-fader tap is captured **after** EQ, filter and FX, which is why headphones and the channel meter carry the wet signal while the fader still scales both dry and wet.
+
+## Chunking
+
+`Mixer::process` requires the frame count to be a positive multiple of `Buffer::LEN` (64 samples) and renders that many chunks per callback. Everything inside the callback is allocation-free: buffers, scratch space and level state are allocated in constructors and reused, and no lock is taken on the audio thread.
+
+## File map
+
+| Path | Responsibility |
+|------|----------------|
+| `crates/engine-dsp/src/deck.rs` | Playback, transport, tempo ratio, beat grid, `effective_bpm()` |
+| `crates/engine-dsp/src/mixer_lane.rs` | Graph node: deck + sampler + strip, sampler route into the mix |
+| `crates/engine-dsp/src/mixer_channel.rs` | The strip: gain, EQ, filter, FX, meter/PFL capture, fader |
+| `crates/engine-dsp/src/fx/` | FX chain, echo, reverb — see [FX chain](/docs/developers/mixer/fx-chain) |
+| `crates/engine-dsp/src/mixer.rs` | Lane rendering, crossfade sum, bus routing, master peaks, FX tempo |
+| `crates/engine-api/src/payload.rs` | `DeckSnapshot` / `DeckUpdated` fields, `CmdBody` variants |
+| `crates/engine-core/src/control.rs` | Command decode + dispatch, mixer vs deck origin |
+| `crates/engine-core/src/status.rs` | DSP state → wire snapshot mapping |
+| `crates/host-flutter/src/api/engine.rs` | FRB transport methods and event mirrors |
+| `apps/gui-flutter/lib/providers/mixer/` | Riverpod state, optimistic commands, device providers |
+
+## Command shape
+
+Mixer-wide commands are published with `Origin::Mixer` and answered with a `DeckUpdated` per deck (`CmdOutcome::DecksUpdated`) because the value lives on every channel — crossfader, master and cue volumes, and the FX unit's shared configuration all work that way. Deck-scoped commands use `Origin::Deck(i)` and answer with a single `DeckUpdated` (`CmdOutcome::DeckUpdated`): volume, EQ, filter, gain trim, cue, and the FX routing switch.

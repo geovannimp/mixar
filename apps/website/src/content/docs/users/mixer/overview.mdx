@@ -1,0 +1,44 @@
+---
+title: "Overview"
+description: "How the mixer screen is laid out: decks, channel strips, crossfader, master levels, library, and the Beat FX strip."
+section: "Mixer"
+order: 1
+---
+
+The mixer screen is where you actually play: a waveform pane on top, the two decks side by side, the library underneath, and a thin **Beat FX** strip pinned to the bottom.
+
+## Decks
+
+Each deck card holds the track info, the performance pads, the tempo column, the transport (**Cue** / **Play**), and a row of header buttons:
+
+- **Gain** — opens the deck's pre-fader trim.
+- **Master** — makes this deck the tempo master (the crown).
+- **Q** — quantize. Snaps cue, loop, hot-cue, roll and beat-jump actions to the beat grid.
+- **S** — slip. Keeps a shadow playhead moving under loops and scratch, then catches up on exit.
+- **FX** — routes this deck through the shared Beat FX unit, see [Beat FX](/docs/users/mixer/beat-fx).
+- **Eject / Load** — swaps the track, or opens the track picker.
+
+## Channel strip
+
+Every deck owns a channel in the mixer columns between the decks:
+
+| Control | What it does |
+|---------|--------------|
+| **3-band EQ** | Low, mid and high, centre = flat |
+| **Filter** | One-knob DJ filter, centre = bypass |
+| **Fader** | Channel volume |
+| **Cue** | Sends the deck to the headphone bus |
+
+The strip runs **gain trim → EQ → filter → FX → meter and cue tap → fader**. That order is why the meter and the headphones already include the effect, while the channel fader still controls how loud the whole channel is.
+
+## Crossfader
+
+The crossfader under the channel strips blends deck A and deck B. It is applied after the channel faders, so it scales the effect exactly like the dry signal.
+
+## Master levels
+
+The **master meter** sits in the app header. Click it to open **Levels**, which holds the master output level, the master cue toggle, the headphone level, and the cue/master blend for the headphones.
+
+## Beat FX
+
+The strip under the library is the shared effect unit: pick an effect, set the beat division, set the level, arm it, and choose which decks feed it. It has its own page: [Beat FX](/docs/users/mixer/beat-fx).

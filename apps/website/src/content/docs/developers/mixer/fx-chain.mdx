@@ -1,0 +1,120 @@
+---
+title: "FX chain"
+description: "The pre-fader FX insert in engine-dsp: the Fx trait, echo and reverb DSP, the shared-unit wire contract, and how to add an effect."
+section: "Mixer"
+order: 2
+---
+
+The FX unit is a per-deck **pre-fader insert chain** in `engine-dsp`, configured as one **shared** unit: every deck's chain always holds the same configuration, and a per-deck gate decides whether that deck's signal runs through it. Today the [Beat FX strip](/docs/users/mixer/beat-fx) drives one slot; the chain capacity is the slot model a preset editor will program.
+
+## Module layout
+
+| Item | Responsibility |
+|------|----------------|
+| `Fx` trait | One effect's DSP: `param_count`, `default_params`, `set_param`, `set_tempo`, `reset`, `process_frame` |
+| `FxSlot` | Effect selection, on/off, wet/dry and normalized knobs around one `Fx` instance |
+| `FxChain` | `FX_SLOT_COUNT` slots in series + the chain-level tempo push |
+| `Echo` | Beat-synced delay line |
+| `Reverb` | Freeverb-style reverb |
+
+`FX_SLOT_COUNT = 3` (`engine-api` mirrors it) is chain capacity, not three visible units: slot `0` is the Beat FX unit and the rest is headroom for preset chains. `FX_PARAM_COUNT = 3` is the knob bound per effect.
+
+## Processing and gating
+
+`MixerChannel::process_with_stereo_input` calls `FxChain::process_buffer` **after** the DJ filter and **before** the peak/PFL capture, and only when the channel's `fx_routed` flag is set. `MixerChannel::fx_routed` is off by default, so a deck is dry until it is routed.
+
+- `FxChain::process_buffer` returns immediately when no slot is active, so an idle unit costs one predicate per buffer.
+- Each active slot blends dry/wet: `out = dry * (1 - wet) + fx * wet`, with `wet = 0` bit-identical to the input.
+- `FxSlot::set_kind` loads the effect's default knobs, drops the previous effect's state and **never** arms the slot; `Off` clears the knobs and forces it off. Re-selecting the current kind is a no-op.
+- `FxSlot::set_enabled(false)` calls `reset()` on the effect, so switching off (or changing the effect) clears the tail instead of leaking it back in later.
+- `set_param` clamps to `0..=1` and returns `Err("Invalid FX parameter: N")` past `param_count()`, which propagates out as a wire error.
+
+Nothing is allocated, locked or blocked inside the audio callback: delay lines, comb/allpass buffers and parameter state are built in the constructors.
+
+## Tempo
+
+Echo's delay is a beat fraction, so the chain needs a tempo. `Mixer::process` resolves it once per buffer from the **master deck**:
+
+```text
+Deck::effective_bpm()  = track_bpm × playback_ratio      (jog excluded)
+Mixer::fx_sync_bpm()   = master lane's effective_bpm, else DEFAULT_FX_BPM (120)
+        │
+        ▼  per buffer, for every lane
+MixerLane::set_fx_tempo(bpm) → FxChain::set_tempo → FxSlot::set_tempo → Fx::set_tempo
+```
+
+Because the master index is kept in step with engine-core (`Engine::set_master_deck` and the DSP startup path both push it), moving the master's tempo fader or loading a new track bends the repeats without any extra wiring.
+
+## Echo
+
+A stereo delay line with two read taps, so a large delay jump crossfades instead of clicking.
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `ECHO_DIVISIONS` | `1/16, 1/8, 1/4, 1/2, 3/4, 1/1, 2/1` beats | TIME knob steps |
+| `ECHO_DEFAULT_DIVISION` | index `3` (`1/2`) | freshly selected echo |
+| `ECHO_MAX_DELAY_MS` | `2000` | line length (2 beats at the tempo floor) |
+| `ECHO_MIN_SYNC_BPM` | `60` | below this the delay clamps to the line |
+| `ECHO_MAX_FEEDBACK` | `0.9` | feedback knob ceiling |
+| `XFADE_MS` / `SLEW_EPS_FRAMES` | `20` ms / `16` frames | retarget crossfade vs. direct move |
+
+`param 0` is the division (normalized), `param 1` is feedback. The wet output is the delayed signal only; the dry blend happens in `FxSlot`.
+
+## Reverb
+
+Freeverb topology scaled to the engine sample rate: 8 parallel combs (tunings `1116 … 1617`) and 4 series allpasses (`556, 441, 341, 225`), with a `23`-sample stereo spread on the right channel.
+
+`param 0` is size (comb feedback `0.70 + 0.28 × value`), `param 1` is damping (`0.4 × value`). Input gain `0.015`, wet scale `3.0`, allpass feedback `0.5`. Reverb is not beat-synced, so it ignores `set_tempo` and the UI hides the BEAT stepper for it.
+
+## Wire contract
+
+| Kind | Origin | `CmdBody` | Result |
+|------|--------|-----------|--------|
+| `SetFxUnitSlot` | `Mixer` | `{ slot, kind }` | one `Updated` per deck |
+| `SetFxUnitSlotEnabled` | `Mixer` | `{ slot, enabled }` | one `Updated` per deck |
+| `SetFxUnitWet` | `Mixer` | `{ slot, wet }` | one `Updated` per deck |
+| `SetFxUnitParam` | `Mixer` | `{ slot, param, value }` | one `Updated` per deck |
+| `SetDeckFxRouted` | `Deck(i)` | `{ routed }` | that deck's `Updated` |
+
+The four configuration commands fan out to **every** deck inside `Engine::for_each_fx_slot`, so the shared unit cannot drift between channels; that is why they answer with `CmdOutcome::DecksUpdated`. Routing is deck-scoped and answers with `CmdOutcome::DeckUpdated`.
+
+Published state:
+
+```rust
+DeckSnapshot {
+    fx_routed: bool,                              // per deck
+    fx: [FxSlotState; FX_SLOT_COUNT],             // shared, identical for every deck
+}
+
+FxSlotState { kind: FxKind, enabled: bool, wet: f32, params: [f32; FX_PARAM_COUNT] }
+```
+
+`DeckUpdated` carries the same two fields, `status::fx_slot_state` maps DSP → wire, and `FxKind::Off` survives as the empty-slot state even though the selector does not offer it. A fresh `FxChain` loads **Echo in slot 0, unarmed** (`FxChain::new`), which matches what the strip shows before the first snapshot.
+
+The configuration commands deliberately carry no `soft_takeover` flag: FX knobs are UI-only today — no action leaf exists in `crates/controller/src/catalog.rs` — so there is no hardware takeover to resolve. Adding the field later is backward compatible under `#[serde(default)]`.
+
+## Host and UI plumbing
+
+- `crates/host-flutter/src/api/engine.rs` mirrors the wire types (`FxKind`, `FxSlotChrome`) and exposes `set_fx_unit_slot`, `set_fx_unit_slot_enabled`, `set_fx_unit_wet`, `set_fx_unit_param`, `set_deck_fx_routed`. Regenerate FRB (`scripts/ensure-frb-codegen.sh`) after changing them.
+- `EngineEvt` carries `fx` / `fx_routed`; `applyEngineEvt` stores the shared slots on `EngineUiSnapshot.fxSlots` and the deck flag on `MixerChannelUi.fxRouted`, and keeps the previous list when the payload is unchanged so FX listeners do not rebuild on unrelated events (the FRB-generated `FxSlotChrome.==` compares `Float32List` by identity, so `engine_ui.dart` compares fields itself).
+- `fxSlotsProvider` / `deckFxRoutedProvider` feed the strip and the deck-header button; the strip drives `kBeatFxSlot` (index `0`), and `core/utils/fx_params.dart` owns the effect labels, the beat-division table and the default division.
+
+## Adding an effect
+
+1. Add `crates/engine-dsp/src/fx/<effect>.rs` implementing `Fx`, and register it from `fx/mod.rs`.
+2. Add the `FxKind` variant in `engine-dsp` **and** `engine-api` (plus both `map_fx_kind*` arms in `engine-core/src/status.rs`, and the `From` impls in `host-flutter`).
+3. Add one arm to `FxKind::create`.
+4. Add a label entry (and any beat divisions) in `apps/gui-flutter/lib/core/utils/fx_params.dart`.
+5. Add DSP tests (defaults, clamping, characteristic behaviour) and, if the UI grows a per-effect control, a widget test.
+
+## Tests
+
+| Area | Where |
+|------|-------|
+| Effect DSP | `fx/echo.rs`, `fx/reverb.rs` test modules (divisions, feedback decay, crossfade, tail, bounds) |
+| Slot/chain behaviour | `fx/mod.rs` tests (inactive chain identity, wet `0`, disable clears the tail, kind defaults, param clamping) |
+| Strip integration | `mixer_channel.rs` tests (`fx_slot_echo_delays_the_dry_signal`, `bypassed_fx_slot_leaves_signal_dry`) |
+| Tempo end-to-end | `engine-dsp` `fx_echo_repeat_follows_master_deck_tempo` (master BPM, tempo fader, fallback) |
+| Wire | `crates/engine-core/tests/bus_fx.rs` (fan-out, deck-scoped routing, fresh unit state, error paths) |
+| Host | `crates/host-flutter/tests/engine_transport.rs` |
+| UI | `apps/gui-flutter/test/fx_bar_test.dart`, `test/engine_ui_apply_test.dart` |

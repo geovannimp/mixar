@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use engine_api::{decode_evt_body, EvtBody, Kind, Origin};
-use host_flutter::api::engine::{EngineStartConfig, EngineTransport};
+use host_flutter::api::engine::{EngineStartConfig, EngineTransport, FxKind};
 use host_flutter::api::library::LibraryTransport;
 
 fn short_tone_fixture() -> PathBuf {
@@ -59,6 +59,48 @@ fn recv_kind(rx: &engine_core::EvtReceiver, kind: Kind, timeout: Duration) -> en
         }
     }
     panic!("timeout waiting for evt kind {kind:?}");
+}
+
+/// Receive the next `Updated` body for `deck_id`, skipping other kinds/decks.
+fn recv_deck_updated(rx: &engine_core::EvtReceiver, deck_id: u16, timeout: Duration) -> EvtBody {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        let event = match rx.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(Some(event)) => event,
+            Ok(None) => continue,
+            Err(e) => panic!("evt bus disconnected waiting for deck {deck_id}: {e}"),
+        };
+        if *event.kind() != Kind::Updated {
+            continue;
+        }
+        if let Ok(EvtBody::DeckUpdated { id, .. }) = decode_evt_body(event.payload()) {
+            if id == deck_id {
+                return decode_evt_body(event.payload()).expect("decode evt body");
+            }
+        }
+    }
+    panic!("timeout waiting for Updated on deck {deck_id}");
+}
+
+/// FX slots carried by the next `DeckUpdated` for `deck_id`.
+fn expect_deck_fx(
+    rx: &engine_core::EvtReceiver,
+    deck_id: u16,
+    timeout: Duration,
+) -> [engine_api::FxSlotState; engine_api::FX_SLOT_COUNT] {
+    match recv_deck_updated(rx, deck_id, timeout) {
+        EvtBody::DeckUpdated { fx, .. } => fx,
+        other => panic!("expected DeckUpdated, got {other:?}"),
+    }
+}
+
+/// `fx_routed` carried by the next `DeckUpdated` for `deck_id`.
+fn expect_deck_fx_routed(rx: &engine_core::EvtReceiver, deck_id: u16, timeout: Duration) -> bool {
+    match recv_deck_updated(rx, deck_id, timeout) {
+        EvtBody::DeckUpdated { fx_routed, .. } => fx_routed,
+        other => panic!("expected DeckUpdated, got {other:?}"),
+    }
 }
 
 #[test]
@@ -329,4 +371,37 @@ fn set_sampler_bank_publishes_active_bank_id() {
         panic!("expected DeckUpdated");
     };
     assert_eq!(active_sampler_bank_id.as_deref(), Some(bank_id.as_str()));
+}
+
+#[test]
+fn fx_unit_and_deck_routing_publish_updated() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+
+    transport.set_fx_unit_slot(0, FxKind::Echo).unwrap();
+    // Shared unit: every deck republishes, so drain both before the next command.
+    let fx = expect_deck_fx(&rx, 0, Duration::from_secs(2));
+    assert_eq!(fx[0].kind, engine_api::FxKind::Echo);
+    assert!(!fx[0].enabled, "selecting an effect leaves the slot off");
+    let _ = recv_deck_updated(&rx, 1, Duration::from_secs(2));
+
+    transport.set_fx_unit_slot_enabled(0, true).unwrap();
+    let fx = expect_deck_fx(&rx, 0, Duration::from_secs(2));
+    assert!(fx[0].enabled, "the ON button must enable the slot");
+    let _ = recv_deck_updated(&rx, 1, Duration::from_secs(2));
+
+    transport.set_fx_unit_wet(0, 0.8).unwrap();
+    let fx = expect_deck_fx(&rx, 0, Duration::from_secs(2));
+    assert!((fx[0].wet - 0.8).abs() < 1e-6, "wet {}", fx[0].wet);
+    let _ = recv_deck_updated(&rx, 1, Duration::from_secs(2));
+
+    transport.set_fx_unit_param(0, 0, 1.0).unwrap();
+    let fx = expect_deck_fx(&rx, 0, Duration::from_secs(2));
+    // Echo TIME norm 1.0 = the longest table division (2/1 beats).
+    assert!((fx[0].params[0] - 1.0).abs() < 1e-6, "{}", fx[0].params[0]);
+    let _ = recv_deck_updated(&rx, 1, Duration::from_secs(2));
+
+    transport.set_deck_fx_routed(1, true).unwrap();
+    assert!(expect_deck_fx_routed(&rx, 1, Duration::from_secs(2)));
 }
