@@ -269,9 +269,11 @@ void main() {
     await tester.tap(find.text('Edit…'));
     await tester.pumpAndSettle();
 
-    // The drawer form is up with the track's fields.
+    // The drawer form is up with the track's fields...
     expect(find.text('Title'), findsOneWidget);
     expect(find.text('ISRC'), findsOneWidget);
+    // ...and it is the row's track that was fetched, not some other id.
+    expect(transport.getTrackCalls, ['t1']);
   });
 
   testWidgets('Load to A/B is disabled when the engine is stopped', (

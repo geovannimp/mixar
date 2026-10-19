@@ -302,11 +302,82 @@ void main() {
     await tester.enterText(fieldFor('Title'), 'Discarded');
     await tester.pump();
 
-    // Left of the 420px right-edge drawer.
-    await tester.tapAt(const Offset(40, 300));
+    // Derive the barrier point from the drawer's own geometry: half way to
+    // whatever the panel's left edge actually is, so a width/layout change
+    // moves the tap with it instead of leaving a magic coordinate behind.
+    final saveTopLeft = tester.getTopLeft(find.text('Save'));
+    await tester.tapAt(Offset(saveTopLeft.dx / 2, saveTopLeft.dy));
     await tester.pumpAndSettle();
 
     expect(fake.updateTrackMetadataCalls, isEmpty);
     expect(find.text('Save'), findsNothing, reason: 'drawer closed');
+  });
+
+  testWidgets('a transport failure reports and keeps the drawer open', (
+    tester,
+  ) async {
+    final fake = await pumpDrawer(tester);
+    fake.updateTrackMetadataHandler = (call) async =>
+        throw StateError('backend down');
+
+    await tester.enterText(fieldFor('Title'), 'Edited');
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save'), findsOneWidget, reason: 'drawer stays open');
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('Save')),
+    );
+    expect(
+      container.read(appNoticeProvider)?.message,
+      contains('backend down'),
+      reason: 'failure surfaces through appNotice (AppNoticeBridge toasts it)',
+    );
+    // `saving` is cleared in finally, so the user can retry.
+    expect(saveEnabled(tester), isTrue, reason: 'saving reset after failure');
+    expect(fake.updateTrackMetadataCalls, hasLength(1));
+  });
+
+  testWidgets('a track that vanished reports and opens no drawer', (
+    tester,
+  ) async {
+    final fake = FakeLibraryTransport(getTrackHandler: (id) async => null);
+    await pumpDrawer(tester, fake);
+
+    expect(find.text('Save'), findsNothing, reason: 'no drawer without a row');
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('open')),
+    );
+    expect(
+      container.read(appNoticeProvider)?.message,
+      'Track no longer exists in the library',
+    );
+    expect(fake.getTrackCalls, ['t1'], reason: 'asked for the tapped row');
+  });
+
+  testWidgets('clearing a field sends blank so the column is cleared', (
+    tester,
+  ) async {
+    final fake = await pumpDrawer(tester);
+
+    expect(
+      tester.widget<EditableText>(fieldFor('Album')).controller.text,
+      'Album',
+    );
+    await tester.enterText(fieldFor('Album'), '');
+    await tester.pump();
+    expect(saveEnabled(tester), isTrue, reason: 'clearing is a change');
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final call = fake.updateTrackMetadataCalls.single;
+    expect(
+      call.album,
+      '',
+      reason: 'blank reaches the store, which clears the column',
+    );
+    expect(call.title, 'Track', reason: 'other fields stay as loaded');
   });
 }

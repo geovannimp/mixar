@@ -34,6 +34,11 @@ class FakeLibraryTransport implements LibraryTransport {
 
   GetTrackHandler? getTrackHandler;
   ListCollectionEntriesHandler? listCollectionEntriesHandler;
+
+  /// Optional hook so a test can make a save fail (or inspect the one value
+  /// being written). Called after the call is recorded; it may throw.
+  Future<void> Function(UpdateTrackMetadataCall call)?
+  updateTrackMetadataHandler;
   List<LibraryTrackSummary> entries;
   List<LibraryCollectionSummary> collections;
   final StreamController<LibraryEvt> _events;
@@ -285,7 +290,7 @@ class FakeLibraryTransport implements LibraryTransport {
     String? key,
     String? isrc,
   }) async {
-    updateTrackMetadataCalls.add((
+    final call = (
       trackId: trackId,
       title: title,
       artist: artist,
@@ -294,6 +299,11 @@ class FakeLibraryTransport implements LibraryTransport {
       bpm: bpm,
       key: key,
       isrc: isrc,
-    ));
+    );
+    updateTrackMetadataCalls.add(call);
+    final handler = updateTrackMetadataHandler;
+    if (handler != null) {
+      await handler(call);
+    }
   }
 }
