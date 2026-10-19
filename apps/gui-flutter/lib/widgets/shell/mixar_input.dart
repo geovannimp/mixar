@@ -64,6 +64,8 @@ class MixarInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    // An empty message is not an error state; only non-empty text is.
+    final error = (errorText == null || errorText!.isEmpty) ? null : errorText;
     final field = ShadInput(
       controller: controller,
       initialValue: controller == null ? initialValue : null,
@@ -79,7 +81,7 @@ class MixarInput extends StatelessWidget {
       style: style,
       maxLines: maxLines,
       padding: padding,
-      decoration: _decoration(),
+      decoration: _decoration(error != null),
       placeholder: hint == null
           ? null
           : Text(
@@ -91,7 +93,12 @@ class MixarInput extends StatelessWidget {
       leading: leading,
       trailing: trailing,
     );
-    final hasError = errorText != null;
+    // Label-less and error-free is the shape this widget had before it grew
+    // error support — returning the field directly keeps those callers (dense
+    // toolbars) out of a wrapping Column they never had.
+    if (label == null && error == null) {
+      return field;
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -100,7 +107,7 @@ class MixarInput extends StatelessWidget {
           DefaultTextStyle.merge(
             style: theme.typography.body.sm.copyWith(
               fontWeight: FontWeight.w600,
-              color: hasError
+              color: error != null
                   ? theme.colors.destructive
                   : theme.colors.foreground,
             ),
@@ -109,14 +116,14 @@ class MixarInput extends StatelessWidget {
           const SizedBox(height: 6),
         ],
         field,
-        if (hasError) ...[
+        if (error != null) ...[
           const SizedBox(height: 6),
           DefaultTextStyle.merge(
             style: theme.typography.body.sm.copyWith(
               fontWeight: FontWeight.w500,
               color: theme.colors.destructive,
             ),
-            child: Text(errorText!),
+            child: Text(error),
           ),
         ],
       ],
@@ -133,8 +140,8 @@ class MixarInput extends StatelessWidget {
   ///   `ShadBorder.none` (`none.canMerge` is false, so it wins the merge and
   ///   stays flat): its invalid state reads through the red label and the
   ///   message [MixarInput] renders below, not through a border.
-  ShadDecoration? _decoration() {
-    if (errorText == null) {
+  ShadDecoration? _decoration(bool hasError) {
+    if (!hasError) {
       return borderless ? ShadDecoration.none : null;
     }
     return borderless

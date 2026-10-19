@@ -87,6 +87,33 @@ void main() {
     );
   });
 
+  testWidgets('a label-less field still reports its error text', (
+    tester,
+  ) async {
+    await pumpInput(
+      tester,
+      const MixarInput(borderless: true, errorText: 'Bad query'),
+    );
+
+    // No label, but the message is still rendered (and no empty row when it is
+    // cleared).
+    expect(find.text('Bad query'), findsOneWidget);
+    expect(decorationOf(tester)!.hasError, isTrue);
+  });
+
+  testWidgets('an empty errorText is not an error state', (tester) async {
+    await pumpInput(
+      tester,
+      const MixarInput(label: Text('Query'), errorText: ''),
+    );
+
+    expect(
+      decorationOf(tester),
+      isNull,
+      reason: 'empty message counts as none',
+    );
+  });
+
   testWidgets('no error leaves a normal field on the theme decoration', (
     tester,
   ) async {

@@ -230,7 +230,7 @@ void main() {
         id: 't1',
         displayName: 'Track',
         title: 'Track',
-        album: 'Al',
+        artist: 'Art',
         genre: 'House',
         bpm: 124.035,
         key: 'Am',
@@ -253,11 +253,11 @@ void main() {
     final call = fake.updateTrackMetadataCalls.single;
     expect(call.title, 'Edited');
     expect(call.bpm, 124.035, reason: 'stored precision kept');
-    expect(call.album, 'Al');
+    expect(call.album, isNull, reason: 'a stored null stays null');
     expect(call.genre, 'House');
     expect(call.key, 'Am');
     expect(call.isrc, 'OLD1');
-    expect(call.artist, isNull, reason: 'a null stays null');
+    expect(call.artist, 'Art', reason: 'untouched non-null round-trips');
   });
 
   testWidgets('an invalid key is reported inline', (tester) async {
@@ -354,6 +354,35 @@ void main() {
       'Track no longer exists in the library',
     );
     expect(fake.getTrackCalls, ['t1'], reason: 'asked for the tapped row');
+  });
+
+  testWidgets('a row dropped before saving fails instead of pretending', (
+    tester,
+  ) async {
+    // Open on a real row, then let a re-scan drop it before Save runs: the
+    // store would no-op for an unknown id, so the save must fail loudly
+    // rather than close the drawer and lose the edit.
+    var reads = 0;
+    final fake = FakeLibraryTransport(
+      getTrackHandler: (id) async => ++reads == 1 ? _track : null,
+    );
+    await pumpDrawer(tester, fake);
+
+    await tester.enterText(fieldFor('Title'), 'Edited');
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(fake.updateTrackMetadataCalls, isEmpty, reason: 'no phantom write');
+    expect(find.text('Save'), findsOneWidget, reason: 'drawer stays open');
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('Save')),
+    );
+    expect(
+      container.read(appNoticeProvider)?.message,
+      contains('Track no longer exists'),
+    );
+    expect(saveEnabled(tester), isTrue, reason: 'saving reset, retry possible');
   });
 
   testWidgets('clearing a field sends blank so the column is cleared', (

@@ -199,16 +199,6 @@ class _TrackEditPanel extends HookConsumerWidget {
       if (saving.value) {
         return;
       }
-      // Validate only fields the user has interacted with; untouched fields
-      // may carry pre-existing invalid values that should not block edits.
-      for (final field in TrackFormField.values) {
-        if (form.isDirty({field}) && !form.validateField(field)) {
-          ref
-              .read(appNoticeProvider.notifier)
-              .setError('Fix the highlighted fields');
-          return;
-        }
-      }
       // Captured before the await: after it, `context`/`ref` may be unusable.
       // The container outlives this widget, so the outcome of the write is
       // always published — invalidating and reporting must not depend on the
@@ -220,11 +210,27 @@ class _TrackEditPanel extends HookConsumerWidget {
       try {
         // Re-read immediately before writing: untouched fields take the
         // *current* row (a concurrent analysis persisting a beat grid, or a
-        // folder refresh, must not be rolled back by this save), falling back
-        // to the snapshot only if the row is gone — in which case the store's
-        // unknown-id no-op keeps the write harmless anyway.
+        // folder refresh, is at least not rolled back by this save — this only
+        // narrows the read-then-write window, it does not close it).
         final current = await transport.getTrack(trackId: trackId);
-        final base = current ?? track;
+        if (current == null) {
+          // The row is gone: Store::update_track_metadata is a no-op for an
+          // unknown id, so writing would report success, close the drawer and
+          // drop every edit. Fail loudly instead.
+          throw StateError('Track no longer exists in the library');
+        }
+        final base = current;
+        // Validate *after* the await: a keystroke landing while the re-read is
+        // in flight would otherwise reach the full-replacement write without
+        // being checked (there is no await between here and the write).
+        for (final field in TrackFormField.values) {
+          if (form.isDirty({field}) && !form.validateField(field)) {
+            container
+                .read(appNoticeProvider.notifier)
+                .setError('Fix the highlighted fields');
+            return;
+          }
+        }
         // A field the user never touched writes back what is stored, so an
         // edit cannot rewrite or clear it (and an untouched BPM keeps its
         // stored precision instead of being re-parsed from the prefill text).
@@ -405,7 +411,11 @@ class _TrackEditPanel extends HookConsumerWidget {
     }
     final shortest = bpm.toString();
     if (shortest.contains('e') || shortest.contains('E')) {
-      return bpm.toStringAsFixed(12);
+      // Prefer fixed-point, but only when it reads back to this exact value;
+      // past 12 decimals it truncates to zero, and the (exponent) shortest
+      // text is exact and still parses via double.tryParse.
+      final fixed = bpm.toStringAsFixed(12);
+      return double.tryParse(fixed) == bpm ? fixed : shortest;
     }
     return shortest.endsWith('.0')
         ? shortest.substring(0, shortest.length - 2)
