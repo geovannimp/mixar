@@ -186,8 +186,10 @@ playlist with the collection it came from, and every cover with its artwork id.
 - The state file stores the length and fingerprint of the `export.pdb` it
   describes. If the database on the drive is not that file — rekordbox or
   another tool rewrote it — the state is discarded with a warning and the drive
-  is rebuilt from the current selection; a missing or unreadable state file is
-  treated the same way.
+  is rebuilt from the current selection. A missing or unreadable state file is
+  treated the same way, and a database with no state beside it (rekordbox built
+  the drive, or the state file was deleted) is replaced with a warning in the
+  report.
 - `ExportReport` counts describe the run, not the drive: a playlist-only run
   reports the tracks it wrote while the drive keeps the rest.
 

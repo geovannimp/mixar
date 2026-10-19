@@ -73,7 +73,8 @@ drive; `CdjExporter` is the entry point that needs a library and a destination.
   reserved), playlists are replaced per source collection, and artwork ids continue after the
   highest id on the drive. The state file also fingerprints the `export.pdb` it wrote: if that
   file changed since (rekordbox rewrote the drive), the state is dropped with a warning and the
-  drive is rebuilt from the current selection.
+  drive is rebuilt from the current selection — as it is when the state file is missing or
+  unreadable, or when a database sits on the drive with no state beside it.
 - **Artwork is scaled at the source.** `library_core::ExportArtwork` carries a JPEG thumbnail
   (`EXPORT_ARTWORK_EDGE_PX`, 80 px — the size Rekordbox writes) produced by
   `codec::read_file_artwork_thumbnail`, so the writer never decodes a cover itself. Covers are

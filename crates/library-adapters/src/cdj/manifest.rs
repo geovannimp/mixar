@@ -112,7 +112,19 @@ impl Manifest {
         let path = destination.join(MANIFEST_PATH);
         let bytes = match std::fs::read(&path) {
             Ok(bytes) => bytes,
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Self::default(),
+            // No state of ours. A database beside it was written by something
+            // else — rekordbox, an older Mixar, a partly deleted drive — and
+            // this run replaces it, so say so instead of silently dropping
+            // playlists that cannot be read back.
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                if read_database(destination).is_some() {
+                    report.warnings.push(
+                        "device database has no Mixar export state beside it; rebuilding it from this export"
+                            .to_string(),
+                    );
+                }
+                return Self::default();
+            }
             Err(err) => {
                 report.warnings.push(format!(
                     "export state unreadable, rebuilding the drive ({err})"
@@ -459,6 +471,35 @@ mod tests {
         let manifest = Manifest::load(dir.path(), &mut report);
         assert!(manifest.tracks.is_empty());
         assert!(!report.warnings.is_empty());
+    }
+
+    #[test]
+    fn a_database_without_our_state_is_reported_before_being_rebuilt() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut report = ExportReport::default();
+        // A drive with no database at all is a plain first export.
+        assert!(Manifest::load(dir.path(), &mut report).tracks.is_empty());
+        assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+
+        // A database somebody else wrote (rekordbox, an older Mixar) is about to
+        // be replaced, which the report has to say.
+        std::fs::create_dir_all(dir.path().join("PIONEER/rekordbox")).unwrap();
+        std::fs::write(
+            dir.path().join(crate::cdj::PDB_PATH),
+            b"rekordbox wrote this",
+        )
+        .unwrap();
+        let manifest = Manifest::load(dir.path(), &mut report);
+
+        assert!(manifest.tracks.is_empty());
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|warning| warning.contains("no Mixar export state")),
+            "warnings: {:?}",
+            report.warnings
+        );
     }
 
     #[test]
