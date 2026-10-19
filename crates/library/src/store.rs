@@ -184,15 +184,53 @@ impl<'a> Store<'a> {
         row.map(model::track_source).transpose()
     }
 
-    pub fn update_track_isrc(&self, id: &TrackId, isrc: Option<String>, now: &str) -> Result<()> {
+    /// Overwrite only the user-editable metadata columns; the technical fields
+    /// (`duration_ms`, `sample_rate`, `channels`, `bitrate_kbps`,
+    /// `replaygain_track_gain_db`, `last_sampler_bank_id`) and `added_at` are
+    /// left untouched. `updated_at` is stamped with `now` on every call.
+    /// Unknown id is a no-op (no phantom row).
+    ///
+    /// **Full replacement:** every `None` column is written as `NULL`, so
+    /// blanking a field clears the stored value. Callers must send the
+    /// complete field set — there is no partial update.
+    pub fn update_track_metadata(
+        &self,
+        id: &TrackId,
+        edit: &TrackMetadataEdit,
+        now: &str,
+    ) -> Result<()> {
         let Some(row) = TrackEntity::find_by_id(id.as_str())
             .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?
         else {
             return Ok(());
         };
+        // This write path may not introduce an invalid BPM; re-persisting the
+        // value already stored (the untouched field of a full-replacement
+        // write) passes, so an unrelated edit never has to clear a column to
+        // satisfy the rule. Compare numerically rather than by bits: `==`
+        // treats `-0.0` and `0.0` as equal (both `<= 0`, so both take this
+        // branch) while NaN needs its own arm to round-trip at all.
+        if let Some(v) = edit.bpm {
+            let invalid = !v.is_finite() || v <= 0.0;
+            let unchanged = row
+                .bpm
+                .is_some_and(|old| old == v || (old.is_nan() && v.is_nan()));
+            if invalid && !unchanged {
+                return Err(library_core::LibraryError::Backend {
+                    backend: "library",
+                    message: format!("invalid BPM: {v}"),
+                });
+            }
+        }
         let mut active: tracks::ActiveModel = row.into();
-        active.isrc = Set(isrc);
+        active.title = Set(edit.title.clone());
+        active.artist = Set(edit.artist.clone());
+        active.album = Set(edit.album.clone());
+        active.genre = Set(edit.genre.clone());
+        active.bpm = Set(edit.bpm);
+        active.key = Set(edit.key.clone());
+        active.isrc = Set(edit.isrc.clone());
         active.updated_at = Set(now.to_string());
         active
             .update(self.db.conn()?.as_connection())
@@ -607,6 +645,27 @@ impl<'a> Store<'a> {
     }
 }
 
+/// The seven user-editable metadata columns.
+///
+/// Grouped so a caller names the field it is setting instead of passing a run
+/// of `Option`s positionally — seven same-typed parameters would let a
+/// transposition (`artist`/`album`, `genre`/`key`) compile silently.
+///
+/// The derived [`Default`] is "every column `None`", which under the
+/// full-replacement write means **clear all seven columns** — never a
+/// leave-unchanged value. Build it field by field instead of reaching for
+/// `..Default::default()` in code that only edits one column.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct TrackMetadataEdit {
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub genre: Option<String>,
+    pub bpm: Option<f64>,
+    pub key: Option<String>,
+    pub isrc: Option<String>,
+}
+
 /// Snapshot of track fields used when writing a manual beat grid.
 pub struct TrackBeatGridContext {
     pub duration_ms: i32,
@@ -649,5 +708,175 @@ mod tests {
         let fetched = store.get_track(&id).unwrap().unwrap();
         assert_eq!(fetched.metadata().title.as_deref(), Some("a"));
         assert_eq!(fetched.metadata().duration_ms, Some(12_500));
+    }
+
+    #[test]
+    fn update_track_metadata_replaces_editable_columns_only() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/edit.wav");
+        let meta = TrackMetadata {
+            title: Some("Old".into()),
+            artist: Some("OldA".into()),
+            album: Some("OldAl".into()),
+            genre: Some("OldG".into()),
+            bpm: Some(100.0),
+            key: Some("C".into()),
+            isrc: Some("OLD1".into()),
+            duration_ms: Some(1000),
+            sample_rate: Some(44_100),
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(&id, Path::new("/music/edit.wav"), &meta, "1")
+            .unwrap();
+
+        store
+            .update_track_metadata(
+                &id,
+                &TrackMetadataEdit {
+                    title: Some("New".into()),
+                    artist: None,
+                    album: Some("NewAl".into()),
+                    genre: None,
+                    bpm: Some(128.0),
+                    key: Some("Am".into()),
+                    isrc: Some("NEW1".into()),
+                },
+                "2",
+            )
+            .unwrap();
+
+        let fetched = store.get_track(&id).unwrap().unwrap();
+        let metadata = fetched.metadata();
+        assert_eq!(metadata.title.as_deref(), Some("New"));
+        assert_eq!(metadata.artist, None, "blank artist clears the column");
+        assert_eq!(metadata.album.as_deref(), Some("NewAl"));
+        assert_eq!(metadata.genre, None, "blank genre clears the column");
+        assert_eq!(metadata.bpm, Some(128.0));
+        assert_eq!(metadata.key.as_deref(), Some("Am"));
+        assert_eq!(metadata.isrc.as_deref(), Some("NEW1"));
+        assert_eq!(metadata.duration_ms, Some(1000), "technical fields stay");
+        assert_eq!(metadata.sample_rate, Some(44_100));
+    }
+
+    #[test]
+    fn update_track_metadata_unknown_id_is_a_noop() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/absent.wav");
+
+        store
+            .update_track_metadata(
+                &id,
+                &TrackMetadataEdit {
+                    title: Some("New".into()),
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: None,
+                    key: None,
+                    isrc: None,
+                },
+                "2",
+            )
+            .unwrap();
+
+        assert!(store.get_track(&id).unwrap().is_none(), "no phantom row");
+    }
+
+    #[test]
+    fn update_track_metadata_round_trips_stored_invalid_bpm_but_rejects_new() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/corrupt.wav");
+        // A malformed file tag can have put a non-positive BPM in the column.
+        let meta = TrackMetadata {
+            bpm: Some(-4.0),
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(&id, Path::new("/music/corrupt.wav"), &meta, "1")
+            .unwrap();
+
+        // Re-persisting the value that is already stored passes, so editing an
+        // unrelated field neither fails nor clears the untouched column.
+        store
+            .update_track_metadata(
+                &id,
+                &TrackMetadataEdit {
+                    title: Some("Edited".into()),
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: Some(-4.0),
+                    key: None,
+                    isrc: None,
+                },
+                "2",
+            )
+            .unwrap();
+        let fetched = store.get_track(&id).unwrap().unwrap();
+        assert_eq!(
+            fetched.metadata().bpm,
+            Some(-4.0),
+            "unchanged corrupt value round-trips instead of being cleared"
+        );
+        assert_eq!(fetched.metadata().title.as_deref(), Some("Edited"));
+
+        // `-0.0` is `<= 0` (so it may not be *introduced*) yet compares equal
+        // to the stored value, so an untouched round-trip must not reject it.
+        let zero_id = TrackId::new("/music/negative-zero.wav");
+        let zero_meta = TrackMetadata {
+            bpm: Some(-0.0),
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(
+                &zero_id,
+                Path::new("/music/negative-zero.wav"),
+                &zero_meta,
+                "1",
+            )
+            .unwrap();
+        store
+            .update_track_metadata(
+                &zero_id,
+                &TrackMetadataEdit {
+                    title: Some("Edited".into()),
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: Some(-0.0),
+                    key: None,
+                    isrc: None,
+                },
+                "2",
+            )
+            .unwrap();
+        let zero = store.get_track(&zero_id).unwrap().unwrap();
+        assert_eq!(zero.metadata().title.as_deref(), Some("Edited"));
+        assert_eq!(zero.metadata().bpm, Some(-0.0), "still zero, not rejected");
+
+        // Introducing an invalid value is rejected by the column owner.
+        let err = store
+            .update_track_metadata(
+                &id,
+                &TrackMetadataEdit {
+                    title: None,
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: Some(0.0),
+                    key: None,
+                    isrc: None,
+                },
+                "3",
+            )
+            .expect_err("a newly supplied invalid BPM must be rejected");
+        assert!(
+            format!("{err}").contains("invalid BPM"),
+            "unexpected error: {err}"
+        );
     }
 }

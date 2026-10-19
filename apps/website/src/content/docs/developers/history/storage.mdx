@@ -102,7 +102,7 @@ CREATE INDEX idx_tracks_isrc ON tracks(isrc);
 |---------|------|
 | **Import / scan** | Read ISRC from file tags via `lofty` when present |
 | **History entry** | Snapshot `tracks.isrc` at commit time into XSPF extension |
-| **Library UI** | **Track detail only** — not a library table column |
-| **Manual edit** | Editable in track detail panel |
+| **Library UI** | **Track edit drawer only** — not a library table column |
+| **Manual edit** | Editable in the track edit drawer (library DB only; tag write-back is [#451](https://github.com/geovannimp/mixar/issues/451)) |
 
 Later (non-blocking): `label`, `catalog_number` for PPL-style exports.

@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1617747256;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -2008634962;
 
 // Section: executor
 
@@ -6419,7 +6419,7 @@ fn wire__crate__api__library__LibraryTransport_sync_stem_cache_impl(
         },
     )
 }
-fn wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
+fn wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -6427,7 +6427,7 @@ fn wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "LibraryTransport_update_track_isrc",
+            debug_name: "LibraryTransport_update_track_metadata",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -6445,6 +6445,12 @@ fn wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
             >>::sse_decode(&mut deserializer);
             let api_track_id = <String>::sse_decode(&mut deserializer);
+            let api_title = <Option<String>>::sse_decode(&mut deserializer);
+            let api_artist = <Option<String>>::sse_decode(&mut deserializer);
+            let api_album = <Option<String>>::sse_decode(&mut deserializer);
+            let api_genre = <Option<String>>::sse_decode(&mut deserializer);
+            let api_bpm = <Option<f64>>::sse_decode(&mut deserializer);
+            let api_key = <Option<String>>::sse_decode(&mut deserializer);
             let api_isrc = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
@@ -6463,9 +6469,15 @@ fn wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
                         }
                     }
                     let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::library::LibraryTransport::update_track_isrc(
+                    let output_ok = crate::api::library::LibraryTransport::update_track_metadata(
                         &*api_that_guard,
                         api_track_id,
+                        api_title,
+                        api_artist,
+                        api_album,
+                        api_genre,
+                        api_bpm,
+                        api_key,
                         api_isrc,
                     )?;
                     std::result::Result::Ok(output_ok)
@@ -9570,7 +9582,7 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        120 => wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
+        120 => wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
             port,
             ptr,
             rust_vec_len,

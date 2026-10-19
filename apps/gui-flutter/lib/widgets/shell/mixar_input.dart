@@ -24,6 +24,7 @@ class MixarInput extends StatelessWidget {
     this.inputFormatters,
     this.style,
     this.padding,
+    this.errorText,
     this.borderless = false,
     this.maxLines = 1,
   });
@@ -45,6 +46,12 @@ class MixarInput extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextStyle? style;
 
+  /// Validation message. Renders below the field and requests the field's
+  /// error border. This widget draws its own label and message instead of
+  /// using `ShadInputDecorator`, so the presentation mirrors
+  /// [ShadInputFormField]'s intent rather than sharing its implementation.
+  final String? errorText;
+
   /// Overrides [ShadInput]'s theme padding. Used by dense toolbars that need a
   /// shorter field than the default vertical padding produces.
   final EdgeInsetsGeometry? padding;
@@ -59,6 +66,8 @@ class MixarInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    // An empty message is not an error state; only non-empty text is.
+    final error = (errorText == null || errorText!.isEmpty) ? null : errorText;
     final field = ShadInput(
       controller: controller,
       initialValue: controller == null ? initialValue : null,
@@ -74,7 +83,7 @@ class MixarInput extends StatelessWidget {
       style: style,
       maxLines: maxLines,
       padding: padding,
-      decoration: borderless ? ShadDecoration.none : null,
+      decoration: _decoration(error != null),
       placeholder: hint == null
           ? null
           : Text(
@@ -86,23 +95,59 @@ class MixarInput extends StatelessWidget {
       leading: leading,
       trailing: trailing,
     );
-    if (label == null) {
+    // Label-less and error-free is the shape this widget had before it grew
+    // error support — returning the field directly keeps those callers (dense
+    // toolbars) out of a wrapping Column they never had.
+    if (label == null && error == null) {
       return field;
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        DefaultTextStyle.merge(
-          style: theme.typography.body.sm.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colors.foreground,
+        if (label != null) ...[
+          DefaultTextStyle.merge(
+            style: theme.typography.body.sm.copyWith(
+              fontWeight: FontWeight.w600,
+              color: error != null
+                  ? theme.colors.destructive
+                  : theme.colors.foreground,
+            ),
+            child: label!,
           ),
-          child: label!,
-        ),
-        const SizedBox(height: 6),
+          const SizedBox(height: 6),
+        ],
         field,
+        if (error != null) ...[
+          const SizedBox(height: 6),
+          DefaultTextStyle.merge(
+            style: theme.typography.body.sm.copyWith(
+              fontWeight: FontWeight.w500,
+              color: theme.colors.destructive,
+            ),
+            child: Text(error),
+          ),
+        ],
       ],
     );
+  }
+
+  /// Decoration for the current field state.
+  ///
+  /// - No error: `null` for a normal field (the theme's input decoration is
+  ///   merged in by `ShadInput` itself), `ShadDecoration.none` when borderless
+  ///   — so nothing about a caller's border intent is ever replaced wholesale.
+  /// - Error: only the `hasError` flag is merged on, which makes `ShadInput`
+  ///   paint its error border on a normal field. A borderless field keeps
+  ///   `ShadBorder.none` (`none.canMerge` is false, so it wins the merge and
+  ///   stays flat): its invalid state reads through the red label and the
+  ///   message [MixarInput] renders below, not through a border.
+  ShadDecoration? _decoration(bool hasError) {
+    if (!hasError) {
+      return borderless ? ShadDecoration.none : null;
+    }
+    return borderless
+        ? ShadDecoration.none.merge(const ShadDecoration(hasError: true))
+        : const ShadDecoration(hasError: true);
   }
 }

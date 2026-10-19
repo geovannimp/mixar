@@ -17,7 +17,7 @@ import 'package:gui_flutter/widgets/library/library_list_message.dart';
 import 'package:gui_flutter/widgets/library/library_pane_toolbar.dart';
 import 'package:gui_flutter/widgets/library/library_row_density_button.dart';
 import 'package:gui_flutter/widgets/library/track_artwork_thumb.dart';
-import 'package:gui_flutter/widgets/library/track_detail_dialog.dart';
+import 'package:gui_flutter/widgets/library/track_edit_drawer.dart';
 import 'package:gui_flutter/widgets/library/track_list_comfortable_row.dart';
 import 'package:gui_flutter/widgets/library/track_list_sort_menu.dart';
 import 'package:gui_flutter/widgets/library/track_list_view.dart';
@@ -194,7 +194,7 @@ bool trackRowInLibrary(WidgetRef ref, LibraryTrackSummary track) {
   return trackIsInLibrary(track, tab: tab, driveResolvedByPath: resolved);
 }
 
-/// Track-row menu items (Analyze, Generate stems, Refresh, Details), shared by
+/// Track-row menu items (Analyze, Generate stems, Refresh, Edit), shared by
 /// the library list and tests so both build the same menu.
 List<Widget> trackRowExtraMenuItems(
   BuildContext context,
@@ -244,12 +244,12 @@ List<Widget> trackRowExtraMenuItems(
           : null,
     ),
     MixarMenuItem(
-      title: const Text('Track details…'),
+      title: const Text('Edit…'),
       enabled: inLibrary,
       onPress: inLibrary
           ? () {
               dismiss();
-              unawaited(showTrackDetailDialog(context, ref, trackId: track.id));
+              unawaited(showTrackEditDrawer(context, ref, trackId: track.id));
             }
           : null,
     ),

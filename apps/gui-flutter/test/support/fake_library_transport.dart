@@ -7,6 +7,25 @@ typedef GetTrackHandler = Future<LibraryTrackSummary?> Function(String trackId);
 typedef ListCollectionEntriesHandler =
     Future<List<LibraryTrackSummary>> Function(String collectionId);
 
+/// One recorded `LibraryTransport.updateTrackMetadata` call.
+///
+/// Mirrors the transport signature, so a parameter change to the method (or
+/// to this record) is a compile error at the call sites instead of drift.
+typedef UpdateTrackMetadataHandler = Future<void> Function(
+  UpdateTrackMetadataCall call,
+);
+
+typedef UpdateTrackMetadataCall = ({
+  String trackId,
+  String? title,
+  String? artist,
+  String? album,
+  String? genre,
+  double? bpm,
+  String? key,
+  String? isrc,
+});
+
 /// Minimal [LibraryTransport] fake: override getTrack / list / events as needed.
 class FakeLibraryTransport implements LibraryTransport {
   FakeLibraryTransport({
@@ -19,11 +38,16 @@ class FakeLibraryTransport implements LibraryTransport {
 
   GetTrackHandler? getTrackHandler;
   ListCollectionEntriesHandler? listCollectionEntriesHandler;
+
+  /// Optional hook so a test can make a save fail (or inspect the one value
+  /// being written). Called after the call is recorded; it may throw.
+  UpdateTrackMetadataHandler? updateTrackMetadataHandler;
   List<LibraryTrackSummary> entries;
   List<LibraryCollectionSummary> collections;
   final StreamController<LibraryEvt> _events;
   final List<String> getTrackCalls = [];
   final List<String> listCollectionEntriesCalls = [];
+  final List<UpdateTrackMetadataCall> updateTrackMetadataCalls = [];
   int outstandingGetTracks = 0;
   int maxOutstandingGetTracks = 0;
   var _disposed = false;
@@ -259,5 +283,30 @@ class FakeLibraryTransport implements LibraryTransport {
   Future<int> syncStemCache() async => 0;
 
   @override
-  Future<void> updateTrackIsrc({required String trackId, String? isrc}) async {}
+  Future<void> updateTrackMetadata({
+    required String trackId,
+    String? title,
+    String? artist,
+    String? album,
+    String? genre,
+    double? bpm,
+    String? key,
+    String? isrc,
+  }) async {
+    final call = (
+      trackId: trackId,
+      title: title,
+      artist: artist,
+      album: album,
+      genre: genre,
+      bpm: bpm,
+      key: key,
+      isrc: isrc,
+    );
+    updateTrackMetadataCalls.add(call);
+    final handler = updateTrackMetadataHandler;
+    if (handler != null) {
+      await handler(call);
+    }
+  }
 }

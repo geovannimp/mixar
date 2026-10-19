@@ -74,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1617747256;
+  int get rustContentHash => -2008634962;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -745,9 +745,15 @@ abstract class RustLibApi extends BaseApi {
     required LibraryTransport that,
   });
 
-  Future<void> crateApiLibraryLibraryTransportUpdateTrackIsrc({
+  Future<void> crateApiLibraryLibraryTransportUpdateTrackMetadata({
     required LibraryTransport that,
     required String trackId,
+    String? title,
+    String? artist,
+    String? album,
+    String? genre,
+    double? bpm,
+    String? key,
     String? isrc,
   });
 
@@ -5592,9 +5598,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiLibraryLibraryTransportUpdateTrackIsrc({
+  Future<void> crateApiLibraryLibraryTransportUpdateTrackMetadata({
     required LibraryTransport that,
     required String trackId,
+    String? title,
+    String? artist,
+    String? album,
+    String? genre,
+    double? bpm,
+    String? key,
     String? isrc,
   }) {
     return handler.executeNormal(
@@ -5606,6 +5618,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(trackId, serializer);
+          sse_encode_opt_String(title, serializer);
+          sse_encode_opt_String(artist, serializer);
+          sse_encode_opt_String(album, serializer);
+          sse_encode_opt_String(genre, serializer);
+          sse_encode_opt_box_autoadd_f_64(bpm, serializer);
+          sse_encode_opt_String(key, serializer);
           sse_encode_opt_String(isrc, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -5618,17 +5636,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateApiLibraryLibraryTransportUpdateTrackIsrcConstMeta,
-        argValues: [that, trackId, isrc],
+        constMeta: kCrateApiLibraryLibraryTransportUpdateTrackMetadataConstMeta,
+        argValues: [that, trackId, title, artist, album, genre, bpm, key, isrc],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiLibraryLibraryTransportUpdateTrackIsrcConstMeta =>
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportUpdateTrackMetadataConstMeta =>
       const TaskConstMeta(
-        debugName: "LibraryTransport_update_track_isrc",
-        argNames: ["that", "trackId", "isrc"],
+        debugName: "LibraryTransport_update_track_metadata",
+        argNames: [
+          "that",
+          "trackId",
+          "title",
+          "artist",
+          "album",
+          "genre",
+          "bpm",
+          "key",
+          "isrc",
+        ],
       );
 
   @override
@@ -12056,12 +12085,27 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   Future<int> syncStemCache() => RustLib.instance.api
       .crateApiLibraryLibraryTransportSyncStemCache(that: this);
 
-  Future<void> updateTrackIsrc({required String trackId, String? isrc}) =>
-      RustLib.instance.api.crateApiLibraryLibraryTransportUpdateTrackIsrc(
-        that: this,
-        trackId: trackId,
-        isrc: isrc,
-      );
+  /// Save the user-editable metadata of a track (library DB only).
+  Future<void> updateTrackMetadata({
+    required String trackId,
+    String? title,
+    String? artist,
+    String? album,
+    String? genre,
+    double? bpm,
+    String? key,
+    String? isrc,
+  }) => RustLib.instance.api.crateApiLibraryLibraryTransportUpdateTrackMetadata(
+    that: this,
+    trackId: trackId,
+    title: title,
+    artist: artist,
+    album: album,
+    genre: genre,
+    bpm: bpm,
+    key: key,
+    isrc: isrc,
+  );
 }
 
 @sealed

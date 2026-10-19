@@ -79,6 +79,7 @@ pub use stems::{
     ensure_track_stems_with_progress, sqlite_db_bytes, stem_io_message, sync_stem_cache_with_db,
     StemProgressFn, TrackStemsInfo,
 };
+pub use store::TrackMetadataEdit;
 pub use tags::read_artwork;
 pub use waveform::{
     clear_all_track_waveforms, waveform_cache_bytes, BeatGridSnapshot, TrackWaveformOverview,

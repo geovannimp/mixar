@@ -92,6 +92,71 @@ fn import_track_inserts_missing_file_track() {
 }
 
 #[test]
+fn update_track_metadata_normalizes_key_and_blank_fields() {
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let imported = lib
+        .import_track(Path::new("/music/gone.flac"), &TrackMetadata::default())
+        .unwrap();
+    let id = imported.source.id().clone();
+
+    lib.update_track_metadata(
+        &id,
+        TrackMetadataEdit {
+            title: Some("  ".into()),
+            artist: None,
+            album: None,
+            genre: None,
+            bpm: None,
+            key: Some("8A".into()),
+            isrc: Some("  USRC1  ".into()),
+        },
+    )
+    .unwrap();
+
+    let fetched = lib.get_track(&id).unwrap().unwrap();
+    let metadata = fetched.metadata();
+    assert_eq!(metadata.key.as_deref(), Some("Am"), "Camelot normalized");
+    assert_eq!(metadata.title, None, "whitespace-only clears the field");
+    assert_eq!(metadata.isrc.as_deref(), Some("USRC1"), "trimmed");
+}
+
+#[test]
+fn update_track_metadata_rejects_invalid_bpm() {
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let imported = lib
+        .import_track(Path::new("/music/gone.flac"), &TrackMetadata::default())
+        .unwrap();
+    let id = imported.source.id().clone();
+
+    for invalid in [0.0, -5.0, f64::NAN, f64::INFINITY] {
+        let err = lib
+            .update_track_metadata(
+                &id,
+                TrackMetadataEdit {
+                    title: None,
+                    artist: None,
+                    album: None,
+                    genre: None,
+                    bpm: Some(invalid),
+                    key: None,
+                    isrc: None,
+                },
+            )
+            .expect_err("invalid BPM must be an error, not a silent clear");
+        assert!(
+            format!("{err}").contains("invalid BPM"),
+            "unexpected error: {err}"
+        );
+    }
+
+    // None still clears the column — only a non-None invalid value errors.
+    lib.update_track_metadata(&id, TrackMetadataEdit::default())
+        .unwrap();
+    let fetched = lib.get_track(&id).unwrap().unwrap();
+    assert_eq!(fetched.metadata().bpm, None);
+}
+
+#[test]
 fn prepare_track_for_playback_reuses_cached_decode() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("track.wav");

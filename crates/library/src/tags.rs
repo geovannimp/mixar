@@ -131,7 +131,13 @@ fn track_metadata_from_file_tags(path: &Path, tags: FileTags) -> TrackMetadata {
 }
 
 /// Convert Camelot/Open Key codes to musical notation; pass through other values.
-fn normalize_key_notation(raw: &str) -> String {
+///
+/// The pass-through is part of the contract, not an accident: anything that is
+/// not a Camelot/Open Key code (`1A`..`12B`) is returned **unchanged**, so the
+/// caller decides what to do with unknown input. `deck_data.rs` relies on this
+/// — a value it accepted earlier survives here verbatim, which is why the edit
+/// drawer validates keys against `camelotSlotForKey` before storing them.
+pub(crate) fn normalize_key_notation(raw: &str) -> String {
     let trimmed = raw.trim();
     if trimmed.len() < 2 {
         return trimmed.to_string();

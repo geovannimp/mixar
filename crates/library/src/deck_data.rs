@@ -8,7 +8,7 @@ use library_core::{Library, LibraryError, Result, TrackId};
 
 use crate::db::{self, Db};
 use crate::entity::{track_hot_cue, track_loop, TrackHotCueEntity, TrackLoopEntity};
-use crate::{tags, unix_secs_string, LibraryManager};
+use crate::{tags, unix_secs_string, LibraryManager, TrackMetadataEdit};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HotCueRecord {
@@ -187,11 +187,47 @@ pub fn delete_loop(db: &Db, track_id: &TrackId, slot_index: u8) -> Result<()> {
 }
 
 impl LibraryManager {
-    pub fn update_track_isrc(&self, track_id: &TrackId, isrc: Option<String>) -> Result<()> {
+    /// Overwrite the user-editable metadata of a track in the library DB.
+    ///
+    /// Strings are trimmed and blanked to `None`; `key` is normalized to
+    /// musical notation (Camelot/Open Key input is accepted). An invalid
+    /// non-`None` `bpm` returns an error rather than silently clearing the
+    /// column (enforced by `crate::store::Store::update_track_metadata`, which
+    /// owns the column invariant). Unknown track ids are a no-op.
+    pub fn update_track_metadata(&self, track_id: &TrackId, edit: TrackMetadataEdit) -> Result<()> {
+        let normalized = TrackMetadataEdit {
+            title: normalize_optional_text(edit.title),
+            artist: normalize_optional_text(edit.artist),
+            album: normalize_optional_text(edit.album),
+            genre: normalize_optional_text(edit.genre),
+            bpm: edit.bpm,
+            // Trim/blank first, then normalize notation, so there is a single
+            // trim (and a Camelot code is never normalized from whitespace).
+            key: normalize_optional_text(edit.key).map(|v| tags::normalize_key_notation(&v)),
+            isrc: normalize_optional_text(edit.isrc),
+        };
         self.store()
-            .update_track_isrc(track_id, isrc, &unix_secs_string())
+            .update_track_metadata(track_id, &normalized, &unix_secs_string())
     }
 }
+
+/// Trim; an empty (or whitespace-only) value clears the field.
+///
+/// An already-trimmed value keeps its allocation, so the common path (code
+/// that sent a clean value) does not copy.
+fn normalize_optional_text(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        if trimmed.len() == value.len() {
+            return Some(value);
+        }
+        Some(trimmed.to_string())
+    })
+}
+
 impl LibraryManager {
     /// Load hot cues and saved loops for a track.
     pub fn list_track_hot_cues(&self, id: &TrackId) -> Result<Vec<HotCueRecord>> {

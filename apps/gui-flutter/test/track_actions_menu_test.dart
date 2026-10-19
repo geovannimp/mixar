@@ -20,6 +20,7 @@ import 'package:gui_flutter/widgets/library/track_list_menu_button.dart';
 import 'package:gui_flutter/widgets/library/track_list_view.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_segments.dart';
 
+import 'support/fake_library_transport.dart';
 import 'support/mixar_material_app.dart';
 
 class _RunningEngineUi extends EngineUi {
@@ -57,6 +58,7 @@ void main() {
     bool stemsGenerating = false,
     double width = 200,
     SelectStyleSetting selectStyle = SelectStyleSetting.auto,
+    FakeLibraryTransport? transport,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -69,6 +71,8 @@ void main() {
             (ref) async =>
                 copyAppSettings(defaultAppSettings(), selectStyle: selectStyle),
           ),
+          if (transport != null)
+            libraryTransportProvider.overrideWith((ref) async => transport),
           if (running) engineUiProvider.overrideWith(_RunningEngineUi.new),
         ],
         child: MaterialApp(
@@ -251,6 +255,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Generating stems…'), findsOneWidget);
     expect(find.text('Generate stems'), findsNothing);
+  });
+
+  testWidgets('Edit… opens the track edit drawer', (tester) async {
+    final transport = FakeLibraryTransport(
+      getTrackHandler: (id) async => track,
+    );
+    addTearDown(transport.dispose);
+
+    await pumpMenu(tester, transport: transport);
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit…'));
+    await tester.pumpAndSettle();
+
+    // The drawer form is up with the track's fields...
+    expect(find.text('Title'), findsOneWidget);
+    expect(find.text('ISRC'), findsOneWidget);
+    // ...and it is the row's track that was fetched, not some other id.
+    expect(transport.getTrackCalls, ['t1']);
   });
 
   testWidgets('Load to A/B is disabled when the engine is stopped', (
