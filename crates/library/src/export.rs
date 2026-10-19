@@ -299,21 +299,14 @@ impl ExportSource for ExportSession<'_> {
 
         // Everything below runs with the lock released.
         let probe = probe_export_file(&facts.path);
+        // A cache hit is reused; a miss decodes locally. The PCM is deliberately
+        // *not* inserted into the manager's cache: that cache is a small LRU for
+        // playback, so filling it with every track of an export would evict the
+        // audio a deck is playing. Nothing is lost by that — the plan keeps one
+        // entry per track, so a run never asks for the same decode twice.
         let audio = match facts.cached_audio.clone() {
             Some(cached) => cached,
-            None => {
-                let loaded = decode_export_audio(&facts.path)?;
-                // Re-check under a brief lock, mirroring
-                // `prepare_source_for_playback`: a racing decode wins and the
-                // duplicate `Arc` is dropped rather than replacing warm PCM.
-                let lib = self.lock()?;
-                let mut cache = LibraryManager::lock_decode_cache(&lib.decode_cache)?;
-                if let Some(existing) = cache.get(id) {
-                    existing
-                } else {
-                    cache.insert(id.clone(), loaded)
-                }
-            }
+            None => decode_export_audio(&facts.path)?,
         };
         let artwork = self.artwork_thumbnail(probe.picture.as_deref());
 
@@ -564,7 +557,7 @@ mod tests {
         for (name, cover) in tracks {
             let path = dir.path().join(name);
             match cover {
-                Some(cover) => write_wav_with_cover(&path, cover.clone()),
+                Some(bytes) => write_wav_with_cover(&path, bytes.clone()),
                 None => write_wav(&path),
             }
             ids.push(library.import_file_path(&path).unwrap().id().clone());
@@ -579,17 +572,12 @@ mod tests {
     }
 
     #[test]
-    fn second_export_of_a_track_reuses_the_cached_decode() {
+    fn an_export_reuses_a_playback_decode_and_does_not_fill_the_cache() {
         let (fixture, ids) = fixture(&[("track.wav", None)]);
         let id = &ids[0];
-        let session = ExportSession::new(&fixture.library);
 
-        let first = session.export_data(id).unwrap().expect("export data");
-        assert_eq!(
-            first.waveform_detail.len(),
-            150,
-            "1s at 150 entries/second, computed from the file"
-        );
+        // Warm the cache the way playback does.
+        LibraryManager::prepare_track_for_playback(&fixture.library, id).expect("prepare playback");
         assert!(fixture
             .library
             .lock()
@@ -599,14 +587,43 @@ mod tests {
             .unwrap()
             .contains(id));
 
-        // Corrupt the file: a second call that decoded again would fail here,
-        // while a cache hit returns the PCM the first call already decoded.
+        let session = ExportSession::new(&fixture.library);
+        let first = session.export_data(id).unwrap().expect("export data");
+        assert_eq!(
+            first.waveform_detail.len(),
+            150,
+            "1s at 150 entries/second, computed from the file"
+        );
+
+        // Corrupt the file: a call that decoded again would fail here, while a
+        // cache hit returns the PCM playback already decoded.
         std::fs::write(fixture._dir.path().join("track.wav"), b"not audio").unwrap();
 
         let second = session.export_data(id).unwrap().expect("export data");
         assert_eq!(second.waveform_detail, first.waveform_detail);
         assert_eq!(second.waveform_overview, first.waveform_overview);
         assert_eq!(second.bpm, first.bpm);
+    }
+
+    #[test]
+    fn an_export_does_not_fill_the_playback_decode_cache() {
+        let (fixture, ids) = fixture(&[("track.wav", None)]);
+        let session = ExportSession::new(&fixture.library);
+
+        session.export_data(&ids[0]).unwrap().expect("export data");
+
+        assert_eq!(
+            fixture
+                .library
+                .lock()
+                .unwrap()
+                .decode_cache
+                .lock()
+                .unwrap()
+                .len(),
+            0,
+            "an export must not evict the PCM a deck is using"
+        );
     }
 
     #[test]

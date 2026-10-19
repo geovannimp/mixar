@@ -247,11 +247,15 @@ fn export_track(
             // Ids come from the drive's state, so a cover keeps its id (and its
             // file) across runs instead of restarting at 1.
             let (id, path) = manifest.artwork_for(&artwork.jpeg);
-            if !written_artwork.insert(path.clone()) {
+            if written_artwork.contains(&path) {
                 id
             } else {
                 match write_artwork_file(destination, &path, &artwork.jpeg, options.refresh_files) {
                     Ok(copied) => {
+                        // Claim the cover only once the file is actually there:
+                        // a failed write must not make later tracks reference a
+                        // thumbnail that does not exist.
+                        written_artwork.insert(path.clone());
                         report.bytes_copied += copied;
                         id
                     }

@@ -20,8 +20,8 @@
 pub fn path_hash(audio_path: &str) -> (u16, u32) {
     let mut hash: u32 = 0;
 
-    for code_unit in audio_path.encode_utf16() {
-        let code_unit = u32::from(code_unit);
+    for unit in audio_path.encode_utf16() {
+        let code_unit = u32::from(unit);
         let temp = hash.wrapping_mul(0x5BC9).wrapping_add(code_unit);
         hash = temp.wrapping_mul(0x93B5).wrapping_add(code_unit);
     }

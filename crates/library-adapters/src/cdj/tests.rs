@@ -160,13 +160,18 @@ impl ExportSource for ArtSource {
     }
 }
 
-fn artwork_rows(destination: &Path) -> Vec<serde_json::Value> {
+/// Open the database this run wrote, as the parser sees it.
+fn open_export_db(destination: &Path) -> Database<std::fs::File> {
     let path = destination.join(PDB_PATH);
-    let mut db = Database::open_non_persistent(
+    Database::open_non_persistent(
         std::fs::File::open(&path).expect("open export.pdb"),
         DatabaseType::Plain,
     )
-    .expect("parse export.pdb");
+    .expect("parse export.pdb")
+}
+
+fn artwork_rows(destination: &Path) -> Vec<serde_json::Value> {
+    let mut db = open_export_db(destination);
     let mut rows = Vec::new();
     let mut iter = db
         .iter_rows::<rekordcrate::pdb::Artwork>()
@@ -178,12 +183,7 @@ fn artwork_rows(destination: &Path) -> Vec<serde_json::Value> {
 }
 
 fn track_artwork_ids(destination: &Path) -> Vec<u64> {
-    let path = destination.join(PDB_PATH);
-    let mut db = Database::open_non_persistent(
-        std::fs::File::open(&path).expect("open export.pdb"),
-        DatabaseType::Plain,
-    )
-    .expect("parse export.pdb");
+    let mut db = open_export_db(destination);
     let mut ids = Vec::new();
     let mut iter = db
         .iter_rows::<rekordcrate::pdb::Track>()
