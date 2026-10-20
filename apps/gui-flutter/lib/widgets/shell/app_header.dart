@@ -5,7 +5,6 @@ import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/widgets/mixer/master_meter_header.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -19,8 +18,7 @@ import 'package:window_manager/window_manager.dart';
 /// drawer is inset by this, so it never covers the window controls.
 const double kAppHeaderHeight = 40;
 
-/// Brand | drag region | master meter | library drawer | settings | window
-/// controls (desktop).
+/// Brand | drag region | library drawer | settings | window controls (desktop).
 class AppHeader extends ConsumerWidget {
   const new({
     required this.appTitle,
@@ -73,7 +71,6 @@ class AppHeader extends ConsumerWidget {
                 child: const SizedBox.expand(),
               ),
             ),
-            const MasterMeterHeader(),
             // Only in drawer mode, and only on the mixer: the docked library
             // mode has nothing to toggle. Hidden while settings load, since
             // `defaultAppSettings` has the drawer off.

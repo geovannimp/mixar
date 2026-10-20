@@ -39,7 +39,7 @@
   "settingsLanguagePtBr": "Português (Brasil)",
   "settingsShowTooltips": "Mostrar dicas",
   "settingsUiMixerMetersTitle": "Medidores do mixer",
-  "settingsUiMixerMetersDescription": "VUs dos decks entre os faders de volume. O medidor master fica na barra superior.",
+  "settingsUiMixerMetersDescription": "VUs dos decks entre os faders de volume. O medidor master fica na barra de FX, embaixo.",
   "settingsUiShowMixerMeters": "Mostrar medidores do mixer",
   "settingsUiMixerMetersMode": "Modo do medidor",
   "settingsUiMixerMetersMono": "Mono",

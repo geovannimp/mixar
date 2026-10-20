@@ -10,8 +10,9 @@ import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
-/// Header master stereo meter; tap opens Master + Headphone dialog.
-class MasterMeterHeader extends ConsumerWidget {
+/// Master stereo meter at the left of the FX bar; tap opens the Master +
+/// Headphone dialog.
+class MasterMeterBar extends ConsumerWidget {
   const new({super.key});
 
   @override
@@ -34,14 +35,10 @@ class MasterMeterHeader extends ConsumerWidget {
           );
         },
         builder: (context, state) {
-          final wash = state.active
-              ? theme.colors.hover(theme.colors.secondary)
-              : null;
+          // Plain button chrome: square, primary tint only while active.
+          final wash = state.active ? theme.colors.primaryTint : null;
           return DecoratedBox(
-            decoration: BoxDecoration(
-              color: wash,
-              borderRadius: BorderRadius.circular(4),
-            ),
+            decoration: BoxDecoration(color: wash),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(

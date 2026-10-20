@@ -132,7 +132,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUiMixerMetersDescription =>
-      'Deck VU meters between the volume faders. Master meter stays in the top bar.';
+      'Deck VU meters between the volume faders. Master meter sits in the FX bar at the bottom.';
 
   @override
   String get settingsUiShowMixerMeters => 'Show mixer meters';

@@ -133,7 +133,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiMixerMetersDescription =>
-      'VUs dos decks entre os faders de volume. O medidor master fica na barra superior.';
+      'VUs dos decks entre os faders de volume. O medidor master fica na barra de FX, embaixo.';
 
   @override
   String get settingsUiShowMixerMeters => 'Mostrar medidores do mixer';
