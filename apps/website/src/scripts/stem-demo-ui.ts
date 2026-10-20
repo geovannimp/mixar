@@ -1,4 +1,5 @@
 import {
+  barHeightsFromPeaks,
   formatDeckTime,
   StemDemoPlayer,
   STEM_UNAVAILABLE_MESSAGE,
@@ -138,6 +139,24 @@ export function initStemDemoPlayer(
   const statusEl = root.querySelector<HTMLElement>("[data-stem-player-status]");
   const canvas = root.querySelector<HTMLCanvasElement>("[data-stem-wave]");
   const waveWrap = root.querySelector<HTMLElement>("[data-stem-wave-wrap]");
+  // Both variants map the full track; only the one matching the breakpoint is
+  // displayed, so heights are written to that variant alone. Containers without
+  // a lane/stem are dropped rather than carrying NaN into the peak lookup.
+  const barSets = Array.from(root.querySelectorAll<HTMLElement>("[data-stem-bars]")).flatMap(
+    (container) => {
+      const stem = Number(container.closest<HTMLElement>("[data-stem-lane]")?.dataset.stem);
+      const bars = Array.from(container.querySelectorAll<HTMLElement>("i"));
+      if (!Number.isInteger(stem) || bars.length === 0) return [];
+      return [{ container, stem, bars, heights: null as string[] | null }];
+    },
+  );
+  const desktopQuery = window.matchMedia("(min-width: 640px)");
+  const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const visibleBarSets = () =>
+    barSets.filter(
+      ({ container }) => (container.dataset.variant === "desktop") === desktopQuery.matches,
+    );
+  let sectionVisible = true;
 
   const noop: StemDemoPlayerHandle = { setAudible() {}, dispose() {} };
   if (!playBtn || !canvas || !waveWrap) return noop;
@@ -157,6 +176,8 @@ export function initStemDemoPlayer(
   let lastPlaying = false;
   let resumeAfterScrub = false;
   let disposed = false;
+  let liveRaf = 0;
+  let peaksApplied = false;
 
   const refreshColors = () => {
     colors = readPalette(root);
@@ -234,6 +255,7 @@ export function initStemDemoPlayer(
     if (playing !== lastPlaying) {
       lastPlaying = playing;
       opts.onPlayingChange?.(playing);
+      if (playing) startLiveVis(); else stopLiveVis();
     }
     playBtn.disabled = snap.status === "loading";
 
@@ -253,10 +275,110 @@ export function initStemDemoPlayer(
     ensurePeaksLayer(player.getPeaks());
     drawStemWaveform(canvas, peaksLayer, snap.position, snap.duration, colors.playhead);
     updateSeekAria(snap);
+    // Apply real peaks to lane bars when ready
+    if (snap.status === "ready" || snap.status === "paused" || snap.status === "playing") {
+      applyRealPeaks();
+    }
   };
+
+  const writeBars = (bars: HTMLElement[], heights: string[]) => {
+    for (let bar = 0; bar < bars.length; bar++) {
+      bars[bar].style.height = heights[bar] ?? "";
+    }
+  };
+
+  const writeHeights = () => {
+    for (const { bars, heights } of visibleBarSets()) {
+      if (heights) writeBars(bars, heights);
+    }
+  };
+
+  const startLiveVis = () => {
+    // Reduced motion keeps the static envelope; the JS loop is the animation.
+    if (liveRaf || reducedMotionQuery.matches) return;
+    const tick = () => {
+      if (disposed || !lastPlaying) {
+        liveRaf = 0;
+        return;
+      }
+      // Skip analyser reads and style writes while the section is offscreen;
+      // the loop resumes on its own when the section scrolls back in.
+      if (!sectionVisible) {
+        liveRaf = requestAnimationFrame(tick);
+        return;
+      }
+      const amplitudeData = player.getAmplitudeData();
+      for (const { stem, bars } of visibleBarSets()) {
+        const data = amplitudeData[stem];
+        if (!data) continue;
+        writeBars(bars, barHeightsFromPeaks(data, bars.length));
+      }
+      liveRaf = requestAnimationFrame(tick);
+    };
+    liveRaf = requestAnimationFrame(tick);
+  };
+
+  const stopLiveVis = () => {
+    if (liveRaf) {
+      cancelAnimationFrame(liveRaf);
+      liveRaf = 0;
+    }
+    if (peaksApplied) writeHeights();
+  };
+
+  const applyRealPeaks = () => {
+    // Peaks are immutable once decoded, so map them onto the bars exactly once.
+    if (peaksApplied) return;
+    const stemPeaks = player.getStemPeaks();
+    if (stemPeaks.length === 0) return;
+    peaksApplied = true;
+    for (const set of barSets) {
+      set.heights = barHeightsFromPeaks(
+        stemPeaks[set.stem] ?? new Float32Array(0),
+        set.bars.length,
+      );
+      set.container.dataset.ready = "true";
+    }
+    if (liveRaf === 0) writeHeights();
+  };
+
+  const onBreakpointChange = () => {
+    // The live loop rewrites the visible variant every frame; when it is not
+    // running (paused or reduced motion), the new variant needs static heights.
+    if (peaksApplied && liveRaf === 0) writeHeights();
+  };
+  desktopQuery.addEventListener("change", onBreakpointChange);
+  const onReducedMotionChange = () => {
+    if (reducedMotionQuery.matches) stopLiveVis();
+    else if (lastPlaying) startLiveVis();
+  };
+  reducedMotionQuery.addEventListener("change", onReducedMotionChange);
 
   player = new StemDemoPlayer({ onChange: paint });
   paint(player.snapshot());
+
+  // Load once the demo is at least half visible so the real peak envelope can
+  // replace the skeleton before playback. Skipped for data-saver visitors, who
+  // keep the skeleton until they press Play (which loads through its own path).
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  const sectionObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting && player.snapshot().status === "idle") {
+        if (connection?.saveData) return;
+        void player.ensureLoaded();
+      }
+    },
+    { threshold: 0.5 },
+  );
+  sectionObserver.observe(root);
+
+  const visibilityObserver = new IntersectionObserver(
+    (entries) => {
+      sectionVisible = entries[0]?.isIntersecting ?? false;
+    },
+    { threshold: 0 },
+  );
+  visibilityObserver.observe(root);
 
   const ac = new AbortController();
   const { signal } = ac;
@@ -355,12 +477,17 @@ export function initStemDemoPlayer(
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    stopLiveVis();
+    sectionObserver.disconnect();
+    visibilityObserver.disconnect();
     resumeAfterScrub = false;
     if (lastPlaying) {
       lastPlaying = false;
       opts.onPlayingChange?.(false);
     }
     ac.abort();
+    desktopQuery.removeEventListener("change", onBreakpointChange);
+    reducedMotionQuery.removeEventListener("change", onReducedMotionChange);
     ro.disconnect();
     themeObs.disconnect();
     player.dispose();

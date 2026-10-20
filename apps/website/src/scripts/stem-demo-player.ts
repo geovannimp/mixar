@@ -56,6 +56,16 @@ export function formatDeckTime(seconds: number, remaining = false): string {
   return `${sign}${mins}:${whole.toString().padStart(2, "0")}.${tenths}`;
 }
 
+/** Largest absolute sample in the half-open window [start, end). */
+function windowMax(values: Float32Array, start: number, end: number): number {
+  let max = 0;
+  for (let i = start; i < end; i++) {
+    const value = Math.abs(values[i] ?? 0);
+    if (value > max) max = value;
+  }
+  return max;
+}
+
 /** Peak envelope for a mirrored overview waveform. */
 export function peaksFromBuffer(buffer: AudioBuffer, samples: number): Float32Array {
   const channel = buffer.getChannelData(0);
@@ -65,14 +75,23 @@ export function peaksFromBuffer(buffer: AudioBuffer, samples: number): Float32Ar
   for (let i = 0; i < samples; i++) {
     const start = Math.floor(i * bucket);
     const end = Math.max(start + 1, Math.min(channel.length, Math.floor((i + 1) * bucket)));
-    let max = 0;
-    for (let j = start; j < end; j++) {
-      const v = Math.abs(channel[j] ?? 0);
-      if (v > max) max = v;
-    }
-    peaks[i] = max;
+    peaks[i] = windowMax(channel, start, end);
   }
   return peaks;
+}
+
+/** Map a 0–1 peak envelope onto a fixed bar count, keeping the max of each
+ * downsampling window so the rendered shape preserves the envelope. */
+export function barHeightsFromPeaks(peaks: Float32Array, barCount: number): string[] {
+  if (barCount <= 0) return [];
+  const peakCount = peaks.length;
+  if (peakCount === 0) return Array.from({ length: barCount }, () => "5%");
+  return Array.from({ length: barCount }, (_, bar) => {
+    const start = Math.floor((bar / barCount) * peakCount);
+    const end = Math.max(start + 1, Math.floor(((bar + 1) / barCount) * peakCount));
+    const max = windowMax(peaks, start, end);
+    return `${Math.round((5 + Math.min(1, max) * 95) * 10) / 10}%`;
+  });
 }
 
 function copyTrackBytes(track: Uint8Array): ArrayBuffer {
@@ -94,8 +113,12 @@ export class StemDemoPlayer {
   private ctx: AudioContext | null = null;
   private buffers: AudioBuffer[] = [];
   private gains: GainNode[] = [];
+  private analysers: AnalyserNode[] = [];
+  private analyserBuffers: Uint8Array<ArrayBuffer>[] = [];
+  private amplitudeScratch: Float32Array[] = [];
   private sources: AudioBufferSourceNode[] = [];
   private peaks: Float32Array | null = null;
+  private stemPeaks: Float32Array[] = [];
   private duration = 0;
   private pauseAt = 0;
   private startedAt = 0;
@@ -112,9 +135,12 @@ export class StemDemoPlayer {
     this.title = opts.title ?? STEM_DEMO_TITLE;
     this.onChange = opts.onChange;
   }
-
   getPeaks(): Float32Array | null {
     return this.peaks;
+  }
+
+  getStemPeaks(): Float32Array[] {
+    return this.stemPeaks;
   }
 
   snapshot(): StemDemoSnapshot {
@@ -161,6 +187,27 @@ export class StemDemoPlayer {
       gain.gain.setValueAtTime(gain.gain.value, now);
       gain.gain.linearRampToValueAtTime(next ? 1 : 0, now + GAIN_RAMP_SEC);
     }
+  }
+
+  /** Instantaneous time-domain amplitudes (0–1) for all stems. Silence maps to
+   * 0, so muted lanes fall to the bar floor. Reuses scratch buffers per frame. */
+  getAmplitudeData(): Float32Array[] {
+    return this.analysers.map((analyser, index) => {
+      const bytes = (this.analyserBuffers[index] ??= new Uint8Array(analyser.fftSize));
+      analyser.getByteTimeDomainData(bytes);
+      const amplitudes = (this.amplitudeScratch[index] ??= new Float32Array(bytes.length));
+      for (let i = 0; i < bytes.length; i++) {
+        amplitudes[i] = Math.abs((bytes[i] ?? 128) - 128) / 128;
+      }
+      return amplitudes;
+    });
+  }
+
+  /** Drop analyser nodes and their per-frame scratch buffers. */
+  private resetAnalyserState(): void {
+    this.analysers = [];
+    this.analyserBuffers = [];
+    this.amplitudeScratch = [];
   }
 
   async ensureLoaded(): Promise<void> {
@@ -274,8 +321,10 @@ export class StemDemoPlayer {
     this.ctx = null;
     this.buffers = [];
     this.gains = [];
+    this.resetAnalyserState();
     this.sources = [];
     this.peaks = null;
+    this.stemPeaks = [];
     this.duration = 0;
     this.pauseAt = 0;
     this.loadPromise = null;
@@ -353,10 +402,16 @@ export class StemDemoPlayer {
       this.buffers = stemBuffers;
       this.duration = Math.max(...stemBuffers.map((b) => b.duration));
       this.peaks = peaksFromBuffer(overviewBuf, this.peaksSampleCount);
+      this.stemPeaks = stemBuffers.map((buffer) => peaksFromBuffer(buffer, this.peaksSampleCount));
+      this.resetAnalyserState();
       this.gains = stemBuffers.map((_, i) => {
         const gain = ctx.createGain();
         gain.gain.value = this.audible[i] ? 1 : 0;
-        gain.connect(ctx.destination);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 4096;
+        gain.connect(analyser);
+        analyser.connect(ctx.destination);
+        this.analysers[i] = analyser;
         return gain;
       });
       this.pauseAt = 0;
