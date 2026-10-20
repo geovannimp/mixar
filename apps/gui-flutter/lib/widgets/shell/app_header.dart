@@ -13,6 +13,12 @@ import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:window_manager/window_manager.dart';
 
+/// Height of the app header strip.
+///
+/// Its body below is the stage for full-window overlays: the mixer's library
+/// drawer is inset by this, so it never covers the window controls.
+const double kAppHeaderHeight = 40;
+
 /// Brand | drag region | master meter | library drawer | settings | window
 /// controls (desktop).
 class AppHeader extends ConsumerWidget {
@@ -39,7 +45,7 @@ class AppHeader extends ConsumerWidget {
     return ColoredBox(
       color: theme.colors.background,
       child: SizedBox(
-        height: 40,
+        height: kAppHeaderHeight,
         child: Row(
           children: [
             _maybeDrag(

@@ -5,6 +5,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/meta_pill.dart';
 import 'package:gui_flutter/widgets/library/track_artwork_thumb.dart';
 import 'package:gui_flutter/widgets/library/track_status_pills.dart';
+import 'package:gui_flutter/widgets/library/track_title_line.dart';
 import 'package:gui_flutter/widgets/library/trailing_meta.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -35,36 +36,30 @@ class TrackListComfortableRow extends StatelessWidget {
     );
     // The metadata the old column table showed, less BPM and key, which are
     // aligned in the trailing meta instead. Each renders as its own pill.
+    final album = track.album ?? '';
+    final genre = track.genre ?? '';
     final duration = formatTrackDuration(track.durationMs);
-    Widget? artistPill() =>
-        (track.artist ?? '').isNotEmpty ? MetaPill(text: track.artist!) : null;
-    Widget? albumPill() =>
-        (track.album ?? '').isNotEmpty ? MetaPill(text: track.album!) : null;
-    Widget? genrePill() =>
-        (track.genre ?? '').isNotEmpty ? MetaPill(text: track.genre!) : null;
-    Widget? durationPill() => duration.isNotEmpty
+    final artist = track.artist ?? '';
+    Widget? albumPill() => album.isNotEmpty ? MetaPill(text: album) : null;
+    Widget? genrePill() => genre.isNotEmpty ? MetaPill(text: genre) : null;
+    Widget? durationPill({required bool glyph}) => duration.isNotEmpty
         ? MetaPill(
             text: duration,
-            leading: Icon(
-              LucideIcons.clock,
-              size: 11,
-              color: theme.colors.mutedForeground,
-            ),
+            leading: glyph
+                ? Icon(
+                    LucideIcons.clock,
+                    size: 11,
+                    color: theme.colors.mutedForeground,
+                  )
+                : null,
           )
         : null;
-    final pills = <Widget?>[
-      artistPill(),
-      albumPill(),
-      genrePill(),
-      durationPill(),
-    ].whereType<Widget>().toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Bound each pill to half the details column, so at most two share a
-        // run and four pills can never need a third one. Without this a long
-        // artist name consumes a whole run and the row grows past the fixed
-        // `itemExtent`, where the extra runs are silently clipped.
+        // A pill is bounded to one run and the group to two (the fit test in
+        // the details column), so the metadata can never paint a third run
+        // past the fixed `itemExtent`, where it would be silently clipped.
         final metaWidth = trailingMetaWidth(
           constraints.maxWidth,
           artSize + kArtworkGap,
@@ -93,25 +88,60 @@ class TrackListComfortableRow extends StatelessWidget {
               // kMetaPillAreaHeight clip.
               child: LayoutBuilder(
                 builder: (context, columnConstraints) {
-                  final maxPillWidth =
-                      (columnConstraints.maxWidth - kMetaPillGap) / 2;
+                  final available = columnConstraints.maxWidth;
+                  // A pill never paints wider than one run. The fit test below
+                  // is what keeps the group to two runs, so there is no
+                  // half-column cap that would ellipsize a pill with room.
+                  final maxPillWidth = available;
+                  // Album and genre are extras: they stay only when the whole
+                  // group paints unclipped inside the two runs the row can
+                  // show, and go together when it does not. Width decides, not
+                  // the layout mode — a narrow drawer with room keeps them.
+                  final pillStyle = theme.typography.body.xs.copyWith(
+                    fontWeight: FontWeight.w500,
+                  );
+                  double naturalWidth(String text, {bool glyph = false}) =>
+                      measureTextWidth(context, text, pillStyle) +
+                      kMetaPillPadding.horizontal +
+                      (glyph ? kMetaPillLeadingExtent : 0);
+                  // The clock is decoration: it goes before the duration text
+                  // loses a character to it.
+                  final durationGlyph =
+                      duration.isNotEmpty &&
+                      naturalWidth(duration, glyph: true) <= available;
+                  final widths = [
+                    if (album.isNotEmpty) naturalWidth(album),
+                    if (genre.isNotEmpty) naturalWidth(genre),
+                    if (duration.isNotEmpty)
+                      naturalWidth(duration, glyph: durationGlyph),
+                  ];
+                  final extrasFit =
+                      widths.every((width) => width <= available) &&
+                      fitsInRuns(widths, available: available, runs: 2);
+                  final pills = <Widget?>[
+                    if (extrasFit) albumPill(),
+                    if (extrasFit) genrePill(),
+                    durationPill(glyph: durationGlyph),
+                  ].whereType<Widget>().toList();
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: titleStyle,
+                      // Title and artist share one baseline so the smaller
+                      // artist does not float off the title's baseline.
+                      TrackTitleLine(
+                        title: title,
+                        artist: artist,
+                        titleStyle: titleStyle,
                       ),
-                      // Wrap, not a single ellipsized line: a long artist name
-                      // pushes the remaining pills onto a second line instead of
-                      // hiding them. Two runs is the cap (see `maxPillWidth`);
-                      // the clip is belt-and-braces so no label can paint
-                      // outside the row. Skipped entirely when there is no room
-                      // left: a zero-width cap would render the pills as an
-                      // empty gap.
+                      // Wrap, not one ellipsized line, so two mid-length
+                      // extras share the width instead of both truncating.
+                      // Only what the fit test above kept is built, and that
+                      // test already packed it into two runs; the per-pill cap
+                      // keeps one pill from spanning both, and the clip is
+                      // belt-and-braces so no label paints past the row edge.
+                      // Skipped when there is no room left: a zero-width cap
+                      // renders the pills as an empty gap.
                       if (pills.isNotEmpty && maxPillWidth > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 3),

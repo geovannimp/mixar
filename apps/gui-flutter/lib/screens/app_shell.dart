@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
@@ -30,6 +31,13 @@ class _AppShellState extends ConsumerState<AppShell> {
   SettingsDeepLink? _settingsDeepLink;
   var _settingsDeepLinkEpoch = 0;
 
+  /// Leaving the mixer puts the library drawer away. It is a mixer surface that
+  /// lives in a route above the whole shell, so otherwise it would sit on top
+  /// of the settings page.
+  void _closeLibraryDrawer() {
+    ref.read(libraryDrawerOpenProvider.notifier).set(false);
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.watch(engineEventsBootstrapProvider);
@@ -44,6 +52,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (next == null) {
         return;
       }
+      _closeLibraryDrawer();
       setState(() {
         _tab = ShellTab.settings;
         _settingsDeepLink = next;
@@ -61,11 +70,16 @@ class _AppShellState extends ConsumerState<AppShell> {
           AppHeader(
             appTitle: widget.appTitle,
             tab: _tab,
-            onTabChanged: (tab) => setState(() {
-              _tab = tab;
-              // Manual tab changes never carry a deep link; listen sets it.
-              _settingsDeepLink = null;
-            }),
+            onTabChanged: (tab) {
+              if (tab != ShellTab.mixer) {
+                _closeLibraryDrawer();
+              }
+              setState(() {
+                _tab = tab;
+                // Manual tab changes never carry a deep link; listen sets it.
+                _settingsDeepLink = null;
+              });
+            },
           ),
           const AppNoticeBridge(),
           const ControllerOfferBridge(),

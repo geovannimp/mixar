@@ -24,6 +24,7 @@ import 'package:gui_flutter/widgets/library/track_list_comfortable_row.dart';
 import 'package:gui_flutter/widgets/library/track_list_sort_menu.dart';
 import 'package:gui_flutter/widgets/library/track_list_view.dart';
 import 'package:gui_flutter/widgets/library/track_status_pills.dart';
+import 'package:gui_flutter/widgets/library/track_title_line.dart';
 import 'package:gui_flutter/widgets/library/trailing_meta.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -308,11 +309,12 @@ class _CompactRow extends StatelessWidget {
             TrackArtworkThumb(trackId: track.id, size: artSize),
             const SizedBox(width: kArtworkGap),
             Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textStyle,
+              // Same identity line as the comfortable row: title, bullet,
+              // artist — so both densities name the track the same way.
+              child: TrackTitleLine(
+                title: title,
+                artist: track.artist ?? '',
+                titleStyle: textStyle,
               ),
             ),
             ConstrainedBox(

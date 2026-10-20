@@ -32,6 +32,70 @@ const kRowGutter = 8.0;
 /// Below it the row would be all metadata and no name.
 const kMinTitleWidth = 64.0;
 
+/// Smallest width worth showing an artist beside a title. Below it the name is
+/// dropped: the title keeps its full text instead of both being crippled.
+const kMinArtistWidth = 40.0;
+
+/// Natural single-line width of [text] in [style], for fit decisions.
+///
+/// A heuristic, but a faithful one: it merges the ambient [DefaultTextStyle]
+/// the way [Text] does (a caller's style rarely carries every field, and the
+/// inherited letter spacing and font size change the width), and honours the
+/// ambient text scale, so a scaled UI measures like it paints.
+double measureTextWidth(BuildContext context, String text, TextStyle style) {
+  final effective = DefaultTextStyle.of(context).style.merge(style);
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: effective),
+    maxLines: 1,
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width;
+}
+
+/// Whether [widths] pack into [runs] runs of [available] width, the way a
+/// [Wrap] lays them out: greedy, [gap] between neighbours, and an item wider
+/// than a run takes a run of its own.
+bool fitsInRuns(
+  List<double> widths, {
+  required double available,
+  required int runs,
+  double gap = kMetaPillGap,
+}) {
+  if (available <= 0 || runs <= 0) {
+    return false;
+  }
+  var runsUsed = 0;
+  // Width used in the current run; zero means the run is still empty.
+  var used = 0.0;
+  for (final width in widths) {
+    if (width <= 0) {
+      continue;
+    }
+    if (used == 0) {
+      // An item wider than the run still occupies it, and ellipsizes there.
+      used = width;
+      runsUsed++;
+      if (runsUsed > runs) {
+        return false;
+      }
+      continue;
+    }
+    if (used + gap + width <= available) {
+      used += gap + width;
+      continue;
+    }
+    used = width;
+    runsUsed++;
+    if (runsUsed > runs) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /// Width of the trailing actions slot every list row reserves, so trailing
 /// meta and row actions stay aligned down the list.
 const kActionsColumnWidth = 44.0;
@@ -159,10 +223,12 @@ String formatTrackDuration(int? ms) {
 /// lists drag a [TrackDragPayload] onto a deck, so the drag item, its platform
 /// format and its drag card live here rather than in each pane.
 ///
-/// [onDragStart] / [onDragEnd] report the drag lifecycle. `DragItemWidget`
-/// exposes no callbacks, but the session's `dragCompleted` listenable fires on
-/// both drop and cancel, and the framework itself relies on it to retire
-/// sessions — so an end reported here tracks the real drag.
+/// [onDragStart] runs as the drag starts: `DragItemWidget` exposes no lifecycle
+/// callbacks, so building the drag item is the only hook the source can offer.
+/// It may run more than once for one session, so it must be idempotent.
+/// [onDragEnd] runs once, when the session completes — on a drop or a cancel —
+/// off the session's `dragCompleted` listenable, which the plugin itself relies
+/// on to retire sessions.
 Widget libraryTrackDragSource({
   required TrackDragPayload payload,
   required Widget child,

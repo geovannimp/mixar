@@ -8,6 +8,7 @@ import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -22,6 +23,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
+import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/mixer/master_strip.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
@@ -170,6 +172,41 @@ void main() {
       await tester.pump();
     }
   }
+
+  testWidgets('leaving the mixer closes the library drawer', (tester) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+    );
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AppShell)),
+    );
+
+    // The header opens the drawer...
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppHeader),
+        matching: find.byIcon(LucideIcons.libraryBig),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+
+    // ...and leaving the mixer puts it away, so it cannot sit over settings.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppHeader),
+        matching: find.byIcon(LucideIcons.settings),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsNothing);
+    expect(container.read(libraryDrawerOpenProvider), isFalse);
+  });
 
   testWidgets('mixer shell shows core regions', (tester) async {
     await pumpShell(tester);

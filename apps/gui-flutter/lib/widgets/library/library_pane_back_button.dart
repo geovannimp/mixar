@@ -15,9 +15,11 @@ class LibraryPaneBackButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AppTooltip(
       tip: 'Back to library list',
+      // `md` (the default) matches the density button and the trailing menu, so
+      // the hover wash fills the header height; `xs` left a centred chip with
+      // gaps above and below.
       child: AppButton.icon(
         variant: .ghost,
-        size: .xs,
         semanticsLabel: 'Back to library list',
         onPress: () {
           ref
@@ -27,7 +29,7 @@ class LibraryPaneBackButton extends ConsumerWidget {
               .read(libraryNarrowPageProvider.notifier)
               .set(LibraryNarrowPage.list);
         },
-        child: const Icon(LucideIcons.arrowLeft, size: 16),
+        child: const Icon(LucideIcons.arrowLeft),
       ),
     );
   }

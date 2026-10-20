@@ -76,14 +76,21 @@ class TrackListRow extends ConsumerWidget {
         : Stack(children: [content, overlay!]);
     final payload = payloadOf(ref);
     // Watch engine here so drag attaches after start without rebuilding the
-    // surrounding list. The notifier lets the drag report its start/end to the
-    // drawer without the row rebuilding on each drag.
+    // surrounding list. The notifiers are captured during build: the callbacks
+    // can fire while the row is on its way out, and a container-owned notifier
+    // outlives the row where `ref` would not.
     final dragActive = ref.watch(libraryTrackDragActiveProvider.notifier);
+    final drawerOpen = ref.watch(libraryDrawerOpenProvider.notifier);
     final row = payload != null && ref.watch(engineRunningProvider)
         ? libraryTrackDragSource(
             payload: payload,
+            // Tuck the drawer away for the drag — it must never cover the deck
+            // being dropped on — and close it when the drag ends. The tuck is
+            // *not* released here: `MixerPage` holds it until the drawer is
+            // next opened, because un-tucking during the close drags the panel
+            // back into view mid-animation.
             onDragStart: dragActive.begin,
-            onDragEnd: dragActive.end,
+            onDragEnd: () => drawerOpen.set(false),
             child: stacked,
           )
         : stacked;
