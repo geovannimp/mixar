@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
@@ -91,6 +92,10 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  /// The container behind the page under test.
+  ProviderContainer mixerContainer(WidgetTester tester) =>
+      ProviderScope.containerOf(tester.element(find.byType(MixerPage)));
 
   test(
     'a controller focus step opens the drawer, SHIFT + press closes it',
@@ -235,9 +240,7 @@ void main() {
     // Drawer mode: the docked panel is gone and the drawer starts closed.
     expect(find.byType(LibraryPanel), findsNothing);
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(MixerPage)),
-    );
+    final container = mixerContainer(tester);
     container.read(libraryDrawerOpenProvider.notifier).set(true);
     await tester.pumpAndSettle();
 
@@ -271,9 +274,7 @@ void main() {
         child: const MixerPage(),
       );
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(MixerPage)),
-      );
+      final container = mixerContainer(tester);
       container.read(libraryDrawerOpenProvider.notifier).set(true);
       await tester.pumpAndSettle();
 
@@ -300,7 +301,7 @@ void main() {
           border.top,
           border.right,
           border.bottom,
-        ].where((side) => side.width > 0).length,
+        ].where((edge) => edge.width > 0).length,
         1,
         reason: '$side rules more than its inner edge',
       );
@@ -323,9 +324,7 @@ void main() {
       child: const MixerPage(),
     );
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(MixerPage)),
-    );
+    final container = mixerContainer(tester);
     container.read(libraryDrawerOpenProvider.notifier).set(true);
     // Mid-flight: the panel is still travelling through the header band.
     await tester.pump();
@@ -368,9 +367,7 @@ void main() {
       child: const MixerPage(),
     );
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(MixerPage)),
-    );
+    final container = mixerContainer(tester);
     container.read(libraryDrawerOpenProvider.notifier).set(true);
     await tester.pumpAndSettle();
 
@@ -454,9 +451,7 @@ void main() {
       ),
     );
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(MixerPage)),
-    );
+    final container = mixerContainer(tester);
     final button = find.descendant(
       of: find.byType(AppHeader),
       matching: find.byIcon(LucideIcons.libraryBig),
@@ -492,9 +487,7 @@ void main() {
       child: const MixerPage(),
     );
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(MixerPage)),
-    );
+    final container = mixerContainer(tester);
     container.read(libraryDrawerOpenProvider.notifier).set(true);
     await tester.pumpAndSettle();
 
@@ -520,9 +513,7 @@ void main() {
       child: const MixerPage(),
     );
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(MixerPage)),
-    );
+    final container = mixerContainer(tester);
     container.read(libraryDrawerOpenProvider.notifier).set(true);
     await tester.pumpAndSettle();
     expect(find.byType(LibraryPanel), findsOneWidget);
@@ -635,9 +626,7 @@ void main() {
       child: const MixerPage(),
     );
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(MixerPage)),
-    );
+    final container = mixerContainer(tester);
     container.read(libraryDrawerOpenProvider.notifier).set(true);
     await tester.pumpAndSettle();
     expect(container.read(libraryDrawerSizeProvider).width, 480);
@@ -681,9 +670,7 @@ void main() {
       child: const MixerPage(),
     );
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(MixerPage)),
-    );
+    final container = mixerContainer(tester);
     container.read(libraryDrawerOpenProvider.notifier).set(true);
     await tester.pumpAndSettle();
 
@@ -711,6 +698,70 @@ void main() {
     final grown = container.read(libraryDrawerSizeProvider).height;
     expect(grown, greaterThan(480));
     expect(tester.getSize(find.byType(LibraryPanel)).height, grown);
+  });
+  testWidgets('a re-open during the closing animation stays open', (
+    tester,
+  ) async {
+    await pumpSized(
+      tester,
+      size: const Size(1200, 800),
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+      child: const MixerPage(),
+    );
+    final container = mixerContainer(tester);
+
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+
+    // Close, then open again while the 250 ms pop is still running: when the
+    // closing route finishes it must not clear the flag the re-open owns.
+    container.read(libraryDrawerOpenProvider.notifier).set(false);
+    await tester.pump(const Duration(milliseconds: 100));
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    await tester.pumpAndSettle();
+
+    expect(container.read(libraryDrawerOpenProvider), isTrue);
+    expect(
+      find.byType(LibraryPanel),
+      findsOneWidget,
+      reason: 'the closing route shut the drawer the user just reopened',
+    );
+  });
+
+  testWidgets('a drag source reports one end per session', (tester) async {
+    var ends = 0;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: libraryTrackDragSource(
+          payload: const TrackDragPayload(
+            source: TrackDragSource.library,
+            path: '/tmp/samples/demo.wav',
+            title: 'Demo Track',
+          ),
+          onDragEnd: () => ends++,
+          child: const SizedBox(width: 24, height: 24),
+        ),
+      ),
+    );
+
+    final source = tester.widget<DragItemWidget>(find.byType(DragItemWidget));
+    final session = _FakeDragSession();
+    // The plugin may build the item more than once for a single session.
+    await source.dragItemProvider(
+      DragItemRequest(location: Offset.zero, session: session),
+    );
+    await source.dragItemProvider(
+      DragItemRequest(location: Offset.zero, session: session),
+    );
+    session.complete(DropOperation.copy);
+    await tester.pump();
+
+    expect(ends, 1, reason: 'onDragEnd is per session, not per provider run');
   });
 }
 

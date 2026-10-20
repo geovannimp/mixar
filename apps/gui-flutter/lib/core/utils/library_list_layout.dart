@@ -219,6 +219,12 @@ String formatTrackDuration(int? ms) {
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
+/// Sessions whose [libraryTrackDragSource] `onDragEnd` has already fired.
+///
+/// The provider can run more than once for one session, and the flag has to
+/// outlive a single invocation or each run would report its own end.
+final Expando<bool> _dragEndReported = Expando('libraryDragEndReported');
+
 /// Wraps a list row in the shared drag source. Both the tracks and history
 /// lists drag a [TrackDragPayload] onto a deck, so the drag item, its platform
 /// format and its drag card live here rather than in each pane.
@@ -238,14 +244,14 @@ Widget libraryTrackDragSource({
   return DragItemWidget(
     dragItemProvider: (request) async {
       onDragStart?.call();
-      // A provider may run more than once for one session; report the end once.
-      var reported = false;
+      // Every invocation listens so every listener is removed again, but only
+      // the first completion reports: the guard is per session, not per call.
       void end() {
-        if (reported) {
+        request.session.dragCompleted.removeListener(end);
+        if (_dragEndReported[request.session] ?? false) {
           return;
         }
-        reported = true;
-        request.session.dragCompleted.removeListener(end);
+        _dragEndReported[request.session] = true;
         onDragEnd?.call();
       }
 

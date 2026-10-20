@@ -71,6 +71,8 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   /// screen. It is released when the drawer is next opened instead.
   Future<void> _showDrawer(LibraryDrawerSideSetting side) async {
     await showLibraryDrawer(context, side);
+    // Completes when the pop *starts*, so no newer open can be waiting on this
+    // continuation: the flag is already false by the time it runs.
     if (mounted) {
       ref.read(libraryDrawerOpenProvider.notifier).set(false);
     }
