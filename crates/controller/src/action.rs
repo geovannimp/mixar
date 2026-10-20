@@ -1,12 +1,21 @@
 //! Action string → [`RoutedAction`].
 
-use engine_api::{CmdBody, JogMode, Kind, Origin, PadMode, DEFAULT_PITCH_PAGE};
+use engine_api::{
+    CmdBody, FxKind, FxSlotState, JogMode, Kind, Origin, PadMode, DEFAULT_PITCH_PAGE,
+    FX_DIVISION_COUNT,
+};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
 
 /// Library hot-cue slots are 0..=15; MIDI `pad n` and LED cache match that.
 pub const HOT_CUE_SLOT_COUNT: usize = 16;
+
+/// Beat FX unit slot (slot 0 is the Beat FX unit on every shipped bundle).
+const FX_SLOT: u8 = 0;
+
+/// FX SELECT cycle: the unit always holds an effect, so `Off` is not a stop.
+const FX_SELECT_CYCLE: [FxKind; 2] = [FxKind::Echo, FxKind::Reverb];
 
 /// Local mirrors for LED + soft-takeover (not MIDI pad routing).
 /// Absolute values are wire `0..1` when present.
@@ -38,6 +47,8 @@ pub struct ControlSnapshot {
     pub cue_volume: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
+    /// Shared Beat FX unit slot 0 (engine boot state; see [`default_fx_slot`]).
+    pub fx: FxSlotState,
     pub cue_hold: [bool; 4],
     pub sync: [bool; 4],
     pub loop_active: [bool; 4],
@@ -99,6 +110,7 @@ impl Default for ControlSnapshot {
             cue_volume: 1.0,
             cue_mix: 0.5,
             master_cue: false,
+            fx: FxSlotState::boot(),
             position_ms: [0; 4],
             hot_cues: [[None; HOT_CUE_SLOT_COUNT]; 4],
         }
@@ -157,7 +169,11 @@ impl ControlSnapshot {
     /// `shift_held` is resolved by the session (it lives in the modifier set).
     pub fn signal(&self, section: &str, name: &str) -> Option<bool> {
         if section == crate::device::SECTION_MASTER {
-            return (name == "master_cue").then_some(self.master_cue);
+            return match name {
+                "master_cue" => Some(self.master_cue),
+                "fx_armed" => Some(self.fx.enabled),
+                _ => None,
+            };
         }
         let i = deck_idx(crate::device::origin_deck_id(section)?);
         Some(match name {
@@ -260,6 +276,8 @@ pub enum RoutedAction {
         kind: Kind,
         body: CmdBody,
     },
+    /// One physical control publishing several cmds (exclusive routing groups).
+    EngineCmds(Vec<(Origin, Kind, CmdBody)>),
     LibraryEvt {
         origin: LibraryOrigin,
         kind: LibraryKind,
@@ -269,6 +287,18 @@ pub enum RoutedAction {
 
 fn engine_cmd(origin: Origin, kind: Kind, body: CmdBody) -> RoutedAction {
     RoutedAction::EngineCmd { origin, kind, body }
+}
+
+/// Arm or disarm the shared Beat FX unit ([`FX_SLOT`]).
+fn fx_unit_enabled(enabled: bool) -> RoutedAction {
+    engine_cmd(
+        Origin::Mixer,
+        Kind::SetFxUnitSlotEnabled,
+        CmdBody::SetFxUnitSlotEnabled {
+            slot: FX_SLOT,
+            enabled,
+        },
+    )
 }
 
 /// Wire value after device decode: absolute `0..1` or relative tick delta.
@@ -517,6 +547,84 @@ pub fn resolve_action(
             Kind::ToggleMasterCue,
             CmdBody::Empty,
         )),
+        // Beat FX: ON/OFF arms the shared unit; SHIFT+ON/OFF disarms it.
+        "toggle_fx" => active.then(|| fx_unit_enabled(!snap.fx.enabled)),
+        "disarm_fx" => active.then(|| fx_unit_enabled(false)),
+        "cycle_fx_next" | "cycle_fx_prev" => {
+            if !active {
+                return None;
+            }
+            let len = FX_SELECT_CYCLE.len();
+            let i = FX_SELECT_CYCLE
+                .iter()
+                .position(|k| *k == snap.fx.kind)
+                .unwrap_or(0);
+            let next = if leaf == "cycle_fx_next" {
+                (i + 1) % len
+            } else {
+                (i + len - 1) % len
+            };
+            Some(engine_cmd(
+                Origin::Mixer,
+                Kind::SetFxUnitSlot,
+                CmdBody::SetFxUnitSlot {
+                    slot: FX_SLOT,
+                    kind: FX_SELECT_CYCLE[next],
+                },
+            ))
+        }
+        // BEAT ◀▶ steps Echo's division knob; other effects have no beat table.
+        "step_fx_division_down" | "step_fx_division_up" => {
+            if !active || snap.fx.kind != FxKind::Echo {
+                return None;
+            }
+            let last = (FX_DIVISION_COUNT - 1) as f32;
+            let idx = (snap.fx.params[0] * last).round().clamp(0.0, last) as i32;
+            let dir: i32 = if leaf == "step_fx_division_up" { 1 } else { -1 };
+            let next = (idx + dir).clamp(0, FX_DIVISION_COUNT as i32 - 1);
+            if next == idx {
+                return None;
+            }
+            Some(engine_cmd(
+                Origin::Mixer,
+                Kind::SetFxUnitParam,
+                CmdBody::SetFxUnitParam {
+                    slot: FX_SLOT,
+                    param: 0,
+                    value: next as f32 / last,
+                },
+            ))
+        }
+        "set_fx_wet" => Some(engine_cmd(
+            Origin::Mixer,
+            Kind::SetFxUnitWet,
+            CmdBody::SetFxUnitWet {
+                slot: FX_SLOT,
+                wet: norm.clamp(0.0, 1.0),
+                soft_takeover,
+            },
+        )),
+        // CH SELECT is exclusive: every press publishes the full routing group.
+        "set_fx_route" => {
+            if !active {
+                return None;
+            }
+            let routed = |deck: u16, on: bool| {
+                (
+                    Origin::Deck(deck),
+                    Kind::SetDeckFxRouted,
+                    CmdBody::SetDeckFxRouted { routed: on },
+                )
+            };
+            let cmds = match args.require_ident("target").ok()? {
+                "ch1" => vec![routed(0, true), routed(1, false)],
+                "ch2" => vec![routed(0, false), routed(1, true)],
+                // No master-bus FX insert: both decks routed is the closest analog.
+                "master" => vec![routed(0, true), routed(1, true)],
+                _ => return None,
+            };
+            Some(RoutedAction::EngineCmds(cmds))
+        }
         "set_headphone_cue" => {
             active.then_some(engine_cmd(origin, Kind::ToggleHeadphoneCue, CmdBody::Empty))
         }
@@ -1623,5 +1731,215 @@ mod tests {
             &snap,
         )
         .is_none());
+    }
+
+    #[test]
+    fn fx_on_off_reads_the_snapshot_armed_flag() {
+        let mut snap = ControlSnapshot::default();
+        assert!(!snap.fx.enabled, "a fresh unit is loaded but not armed");
+
+        assert_eq!(
+            resolve_action(
+                "Mixer::toggle_fx",
+                "master",
+                ControlValue::Absolute(1.0),
+                true,
+                false,
+                &snap,
+            )
+            .unwrap(),
+            fx_unit_enabled(true)
+        );
+
+        snap.fx.enabled = true;
+        assert_eq!(
+            resolve_action(
+                "Mixer::toggle_fx",
+                "master",
+                ControlValue::Absolute(1.0),
+                true,
+                false,
+                &snap,
+            )
+            .unwrap(),
+            fx_unit_enabled(false)
+        );
+
+        // Release edges never publish.
+        assert!(resolve_action(
+            "Mixer::toggle_fx",
+            "master",
+            ControlValue::Absolute(0.0),
+            false,
+            false,
+            &snap,
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn fx_select_cycles_both_ways_over_the_shipped_effects() {
+        let mut snap = ControlSnapshot::default();
+        let selected = |snap: &ControlSnapshot, leaf: &str| match resolve_action(
+            &format!("Mixer::{leaf}"),
+            "master",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            snap,
+        )
+        .unwrap()
+        {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetFxUnitSlot { slot: 0, kind },
+                ..
+            } => kind,
+            other => panic!("unexpected {other:?}"),
+        };
+
+        assert_eq!(selected(&snap, "cycle_fx_next"), FxKind::Reverb);
+        assert_eq!(selected(&snap, "cycle_fx_prev"), FxKind::Reverb);
+        snap.fx.kind = FxKind::Reverb;
+        assert_eq!(selected(&snap, "cycle_fx_next"), FxKind::Echo);
+        assert_eq!(selected(&snap, "cycle_fx_prev"), FxKind::Echo);
+        snap.fx.kind = FxKind::Off;
+        // Off is not in the cycle: stepping falls back to its first entry.
+        assert_eq!(selected(&snap, "cycle_fx_next"), FxKind::Reverb);
+    }
+
+    #[test]
+    fn fx_division_steps_clamp_and_require_echo() {
+        let mut snap = ControlSnapshot::default();
+        let step = |snap: &ControlSnapshot, leaf: &str| {
+            resolve_action(
+                &format!("Mixer::{leaf}"),
+                "master",
+                ControlValue::Absolute(1.0),
+                true,
+                false,
+                snap,
+            )
+        };
+
+        // Boot division is index 3 of 7 → 4/6 after one up-step.
+        match step(&snap, "step_fx_division_up").unwrap() {
+            RoutedAction::EngineCmd {
+                body:
+                    CmdBody::SetFxUnitParam {
+                        slot: 0,
+                        param: 0,
+                        value,
+                    },
+                ..
+            } => assert!((value - 4.0 / 6.0).abs() < 1e-6, "value={value}"),
+            other => panic!("unexpected {other:?}"),
+        }
+
+        snap.fx.params[0] = 1.0;
+        assert!(step(&snap, "step_fx_division_up").is_none(), "clamped at 6");
+        snap.fx.params[0] = 0.0;
+        assert!(
+            step(&snap, "step_fx_division_down").is_none(),
+            "clamped at 0"
+        );
+
+        snap.fx.params[0] = 0.5;
+        snap.fx.kind = FxKind::Reverb;
+        assert!(
+            step(&snap, "step_fx_division_up").is_none(),
+            "the division table belongs to Echo"
+        );
+    }
+
+    #[test]
+    fn fx_wet_knob_publishes_the_gate_flag() {
+        let snap = ControlSnapshot::default();
+        match resolve_action(
+            "Mixer::set_fx_wet",
+            "master",
+            ControlValue::Absolute(0.25),
+            true,
+            true,
+            &snap,
+        )
+        .unwrap()
+        {
+            RoutedAction::EngineCmd {
+                body:
+                    CmdBody::SetFxUnitWet {
+                        slot: 0,
+                        wet,
+                        soft_takeover: true,
+                    },
+                ..
+            } => assert!((wet - 0.25).abs() < 1e-6, "wet={wet}"),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn fx_route_publishes_the_full_exclusive_group() {
+        use Kind::SetDeckFxRouted;
+        let snap = ControlSnapshot::default();
+        let route = |leaf: &str| {
+            resolve_action(
+                &format!("Mixer::set_fx_route(target:{leaf})"),
+                "master",
+                ControlValue::Absolute(1.0),
+                true,
+                false,
+                &snap,
+            )
+        };
+        let routed = |deck: u16, on: bool| {
+            (
+                Origin::Deck(deck),
+                SetDeckFxRouted,
+                CmdBody::SetDeckFxRouted { routed: on },
+            )
+        };
+
+        assert_eq!(
+            route("ch1").unwrap(),
+            RoutedAction::EngineCmds(vec![routed(0, true), routed(1, false)])
+        );
+        assert_eq!(
+            route("ch2").unwrap(),
+            RoutedAction::EngineCmds(vec![routed(0, false), routed(1, true)])
+        );
+        assert_eq!(
+            route("master").unwrap(),
+            RoutedAction::EngineCmds(vec![routed(0, true), routed(1, true)])
+        );
+
+        // Unknown targets, releases and missing args resolve to nothing.
+        assert!(route("bogus").is_none());
+        assert!(resolve_action(
+            "Mixer::set_fx_route(target:ch1)",
+            "master",
+            ControlValue::Absolute(0.0),
+            false,
+            false,
+            &snap,
+        )
+        .is_none());
+        assert!(resolve_action(
+            "Mixer::set_fx_route",
+            "master",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn fx_armed_signal_tracks_the_shared_unit() {
+        let mut snap = ControlSnapshot::default();
+        assert_eq!(snap.signal("master", "fx_armed"), Some(false));
+        snap.fx.enabled = true;
+        assert_eq!(snap.signal("master", "fx_armed"), Some(true));
+        assert_eq!(snap.signal("master", "nonsense"), None);
     }
 }

@@ -231,6 +231,22 @@ rotary_press = "LibraryNavigation::focus_next"
 rotary_press_shift = "LibraryNavigation::focus_prev"
 load_deck_1 = "LibraryNavigation::load_to_deck(deck:1)"
 load_deck_2 = "LibraryNavigation::load_to_deck(deck:2)"
+# Beat FX section: ON/OFF + SHIFT disarm, FX SELECT cycle, BEAT steps Echo's
+# division, LEVEL/DEPTH is the shared unit's wet.
+beat_fx_on = "Mixer::toggle_fx"
+beat_fx_on_shift = "Mixer::disarm_fx"
+beat_fx_select = "Mixer::cycle_fx_next"
+beat_fx_select_shift = "Mixer::cycle_fx_prev"
+beat_left = "Mixer::step_fx_division_down"
+beat_right = "Mixer::step_fx_division_up"
+# The unit reports this knob's absolute position continuously, so it is authoritative:
+# it applies immediately rather than waiting to cross the UI slider's value. Mixxx
+# does the same by calling softTakeoverIgnoreNextValue before setting the mix.
+beat_fx_level_depth = { action = "Mixer::set_fx_wet", soft_takeover = false }
+# CH SELECT is a radio group: each press publishes the full routing pair.
+beat_fx_ch_1 = "Mixer::set_fx_route(target:ch1)"
+beat_fx_ch_2 = "Mixer::set_fx_route(target:ch2)"
+beat_fx_ch_master = "Mixer::set_fx_route(target:master)"
 
 [outputs.deck_1]
 play_pause = { signal = "playing", on = "play_led", off = { type = "note", channel = 1, note = 0x0B, velocity = 0x00 } }
@@ -386,3 +402,6 @@ pad_bank_loop_8 = { signal = "pad_loop_8", on = "loop_pad_led8", off = { type = 
 
 [outputs.master]
 master_cue = { signal = "master_cue", on = "master_cue_led", off = { type = "note", channel = 7, note = 0x63, velocity = 0x00 } }
+# Beat FX ON/OFF lamp mirrors the shared unit's armed state (both note banks).
+beat_fx_on = { signal = "fx_armed", on = "beat_fx_on_led", off = { type = "note", channel = 5, note = 0x47, velocity = 0x00 } }
+beat_fx_on_shift = { signal = "fx_armed", on = "beat_fx_shift_led", off = { type = "note", channel = 5, note = 0x43, velocity = 0x00 } }

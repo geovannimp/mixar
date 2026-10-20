@@ -137,7 +137,11 @@ fn set_fx_unit_wet_and_param_reach_every_deck() {
         &session,
         Origin::Mixer,
         Kind::SetFxUnitWet,
-        &CmdBody::SetFxUnitWet { slot: 1, wet: 0.75 },
+        &CmdBody::SetFxUnitWet {
+            slot: 1,
+            wet: 0.75,
+            soft_takeover: false,
+        },
     );
     let _ = deck_updated(&evt, 0);
     let _ = deck_updated(&evt, 1);
@@ -246,4 +250,92 @@ fn set_fx_unit_slot_rejects_out_of_range_slot() {
     );
 
     expect_error_contains(&evt, "Invalid FX slot: 3");
+}
+
+#[test]
+fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
+    use std::time::{Duration, Instant};
+
+    let session = null_session();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+    let wet = |session: &EngineSession| {
+        session
+            .with_engine(|engine| Ok(engine.fx_unit_wet(0)))
+            .expect("engine")
+            .expect("slot 0")
+    };
+
+    // Never-seen latch: the first soft-takeover value is adopted (controller dumps).
+    publish(
+        &session,
+        Origin::Mixer,
+        Kind::SetFxUnitWet,
+        &CmdBody::SetFxUnitWet {
+            slot: 0,
+            wet: 0.9,
+            soft_takeover: true,
+        },
+    );
+    let _ = deck_updated(&evt, 0);
+    let _ = deck_updated(&evt, 1);
+    assert!(
+        (wet(&session) - 0.9).abs() < 1e-6,
+        "adopted {}",
+        wet(&session)
+    );
+
+    // A host hard set clears the latch and moves the unit.
+    publish(
+        &session,
+        Origin::Mixer,
+        Kind::SetFxUnitWet,
+        &CmdBody::SetFxUnitWet {
+            slot: 0,
+            wet: 0.0,
+            soft_takeover: false,
+        },
+    );
+    let _ = deck_updated(&evt, 0);
+    let _ = deck_updated(&evt, 1);
+    assert!(wet(&session).abs() < 1e-6, "hard set {}", wet(&session));
+
+    // A far-away knob move is swallowed: no DeckUpdated and no state change.
+    publish(
+        &session,
+        Origin::Mixer,
+        Kind::SetFxUnitWet,
+        &CmdBody::SetFxUnitWet {
+            slot: 0,
+            wet: 0.9,
+            soft_takeover: true,
+        },
+    );
+    let deadline = Instant::now() + Duration::from_millis(150);
+    while Instant::now() < deadline {
+        if let Some(event) = evt.recv_timeout(Duration::from_millis(50)).expect("recv") {
+            assert_ne!(*event.kind(), Kind::Updated, "blocked wet must stay silent");
+        }
+    }
+    assert!(
+        wet(&session).abs() < 1e-6,
+        "blocked wet moved the unit: {}",
+        wet(&session)
+    );
+
+    // Within the catch threshold the knob takes over and latches.
+    publish(
+        &session,
+        Origin::Mixer,
+        Kind::SetFxUnitWet,
+        &CmdBody::SetFxUnitWet {
+            slot: 0,
+            wet: 0.02,
+            soft_takeover: true,
+        },
+    );
+    let fx = deck_fx(&evt, 0);
+    assert!((fx[0].wet - 0.02).abs() < 1e-6, "wet {}", fx[0].wet);
 }

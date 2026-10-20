@@ -89,6 +89,32 @@ Shift banks. This checklist is about what the unit *does* with them.
 - [ ] MASTER CUE: lamp follows the master-cue toggle from either the GUI or the
       controller.
 
+## Beat FX
+
+- [ ] **BEAT FX ON/OFF** (`0x94 0x47`) arms the shared unit: the button lamp
+      lights solid and the mixer strip shows the effect as armed.
+- [ ] Press it again: the unit disarms and the lamp goes dark.
+- [ ] **SHIFT + ON/OFF** (`0x94 0x43`) only disarms; pressing it while already
+      disarmed is a no-op and the level setting is preserved.
+- [ ] **FX SELECT** (`0x94 0x63`) steps Echo → Reverb → Echo; **SHIFT + FX
+      SELECT** (`0x94 0x64`) steps back.
+- [ ] **BEAT ◀ ▶** (`0x94 0x4A` / `0x94 0x4B`) move the Echo division one entry
+      per press and stop at the ends of the table; with Reverb selected they do
+      nothing.
+- [ ] **LEVEL/DEPTH** (`0xB4 0x02` MSB; the unit also sends `0xB4 0x22` LSB, which
+      the mapping ignores) moves the wet level and the LEVEL thumb follows it. The
+      knob is authoritative and applies immediately, so it never waits to catch up
+      with the GUI slider; the unit's once-per-second position dump does not re-send
+      an unchanged level.
+- [ ] **CH SELECT 1 / 2 / MASTER** (`0x94 0x10` / `0x94 0x11` / `0x94 0x14`)
+      route the decks exclusively: 1 → deck 1 only, 2 → deck 2 only, MASTER →
+      both.
+- [ ] Attach with the unit armed in the GUI: the BEAT FX lamp lights on attach
+      without a keypress.
+- [ ] If the lamp flashes instead of holding solid, the unit uses inverted lamp
+      polarity: swap the `on`/`off` targets for `beat_fx_on` and
+      `beat_fx_on_shift` in `[outputs.master]`.
+
 ## Robustness
 
 - [ ] With the unit attached but the app's MIDI output unavailable, input still
@@ -107,7 +133,6 @@ state, so their lamps stay dark. Bind them when the feature lands:
 | `0x47` / `0x48` (deck channel) | +SHIFT PLAY·PAUSE / CUE | — |
 | `0x60` / `0x4C` (deck channel) | 4-BEAT LOOP and its +SHIFT-long press | bound to tempo range in this mapping |
 | `0x78` (master channel) | +SHIFT MASTER CUE | — |
-| `0x94 0x43` / `0x94 0x47` | BEAT FX ON/OFF | engine beat FX |
 | pad pages `0x10`, `0x50` | PAD FX 1, PAD FX 2 | pad modes this mapping cannot enter |
 | pad ch `0x20`–`0x27` | Beat Jump pad bank | engine beat-jump slot / press state for LEDs |
 | pad ch `0x30`–`0x37` | Sampler pad bank | engine sampler slot state for LEDs |

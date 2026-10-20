@@ -153,6 +153,18 @@ impl Engine {
         )
     }
 
+    /// FX unit slot wet/dry readback. The unit is shared across decks, so deck 0
+    /// is canonical (see [`Self::for_each_fx_slot`]).
+    pub fn fx_unit_wet(&self, slot: u8) -> Option<f32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().unwrap();
+        dsp.mixer()
+            .channel(0)?
+            .fx()
+            .slot(slot as usize)
+            .map(|s| s.wet())
+    }
+
     /// FX unit slot knob, applied to every deck's chain.
     pub fn set_fx_unit_param(&mut self, slot: u8, param: u8, value: f32) -> Result<()> {
         self.for_each_fx_slot(|fx_slot| fx_slot.set_param(param as usize, value), slot)

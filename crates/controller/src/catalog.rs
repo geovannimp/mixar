@@ -119,6 +119,17 @@ const MASTER_ALIASES: &[&str] = &[
     "headphone_cue_2",
     "headphone_cue_3",
     "headphone_cue_4",
+    // Beat FX section (channel 5): ON/OFF, FX SELECT, BEAT ◀▶, LEVEL/DEPTH, CH SELECT.
+    "beat_fx_on",
+    "beat_fx_on_shift",
+    "beat_fx_select",
+    "beat_fx_select_shift",
+    "beat_left",
+    "beat_right",
+    "beat_fx_level_depth",
+    "beat_fx_ch_1",
+    "beat_fx_ch_2",
+    "beat_fx_ch_master",
 ];
 
 const SAMPLER_ALIASES: &[&str] = &[
@@ -153,6 +164,7 @@ pub const ABSOLUTE_LEAVES: &[&str] = &[
     "set_cue_volume",
     "set_cue_mix",
     "set_speed",
+    "set_fx_wet",
 ];
 
 /// Leaves that consume relative CC tick deltas (device `relative = …`).
@@ -221,7 +233,7 @@ const DECK_SIGNALS: &[&str] = &[
     "pad_mode_key_shift",
 ];
 
-const MASTER_SIGNALS: &[&str] = &["master_cue"];
+const MASTER_SIGNALS: &[&str] = &["master_cue", "fx_armed"];
 
 /// Per-slot pad-bank signal prefixes (1-based `pad_<mode>_<n>`).
 const PAD_SLOT_PREFIXES: &[&str] = &[
@@ -272,6 +284,14 @@ const MIXER_LEAVES: &[&str] = &[
     "set_cue_volume",
     "set_cue_mix",
     "set_master_cue",
+    "toggle_fx",
+    "disarm_fx",
+    "cycle_fx_next",
+    "cycle_fx_prev",
+    "step_fx_division_down",
+    "step_fx_division_up",
+    "set_fx_wet",
+    "set_fx_route",
 ];
 
 const ENGINE_LEAVES: &[&str] = &["start_engine"];
@@ -362,6 +382,17 @@ pub fn validate_leaf_args(
             let mode = args.require_ident("mode")?;
             if !PAD_MODES.contains(&mode) {
                 return Err(LoadError::Validation(format!("unknown pad_mode `{mode}`")));
+            }
+            Ok(())
+        }
+        // CH SELECT: exclusive FX routing target for the shared Beat FX unit.
+        "set_fx_route" => {
+            args.expect_keys_exactly(&["target"])?;
+            let target = args.require_ident("target")?;
+            if !["ch1", "ch2", "master"].contains(&target) {
+                return Err(LoadError::Validation(format!(
+                    "unknown fx route target `{target}`"
+                )));
             }
             Ok(())
         }
@@ -465,6 +496,50 @@ mod tests {
         assert!(is_known_signal("deck_1", "hot_cue_1"));
         assert!(is_known_signal("deck_1", "loop_slot_1"));
         assert!(is_known_signal("deck_1", "pad_hot_cue_1"));
+    }
+
+    #[test]
+    fn beat_fx_leaves_and_aliases_are_in_the_closed_catalogs() {
+        for leaf in [
+            "toggle_fx",
+            "disarm_fx",
+            "cycle_fx_next",
+            "cycle_fx_prev",
+            "step_fx_division_down",
+            "step_fx_division_up",
+            "set_fx_wet",
+        ] {
+            assert!(is_known_action(&format!("Mixer::{leaf}")), "{leaf}");
+        }
+        for target in ["ch1", "ch2", "master"] {
+            assert!(
+                is_known_action(&format!("Mixer::set_fx_route(target:{target})")),
+                "{target}"
+            );
+        }
+        assert!(!is_known_action("Mixer::set_fx_route(target:fx1)"));
+        assert!(!is_known_action("Mixer::set_fx_route(target:ch1, extra:1)"));
+        assert!(!is_known_action("Mixer::set_fx_route"));
+        assert!(
+            is_absolute_action("Mixer::set_fx_wet"),
+            "LEVEL/DEPTH is an absolute control (soft takeover by default)"
+        );
+        assert!(is_known_signal("master", "fx_armed"));
+
+        for alias in [
+            "beat_fx_on",
+            "beat_fx_on_shift",
+            "beat_fx_select",
+            "beat_fx_select_shift",
+            "beat_left",
+            "beat_right",
+            "beat_fx_level_depth",
+            "beat_fx_ch_1",
+            "beat_fx_ch_2",
+            "beat_fx_ch_master",
+        ] {
+            assert!(is_closed_input_alias("master", alias), "{alias}");
+        }
     }
 
     #[test]

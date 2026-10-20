@@ -23,7 +23,8 @@ pub use pads::{
 pub use payload::{
     default_pitch_page, CmdBody, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot, EngineStatus,
     EqBand, EvtBody, FxKind, FxSlotState, JogMode, LoopRegion, PadMode, SamplerBankInfo,
-    SamplerPlayMode, SamplerSlotInfo, SamplerStatus, SyncMode, FX_PARAM_COUNT, FX_SLOT_COUNT,
+    SamplerPlayMode, SamplerSlotInfo, SamplerStatus, SyncMode, FX_DIVISION_COUNT, FX_PARAM_COUNT,
+    FX_SLOT_COUNT,
 };
 pub use wire::{
     decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,

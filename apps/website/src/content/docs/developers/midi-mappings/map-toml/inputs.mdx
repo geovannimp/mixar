@@ -115,6 +115,8 @@ This pairing is enforced at load time. A `type = "cc"` endpoint that declares `r
 
 Continuous CC input is coalesced to at most 60 Hz so a burst cannot flood the engine. Absolute CC keeps the **latest** value; relative CC **sums** the deltas. Either way the first message publishes immediately and subsequent messages inside the ~16 ms window are held pending, then flushed by the MIDI pump. Notes are edge-triggered and bypass this coalescing: only a transition (press or release) dispatches.
 
+An absolute value identical to the one last published for that binding is dropped. Controllers that answer a position query with a full state dump (the DDJ-400 does this on every idle heartbeat) therefore do not re-send unchanged knob positions every second, which would otherwise revert a screen-side change to the same parameter.
+
 ## Where to go next
 
 - [outputs](/docs/developers/midi-mappings/map-toml/outputs) — signals, LED modes (on/off/blink), caching, refresh rules, VU meters.

@@ -152,6 +152,12 @@ The `n` argument is not capped at eight: any `n:1+` is accepted, and numbered al
 | `set_crossfader` | – | Absolute crossfader position `0..1`. |
 | `set_cue_mix` | – | Absolute cue-mix blend `0..1`. |
 | `set_master_cue` | – | Toggle master cue. |
+| `toggle_fx` | – | Arm/disarm the shared Beat FX unit (slot 0), flipping its current state. |
+| `disarm_fx` | – | Disarm the shared Beat FX unit without touching wet or knobs. |
+| `cycle_fx_next`, `cycle_fx_prev` | – | Step the effect selection through the shipped effects (no `Off` entry). |
+| `step_fx_division_down`, `step_fx_division_up` | – | Step Echo's beat division one table entry; inert for other effects and clamped at both ends. |
+| `set_fx_wet` | – | Absolute Beat FX level `0..1`. Listed in the absolute catalog, so bindings default to soft-takeover. |
+| `set_fx_route` | `target:ch1\|ch2\|master` | Exclusive CH SELECT: publishes the full per-deck routing group in one control. |
 
 ### Engine
 
@@ -286,6 +292,11 @@ The numbered aliases (`hot_cue_<n>`, `delete_hot_cue_<n>`, `pad_<n>`, `loop_pad_
 | `browse` | Relative. |
 | `load_deck_1`, `load_deck_2` | |
 | `headphone_cue_1` … `headphone_cue_4` | |
+| `beat_fx_on`, `beat_fx_on_shift` | Buttons. |
+| `beat_fx_select`, `beat_fx_select_shift` | Buttons. |
+| `beat_left`, `beat_right` | Buttons. |
+| `beat_fx_level_depth` | Absolute. |
+| `beat_fx_ch_1`, `beat_fx_ch_2`, `beat_fx_ch_master` | Buttons (exclusive routing). |
 
 ### `sampler`
 

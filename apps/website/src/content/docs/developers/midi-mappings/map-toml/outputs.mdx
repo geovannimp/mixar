@@ -7,7 +7,7 @@ order: 5
 
 `[outputs.<section>]` is the **app → hardware** direction of a mapping: it watches a closed-catalog signal for the section and emits MIDI when it turns on or off — how the app lights LEDs and drives callbacks on the controller. This page is the reference for the table; [map.toml](/docs/developers/midi-mappings/map-toml) is its overview, [inputs](/docs/developers/midi-mappings/map-toml/inputs) is the opposite (hardware → app) direction, and the control declarations these targets point at live in [device.toml](/docs/developers/midi-mappings/device-toml).
 
-Sections are `deck_1` through `deck_4`, `master`, `sampler`, and `custom`. Only `deck_*` sections resolve signals, and `master` resolves a single one (`master_cue`); `sampler` and `custom` are host-driven only.
+Sections are `deck_1` through `deck_4`, `master`, `sampler`, and `custom`. Only `deck_*` sections resolve signals, and `master` resolves `master_cue` and `fx_armed`; `sampler` and `custom` are host-driven only.
 
 ## Binding fields
 
@@ -73,7 +73,10 @@ Because a pad bank is mode-gated, only the deck's active page can light; the pre
 
 ### Master signals
 
-`master_cue` is the only master-section signal: mixer master cue (PFL) on.
+| Signal | Meaning |
+| --- | --- |
+| `master_cue` | Mixer master cue (PFL) on. |
+| `fx_armed` | The shared Beat FX unit is armed (`SlotEnabled` on slot 0). |
 
 ## LED modes
 
@@ -127,6 +130,7 @@ VU meters are not `[outputs]` bindings. The host drives the `vu_meter` endpoint 
 | Loop group (`loop_out`, `loop_out_shift`, `exit_loop`, `exit_loop_shift`) | `loop_active` | per-lamp aliases | inline notes ch 1 `0x11`/`0x4E`/`0x4D`/`0x50` |
 | Hot-cue pad bank (deck 1) | `pad_hot_cue_1` … `pad_hot_cue_8` | alias `hot_cue_pad_led1..8` | inline notes ch 9 `0x00`..`0x07` |
 | Master cue | `master_cue` | alias `master_cue_led` | inline note ch 7 `0x63` |
+| Beat FX ON/OFF (`beat_fx_on`, `beat_fx_on_shift`) | `fx_armed` | aliases `beat_fx_on_led` / `beat_fx_shift_led` | inline notes ch 5 `0x47` / `0x43` |
 | +SHIFT mode indicators | `shift_held` | alias (also `blink`) | inline notes ch 1 `0x1E`/`0x6B` |
 
 ## Validation errors

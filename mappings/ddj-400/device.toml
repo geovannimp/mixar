@@ -12,9 +12,11 @@ vendor_name = "Pioneer"
 product_name = "DDJ-400"
 usb_vid = 0x2b73
 usb_pid = 0x0026
-# This bundle adds the rotary-press focus endpoints, so it is strictly newer
-# than the base the version gate compares against.
-mapping_version = "1.2.2"
+# This bundle adds the rotary-press focus endpoints and the Beat FX section
+# (ON/OFF, FX SELECT, BEAT, LEVEL/DEPTH, CH SELECT) so it is strictly newer
+# than the base the version gate compares against. 1.3.1 makes the LEVEL/DEPTH
+# knob authoritative (no catch-up dead zone) — re-offer it to existing installs.
+mapping_version = "1.3.1"
 midi_name_contains = ["DDJ-400"]
 
 [toml-schema]
@@ -517,12 +519,29 @@ rotary_press_shift = { type = "note", channel = 7, note = 0x42 }
 # LOAD buttons (Mixxx LoadSelectedTrack): note ch7 / 0x46, 0x47
 load_deck_1 = { type = "note", channel = 7, note = 0x46 }
 load_deck_2 = { type = "note", channel = 7, note = 0x47 }
+# --- Beat FX section (channel 5 / 0x94 per the Pioneer MIDI list) ----------------
+beat_fx_on = { type = "note", channel = 5, note = 0x47 }
+# SHIFT + ON/OFF (Mixxx: FX disable)
+beat_fx_on_shift = { type = "note", channel = 5, note = 0x43 }
+beat_fx_select = { type = "note", channel = 5, note = 0x63 }
+# SHIFT + FX SELECT (select previous effect)
+beat_fx_select_shift = { type = "note", channel = 5, note = 0x64 }
+beat_left = { type = "note", channel = 5, note = 0x4A }
+beat_right = { type = "note", channel = 5, note = 0x4B }
+# LEVEL/DEPTH knob. The unit sends 14-bit pairs (0x02 MSB / 0x22 LSB), but the
+# field-tested Mixxx preset binds only the MSB and scales `value / 0x7F`. A 7-bit
+# endpoint keeps one message per step; 1/127 resolution is ample for a mix knob.
+beat_fx_level_depth = { type = "cc", channel = 5, cc = 0x02 }
+# CH SELECT: exclusive FX routing
+beat_fx_ch_1 = { type = "note", channel = 5, note = 0x10 }
+beat_fx_ch_2 = { type = "note", channel = 5, note = 0x11 }
+beat_fx_ch_master = { type = "note", channel = 5, note = 0x14 }
 
 # --- Feedback (MIDI-OUT) ---------------------------------------------------------
 # MASTER CUE button; the +SHIFT variant is declared but not bound (no engine state).
 master_cue_led = { type = "note", channel = 7, note = 0x63, velocity = 0x7F, direction = "out" }
 master_cue_shift_led = { type = "note", channel = 7, note = 0x78, velocity = 0x7F, direction = "out" }
-# Beat FX ON/OFF (channel 5). Declared for completeness: the engine has no beat FX yet.
+# Beat FX ON/OFF (channel 5), armed = lit.
 beat_fx_on_led = { type = "note", channel = 5, note = 0x47, velocity = 0x7F, direction = "out" }
 beat_fx_shift_led = { type = "note", channel = 5, note = 0x43, velocity = 0x7F, direction = "out" }
 
