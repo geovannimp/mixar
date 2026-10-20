@@ -794,6 +794,12 @@ abstract class RustLibApi extends BaseApi {
     double? bpm,
     String? key,
     String? isrc,
+    int? rating,
+    String? comment,
+    int? year,
+    int? trackNumber,
+    int? discNumber,
+    LibraryColorLabel? colorLabel,
   });
 
   Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
@@ -5903,6 +5909,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     double? bpm,
     String? key,
     String? isrc,
+    int? rating,
+    String? comment,
+    int? year,
+    int? trackNumber,
+    int? discNumber,
+    LibraryColorLabel? colorLabel,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -5920,6 +5932,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_opt_box_autoadd_f_64(bpm, serializer);
           sse_encode_opt_String(key, serializer);
           sse_encode_opt_String(isrc, serializer);
+          sse_encode_opt_box_autoadd_u_8(rating, serializer);
+          sse_encode_opt_String(comment, serializer);
+          sse_encode_opt_box_autoadd_u_16(year, serializer);
+          sse_encode_opt_box_autoadd_u_16(trackNumber, serializer);
+          sse_encode_opt_box_autoadd_u_16(discNumber, serializer);
+          sse_encode_opt_box_autoadd_library_color_label(
+            colorLabel,
+            serializer,
+          );
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -5932,7 +5953,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiLibraryLibraryTransportUpdateTrackMetadataConstMeta,
-        argValues: [that, trackId, title, artist, album, genre, bpm, key, isrc],
+        argValues: [
+          that,
+          trackId,
+          title,
+          artist,
+          album,
+          genre,
+          bpm,
+          key,
+          isrc,
+          rating,
+          comment,
+          year,
+          trackNumber,
+          discNumber,
+          colorLabel,
+        ],
         apiImpl: this,
       ),
     );
@@ -5952,6 +5989,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "bpm",
           "key",
           "isrc",
+          "rating",
+          "comment",
+          "year",
+          "trackNumber",
+          "discNumber",
+          "colorLabel",
         ],
       );
 
@@ -6934,6 +6977,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryColorLabel dco_decode_box_autoadd_library_color_label(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_library_color_label(raw);
+  }
+
+  @protected
   LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(
     dynamic raw,
   ) {
@@ -7370,6 +7419,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryColorLabel dco_decode_library_color_label(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryColorLabel.values[raw as int];
+  }
+
+  @protected
   LibraryDrawerSideSetting dco_decode_library_drawer_side_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return LibraryDrawerSideSetting.values[raw as int];
@@ -7412,8 +7467,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LibraryTrackSummary dco_decode_library_track_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 19)
+      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
     return LibraryTrackSummary(
       entryId: dco_decode_opt_String(arr[0]),
       id: dco_decode_String(arr[1]),
@@ -7427,7 +7482,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       durationMs: dco_decode_opt_box_autoadd_i_32(arr[9]),
       path: dco_decode_String(arr[10]),
       isrc: dco_decode_opt_String(arr[11]),
-      artwork: dco_decode_opt_list_prim_u_8_strict(arr[12]),
+      rating: dco_decode_opt_box_autoadd_u_8(arr[12]),
+      comment: dco_decode_opt_String(arr[13]),
+      year: dco_decode_opt_box_autoadd_u_16(arr[14]),
+      trackNumber: dco_decode_opt_box_autoadd_u_16(arr[15]),
+      discNumber: dco_decode_opt_box_autoadd_u_16(arr[16]),
+      colorLabel: dco_decode_opt_box_autoadd_library_color_label(arr[17]),
+      artwork: dco_decode_opt_list_prim_u_8_strict(arr[18]),
     );
   }
 
@@ -7675,6 +7736,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  LibraryColorLabel? dco_decode_opt_box_autoadd_library_color_label(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_library_color_label(raw);
   }
 
   @protected
@@ -8481,6 +8550,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryColorLabel sse_decode_box_autoadd_library_color_label(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_library_color_label(deserializer));
+  }
+
+  @protected
   LibraryTrackSummary sse_decode_box_autoadd_library_track_summary(
     SseDeserializer deserializer,
   ) {
@@ -9037,6 +9114,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryColorLabel sse_decode_library_color_label(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LibraryColorLabel.values[inner];
+  }
+
+  @protected
   LibraryDrawerSideSetting sse_decode_library_drawer_side_setting(
     SseDeserializer deserializer,
   ) {
@@ -9109,6 +9195,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_durationMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_path = sse_decode_String(deserializer);
     var var_isrc = sse_decode_opt_String(deserializer);
+    var var_rating = sse_decode_opt_box_autoadd_u_8(deserializer);
+    var var_comment = sse_decode_opt_String(deserializer);
+    var var_year = sse_decode_opt_box_autoadd_u_16(deserializer);
+    var var_trackNumber = sse_decode_opt_box_autoadd_u_16(deserializer);
+    var var_discNumber = sse_decode_opt_box_autoadd_u_16(deserializer);
+    var var_colorLabel = sse_decode_opt_box_autoadd_library_color_label(
+      deserializer,
+    );
     var var_artwork = sse_decode_opt_list_prim_u_8_strict(deserializer);
     return LibraryTrackSummary(
       entryId: var_entryId,
@@ -9123,6 +9217,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       durationMs: var_durationMs,
       path: var_path,
       isrc: var_isrc,
+      rating: var_rating,
+      comment: var_comment,
+      year: var_year,
+      trackNumber: var_trackNumber,
+      discNumber: var_discNumber,
+      colorLabel: var_colorLabel,
       artwork: var_artwork,
     );
   }
@@ -9553,6 +9653,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  LibraryColorLabel? sse_decode_opt_box_autoadd_library_color_label(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_library_color_label(deserializer));
     } else {
       return null;
     }
@@ -10459,6 +10572,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_library_color_label(
+    LibraryColorLabel self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_library_color_label(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_library_track_summary(
     LibraryTrackSummary self,
     SseSerializer serializer,
@@ -10876,6 +10998,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_library_color_label(
+    LibraryColorLabel self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_library_drawer_side_setting(
     LibraryDrawerSideSetting self,
     SseSerializer serializer,
@@ -10936,6 +11067,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_i_32(self.durationMs, serializer);
     sse_encode_String(self.path, serializer);
     sse_encode_opt_String(self.isrc, serializer);
+    sse_encode_opt_box_autoadd_u_8(self.rating, serializer);
+    sse_encode_opt_String(self.comment, serializer);
+    sse_encode_opt_box_autoadd_u_16(self.year, serializer);
+    sse_encode_opt_box_autoadd_u_16(self.trackNumber, serializer);
+    sse_encode_opt_box_autoadd_u_16(self.discNumber, serializer);
+    sse_encode_opt_box_autoadd_library_color_label(self.colorLabel, serializer);
     sse_encode_opt_list_prim_u_8_strict(self.artwork, serializer);
   }
 
@@ -11318,6 +11455,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_library_color_label(
+    LibraryColorLabel? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_library_color_label(self, serializer);
     }
   }
 
@@ -12703,6 +12853,12 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
     double? bpm,
     String? key,
     String? isrc,
+    int? rating,
+    String? comment,
+    int? year,
+    int? trackNumber,
+    int? discNumber,
+    LibraryColorLabel? colorLabel,
   }) => RustLib.instance.api.crateApiLibraryLibraryTransportUpdateTrackMetadata(
     that: this,
     trackId: trackId,
@@ -12713,6 +12869,12 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
     bpm: bpm,
     key: key,
     isrc: isrc,
+    rating: rating,
+    comment: comment,
+    year: year,
+    trackNumber: trackNumber,
+    discNumber: discNumber,
+    colorLabel: colorLabel,
   );
 }
 

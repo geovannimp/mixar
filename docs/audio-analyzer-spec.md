@@ -478,8 +478,17 @@ Phase 2: optional `Library::get_track_analysis(&TrackId) -> Result<Option<TrackA
 | Genre     | `TCON`                   | `GENRE`                         | `©gen`                              | `Genre`          |
 | BPM       | `TBPM`, **integer**      | `BPM`, text                     | `----:com.apple.iTunes:BPM`, text   | unsupported      |
 | Key       | `TKEY`                   | `INITIALKEY`                    | `----:com.apple.iTunes:initialkey`  | unsupported      |
+| Rating    | unsupported¹             | `RATING`, 0.0–1.0               | `rate`, 1–5                         | unsupported      |
+| Comment   | `COMM`                   | `COMMENT`                       | `©cmt`                              | `Comment`        |
+| Year      | `TDRC`                   | `YEAR`                          | `©day`                              | `Year`           |
+| Track no. | `TRCK`                   | `TRACKNUMBER`                   | `trkn`                              | `Track`          |
+| Disc no.  | `TPOS`                   | `DISCNUMBER`                    | `disk`                              | `Disc`           |
+| Color     | `COLOR`                  | `COLOR`                         | `----:com.apple.iTunes:COLOR`       | `Color`          |
 
-**What the library mirrors today** is BPM and key only — `library::tags::app_managed_tags` is the single place that decides this. Title/artist/album/genre are file-derived today (`track_metadata_from_file_tags` falls back to the file name for a missing title), so passing the library row would stamp filename guesses into files that carry no tags. The track editor that owns those values extends that one function; the writer already handles them.
+¹ lofty 0.22 keeps ID3's binary `POPM` frame in a format-specific remainder that
+the generic `Tag` does not expose, so the writer reports `Unsupported` on ID3.
+
+**What the library mirrors today** is BPM, key, rating, comment, year, track/disc number and colour label — `library::tags::app_managed_tags` is the single place that decides this. Title/artist/album/genre are file-derived today (`track_metadata_from_file_tags` falls back to the file name for a missing title), so passing the library row would stamp filename guesses into files that carry no tags. The track editor that owns those values extends that one function; the writer already handles them.
 
 **Never written:** hot cues / loops / beat grids, and derived fields (duration, sample rate, channels, bitrate) that describe the audio rather than user intent.
 
@@ -490,6 +499,7 @@ There is no *standardized* tag representation for cues/loops/grids, and Mixar ke
 - ID3v2 `TBPM` is an integer frame, so a fractional BPM is rounded (Mixxx and Mixed In Key do the same). `library.db` keeps the exact value, so a later rescan that prefers the tag can disagree with the stored grid by < 0.5 BPM.
 - MP4 gets the freeform `BPM` atom, not the integer `tmpo` atom: the freeform field is what Mixed In Key / Serato / Traktor write and Mixxx reads first, and lofty can only emit text atoms. Readers that look only at `tmpo` will not see Mixar's BPM.
 - APE has no BPM/key mapping in the TagLib/lofty table, so those two fields are reported `Unsupported` there (the text fields work).
+- ID3v2 ratings are not written: lofty 0.22 keeps the binary `POPM` frame in the format-specific remainder, so the generic `Tag` cannot read it back and a write could never be idempotent. The rating still lives in `library.db` and in CDJ exports. ID3/MP4 years go to their date field (`TDRC`/`©day`), which is the only one those containers have.
 - Two file shapes are reported `Refused` and left byte-identical: native `.stem.mp4` containers (multi-track MP4s whose `stem` manifest Mixar does not own) and FLAC whose only metadata block is STREAMINFO (e.g. after `metaflac --remove-all --dont-use-padding`), where lofty 0.22 would orphan the new comment block behind a last-block STREAMINFO.
 - Writes are idempotent: fields already carrying the wanted value are not touched, and a file with nothing to change is never rewritten. A blank string or a non-finite/non-positive BPM is reported `Absent` and written nowhere.
 - Only the recommended keys above are written. Legacy aliases are left as they are, so a reader that prefers an alias over `INITIALKEY`/`BPM` keeps showing the old value; Mixxx updates `KEY` when present. Alias inventory: Vorbis key `INITIALKEY` (Rekordbox, Serato, Traktor, Mixxx) vs `KEY` (VirtualDJ, Denon Engine DJ); Vorbis BPM `BPM` (MusicBrainz) vs `TEMPO` (Mixxx ≤ 2.0); MP4 key `----:com.apple.iTunes:initialkey` vs `----:com.apple.iTunes:KEY` (Rapid Evolution); MP4 BPM `----:com.apple.iTunes:BPM` vs the integer `tmpo` atom.

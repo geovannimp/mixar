@@ -109,6 +109,7 @@ fn update_track_metadata_normalizes_key_and_blank_fields() {
             bpm: None,
             key: Some("8A".into()),
             isrc: Some("  USRC1  ".into()),
+            ..TrackMetadataEdit::default()
         },
     )
     .unwrap();
@@ -140,6 +141,7 @@ fn update_track_metadata_rejects_invalid_bpm() {
                     bpm: Some(invalid),
                     key: None,
                     isrc: None,
+                    ..TrackMetadataEdit::default()
                 },
             )
             .expect_err("invalid BPM must be an error, not a silent clear");
@@ -1291,6 +1293,35 @@ fn analyze_track_leaves_files_untouched_when_write_back_is_off() {
 }
 
 #[test]
+fn app_managed_tags_round_trip_through_write_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("detail.wav");
+    write_analysis_wav(&wav);
+
+    let lib = LibraryManager::open_in_memory(LibraryConfig {
+        tag_write_back: TagWriteBack::On,
+    })
+    .unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    seed_all_detail_fields(&lib, &id, 4, "Peak time", 2024, 3);
+
+    let metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    let tags = crate::tags::app_managed_tags(&metadata);
+    assert!(crate::tags::write_back_track_tags(&wav, &tags).is_some());
+
+    let read = crate::tags::read_tags(&wav).unwrap();
+    assert_eq!(read.comment.as_deref(), Some("Peak time"));
+    assert_eq!(read.year, Some(2024));
+    assert_eq!(read.track_number, Some(3));
+    assert_eq!(read.disc_number, Some(2));
+    assert_eq!(read.color_label, Some(library_core::ColorLabel::Aqua));
+    // ID3v2 keeps ratings in a binary POPM frame that lofty 0.22 does not
+    // expose; the library row still holds it (and CDJ export reads the row).
+    assert_eq!(read.rating, None);
+    assert_eq!(metadata.rating, Some(4));
+}
+
+#[test]
 fn save_beat_grid_cmd_writes_bpm_back_when_enabled() {
     use library_api::{encode_cmd_body, CmdBody};
     use std::time::{Duration, Instant};
@@ -1382,4 +1413,161 @@ fn persist_file_analysis_defers_tag_write_back_to_its_caller() {
     off.import_file_path(&wav).unwrap();
     let (_, plan) = off.persist_file_analysis(&wav, &computed, false).unwrap();
     assert!(plan.is_none());
+}
+
+fn seed_all_detail_fields(
+    lib: &LibraryManager,
+    id: &library_core::TrackId,
+    rating: u8,
+    comment: &str,
+    year: u16,
+    track_number: u16,
+) {
+    lib.update_track_metadata(
+        id,
+        TrackMetadataEdit {
+            rating: Some(rating),
+            comment: Some(comment.into()),
+            year: Some(year),
+            track_number: Some(track_number),
+            disc_number: Some(2),
+            color_label: Some(library_core::ColorLabel::Aqua),
+            ..TrackMetadataEdit::default()
+        },
+    )
+    .unwrap();
+}
+
+#[cfg(feature = "analysis")]
+struct ReanalysisFixture {
+    _dir: tempfile::TempDir,
+    wav: std::path::PathBuf,
+    lib: LibraryManager,
+    id: library_core::TrackId,
+}
+
+#[cfg(feature = "analysis")]
+fn reanalysis_fixture() -> ReanalysisFixture {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = short_beats_fixture_copy(dir.path());
+    let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    ReanalysisFixture {
+        _dir: dir,
+        wav,
+        lib,
+        id,
+    }
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn clearing_user_metadata_survives_reanalysis() {
+    use crate::analysis::compute_file_analysis;
+
+    let fixture = reanalysis_fixture();
+    let wav = &fixture.wav;
+    let lib = &fixture.lib;
+    let id = &fixture.id;
+
+    // Stale tags on disk would resurrect every field without the editor marker.
+    let tags = codec::TrackTags {
+        comment: Some("Keep me".into()),
+        year: Some(1999),
+        track_number: Some(7),
+        disc_number: Some(2),
+        color: Some("Aqua".into()),
+        ..codec::TrackTags::default()
+    };
+    assert!(crate::tags::write_back_track_tags(wav, &tags).is_some());
+
+    lib.update_track_metadata(id, TrackMetadataEdit::default())
+        .unwrap();
+
+    let computed = compute_file_analysis(wav, AnalyzeTrackOptions::force()).unwrap();
+    assert_eq!(
+        computed.metadata.comment.as_deref(),
+        Some("Keep me"),
+        "file still carries the stale tag"
+    );
+    let (source, _) = lib.persist_file_analysis(wav, &computed, false).unwrap();
+    let stored = source.metadata();
+    assert_eq!(stored.comment, None);
+    assert_eq!(stored.year, None);
+    assert_eq!(stored.track_number, None);
+    assert_eq!(stored.disc_number, None);
+    assert_eq!(stored.color_label, None);
+}
+
+#[test]
+fn folder_resync_preserves_edited_metadata() {
+    let dir = tempfile::tempdir().unwrap();
+    short_beats_fixture_copy(dir.path());
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let folder = lib
+        .add_collection(&NewCollection::folder(dir.path()))
+        .unwrap();
+    lib.sync_collection(Some(&folder.id)).unwrap();
+    let id = lib.list_collection_tracks(&folder.id).unwrap()[0]
+        .id()
+        .clone();
+
+    seed_all_detail_fields(&lib, &id, 5, "Keep me", 1999, 7);
+    lib.sync_collection(Some(&folder.id)).unwrap();
+
+    let stored = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    assert_eq!(stored.rating, Some(5));
+    assert_eq!(stored.comment.as_deref(), Some("Keep me"));
+    assert_eq!(stored.year, Some(1999));
+    assert_eq!(stored.track_number, Some(7));
+    assert_eq!(stored.disc_number, Some(2));
+    assert_eq!(stored.color_label, Some(library_core::ColorLabel::Aqua));
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn reanalysis_preserves_user_metadata_missing_from_file_tags() {
+    let fixture = reanalysis_fixture();
+    let wav = &fixture.wav;
+    let lib = &fixture.lib;
+    let id = &fixture.id;
+    seed_all_detail_fields(lib, id, 5, "Keep me", 1999, 7);
+
+    let computed = compute_file_analysis(wav, AnalyzeTrackOptions::force()).unwrap();
+    assert_eq!(
+        computed.metadata.rating, None,
+        "fixture carries no rating tag"
+    );
+    let (source, _) = lib.persist_file_analysis(wav, &computed, false).unwrap();
+
+    let stored = source.metadata();
+    assert_eq!(stored.rating, Some(5));
+    assert_eq!(stored.comment.as_deref(), Some("Keep me"));
+    assert_eq!(stored.year, Some(1999));
+    assert_eq!(stored.track_number, Some(7));
+    assert_eq!(stored.disc_number, Some(2));
+    assert_eq!(stored.color_label, Some(library_core::ColorLabel::Aqua));
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn refresh_preserves_edited_metadata() {
+    let fixture = reanalysis_fixture();
+    seed_all_detail_fields(&fixture.lib, &fixture.id, 5, "Keep me", 1999, 7);
+
+    fixture.lib.refresh_file_source(&fixture.wav).unwrap();
+
+    let stored = fixture
+        .lib
+        .get_track(&fixture.id)
+        .unwrap()
+        .unwrap()
+        .metadata()
+        .clone();
+    assert_eq!(stored.rating, Some(5));
+    assert_eq!(stored.comment.as_deref(), Some("Keep me"));
+    assert_eq!(stored.year, Some(1999));
+    assert_eq!(stored.track_number, Some(7));
+    assert_eq!(stored.disc_number, Some(2));
+    assert_eq!(stored.color_label, Some(library_core::ColorLabel::Aqua));
 }

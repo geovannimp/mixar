@@ -17,18 +17,18 @@
 //!
 //! # Fidelity
 //!
-//! Written: title, artist, album, genre, BPM, key, duration, bitrate, sample
-//! rate, bit depth, file type, date added, playlists (device playlist tree),
-//! beat grid, waveforms (preview + detail), hot cues, memory cues, saved loops,
-//! and one cover thumbnail per distinct artwork (`PIONEER/Artwork/<id>/a1.jpg`,
-//! scaled to the 80 px the device database expects).
+//! Written: title, artist, album, genre, BPM, key, rating, comment, year,
+//! track/disc number, colour label, duration, bitrate, sample rate, bit depth,
+//! file type, date added, playlists (device playlist tree), beat grid,
+//! waveforms (preview + detail), hot cues, memory cues, saved loops, and one
+//! cover thumbnail per distinct artwork (`PIONEER/Artwork/<id>/a1.jpg`, scaled
+//! to the 80 px the device database expects).
 //!
 //! Dropped, because Mixar's library model has no equivalent or the format would
 //! need data the export source does not expose:
 //!
 //! - the higher-resolution `_m` artwork variant newer Rekordbox releases add
 //!   next to the primary thumbnail;
-//! - track rating, release year, track/disc numbers, comments, color labels;
 //! - the OneLibrary format (`exportLibrary.db`) and the `.2EX` 3-band waveform
 //!   files that newer players (CDJ-3000X, XDJ-AZ, OPUS-QUAD, OMNIS-DUO) prefer;
 //!   those units read the legacy format, they just show lower-resolution
@@ -285,6 +285,16 @@ fn export_track(
             .genre
             .clone()
             .filter(|genre| !genre.trim().is_empty()),
+        // 0 and out-of-range values are the device's "unrated", never stars.
+        rating: metadata.rating.filter(|rating| (1..=5).contains(rating)),
+        comment: metadata
+            .comment
+            .clone()
+            .filter(|comment| !comment.trim().is_empty()),
+        year: metadata.year.filter(|year| *year > 0),
+        track_number: metadata.track_number.filter(|number| *number > 0),
+        disc_number: metadata.disc_number.filter(|number| *number > 0),
+        color: metadata.color_label,
         bpm,
         key_id: metadata.key.as_deref().and_then(keys::id_for_musical),
         duration_secs: duration_secs(metadata.duration_ms, data.as_ref()),

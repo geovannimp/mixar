@@ -56,7 +56,7 @@ library only for short moments, not for the whole run.
 | --- | --- |
 | `Contents/…` | The audio. Tracks are named after artist and album (sanitized for FAT32). |
 | `Artwork/…` | The cover each track shows in the browse list. Covers come from the artwork embedded in your files, scaled down; an album's cover is stored once however many of its tracks you export. |
-| `export.pdb` | The track list, its metadata, and every playlist you exported. |
+| `export.pdb` | The track list, its metadata (including rating, year, comment, track/disc number and colour label), and every playlist you exported. |
 | `mixar-export.json` | Mixar's own note of what it has written, so later exports add to the drive instead of replacing it. Players ignore the file. |
 | `USBANLZ/…` | Beat grids, the rolling waveform, hot cues, memory cues and saved loops. |
 
@@ -92,8 +92,9 @@ library on the drive instead of each run replacing the last.
 
 These have no destination in the device format, so exports leave them behind:
 
-- The rating/year/comment/colour-label fields rekordbox keeps per track (Mixar's library has
-  no place to set them yet).
+- A colour label outside the eight the players know: Mixar's editor only offers
+  those eight (pink, red, orange, yellow, green, aqua, blue, purple), so an
+  arbitrary colour has no device row to point at.
 - **Play history**, My Tags, stems, and sampler banks.
 - The newer **OneLibrary** format and `.2EX` 3-band waveforms. Newer players (CDJ-3000X,
   XDJ-AZ, OPUS-QUAD) read the format Mixar writes; they just draw lower-resolution waveforms

@@ -213,7 +213,9 @@ fn handle_refresh_track(
                 revision,
                 Origin::Track(track_id.clone()),
                 Kind::TrackUpdated,
-                EvtBody::TrackUpdated { track },
+                EvtBody::TrackUpdated {
+                    track: Box::new(track),
+                },
             );
             match cues {
                 Ok(rows) => {
@@ -326,7 +328,9 @@ fn handle_analyze(
                     &revision,
                     Origin::Track(track.id.clone()),
                     Kind::TrackAnalyzed,
-                    EvtBody::TrackAnalyzed { track },
+                    EvtBody::TrackAnalyzed {
+                        track: Box::new(track),
+                    },
                 );
             }
             None => publish_error(
@@ -732,7 +736,9 @@ fn publish_beat_grid_result(
                         revision,
                         Origin::Track(track_id),
                         Kind::TrackUpdated,
-                        EvtBody::TrackUpdated { track },
+                        EvtBody::TrackUpdated {
+                            track: Box::new(track),
+                        },
                     );
                 }
             }
@@ -880,5 +886,58 @@ fn track_summary(source: &AudioSource) -> Option<TrackSummary> {
         duration_ms: metadata.duration_ms,
         path: file.path().to_string_lossy().into_owned(),
         isrc: metadata.isrc.clone(),
+        rating: metadata.rating,
+        comment: metadata.comment.clone(),
+        year: metadata.year,
+        track_number: metadata.track_number,
+        disc_number: metadata.disc_number,
+        color_label: metadata.color_label.map(|c| c.as_str().to_string()),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use library_core::FileAudioSource;
+    use std::path::PathBuf;
+
+    #[test]
+    fn track_summary_carries_new_metadata_fields() {
+        let metadata = library_core::TrackMetadata {
+            title: Some("Track".into()),
+            rating: Some(4),
+            comment: Some("Peak time".into()),
+            year: Some(2024),
+            track_number: Some(3),
+            disc_number: Some(2),
+            color_label: Some(library_core::ColorLabel::Aqua),
+            ..library_core::TrackMetadata::default()
+        };
+        let source = AudioSource::File(FileAudioSource::new(
+            TrackId::new("t1"),
+            PathBuf::from("/music/track.flac"),
+            metadata,
+        ));
+
+        let summary = track_summary(&source).expect("file track");
+        assert_eq!(summary.rating, Some(4));
+        assert_eq!(summary.comment.as_deref(), Some("Peak time"));
+        assert_eq!(summary.year, Some(2024));
+        assert_eq!(summary.track_number, Some(3));
+        assert_eq!(summary.disc_number, Some(2));
+        assert_eq!(summary.color_label.as_deref(), Some("aqua"));
+
+        let empty = AudioSource::File(FileAudioSource::new(
+            TrackId::new("t2"),
+            PathBuf::from("/music/empty.flac"),
+            library_core::TrackMetadata::default(),
+        ));
+        let empty = track_summary(&empty).expect("file track");
+        assert_eq!(empty.rating, None);
+        assert_eq!(empty.comment, None);
+        assert_eq!(empty.year, None);
+        assert_eq!(empty.track_number, None);
+        assert_eq!(empty.disc_number, None);
+        assert_eq!(empty.color_label, None);
+    }
 }

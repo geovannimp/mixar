@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +29,12 @@ class _RunningEngineUi extends EngineUi {
   @override
   EngineUiSnapshot build() =>
       const EngineUiSnapshot(running: true, trackPaths: {});
+}
+
+FakeLibraryTransport _trackEditTransport(LibraryTrackSummary track) {
+  final transport = FakeLibraryTransport(getTrackHandler: (id) async => track);
+  addTearDown(transport.dispose);
+  return transport;
 }
 
 MixarMenuSegment _loadSegment(WidgetTester tester, String letter) {
@@ -59,6 +67,7 @@ void main() {
     double width = 200,
     SelectStyleSetting selectStyle = SelectStyleSetting.auto,
     FakeLibraryTransport? transport,
+    Future<FakeLibraryTransport>? transportFuture,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -71,7 +80,9 @@ void main() {
             (ref) async =>
                 copyAppSettings(defaultAppSettings(), selectStyle: selectStyle),
           ),
-          if (transport != null)
+          if (transportFuture != null)
+            libraryTransportProvider.overrideWith((ref) => transportFuture)
+          else if (transport != null)
             libraryTransportProvider.overrideWith((ref) async => transport),
           if (running) engineUiProvider.overrideWith(_RunningEngineUi.new),
         ],
@@ -258,10 +269,7 @@ void main() {
   });
 
   testWidgets('Edit… opens the track edit drawer', (tester) async {
-    final transport = FakeLibraryTransport(
-      getTrackHandler: (id) async => track,
-    );
-    addTearDown(transport.dispose);
+    final transport = _trackEditTransport(track);
 
     await pumpMenu(tester, transport: transport);
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
@@ -273,6 +281,28 @@ void main() {
     expect(find.text('Title'), findsOneWidget);
     expect(find.text('ISRC'), findsOneWidget);
     // ...and it is the row's track that was fetched, not some other id.
+    expect(transport.getTrackCalls, ['t1']);
+  });
+
+  testWidgets('Edit… survives the menu closing before the transport resolves', (
+    tester,
+  ) async {
+    final transport = _trackEditTransport(track);
+    final gate = Completer<FakeLibraryTransport>();
+
+    await pumpMenu(tester, transportFuture: gate.future);
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit…'));
+    await tester.pumpAndSettle();
+
+    // The menu (and its ref/context) is gone, and the drawer is not up yet.
+    expect(find.text('Title'), findsNothing);
+
+    gate.complete(transport);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Title'), findsOneWidget, reason: 'drawer opens');
     expect(transport.getTrackCalls, ['t1']);
   });
 

@@ -3,6 +3,7 @@ import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/widgets/library/library_drag_card.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
@@ -24,6 +25,12 @@ Color libraryListSelectedRowColor(MixarThemeData theme) =>
 /// A solid [MixarColors.muted] recess rather than an alpha blend, so it does not
 /// shift with the surface underneath.
 Color libraryListCursorRowColor(MixarThemeData theme) => theme.colors.muted;
+
+/// Whether a row paints a rating pill (ratings are 1-5; 0 means unrated).
+bool trackShowsRating(int? rating) => rating != null && rating > 0;
+
+/// Whether a row paints a colour-label circle.
+bool trackShowsColorLabel(LibraryColorLabel? colorLabel) => colorLabel != null;
 
 /// Horizontal gap between a list row's layout groups.
 const kRowGutter = 8.0;
@@ -162,6 +169,12 @@ const kTrailingMetaKey = ValueKey<String>('libraryTrailingMeta');
 const kDurationSlotWidth = 84.0;
 const kBpmSlotWidth = 144.0;
 const kKeySlotWidth = 72.0;
+
+/// A single rating digit plus the star glyph and pill chrome.
+const kRatingSlotWidth = 40.0;
+
+/// The filled colour circle: intrinsic, no label or padding.
+const kColorSlotWidth = 16.0;
 
 // Flex weights matching the widths above. Equal flexes would split the meta
 // evenly, starving the wider BPM pill and ellipsizing it even in a wide pane;

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/color_labels.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
@@ -213,6 +214,30 @@ final trackFilterProvider = NotifierProvider<TrackFilter, String>(
 String trackTitleLabel(LibraryTrackSummary t) =>
     (t.title?.isNotEmpty ?? false) ? t.title! : t.displayName;
 
+/// Normalizes the filter box text once per list rebuild.
+String normalizeTrackFilter(String filter) => filter.trim().toLowerCase();
+
+/// Whether [track] matches an already-normalized [needle].
+///
+/// Searches the text fields a user would type plus the numeric/colour fields
+/// the list can now show; an empty needle matches everything. Shared by the
+/// collection and drive tables so both tabs filter identically.
+bool trackMatchesNeedle(LibraryTrackSummary track, String needle) {
+  if (needle.isEmpty) {
+    return true;
+  }
+  bool has(String? value) => (value ?? '').toLowerCase().contains(needle);
+  return has(trackTitleLabel(track)) ||
+      has(track.artist) ||
+      has(track.album) ||
+      has(track.genre) ||
+      has(track.comment) ||
+      has(track.colorLabel?.name) ||
+      has(track.year?.toString()) ||
+      has(track.trackNumber?.toString()) ||
+      has(track.discNumber?.toString());
+}
+
 /// File tracks use the path as [LibraryTrackSummary.id], so `id != path` is not a library check.
 bool trackIsInLibrary(
   LibraryTrackSummary t, {
@@ -229,19 +254,14 @@ bool trackIsInLibrary(
 final filteredTracksProvider = Provider<AsyncValue<List<LibraryTrackSummary>>>((
   ref,
 ) {
-  final filter = ref.watch(trackFilterProvider).trim().toLowerCase();
+  final needle = normalizeTrackFilter(ref.watch(trackFilterProvider));
   final tracks = ref.watch(collectionTracksProvider);
-  return tracks.whenData((list) {
-    if (filter.isEmpty) {
-      return list;
-    }
-    return [
+  return tracks.whenData(
+    (list) => [
       for (final t in list)
-        if (trackTitleLabel(t).toLowerCase().contains(filter) ||
-            (t.artist ?? '').toLowerCase().contains(filter))
-          t,
-    ];
-  });
+        if (trackMatchesNeedle(t, needle)) t,
+    ],
+  );
 });
 
 // --- Library events (Task 3) ---
@@ -1101,7 +1121,7 @@ final driveTableTracksProvider =
       final byPath =
           ref.watch(driveResolvedByPathProvider).asData?.value ??
           const <String, LibraryTrackSummary>{};
-      final filter = ref.watch(trackFilterProvider).trim().toLowerCase();
+      final filter = ref.watch(trackFilterProvider);
       return listing.when(
         loading: () => const AsyncLoading(),
         error: AsyncError.new,
@@ -1112,14 +1132,10 @@ final driveTableTracksProvider =
           final tracks = [
             for (final f in dir.audioFiles) _driveFileSummary(f, byPath),
           ];
-          if (filter.isEmpty) {
-            return AsyncData(tracks);
-          }
+          final needle = normalizeTrackFilter(filter);
           return AsyncData([
             for (final t in tracks)
-              if (trackTitleLabel(t).toLowerCase().contains(filter) ||
-                  (t.artist ?? '').toLowerCase().contains(filter))
-                t,
+              if (trackMatchesNeedle(t, needle)) t,
           ]);
         },
       );
@@ -1131,7 +1147,12 @@ enum LibrarySortField {
   artist('Artist'),
   bpm('BPM'),
   key('Key'),
-  length('Length');
+  length('Length'),
+  rating('Rating'),
+  year('Year'),
+  trackNumber('Track #'),
+  discNumber('Disc #'),
+  color('Colour');
 
   new(this.label);
 
@@ -1207,6 +1228,17 @@ const _kSortMissingValue = 1;
   LibrarySortField.key => _keySortKey(track.key),
   LibrarySortField.bpm => _numericSortKey(track.bpm),
   LibrarySortField.length => _numericSortKey(track.durationMs?.toDouble()),
+  LibrarySortField.rating => _numericSortKey(track.rating?.toDouble()),
+  LibrarySortField.year => _numericSortKey(track.year?.toDouble()),
+  LibrarySortField.trackNumber => _numericSortKey(
+    track.trackNumber?.toDouble(),
+  ),
+  LibrarySortField.discNumber => _numericSortKey(track.discNumber?.toDouble()),
+  LibrarySortField.color => _numericSortKey(
+    track.colorLabel == null
+        ? null
+        : colorLabelNames.indexOf(track.colorLabel!).toDouble(),
+  ),
 };
 
 (int, String) _textSortKey(String? value) {

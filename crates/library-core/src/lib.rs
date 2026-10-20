@@ -35,8 +35,8 @@ pub use source::{AudioSource, FileAudioSource, StreamAudioSource, StreamProvider
 pub use traits::{Library, Migratable, WritableLibrary};
 pub use types::{
     AnalyzeTrackOptions, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
-    CollectionEntryId, CollectionId, CollectionType, ImportedTrack, LibraryConfig, MigrateOptions,
-    MigrateReport, NewCollection, ScanReport, TagWriteBack, TrackId, TrackMetadata,
+    CollectionEntryId, CollectionId, CollectionType, ColorLabel, ImportedTrack, LibraryConfig,
+    MigrateOptions, MigrateReport, NewCollection, ScanReport, TagWriteBack, TrackId, TrackMetadata,
     UpdateCollection,
 };
 

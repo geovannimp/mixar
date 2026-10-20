@@ -109,6 +109,115 @@ impl std::fmt::Display for CollectionEntryId {
     }
 }
 
+/// The eight colour labels Rekordbox, Serato and Mixxx share.
+///
+/// A closed set rather than free-form `#RRGGBB`: device databases store a
+/// colour *id* into their own fixed table, so an arbitrary hue could not be
+/// written without silently snapping it anyway. The names are the ones the
+/// CDJ database's `colors` table uses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ColorLabel {
+    /// Pink.
+    Pink,
+    /// Red.
+    Red,
+    /// Orange.
+    Orange,
+    /// Yellow.
+    Yellow,
+    /// Green.
+    Green,
+    /// Aqua.
+    Aqua,
+    /// Blue.
+    Blue,
+    /// Purple.
+    Purple,
+}
+
+impl ColorLabel {
+    /// Every label, in device-table order.
+    pub const ALL: [Self; 8] = [
+        Self::Pink,
+        Self::Red,
+        Self::Orange,
+        Self::Yellow,
+        Self::Green,
+        Self::Aqua,
+        Self::Blue,
+        Self::Purple,
+    ];
+
+    /// Canonical lowercase name (`"pink"`), used in storage and APIs.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pink => "pink",
+            Self::Red => "red",
+            Self::Orange => "orange",
+            Self::Yellow => "yellow",
+            Self::Green => "green",
+            Self::Aqua => "aqua",
+            Self::Blue => "blue",
+            Self::Purple => "purple",
+        }
+    }
+
+    /// Capitalized display name (`"Pink"`), used for tags and the UI.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Pink => "Pink",
+            Self::Red => "Red",
+            Self::Orange => "Orange",
+            Self::Yellow => "Yellow",
+            Self::Green => "Green",
+            Self::Aqua => "Aqua",
+            Self::Blue => "Blue",
+            Self::Purple => "Purple",
+        }
+    }
+
+    /// One-based id in the CDJ/XDJ `colors` table (pink = 1 … purple = 8).
+    pub fn device_id(self) -> u8 {
+        match self {
+            Self::Pink => 1,
+            Self::Red => 2,
+            Self::Orange => 3,
+            Self::Yellow => 4,
+            Self::Green => 5,
+            Self::Aqua => 6,
+            Self::Blue => 7,
+            Self::Purple => 8,
+        }
+    }
+}
+
+impl std::str::FromStr for ColorLabel {
+    /// Unknown labels are not an error value callers act on; `Err` is the unit
+    /// type so `.parse().ok()` reads as "not one of ours".
+    type Err = ();
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "pink" => Ok(Self::Pink),
+            "red" => Ok(Self::Red),
+            "orange" => Ok(Self::Orange),
+            "yellow" => Ok(Self::Yellow),
+            "green" => Ok(Self::Green),
+            "aqua" => Ok(Self::Aqua),
+            "blue" => Ok(Self::Blue),
+            "purple" => Ok(Self::Purple),
+            _ => Err(()),
+        }
+    }
+}
+
+impl std::fmt::Display for ColorLabel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.label())
+    }
+}
+
 /// File-tag and basic audio metadata for a track.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TrackMetadata {
@@ -136,6 +245,18 @@ pub struct TrackMetadata {
     pub replaygain_track_gain_db: Option<f64>,
     /// International Standard Recording Code, when present in file tags.
     pub isrc: Option<String>,
+    /// Star rating 1–5; `None` means unrated.
+    pub rating: Option<u8>,
+    /// Free-form comment.
+    pub comment: Option<String>,
+    /// Release year.
+    pub year: Option<u16>,
+    /// Track number within its disc.
+    pub track_number: Option<u16>,
+    /// Disc number within its release.
+    pub disc_number: Option<u16>,
+    /// Colour label, when one of the eight device colors is assigned.
+    pub color_label: Option<ColorLabel>,
     /// Measured / effective loudness (LUFS) for normalization when known (e.g. analysis).
     pub loudness_lufs: Option<f64>,
 }
@@ -490,6 +611,17 @@ pub struct ImportedTrack {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn color_label_round_trips_and_maps_device_ids() {
+        for (index, label) in ColorLabel::ALL.iter().enumerate() {
+            assert_eq!(label.device_id() as usize, index + 1);
+            assert_eq!(label.to_string().parse(), Ok(*label));
+            assert_eq!(label.label().to_ascii_lowercase().parse(), Ok(*label));
+        }
+        assert_eq!("  PINK ".parse(), Ok(ColorLabel::Pink));
+        assert_eq!("mauve".parse::<ColorLabel>(), Err(()));
+    }
 
     #[test]
     fn needs_analysis_truth_table() {

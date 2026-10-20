@@ -1,12 +1,21 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/color_labels.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/key_pill.dart';
 import 'package:gui_flutter/widgets/library/meta_pill.dart';
 import 'package:gui_flutter/widgets/library/meta_pill_glyph.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// BPM + key (and optional duration) for the right side of a list row.
+/// Stable keys for the colour circle and the rating pill, so tests can scope
+/// to them without guessing at generic [Container]/[MetaPill] widgets.
+const kTrackColorPillKey = ValueKey<String>('trackColourPill');
+const kTrackRatingPillKey = ValueKey<String>('trackRatingPill');
+
+/// Rating, colour, BPM + key (and optional duration) for a list row's right
+/// side.
 ///
 /// Content-sized: parents pass a `maxWidth` budget via [trailingMetaWidth], but
 /// this widget only takes the width of its pills so the cluster sits flush
@@ -19,6 +28,8 @@ class TrailingMeta extends StatelessWidget {
     required this.keyDisplayMode,
     required this.keyColorMode,
     this.durationMs,
+    this.rating,
+    this.colorLabel,
     super.key,
   });
 
@@ -32,6 +43,12 @@ class TrailingMeta extends StatelessWidget {
   /// comfortable rows already carry the duration on the left and pass null to
   /// avoid showing it twice.
   final int? durationMs;
+
+  /// Star rating 1–5; omitted from the group when unset.
+  final int? rating;
+
+  /// Canonical colour-label name; rendered as a filled circle when set.
+  final LibraryColorLabel? colorLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +66,38 @@ class TrailingMeta extends StatelessWidget {
             text: duration,
             fillWidth: false,
             leading: const MetaPillGlyph(LucideIcons.clock),
+          ),
+        ),
+      if (trackShowsColorLabel(colorLabel))
+        if (colorLabelColor(colorLabel) case final color?)
+          Flexible(
+            fit: FlexFit.loose,
+            child: Semantics(
+              label: 'Colour ${colorLabelDisplayName(colorLabel)}',
+              child: Container(
+                key: kTrackColorPillKey,
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color,
+                  border: Border.all(
+                    color: context.theme.colors.border,
+                    width: context.theme.style.borderWidth,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      if (trackShowsRating(rating))
+        Flexible(
+          fit: FlexFit.loose,
+          child: MetaPill(
+            key: kTrackRatingPillKey,
+            text: '$rating',
+            fillWidth: false,
+            keepLeadingGlyph: true,
+            leading: const MetaPillGlyph(LucideIcons.star),
           ),
         ),
       if (bpm != null)

@@ -112,6 +112,10 @@ Path comes from `track_locations.location`. Mapping:
 | `duration_ms` | `round(library.duration * 1000)`; non-finite → `None`, clamped to `i32::MAX` |
 | `sample_rate`, `channels`, `bitrate_kbps` | direct (clamped to target width) |
 | `replaygain_track_gain_db` | `20 * log10(library.replaygain)`; `1.0` (unset) or non-finite → `None` |
+| `comment` | `library.comment` |
+| `rating` | `library.rating`; values outside 1–5 → `None` |
+| `year` | leading number of `library.year` |
+| `track_number`, `disc_number` | leading number of `library.tracknumber` / `library.discnumber` |
 
 Key normalization is best-effort: `library_core::camelot_to_musical` first
 (`8A` → `Am`), otherwise the trimmed text is kept; Open Key notation passes
@@ -239,19 +243,19 @@ analyzes them on first load.
 
 ### Fidelity
 
-Written: title, artist, album, genre, BPM, key, duration, bitrate, sample rate,
-bit depth, file type, date added, playlists, beat grid, preview and detail
-waveforms, hot cues, memory cues and saved loops (with labels and colors), and
-one cover thumbnail per distinct artwork (`PIONEER/Artwork/<id>/a1.jpg`, scaled
-to the 80 px Rekordbox writes; tracks reference it by artwork id, so an album's
-cover is stored once).
+Written: title, artist, album, genre, BPM, key, rating, comment, year,
+track/disc number, colour label, duration, bitrate, sample rate, bit depth,
+file type, date added, playlists, beat grid, preview and detail waveforms, hot
+cues, memory cues and saved loops (with labels and colors), and one cover
+thumbnail per distinct artwork (`PIONEER/Artwork/<id>/a1.jpg`, scaled to the
+80 px Rekordbox writes; tracks reference it by artwork id, so an album's cover
+is stored once). A colour label resolves through the database's fixed eight-row
+`colors` table (pink … purple).
 
 Dropped or approximated:
 
 - the higher-resolution `_m` cover variant newer Rekordbox releases write beside the primary
   thumbnail (the device database's single path is the 80 px one);
-- rating, release year, track/disc number, comments, color labels — Mixar's
-  `TrackMetadata` has no fields for them;
 - the OneLibrary format (`exportLibrary.db`) and the `.2EX` 3-band waveform
   files newer players prefer; those units still read the legacy format, they
   just draw lower-resolution waveforms;
@@ -343,9 +347,9 @@ CI gates: `cargo fmt`, `clippy -D warnings`, `flutter analyze`, `flutter test`.
 
 ## Mixxx adapter — known lossiness (deferred)
 
-- Not imported: Mixxx `comment`, `rating`, `color`, `year`, `tracknumber`,
-  `composer`, `grouping`; cue points, saved loops, beat grids, and
-  `beats`/`keys` blobs.
+- Not imported: Mixxx `color` (an RGB integer; the eight-label palette has no
+  lossless mapping), `composer`, `grouping`; cue points, saved loops, beat
+  grids, and `beats`/`keys` blobs.
 - Hidden playlists (AutoDJ queue, history) are skipped.
 - Key normalization is best-effort; Open Key notation passes through as text.
 - Missing files import as unavailable tracks (path recorded).

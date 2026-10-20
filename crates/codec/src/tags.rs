@@ -17,7 +17,7 @@ use image::imageops::FilterType;
 use image::{DynamicImage, ExtendedColorType, ImageEncoder, ImageReader, Limits, Rgb, RgbImage};
 use lofty::file::{AudioFile, TaggedFile, TaggedFileExt};
 use lofty::probe::Probe;
-use lofty::tag::{Accessor, ItemKey};
+use lofty::tag::{Accessor, ItemKey, Tag};
 
 use crate::paths::is_stem_path;
 use crate::stem_mp4::stem_container_info;
@@ -43,6 +43,15 @@ pub struct FileTags {
     pub bit_depth: Option<u8>,
     pub replaygain_track_gain_db: Option<f64>,
     pub isrc: Option<String>,
+    /// Star rating 1–5, from `POPM` (ID3) or `RATING`/`rate` (text tags).
+    pub rating: Option<u8>,
+    pub comment: Option<String>,
+    /// Release year, from `YEAR` or the leading four digits of a date field.
+    pub year: Option<u16>,
+    pub track_number: Option<u16>,
+    pub disc_number: Option<u16>,
+    /// Raw `COLOR` tag text; the library parses it into its closed label set.
+    pub color: Option<String>,
 }
 
 /// Read tags and properties from an audio file.
@@ -308,10 +317,119 @@ fn file_tags_from_tagged(tagged: &TaggedFile) -> FileTags {
 
         tags.key = tag.get_string(&ItemKey::InitialKey).map(|s| s.to_string());
         tags.isrc = tag.get_string(&ItemKey::Isrc).map(|s| s.to_string());
+        tags.rating = rating_from_tag(tag);
+        tags.comment = tag.get_string(&ItemKey::Comment).map(|s| s.to_string());
+        tags.year = year_from_tag(tag);
+        tags.track_number = number_from_tag(tag, &ItemKey::TrackNumber);
+        tags.disc_number = number_from_tag(tag, &ItemKey::DiscNumber);
+        tags.color = tag.get_string(&ItemKey::Color).map(|s| s.to_string());
     }
 
     tags.replaygain_track_gain_db = replaygain_track_gain_db(tagged);
     tags
+}
+
+/// Star rating from the format's rating field.
+///
+/// There is no single rating scale. ID3v2 keeps `POPM` as raw bytes under
+/// [`ItemKey::Popularimeter`] (email + 0–255 value); Vorbis and MP4 map the
+/// same key to text. All observed conventions are accepted:
+///
+/// - `0.0`–`1.0` with a decimal point: Quod Libet / Picard Vorbis
+///   (`0.8` = four stars);
+/// - `1`–`5`: a bare star count (Traktor-style tools and older Mixar files);
+/// - `6`–`100`: percentage-ish scales (`80` = four stars);
+/// - `101`–`255`: the raw POPM byte scale (`204` = four stars).
+fn rating_from_tag(tag: &Tag) -> Option<u8> {
+    if let Some(text) = tag.get_string(&ItemKey::Popularimeter) {
+        return rating_from_text(text);
+    }
+    let bytes = tag.get_binary(&ItemKey::Popularimeter, false)?;
+    // POPM layout: email, NUL, rating, play counter.
+    let nul = bytes.iter().position(|byte| *byte == 0)?;
+    let email = String::from_utf8_lossy(&bytes[..nul]);
+    let rating = *bytes.get(nul + 1)?;
+    popm_to_stars(&email, rating)
+}
+
+fn rating_from_text(raw: &str) -> Option<u8> {
+    let trimmed = raw.trim();
+    let value: f64 = trimmed.parse().ok()?;
+    if !value.is_finite() || value <= 0.0 {
+        return None;
+    }
+    // 6–19 and 5.1–5.9 fit no supported scale (a 0–10 scale would need 20
+    // steps); treating them as the lowest star would silently rewrite them.
+    if value > 5.0 && value < 20.0 {
+        return None;
+    }
+    // Only a decimal point marks the normalized 0.0–1.0 convention; `"1"` is
+    // one star while `"1.0"` is five (Picard writes `1.0`).
+    let stars = if trimmed.contains('.') && value <= 1.0 {
+        value * 5.0
+    } else if value <= 5.0 {
+        value
+    } else if value <= 100.0 {
+        value / 20.0
+    } else {
+        return Some(linear_popm_scale_to_stars(value));
+    };
+    Some(stars.round().clamp(1.0, 5.0) as u8)
+}
+
+/// Map a POPM byte onto 1–5 stars, honouring the writer's scale.
+///
+/// Traktor and MusicBrainz Picard use `round(star * 51)`; MusicBee, Windows
+/// Media Player and Serato use `1, 64, 128, 196, 255`. The email field names
+/// the writer (POPM allows several ratings per file), which is the only
+/// reliable way to tell the two apart.
+fn popm_to_stars(email: &str, rating: u8) -> Option<u8> {
+    if rating == 0 {
+        return None;
+    }
+    let email = email.trim().to_ascii_lowercase();
+    if matches!(
+        email.as_str(),
+        "musicbee" | "windows media player 9 series" | "serato"
+    ) {
+        let stars = if rating <= 1 {
+            1
+        } else if rating <= 64 {
+            2
+        } else if rating <= 128 {
+            3
+        } else if rating <= 196 {
+            4
+        } else {
+            5
+        };
+        return Some(stars);
+    }
+    // Traktor (`traktor@native-instruments.de`), Picard
+    // (`users@musicbrainz.org`) and unknown writers use the linear 51 scale.
+    Some(linear_popm_scale_to_stars(f64::from(rating)))
+}
+
+/// Map the linear POPM 0–255 scale onto 1–5 stars.
+fn linear_popm_scale_to_stars(value: f64) -> u8 {
+    (value / 51.0).round().clamp(1.0, 5.0) as u8
+}
+
+/// Release year from `YEAR`, else the leading four digits of a date tag.
+fn year_from_tag(tag: &Tag) -> Option<u16> {
+    let raw = tag
+        .get_string(&ItemKey::Year)
+        .or_else(|| tag.get_string(&ItemKey::RecordingDate))
+        .or_else(|| tag.get_string(&ItemKey::ReleaseDate))?;
+    let leading: String = raw.trim().chars().take(4).collect();
+    leading.parse().ok().filter(|year| *year > 0)
+}
+
+/// A track/disc number tag, ignoring non-numeric and zero values.
+fn number_from_tag(tag: &Tag, key: &ItemKey) -> Option<u16> {
+    let raw = tag.get_string(key)?;
+    // "3/12" (TRCK/TPOS with a total) carries the number in its leading digits.
+    crate::leading_u16(raw).filter(|number| *number > 0)
 }
 
 fn replaygain_track_gain_db(tagged: &TaggedFile) -> Option<f64> {
@@ -356,7 +474,7 @@ mod tests {
     use lofty::file::{FileType, TaggedFile};
     use lofty::picture::{MimeType, Picture, PictureType};
     use lofty::properties::FileProperties;
-    use lofty::tag::{Tag, TagType};
+    use lofty::tag::{ItemValue, Tag, TagItem, TagType};
 
     #[test]
     fn stem_file_title_preserves_case() {
@@ -391,6 +509,76 @@ mod tests {
         );
 
         assert_eq!(replaygain_track_gain_db(&tagged), Some(3.2));
+    }
+
+    #[test]
+    fn rating_scales_map_onto_stars() {
+        // Text: normalized 0.0–1.0, bare stars, percent, POPM byte.
+        assert_eq!(rating_from_text("0.8"), Some(4));
+        assert_eq!(rating_from_text("0.2"), Some(1));
+        assert_eq!(rating_from_text("1.0"), Some(5));
+        assert_eq!(rating_from_text("1"), Some(1));
+        assert_eq!(rating_from_text("4"), Some(4));
+        assert_eq!(rating_from_text("80"), Some(4));
+        assert_eq!(rating_from_text("204"), Some(4));
+        assert_eq!(rating_from_text("0"), None);
+        assert_eq!(rating_from_text("6"), None);
+        assert_eq!(rating_from_text("19"), None);
+        assert_eq!(rating_from_text("5.5"), None);
+        assert_eq!(rating_from_text("bogus"), None);
+
+        // POPM: the email selects the writer's scale.
+        assert_eq!(popm_to_stars("traktor@native-instruments.de", 51), Some(1));
+        assert_eq!(popm_to_stars("traktor@native-instruments.de", 153), Some(3));
+        assert_eq!(popm_to_stars("users@musicbrainz.org", 102), Some(2));
+        assert_eq!(popm_to_stars("MusicBee", 64), Some(2));
+        assert_eq!(popm_to_stars("Windows Media Player 9 Series", 196), Some(4));
+        assert_eq!(popm_to_stars("Serato", 1), Some(1));
+        // Unknown writers default to the linear 51 scale.
+        assert_eq!(popm_to_stars("", 64), Some(1));
+        assert_eq!(popm_to_stars("", 204), Some(4));
+        assert_eq!(popm_to_stars("", 0), None);
+    }
+
+    #[test]
+    fn rating_from_tag_reads_text_and_binary_popm() {
+        let mut text = Tag::new(TagType::VorbisComments);
+        assert!(text.insert_text(ItemKey::Popularimeter, "0.8".into()));
+        assert_eq!(rating_from_tag(&text), Some(4));
+
+        let mut binary = Tag::new(TagType::Id3v2);
+        binary.insert(TagItem::new(
+            ItemKey::Popularimeter,
+            ItemValue::Binary(vec![
+                b't', b'r', b'a', b'k', b't', b'o', b'r', b'@', 0, 204, 0, 0, 0, 0,
+            ]),
+        ));
+        assert_eq!(rating_from_tag(&binary), Some(4));
+
+        let mut no_nul = Tag::new(TagType::Id3v2);
+        no_nul.insert(TagItem::new(
+            ItemKey::Popularimeter,
+            ItemValue::Binary(vec![b'x', 204]),
+        ));
+        assert_eq!(rating_from_tag(&no_nul), None);
+
+        let mut no_rating = Tag::new(TagType::Id3v2);
+        no_rating.insert(TagItem::new(
+            ItemKey::Popularimeter,
+            ItemValue::Binary(vec![b'x', 0]),
+        ));
+        assert_eq!(rating_from_tag(&no_rating), None);
+    }
+
+    #[test]
+    fn year_comes_from_year_or_the_leading_date_digits() {
+        let mut tag = Tag::new(TagType::VorbisComments);
+        assert!(tag.insert_text(ItemKey::Year, "1999".to_string()));
+        assert_eq!(year_from_tag(&tag), Some(1999));
+
+        let mut tag = Tag::new(TagType::Id3v2);
+        assert!(tag.insert_text(ItemKey::RecordingDate, "2026-10-19".to_string()));
+        assert_eq!(year_from_tag(&tag), Some(2026));
     }
 
     #[test]

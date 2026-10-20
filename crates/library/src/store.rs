@@ -22,6 +22,81 @@ use crate::entity::{
 use crate::model;
 use uuid::Uuid;
 
+/// Assign the user-editable metadata columns on an insert/upsert model.
+fn apply_metadata_columns(active: &mut tracks::ActiveModel, metadata: &TrackMetadata) {
+    active.title = Set(metadata.title.clone());
+    active.artist = Set(metadata.artist.clone());
+    active.album = Set(metadata.album.clone());
+    active.genre = Set(metadata.genre.clone());
+    active.bpm = Set(metadata.bpm);
+    active.key = Set(metadata.key.clone());
+    active.duration_ms = Set(metadata.duration_ms);
+    active.sample_rate = Set(metadata.sample_rate.map(|v| v as i32));
+    active.channels = Set(metadata.channels.map(|v| v as i32));
+    active.bitrate_kbps = Set(metadata.bitrate_kbps.map(|v| v as i32));
+    active.replaygain_track_gain_db = Set(metadata.replaygain_track_gain_db);
+    active.isrc = Set(metadata.isrc.clone());
+    apply_user_columns(
+        active,
+        metadata.rating,
+        metadata.comment.clone(),
+        metadata.year,
+        metadata.track_number,
+        metadata.disc_number,
+        metadata.color_label,
+    );
+}
+
+/// Assign the fields the track editor owns. Shared by insert/upsert and the
+/// full-replacement edit path so the two can never diverge.
+fn apply_user_columns(
+    active: &mut tracks::ActiveModel,
+    rating: Option<u8>,
+    comment: Option<String>,
+    year: Option<u16>,
+    track_number: Option<u16>,
+    disc_number: Option<u16>,
+    color_label: Option<library_core::ColorLabel>,
+) {
+    active.rating = Set(rating.map(i32::from));
+    active.comment = Set(comment);
+    active.year = Set(year.map(i32::from));
+    active.track_number = Set(track_number.map(i32::from));
+    active.disc_number = Set(disc_number.map(i32::from));
+    active.color_label = Set(color_label.map(|c| c.as_str().to_string()));
+}
+
+/// Columns refreshed when an existing track is upserted.
+fn metadata_update_columns() -> Vec<tracks::Column> {
+    let mut columns = vec![
+        tracks::Column::SourceType,
+        tracks::Column::SourceRef,
+        tracks::Column::Provider,
+    ];
+    columns.extend([
+        tracks::Column::Title,
+        tracks::Column::Artist,
+        tracks::Column::Album,
+        tracks::Column::Genre,
+        tracks::Column::Bpm,
+        tracks::Column::Key,
+        tracks::Column::DurationMs,
+        tracks::Column::SampleRate,
+        tracks::Column::Channels,
+        tracks::Column::BitrateKbps,
+        tracks::Column::ReplaygainTrackGainDb,
+        tracks::Column::Isrc,
+        tracks::Column::Rating,
+        tracks::Column::Comment,
+        tracks::Column::Year,
+        tracks::Column::TrackNumber,
+        tracks::Column::DiscNumber,
+        tracks::Column::ColorLabel,
+    ]);
+    columns.push(tracks::Column::UpdatedAt);
+    columns
+}
+
 pub struct Store<'a> {
     db: &'a Db,
 }
@@ -39,49 +114,22 @@ impl<'a> Store<'a> {
         now: &str,
     ) -> Result<()> {
         let source_ref = path.to_string_lossy().into_owned();
-        let active = tracks::ActiveModel {
+        let mut active = tracks::ActiveModel {
             id: Set(id.as_str().to_string()),
             source_type: Set("file".to_string()),
             source_ref: Set(source_ref),
             provider: Set(None),
-            title: Set(metadata.title.clone()),
-            artist: Set(metadata.artist.clone()),
-            album: Set(metadata.album.clone()),
-            genre: Set(metadata.genre.clone()),
-            bpm: Set(metadata.bpm),
-            key: Set(metadata.key.clone()),
-            duration_ms: Set(metadata.duration_ms),
-            sample_rate: Set(metadata.sample_rate.map(|v| v as i32)),
-            channels: Set(metadata.channels.map(|v| v as i32)),
-            bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
-            replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
-            isrc: Set(metadata.isrc.clone()),
             last_sampler_bank_id: Set(None),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
+            ..Default::default()
         };
+        apply_metadata_columns(&mut active, metadata);
 
         TrackEntity::insert(active)
             .on_conflict(
                 OnConflict::column(tracks::Column::Id)
-                    .update_columns([
-                        tracks::Column::SourceType,
-                        tracks::Column::SourceRef,
-                        tracks::Column::Provider,
-                        tracks::Column::Title,
-                        tracks::Column::Artist,
-                        tracks::Column::Album,
-                        tracks::Column::Genre,
-                        tracks::Column::Bpm,
-                        tracks::Column::Key,
-                        tracks::Column::DurationMs,
-                        tracks::Column::SampleRate,
-                        tracks::Column::Channels,
-                        tracks::Column::BitrateKbps,
-                        tracks::Column::ReplaygainTrackGainDb,
-                        tracks::Column::Isrc,
-                        tracks::Column::UpdatedAt,
-                    ])
+                    .update_columns(metadata_update_columns())
                     .to_owned(),
             )
             .exec(self.db.conn()?.as_connection())
@@ -98,49 +146,22 @@ impl<'a> Store<'a> {
         provider: Option<&str>,
         now: &str,
     ) -> Result<()> {
-        let active = tracks::ActiveModel {
+        let mut active = tracks::ActiveModel {
             id: Set(id.as_str().to_string()),
             source_type: Set("stream".to_string()),
             source_ref: Set(uri.to_string()),
             provider: Set(provider.map(str::to_string)),
-            title: Set(metadata.title.clone()),
-            artist: Set(metadata.artist.clone()),
-            album: Set(metadata.album.clone()),
-            genre: Set(metadata.genre.clone()),
-            bpm: Set(metadata.bpm),
-            key: Set(metadata.key.clone()),
-            duration_ms: Set(metadata.duration_ms),
-            sample_rate: Set(metadata.sample_rate.map(|v| v as i32)),
-            channels: Set(metadata.channels.map(|v| v as i32)),
-            bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
-            replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
-            isrc: Set(metadata.isrc.clone()),
             last_sampler_bank_id: Set(None),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
+            ..Default::default()
         };
+        apply_metadata_columns(&mut active, metadata);
 
         TrackEntity::insert(active)
             .on_conflict(
                 OnConflict::column(tracks::Column::Id)
-                    .update_columns([
-                        tracks::Column::SourceType,
-                        tracks::Column::SourceRef,
-                        tracks::Column::Provider,
-                        tracks::Column::Title,
-                        tracks::Column::Artist,
-                        tracks::Column::Album,
-                        tracks::Column::Genre,
-                        tracks::Column::Bpm,
-                        tracks::Column::Key,
-                        tracks::Column::DurationMs,
-                        tracks::Column::SampleRate,
-                        tracks::Column::Channels,
-                        tracks::Column::BitrateKbps,
-                        tracks::Column::ReplaygainTrackGainDb,
-                        tracks::Column::Isrc,
-                        tracks::Column::UpdatedAt,
-                    ])
+                    .update_columns(metadata_update_columns())
                     .to_owned(),
             )
             .exec(self.db.conn()?.as_connection())
@@ -231,6 +252,16 @@ impl<'a> Store<'a> {
         active.bpm = Set(edit.bpm);
         active.key = Set(edit.key.clone());
         active.isrc = Set(edit.isrc.clone());
+        apply_user_columns(
+            &mut active,
+            edit.rating,
+            edit.comment.clone(),
+            edit.year,
+            edit.track_number,
+            edit.disc_number,
+            edit.color_label,
+        );
+        active.metadata_edited = Set(Some(true));
         active.updated_at = Set(now.to_string());
         active
             .update(self.db.conn()?.as_connection())
@@ -248,6 +279,22 @@ impl<'a> Store<'a> {
             .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         row.map(model::track_source).transpose()
+    }
+
+    /// Stored metadata plus the editor marker for a file path, in one query.
+    pub fn file_track_metadata_and_edited(
+        &self,
+        source_ref: &str,
+    ) -> Result<Option<(TrackMetadata, bool)>> {
+        let row = TrackEntity::find()
+            .filter(tracks::Column::SourceType.eq("file"))
+            .filter(tracks::Column::SourceRef.eq(source_ref))
+            .one(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(row.map(|row| {
+            let edited = row.metadata_edited.unwrap_or(false);
+            (model::track_metadata(&row), edited)
+        }))
     }
 
     pub fn find_file_sources_under(
@@ -645,14 +692,14 @@ impl<'a> Store<'a> {
     }
 }
 
-/// The seven user-editable metadata columns.
+/// The user-editable metadata columns.
 ///
 /// Grouped so a caller names the field it is setting instead of passing a run
-/// of `Option`s positionally — seven same-typed parameters would let a
+/// of `Option`s positionally — many same-typed parameters would let a
 /// transposition (`artist`/`album`, `genre`/`key`) compile silently.
 ///
 /// The derived [`Default`] is "every column `None`", which under the
-/// full-replacement write means **clear all seven columns** — never a
+/// full-replacement write means **clear every column** — never a
 /// leave-unchanged value. Build it field by field instead of reaching for
 /// `..Default::default()` in code that only edits one column.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -664,6 +711,13 @@ pub struct TrackMetadataEdit {
     pub bpm: Option<f64>,
     pub key: Option<String>,
     pub isrc: Option<String>,
+    /// Star rating 1–5; `None` clears it.
+    pub rating: Option<u8>,
+    pub comment: Option<String>,
+    pub year: Option<u16>,
+    pub track_number: Option<u16>,
+    pub disc_number: Option<u16>,
+    pub color_label: Option<library_core::ColorLabel>,
 }
 
 /// Snapshot of track fields used when writing a manual beat grid.
@@ -742,6 +796,7 @@ mod tests {
                     bpm: Some(128.0),
                     key: Some("Am".into()),
                     isrc: Some("NEW1".into()),
+                    ..TrackMetadataEdit::default()
                 },
                 "2",
             )
@@ -761,6 +816,74 @@ mod tests {
     }
 
     #[test]
+    fn update_track_metadata_round_trips_rating_year_numbers_and_color() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/detailed.wav");
+        let meta = TrackMetadata {
+            rating: Some(5),
+            comment: Some("Peak time".into()),
+            year: Some(1999),
+            track_number: Some(3),
+            disc_number: Some(1),
+            color_label: Some(library_core::ColorLabel::Pink),
+            ..TrackMetadata::default()
+        };
+        store
+            .upsert_file_track(&id, Path::new("/music/detailed.wav"), &meta, "1")
+            .unwrap();
+        let (_, edited) = store
+            .file_track_metadata_and_edited("/music/detailed.wav")
+            .unwrap()
+            .unwrap();
+        assert!(!edited, "a fresh file row is not editor-owned");
+
+        store
+            .update_track_metadata(
+                &id,
+                &TrackMetadataEdit {
+                    rating: Some(2),
+                    comment: Some("Warm up".into()),
+                    year: Some(2024),
+                    track_number: Some(7),
+                    disc_number: Some(2),
+                    color_label: Some(library_core::ColorLabel::Blue),
+                    ..TrackMetadataEdit::default()
+                },
+                "2",
+            )
+            .unwrap();
+
+        let metadata = store.get_track(&id).unwrap().unwrap().metadata().clone();
+        assert_eq!(metadata.rating, Some(2));
+        assert_eq!(metadata.comment.as_deref(), Some("Warm up"));
+        assert_eq!(metadata.year, Some(2024));
+        assert_eq!(metadata.track_number, Some(7));
+        assert_eq!(metadata.disc_number, Some(2));
+        assert_eq!(metadata.color_label, Some(library_core::ColorLabel::Blue));
+        let (_, edited) = store
+            .file_track_metadata_and_edited("/music/detailed.wav")
+            .unwrap()
+            .unwrap();
+        assert!(edited, "editor save marks the row authoritative");
+        assert!(store
+            .file_track_metadata_and_edited("/music/absent.wav")
+            .unwrap()
+            .is_none());
+
+        store
+            .update_track_metadata(&id, &TrackMetadataEdit::default(), "3")
+            .unwrap();
+        let cleared = store.get_track(&id).unwrap().unwrap().metadata().clone();
+        assert_eq!(cleared.rating, None);
+        assert_eq!(cleared.comment, None);
+        assert_eq!(cleared.year, None);
+        assert_eq!(cleared.track_number, None);
+        assert_eq!(cleared.disc_number, None);
+        assert_eq!(cleared.color_label, None);
+    }
+
+    #[test]
     fn update_track_metadata_unknown_id_is_a_noop() {
         let db = db::open_in_memory().unwrap();
         let store = Store::new(&db);
@@ -777,6 +900,7 @@ mod tests {
                     bpm: None,
                     key: None,
                     isrc: None,
+                    ..TrackMetadataEdit::default()
                 },
                 "2",
             )
@@ -812,6 +936,7 @@ mod tests {
                     bpm: Some(-4.0),
                     key: None,
                     isrc: None,
+                    ..TrackMetadataEdit::default()
                 },
                 "2",
             )
@@ -850,6 +975,7 @@ mod tests {
                     bpm: Some(-0.0),
                     key: None,
                     isrc: None,
+                    ..TrackMetadataEdit::default()
                 },
                 "2",
             )
@@ -870,6 +996,7 @@ mod tests {
                     bpm: Some(0.0),
                     key: None,
                     isrc: None,
+                    ..TrackMetadataEdit::default()
                 },
                 "3",
             )

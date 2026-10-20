@@ -12,6 +12,7 @@ class MetaPill extends StatelessWidget {
     this.borderColor,
     this.fontWeight = FontWeight.w500,
     this.fillWidth = true,
+    this.keepLeadingGlyph = false,
     super.key,
   });
 
@@ -38,6 +39,10 @@ class MetaPill extends StatelessWidget {
   /// stretch an invisible card fill across the details column.
   final bool fillWidth;
 
+  /// Keep [leading] even when the pill is too narrow for glyph + label.
+  /// Rating uses this because the star is the value, not decoration.
+  final bool keepLeadingGlyph;
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -48,7 +53,8 @@ class MetaPill extends StatelessWidget {
         // the meaning, so the icon is the part that goes.
         final innerWidth = constraints.maxWidth - kMetaPillPadding.horizontal;
         final showLeading =
-            leading != null && innerWidth >= kMetaPillIconMinWidth;
+            leading != null &&
+            (keepLeadingGlyph || innerWidth >= kMetaPillIconMinWidth);
         final label = Text(
           text,
           maxLines: 1,

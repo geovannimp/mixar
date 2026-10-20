@@ -14,6 +14,12 @@ pub struct TrackSummary {
     pub duration_ms: Option<i32>,
     pub path: String,
     pub isrc: Option<String>,
+    pub rating: Option<u8>,
+    pub comment: Option<String>,
+    pub year: Option<u16>,
+    pub track_number: Option<u16>,
+    pub disc_number: Option<u16>,
+    pub color_label: Option<String>,
 }
 
 /// Persisted hot cue row for bus payloads.
@@ -104,10 +110,12 @@ pub enum CmdBody {
 pub enum EvtBody {
     Empty,
     TrackAnalyzed {
-        track: TrackSummary,
+        // Boxed so the shared routed-action enum stays small; a TrackSummary
+        // grew enough to trip `clippy::large_enum_variant` in `controller`.
+        track: Box<TrackSummary>,
     },
     TrackUpdated {
-        track: TrackSummary,
+        track: Box<TrackSummary>,
     },
     HotCuesChanged {
         track_id: String,
@@ -154,4 +162,38 @@ pub enum EvtBody {
     Load {
         deck: u16,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn track_updated_payload_round_trips_new_metadata() {
+        let summary = TrackSummary {
+            id: "t1".into(),
+            display_name: "Track".into(),
+            artist: Some("Artist".into()),
+            title: Some("Title".into()),
+            album: Some("Album".into()),
+            genre: Some("House".into()),
+            bpm: Some(128.0),
+            key: Some("Am".into()),
+            duration_ms: Some(180_000),
+            path: "/music/track.flac".into(),
+            isrc: Some("USRC12345678".into()),
+            rating: Some(4),
+            comment: Some("Peak time".into()),
+            year: Some(2024),
+            track_number: Some(3),
+            disc_number: Some(2),
+            color_label: Some("aqua".into()),
+        };
+        let body = EvtBody::TrackUpdated {
+            track: Box::new(summary),
+        };
+        let bytes = rmp_serde::to_vec_named(&body).expect("encode evt body");
+        let decoded: EvtBody = rmp_serde::from_slice(&bytes).expect("decode evt body");
+        assert_eq!(decoded, body);
+    }
 }

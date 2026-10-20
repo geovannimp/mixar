@@ -28,10 +28,34 @@ Implementation: `codec::write_track_tags` (lofty) for the format matrix, called 
 | Genre     | `TCON`                   | `GENRE`                         | `©gen`                              | `Genre`          |
 | BPM       | `TBPM`, **integer**      | `BPM`, text                     | `----:com.apple.iTunes:BPM`, text   | unsupported      |
 | Key       | `TKEY`                   | `INITIALKEY`                    | `----:com.apple.iTunes:initialkey`  | unsupported      |
+| Rating    | unsupported¹             | `RATING`, 0.0–1.0               | `rate`, 1–5                         | unsupported      |
+| Comment   | `COMM`                   | `COMMENT`                       | `©cmt`                              | `Comment`        |
+| Year      | `TDRC`                   | `YEAR`                          | `©day`                              | `Year`           |
+| Track no. | `TRCK`                   | `TRACKNUMBER`                   | `trkn`                              | `Track`          |
+| Disc no.  | `TPOS`                   | `DISCNUMBER`                    | `disk`                              | `Disc`           |
+| Color     | `COLOR`                  | `COLOR`                         | `----:com.apple.iTunes:COLOR`       | `Color`          |
+
+¹ ID3v2 keeps ratings in a binary `POPM` frame. lofty 0.22 retains that frame
+outside the generic `Tag`, so Mixar reports it `Unsupported` on ID3 rather than
+writing a value its own reader cannot see (which would also rewrite the file on
+every analysis).
+
+Reading is deliberately wider than writing: Vorbis/MP4 text accepts normalized
+`0.0–1.0` (Quod Libet/Picard), stars `1–5`, a 0–100 scale, or a raw POPM byte;
+binary POPM frames are mapped by their email (`traktor@native-instruments.de`
+and `users@musicbrainz.org` use the 51-step scale, MusicBee/Windows Media
+Player/Serato use 1/64/128/196/255).
 
 The mapping matches the TagLib property table, so the keys are the ones MusicBrainz Picard, Mixxx, and the DJ tools above already read and write. Mixxx writes the same Vorbis `BPM` + `INITIALKEY` pair and the same two MP4 freeform atoms.
 
-**What the library mirrors today is BPM and key only** — `library::tags::app_managed_tags` is the one place that decides it. Title/artist/album/genre are file-derived today (a missing title falls back to the file name), so passing the library row would stamp filename guesses into untagged files. A track editor that owns those values extends that one function; the writer already handles them. Derived fields (duration, sample rate, channels, bitrate) are never written — they describe the audio, not user intent.
+**What the library mirrors today is BPM, key, rating, comment, year, track/disc
+number and colour label** — `library::tags::app_managed_tags` is the one place
+that decides it. Title/artist/album/genre are file-derived today (a missing title
+falls back to the file name), so passing the library row would stamp filename
+guesses into untagged files. A track editor that owns those values extends that
+one function; the writer already handles them. Derived fields (duration, sample
+rate, channels, bitrate) are never written — they describe the audio, not user
+intent.
 
 ## Lossiness
 

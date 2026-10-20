@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `library_buses`, `subscribe_evt_all`
 
 /// Default Mixxx database path for the current OS, when it exists.
@@ -238,6 +238,12 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     double? bpm,
     String? key,
     String? isrc,
+    int? rating,
+    String? comment,
+    int? year,
+    int? trackNumber,
+    int? discNumber,
+    LibraryColorLabel? colorLabel,
   });
 }
 
@@ -568,6 +574,12 @@ class LibraryCollectionSummary {
           trackCount == other.trackCount;
 }
 
+/// Closed colour label crossing the FRB boundary.
+///
+/// Mirrors `library_core::ColorLabel` so the UI can switch exhaustively instead
+/// of handling free-form strings.
+enum LibraryColorLabel { pink, red, orange, yellow, green, aqua, blue, purple }
+
 /// Thin typed library egress for Dart (no MessagePack on the Flutter side).
 ///
 /// Struct + unit kind avoids FRB's freezed dependency for fielded enums.
@@ -666,6 +678,16 @@ class LibraryTrackSummary {
   final String path;
   final String? isrc;
 
+  /// Star rating 1–5; `None` means unrated.
+  final int? rating;
+  final String? comment;
+  final int? year;
+  final int? trackNumber;
+  final int? discNumber;
+
+  /// Closed colour label; `None` means no label.
+  final LibraryColorLabel? colorLabel;
+
   /// Cover thumbnail (JPEG, at most `library::ARTWORK_UI_EDGE_PX` on its
   /// longest edge) when loaded via [`LibraryTransport::get_track`].
   /// Lists leave this `None` until artwork is persisted in the library DB.
@@ -684,6 +706,12 @@ class LibraryTrackSummary {
     this.durationMs,
     required this.path,
     this.isrc,
+    this.rating,
+    this.comment,
+    this.year,
+    this.trackNumber,
+    this.discNumber,
+    this.colorLabel,
     this.artwork,
   });
 
@@ -701,6 +729,12 @@ class LibraryTrackSummary {
       durationMs.hashCode ^
       path.hashCode ^
       isrc.hashCode ^
+      rating.hashCode ^
+      comment.hashCode ^
+      year.hashCode ^
+      trackNumber.hashCode ^
+      discNumber.hashCode ^
+      colorLabel.hashCode ^
       artwork.hashCode;
 
   @override
@@ -720,6 +754,12 @@ class LibraryTrackSummary {
           durationMs == other.durationMs &&
           path == other.path &&
           isrc == other.isrc &&
+          rating == other.rating &&
+          comment == other.comment &&
+          year == other.year &&
+          trackNumber == other.trackNumber &&
+          discNumber == other.discNumber &&
+          colorLabel == other.colorLabel &&
           artwork == other.artwork;
 }
 

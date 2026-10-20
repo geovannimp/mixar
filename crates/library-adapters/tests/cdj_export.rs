@@ -12,11 +12,11 @@ use std::path::Path;
 
 use binrw::BinRead;
 use fallible_iterator::FallibleIterator;
-use library::LibraryManager;
+use library::{LibraryManager, TrackMetadataEdit};
 use library_adapters::CdjExporter;
 use library_core::{
-    Collection, ExportOptions, ExportReport, Exportable, Library, LibraryConfig, NewCollection,
-    TrackId, WritableLibrary,
+    Collection, ColorLabel, ExportOptions, ExportReport, Exportable, Library, LibraryConfig,
+    NewCollection, TrackId, WritableLibrary,
 };
 
 use rekordcrate::anlz::{Content, CueListType, CueType, ANLZ};
@@ -142,6 +142,34 @@ impl Fixture {
             .expect("folder tracks");
         assert_eq!(sources.len(), 2, "both wavs imported");
         let track_ids: Vec<TrackId> = sources.iter().map(|source| source.id().clone()).collect();
+        let one_id = sources
+            .iter()
+            .find(|source| {
+                source
+                    .file()
+                    .is_some_and(|file| file.path().ends_with("One.wav"))
+            })
+            .expect("One.wav imported")
+            .id()
+            .clone();
+        // Every field a CDJ row can carry, set through the same edit path the
+        // track drawer uses.
+        library
+            .update_track_metadata(
+                &one_id,
+                TrackMetadataEdit {
+                    // Full replacement: keep the imported title.
+                    title: Some("One".into()),
+                    rating: Some(4),
+                    comment: Some("Peak time".into()),
+                    year: Some(1999),
+                    track_number: Some(3),
+                    disc_number: Some(2),
+                    color_label: Some(ColorLabel::Aqua),
+                    ..TrackMetadataEdit::default()
+                },
+            )
+            .expect("metadata edit");
         // Reverse order proves playlist order is preserved (not sorted by path);
         // `None` appends, so the first insert takes position 0.
         for id in track_ids.iter().rev() {
@@ -336,6 +364,12 @@ fn check_database(destination: &Path, fixture: &Fixture) {
     assert_eq!(one["duration"], serde_json::json!(5));
     assert_eq!(one["key_id"], serde_json::json!(0));
     assert!(one["file_size"].as_u64().unwrap_or(0) > 44);
+    assert_eq!(one["rating"], serde_json::json!(4));
+    assert_eq!(one["year"], serde_json::json!(1999));
+    assert_eq!(one["track_number"], serde_json::json!(3));
+    assert_eq!(one["disc_number"], serde_json::json!(2));
+    assert_eq!(one["color"], serde_json::json!("Aqua"));
+    assert_eq!(one["offsets"]["inner"]["comment"], "Peak time");
 
     let id_of = |name: &str| {
         rows.iter()

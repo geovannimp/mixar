@@ -24,6 +24,52 @@ use library_core::{
 
 use crate::frb_generated::StreamSink;
 
+/// Closed colour label crossing the FRB boundary.
+///
+/// Mirrors `library_core::ColorLabel` so the UI can switch exhaustively instead
+/// of handling free-form strings.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LibraryColorLabel {
+    Pink,
+    Red,
+    Orange,
+    Yellow,
+    Green,
+    Aqua,
+    Blue,
+    Purple,
+}
+
+impl From<library_core::ColorLabel> for LibraryColorLabel {
+    fn from(value: library_core::ColorLabel) -> Self {
+        match value {
+            library_core::ColorLabel::Pink => Self::Pink,
+            library_core::ColorLabel::Red => Self::Red,
+            library_core::ColorLabel::Orange => Self::Orange,
+            library_core::ColorLabel::Yellow => Self::Yellow,
+            library_core::ColorLabel::Green => Self::Green,
+            library_core::ColorLabel::Aqua => Self::Aqua,
+            library_core::ColorLabel::Blue => Self::Blue,
+            library_core::ColorLabel::Purple => Self::Purple,
+        }
+    }
+}
+
+impl From<LibraryColorLabel> for library_core::ColorLabel {
+    fn from(value: LibraryColorLabel) -> Self {
+        match value {
+            LibraryColorLabel::Pink => Self::Pink,
+            LibraryColorLabel::Red => Self::Red,
+            LibraryColorLabel::Orange => Self::Orange,
+            LibraryColorLabel::Yellow => Self::Yellow,
+            LibraryColorLabel::Green => Self::Green,
+            LibraryColorLabel::Aqua => Self::Aqua,
+            LibraryColorLabel::Blue => Self::Blue,
+            LibraryColorLabel::Purple => Self::Purple,
+        }
+    }
+}
+
 /// Offline analysis depth for library worker configuration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LibraryAnalysisDurationSetting {
@@ -94,7 +140,7 @@ pub struct LibraryCollectionSummary {
 }
 
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct LibraryTrackSummary {
     /// Playlist entry row id; unset for folder path-prefix tracks.
     pub entry_id: Option<String>,
@@ -109,6 +155,14 @@ pub struct LibraryTrackSummary {
     pub duration_ms: Option<i32>,
     pub path: String,
     pub isrc: Option<String>,
+    /// Star rating 1–5; `None` means unrated.
+    pub rating: Option<u8>,
+    pub comment: Option<String>,
+    pub year: Option<u16>,
+    pub track_number: Option<u16>,
+    pub disc_number: Option<u16>,
+    /// Closed colour label; `None` means no label.
+    pub color_label: Option<LibraryColorLabel>,
     /// Cover thumbnail (JPEG, at most `library::ARTWORK_UI_EDGE_PX` on its
     /// longest edge) when loaded via [`LibraryTransport::get_track`].
     /// Lists leave this `None` until artwork is persisted in the library DB.
@@ -1223,6 +1277,12 @@ impl LibraryTransport {
         bpm: Option<f64>,
         key: Option<String>,
         isrc: Option<String>,
+        rating: Option<u8>,
+        comment: Option<String>,
+        year: Option<u16>,
+        track_number: Option<u16>,
+        disc_number: Option<u16>,
+        color_label: Option<LibraryColorLabel>,
     ) -> Result<(), String> {
         let lib = self
             .library
@@ -1238,6 +1298,12 @@ impl LibraryTransport {
                 bpm,
                 key,
                 isrc,
+                rating,
+                comment,
+                year,
+                track_number,
+                disc_number,
+                color_label: color_label.map(Into::into),
             },
         )
         .map_err(|e| e.to_string())
@@ -1273,11 +1339,11 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
     };
     match body {
         EvtBody::TrackAnalyzed { track } => Some(LibraryEvt {
-            track: Some(api_track_summary(track)),
+            track: Some(api_track_summary(*track)),
             ..bare(LibraryEvtKind::TrackAnalyzed)
         }),
         EvtBody::TrackUpdated { track } => Some(LibraryEvt {
-            track: Some(api_track_summary(track)),
+            track: Some(api_track_summary(*track)),
             ..bare(LibraryEvtKind::TrackUpdated)
         }),
         EvtBody::Error { message, track_id } => Some(LibraryEvt {
@@ -1373,6 +1439,16 @@ fn api_track_summary(track: ApiTrackSummary) -> LibraryTrackSummary {
         duration_ms: track.duration_ms,
         path: track.path,
         isrc: track.isrc,
+        rating: track.rating,
+        comment: track.comment,
+        year: track.year,
+        track_number: track.track_number,
+        disc_number: track.disc_number,
+        color_label: track
+            .color_label
+            .as_deref()
+            .and_then(|label| label.parse::<library_core::ColorLabel>().ok())
+            .map(Into::into),
         artwork: None,
     }
 }
@@ -1446,16 +1522,7 @@ fn missing_track_summary(entry: &library_core::CollectionEntry) -> LibraryTrackS
         entry_id: Some(entry.id.as_str().to_string()),
         id: entry.track_id.as_str().to_string(),
         display_name: "(missing track)".to_string(),
-        artist: None,
-        title: None,
-        album: None,
-        genre: None,
-        bpm: None,
-        key: None,
-        duration_ms: None,
-        path: String::new(),
-        isrc: None,
-        artwork: None,
+        ..Default::default()
     }
 }
 
@@ -1481,6 +1548,12 @@ fn track_summary(source: &AudioSource, include_artwork: bool) -> Option<LibraryT
         duration_ms: metadata.duration_ms,
         path: path.to_string_lossy().into_owned(),
         isrc: metadata.isrc.clone(),
+        rating: metadata.rating,
+        comment: metadata.comment.clone(),
+        year: metadata.year,
+        track_number: metadata.track_number,
+        disc_number: metadata.disc_number,
+        color_label: metadata.color_label.map(Into::into),
         artwork,
     })
 }
@@ -1528,7 +1601,78 @@ mod tests {
             duration_ms: Some(60_000),
             path: "/music/one.wav".into(),
             isrc: None,
+            rating: None,
+            comment: None,
+            year: None,
+            track_number: None,
+            disc_number: None,
+            color_label: None,
         }
+    }
+
+    #[test]
+    fn api_track_summary_maps_new_fields_and_rejects_unknown_colors() {
+        let mut track = sample_api_track();
+        track.rating = Some(4);
+        track.comment = Some("Peak time".into());
+        track.year = Some(2024);
+        track.track_number = Some(3);
+        track.disc_number = Some(2);
+        track.color_label = Some("aqua".into());
+
+        let summary = api_track_summary(track);
+        assert_eq!(summary.rating, Some(4));
+        assert_eq!(summary.comment.as_deref(), Some("Peak time"));
+        assert_eq!(summary.year, Some(2024));
+        assert_eq!(summary.track_number, Some(3));
+        assert_eq!(summary.disc_number, Some(2));
+        assert_eq!(summary.color_label, Some(LibraryColorLabel::Aqua));
+
+        let mut unknown = sample_api_track();
+        unknown.color_label = Some("chartreuse".into());
+        assert_eq!(api_track_summary(unknown).color_label, None);
+    }
+
+    #[test]
+    fn color_label_conversions_round_trip_every_variant() {
+        for label in [
+            LibraryColorLabel::Pink,
+            LibraryColorLabel::Red,
+            LibraryColorLabel::Orange,
+            LibraryColorLabel::Yellow,
+            LibraryColorLabel::Green,
+            LibraryColorLabel::Aqua,
+            LibraryColorLabel::Blue,
+            LibraryColorLabel::Purple,
+        ] {
+            let core: library_core::ColorLabel = label.into();
+            assert_eq!(LibraryColorLabel::from(core), label);
+        }
+    }
+
+    #[test]
+    fn track_summary_maps_new_metadata_fields() {
+        let source = AudioSource::File(library_core::FileAudioSource::new(
+            TrackId::new("t1"),
+            PathBuf::from("/music/track.flac"),
+            library_core::TrackMetadata {
+                title: Some("Track".into()),
+                rating: Some(5),
+                comment: Some("Peak time".into()),
+                year: Some(1999),
+                track_number: Some(1),
+                disc_number: Some(2),
+                color_label: Some(library_core::ColorLabel::Blue),
+                ..library_core::TrackMetadata::default()
+            },
+        ));
+        let summary = track_summary(&source, false).expect("file track");
+        assert_eq!(summary.rating, Some(5));
+        assert_eq!(summary.comment.as_deref(), Some("Peak time"));
+        assert_eq!(summary.year, Some(1999));
+        assert_eq!(summary.track_number, Some(1));
+        assert_eq!(summary.disc_number, Some(2));
+        assert_eq!(summary.color_label, Some(LibraryColorLabel::Blue));
     }
 
     #[test]
@@ -1558,7 +1702,7 @@ mod tests {
                 Origin::Library,
                 Kind::TrackUpdated,
                 EvtBody::TrackUpdated {
-                    track: sample_api_track(),
+                    track: Box::new(sample_api_track()),
                 },
             )
             .unwrap();

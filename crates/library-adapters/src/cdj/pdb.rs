@@ -60,10 +60,8 @@
 //!   which is the reference's shape; Rekordbox omits the empty page and points
 //!   the table's `last_page` back at its index page instead. All page pointers
 //!   here are inside the file and self-consistent either way.
-//! - No track/disc numbers: Mixar's model has none, so those fields stay zero,
-//!   and neither is the track's colour id set. Rating, comment, colour, year and
-//!   track/disc numbers are tracked in
-//!   [#571](https://github.com/geovannimp/mixar/issues/571).
+//! - Rating, comment, year, track/disc number and colour id are written from
+//!   [`CdjTrack`]; a colour resolves through the fixed eight-row `colors` table.
 
 use std::collections::HashMap;
 use std::ops::Range;
@@ -1490,23 +1488,24 @@ fn track_row(track: &CdjTrack, entities: &Entities, index: usize, export_date: &
     u32_(&mut row, 0); // label_id
     u32_(&mut row, 0); // remixer_id
     u32_(&mut row, track.bitrate_kbps.unwrap_or(0));
-    u32_(&mut row, 0); // track_number
+    u32_(&mut row, track.track_number.map(u32::from).unwrap_or(0));
     u32_(&mut row, tempo);
     u32_(&mut row, genre_id);
     u32_(&mut row, album_id);
     u32_(&mut row, artist_id);
     u32_(&mut row, track_id);
-    u16_(&mut row, 0); // disc_number
+    u16_(&mut row, track.disc_number.unwrap_or(0));
     u16_(&mut row, 0); // play_count
-    u16_(&mut row, 0); // year
+    u16_(&mut row, track.year.unwrap_or(0));
     u16_(&mut row, bit_depth);
     u16_(
         &mut row,
         track.duration_secs.min(u32::from(u16::MAX)) as u16,
     );
     u16_(&mut row, 0x0029);
-    row.push(0); // color_id
-    row.push(0); // rating
+    row.push(track.color.map(|color| color.device_id()).unwrap_or(0));
+    // The device stores the star count itself (0 = unrated), not POPM's byte.
+    row.push(track.rating.map(|rating| rating.min(5)).unwrap_or(0));
     u16_(&mut row, track.file_type as u16);
     u16_(&mut row, 0x0003); // string-offset table marker
     debug_assert_eq!(row.len(), 0x5E);
@@ -1535,7 +1534,10 @@ fn track_row(track: &CdjTrack, entities: &Entities, index: usize, export_date: &
     add(13, &[0x03]);
     add(14, &encode(&track.analyze_path));
     add(15, &encode(export_date)); // analyze_date
-    add(16, &[0x03]); // comment
+    match track.comment.as_deref() {
+        Some(comment) => add(16, &encode(comment)),
+        None => add(16, &[0x03]),
+    }
     add(17, &encode(&track.title));
     add(18, &[0x03]);
     add(19, &encode(filename));
@@ -1695,6 +1697,12 @@ mod tests {
             artist: artist.to_owned(),
             album: album.to_owned(),
             genre: genre.map(str::to_owned),
+            rating: None,
+            comment: None,
+            year: None,
+            track_number: None,
+            disc_number: None,
+            color: None,
             bpm: Some(120.0),
             key_id: Some(5),
             duration_secs: 200,
@@ -1844,6 +1852,28 @@ mod tests {
             };
             assert_eq!(last, expected_last, "table {index} last page");
         }
+    }
+
+    #[test]
+    fn track_row_carries_rating_comment_year_numbers_and_color() {
+        let mut detailed = track("Detailed", "Artist", "Album", None);
+        detailed.rating = Some(4);
+        detailed.comment = Some("Peak time".to_owned());
+        detailed.year = Some(1999);
+        detailed.track_number = Some(3);
+        detailed.disc_number = Some(2);
+        detailed.color = Some(library_core::ColorLabel::Aqua);
+
+        let bytes = build(&[detailed], &[], &[], EXPORT_DATE).expect("build pdb");
+        let parsed = rows_of::<Track>(&bytes);
+        let json = serde_json::to_value(&parsed[0]).expect("serialize row");
+
+        assert_eq!(json["rating"], 4, "device stores the star count itself");
+        assert_eq!(json["offsets"]["inner"]["comment"], "Peak time");
+        assert_eq!(json["year"], 1999);
+        assert_eq!(json["track_number"], 3);
+        assert_eq!(json["disc_number"], 2);
+        assert_eq!(json["color"], "Aqua", "resolves through the colors table");
     }
 
     #[test]

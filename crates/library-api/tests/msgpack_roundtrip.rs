@@ -77,9 +77,15 @@ fn cmd_and_evt_bodies_roundtrip() {
         duration_ms: Some(180_000),
         path: "/music/a.mp3".into(),
         isrc: None,
+        rating: None,
+        comment: None,
+        year: None,
+        track_number: None,
+        disc_number: None,
+        color_label: None,
     };
     let evt = EvtBody::TrackAnalyzed {
-        track: track.clone(),
+        track: Box::new(track.clone()),
     };
     assert_eq!(
         decode_evt_body(&encode_evt_body(&evt).unwrap()).unwrap(),

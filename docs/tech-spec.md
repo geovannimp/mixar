@@ -424,6 +424,12 @@ CREATE TABLE tracks (
   sample_rate INTEGER,
   channels INTEGER,
   bitrate_kbps INTEGER,
+  rating INTEGER,          -- 1-5, NULL = unrated
+  comment TEXT,
+  year INTEGER,
+  track_number INTEGER,
+  disc_number INTEGER,
+  color_label TEXT,        -- pink | red | orange | yellow | green | aqua | blue | purple
   added_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
