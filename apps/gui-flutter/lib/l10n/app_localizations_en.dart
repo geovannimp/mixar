@@ -155,6 +155,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'Separate left and right ladders per deck.';
 
   @override
+  String get settingsUiLibraryDrawerTitle => 'Library drawer';
+
+  @override
+  String get settingsUiLibraryDrawerDescription =>
+      'Where the library opens. Drawer mode hides the docked library and opens it over the mixer.';
+
+  @override
+  String get settingsUiLibraryDrawerEnable => 'Library as a drawer';
+
+  @override
+  String get settingsUiLibraryDrawerPosition => 'Position';
+
+  @override
+  String get settingsUiLibraryDrawerLeft => 'Left';
+
+  @override
+  String get settingsUiLibraryDrawerRight => 'Right';
+
+  @override
+  String get settingsUiLibraryDrawerTop => 'Top';
+
+  @override
+  String get settingsUiLibraryDrawerBottom => 'Bottom';
+
+  @override
   String get settingsUiSelectStyle => 'Select style';
 
   @override

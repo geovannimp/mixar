@@ -8,6 +8,10 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
 
+/// Library surface width at or above which the sidebar + content split shows.
+/// Below it the surface pages: the sidebar first, then the content pane.
+const double kLibraryWideMinWidth = 1024;
+
 /// Focused-row fill — same token as sidebar [librarySelectedRowColor].
 Color libraryListSelectedRowColor(MixarThemeData theme) =>
     librarySelectedRowColor(theme);
@@ -27,6 +31,70 @@ const kRowGutter = 8.0;
 /// Narrowest a row's title may get before the trailing meta gives width back.
 /// Below it the row would be all metadata and no name.
 const kMinTitleWidth = 64.0;
+
+/// Smallest width worth showing an artist beside a title. Below it the name is
+/// dropped: the title keeps its full text instead of both being crippled.
+const kMinArtistWidth = 40.0;
+
+/// Natural single-line width of [text] in [style], for fit decisions.
+///
+/// A heuristic, but a faithful one: it merges the ambient [DefaultTextStyle]
+/// the way [Text] does (a caller's style rarely carries every field, and the
+/// inherited letter spacing and font size change the width), and honours the
+/// ambient text scale, so a scaled UI measures like it paints.
+double measureTextWidth(BuildContext context, String text, TextStyle style) {
+  final effective = DefaultTextStyle.of(context).style.merge(style);
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: effective),
+    maxLines: 1,
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width;
+}
+
+/// Whether [widths] pack into [runs] runs of [available] width, the way a
+/// [Wrap] lays them out: greedy, [gap] between neighbours, and an item wider
+/// than a run takes a run of its own.
+bool fitsInRuns(
+  List<double> widths, {
+  required double available,
+  required int runs,
+  double gap = kMetaPillGap,
+}) {
+  if (available <= 0 || runs <= 0) {
+    return false;
+  }
+  var runsUsed = 0;
+  // Width used in the current run; zero means the run is still empty.
+  var used = 0.0;
+  for (final width in widths) {
+    if (width <= 0) {
+      continue;
+    }
+    if (used == 0) {
+      // An item wider than the run still occupies it, and ellipsizes there.
+      used = width;
+      runsUsed++;
+      if (runsUsed > runs) {
+        return false;
+      }
+      continue;
+    }
+    if (used + gap + width <= available) {
+      used += gap + width;
+      continue;
+    }
+    used = width;
+    runsUsed++;
+    if (runsUsed > runs) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /// Width of the trailing actions slot every list row reserves, so trailing
 /// meta and row actions stay aligned down the list.
@@ -151,17 +219,48 @@ String formatTrackDuration(int? ms) {
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
+/// Sessions whose [libraryTrackDragSource] `onDragEnd` has already fired.
+///
+/// The provider can run more than once for one session, and the flag has to
+/// outlive a single invocation or each run would report its own end.
+final Expando<bool> _dragEndReported = Expando('libraryDragEndReported');
+
 /// Wraps a list row in the shared drag source. Both the tracks and history
 /// lists drag a [TrackDragPayload] onto a deck, so the drag item, its platform
 /// format and its drag card live here rather than in each pane.
+///
+/// [onDragStart] runs as the drag starts: `DragItemWidget` exposes no lifecycle
+/// callbacks, so building the drag item is the only hook the source can offer.
+/// It may run more than once for one session, so it must be idempotent.
+/// [onDragEnd] runs once, when the session completes — on a drop or a cancel —
+/// off the session's `dragCompleted` listenable, which the plugin itself relies
+/// on to retire sessions.
 Widget libraryTrackDragSource({
   required TrackDragPayload payload,
   required Widget child,
+  VoidCallback? onDragStart,
+  VoidCallback? onDragEnd,
 }) {
   return DragItemWidget(
-    dragItemProvider: (_) async =>
-        DragItem(localData: payload.toLocalData(), suggestedName: payload.title)
-          ..add(Formats.plainText(encodeTrackDragPlainText(payload))),
+    dragItemProvider: (request) async {
+      onDragStart?.call();
+      // Every invocation listens so every listener is removed again, but only
+      // the first completion reports: the guard is per session, not per call.
+      void end() {
+        request.session.dragCompleted.removeListener(end);
+        if (_dragEndReported[request.session] ?? false) {
+          return;
+        }
+        _dragEndReported[request.session] = true;
+        onDragEnd?.call();
+      }
+
+      request.session.dragCompleted.addListener(end);
+      return DragItem(
+        localData: payload.toLocalData(),
+        suggestedName: payload.title,
+      )..add(Formats.plainText(encodeTrackDragPlainText(payload)));
+    },
     allowedOperations: () => [DropOperation.copy],
     dragBuilder: (context, _) => LibraryDragCard(title: payload.title),
     child: DraggableWidget(

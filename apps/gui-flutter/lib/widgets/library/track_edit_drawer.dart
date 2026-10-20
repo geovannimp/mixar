@@ -10,6 +10,7 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -132,15 +133,23 @@ Future<void> showTrackEditDrawer(
         );
       },
       pageBuilder: (ctx, _, _) {
-        return Align(
-          alignment: Alignment.centerRight,
-          child: SizedBox(
-            width: math.min(trackEditDrawerWidth, MediaQuery.sizeOf(ctx).width),
-            height: double.infinity,
-            child: _TrackEditPanel(
-              transport: transport,
-              trackId: trackId,
-              track: track,
+        return Padding(
+          // The drawer stage is the body below the titlebar, as with the
+          // library drawer: the panel never covers the window controls.
+          padding: const EdgeInsets.only(top: kAppHeaderHeight),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              width: math.min(
+                trackEditDrawerWidth,
+                MediaQuery.sizeOf(ctx).width,
+              ),
+              height: double.infinity,
+              child: _TrackEditPanel(
+                transport: transport,
+                trackId: trackId,
+                track: track,
+              ),
             ),
           ),
         );

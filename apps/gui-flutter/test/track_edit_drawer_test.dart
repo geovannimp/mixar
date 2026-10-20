@@ -9,6 +9,7 @@ import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/track_edit_drawer.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -296,6 +297,35 @@ void main() {
 
     expect(fake.updateTrackMetadataCalls, isEmpty);
     expect(find.text('Save'), findsNothing, reason: 'drawer closed');
+  });
+
+  testWidgets('opens in the body, below the titlebar', (tester) async {
+    await pumpDrawer(tester);
+
+    // The drawer's stage is the body, same as the library drawer: flush to the
+    // right edge but never over the window controls.
+    final surface = tester
+        .widgetList<DecoratedBox>(
+          find.ancestor(
+            of: find.text('Save'),
+            matching: find.byType(DecoratedBox),
+          ),
+        )
+        .firstWhere((box) {
+          final decoration = box.decoration;
+          return decoration is BoxDecoration && decoration.border != null;
+        });
+    final rect = tester.getRect(find.byWidget(surface));
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+
+    expect(rect.top, kAppHeaderHeight);
+    expect(rect.right, screen.width);
+    expect(rect.height, screen.height - kAppHeaderHeight);
+    // Its own left rule stays: the panel is still set apart from the list.
+    expect(
+      ((surface.decoration as BoxDecoration).border! as Border).left.width,
+      greaterThan(0),
+    );
   });
 
   testWidgets('tapping the barrier closes without saving', (tester) async {

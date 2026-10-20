@@ -48,6 +48,16 @@ class SettingsUiPanel extends StatelessWidget {
     SelectStyleSetting.mobile => l10n.settingsUiSelectStyleMobileSubtitle,
   };
 
+  static String _drawerSideLabel(
+    AppLocalizations l10n,
+    LibraryDrawerSideSetting side,
+  ) => switch (side) {
+    LibraryDrawerSideSetting.left => l10n.settingsUiLibraryDrawerLeft,
+    LibraryDrawerSideSetting.right => l10n.settingsUiLibraryDrawerRight,
+    LibraryDrawerSideSetting.top => l10n.settingsUiLibraryDrawerTop,
+    LibraryDrawerSideSetting.bottom => l10n.settingsUiLibraryDrawerBottom,
+  };
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -167,6 +177,30 @@ class SettingsUiPanel extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsUiLibraryDrawerTitle,
+          subtitle: l10n.settingsUiLibraryDrawerDescription,
+          trailing: SettingsHeaderSwitch(
+            value: draft.libraryDrawerEnabled,
+            semanticsLabel: l10n.settingsUiLibraryDrawerEnable,
+            onChanged: (v) =>
+                onChanged(copyAppSettings(draft, libraryDrawerEnabled: v)),
+          ),
+          child: draft.libraryDrawerEnabled
+              ? SettingsField(
+                  label: l10n.settingsUiLibraryDrawerPosition,
+                  child: SettingsSelect<LibraryDrawerSideSetting>(
+                    dialogTitle: l10n.settingsUiLibraryDrawerPosition,
+                    value: draft.libraryDrawerSide,
+                    options: LibraryDrawerSideSetting.values,
+                    labelBuilder: (side) => _drawerSideLabel(l10n, side),
+                    onChanged: (side) => onChanged(
+                      copyAppSettings(draft, libraryDrawerSide: side),
+                    ),
+                  ),
+                )
+              : null,
         ),
       ],
     );

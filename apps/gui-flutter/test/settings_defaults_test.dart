@@ -140,6 +140,43 @@ void main() {
     );
   });
 
+  test(
+    'library drawer defaults off at the bottom and is dirty when changed',
+    () {
+      final baseline = defaultAppSettings();
+      expect(baseline.libraryDrawerEnabled, isFalse);
+      expect(baseline.libraryDrawerSide, LibraryDrawerSideSetting.bottom);
+      expect(
+        appSettingsDirty(
+          copyAppSettings(baseline, libraryDrawerEnabled: true),
+          baseline,
+        ),
+        isTrue,
+      );
+      expect(
+        appSettingsDirty(
+          copyAppSettings(
+            baseline,
+            libraryDrawerSide: LibraryDrawerSideSetting.left,
+          ),
+          baseline,
+        ),
+        isTrue,
+      );
+      expect(
+        appSettingsDirty(
+          copyAppSettings(
+            baseline,
+            libraryDrawerEnabled: false,
+            libraryDrawerSide: LibraryDrawerSideSetting.bottom,
+          ),
+          baseline,
+        ),
+        isFalse,
+      );
+    },
+  );
+
   test('vinyl brake stop secs dirty check tolerates the f32 boundary', () {
     // The host reports stop secs as Rust f32 widened to double; the deck panel
     // stepper drafts on the 2-decimal grid. Both display "0.55 s".

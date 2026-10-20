@@ -14,6 +14,7 @@ class LibraryPaneToolbar extends StatefulWidget {
     required this.hint,
     required this.onChanged,
     required this.trailing,
+    this.leading,
     super.key,
   });
 
@@ -24,6 +25,10 @@ class LibraryPaneToolbar extends StatefulWidget {
 
   /// Controls drawn after the field (sort menu, density toggle, actions).
   final List<Widget> trailing;
+
+  /// Optional control drawn before the filter field (the narrow layout's back
+  /// button). Wide mode passes null and the toolbar is unchanged.
+  final Widget? leading;
 
   @override
   State<LibraryPaneToolbar> createState() => _LibraryPaneToolbarState();
@@ -76,6 +81,10 @@ class _LibraryPaneToolbarState extends State<LibraryPaneToolbar> {
             padding: EdgeInsets.only(right: 6, bottom: theme.style.borderWidth),
             child: Row(
               children: [
+                if (widget.leading != null) ...[
+                  widget.leading!,
+                  const SizedBox(width: 6),
+                ],
                 Expanded(
                   child: ColoredBox(
                     color: libraryToolbarFieldColor(

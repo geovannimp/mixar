@@ -74,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -2137297009;
+  int get rustContentHash => 1206711470;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -822,6 +822,9 @@ abstract class RustLibApi extends BaseApi {
   Future<KeyColorModeSetting> crateApiSettingsKeyColorModeSettingDefault();
 
   Future<KeyDisplayModeSetting> crateApiSettingsKeyDisplayModeSettingDefault();
+
+  Future<LibraryDrawerSideSetting>
+  crateApiSettingsLibraryDrawerSideSettingDefault();
 
   Future<LibraryRowDensitySetting>
   crateApiSettingsLibraryRowDensitySettingDefault();
@@ -6231,6 +6234,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<LibraryDrawerSideSetting>
+  crateApiSettingsLibraryDrawerSideSettingDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 136,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_library_drawer_side_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsLibraryDrawerSideSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsLibraryDrawerSideSettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "library_drawer_side_setting_default",
+        argNames: [],
+      );
+
+  @override
   Future<LibraryRowDensitySetting>
   crateApiSettingsLibraryRowDensitySettingDefault() {
     return handler.executeNormal(
@@ -6240,7 +6274,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 137,
             port: port_,
           );
         },
@@ -6270,7 +6304,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 138,
             port: port_,
           );
         },
@@ -6297,7 +6331,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 138,
+            funcId: 139,
             port: port_,
           );
         },
@@ -6330,7 +6364,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 139,
+            funcId: 140,
             port: port_,
           );
         },
@@ -6360,7 +6394,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 140,
+            funcId: 141,
             port: port_,
           );
         },
@@ -6390,7 +6424,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 141,
+            funcId: 142,
             port: port_,
           );
         },
@@ -6420,7 +6454,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 142,
+            funcId: 143,
             port: port_,
           );
         },
@@ -6772,8 +6806,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 38)
-      throw Exception('unexpected arr length: expect 38 but see ${arr.length}');
+    if (arr.length != 40)
+      throw Exception('unexpected arr length: expect 40 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -6813,6 +6847,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       dimPlayedTracks: dco_decode_bool(arr[35]),
       stemsFormat: dco_decode_String(arr[36]),
       uiLanguage: dco_decode_ui_language_setting(arr[37]),
+      libraryDrawerEnabled: dco_decode_bool(arr[38]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[39]),
     );
   }
 
@@ -7331,6 +7367,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       path: dco_decode_opt_String(arr[3]),
       trackCount: dco_decode_u_32(arr[4]),
     );
+  }
+
+  @protected
+  LibraryDrawerSideSetting dco_decode_library_drawer_side_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryDrawerSideSetting.values[raw as int];
   }
 
   @protected
@@ -8301,6 +8343,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_dimPlayedTracks = sse_decode_bool(deserializer);
     var var_stemsFormat = sse_decode_String(deserializer);
     var var_uiLanguage = sse_decode_ui_language_setting(deserializer);
+    var var_libraryDrawerEnabled = sse_decode_bool(deserializer);
+    var var_libraryDrawerSide = sse_decode_library_drawer_side_setting(
+      deserializer,
+    );
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -8340,6 +8386,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       dimPlayedTracks: var_dimPlayedTracks,
       stemsFormat: var_stemsFormat,
       uiLanguage: var_uiLanguage,
+      libraryDrawerEnabled: var_libraryDrawerEnabled,
+      libraryDrawerSide: var_libraryDrawerSide,
     );
   }
 
@@ -8986,6 +9034,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       path: var_path,
       trackCount: var_trackCount,
     );
+  }
+
+  @protected
+  LibraryDrawerSideSetting sse_decode_library_drawer_side_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LibraryDrawerSideSetting.values[inner];
   }
 
   @protected
@@ -10305,6 +10362,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.dimPlayedTracks, serializer);
     sse_encode_String(self.stemsFormat, serializer);
     sse_encode_ui_language_setting(self.uiLanguage, serializer);
+    sse_encode_bool(self.libraryDrawerEnabled, serializer);
+    sse_encode_library_drawer_side_setting(self.libraryDrawerSide, serializer);
   }
 
   @protected
@@ -10814,6 +10873,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.kind, serializer);
     sse_encode_opt_String(self.path, serializer);
     sse_encode_u_32(self.trackCount, serializer);
+  }
+
+  @protected
+  void sse_encode_library_drawer_side_setting(
+    LibraryDrawerSideSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

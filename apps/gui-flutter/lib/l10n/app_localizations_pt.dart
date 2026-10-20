@@ -156,6 +156,31 @@ class AppLocalizationsPt extends AppLocalizations {
       'Escadas esquerda e direita separadas por deck.';
 
   @override
+  String get settingsUiLibraryDrawerTitle => 'Gaveta da biblioteca';
+
+  @override
+  String get settingsUiLibraryDrawerDescription =>
+      'Onde a biblioteca abre. O modo gaveta oculta a biblioteca fixa e a abre sobre o mixer.';
+
+  @override
+  String get settingsUiLibraryDrawerEnable => 'Biblioteca como gaveta';
+
+  @override
+  String get settingsUiLibraryDrawerPosition => 'Posição';
+
+  @override
+  String get settingsUiLibraryDrawerLeft => 'Esquerda';
+
+  @override
+  String get settingsUiLibraryDrawerRight => 'Direita';
+
+  @override
+  String get settingsUiLibraryDrawerTop => 'Topo';
+
+  @override
+  String get settingsUiLibraryDrawerBottom => 'Inferior';
+
+  @override
   String get settingsUiSelectStyle => 'Estilo de seleção';
 
   @override

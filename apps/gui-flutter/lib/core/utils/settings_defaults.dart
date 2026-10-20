@@ -132,6 +132,8 @@ AppSettings defaultAppSettings() {
     dimPlayedTracks: true,
     stemsFormat: 'opus',
     uiLanguage: UiLanguageSetting.system,
+    libraryDrawerEnabled: false,
+    libraryDrawerSide: LibraryDrawerSideSetting.bottom,
   );
 }
 
@@ -206,6 +208,8 @@ AppSettings copyAppSettings(
   bool? dimPlayedTracks,
   String? stemsFormat,
   UiLanguageSetting? uiLanguage,
+  bool? libraryDrawerEnabled,
+  LibraryDrawerSideSetting? libraryDrawerSide,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -250,6 +254,8 @@ AppSettings copyAppSettings(
     dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
     stemsFormat: stemsFormat ?? base.stemsFormat,
     uiLanguage: uiLanguage ?? base.uiLanguage,
+    libraryDrawerEnabled: libraryDrawerEnabled ?? base.libraryDrawerEnabled,
+    libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
   );
 }
 
@@ -292,6 +298,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       draft.stemsFormat != baseline.stemsFormat ||
       draft.uiLanguage != baseline.uiLanguage ||
+      draft.libraryDrawerEnabled != baseline.libraryDrawerEnabled ||
+      draft.libraryDrawerSide != baseline.libraryDrawerSide ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||
       draft.tagWriteBack != baseline.tagWriteBack ||
       !_sameList(

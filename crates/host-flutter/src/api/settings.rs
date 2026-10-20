@@ -256,6 +256,17 @@ pub enum UiLanguageSetting {
     PtBr,
 }
 
+/// Edge the library drawer opens from (Settings → UI).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LibraryDrawerSideSetting {
+    Left,
+    Right,
+    Top,
+    #[default]
+    Bottom,
+}
+
 fn default_vinyl_brake_stop_secs() -> f32 {
     0.5
 }
@@ -324,6 +335,12 @@ pub struct AppSettings {
     pub stems_format: String,
     #[serde(default)]
     pub ui_language: UiLanguageSetting,
+    /// Open the library as an overlay drawer instead of the docked panel.
+    #[serde(default)]
+    pub library_drawer_enabled: bool,
+    /// Edge the drawer opens from.
+    #[serde(default)]
+    pub library_drawer_side: LibraryDrawerSideSetting,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -356,6 +373,8 @@ struct SettingsHost {
     dim_played_tracks: bool,
     stems_format: String,
     ui_language: UiLanguageSetting,
+    library_drawer_enabled: bool,
+    library_drawer_side: LibraryDrawerSideSetting,
 }
 
 impl Default for SettingsHost {
@@ -388,6 +407,8 @@ impl Default for SettingsHost {
             dim_played_tracks: default_dim_played_tracks(),
             stems_format: default_stems_format(),
             ui_language: UiLanguageSetting::default(),
+            library_drawer_enabled: false,
+            library_drawer_side: LibraryDrawerSideSetting::Bottom,
         }
     }
 }
@@ -669,6 +690,8 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         dim_played_tracks: host.dim_played_tracks,
         stems_format: host.stems_format.clone(),
         ui_language: host.ui_language,
+        library_drawer_enabled: host.library_drawer_enabled,
+        library_drawer_side: host.library_drawer_side,
     }
 }
 
@@ -716,6 +739,8 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
     host.ui_language = settings.ui_language;
+    host.library_drawer_enabled = settings.library_drawer_enabled;
+    host.library_drawer_side = settings.library_drawer_side;
     host.configured = true;
     Ok(())
 }
@@ -1090,6 +1115,35 @@ mod tests {
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert_eq!(restored.select_style, SelectStyleSetting::Mobile);
+    }
+
+    #[test]
+    fn missing_library_drawer_defaults() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        object.remove("library_drawer_enabled");
+        object.remove("library_drawer_side");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert!(!settings.library_drawer_enabled);
+        assert_eq!(
+            settings.library_drawer_side,
+            LibraryDrawerSideSetting::Bottom
+        );
+    }
+
+    #[test]
+    fn library_drawer_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.library_drawer_enabled = true;
+        settings.library_drawer_side = LibraryDrawerSideSetting::Left;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(restored.library_drawer_enabled);
+        assert_eq!(restored.library_drawer_side, LibraryDrawerSideSetting::Left);
     }
 
     #[test]

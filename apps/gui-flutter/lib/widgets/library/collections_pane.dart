@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
+import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/widgets/library/library_pane_label.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -44,6 +45,9 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
   void _browseInDrive(String path) {
     ref.read(driveCurrentPathProvider.notifier).set(path);
     ref.read(librarySourceTabProvider.notifier).set(LibrarySourceTab.drive);
+    // The menu names a folder, so the intent is the same in either layout:
+    // show the folder's contents. On a narrow surface that is the content page.
+    ref.read(libraryNarrowPageProvider.notifier).set(LibraryNarrowPage.content);
   }
 
   @override
@@ -113,14 +117,26 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                       selected: c.id == selectedId,
                       focused: sidebarFocused && c.id == selectedId,
                       onPress: () {
-                        // Focus follows the pointer, the way a row press in the
-                        // track list does.
-                        ref
-                            .read(libraryFocusZoneProvider.notifier)
-                            .set(LibraryFocusZone.sidebar);
                         ref
                             .read(selectedCollectionIdProvider.notifier)
                             .set(c.id);
+                        // Focus follows the pointer, the way a row press in the
+                        // track list does. On a narrow surface the press is a
+                        // page change, so focus goes to the track list page
+                        // instead of parking on the sidebar.
+                        if (LibraryLayoutScope.maybeOf(context)?.narrow ??
+                            false) {
+                          ref
+                              .read(libraryFocusZoneProvider.notifier)
+                              .set(LibraryFocusZone.trackList);
+                          ref
+                              .read(libraryNarrowPageProvider.notifier)
+                              .set(LibraryNarrowPage.content);
+                        } else {
+                          ref
+                              .read(libraryFocusZoneProvider.notifier)
+                              .set(LibraryFocusZone.sidebar);
+                        }
                       },
                       trailing: c.kind == 'folder' && c.path != null
                           ? MTappable.child(

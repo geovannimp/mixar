@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/focused_load.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/history_refresh.dart';
@@ -558,6 +559,22 @@ final libraryFocusZoneProvider =
       LibraryFocusZoneNotifier.new,
     );
 
+/// Which library page the narrow (sub-1024px) layout shows: the sidebar list,
+/// or the content pane it navigates to.
+enum LibraryNarrowPage { list, content }
+
+class LibraryNarrowPageNotifier extends Notifier<LibraryNarrowPage> {
+  @override
+  LibraryNarrowPage build() => LibraryNarrowPage.list;
+
+  void set(LibraryNarrowPage page) => state = page;
+}
+
+final libraryNarrowPageProvider =
+    NotifierProvider<LibraryNarrowPageNotifier, LibraryNarrowPage>(
+      LibraryNarrowPageNotifier.new,
+    );
+
 /// The active list's focused-row payload, so controller / MIDI "load focused
 /// row" acts on whichever list is on screen (library or history).
 ///
@@ -689,6 +706,16 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
       // Same boundary guard as navigate: a step with no ticks is not a step.
       final focusDelta = evt.delta ?? 0;
       if (focusDelta != 0) {
+        // A press of the library knob reveals the drawer; SHIFT + press
+        // dismisses it, and owns the step — there is no cursor to move in a
+        // surface that is closing. Docked mode just steps focus, as before.
+        if (focusDelta < 0) {
+          if (dismissLibraryDrawer(ref)) {
+            return;
+          }
+        } else {
+          revealLibraryDrawer(ref);
+        }
         ref.read(libraryFocusZoneProvider.notifier).move(focusDelta);
       }
     case LibraryEvtKind.load:

@@ -1,6 +1,10 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/mixer/master_meter_header.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
@@ -9,8 +13,15 @@ import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Brand | drag region | master meter | settings | window controls (desktop).
-class AppHeader extends StatelessWidget {
+/// Height of the app header strip.
+///
+/// Its body below is the stage for full-window overlays: the mixer's library
+/// drawer is inset by this, so it never covers the window controls.
+const double kAppHeaderHeight = 40;
+
+/// Brand | drag region | master meter | library drawer | settings | window
+/// controls (desktop).
+class AppHeader extends ConsumerWidget {
   const new({
     required this.appTitle,
     required this.tab,
@@ -23,14 +34,18 @@ class AppHeader extends StatelessWidget {
   final ValueChanged<ShellTab> onTabChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final desktop = isDesktopWindow;
+    final settings = ref
+        .watch(appSettingsProvider)
+        .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
+    final drawerOpen = ref.watch(libraryDrawerOpenProvider);
 
     return ColoredBox(
       color: theme.colors.background,
       child: SizedBox(
-        height: 40,
+        height: kAppHeaderHeight,
         child: Row(
           children: [
             _maybeDrag(
@@ -59,6 +74,21 @@ class AppHeader extends StatelessWidget {
               ),
             ),
             const MasterMeterHeader(),
+            // Only in drawer mode, and only on the mixer: the docked library
+            // mode has nothing to toggle. Hidden while settings load, since
+            // `defaultAppSettings` has the drawer off.
+            if (settings.libraryDrawerEnabled && tab == ShellTab.mixer)
+              AppTooltip(
+                tip: drawerOpen ? 'Close library' : 'Open library',
+                child: AppButton.icon(
+                  variant: .ghost,
+                  size: .sm,
+                  semanticsLabel: drawerOpen ? 'Close library' : 'Open library',
+                  onPress: () =>
+                      ref.read(libraryDrawerOpenProvider.notifier).toggle(),
+                  child: const Icon(LucideIcons.libraryBig),
+                ),
+              ),
             AppTooltip(
               tip: 'Settings',
               child: AppButton.icon(

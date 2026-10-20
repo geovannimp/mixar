@@ -4,6 +4,7 @@ import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
+import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/widgets/library/library_pane_label.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
@@ -56,12 +57,25 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
         ref.watch(libraryFocusZoneProvider) == LibraryFocusZone.sidebar
         ? ref.watch(driveTreeFocusedPathProvider)
         : null;
-    // Pressing a row parks focus on the sidebar and moves the cursor onto that
-    // row, so the marker follows the pointer here as it does in the other panes.
+    // Pressing a row moves the cursor onto that row, so the marker follows the
+    // pointer here as it does in the other panes, and parks focus on the
+    // sidebar. On a narrow surface the press is a page change instead: focus
+    // goes to the content page that shows the folder.
     void pressPath(String path) {
-      ref.read(libraryFocusZoneProvider.notifier).set(LibraryFocusZone.sidebar);
       ref.read(driveTreeCursorProvider.notifier).set(path);
       _openPath(path);
+      if (LibraryLayoutScope.maybeOf(context)?.narrow ?? false) {
+        ref
+            .read(libraryFocusZoneProvider.notifier)
+            .set(LibraryFocusZone.trackList);
+        ref
+            .read(libraryNarrowPageProvider.notifier)
+            .set(LibraryNarrowPage.content);
+      } else {
+        ref
+            .read(libraryFocusZoneProvider.notifier)
+            .set(LibraryFocusZone.sidebar);
+      }
     }
 
     return Column(

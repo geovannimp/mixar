@@ -17,6 +17,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/track_list_pane.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
+import 'package:gui_flutter/widgets/library/track_title_line.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -462,7 +463,91 @@ void main() {
     }
   });
 
-  testWidgets('comfortable renders every metadata field as its own pill', (
+  testWidgets(
+    'comfortable pills its metadata and keeps the artist by the title',
+    (tester) async {
+      await pumpList(
+        tester,
+        width: 1000,
+        tracks: const [
+          LibraryTrackSummary(
+            id: 't1',
+            displayName: 'Demo Track',
+            title: 'Demo Track',
+            artist: 'Artist',
+            album: 'Album',
+            genre: 'Genre',
+            bpm: 128,
+            key: '8A',
+            durationMs: 180000,
+            path: '/tmp/samples/demo.wav',
+          ),
+        ],
+      );
+
+      final pills = find
+          .descendant(
+            of: find.byType(TrackListRow),
+            matching: find.byType(Wrap),
+          )
+          .first;
+      for (final label in ['Album', 'Genre', '3:00']) {
+        expect(
+          find.descendant(of: pills, matching: find.text(label)),
+          findsOneWidget,
+          reason: 'missing pill "$label"',
+        );
+      }
+
+      // The artist is not a pill: it rides the title line after a separator. A
+      // baseline cannot be read back after layout (`getDistanceToBaseline` is
+      // layout-time only), so the shared baseline is asserted where the line
+      // declares it.
+      final title = tester.getCenter(find.text('Demo Track'));
+      final artist = tester.getCenter(find.text('Artist'));
+      expect(artist.dx, greaterThan(title.dx));
+      final bullet = tester.getCenter(find.text('•'));
+      expect(bullet.dx, greaterThan(title.dx));
+      expect(bullet.dx, lessThan(artist.dx));
+
+      final line = tester.widget<Row>(
+        find
+            .descendant(
+              of: find.byType(TrackTitleLine),
+              matching: find.byType(Row),
+            )
+            .first,
+      );
+      expect(line.crossAxisAlignment, CrossAxisAlignment.baseline);
+      expect(line.textBaseline, TextBaseline.alphabetic);
+
+      // BPM and key are pills too, but grouped on the right rather than in the
+      // metadata Wrap, so scope to that group.
+      final trailing = find.byKey(kTrailingMetaKey);
+      expect(
+        find.descendant(of: trailing, matching: find.text('128.0 BPM')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('compact keeps the artist on the title line', (tester) async {
+    final container = await pumpList(tester, width: 1000);
+    container
+        .read(libraryRowDensityOverrideProvider.notifier)
+        .set(LibraryRowDensity.compact);
+    await tester.pumpAndSettle();
+
+    // Both densities name the track the same way: title • artist.
+    expect(find.text('Artist'), findsOneWidget);
+    expect(find.text('•'), findsOneWidget);
+    expect(
+      tester.getCenter(find.text('Artist')).dx,
+      greaterThan(tester.getCenter(find.text('Demo Track')).dx),
+    );
+  });
+
+  testWidgets('metadata pills hang left to align with the title', (
     tester,
   ) async {
     await pumpList(
@@ -475,7 +560,6 @@ void main() {
           title: 'Demo Track',
           artist: 'Artist',
           album: 'Album',
-          genre: 'Genre',
           bpm: 128,
           key: '8A',
           durationMs: 180000,
@@ -484,42 +568,19 @@ void main() {
       ],
     );
 
-    final pills = find
-        .descendant(of: find.byType(TrackListRow), matching: find.byType(Wrap))
-        .first;
-    for (final label in ['Artist', 'Album', 'Genre', '3:00']) {
-      expect(
-        find.descendant(of: pills, matching: find.text(label)),
-        findsOneWidget,
-        reason: 'missing pill "$label"',
-      );
-    }
-
-    // BPM and key are pills too, but grouped on the right rather than in the
-    // metadata Wrap, so scope to that group.
-    final trailing = find.byKey(kTrailingMetaKey);
-    expect(
-      find.descendant(of: trailing, matching: find.text('128.0 BPM')),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('metadata pills hang left to align with the title', (
-    tester,
-  ) async {
-    await pumpList(tester, width: 1000);
-
     // `muted` matches the list surface, so the pill's horizontal padding has no
     // visible chip to justify it — the group is shifted back so the metadata
     // text lines up with the title above it.
     final titleLeft = tester.getTopLeft(find.text('Demo Track')).dx;
-    final artistLeft = tester.getTopLeft(find.text('Artist')).dx;
-    expect(artistLeft, closeTo(titleLeft, 0.5));
+    final albumLeft = tester.getTopLeft(find.text('Album')).dx;
+    expect(albumLeft, closeTo(titleLeft, 0.5));
   });
 
-  testWidgets('pills wrap to two runs and none is clipped', (tester) async {
-    // A long artist name would otherwise take a whole run and push the rest
-    // past the row's fixed height, where they would be silently clipped.
+  testWidgets('whatever metadata survives stays inside the row', (
+    tester,
+  ) async {
+    // Extras that cannot pack into the row's two runs are dropped; the rest must
+    // stay inside the row's fixed height instead of being clipped out of it.
     final overflows = <String>[];
     final previous = FlutterError.onError;
     FlutterError.onError = (d) {
@@ -528,6 +589,12 @@ void main() {
       previous?.call(d);
     };
     try {
+      const labels = [
+        'A Really Very Extremely Long Artist Name Indeed',
+        'A Long Album Title',
+        'Drum And Bass',
+        '3:00',
+      ];
       for (final width in [320.0, 420.0, 700.0, 1000.0]) {
         await pumpList(
           tester,
@@ -547,17 +614,29 @@ void main() {
         );
 
         final row = tester.getRect(find.byType(TrackListRow));
-        for (final label in [
-          'A Really Very Extremely Long Artist Name Indeed',
-          'A Long Album Title',
-          'Drum And Bass',
-          '3:00',
-        ]) {
-          final pill = find.text(label);
-          expect(pill, findsOneWidget, reason: '$label missing at $width');
-          final r = tester.getRect(pill);
+        expect(
+          find.text('3:00'),
+          findsOneWidget,
+          reason: 'duration missing at $width',
+        );
+        if (width == 1000) {
+          // Room to spare: every label is kept, so the wide case still pins the
+          // two-run layout.
+          for (final label in labels) {
+            expect(
+              find.text(label),
+              findsOneWidget,
+              reason: '$label missing at $width',
+            );
+          }
+        }
+        for (final label in labels) {
+          final shown = find.text(label);
+          if (shown.evaluate().isEmpty) {
+            continue; // Dropped on purpose: it could not pack.
+          }
           expect(
-            r.bottom,
+            tester.getRect(shown).bottom,
             lessThanOrEqualTo(row.bottom + 0.5),
             reason: '$label clipped out of the row at $width',
           );
@@ -788,6 +867,142 @@ void main() {
     ]);
   });
 
+  group('fitsInRuns', () {
+    test('packs greedily, and an over-wide item takes its own run', () {
+      expect(fitsInRuns([60, 60, 60], available: 130, runs: 2), isTrue);
+      expect(fitsInRuns([120, 120, 120], available: 130, runs: 2), isFalse);
+      expect(fitsInRuns([200, 40], available: 130, runs: 2), isTrue);
+      expect(fitsInRuns([200, 40], available: 130, runs: 1), isFalse);
+      expect(fitsInRuns(const [10], available: 0, runs: 2), isFalse);
+    });
+  });
+
+  testWidgets('a title that needs the line hides the artist', (tester) async {
+    await pumpList(
+      tester,
+      width: 360,
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Long',
+          title: 'A Really Very Extremely Long Track Title Indeed',
+          artist: 'Artist',
+          bpm: 128,
+          key: '8A',
+          durationMs: 180000,
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    // The title keeps its whole line: the artist and its bullet give way rather
+    // than squeezing the title into an ellipsis.
+    expect(
+      find.text('A Really Very Extremely Long Track Title Indeed'),
+      findsOneWidget,
+    );
+    expect(find.text('Artist'), findsNothing);
+    expect(find.text('•'), findsNothing);
+  });
+
+  testWidgets('album and genre go when the metadata cannot pack', (
+    tester,
+  ) async {
+    await pumpList(
+      tester,
+      width: 420,
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Demo Track',
+          title: 'Demo Track',
+          artist: 'Artist',
+          album: 'A Very Long Album Title That Keeps Going',
+          genre: 'Progressive Melodic House Music',
+          bpm: 128,
+          key: '8A',
+          durationMs: 180000,
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    // Three runs at their natural width: the two extras go together and the
+    // duration stays, instead of a cramped extra run being clipped.
+    expect(find.text('A Very Long Album Title That Keeps Going'), findsNothing);
+    expect(find.text('Progressive Melodic House Music'), findsNothing);
+    expect(find.text('3:00'), findsOneWidget);
+  });
+
+  testWidgets('anything shown paints whole, never ellipsized', (tester) async {
+    // The rule is hide-before-clip, not clip-and-hide. Whatever the row decides
+    // to keep must paint at its natural width: an artist beside an ellipsized
+    // title, or a pill clipped at some arbitrary cap, is the bug.
+    for (final width in [380.0, 476.0, 700.0, 1000.0]) {
+      await pumpList(
+        tester,
+        width: width,
+        tracks: const [
+          LibraryTrackSummary(
+            id: 't1',
+            displayName: 'Anade Acuite',
+            title: 'Anade Acuite',
+            artist: 'Hercules',
+            album: 'Reggaeton 2025',
+            genre: 'Reggaeton',
+            bpm: 96,
+            key: 'Am',
+            durationMs: 226000,
+            path: '/tmp/samples/demo.wav',
+          ),
+        ],
+      );
+
+      final context = tester.element(find.byType(TrackTitleLine));
+      final typography = MixarTheme.of(context).typography;
+      final titleStyle = typography.body.sm.copyWith(
+        fontWeight: FontWeight.w600,
+      );
+      final pillStyle = typography.body.xs.copyWith(
+        fontWeight: FontWeight.w500,
+      );
+
+      double paintedWidth(String label) =>
+          tester.getSize(find.text(label)).width;
+
+      final artist = find.text('Hercules');
+      if (artist.evaluate().isNotEmpty) {
+        expect(
+          paintedWidth('Anade Acuite'),
+          greaterThanOrEqualTo(
+            measureTextWidth(context, 'Anade Acuite', titleStyle) - 0.5,
+          ),
+          reason: 'the artist is shown while the title ellipsized at $width',
+        );
+      }
+
+      final column = tester.getSize(find.byType(TrackTitleLine)).width;
+      for (final label in ['Reggaeton 2025', 'Reggaeton', '3:46']) {
+        final pill = find.text(label);
+        if (pill.evaluate().isEmpty) {
+          continue;
+        }
+        final natural = measureTextWidth(context, label, pillStyle);
+        if (natural + kMetaPillPadding.horizontal > column) {
+          // No run is wide enough anywhere, so even a mandatory pill (the
+          // duration) has to clip. Nothing to decide.
+          continue;
+        }
+        // The label inside a pill: padding and the clock glyph sit outside it.
+        expect(
+          paintedWidth(label),
+          greaterThanOrEqualTo(natural - 0.5),
+          reason: '$label is shown clipped at $width',
+        );
+      }
+    }
+  });
+
   testWidgets('compact hides the pills', (tester) async {
     final container = await pumpList(tester);
     container
@@ -796,7 +1011,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Wrap), findsNothing);
-    expect(find.text('Artist'), findsNothing);
+    // Compact names the track — title • artist — but keeps the metadata pills
+    // off; the trailing meta carries BPM and key.
+    expect(find.text('Artist'), findsOneWidget);
+    expect(find.text('•'), findsOneWidget);
     // The trailing meta still carries the values compact can show.
     expect(find.text('128.0 BPM'), findsOneWidget);
   });

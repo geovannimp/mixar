@@ -16,7 +16,9 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
 import 'package:gui_flutter/widgets/library/history_comfortable_entry_row.dart';
 import 'package:gui_flutter/widgets/library/history_session_actions_menu.dart';
+import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_list_message.dart';
+import 'package:gui_flutter/widgets/library/library_pane_back_button.dart';
 import 'package:gui_flutter/widgets/library/library_pane_toolbar.dart';
 import 'package:gui_flutter/widgets/library/library_row_density_button.dart';
 import 'package:gui_flutter/widgets/library/track_list_view.dart';
@@ -67,6 +69,9 @@ class HistoryDetailPane extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LibraryPaneToolbar(
+          leading: (LibraryLayoutScope.maybeOf(context)?.narrow ?? false)
+              ? const LibraryPaneBackButton()
+              : null,
           hint: 'Filter entries…',
           onChanged: (value) =>
               ref.read(historyEntryFilterProvider.notifier).set(value),

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/widgets/library/track_list_menu_button.dart';
@@ -75,9 +76,23 @@ class TrackListRow extends ConsumerWidget {
         : Stack(children: [content, overlay!]);
     final payload = payloadOf(ref);
     // Watch engine here so drag attaches after start without rebuilding the
-    // surrounding list.
+    // surrounding list. The notifiers are captured during build: the callbacks
+    // can fire while the row is on its way out, and a container-owned notifier
+    // outlives the row where `ref` would not.
+    final dragActive = ref.watch(libraryTrackDragActiveProvider.notifier);
+    final drawerOpen = ref.watch(libraryDrawerOpenProvider.notifier);
     final row = payload != null && ref.watch(engineRunningProvider)
-        ? libraryTrackDragSource(payload: payload, child: stacked)
+        ? libraryTrackDragSource(
+            payload: payload,
+            // Tuck the drawer away for the drag — it must never cover the deck
+            // being dropped on — and close it when the drag ends. The tuck is
+            // *not* released here: `MixerPage` holds it until the drawer is
+            // next opened, because un-tucking during the close drags the panel
+            // back into view mid-animation.
+            onDragStart: dragActive.begin,
+            onDragEnd: () => drawerOpen.set(false),
+            child: stacked,
+          )
         : stacked;
     final dimmed = dimmedOf?.call(ref) ?? false;
     // Pointer-down (not tap): super_dnd's drag recognizer often wins the

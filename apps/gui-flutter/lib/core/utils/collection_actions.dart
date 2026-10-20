@@ -49,6 +49,9 @@ void selectCreatedCollection(
 ) {
   ref.read(selectedCollectionIdProvider.notifier).set(collection.id);
   ref.read(librarySourceTabProvider.notifier).set(LibrarySourceTab.collections);
+  // The caller named a collection, so show its tracks. On a narrow surface that
+  // is the content page; in the split the id change already swaps the list.
+  ref.read(libraryNarrowPageProvider.notifier).set(LibraryNarrowPage.content);
 }
 
 /// Queue collection-wide analysis onto the library cmd bus (one `AnalyzeTrack`

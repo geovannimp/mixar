@@ -375,6 +375,54 @@ abstract class AppLocalizations {
   /// **'Separate left and right ladders per deck.'**
   String get settingsUiMixerMetersStereoSubtitle;
 
+  /// No description provided for @settingsUiLibraryDrawerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library drawer'**
+  String get settingsUiLibraryDrawerTitle;
+
+  /// No description provided for @settingsUiLibraryDrawerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the library opens. Drawer mode hides the docked library and opens it over the mixer.'**
+  String get settingsUiLibraryDrawerDescription;
+
+  /// No description provided for @settingsUiLibraryDrawerEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Library as a drawer'**
+  String get settingsUiLibraryDrawerEnable;
+
+  /// No description provided for @settingsUiLibraryDrawerPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Position'**
+  String get settingsUiLibraryDrawerPosition;
+
+  /// No description provided for @settingsUiLibraryDrawerLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get settingsUiLibraryDrawerLeft;
+
+  /// No description provided for @settingsUiLibraryDrawerRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get settingsUiLibraryDrawerRight;
+
+  /// No description provided for @settingsUiLibraryDrawerTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Top'**
+  String get settingsUiLibraryDrawerTop;
+
+  /// No description provided for @settingsUiLibraryDrawerBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom'**
+  String get settingsUiLibraryDrawerBottom;
+
   /// No description provided for @settingsUiSelectStyle.
   ///
   /// In en, this message translates to:
