@@ -27,6 +27,10 @@ class DeckPerformancePanel extends StatelessWidget {
 
   final int? deckId;
   final bool hasTrack;
+
+  /// Engine-level disable (not ready / loading). Surfaces that need a loaded
+  /// track gate their own controls on [hasTrack]; pad mode stays selectable on
+  /// an empty deck.
   final bool disabled;
   final FaderAccent accent;
 

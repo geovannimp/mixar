@@ -184,7 +184,10 @@ class DeckPanel extends ConsumerWidget {
             deckId: deckId,
             hasTrack: hasTrack,
             accent: accent,
-            disabled: transportDisabled,
+            // Engine-level only: pad mode must stay selectable while the deck
+            // is empty, and the per-surface panels already gate their controls
+            // on `hasTrack`.
+            disabled: loadDisabled,
           ),
         ),
         Row(

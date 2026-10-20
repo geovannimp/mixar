@@ -28,11 +28,13 @@ import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/mixer/master_strip.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
+import 'package:gui_flutter/widgets/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
+import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_switch.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -53,6 +55,12 @@ class _HeaderCueEngineUi extends EngineUi {
     cueMix: 0.7,
     masterCue: true,
   );
+}
+
+class _RunningEmptyEngineUi extends EngineUi {
+  @override
+  EngineUiSnapshot build() =>
+      const EngineUiSnapshot(running: true, trackPaths: {});
 }
 
 class _SeededEngineUi extends EngineUi {
@@ -85,6 +93,11 @@ bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
       )
       .any((s) => s.enabled);
 }
+
+Finder _deck(String label) => find.ancestor(
+  of: find.descendant(of: find.byType(DeckPanel), matching: find.text(label)),
+  matching: find.byType(DeckPanel),
+);
 
 List<Override> _settingsOverrides([AppSettings? settings]) => [
   appSettingsProvider.overrideWith(
@@ -173,6 +186,41 @@ void main() {
       await tester.pump();
     }
   }
+
+  testWidgets('empty deck can switch pad mode', (tester) async {
+    final engine = FakeEngineTransport();
+    await pumpShell(
+      tester,
+      extraOverrides: [
+        engineUiProvider.overrideWith(_RunningEmptyEngineUi.new),
+        engineTransportProvider.overrideWith((ref) async => engine),
+      ],
+    );
+
+    final deckA = _deck('DECK A');
+    final padModeSelect = find.descendant(
+      of: deckA,
+      matching: find.byType(MixarSelect<PadMode>),
+    );
+    expect(padModeSelect, findsOneWidget);
+
+    await tester.tap(padModeSelect);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Roll').last);
+    await tester.pumpAndSettle();
+
+    expect(engine.padModes, [(0, PadMode.loopRoll)]);
+
+    // The selector works on an empty deck, but its pads stay inert.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(LoopRollPads),
+        matching: find.text('1/2'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(engine.loopRollPresses, isEmpty);
+  });
 
   testWidgets('leaving the mixer closes the library drawer', (tester) async {
     await pumpShell(
@@ -673,20 +721,8 @@ void main() {
       ],
     );
 
-    final deckA = find.ancestor(
-      of: find.descendant(
-        of: find.byType(DeckPanel),
-        matching: find.text('DECK A'),
-      ),
-      matching: find.byType(DeckPanel),
-    );
-    final deckB = find.ancestor(
-      of: find.descendant(
-        of: find.byType(DeckPanel),
-        matching: find.text('DECK B'),
-      ),
-      matching: find.byType(DeckPanel),
-    );
+    final deckA = _deck('DECK A');
+    final deckB = _deck('DECK B');
     final laneA = find.ancestor(
       of: find.descendant(
         of: find.byType(ScrollingLane),
@@ -730,13 +766,7 @@ void main() {
       ],
     );
 
-    final deckA = find.ancestor(
-      of: find.descendant(
-        of: find.byType(DeckPanel),
-        matching: find.text('DECK A'),
-      ),
-      matching: find.byType(DeckPanel),
-    );
+    final deckA = _deck('DECK A');
     expect(_enabledSkeletonsUnder(tester, deckA), isTrue);
     expect(find.text('Load tracks to see waveforms.'), findsNothing);
   });

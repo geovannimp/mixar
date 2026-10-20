@@ -1,10 +1,15 @@
 // Test doubles for EngineTransport (FRB opaque). Hand-maintained stubs.
+import 'dart:async';
+
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart' show SamplerPlayMode;
 import 'package:gui_flutter/src/rust/api/settings.dart' show JogModeSetting;
 
 /// Minimal [EngineTransport] fake that records seek / jog calls.
 class FakeEngineTransport implements EngineTransport {
+  final StreamController<EngineEvt> _events =
+      StreamController<EngineEvt>.broadcast();
+
   final List<(int deckId, int positionMs)> seeks = [];
   final List<(int deckId, int delta)> jogTurns = [];
   final List<(int deckId, bool touching)> jogTouches = [];
@@ -16,9 +21,13 @@ class FakeEngineTransport implements EngineTransport {
   final List<(int slot, double wet)> fxUnitWets = [];
   final List<(int slot, int param, double value)> fxUnitParams = [];
   final List<(int deckId, bool routed)> deckFxRouted = [];
+  final List<(int deckId, PadMode mode)> padModes = [];
+  final List<(int deckId, int slot)> loopRollPresses = [];
 
   @override
-  void dispose() {}
+  void dispose() {
+    unawaited(_events.close());
+  }
 
   @override
   bool get isDisposed => false;
@@ -140,7 +149,9 @@ class FakeEngineTransport implements EngineTransport {
   Future<void> loopRollPadPress({
     required int deckId,
     required int slot,
-  }) async {}
+  }) async {
+    loopRollPresses.add((deckId, slot));
+  }
 
   @override
   Future<void> loopRollPadRelease({
@@ -312,7 +323,12 @@ class FakeEngineTransport implements EngineTransport {
   }
 
   @override
-  Future<void> setPadMode({required int deckId, required PadMode mode}) async {}
+  Future<void> setPadMode({required int deckId, required PadMode mode}) async {
+    padModes.add((deckId, mode));
+    _events.add(
+      EngineEvt(kind: EngineEvtKind.updated, deckId: deckId, padMode: mode),
+    );
+  }
 
   @override
   Future<void> setQuantize({
@@ -345,7 +361,7 @@ class FakeEngineTransport implements EngineTransport {
   Future<void> stop() async {}
 
   @override
-  Stream<EngineEvt> subscribeEvents() => const Stream.empty();
+  Stream<EngineEvt> subscribeEvents() => _events.stream;
 
   @override
   Future<void> toggleSync({
