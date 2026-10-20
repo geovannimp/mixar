@@ -1,3 +1,12 @@
+## Code navigation
+
+- Always prefer CodeGraph (`codegraph_explore`) over grep/find or Read for any **structural** question — how does X work, how does X reach Y, what calls what, where is X defined, or surveying an area. One call returns verbatim line-numbered source grouped by file (safe to Edit from), the call paths among those symbols (including dynamic-dispatch hops grep can't follow), and a blast-radius summary of what depends on them.
+- Answer directly; don't delegate exploration. CodeGraph is the pre-built index, so spawning a file-reading sub-agent or running a grep + read loop repeats work it already did. Follow up with another `codegraph_explore` naming more specific symbols if needed.
+- Trust the results — they come from a full AST parse. Do not re-verify them with grep.
+- Index lag: if a response starts with "⚠️ Some files referenced below were edited since the last index sync…", Read only the files listed there; everything else in the response is fresh and authoritative.
+- Query this repo's index by passing the project path (`.codegraph/` at the repo root; the server has no default project). Fall back to `read`/`grep`/`glob` only for what CodeGraph does not index (docs, configs, `mappings/`, manifests) or to confirm a specific detail it did not cover.
+- If a checkout has no `.codegraph/`, ask the user before running `codegraph init -i`.
+
 ## Docs
 
 - Before architecture, module, or crate-boundary work: read `docs/tech-spec.md` and `DEVELOPER.md`.
