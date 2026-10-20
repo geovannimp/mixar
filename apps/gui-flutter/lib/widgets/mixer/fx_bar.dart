@@ -8,6 +8,7 @@ import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/core/utils/mixer_live_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show FxKind;
+import 'package:gui_flutter/widgets/mixer/master_meter_bar.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
@@ -93,42 +94,53 @@ class FxBar extends ConsumerWidget {
     ];
     return ColoredBox(
       color: theme.colors.card,
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: _pad),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: constraints.maxWidth.isFinite
-                  ? math.max<double>(0, constraints.maxWidth - _pad * 2)
-                  : 0,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.end,
-              spacing: 8,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  spacing: 8,
-                  children: controls,
-                ),
-                _ArmButton(
-                  on: on,
-                  enabled: selected,
-                  onPress: () {
-                    unawaited(
-                      _fxCmd(
-                        context,
-                        () => setFxUnitSlotEnabled(ref, kBeatFxSlot, !on),
+      child: Row(
+        children: [
+          // Master meter + dialog opener, pinned to the bar's left edge.
+          const Padding(
+            padding: EdgeInsets.only(left: _pad),
+            child: MasterMeterBar(),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: _pad),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: constraints.maxWidth.isFinite
+                        ? math.max<double>(0, constraints.maxWidth - _pad * 2)
+                        : 0,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    spacing: 8,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        spacing: 8,
+                        children: controls,
                       ),
-                    );
-                  },
+                      _ArmButton(
+                        on: on,
+                        enabled: selected,
+                        onPress: () {
+                          unawaited(
+                            _fxCmd(
+                              context,
+                              () => setFxUnitSlotEnabled(ref, kBeatFxSlot, !on),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

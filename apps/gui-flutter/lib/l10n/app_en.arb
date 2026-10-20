@@ -42,7 +42,7 @@
   "settingsLanguagePtBr": "Português (Brasil)",
   "settingsShowTooltips": "Show tooltips",
   "settingsUiMixerMetersTitle": "Mixer meters",
-  "settingsUiMixerMetersDescription": "Deck VU meters between the volume faders. Master meter stays in the top bar.",
+  "settingsUiMixerMetersDescription": "Deck VU meters between the volume faders. Master meter sits in the FX bar at the bottom.",
   "settingsUiShowMixerMeters": "Show mixer meters",
   "settingsUiMixerMetersMode": "Meter mode",
   "settingsUiMixerMetersMono": "Mono",

@@ -336,7 +336,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiMixerMetersDescription.
   ///
   /// In en, this message translates to:
-  /// **'Deck VU meters between the volume faders. Master meter stays in the top bar.'**
+  /// **'Deck VU meters between the volume faders. Master meter sits in the FX bar at the bottom.'**
   String get settingsUiMixerMetersDescription;
 
   /// No description provided for @settingsUiShowMixerMeters.

@@ -23,6 +23,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
+import 'package:gui_flutter/widgets/mixer/fx_bar.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/mixer/master_strip.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
@@ -232,7 +233,7 @@ void main() {
     expect(find.byKey(const ValueKey('master-panel-toggle')), findsNothing);
     expect(
       find.descendant(
-        of: find.byType(AppHeader),
+        of: find.byType(FxBar),
         matching: find.byKey(const ValueKey('master-meter')),
       ),
       findsOneWidget,

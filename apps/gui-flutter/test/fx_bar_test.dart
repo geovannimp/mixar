@@ -139,9 +139,11 @@ void main() {
     expect(beat.left, lessThan(level.left));
     expect(level.left, lessThan(slider.left));
     expect(slider.left, lessThan(arm.left));
-    // Everything hugs the right edge; the left side stays empty.
+    // The master meter pins the left edge; the FX chain hugs the right.
+    final meter = tester.getRect(find.byKey(const ValueKey('master-meter')));
+    expect(meter.left, lessThan(strip.left + 16));
+    expect(meter.right, lessThan(select.left));
     expect(arm.right, greaterThan(strip.right - 16));
-    expect(select.left, greaterThan(strip.left + 100));
     // And it all sits on the same status-strip line.
     final centers = [select, level, slider, arm].map((r) => r.center.dy);
     for (final dy in centers) {
