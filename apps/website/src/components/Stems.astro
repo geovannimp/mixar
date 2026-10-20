@@ -27,24 +27,19 @@ const padRows = [
   { action: "solo", label: "solo" },
 ] as const;
 
-/** Shared styling for a mute/solo pad button. */
+/** Shared styling for a mute/solo pad button — hairline stem-tinted border at rest; when lit the pad fills with the stem color like a hardware button. */
 const padClass =
-  "group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-md border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none";
+ "group flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--stem)_40%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-(--stem) data-[lit=true]:text-white motion-reduce:transition-none";
 
 const iconProps = { size: 18, "stroke-width": 2 };
 
-/** Deterministic bar heights (percent) so each lane reads as audio, not a solid bar.
- * Render the desktop count; bars past MOBILE_WAVE_BARS are hidden below `sm`
- * so a phone lane (~200px) does not collapse each bar to 1px. */
-const DESKTOP_WAVE_BARS = 44;
-const MOBILE_WAVE_BARS = 28;
-const waveBars = (seed: number, count = DESKTOP_WAVE_BARS) =>
-  Array.from({ length: count }, (_, i) => {
-    const a = Math.sin((i + seed) * 0.85);
-    const b = Math.sin((i + seed) * 2.1) * 0.5;
-    const v = 0.38 + 0.42 * Math.abs(a) + 0.2 * Math.abs(b);
-    return Math.round(Math.min(1, v) * 100);
-  });
+/** Bar counts for the mirrored center-line waveform: dense on desktop, fewer
+ * on phones so every bar keeps a visible width. Each variant maps the full
+ * track; CSS decides which renders. Real heights are injected by
+ * stem-demo-ui.ts once the demo audio decodes. Until then the bars render at a
+ * minimal skeleton height so no fake shape flashes. */
+const DESKTOP_WAVE_BARS = 120;
+const MOBILE_WAVE_BARS = 32;
 
 const points = [
   {
@@ -236,7 +231,7 @@ const points = [
           </div>
         </div>
 
-        <div class="grid grid-cols-4 gap-2.5" role="group" aria-label="Stems mute and solo pads">
+        <div class="grid grid-cols-4 gap-3" role="group" aria-label="Stems mute and solo pads">
           {
             padRows.flatMap((row) =>
               stems.map((stem, index) => (
@@ -249,10 +244,14 @@ const points = [
                   style={`--stem: ${stem.color}`}
                   class={padClass}
                 >
-                  <span class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] group-data-[lit=true]:text-[color-mix(in_srgb,var(--stem)_55%,var(--text))]">
+                  <span
+                    class="size-2 rounded-full bg-(--stem) opacity-40 transition-opacity duration-150 group-data-[lit=true]:bg-white group-data-[lit=true]:opacity-100 motion-reduce:transition-none"
+                    aria-hidden="true"
+                  ></span>
+                  <span class="font-mono text-[0.625rem] font-medium uppercase tracking-[0.14em] group-data-[lit=true]:text-white/80">
                     {row.label}
                   </span>
-                  <span class="text-[0.8125rem] font-semibold text-fg">{stem.label}</span>
+                  <span class="font-serif text-base font-bold leading-tight tracking-tight text-fg group-data-[lit=true]:text-white">{stem.label}</span>
                 </button>
               )),
             )
@@ -302,20 +301,39 @@ const points = [
                     data-stem={index}
                     data-audible="true"
                     style={`--stem: ${stem.color}`}
-                    class="flex w-full min-w-0 grow flex-row items-center justify-between gap-2 data-[audible=false]:opacity-30"
+                    class="flex w-full min-w-0 grow flex-row items-center justify-between gap-2 transition-[opacity,filter] duration-300 data-[audible=false]:opacity-25 data-[audible=false]:grayscale motion-reduce:transition-none"
                   >
-                    <span class="w-12 shrink-0 pl-2 text-sm">{stem.label}</span>
-                    <span class="flex h-full min-w-0 grow items-center justify-center gap-px">
-                      {waveBars(index * 7 + 3).map((height, barIndex) => (
-                        <i
-                          class:list={[
-                            "min-w-[3px] grow rounded-sm bg-(--stem)",
-                            barIndex >= MOBILE_WAVE_BARS && "max-sm:hidden",
-                          ]}
-                          style={`height: ${height}%`}
-                        />
-                      ))}
+                    <span class="flex w-16 shrink-0 items-center gap-2 pl-2 font-mono text-[0.6875rem] font-medium uppercase tracking-[0.1em] text-muted">
+                      <span class="size-2 shrink-0 rounded-full bg-(--stem)" aria-hidden="true"></span>
+                      {stem.label}
                     </span>
+                    {(
+                      [
+                        {
+                          variant: "desktop",
+                          count: DESKTOP_WAVE_BARS,
+                          visibility: "hidden sm:flex",
+                        },
+                        {
+                          variant: "mobile",
+                          count: MOBILE_WAVE_BARS,
+                          visibility: "flex sm:hidden",
+                        },
+                      ] as const
+                    ).map(({ variant, count, visibility }) => (
+                      <span
+                        data-stem-bars
+                        data-variant={variant}
+                        class:list={[
+                          "h-full min-w-0 grow items-center gap-[0.5px] opacity-40 transition-opacity duration-300 data-[ready=true]:opacity-100 motion-reduce:transition-none",
+                          visibility,
+                        ]}
+                      >
+                        {Array.from({ length: count }).map(() => (
+                          <i class="min-w-[1px] grow bg-(--stem)" style="height: 4%" />
+                        ))}
+                      </span>
+                    ))}
                   </li>
                 ))
               }
