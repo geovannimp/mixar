@@ -22,11 +22,15 @@ class _MobileSelectOption extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onPress,
+    this.labelSpan,
     this.subtitle,
     super.key,
   });
 
   final String label;
+
+  /// Optional styled label; [label] remains the semantics fallback.
+  final InlineSpan? labelSpan;
   final String? subtitle;
   final bool selected;
   final VoidCallback onPress;
@@ -65,14 +69,24 @@ class _MobileSelectOption extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  textAlign: TextAlign.start,
-                  style: theme.typography.body.sm.copyWith(
-                    color: labelColor,
-                    fontWeight: FontWeight.w600,
+                if (labelSpan == null)
+                  Text(
+                    label,
+                    textAlign: TextAlign.start,
+                    style: theme.typography.body.sm.copyWith(
+                      color: labelColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                else
+                  Text.rich(
+                    labelSpan!,
+                    textAlign: TextAlign.start,
+                    style: theme.typography.body.sm.copyWith(
+                      color: labelColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(
@@ -104,6 +118,7 @@ class MixarSelect<T> extends StatefulWidget {
     required this.labelBuilder,
     required this.onChanged,
     super.key,
+    this.labelSpanBuilder,
     this.subtitleBuilder,
     this.enabled = true,
     this.placeholder,
@@ -120,6 +135,10 @@ class MixarSelect<T> extends StatefulWidget {
   /// Menu / dialog entries; keep values unique under `==` for stable keys.
   final List<T> options;
   final String Function(T value) labelBuilder;
+
+  /// Optional rich label. Use this when part of the label needs a different
+  /// color/weight; [labelBuilder] remains the semantics fallback.
+  final InlineSpan? Function(T value)? labelSpanBuilder;
   final String Function(T value)? subtitleBuilder;
   final ValueChanged<T> onChanged;
   final bool enabled;
@@ -176,6 +195,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                     child: _MobileSelectOption(
                       key: ValueKey(option),
                       label: widget.labelBuilder(option),
+                      labelSpan: widget.labelSpanBuilder?.call(option),
                       subtitle: widget.subtitleBuilder?.call(option),
                       selected: option == widget.value,
                       onPress: () => Navigator.of(dialogContext).pop(option),
@@ -212,13 +232,17 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
     final mobile = style == SelectStyleSetting.mobile;
 
     Widget buildOption(T option) {
-      final child = widget.subtitleBuilder == null
+      final span = widget.labelSpanBuilder?.call(option);
+      final label = span == null
           ? Text(widget.labelBuilder(option))
+          : Text.rich(span);
+      final child = widget.subtitleBuilder == null
+          ? label
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(widget.labelBuilder(option)),
+                label,
                 Text(
                   widget.subtitleBuilder!(option),
                   style: theme.typography.body.xs.copyWith(
@@ -268,8 +292,12 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                     });
                   }
                 },
-          selectedOptionBuilder: (context, selected) =>
-              Text(widget.labelBuilder(selected)),
+          selectedOptionBuilder: (context, selected) {
+            final span = widget.labelSpanBuilder?.call(selected);
+            return span == null
+                ? Text(widget.labelBuilder(selected))
+                : Text.rich(span);
+          },
           // Popover options unused when [onPressed] opens the dialog.
           options: mobile
               ? const <Widget>[]

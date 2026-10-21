@@ -24,6 +24,8 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'support/mixar_material_app.dart';
 import 'support/pad_finders.dart';
 
+Finder padLabel(String text) => find.text(text, findRichText: true);
+
 void main() {
   Future<void> pumpPanel(
     WidgetTester tester, {
@@ -143,7 +145,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
-    expect(find.text('Sample (Bank 1)'), findsOneWidget);
+    expect(padLabel('Sample (Bank 1)'), findsOneWidget);
+    final sampleRich = tester.widget<RichText>(padLabel('Sample (Bank 1)'));
+    final sampleInner =
+        (sampleRich.text as TextSpan).children!.single as TextSpan;
+    final bankSuffix = sampleInner.children!.cast<TextSpan>().singleWhere(
+      (span) => span.text == ' (Bank 1)',
+    );
+    expect(
+      bankSuffix.style?.color,
+      MixarThemeData.dark().colors.mutedForeground,
+    );
     expect(find.text('Kick'), findsOneWidget);
   });
 
@@ -158,7 +170,14 @@ void main() {
       stemsLive: true,
       realtimeStemsEnabled: true,
     );
-    expect(find.text('Stems (Realtime)'), findsOneWidget);
+    expect(padLabel('Stems (Realtime)'), findsOneWidget);
+    final rich = tester.widget<RichText>(padLabel('Stems (Realtime)'));
+    // ignore: avoid_print
+    final inner = (rich.text as TextSpan).children!.single as TextSpan;
+    final suffix = inner.children!.cast<TextSpan>().singleWhere(
+      (span) => span.text == ' (Realtime)',
+    );
+    expect(suffix.style?.color, MixarThemeData.dark().colors.mutedForeground);
 
     await pumpPanel(
       tester,
@@ -167,7 +186,7 @@ void main() {
       stemsReady: true,
       realtimeStemsEnabled: true,
     );
-    expect(find.text('Stems (Offline)'), findsOneWidget);
+    expect(padLabel('Stems (Offline)'), findsOneWidget);
 
     await pumpPanel(
       tester,
@@ -178,7 +197,7 @@ void main() {
       realtimeStemsEnabled: false,
     );
     expect(find.text('Stems'), findsOneWidget);
-    expect(find.text('Stems (Realtime)'), findsNothing);
+    expect(padLabel('Stems (Realtime)'), findsNothing);
   });
 
   testWidgets('mobile pad mode select shows Pad mode title', (tester) async {
@@ -256,7 +275,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
-    expect(find.text('Sample (Bank 1)'), findsOneWidget);
+    expect(padLabel('Sample (Bank 1)'), findsOneWidget);
 
     final configButton = find.byType(MixerButton);
     expect(
@@ -275,7 +294,7 @@ void main() {
 
     await tester.tap(find.text('Bank 2'));
     await tester.pumpAndSettle();
-    expect(find.text('Sample (Bank 2)'), findsOneWidget);
+    expect(padLabel('Sample (Bank 2)'), findsOneWidget);
   });
 
   /// keep main's Keyboard / Key Shift coverage, driven through the dropdown
@@ -293,7 +312,7 @@ void main() {
     expect(find.byType(KeyboardPads), findsOneWidget);
     expect(find.byType(KeyShiftPads), findsNothing);
     // Default page range is part of the selected mode label.
-    expect(find.text('Keys (0…+7)'), findsOneWidget);
+    expect(padLabel('Keys (0…+7)'), findsOneWidget);
 
     // A pad hold forwards the pressed slot to the host.
     await tester.tap(find.text('+1'));
@@ -315,7 +334,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(KeyShiftPads), findsOneWidget);
     expect(find.byType(KeyboardPads), findsNothing);
-    expect(find.text('Shift (0…+7)'), findsOneWidget);
+    expect(padLabel('Shift (0…+7)'), findsOneWidget);
   });
 
   testWidgets('pad mode can change without a track', (tester) async {

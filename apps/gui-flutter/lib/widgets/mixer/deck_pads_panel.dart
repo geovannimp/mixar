@@ -155,6 +155,8 @@ class DeckPadsPanel extends StatelessWidget {
             value: padMode,
             options: kPadModes,
             labelBuilder: (mode) => _modeLabel(mode, l10n),
+            labelSpanBuilder: (mode) =>
+                _modeLabelSpan(mode, theme.colors.mutedForeground, l10n),
             unfocusAfterPointerSelection: true,
             borderRadius: BorderRadius.only(
               topRight: theme.style.borderRadius.sm.topRight,
@@ -271,25 +273,64 @@ class DeckPadsPanel extends StatelessWidget {
       padMode == PadMode.keyboard ||
       padMode == PadMode.keyShift;
 
-  /// Mode label, with the active bank / page appended to the selected mode.
-  String _modeLabel(PadMode mode, AppLocalizations? l10n) {
+  /// Mode label parts: the selected mode can carry a bank / page / source
+  /// suffix. The suffix is rendered muted; [labelBuilder] keeps the plain
+  /// string for semantics and fallback.
+  ({String label, String? suffix}) _modeParts(
+    PadMode mode,
+    AppLocalizations? l10n,
+  ) {
     final label = padModeShortLabel(mode);
     if (mode != padMode) {
-      return label;
+      return (label: label, suffix: null);
     }
     return switch (mode) {
-      PadMode.hotCue || PadMode.loopRoll || PadMode.beatJump => label,
+      PadMode.hotCue ||
+      PadMode.loopRoll ||
+      PadMode.beatJump => (label: label, suffix: null),
       PadMode.stems =>
         realtimeStemsEnabled && (stemsReady || stemsLive)
-            ? '$label (${stemsLive ? l10n?.padStemsRealtime ?? 'Realtime' : l10n?.padStemsOffline ?? 'Offline'})'
-            : label,
+            ? (
+                label: label,
+                suffix: stemsLive
+                    ? l10n?.padStemsRealtime ?? 'Realtime'
+                    : l10n?.padStemsOffline ?? 'Offline',
+              )
+            : (label: label, suffix: null),
       PadMode.sampler => switch (_resolvedBank) {
-        final bank? => '$label (${bank.name})',
-        null => label,
+        final bank? => (label: label, suffix: bank.name),
+        null => (label: label, suffix: null),
       },
-      PadMode.keyboard => '$label (${keyboardPageRangeLabel(keyboardPage)})',
-      PadMode.keyShift => '$label (${keyShiftPageRangeLabel(keyShiftPage)})',
+      PadMode.keyboard => (
+        label: label,
+        suffix: keyboardPageRangeLabel(keyboardPage),
+      ),
+      PadMode.keyShift => (
+        label: label,
+        suffix: keyShiftPageRangeLabel(keyShiftPage),
+      ),
     };
+  }
+
+  String _modeLabel(PadMode mode, AppLocalizations? l10n) {
+    final parts = _modeParts(mode, l10n);
+    return parts.suffix == null
+        ? parts.label
+        : '${parts.label} (${parts.suffix})';
+  }
+
+  InlineSpan _modeLabelSpan(PadMode mode, Color muted, AppLocalizations? l10n) {
+    final parts = _modeParts(mode, l10n);
+    return TextSpan(
+      children: [
+        TextSpan(text: parts.label),
+        if (parts.suffix != null)
+          TextSpan(
+            text: ' (${parts.suffix})',
+            style: TextStyle(color: muted),
+          ),
+      ],
+    );
   }
 
   Widget _configButton(BuildContext context) {
