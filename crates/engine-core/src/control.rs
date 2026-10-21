@@ -1254,6 +1254,16 @@ fn tick(
         let _ = publish_deck_updated(evt_bus, revision, eng, deck_id);
     }
 
+    // A live stem producer publishes its first window asynchronously; emit one
+    // Updated so pads/banner reflect readiness without waiting for another cmd.
+    for deck_id in 0..NUM_DECKS {
+        let ready = eng.deck_stems_ready(deck_id).unwrap_or(false);
+        if ready != eng.stems_ready_seen[deck_id] {
+            eng.stems_ready_seen[deck_id] = ready;
+            let _ = publish_deck_updated(evt_bus, revision, eng, deck_id);
+        }
+    }
+
     let playback = eng.deck_playback_snapshot();
     for (deck_id, position, _duration) in playback {
         // Vinyl scratch while paused still advances the playhead; UI time/waveform
