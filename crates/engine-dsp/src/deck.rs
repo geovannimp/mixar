@@ -1087,6 +1087,12 @@ impl Deck {
         self.live_coverage = None;
     }
 
+    /// True when the attached stem source is the live ring rather than cached
+    /// buffers. The UI uses this to distinguish realtime from offline stems.
+    pub fn stems_live(&self) -> bool {
+        matches!(self.stems.as_ref(), Some(DeckStems::Live(_)))
+    }
+
     /// True once stem audio is attached (live: the first window has been published).
     pub fn stems_ready(&self) -> bool {
         match self.stems.as_ref() {

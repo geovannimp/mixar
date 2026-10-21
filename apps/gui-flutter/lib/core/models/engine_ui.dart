@@ -96,6 +96,7 @@ class EngineUiSnapshot {
     this.keyboardRoots = const {},
     this.padModes = const {},
     this.stemsReady = const {},
+    this.stemsLive = const {},
     this.stemMute = const {},
     this.stemIsolate = const {},
     this.syncModes = const {},
@@ -140,6 +141,7 @@ class EngineUiSnapshot {
   final Map<int, int> keyboardRoots;
   final Map<int, PadMode> padModes;
   final Map<int, bool> stemsReady;
+  final Map<int, bool> stemsLive;
   final Map<int, List<bool>> stemMute;
   final Map<int, int> stemIsolate;
   final Map<int, SyncMode> syncModes;
@@ -180,6 +182,8 @@ class EngineUiSnapshot {
   PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
 
   bool stemsReadyFor(int deckId) => stemsReady[deckId] ?? false;
+
+  bool stemsLiveFor(int deckId) => stemsLive[deckId] ?? false;
 
   List<bool> stemMuteFor(int deckId) =>
       stemMute[deckId] ?? const [false, false, false, false];
@@ -233,6 +237,7 @@ class EngineUiSnapshot {
     Map<int, int>? keyboardRoots,
     Map<int, PadMode>? padModes,
     Map<int, bool>? stemsReady,
+    Map<int, bool>? stemsLive,
     Map<int, List<bool>>? stemMute,
     Map<int, int>? stemIsolate,
     Map<int, SyncMode>? syncModes,
@@ -270,6 +275,7 @@ class EngineUiSnapshot {
     keyboardRoots: keyboardRoots ?? this.keyboardRoots,
     padModes: padModes ?? this.padModes,
     stemsReady: stemsReady ?? this.stemsReady,
+    stemsLive: stemsLive ?? this.stemsLive,
     stemMute: stemMute ?? this.stemMute,
     stemIsolate: stemIsolate ?? this.stemIsolate,
     syncModes: syncModes ?? this.syncModes,
@@ -454,14 +460,17 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
           ? prev.fxSlots
           : List<FxSlotChrome>.from(evt.fx!);
       final nextStemsReady = Map<int, bool>.from(prev.stemsReady);
+      final nextStemsLive = Map<int, bool>.from(prev.stemsLive);
       final nextStemMute = Map<int, List<bool>>.from(prev.stemMute);
       final nextStemIsolate = Map<int, int>.from(prev.stemIsolate);
       if (unloaded) {
         nextStemsReady.remove(id);
+        nextStemsLive.remove(id);
         nextStemMute.remove(id);
         nextStemIsolate.remove(id);
       } else if (evt.stemsReady != null) {
         nextStemsReady[id] = evt.stemsReady!;
+        nextStemsLive[id] = evt.stemsLive ?? false;
         final mute = evt.stemMute;
         nextStemMute[id] = mute != null && mute.length == 4
             ? List<bool>.from(mute)
@@ -499,6 +508,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         samplerSlots: nextSamplerSlots,
         fxSlots: nextFxSlots,
         stemsReady: nextStemsReady,
+        stemsLive: nextStemsLive,
         stemMute: nextStemMute,
         stemIsolate: nextStemIsolate,
       );

@@ -187,6 +187,8 @@
   "settingsLibraryKeyColorAbsoluteSubtitle": "Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer).",
   "settingsLibraryKeyColorHarmonic": "Harmonic (playing deck)",
   "settingsLibraryKeyColorHarmonicSubtitle": "Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.",
+  "padStemsOffline": "Offline",
+  "padStemsRealtime": "Realtime",
   "settingsLibraryStemsTitle": "Stems",
   "settingsLibraryStemsDescription": "Model and codec used when writing separated stem caches.",
   "settingsLibraryStemFormat": "Stem format",

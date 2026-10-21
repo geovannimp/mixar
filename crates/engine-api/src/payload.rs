@@ -239,6 +239,10 @@ pub struct DeckSnapshot {
     /// True when four stem layers are attached for playback.
     #[serde(default)]
     pub stems_ready: bool,
+    /// True when the attached stems come from the live StemgenRT ring
+    /// (false for cached/offline stems).
+    #[serde(default)]
+    pub stems_live: bool,
     /// Per-stem mute flags (vocals, drums, bass, other).
     #[serde(default)]
     pub stem_mute: [bool; 4],
@@ -594,6 +598,8 @@ pub enum EvtBody {
         pad_mode: PadMode,
         #[serde(default)]
         stems_ready: bool,
+        #[serde(default)]
+        stems_live: bool,
         #[serde(default)]
         stem_mute: [bool; 4],
         #[serde(default)]

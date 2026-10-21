@@ -384,6 +384,9 @@ class EngineEvt {
   /// True when four stem layers are attached for playback.
   final bool? stemsReady;
 
+  /// True when the attached stems come from the realtime StemgenRT ring.
+  final bool? stemsLive;
+
   /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[drums, bass, other, vocals]`).
   final List<bool>? stemMute;
 
@@ -444,6 +447,7 @@ class EngineEvt {
     this.samplerSlots,
     this.samplerSlotsKnown = false,
     this.stemsReady,
+    this.stemsLive,
     this.stemMute,
     this.stemIsolate,
   });
@@ -503,6 +507,7 @@ class EngineEvt {
       samplerSlots.hashCode ^
       samplerSlotsKnown.hashCode ^
       stemsReady.hashCode ^
+      stemsLive.hashCode ^
       stemMute.hashCode ^
       stemIsolate.hashCode;
 
@@ -564,6 +569,7 @@ class EngineEvt {
           samplerSlots == other.samplerSlots &&
           samplerSlotsKnown == other.samplerSlotsKnown &&
           stemsReady == other.stemsReady &&
+          stemsLive == other.stemsLive &&
           stemMute == other.stemMute &&
           stemIsolate == other.stemIsolate;
 }

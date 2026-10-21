@@ -540,6 +540,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.';
 
   @override
+  String get padStemsOffline => 'Offline';
+
+  @override
+  String get padStemsRealtime => 'Realtime';
+
+  @override
   String get settingsLibraryStemsTitle => 'Stems';
 
   @override

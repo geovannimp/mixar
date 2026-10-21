@@ -1065,6 +1065,18 @@ abstract class AppLocalizations {
   /// **'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.'**
   String get settingsLibraryKeyColorHarmonicSubtitle;
 
+  /// No description provided for @padStemsOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get padStemsOffline;
+
+  /// No description provided for @padStemsRealtime.
+  ///
+  /// In en, this message translates to:
+  /// **'Realtime'**
+  String get padStemsRealtime;
+
   /// No description provided for @settingsLibraryStemsTitle.
   ///
   /// In en, this message translates to:

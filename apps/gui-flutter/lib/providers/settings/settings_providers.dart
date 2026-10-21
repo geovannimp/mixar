@@ -60,6 +60,13 @@ final appSettingsProvider = FutureProvider<AppSettings>((ref) async {
   return normalizeAppSettings(await settings.getSettings());
 });
 
+/// Live StemgenRT opt-in; the pad-mode label only adds its source suffix when
+/// this is on.
+final realtimeStemsEnabledProvider = Provider<bool>((ref) {
+  final settings = ref.watch(appSettingsProvider).asData?.value;
+  return settings?.realtimeStems ?? false;
+});
+
 /// Saved library row layout, the default the list renders with.
 final libraryRowDensitySettingProvider = Provider<LibraryRowDensity>((ref) {
   return ref

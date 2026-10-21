@@ -348,6 +348,7 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         slip_shadow_position_ms: snap.slip_shadow_position_ms,
         pad_mode: snap.pad_mode,
         stems_ready: snap.stems_ready,
+        stems_live: snap.stems_live,
         stem_mute: snap.stem_mute,
         stem_isolate: snap.stem_isolate,
         position_ms: snap.position_ms,

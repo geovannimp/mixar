@@ -546,6 +546,12 @@ class AppLocalizationsPt extends AppLocalizations {
       'Verde/amarelo em relação ao deck tocando — ex.: com 2A tocando, 1A/2A/3A/2B verdes, 1B/3B amarelos.';
 
   @override
+  String get padStemsOffline => 'Offline';
+
+  @override
+  String get padStemsRealtime => 'Tempo real';
+
+  @override
   String get settingsLibraryStemsTitle => 'Stems';
 
   @override

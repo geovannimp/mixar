@@ -415,6 +415,8 @@ pub struct EngineEvt {
     pub sampler_slots_known: bool,
     /// True when four stem layers are attached for playback.
     pub stems_ready: Option<bool>,
+    /// True when the attached stems come from the realtime StemgenRT ring.
+    pub stems_live: Option<bool>,
     /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[drums, bass, other, vocals]`).
     pub stem_mute: Option<Vec<bool>>,
     /// Isolated stem index when set; `None` clears isolate when stems are authored.
@@ -477,6 +479,7 @@ impl EngineEvt {
             sampler_slots: None,
             sampler_slots_known: false,
             stems_ready: None,
+            stems_live: None,
             stem_mute: None,
             stem_isolate: None,
         }
@@ -1759,6 +1762,7 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.active_sampler_bank_id = snap.active_sampler_bank_id.clone();
     evt.active_sampler_bank_id_known = true;
     evt.stems_ready = Some(snap.stems_ready);
+    evt.stems_live = Some(snap.stems_live);
     evt.stem_mute = Some(snap.stem_mute.to_vec());
     evt.stem_isolate = snap.stem_isolate;
     evt
@@ -1817,6 +1821,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             auto_gain_db,
             active_sampler_bank_id,
             stems_ready,
+            stems_live,
             stem_mute,
             stem_isolate,
             ..
@@ -1860,6 +1865,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.active_sampler_bank_id = active_sampler_bank_id;
             evt.active_sampler_bank_id_known = true;
             evt.stems_ready = Some(stems_ready);
+            evt.stems_live = Some(stems_live);
             evt.stem_mute = Some(stem_mute.to_vec());
             evt.stem_isolate = stem_isolate;
             vec![evt]
@@ -1962,6 +1968,7 @@ mod tests {
             slip_shadow_position_ms: None,
             pad_mode: PadMode::HotCue,
             stems_ready: false,
+            stems_live: false,
             stem_mute: [false; 4],
             stem_isolate: None,
             position_ms: None,
@@ -2018,11 +2025,13 @@ mod tests {
     fn map_updated_forwards_stem_state() {
         let mut deck = sample_deck(0, 1.0);
         deck.stems_ready = true;
+        deck.stems_live = true;
         deck.stem_mute = [true, false, true, false];
         deck.stem_isolate = Some(1);
         let mapped = recv_mapped(Origin::Deck(0), Kind::Updated, deck_snapshot_to_evt(deck));
         assert_eq!(mapped.len(), 1);
         assert_eq!(mapped[0].stems_ready, Some(true));
+        assert_eq!(mapped[0].stems_live, Some(true));
         assert_eq!(
             mapped[0].stem_mute.as_deref(),
             Some([true, false, true, false].as_slice())

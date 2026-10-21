@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/widgets/mixer/pads/beat_jump_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
@@ -57,7 +58,9 @@ class DeckPadsPanel extends StatelessWidget {
     this.stemMute = const [false, false, false, false],
     this.stemIsolate,
     this.stemsReady = false,
+    this.stemsLive = false,
     this.stemsGenerating = false,
+    this.realtimeStemsEnabled = false,
     this.onStemsPress,
     this.keyShiftSemitones = 0,
     this.keyboardPage = kDefaultPitchPage,
@@ -91,7 +94,9 @@ class DeckPadsPanel extends StatelessWidget {
   final List<bool> stemMute;
   final int? stemIsolate;
   final bool stemsReady;
+  final bool stemsLive;
   final bool stemsGenerating;
+  final bool realtimeStemsEnabled;
   final ValueChanged<int>? onStemsPress;
   final ValueChanged<int> onKeyShiftPress;
   final ValueChanged<int> onKeyboardPress;
@@ -128,6 +133,7 @@ class DeckPadsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final l10n = AppLocalizations.of(context);
     final panelSurface = Color.alphaBlend(
       theme.colors.background.withValues(alpha: 0.8),
       theme.colors.card,
@@ -148,7 +154,7 @@ class DeckPadsPanel extends StatelessWidget {
             dialogTitle: 'Pad mode',
             value: padMode,
             options: kPadModes,
-            labelBuilder: _modeLabel,
+            labelBuilder: (mode) => _modeLabel(mode, l10n),
             unfocusAfterPointerSelection: true,
             borderRadius: BorderRadius.only(
               topRight: theme.style.borderRadius.sm.topRight,
@@ -266,16 +272,17 @@ class DeckPadsPanel extends StatelessWidget {
       padMode == PadMode.keyShift;
 
   /// Mode label, with the active bank / page appended to the selected mode.
-  String _modeLabel(PadMode mode) {
+  String _modeLabel(PadMode mode, AppLocalizations? l10n) {
     final label = padModeShortLabel(mode);
     if (mode != padMode) {
       return label;
     }
     return switch (mode) {
-      PadMode.hotCue ||
-      PadMode.loopRoll ||
-      PadMode.beatJump ||
-      PadMode.stems => label,
+      PadMode.hotCue || PadMode.loopRoll || PadMode.beatJump => label,
+      PadMode.stems =>
+        realtimeStemsEnabled && (stemsReady || stemsLive)
+            ? '$label (${stemsLive ? l10n?.padStemsRealtime ?? 'Realtime' : l10n?.padStemsOffline ?? 'Offline'})'
+            : label,
       PadMode.sampler => switch (_resolvedBank) {
         final bank? => '$label (${bank.name})',
         null => label,

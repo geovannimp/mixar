@@ -557,6 +557,12 @@ final ProviderFamily<bool, int> deckStemsReadyProvider =
           ref.watch(engineUiProvider.select((s) => s.stemsReadyFor(deckId))),
     );
 
+final ProviderFamily<bool, int> deckStemsLiveProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.stemsLiveFor(deckId))),
+    );
+
 final ProviderFamily<bool, int> deckStemsGeneratingProvider =
     Provider.family<bool, int>((ref, deckId) {
       final ready = ref.watch(deckStemsReadyProvider(deckId));

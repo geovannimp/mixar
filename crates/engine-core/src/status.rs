@@ -179,6 +179,7 @@ fn deck_snapshot_from_dsp(
         slip_shadow_position_ms: deck.shadow_position_ms(),
         pad_mode: control.pad_mode,
         stems_ready: deck.stems_ready(),
+        stems_live: deck.stems_live(),
         stem_mute: deck.stem_mute(),
         stem_isolate: deck.stem_isolate(),
         position_ms,

@@ -8163,6 +8163,7 @@ impl SseDecode for crate::api::engine::EngineEvt {
             <Option<Vec<crate::api::engine::SamplerSlotChrome>>>::sse_decode(deserializer);
         let mut var_samplerSlotsKnown = <bool>::sse_decode(deserializer);
         let mut var_stemsReady = <Option<bool>>::sse_decode(deserializer);
+        let mut var_stemsLive = <Option<bool>>::sse_decode(deserializer);
         let mut var_stemMute = <Option<Vec<bool>>>::sse_decode(deserializer);
         let mut var_stemIsolate = <Option<u8>>::sse_decode(deserializer);
         return crate::api::engine::EngineEvt {
@@ -8219,6 +8220,7 @@ impl SseDecode for crate::api::engine::EngineEvt {
             sampler_slots: var_samplerSlots,
             sampler_slots_known: var_samplerSlotsKnown,
             stems_ready: var_stemsReady,
+            stems_live: var_stemsLive,
             stem_mute: var_stemMute,
             stem_isolate: var_stemIsolate,
         };
@@ -10958,6 +10960,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.sampler_slots.into_into_dart().into_dart(),
             self.sampler_slots_known.into_into_dart().into_dart(),
             self.stems_ready.into_into_dart().into_dart(),
+            self.stems_live.into_into_dart().into_dart(),
             self.stem_mute.into_into_dart().into_dart(),
             self.stem_isolate.into_into_dart().into_dart(),
         ]
@@ -12408,6 +12411,7 @@ impl SseEncode for crate::api::engine::EngineEvt {
         );
         <bool>::sse_encode(self.sampler_slots_known, serializer);
         <Option<bool>>::sse_encode(self.stems_ready, serializer);
+        <Option<bool>>::sse_encode(self.stems_live, serializer);
         <Option<Vec<bool>>>::sse_encode(self.stem_mute, serializer);
         <Option<u8>>::sse_encode(self.stem_isolate, serializer);
     }

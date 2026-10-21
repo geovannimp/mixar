@@ -184,6 +184,8 @@
   "settingsLibraryKeyColorAbsoluteSubtitle": "Cor fixa por tom na roda — maiores vivos, menores suaves (ex.: 8B forte, 8A mais suave).",
   "settingsLibraryKeyColorHarmonic": "Harmônico (deck em reprodução)",
   "settingsLibraryKeyColorHarmonicSubtitle": "Verde/amarelo em relação ao deck tocando — ex.: com 2A tocando, 1A/2A/3A/2B verdes, 1B/3B amarelos.",
+  "padStemsOffline": "Offline",
+  "padStemsRealtime": "Tempo real",
   "settingsLibraryStemsTitle": "Stems",
   "settingsLibraryStemsDescription": "Modelo e codec usados ao gravar caches de stems separados.",
   "settingsLibraryStemFormat": "Formato de stems",

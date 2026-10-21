@@ -40,6 +40,9 @@ void main() {
       SamplerBank(id: 'bank-2', name: 'Bank 2', playMode: kSamplerPlayModeHold),
     ],
     String? activeBankId = 'bank-1',
+    bool stemsReady = false,
+    bool stemsLive = false,
+    bool realtimeStemsEnabled = false,
     void Function(PadMode mode)? onPadMode,
     void Function(int slot, bool shift)? onHotCuePress,
     void Function(int slot)? onKeyboardPress,
@@ -106,6 +109,9 @@ void main() {
                     onKeyShiftPress: onKeyShiftPress ?? (_) {},
                     onKeyboardPress: onKeyboardPress ?? (_) {},
                     onKeyboardRelease: (_) {},
+                    stemsReady: stemsReady,
+                    stemsLive: stemsLive,
+                    realtimeStemsEnabled: realtimeStemsEnabled,
                     hasTrack: hasTrack,
                     disabled: disabled,
                   ),
@@ -139,6 +145,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Sample (Bank 1)'), findsOneWidget);
     expect(find.text('Kick'), findsOneWidget);
+  });
+
+  testWidgets('stems mode shows its source only when realtime is enabled', (
+    tester,
+  ) async {
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      padMode: PadMode.stems,
+      stemsReady: true,
+      stemsLive: true,
+      realtimeStemsEnabled: true,
+    );
+    expect(find.text('Stems (Realtime)'), findsOneWidget);
+
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      padMode: PadMode.stems,
+      stemsReady: true,
+      realtimeStemsEnabled: true,
+    );
+    expect(find.text('Stems (Offline)'), findsOneWidget);
+
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      padMode: PadMode.stems,
+      stemsReady: true,
+      stemsLive: true,
+      realtimeStemsEnabled: false,
+    );
+    expect(find.text('Stems'), findsOneWidget);
+    expect(find.text('Stems (Realtime)'), findsNothing);
   });
 
   testWidgets('mobile pad mode select shows Pad mode title', (tester) async {
