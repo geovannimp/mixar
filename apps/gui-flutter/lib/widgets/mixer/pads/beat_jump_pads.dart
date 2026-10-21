@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hold_pad_button.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_face.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -29,25 +30,18 @@ class BeatJumpPads extends StatelessWidget {
             final forward = beats > 0;
             return HoldPadButton(
               disabled: disabled,
+              fillChild: true,
               tooltip: 'Beat jump ${forward ? '+' : ''}$beats',
               onBegin: () => onPress(slot),
               onEnd: () => onRelease(slot),
-              child: Column(
-                mainAxisSize: .min,
-                children: [
-                  Text(
-                    forward ? '+$beats' : '$beats',
-                    style: theme.typography.body.sm.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+              child: PadFace(
+                action: 'BEAT',
+                label: Text(
+                  forward ? '+$beats' : '$beats',
+                  style: theme.typography.body.sm.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  Text(
-                    'beat',
-                    style: theme.typography.body.xs.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           }(),

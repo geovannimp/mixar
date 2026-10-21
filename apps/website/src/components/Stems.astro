@@ -29,7 +29,7 @@ const padRows = [
 
 /** Shared styling for a mute/solo pad button — hairline stem-tinted border at rest; when lit the pad fills with the stem color like a hardware button. */
 const padClass =
- "group flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--stem)_40%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-(--stem) data-[lit=true]:text-white motion-reduce:transition-none";
+ "group flex aspect-square cursor-pointer flex-col rounded-md border border-[color-mix(in_srgb,var(--stem)_40%,var(--border))] bg-bg-card p-2 text-muted transition-[border-color,background-color,color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-(--stem) data-[lit=true]:text-white motion-reduce:transition-none";
 
 const iconProps = { size: 18, "stroke-width": 2 };
 
@@ -244,14 +244,18 @@ const points = [
                   style={`--stem: ${stem.color}`}
                   class={padClass}
                 >
-                  <span
-                    class="size-2 rounded-full bg-(--stem) opacity-40 transition-opacity duration-150 group-data-[lit=true]:bg-white group-data-[lit=true]:opacity-100 motion-reduce:transition-none"
-                    aria-hidden="true"
-                  ></span>
-                  <span class="font-mono text-[0.625rem] font-medium uppercase tracking-[0.14em] group-data-[lit=true]:text-white/80">
-                    {row.label}
+                  <span class="flex w-full items-center justify-between gap-2">
+                    <span class="font-mono text-[0.625rem] font-medium uppercase tracking-[0.14em] text-muted group-data-[lit=true]:text-white/80">
+                      {row.label}
+                    </span>
+                    <span
+                      class="size-2 shrink-0 rounded-full bg-(--stem) opacity-40 transition-opacity duration-150 group-data-[lit=true]:bg-white group-data-[lit=true]:opacity-100 motion-reduce:transition-none"
+                      aria-hidden="true"
+                    ></span>
                   </span>
-                  <span class="font-serif text-base font-bold leading-tight tracking-tight text-fg group-data-[lit=true]:text-white">{stem.label}</span>
+                  <span class="flex flex-1 items-center justify-center">
+                    <span class="font-serif text-base font-bold leading-tight tracking-tight text-fg group-data-[lit=true]:text-white">{stem.label}</span>
+                  </span>
                 </button>
               )),
             )

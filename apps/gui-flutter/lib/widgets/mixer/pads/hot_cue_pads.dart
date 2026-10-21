@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/utils/pad_format.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hold_pad_button.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_face.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -47,31 +49,32 @@ class HotCuePads extends StatelessWidget {
     final label = cue?.label?.trim();
     final positionMs = cue?.positionMs;
 
+    final accent = filled ? hotCueAccent(slot) : null;
     return HoldPadButton(
       disabled: disabled,
-      accentSlot: filled ? slot : null,
+      fillChild: true,
+      chrome: accent == null ? null : accentPadChrome(theme, accent),
       tooltip: filled
           ? 'Pad ${slot + 1} — hold trigger, shift+hold delete'
           : 'Set hot cue on pad ${slot + 1}',
       onBegin: () => onPress(slot, shiftKeyPressed()),
       onEnd: () => onRelease(slot),
-      child: Column(
-        mainAxisSize: .min,
-        children: [
-          Text(
-            filled && label != null && label.isNotEmpty ? label : '${slot + 1}',
-            style: theme.typography.body.sm.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (filled && positionMs != null)
-            Text(
-              formatDeckTimeTenth(positionMs),
-              style: theme.typography.body.xs.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-        ],
+      child: PadFace(
+        action: 'CUE',
+        indicatorColor: accent?.border,
+        label: Text(
+          filled && label != null && label.isNotEmpty ? label : '${slot + 1}',
+          style: theme.typography.body.sm.copyWith(fontWeight: FontWeight.w700),
+        ),
+        footer: filled && positionMs != null
+            ? Text(
+                formatDeckTimeTenth(positionMs),
+                style: padActionStyle(theme).copyWith(
+                  color: theme.colors.mutedForeground,
+                  letterSpacing: 0,
+                ),
+              )
+            : null,
       ),
     );
   }

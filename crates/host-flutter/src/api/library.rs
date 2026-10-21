@@ -1253,6 +1253,30 @@ impl LibraryTransport {
             .map(|rows| rows.into_iter().map(SamplerBankInfo::from).collect())
             .map_err(|e| e.to_string())
     }
+
+    /// Create a sampler bank and return the stored row.
+    pub fn create_sampler_bank(
+        &self,
+        name: String,
+        play_mode: Option<SamplerPlayMode>,
+    ) -> Result<SamplerBankInfo, String> {
+        let name = name.trim().to_string();
+        if name.is_empty() {
+            return Err("Bank name cannot be empty.".to_string());
+        }
+        let play_mode = play_mode.map(|m| match m {
+            SamplerPlayMode::Oneshot => library::SamplerPlayMode::Oneshot,
+            SamplerPlayMode::Hold => library::SamplerPlayMode::Hold,
+            SamplerPlayMode::Loop => library::SamplerPlayMode::Loop,
+        });
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.create_sampler_bank(&name, play_mode)
+            .map(SamplerBankInfo::from)
+            .map_err(|e| e.to_string())
+    }
 }
 
 /// Map omnibus library egress to the thin Dart-facing evt.
