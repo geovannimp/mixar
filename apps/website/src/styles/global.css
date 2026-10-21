@@ -213,6 +213,30 @@
     transform: translateX(0);
   }
 
+  /* Opt-in reverse: enter from the right edge. */
+  [data-reveal-group] [data-reveal-x="right"] {
+    transform: translateX(1rem);
+  }
+
+  [data-reveal-group].is-visible [data-reveal-x="right"] {
+    transform: translateX(0);
+  }
+
+  /* Opt-in vertical reverse: rise from below instead of dropping in. */
+  [data-reveal-group] [data-reveal-y="up"] {
+    opacity: 0;
+    transform: translateY(1rem);
+    transition:
+      opacity 0.5s ease,
+      transform 0.5s ease;
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  [data-reveal-group].is-visible [data-reveal-y="up"] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
   @keyframes stem-disc-spin {
     to {
       transform: rotate(360deg);
@@ -273,6 +297,260 @@
   }
 }
 
+/* Hero stage: a dark music constellation. Neutral stars drift behind the
+   copy and tablet, audio glyphs sit between them, and a mirrored
+   oscilloscope trace crosses the floor. No planet, no orbit. */
+.hero-stage {
+  --hero-stage-accent-glow: radial-gradient(
+    ellipse 58% 58% at 74% 40%,
+    color-mix(in srgb, var(--accent) 5%, transparent),
+    transparent 72%
+  );
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 44% at 18% 82%, rgba(255, 198, 150, 0.03), transparent 72%),
+    var(--hero-stage-accent-glow),
+    linear-gradient(180deg, #040405 0%, #060607 56%, var(--bg) 100%);
+}
+
+.starfield {
+  position: absolute;
+  inset: -28%;
+  background-repeat: repeat;
+}
+
+.starfield-far,
+.starfield-near {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.starfield-far {
+  background-image:
+    radial-gradient(1px 1px at 32px 44px, currentColor, transparent 1.6px),
+    radial-gradient(1px 1px at 138px 92px, currentColor, transparent 1.6px),
+    radial-gradient(1.2px 1.2px at 224px 34px, currentColor, transparent 1.9px),
+    radial-gradient(1px 1px at 76px 188px, currentColor, transparent 1.6px),
+    radial-gradient(1px 1px at 196px 238px, currentColor, transparent 1.6px),
+    radial-gradient(1px 1px at 258px 146px, currentColor, transparent 1.6px);
+  background-size: 300px 300px;
+  opacity: 0.7;
+}
+
+.starfield-near {
+  background-image:
+    radial-gradient(1.4px 1.4px at 64px 126px, currentColor, transparent 2px),
+    radial-gradient(1px 1px at 248px 66px, currentColor, transparent 1.7px),
+    radial-gradient(1.6px 1.6px at 168px 214px, currentColor, transparent 2.2px),
+    radial-gradient(1px 1px at 312px 172px, currentColor, transparent 1.7px);
+  background-size: 380px 380px;
+  opacity: 0.45;
+}
+
+.starfield-accent {
+  color: var(--accent);
+  background-image:
+    radial-gradient(1.5px 1.5px at 40px 80px, currentColor, transparent 2px),
+    radial-gradient(1px 1px at 260px 34px, currentColor, transparent 1.6px),
+    radial-gradient(1.6px 1.6px at 180px 260px, currentColor, transparent 2.2px);
+  background-size: 520px 520px;
+  opacity: 0.4;
+}
+
+[data-theme="light"] .starfield-far,
+[data-theme="light"] .starfield-near {
+  color: rgba(15, 23, 42, 0.5);
+}
+
+.audio-glyph {
+  position: absolute;
+  color: color-mix(in srgb, var(--accent) 55%, var(--text));
+  opacity: var(--icon-opacity, 0.3);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 18%, transparent));
+}
+
+.audio-glyph svg {
+  display: block;
+  width: var(--icon-size, 18px);
+  height: var(--icon-size, 18px);
+  transform: rotate(var(--icon-rotate, 0deg));
+}
+
+.audio-glyph-mobile {
+  display: none;
+}
+
+.hero-wave {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 28%;
+  min-height: 160px;
+  color: var(--accent);
+  opacity: 0.5;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 28%, transparent));
+}
+
+.hero-wave polyline {
+  fill: none;
+  stroke: url(#hero-wave-fade);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.hero-stage-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 52%, var(--bg) 100%);
+}
+
+[data-theme="light"] .hero-stage {
+  background:
+    radial-gradient(ellipse 42% 44% at 18% 82%, rgba(180, 130, 90, 0.05), transparent 72%),
+    var(--hero-stage-accent-glow),
+    linear-gradient(180deg, #f7f6f3 0%, #f2f1ed 56%, var(--bg) 100%);
+}
+
+/* Tablet mockup: a flat, thin-bezel device. Minimal shading so the screen
+   carries the composition; the frame is product imagery, not page chrome. */
+.hero-tablet {
+  position: relative;
+  margin: 0;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0b0d10;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.hero-tablet-screen {
+  overflow: hidden;
+  background: #000;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.hero-tablet-screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Closing developers band: a dark green bloom from the bottom center in the
+   dark theme, the plain page background in the light theme. */
+.dev-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 120% 76% at 50% 100%,
+    #04100d 0%,
+    #070d0b 42%,
+    #09090b 100%
+  );
+}
+
+[data-theme="light"] .dev-stage {
+  background: var(--bg);
+}
+
+.dev-card {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+}
+
+@media (max-width: 1023px) {
+  .hero-wave {
+    height: 18%;
+    opacity: 0.34;
+  }
+
+  .hero-tablet {
+    padding: 5px;
+  }
+
+  .audio-glyph {
+    display: none;
+  }
+
+  .audio-glyph-mobile {
+    display: block;
+  }
+
+  .dev-stage .audio-glyph {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .starfield-far {
+    animation: star-drift 220s ease-in-out infinite alternate;
+  }
+
+  .starfield-near {
+    animation:
+      star-drift 150s ease-in-out infinite alternate-reverse,
+      star-twinkle 11s ease-in-out infinite alternate;
+  }
+
+  .audio-glyph {
+    animation: icon-float 14s ease-in-out infinite alternate;
+    animation-delay: var(--icon-delay, 0s);
+  }
+
+  .hero-wave {
+    animation: wave-drift 26s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes star-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0);
+  }
+
+  to {
+    transform: translate3d(1.5%, 1%, 0);
+  }
+}
+
+@keyframes star-twinkle {
+  from {
+    opacity: 0.42;
+  }
+
+  to {
+    opacity: 0.78;
+  }
+}
+
+@keyframes icon-float {
+  from {
+    transform: translate3d(0, -3px, 0);
+  }
+
+  to {
+    transform: translate3d(0, 3px, 0);
+  }
+}
+
+@keyframes wave-drift {
+  from {
+    transform: translate3d(-1%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(1%, 0, 0);
+  }
+}
+
 /* Ghost outline display word (Kurosawa). SVG text so the stroke can
    dash-animate; decoration only. */
 .ghost-word-text {
@@ -292,7 +570,7 @@
   .ghost-word-text {
     stroke-dasharray: 2000;
     stroke-dashoffset: 2000;
-    transition: stroke-dashoffset 1.8s ease-out;
+    transition: stroke-dashoffset var(--ghost-word-draw, 1.8s) ease-out;
   }
 
   .ghost-word.is-drawn .ghost-word-text {

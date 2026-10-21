@@ -193,7 +193,7 @@ Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom 
 - **Body** (400, 1rem / 1.0625rem for lead, line-height ~1.625): Paragraphs; lead copy max ~36–48ch in heroes.
 - **Label** (600, 0.9375rem): Buttons, nav links when active, platform pills.
 - **Caption** (400, 0.8125rem–0.875rem): Badges, tooltips, footer, engine status in app header.
-- **Mono** (400, 0.875rem+, tabular figures): Tempo, time, cue indices, technical values — plus landing-page console labels: numbered section eyebrows (`01 / Features`), the hero spec row, and feature-card plate numbers.
+- **Mono** (400, 0.875rem+, tabular figures): Tempo, time, cue indices, technical values — plus landing-page technical labels: numbered section eyebrows (`01 / Features`), the hero spec row, and feature-card plate numbers.
 
 ### App note
 
@@ -209,11 +209,13 @@ Flutter ships **Outfit** (body), **Space Grotesk** (display), and **Noto Sans Mo
 
 **Marketing grid:** Centered content column `max-width: 70rem` (1120px) with `24px` horizontal padding. Sections use `80px` vertical padding (`py-20`); hero uses slightly tighter bottom spacing.
 
-**Hero:** Two-column at `lg` — copy left, product screenshot right with 3D tilt/float motion on desktop; stacked on mobile. The two columns sit in a clean grid gap with no overlap (an earlier negative-margin tuck collided with the copy at common laptop widths and was removed). The copy column ends with a mono spec row (License / Platforms / Price) under the CTAs so license and cross-platform answers sit above the fold.
+**Hero:** Two-column at `lg` — copy left, product screenshot right inside a floating landscape tablet mockup: flat dark body, very thin uniform bezel, subtle edge line, and square corners that match the rest of the page chrome. The tablet floats and tilts in 3D on desktop and scroll-tilts on mobile. Stacked on smaller screens with a generous, non-overlapping grid gap. The copy column ends with a mono spec row (License / Platforms / Price) under the CTAs so license and cross-platform answers sit above the fold. Behind both columns sits a theme-aware music constellation: a neutral starfield threaded with small teal audio glyphs, a mirrored oscilloscope trace across the floor, and a faint warm charcoal haze. Dark is near-black; light is warm off-white. The constellation moves only in long ambient loops and freezes under `prefers-reduced-motion`.
 
 **Feature grid:** 1 → 2 (`sm`) → 4 (`lg`) bento with the first two cards double-width (`wide`), `20px` gap; cards are solid panel (`bg-card`) floating over a giant ghost outline word (`ghost-word`, SVG `<text>`, `aria-hidden`) that draws itself in on entry — the word reads in the gutters and above the first row. Cards carry a hover lift + soft shadow (the one sanctioned shadow growth) and a mono plate number top-right.
 
 **Developer pages:** Mirror the landing's depth language — one marquee ticker after the hero, a ghost outline word (`STACK`) behind the Stack card grid with the same draw-on-entry trace, numbered section eyebrows (`01 / Stack`, `02 / Architecture`), and the teal contrast band (`band-teal`) on the "Get involved" CTA. Prose stays in a narrow `640px` centered column; architecture sections may use full content width.
+
+**Closing developers section:** The home page's final band is a dark space window in the dark theme - page color at the edges (merging with the preceding section), a low, dark green bloom rising from the bottom center - and the plain page background in the light theme. The shared starfield and audio glyphs are light on the dark band and dark teal on the light one. A flat, opaque tinted card keeps the normal theme tokens: light-on-dark in the dark theme and dark-on-light in the light theme.
 
 **App shell:** Minimum window 1024×768, default 1280×800. Deck layout: Deck A | Mixer | Deck B in a single card row (`deck_grid.dart`). Custom 40px header; undecorated Linux desktop windows keep a 12px top-corner clip (`kDesktopWindowRadius`) so the compositor shadow matches — maximized drops to 0.
 
@@ -239,7 +241,7 @@ Mostly flat surfaces with **soft lift on interaction**. Depth comes from tonal l
 
 Square, instrument-like geometry — hard corners on chrome, pills only for tiny status chips.
 
-- **Square** (`0`): App buttons, inputs, selects, cards, menus, dialogs, toasts, tabs, tooltips. Marketing CTAs, feature cards, hero media frames, theme toggle, and icon tiles use the same zero-radius token scale (`apps/website` `--radius-*` in `global.css`).
+- **Square** (`0`): App buttons, inputs, selects, cards, menus, dialogs, toasts, tabs, tooltips. Marketing CTAs, feature cards, theme toggle, icon tiles, and the hero tablet mockup use the same zero-radius token scale (`apps/website` `--radius-*` in `global.css`).
 - **Window top** (`12px`): Undecorated desktop window clip only (`DesktopChrome`) — not a chrome-control radius.
 - **Full pill** (`9999px`): Tiny status chips / badges only (e.g. “In development”, compact metadata pills). Circular LED status dots stay full as geometry, not chrome.
 
@@ -286,7 +288,9 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 ### Motion
 
 - **Scroll reveal:** Fade + 16px translate, 500ms ease, staggered 100ms; disabled when `prefers-reduced-motion`. The hero copy uses the same reveal as its on-load entrance (screenshot excluded — it stays unhidden for LCP).
-- **Hero screenshot:** Motion-driven float/tilt on desktop; scroll-scrubbed tilt on mobile
+- **Hero tablet:** Motion-driven float/tilt on desktop; scroll-scrubbed tilt on mobile. No scanline or status chrome sits on the device.
+- **Hero stage:** Star layers drift and twinkle, the audio glyphs float, and the mirrored oscilloscope trace drifts; all ambient animation stops under `prefers-reduced-motion`.
+- **Closing developers section:** The shared starfield and audio glyphs drift and twinkle on the section behind the flat tinted card under the same reduced-motion guard.
 - **Ghost word draw:** The features ghost outline word traces itself in via `stroke-dashoffset` (2000→0, 1.8s ease-out) when scrolled into view — timings follow the site reveal language; drawn instantly under `prefers-reduced-motion`.
 - **Marquee ticker:** Full-bleed duplicated-track divider (`.marquee-track`, six copies so the `-50%` loop keeps the band covered at every offset, ~90s linear loop); static under `prefers-reduced-motion`. Content words repeat copy that also appears in real sections.
 - **Band video:** The NI Stems section opens with a muted looping full-bleed video band; JS holds it on frame one under `prefers-reduced-motion`.

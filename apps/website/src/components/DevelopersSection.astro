@@ -1,6 +1,18 @@
 ---
 import { GITHUB_REPO } from "../consts";
-import { Code, ExternalLink, Handshake } from "@lucide/astro";
+import {
+  AudioLines,
+  Code,
+  Disc3,
+  ExternalLink,
+  Handshake,
+  Headphones,
+  Mic,
+  Music3,
+  Radio,
+  SlidersVertical,
+  Volume2,
+} from "@lucide/astro";
 import Button from "./ui/Button.astro";
 
 const iconProps = { size: 18, "stroke-width": 2 };
@@ -13,11 +25,41 @@ const bullets = [
 
 const bulletClass =
   "relative pl-6 before:absolute before:top-[0.55em] before:left-0 before:h-2 before:w-2 before:rounded-full before:bg-accent";
+
+/** Audio glyphs scattered through the closing constellation, outside the card. */
+const constellation = [
+  { Icon: Headphones, x: "4%", y: "28%", size: 18, rotate: "-8deg", opacity: 0.32, delay: "-2s" },
+  { Icon: AudioLines, x: "95%", y: "24%", size: 16, rotate: "6deg", opacity: 0.28, delay: "-5s" },
+  { Icon: Music3, x: "3.5%", y: "72%", size: 15, rotate: "-10deg", opacity: 0.28, delay: "-1s" },
+  { Icon: Radio, x: "94%", y: "70%", size: 15, rotate: "8deg", opacity: 0.26, delay: "-6s" },
+  { Icon: Disc3, x: "34%", y: "5%", size: 16, rotate: "0deg", opacity: 0.26, delay: "-3s" },
+  { Icon: SlidersVertical, x: "68%", y: "5%", size: 15, rotate: "0deg", opacity: 0.24, delay: "-7s" },
+  { Icon: Volume2, x: "40%", y: "97%", size: 14, rotate: "0deg", opacity: 0.24, delay: "-8s" },
+  { Icon: Mic, x: "60%", y: "97%", size: 14, rotate: "-6deg", opacity: 0.24, delay: "-4s" },
+];
 ---
 
-<section id="developers" class="px-section py-24 lg:pb-28">
+<section id="developers" class="relative isolate overflow-hidden px-section py-24 lg:pb-28">
+  <div class="dev-stage" aria-hidden="true">
+    <div class="starfield starfield-far"></div>
+    <div class="starfield starfield-near"></div>
+    <div class="starfield starfield-accent"></div>
+    {
+      constellation.map((glyph) => {
+        const Icon = glyph.Icon;
+        return (
+          <span
+            class="audio-glyph"
+            style={`left: ${glyph.x}; top: ${glyph.y}; --icon-size: ${glyph.size}px; --icon-rotate: ${glyph.rotate}; --icon-opacity: ${glyph.opacity}; --icon-delay: ${glyph.delay};`}
+          >
+            <Icon size={glyph.size} stroke-width={1.4} />
+          </span>
+        );
+      })
+    }
+  </div>
   <div
-    class="mx-auto max-w-content rounded-2xl border border-accent/25 bg-accent-dim px-8 py-14 text-center sm:px-14 sm:py-16"
+    class="dev-card relative z-10 mx-auto max-w-content rounded-2xl border border-accent/25 px-8 py-14 text-center sm:px-14 sm:py-16"
   >
     <Handshake class="mx-auto mb-6 size-20 text-accent" stroke-width={1.75} aria-hidden="true" />
     <p

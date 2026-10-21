@@ -9,7 +9,7 @@ import {
   Zap,
 } from "@lucide/astro";
 import { NI_STEMS_URL } from "../consts";
-import { STEM_DEMO_TITLE } from "../scripts/stem-demo-player";
+import { IDLE_BAR_HEIGHT, STEM_DEMO_TITLE } from "../scripts/stem-demo-player";
 
 /** NI / stemgen default stem order, labels, and colors. */
 const stems = [
@@ -147,7 +147,7 @@ const points = [
         </p>
       </div>
 
-      <div data-stems-demo data-reveal style="--reveal-delay: 100ms" class="min-w-0 w-full rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
+      <div data-stems-demo data-reveal-x="right" style="--reveal-delay: 100ms" class="min-w-0 w-full rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
         <div class="mb-5 flex flex-wrap items-center gap-3">
           <ul class="flex flex-wrap items-center gap-1.5" aria-label="Pad modes">
             {
@@ -325,12 +325,12 @@ const points = [
                         data-stem-bars
                         data-variant={variant}
                         class:list={[
-                          "h-full min-w-0 grow items-center gap-[0.5px] opacity-40 transition-opacity duration-300 data-[ready=true]:opacity-100 motion-reduce:transition-none",
+                          "h-full min-w-0 grow items-center gap-[0.5px] motion-reduce:transition-none",
                           visibility,
                         ]}
                       >
                         {Array.from({ length: count }).map(() => (
-                          <i class="min-w-[1px] grow bg-(--stem)" style="height: 4%" />
+                          <i class="min-w-[1px] grow bg-(--stem)" style={`height: ${IDLE_BAR_HEIGHT}`} />
                         ))}
                       </span>
                     ))}

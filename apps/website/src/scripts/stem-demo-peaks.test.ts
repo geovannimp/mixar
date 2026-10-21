@@ -30,6 +30,13 @@ describe("barHeightsFromPeaks", () => {
     expect(barHeightsFromPeaks(new Float32Array([1.4]), 1)).toEqual(["100%"]);
   });
 
+  it("normalises peaks against a per-lane ceiling", () => {
+    expect(barHeightsFromPeaks(new Float32Array([0.1, 0.2]), 2, 0.2)).toEqual([
+      "52.5%",
+      "100%",
+    ]);
+  });
+
   it("falls back to the skeleton height when no peaks are available", () => {
     expect(barHeightsFromPeaks(new Float32Array(0), 3)).toEqual(["5%", "5%", "5%"]);
   });

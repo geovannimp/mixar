@@ -1,6 +1,18 @@
 ---
 import { GITHUB_REPO, RELEASES_URL } from "../consts";
-import { ArrowDown, Download, Star } from "@lucide/astro";
+import {
+  ArrowDown,
+  AudioLines,
+  Disc3,
+  Download,
+  Headphones,
+  Mic,
+  Music3,
+  Radio,
+  SlidersVertical,
+  Star,
+  Volume2,
+} from "@lucide/astro";
 import Button from "./ui/Button.astro";
 
 const iconProps = { size: 18, "stroke-width": 2 };
@@ -11,91 +23,165 @@ const specs = [
   { k: "Platforms", v: "Linux · macOS · Windows" },
   { k: "Price", v: "$0" },
 ] as const;
+
+/** Symmetric oscilloscope trace: a tapered audio waveform, mirrored around center. */
+const waveSamples = Array.from({ length: 481 }, (_, i) => {
+  const x = (i / 480) * 1600;
+  const envelope = 0.18 + 0.82 * Math.sin((i / 480) * Math.PI);
+  const amplitude =
+    Math.abs(
+      Math.sin(i * 0.13) * 34 + Math.sin(i * 0.037) * 44 + Math.sin(i * 0.41) * 12,
+    ) * envelope;
+  return { x: x.toFixed(1), amplitude: amplitude.toFixed(1) };
+});
+/** Build one polyline of the mirrored trace; direction -1 is the top edge. */
+const trace = (direction: 1 | -1) =>
+  waveSamples
+    .map(({ x, amplitude }) => `${x},${(110 + direction * Number(amplitude)).toFixed(1)}`)
+    .join(" ");
+const waveTop = trace(-1);
+const waveBottom = trace(1);
+
+/** Audio glyphs scattered through the starfield. */
+const audioGlyphs = [
+  { Icon: Headphones, x: "44%", y: "10%", size: 20, rotate: "-8deg", opacity: 0.38, delay: "-2s" },
+  { Icon: AudioLines, x: "58%", y: "20%", size: 18, rotate: "6deg", opacity: 0.34, delay: "-5s" },
+  { Icon: Music3, x: "84%", y: "11%", size: 16, rotate: "-12deg", opacity: 0.36, delay: "-1s" },
+  { Icon: SlidersVertical, x: "94%", y: "46%", size: 18, rotate: "0deg", opacity: 0.3, delay: "-7s" },
+  { Icon: Disc3, x: "72%", y: "82%", size: 20, rotate: "0deg", opacity: 0.28, delay: "-3s" },
+  { Icon: Radio, x: "91%", y: "72%", size: 16, rotate: "8deg", opacity: 0.3, delay: "-6s" },
+  { Icon: Mic, x: "4%", y: "58%", size: 16, rotate: "-6deg", opacity: 0.28, delay: "-4s" },
+  { Icon: Volume2, x: "52%", y: "88%", size: 15, rotate: "0deg", opacity: 0.28, delay: "-8s" },
+];
 ---
 
-<section
-  id="hero"
-  class="mx-auto grid max-w-content gap-12 px-section py-20 pb-10 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-14 lg:py-28 lg:pb-20"
->
-  <div class="relative z-10 lg:py-4" data-reveal-group>
-    <h1
-      data-reveal
-      style="--reveal-delay: 0ms"
-      class="mb-5 text-[clamp(2.75rem,7vw,4.5rem)] leading-[1.02] font-bold tracking-[-0.03em]"
-    >
-      <span class="text-accent">Free</span> DJ software,<br class="hidden sm:block" />
-      {" "}nothing locked away
-    </h1>
-    <p
-      data-reveal
-      style="--reveal-delay: 100ms"
-      class="mb-8 max-w-[44ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl"
-    >
-      Dual decks, a full mixer, hot cues, loops, NI Stems, and MIDI mapping. Open source
-      under GPL-3.0.
-    </p>
-    <div data-reveal style="--reveal-delay: 200ms" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Button href={RELEASES_URL} external placement="hero" class="w-full px-7 py-3.5 text-base">
-        <Download {...iconProps} aria-hidden="true" />
-        Download Mixar
-      </Button>
-      <Button href={GITHUB_REPO} external variant="secondary" placement="hero" class="w-full px-7 py-3.5 text-base">
-        <Star {...iconProps} aria-hidden="true" />
-        Star on GitHub
-      </Button>
-      <Button href="#features" variant="secondary" class="w-full px-7 py-3.5 text-base sm:col-span-2">
-        See what it does
-        <ArrowDown {...iconProps} aria-hidden="true" />
-      </Button>
-    </div>
-    <p
-      data-reveal
-      style="--reveal-delay: 300ms"
-      class="mt-6 flex items-center gap-2.5 text-[0.875rem] text-muted"
-    >
-      <span class="size-2 shrink-0 rounded-full bg-warn" aria-hidden="true"></span>
-      In active development · Pre-release builds
-    </p>
-    <dl
-      data-reveal
-      style="--reveal-delay: 400ms"
-      class="mt-7 grid grid-cols-1 gap-y-4 border-t border-border pt-5 sm:grid-cols-3 sm:gap-y-0"
-    >
-      {
-        specs.map((spec, index) => (
-          <div
-            class:list={[
-              "pr-4",
-              index > 0 && "border-border sm:border-l sm:pl-5",
-              index === 1 && "sm:pr-4",
-            ]}
+<section id="hero" class="relative isolate overflow-hidden">
+  <div class="hero-stage" aria-hidden="true">
+    <div class="starfield starfield-far"></div>
+    <div class="starfield starfield-near"></div>
+    <div class="starfield starfield-accent"></div>
+    {
+      audioGlyphs.map((glyph) => {
+        const Icon = glyph.Icon;
+        return (
+          <span
+            class="audio-glyph"
+            style={`left: ${glyph.x}; top: ${glyph.y}; --icon-size: ${glyph.size}px; --icon-rotate: ${glyph.rotate}; --icon-opacity: ${glyph.opacity}; --icon-delay: ${glyph.delay};`}
           >
-            <dt class="font-mono text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted">
-              {spec.k}
-            </dt>
-            <dd class="mt-1 text-[0.9375rem] font-semibold text-fg">{spec.v}</dd>
-          </div>
-        ))
-      }
-    </dl>
-  </div>
-  <div class="relative z-0">
-    <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-      <div class="absolute -inset-[12%] bg-(--hero-glow)"></div>
-    </div>
-    <div
-      class="float-soft relative max-lg:perspective-[900px] max-lg:perspective-origin-[50%_55%] lg:perspective-[1200px] lg:perspective-origin-[45%_40%]"
+            <Icon size={glyph.size} stroke-width={1.4} />
+          </span>
+        );
+      })
+    }
+    <span
+      class="audio-glyph audio-glyph-mobile"
+      style="left: 6%; top: 7%; --icon-size: 16px; --icon-rotate: -8deg; --icon-opacity: 0.34; --icon-delay: -2s;"
     >
-      <div data-hero-screenshot-hover class="relative origin-center transform-3d -mt-4 pt-4">
-        <img
-          class="hero-screenshot-tilt relative w-full rounded-xl border border-border shadow-(--screenshot-shadow)"
-          src="/mixar-banner.png"
-          alt="Mixar DJ interface with dual decks, waveforms, and mixer"
-          width="1024"
-          height="733"
-          fetchpriority="high"
-          decoding="async"
-        />
+      <Headphones size={16} stroke-width={1.4} />
+    </span>
+    <span
+      class="audio-glyph audio-glyph-mobile"
+      style="left: 90%; top: 7%; --icon-size: 15px; --icon-rotate: 8deg; --icon-opacity: 0.34; --icon-delay: -5s;"
+    >
+      <Music3 size={15} stroke-width={1.4} />
+    </span>
+    <svg class="hero-wave" viewBox="0 0 1600 220" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="hero-wave-fade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="currentColor" stop-opacity="0" />
+          <stop offset="0.16" stop-color="currentColor" stop-opacity="0.7" />
+          <stop offset="0.84" stop-color="currentColor" stop-opacity="0.7" />
+          <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <polyline points={waveTop} />
+      <polyline points={waveBottom} />
+    </svg>
+    <div class="hero-stage-veil"></div>
+  </div>
+  <div
+    class="relative z-10 mx-auto grid max-w-content gap-12 px-section pt-24 pb-16 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-20 lg:pt-32 lg:pb-24"
+  >
+    <div class="relative z-10 lg:py-4" data-reveal-group>
+      <h1
+        data-reveal
+        style="--reveal-delay: 0ms"
+        class="mb-5 text-[clamp(2.75rem,7vw,4.5rem)] leading-[1.02] font-bold tracking-[-0.03em]"
+      >
+        <span class="text-accent">Free</span> DJ software,<br class="hidden sm:block" />
+        {" "}nothing locked away
+      </h1>
+      <p
+        data-reveal
+        style="--reveal-delay: 100ms"
+        class="mb-8 max-w-[44ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl"
+      >
+        Dual decks, a full mixer, hot cues, loops, NI Stems, and MIDI mapping. Open source
+        under GPL-3.0.
+      </p>
+      <div data-reveal style="--reveal-delay: 200ms" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Button href={RELEASES_URL} external placement="hero" class="w-full px-7 py-3.5 text-base">
+          <Download {...iconProps} aria-hidden="true" />
+          Download Mixar
+        </Button>
+        <Button href={GITHUB_REPO} external variant="secondary" placement="hero" class="w-full px-7 py-3.5 text-base">
+          <Star {...iconProps} aria-hidden="true" />
+          Star on GitHub
+        </Button>
+        <Button href="#features" variant="secondary" class="w-full px-7 py-3.5 text-base sm:col-span-2">
+          See what it does
+          <ArrowDown {...iconProps} aria-hidden="true" />
+        </Button>
+      </div>
+      <p
+        data-reveal
+        style="--reveal-delay: 300ms"
+        class="mt-6 flex items-center gap-2.5 text-[0.875rem] text-muted"
+      >
+        <span class="size-2 shrink-0 rounded-full bg-warn" aria-hidden="true"></span>
+        In active development · Pre-release builds
+      </p>
+      <dl
+        data-reveal
+        style="--reveal-delay: 400ms"
+        class="mt-7 grid grid-cols-1 gap-y-4 border-t border-border pt-5 sm:grid-cols-3 sm:gap-y-0"
+      >
+        {
+          specs.map((spec, index) => (
+            <div
+              class:list={[
+                "pr-4",
+                index > 0 && "border-border sm:border-l sm:pl-5",
+                index === 1 && "sm:pr-4",
+              ]}
+            >
+              <dt class="font-mono text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted">
+                {spec.k}
+              </dt>
+              <dd class="mt-1 text-[0.9375rem] font-semibold text-fg">{spec.v}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+    <div class="relative z-0">
+      <div
+        class="float-soft relative max-lg:perspective-[900px] max-lg:perspective-origin-[50%_55%] lg:perspective-[1200px] lg:perspective-origin-[45%_40%]"
+      >
+        <div data-hero-screenshot-hover class="relative origin-center transform-3d -mt-4 pt-4">
+          <figure class="hero-tablet hero-screenshot-tilt">
+            <div class="hero-tablet-screen">
+              <img
+                src="/mixar-banner.png"
+                alt="Mixar DJ interface with dual decks, waveforms, and mixer"
+                width="1024"
+                height="733"
+                fetchpriority="high"
+                decoding="async"
+              />
+            </div>
+          </figure>
+        </div>
       </div>
     </div>
   </div>

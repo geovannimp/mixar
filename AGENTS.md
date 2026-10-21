@@ -17,6 +17,7 @@
 
 ## Process
 
+- The website dev server may already be running (`astro dev`, usually port 4321) with live reload. Do not stop or restart it; let HMR pick up edits and verify against the running server.
 - Prefer minimal, focused changes; scope may narrow mid-task.
 - When planning features, research how competitors handle the same problem before proposing UX or architecture.
 - Always run the relevant tests (and lint/format as needed) before committing.
