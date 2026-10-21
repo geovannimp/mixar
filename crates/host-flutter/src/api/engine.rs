@@ -1053,7 +1053,7 @@ impl EngineTransport {
     pub fn unload(&self, deck_id: u16) -> Result<(), String> {
         // Drop the producer + its ring before the deck unload closes coverage.
         if let Ok(mut live) = self.live_separators.lock() {
-            if let Some(previous) = live[usize::from(deck_id)].take() {
+            if let Some(previous) = live.get_mut(usize::from(deck_id)).and_then(Option::take) {
                 previous.stop();
             }
         }
@@ -1555,7 +1555,7 @@ impl EngineTransport {
             // A live producer from the previous track must stop before either
             // the cached-stems arm or a new live producer replaces it.
             if let Ok(mut live) = self.live_separators.lock() {
-                if let Some(previous) = live[deck_id as usize].take() {
+                if let Some(previous) = live.get_mut(deck_id as usize).and_then(Option::take) {
                     previous.stop();
                 }
             }

@@ -11,19 +11,20 @@ Generation is **resource-intensive** and can take a while — often on the order
 
 Jobs run in the background and do not stop playback, but they still compete for CPU, GPU, and disk. **Generate stems before you perform** — prepare tracks in the library ahead of a set so separation does not affect live performance.
 
-## Live stems on deck load
+## Realtime stems on deck load
 
-Once the separation model is on disk (any earlier generate), loading a track
-that has no generated cache starts separation **on the fly** for that deck. The
-track begins playing immediately; the Stems pads switch on as soon as the first
-window is ready (about a second on a GPU), and the deck crossfades from the
-original mix. Live stems are never written to disk, so they add no duplicate
-files. If separation falls behind or you seek outside the prepared window, the
-deck keeps playing the original mix until it catches up.
+With **Settings → Mixer → Realtime Stems** enabled, loading a track without a
+generated cache starts live StemgenRT separation for that deck. The track begins
+playing immediately; the Stems pads switch on when the first hop is covered, and
+the deck crossfades from the original mix. Live stems are never written to disk,
+so they add no duplicate files. If separation falls behind or you seek outside
+the prepared window, the deck keeps playing the original mix until it catches up.
 
-Live separation is skipped on CPU-only setups so it cannot compete with audio
-rendering. **Generate stems** remains the way to get a persistent, instant-ready
-cache.
+Realtime stems run on the CPU and use roughly one core per deck; a GPU is not
+required. It is a fallback for tracks without offline stems, not a replacement
+for them: quality is lower, and **Generate stems** remains the way to get a
+persistent, instant-ready cache. The model downloads in the background on first
+use and is disabled by default.
 
 ## One track
 
@@ -47,6 +48,6 @@ From a collection’s menu, open **Analyze**. In the dialog you can turn on **Al
 
 ## When something goes wrong
 
-- **Pads disabled, no banner** — the track has no cache and live separation is unavailable (no model cached yet, or a CPU-only setup). Generate stems, or load a [native NI Stem file](/docs/users/stems/native-ni).
+- **Pads disabled, no banner** — the track has no cache and Realtime Stems is off or its model has not downloaded yet. Enable it in Settings → Mixer, wait for the download, or generate stems / load a [native NI Stem file](/docs/users/stems/native-ni).
 - **STEMS GENERATING…** — a job is in flight; wait for it to finish. Playback is unaffected.
 - **Disk full** — Mixar stops the write and shows an error toast. Free space, then generate again. BPM/key analysis already done for the track is kept.

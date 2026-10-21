@@ -853,7 +853,9 @@ pub(crate) fn seed_engine_config_if_unconfigured(
 /// audio/load path never starts live separation unexpectedly.
 pub(crate) fn settings_realtime_stems_enabled() -> bool {
     let host = shared_host();
-    host.lock().map(|host| host.realtime_stems).unwrap_or(false)
+    host.lock()
+        .map(|guard| guard.realtime_stems)
+        .unwrap_or(false)
 }
 
 pub(crate) fn settings_host_runtime() -> Result<(Option<f32>, JogMode, JogMode), String> {

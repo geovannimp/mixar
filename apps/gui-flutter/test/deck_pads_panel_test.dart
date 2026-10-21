@@ -26,6 +26,14 @@ import 'support/pad_finders.dart';
 
 Finder padLabel(String text) => find.text(text, findRichText: true);
 
+TextSpan padSuffixSpan(WidgetTester tester, String label, String suffixText) {
+  final rich = tester.widget<RichText>(padLabel(label));
+  final inner = (rich.text as TextSpan).children!.single as TextSpan;
+  return inner.children!.cast<TextSpan>().singleWhere(
+    (span) => span.text == suffixText,
+  );
+}
+
 void main() {
   Future<void> pumpPanel(
     WidgetTester tester, {
@@ -146,12 +154,7 @@ void main() {
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
     expect(padLabel('Sample (Bank 1)'), findsOneWidget);
-    final sampleRich = tester.widget<RichText>(padLabel('Sample (Bank 1)'));
-    final sampleInner =
-        (sampleRich.text as TextSpan).children!.single as TextSpan;
-    final bankSuffix = sampleInner.children!.cast<TextSpan>().singleWhere(
-      (span) => span.text == ' (Bank 1)',
-    );
+    final bankSuffix = padSuffixSpan(tester, 'Sample (Bank 1)', ' (Bank 1)');
     expect(
       bankSuffix.style?.color,
       MixarThemeData.dark().colors.mutedForeground,
@@ -171,12 +174,7 @@ void main() {
       realtimeStemsEnabled: true,
     );
     expect(padLabel('Stems (Realtime)'), findsOneWidget);
-    final rich = tester.widget<RichText>(padLabel('Stems (Realtime)'));
-    // ignore: avoid_print
-    final inner = (rich.text as TextSpan).children!.single as TextSpan;
-    final suffix = inner.children!.cast<TextSpan>().singleWhere(
-      (span) => span.text == ' (Realtime)',
-    );
+    final suffix = padSuffixSpan(tester, 'Stems (Realtime)', ' (Realtime)');
     expect(suffix.style?.color, MixarThemeData.dark().colors.mutedForeground);
 
     // The open list uses plain mode names; only the collapsed chip carries

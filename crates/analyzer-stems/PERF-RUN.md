@@ -1,5 +1,9 @@
 # stems-live-separation — run record
 
+> **Historical:** this record covers the earlier HTDemucs live path. The
+> shipped Realtime Stems filter is StemgenRT on the CPU and is opt-in; see the
+> stems overview for current behavior.
+
 Branch `geovannimp/rust-optimization`, base `d85d3a99`, feature commit
 `51eeb256`, docs `62c87989`. Crates: `analyzer-stems`, `audio-core`,
 `engine-dsp`, `engine-core`, `host-flutter`.
@@ -88,11 +92,13 @@ producer can interleave. Output is unchanged (hashes above).
 
 ## Decisions made alone
 
-1. **Live is opportunistic**: it starts only when the model artifact is already
-   cached (no download) and a non-CPU EP is compiled. CPU-only builds skip it so
-   separation cannot compete with audio rendering.
-2. **Every uncached deck load starts live** (no new setting). Cached stems stay
-   authoritative; an explicit Generate still writes a persistent cache.
+1. **That HTDemucs version was opportunistic**: it started only when the model
+   artifact was already cached (no download) and a non-CPU EP was compiled.
+   CPU-only builds skipped it so separation could not compete with audio
+   rendering.
+2. **That version started live for every uncached deck load** (no setting).
+   Cached stems stayed authoritative; an explicit Generate still wrote a
+   persistent cache.
 3. **Ring = 2^20 frames (23.8 s, 32 MiB/deck)** with a two-stride lead. The
    producer derives its lead from the ring capacity, so a smaller ring cannot
    wrap onto the reader (`pacing_never_crosses_capacity`).

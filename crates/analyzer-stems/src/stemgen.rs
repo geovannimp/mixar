@@ -47,6 +47,15 @@ struct State {
     data: Vec<f32>,
 }
 
+/// True when the playhead moved like a seek rather than normal playback.
+///
+/// `last_playhead` is the last observed value, so a producer that is merely
+/// behind does not trigger a re-epoch; only a jump beyond the lookahead does.
+fn should_reepoch(playhead: u64, last_playhead: Option<u64>, epoch_start: u64) -> bool {
+    playhead < epoch_start
+        || last_playhead.is_some_and(|previous| playhead > previous.saturating_add(MAX_AHEAD))
+}
+
 /// Start a StemgenRT producer for `audio` into `ring`.
 ///
 /// `weights` must already exist; this function never downloads. The ring rate
@@ -267,6 +276,7 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
     let mut epoch_start = 0u64;
     let mut first = true;
     let mut flushed = false;
+    let mut last_playhead: Option<u64> = None;
     let mut audio_chunk = vec![0.0f32; 2 * HOP];
 
     loop {
@@ -276,10 +286,13 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
 
         let playhead = ring.playhead().min(total);
 
-        // Backward or far-forward seek: restart the stream. A warm-up region
-        // before the seek refills the model's audio histories and recurrent
-        // state; exact offline parity is only promised from sample zero.
-        if playhead < epoch_start || playhead > publish_at.saturating_add(MAX_AHEAD) {
+        // Distinguish a seek from ordinary producer lag: a forward jump is
+        // measured against the last observed playhead, not against the
+        // published end. The latter would re-arm immediately after a re-epoch
+        // (the warm-up and lookahead are both two seconds) and reset forever.
+        let seek = should_reepoch(playhead, last_playhead, epoch_start);
+        last_playhead = Some(playhead);
+        if seek {
             let start = playhead.saturating_sub(WARMUP);
             for state in states.iter_mut() {
                 state.data.fill(0.0);
@@ -357,4 +370,23 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
     }
 
     info!("StemgenRT live: producer stopped");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normal_advance_and_producer_lag_do_not_reepoch() {
+        assert!(!should_reepoch(0, None, 0));
+        assert!(!should_reepoch(44_100, Some(0), 0));
+        assert!(!should_reepoch(88_200, Some(44_100), 0));
+        assert!(!should_reepoch(2 * MAX_AHEAD, Some(MAX_AHEAD), 0));
+    }
+
+    #[test]
+    fn forward_and_backward_seeks_reepoch() {
+        assert!(should_reepoch(MAX_AHEAD + 1, Some(0), 0));
+        assert!(should_reepoch(10, None, 44_100));
+    }
 }
