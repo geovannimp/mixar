@@ -48,6 +48,22 @@ pub struct LiveSeparator {
 }
 
 impl LiveSeparator {
+    /// Build a handle around an already-spawned producer.
+    ///
+    /// Used by the StemgenRT producer, which shares the same stop/join and
+    /// ring-coverage lifecycle as the HTDemucs live path.
+    pub(crate) fn from_parts(
+        stop: Arc<AtomicBool>,
+        ring: Arc<LiveStemRing>,
+        handle: JoinHandle<()>,
+    ) -> Self {
+        Self {
+            stop,
+            ring,
+            handle: Some(handle),
+        }
+    }
+
     /// Ask the producer to stop; coverage is cleared immediately so the deck
     /// falls back to the main mix.
     pub fn stop(&self) {

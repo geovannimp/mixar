@@ -19,7 +19,7 @@ use crate::api::history_worker::HistoryWorker;
 use crate::api::library::LibraryTransport;
 use crate::api::settings::{
     seed_engine_config_if_unconfigured, settings_engine_config, settings_host_runtime,
-    JogModeSetting,
+    settings_realtime_stems_enabled, JogModeSetting,
 };
 use crate::frb_generated::StreamSink;
 
@@ -532,11 +532,20 @@ pub struct EngineTransport {
     evt_forwarder: Mutex<Option<EngineEvtForwarder>>,
     history_worker: Mutex<Option<EngineHistoryWorker>>,
     /// Bumped at the start of each deck load; stale prepares skip `load_prepared`.
-    deck_load_generation: [AtomicU64; NUM_DECKS],
+    ///
+    /// Shared with a background StemgenRT model download so a track replaced
+    /// while the model is downloading never starts a stale producer.
+    deck_load_generation: Arc<[AtomicU64; NUM_DECKS]>,
     /// Mixar-owned model root, for opportunistic live separation.
     models_root: std::path::PathBuf,
     /// Live producers per deck; replacing or dropping one stops it.
-    live_separators: Mutex<[Option<analyzer_stems::LiveSeparator>; NUM_DECKS]>,
+    live_separators: Arc<Mutex<[Option<analyzer_stems::LiveSeparator>; NUM_DECKS]>>,
+    /// Serializes first-use StemgenRT downloads so two deck loads cannot race
+    /// on the same `.part` file.
+    stemgen_download_lock: Arc<Mutex<()>>,
+    /// The null backend is used by headless tests and offline tools; keep the
+    /// live filter (and its model download) out of that path.
+    live_stems_enabled: bool,
 }
 
 impl Drop for EngineTransport {
@@ -571,6 +580,7 @@ impl EngineTransport {
         config: EngineStartConfig,
     ) -> Result<Self, String> {
         let library_arc = library_transport.library_arc();
+        let live_stems_enabled = config.backend != "null";
         let mut engine = Engine::new_with_library_bus(
             config.to_engine_config(),
             Arc::clone(&library_arc),
@@ -614,9 +624,11 @@ impl EngineTransport {
             sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
             evt_forwarder: Mutex::new(None),
             history_worker: Mutex::new(Some(history_worker)),
-            deck_load_generation: std::array::from_fn(|_| AtomicU64::new(0)),
+            deck_load_generation: Arc::new(std::array::from_fn(|_| AtomicU64::new(0))),
             models_root: library_transport.library_buses().models_root(),
-            live_separators: Mutex::new(std::array::from_fn(|_| None)),
+            live_separators: Arc::new(Mutex::new(std::array::from_fn(|_| None))),
+            stemgen_download_lock: Arc::new(Mutex::new(())),
+            live_stems_enabled,
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
             let _ = transport.apply_host_settings(target, top, outer);
@@ -1405,29 +1417,27 @@ impl EngineTransport {
     }
 
     /// Opportunistically separate the loaded track on the fly when no cache
-    /// exists. Silent no-op unless the model is already downloaded and a GPU
-    /// execution provider is compiled in; the deck plays the main mix until the
-    /// producer publishes the first window.
+    /// exists. The StemgenRT graph is a causal 128-sample-hop filter: the deck
+    /// mixes its four stems before the channel gain/EQ strip, and keeps playing
+    /// the dry mix until the producer publishes coverage.
+    ///
+    /// The model is downloaded in the background on first use. The deck is
+    /// attached to an empty ring immediately, so this call never blocks on the
+    /// network; `stems_ready` flips when the producer publishes its first hop.
     fn start_live_stems(
         &self,
         deck: usize,
         audio: Arc<audio_core::LoadedAudio>,
         engine: &mut Engine,
+        generation: u64,
     ) {
-        if audio.channels != 2 || audio.sample_rate == 0 {
-            return;
-        }
-        if !analyzer_stems::preferred_ep_labels()
-            .iter()
-            .any(|label| *label != "cpu")
+        if !self.live_stems_enabled
+            || !settings_realtime_stems_enabled()
+            || audio.channels != 2
+            || audio.sample_rate == 0
         {
             return;
         }
-        let Ok(Some(handle)) =
-            analyzer_stems::cached_model(&self.models_root, analyzer_stems::DEFAULT_MODEL)
-        else {
-            return;
-        };
         let ring = Arc::new(audio_core::LiveStemRing::new(
             analyzer_stems::STEM_SAMPLE_RATE,
             audio_core::DEFAULT_LIVE_STEM_CAPACITY,
@@ -1436,15 +1446,84 @@ impl EngineTransport {
             tracing::warn!(deck, error = %err, "live stems: attach failed");
             return;
         }
-        match analyzer_stems::start_live_separator(handle.local_path, audio, ring) {
-            Ok(separator) => {
-                if let Ok(mut live) = self.live_separators.lock() {
-                    if let Some(previous) = live[deck].replace(separator) {
-                        previous.stop();
+
+        let cached = analyzer_stems::cached_model(&self.models_root, analyzer_stems::STEMGEN_MODEL)
+            .ok()
+            .flatten();
+        if let Some(handle) = cached {
+            match analyzer_stems::start_stemgen_live_separator(handle.local_path, audio, ring) {
+                Ok(separator) => {
+                    if let Ok(mut live) = self.live_separators.lock() {
+                        if let Some(previous) = live[deck].replace(separator) {
+                            previous.stop();
+                        }
                     }
                 }
+                Err(err) => {
+                    tracing::warn!(deck, error = %err, "StemgenRT live: producer failed to start")
+                }
             }
-            Err(err) => tracing::warn!(deck, error = %err, "live stems: producer failed to start"),
+            return;
+        }
+
+        // First use: fetch the 32 MB model off the audio/load path, then start
+        // the producer only if this deck still owns the load generation.
+        let models_root = self.models_root.clone();
+        let live = Arc::clone(&self.live_separators);
+        let generations = Arc::clone(&self.deck_load_generation);
+        let download_lock = Arc::clone(&self.stemgen_download_lock);
+        let thread_audio = Arc::clone(&audio);
+        let thread_ring = Arc::clone(&ring);
+        let spawned = std::thread::Builder::new()
+            .name("stemgen-model".into())
+            .spawn(move || {
+                let _download_guard = match download_lock.lock() {
+                    Ok(guard) => guard,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                if let Err(err) =
+                    analyzer_stems::ensure_model(&models_root, analyzer_stems::STEMGEN_MODEL)
+                {
+                    tracing::warn!(deck, error = %err, "StemgenRT live: model download failed");
+                    return;
+                }
+                if generations[deck].load(Ordering::Acquire) != generation
+                    || !settings_realtime_stems_enabled()
+                {
+                    return;
+                }
+                let Ok(Some(handle)) =
+                    analyzer_stems::cached_model(&models_root, analyzer_stems::STEMGEN_MODEL)
+                else {
+                    return;
+                };
+                match analyzer_stems::start_stemgen_live_separator(
+                    handle.local_path,
+                    thread_audio,
+                    thread_ring,
+                ) {
+                    Ok(separator) => {
+                        // The deck may have been replaced while the producer
+                        // thread was starting. Never install a stale epoch.
+                        if generations[deck].load(Ordering::Acquire) != generation
+                            || !settings_realtime_stems_enabled()
+                        {
+                            separator.stop();
+                            return;
+                        }
+                        if let Ok(mut live) = live.lock() {
+                            if let Some(previous) = live[deck].replace(separator) {
+                                previous.stop();
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        tracing::warn!(deck, error = %err, "StemgenRT live: producer failed to start")
+                    }
+                }
+            });
+        if let Err(err) = spawned {
+            tracing::warn!(deck, error = %err, "StemgenRT live: model worker failed to spawn");
         }
     }
 
@@ -1455,6 +1534,9 @@ impl EngineTransport {
         generation: u64,
     ) -> Result<(), String> {
         let stems = prepared.stems.take();
+        // No cached stems: attach the live StemgenRT filter. It is independent
+        // of offline stem generation and runs on the CPU, so it also works on
+        // machines without a GPU EP.
         let live_audio = stems.is_none().then(|| Arc::clone(&prepared.audio));
         let snap = {
             let mut guard = self
@@ -1482,7 +1564,7 @@ impl EngineTransport {
                     .attach_deck_stems(deck_id as usize, stems)
                     .map_err(|e| e.to_string())?;
             } else if let Some(audio) = live_audio {
-                self.start_live_stems(deck_id as usize, audio, engine);
+                self.start_live_stems(deck_id as usize, audio, engine, generation);
             }
             engine
                 .deck_snapshot(deck_id as usize)

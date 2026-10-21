@@ -336,6 +336,10 @@ pub struct AppSettings {
     /// Offline separation model id (`htdemucs_mixxx_v1` | `scnet_int8_v1`).
     #[serde(default = "default_stems_model")]
     pub stems_model: String,
+    /// Live separation fallback for tracks without cached stems. Offline
+    /// stems always take priority; quality is lower and it uses a CPU core.
+    #[serde(default)]
+    pub realtime_stems: bool,
     #[serde(default)]
     pub ui_language: UiLanguageSetting,
     /// Open the library as an overlay drawer instead of the docked panel.
@@ -376,6 +380,7 @@ struct SettingsHost {
     dim_played_tracks: bool,
     stems_format: String,
     stems_model: String,
+    realtime_stems: bool,
     ui_language: UiLanguageSetting,
     library_drawer_enabled: bool,
     library_drawer_side: LibraryDrawerSideSetting,
@@ -411,6 +416,7 @@ impl Default for SettingsHost {
             dim_played_tracks: default_dim_played_tracks(),
             stems_format: default_stems_format(),
             stems_model: default_stems_model(),
+            realtime_stems: false,
             ui_language: UiLanguageSetting::default(),
             library_drawer_enabled: false,
             library_drawer_side: LibraryDrawerSideSetting::Bottom,
@@ -709,6 +715,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         dim_played_tracks: host.dim_played_tracks,
         stems_format: host.stems_format.clone(),
         stems_model: host.stems_model.clone(),
+        realtime_stems: host.realtime_stems,
         ui_language: host.ui_language,
         library_drawer_enabled: host.library_drawer_enabled,
         library_drawer_side: host.library_drawer_side,
@@ -759,6 +766,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
     host.stems_model = settings.stems_model;
+    host.realtime_stems = settings.realtime_stems;
     host.ui_language = settings.ui_language;
     host.library_drawer_enabled = settings.library_drawer_enabled;
     host.library_drawer_side = settings.library_drawer_side;
@@ -839,6 +847,15 @@ pub(crate) fn seed_engine_config_if_unconfigured(
 }
 
 /// Host-only engine settings applied after start/restart.
+/// Whether the opt-in live StemgenRT filter is enabled for this session.
+///
+/// Defaults to `false`; a poisoned host lock is treated as disabled so the
+/// audio/load path never starts live separation unexpectedly.
+pub(crate) fn settings_realtime_stems_enabled() -> bool {
+    let host = shared_host();
+    host.lock().map(|host| host.realtime_stems).unwrap_or(false)
+}
+
 pub(crate) fn settings_host_runtime() -> Result<(Option<f32>, JogMode, JogMode), String> {
     let host = shared_host();
     let host = host.lock().map_err(|e| e.to_string())?;
@@ -875,6 +892,7 @@ mod tests {
         assert!(parsed.mixer_meters_mono);
         assert_eq!(parsed.stems_format, "opus");
         assert_eq!(parsed.stems_model, analyzer_stems::DEFAULT_MODEL);
+        assert!(!parsed.realtime_stems);
     }
 
     #[test]
@@ -892,6 +910,17 @@ mod tests {
         let settings: AppSettings = serde_json::from_value(value).expect("parse");
         let normalized = parse_settings(settings).expect("normalize");
         assert_eq!(normalized.stems_model, analyzer_stems::DEFAULT_MODEL);
+    }
+
+    #[test]
+    fn missing_realtime_stems_defaults_disabled() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("realtime_stems");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert!(!settings.realtime_stems);
     }
 
     #[test]

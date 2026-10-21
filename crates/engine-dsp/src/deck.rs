@@ -1047,6 +1047,9 @@ impl Deck {
 
     /// Attach four stem buffers (drums, bass, other, vocals — NI index order). Cleared on next [`Self::load`].
     pub fn attach_stems(&mut self, stems: [Arc<LoadedAudio>; 4]) {
+        // A cached bundle replaces any live producer; close its ring so the
+        // old producer cannot keep writing to a detached epoch.
+        self.release_stems();
         self.stems = Some(DeckStems::Buffers(stems));
         self.live_blend = 1.0;
         self.stem_mute = [false; 4];
@@ -1057,6 +1060,9 @@ impl Deck {
     /// Attach a live stem ring. The deck plays the main mix until the producer
     /// publishes the current position, then crossfades into the stems.
     pub fn attach_live_stems(&mut self, ring: Arc<LiveStemRing>) {
+        // Only one live producer may own a deck. Close the previous ring
+        // before installing the new epoch.
+        self.release_stems();
         self.stems = Some(DeckStems::Live(ring));
         self.live_blend = 0.0;
         self.live_coverage = None;
@@ -3729,6 +3735,19 @@ mod tests {
 
         assert!(ring.is_closed());
         assert!(!deck.stems_ready());
+    }
+
+    #[test]
+    fn attaching_new_live_ring_closes_the_previous_producer() {
+        let mut deck = new_deck(64);
+        load_test_samples(&mut deck, vec![0.1; 256], ENGINE_RATE);
+        let first = Arc::new(LiveStemRing::new(ENGINE_RATE, 1 << 19));
+        deck.attach_live_stems(Arc::clone(&first));
+        let second = Arc::new(LiveStemRing::new(ENGINE_RATE, 1 << 19));
+        deck.attach_live_stems(Arc::clone(&second));
+
+        assert!(first.is_closed(), "old producer ring must be closed");
+        assert!(!second.is_closed(), "new producer ring must stay open");
     }
 
     #[test]

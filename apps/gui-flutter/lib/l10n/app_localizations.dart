@@ -651,6 +651,30 @@ abstract class AppLocalizations {
   /// **'Target LUFS'**
   String get settingsMixerTargetLufs;
 
+  /// No description provided for @settingsMixerRealtimeStemsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Realtime Stems'**
+  String get settingsMixerRealtimeStemsTitle;
+
+  /// No description provided for @settingsMixerRealtimeStemsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Separates tracks without cached stems while they play. Tracks with offline stems always take priority.'**
+  String get settingsMixerRealtimeStemsDescription;
+
+  /// No description provided for @settingsMixerRealtimeStemsNotRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recommended.'**
+  String get settingsMixerRealtimeStemsNotRecommended;
+
+  /// No description provided for @settingsMixerRealtimeStemsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality is lower and it uses a CPU core.'**
+  String get settingsMixerRealtimeStemsWarning;
+
   /// No description provided for @settingsWaveformDescription.
   ///
   /// In en, this message translates to:

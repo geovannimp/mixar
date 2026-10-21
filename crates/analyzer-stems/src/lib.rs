@@ -12,6 +12,7 @@ mod resample_pcm;
 mod scnet;
 mod session;
 mod split;
+mod stemgen;
 mod window;
 
 pub use ep::{
@@ -59,9 +60,18 @@ pub fn separate_with_model(
 
 pub use live::{start_live_separator, LiveSeparator};
 
+/// Start the StemgenRT streaming producer (CPU, 128-sample hops).
+pub fn start_stemgen_live_separator(
+    weights: std::path::PathBuf,
+    audio: std::sync::Arc<audio_core::LoadedAudio>,
+    ring: std::sync::Arc<audio_core::LiveStemRing>,
+) -> anyhow::Result<LiveSeparator> {
+    stemgen::start_live_separator(weights, audio, ring)
+}
+
 pub use manifest::{
     builtin_manifest, cached_model, ensure_from_manifest, ensure_model, resolve_model, Artifact,
-    ModelHandle, ModelManifest, DEFAULT_MODEL, SCNET_MODEL, STEM_MODELS,
+    ModelHandle, ModelManifest, DEFAULT_MODEL, SCNET_MODEL, STEMGEN_MODEL, STEM_MODELS,
 };
 
 pub use resample_pcm::resample_interleaved_stereo;

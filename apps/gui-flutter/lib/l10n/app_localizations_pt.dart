@@ -307,6 +307,20 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsMixerTargetLufs => 'LUFS alvo';
 
   @override
+  String get settingsMixerRealtimeStemsTitle => 'Stems em tempo real';
+
+  @override
+  String get settingsMixerRealtimeStemsDescription =>
+      'Separa faixas sem cache de stems durante a reprodução. Faixas com stems offline têm sempre prioridade.';
+
+  @override
+  String get settingsMixerRealtimeStemsNotRecommended => 'Não recomendado.';
+
+  @override
+  String get settingsMixerRealtimeStemsWarning =>
+      'A qualidade é menor e usa um núcleo de CPU.';
+
+  @override
   String get settingsWaveformDescription =>
       'RGB mistura grave/médio/agudo em uma cor. Filtrado empilha as três bandas.';
 

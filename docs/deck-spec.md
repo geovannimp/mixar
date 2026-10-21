@@ -82,7 +82,7 @@ Typical deck layout:
 | State sync | Partial | FRB `EngineTransport.subscribeEvents` → Riverpod; MIDI host → [#49](https://github.com/geovannimp/mixar/issues/49) |
 | Library UI | Implemented | FRB `LibraryTransport` for tracks / artwork / waveform peaks |
 | FX slots UI | Not implemented | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems pad mode | Implemented | Offline HTDemucs, live on-load separation, pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46), [#568](https://github.com/geovannimp/mixar/issues/568)); Stem EQ still open |
+| Stems pad mode | Implemented | Offline HTDemucs, opt-in live separation fallback for uncached tracks (offline stems prioritized), pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46), [#568](https://github.com/geovannimp/mixar/issues/568)); Stem EQ still open |
 | Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
 | Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
