@@ -76,6 +76,23 @@ class FakeLibraryTransport implements LibraryTransport {
   StreamController<LibraryEvt> get events => _events;
 
   @override
+  Future<SamplerBankInfo> createSamplerBank({
+    required String name,
+    SamplerPlayMode? playMode,
+  }) async {
+    final bank = SamplerBankInfo(
+      id: 'fake-bank-${_createdBanks.length + 1}',
+      name: name,
+      playMode: playMode,
+      sortIndex: _createdBanks.length,
+    );
+    _createdBanks.add(bank);
+    return bank;
+  }
+
+  final List<SamplerBankInfo> _createdBanks = [];
+
+  @override
   void dispose() {
     if (_disposed) {
       return;

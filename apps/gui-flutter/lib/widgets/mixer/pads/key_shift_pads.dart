@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_face.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
-import 'package:gui_flutter/widgets/mixer/pads/pad_page_pagination.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Key Shift pad mode: eight latch pads for the semitone [page].
@@ -15,8 +15,6 @@ class KeyShiftPads extends StatelessWidget {
     required this.page,
     required this.activeSemitones,
     required this.onPress,
-    required this.onPrevPage,
-    required this.onNextPage,
     this.disabled = false,
     super.key,
   });
@@ -24,8 +22,6 @@ class KeyShiftPads extends StatelessWidget {
   final int page;
   final int activeSemitones;
   final ValueChanged<int> onPress;
-  final VoidCallback onPrevPage;
-  final VoidCallback onNextPage;
   final bool disabled;
 
   @override
@@ -33,13 +29,6 @@ class KeyShiftPads extends StatelessWidget {
     final theme = context.theme;
     final pads = keyShiftPage(page);
     return PadGrid(
-      bottomChrome: pitchPagePagination(
-        count: kKeyShiftPageCount,
-        label: keyShiftPageRangeLabel(page),
-        onPrevious: onPrevPage,
-        onNext: onNextPage,
-        disabled: disabled,
-      ),
       children: [
         for (var slot = 0; slot < 8; slot++)
           () {
@@ -50,13 +39,17 @@ class KeyShiftPads extends StatelessWidget {
             return PadButton(
               key: ValueKey('key-shift-pad-$slot${active ? '-active' : ''}'),
               disabled: disabled || pad.action == PitchPadAction.none,
-              accentSlot: active ? slot : null,
+              active: active,
               tooltip: _tooltip(pad),
               onPress: () => onPress(slot),
-              child: Text(
-                pitchPadLabel(pad),
-                style: theme.typography.body.sm.copyWith(
-                  fontWeight: FontWeight.w700,
+              fillChild: true,
+              child: PadFace(
+                action: 'SHIFT',
+                label: Text(
+                  pitchPadLabel(pad),
+                  style: theme.typography.body.sm.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             );

@@ -78,31 +78,6 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     );
   }
 
-  /// Step the page bar of whichever pad mode owns it, wrapping at both ends.
-  ///
-  /// Keyboard and Key Shift keep independent pages, so only the active mode's
-  /// value moves; [direction] is `-1` for previous and `1` for next.
-  void _stepPage(
-    int direction,
-    PadMode mode,
-    int keyboardPage,
-    int keyShiftPage,
-  ) {
-    final keyShift = mode == PadMode.keyShift;
-    final page = keyShift ? keyShiftPage : keyboardPage;
-    final count = keyShift ? kKeyShiftPageCount : kKeyboardPageCount;
-    final next = direction < 0
-        ? (page <= 1 ? count : page - 1)
-        : (page >= count ? 1 : page + 1);
-    unawaited(
-      _run(
-        (engine) => keyShift
-            ? engine.setKeyShiftPage(deckId: widget.deckId, page: next)
-            : engine.setKeyboardPage(deckId: widget.deckId, page: next),
-      ),
-    );
-  }
-
   List<SamplerSlot> _slotsFromChrome(List<rust.SamplerSlotChrome> chrome) {
     return [
       for (var i = 0; i < 8; i++)
@@ -338,8 +313,28 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           ),
         );
       },
-      onPrevPage: () => _stepPage(-1, padMode, keyboardPage, keyShiftPage),
-      onNextPage: () => _stepPage(1, padMode, keyboardPage, keyShiftPage),
+      onSelectPage: (page) {
+        unawaited(
+          _run(
+            (engine) => switch (padMode) {
+              PadMode.keyboard => engine.setKeyboardPage(
+                deckId: widget.deckId,
+                page: page,
+              ),
+              PadMode.keyShift => engine.setKeyShiftPage(
+                deckId: widget.deckId,
+                page: page,
+              ),
+              PadMode.hotCue ||
+              PadMode.loopRoll ||
+              PadMode.beatJump ||
+              PadMode.sampler ||
+              PadMode.stems => Future<void>.value(),
+            },
+          ),
+        );
+      },
+      onCreateBank: (name, playMode) => unawaited(_createBank(name, playMode)),
       onKeyShiftPress: (slot) {
         unawaited(
           _run(
@@ -374,6 +369,30 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       disabled: widget.disabled,
       bordered: widget.bordered,
     );
+  }
+
+  Future<void> _createBank(String name, String? playMode) async {
+    final library = ref.read(libraryTransportProvider).asData?.value;
+    if (library == null) {
+      _toastError('Library is still loading — bank was not created.');
+      return;
+    }
+    try {
+      final bank = await library.createSamplerBank(
+        name: name,
+        playMode: _playModeFromWire(playMode),
+      );
+      if (!mounted) {
+        return;
+      }
+      ref.invalidate(samplerBanksProvider);
+      await _run(
+        (engine) =>
+            engine.setSamplerBank(deckId: widget.deckId, bankId: bank.id),
+      );
+    } catch (e) {
+      _toastError(e);
+    }
   }
 
   Future<void> _saveBank(String bankId, String name, String? playMode) async {

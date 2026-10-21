@@ -4,13 +4,33 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
-use host_flutter::api::library::LibraryTransport;
+use host_flutter::api::library::{LibraryTransport, SamplerPlayMode};
 use library_api::{decode_evt_body, EvtBody, Kind};
 use lofty::config::WriteOptions;
 use lofty::picture::{MimeType, Picture, PictureType};
 use lofty::prelude::*;
 use lofty::probe::Probe;
 use lofty::tag::{Tag, TagType};
+
+#[test]
+fn create_sampler_bank_trims_names_and_maps_play_modes() {
+    let transport = LibraryTransport::open_in_memory().unwrap();
+
+    let err = transport
+        .create_sampler_bank("   ".into(), None)
+        .unwrap_err();
+    assert!(err.contains("empty"), "unexpected error: {err}");
+
+    let bank = transport
+        .create_sampler_bank("  Pads  ".into(), Some(SamplerPlayMode::Hold))
+        .unwrap();
+    assert_eq!(bank.name, "Pads");
+    assert_eq!(bank.play_mode, Some(SamplerPlayMode::Hold));
+
+    let banks = transport.list_sampler_banks().unwrap();
+    assert_eq!(banks.len(), 1);
+    assert_eq!(banks[0].id, bank.id);
+}
 
 fn write_minimal_wav(path: &Path) {
     let sample_rate = 8_000u32;
