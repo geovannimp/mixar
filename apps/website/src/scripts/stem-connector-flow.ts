@@ -51,6 +51,7 @@ export function initStemConnectorFlow(root: ParentNode = document): StemConnecto
   // Flow only while audio is playing, the connector is on screen, and the lane
   // is audible — otherwise the endless dash loop costs nothing.
   const sync = (lane: LaneEntry) => {
+    lane.path.style.opacity = String(lane.audible ? 1 : MUTED_OPACITY);
     if (!lane.animation) return;
     if (playing && onScreen && lane.audible) {
       lane.animation.play();
@@ -86,6 +87,8 @@ export function initStemConnectorFlow(root: ParentNode = document): StemConnecto
     lanes.set(Number(path.dataset.stem), entry);
   }
 
+  syncAll();
+
   if (!reduceMotion) {
     const observer = new IntersectionObserver(([entry]) => {
       onScreen = entry?.isIntersecting ?? true;
@@ -100,7 +103,6 @@ export function initStemConnectorFlow(root: ParentNode = document): StemConnecto
       const lane = lanes.get(index);
       if (!lane) return;
       lane.audible = audible;
-      lane.path.style.opacity = audible ? "1" : String(MUTED_OPACITY);
       sync(lane);
     },
     setPlaying(next) {

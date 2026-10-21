@@ -80,17 +80,24 @@ export function peaksFromBuffer(buffer: AudioBuffer, samples: number): Float32Ar
   return peaks;
 }
 
+/** The resting height of a stem bar: zero peak, used for idle/muted lanes. */
+export const IDLE_BAR_HEIGHT = "5%";
+
 /** Map a 0–1 peak envelope onto a fixed bar count, keeping the max of each
  * downsampling window so the rendered shape preserves the envelope. */
-export function barHeightsFromPeaks(peaks: Float32Array, barCount: number): string[] {
+export function barHeightsFromPeaks(
+  peaks: Float32Array,
+  barCount: number,
+  ceiling = 1,
+): string[] {
   if (barCount <= 0) return [];
   const peakCount = peaks.length;
-  if (peakCount === 0) return Array.from({ length: barCount }, () => "5%");
+  if (peakCount === 0) return Array.from({ length: barCount }, () => IDLE_BAR_HEIGHT);
   return Array.from({ length: barCount }, (_, bar) => {
     const start = Math.floor((bar / barCount) * peakCount);
     const end = Math.max(start + 1, Math.floor(((bar + 1) / barCount) * peakCount));
     const max = windowMax(peaks, start, end);
-    return `${Math.round((5 + Math.min(1, max) * 95) * 10) / 10}%`;
+    return `${Math.round((5 + Math.min(1, max / ceiling) * 95) * 10) / 10}%`;
   });
 }
 
@@ -100,6 +107,16 @@ function copyTrackBytes(track: Uint8Array): ArrayBuffer {
   // own. Tracks here come from `new Uint8Array(await response.arrayBuffer())`, so
   // the underlying buffer is always a plain ArrayBuffer.
   return track.buffer.slice(track.byteOffset, track.byteOffset + track.byteLength) as ArrayBuffer;
+}
+
+export function absoluteAmplitudes(
+  samples: Float32Array,
+  target: Float32Array = new Float32Array(samples.length),
+): Float32Array {
+  for (let i = 0; i < samples.length; i++) {
+    target[i] = Math.abs(samples[i] ?? 0);
+  }
+  return target;
 }
 
 export class StemDemoPlayer {
@@ -114,7 +131,7 @@ export class StemDemoPlayer {
   private buffers: AudioBuffer[] = [];
   private gains: GainNode[] = [];
   private analysers: AnalyserNode[] = [];
-  private analyserBuffers: Uint8Array<ArrayBuffer>[] = [];
+  private analyserBuffers: Float32Array<ArrayBuffer>[] = [];
   private amplitudeScratch: Float32Array[] = [];
   private sources: AudioBufferSourceNode[] = [];
   private peaks: Float32Array | null = null;
@@ -193,13 +210,10 @@ export class StemDemoPlayer {
    * 0, so muted lanes fall to the bar floor. Reuses scratch buffers per frame. */
   getAmplitudeData(): Float32Array[] {
     return this.analysers.map((analyser, index) => {
-      const bytes = (this.analyserBuffers[index] ??= new Uint8Array(analyser.fftSize));
-      analyser.getByteTimeDomainData(bytes);
-      const amplitudes = (this.amplitudeScratch[index] ??= new Float32Array(bytes.length));
-      for (let i = 0; i < bytes.length; i++) {
-        amplitudes[i] = Math.abs((bytes[i] ?? 128) - 128) / 128;
-      }
-      return amplitudes;
+      const samples = (this.analyserBuffers[index] ??= new Float32Array(analyser.fftSize));
+      analyser.getFloatTimeDomainData(samples);
+      const amplitudes = (this.amplitudeScratch[index] ??= new Float32Array(samples.length));
+      return absoluteAmplitudes(samples, amplitudes);
     });
   }
 

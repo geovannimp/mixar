@@ -1,6 +1,7 @@
 import {
   barHeightsFromPeaks,
   formatDeckTime,
+  IDLE_BAR_HEIGHT,
   StemDemoPlayer,
   STEM_UNAVAILABLE_MESSAGE,
   type StemDemoSnapshot,
@@ -178,6 +179,7 @@ export function initStemDemoPlayer(
   let disposed = false;
   let liveRaf = 0;
   let peaksApplied = false;
+  let stemCeilings: number[] = [];
 
   const refreshColors = () => {
     colors = readPalette(root);
@@ -293,9 +295,19 @@ export function initStemDemoPlayer(
     }
   };
 
+  const resetBars = () => {
+    for (const { bars } of barSets) {
+      for (const bar of bars) bar.style.height = IDLE_BAR_HEIGHT;
+    }
+  };
+
   const startLiveVis = () => {
     // Reduced motion keeps the static envelope; the JS loop is the animation.
-    if (liveRaf || reducedMotionQuery.matches) return;
+    if (reducedMotionQuery.matches) {
+      writeHeights();
+      return;
+    }
+    if (liveRaf) return;
     const tick = () => {
       if (disposed || !lastPlaying) {
         liveRaf = 0;
@@ -311,7 +323,7 @@ export function initStemDemoPlayer(
       for (const { stem, bars } of visibleBarSets()) {
         const data = amplitudeData[stem];
         if (!data) continue;
-        writeBars(bars, barHeightsFromPeaks(data, bars.length));
+        writeBars(bars, barHeightsFromPeaks(data, bars.length, stemCeilings[stem] ?? 1));
       }
       liveRaf = requestAnimationFrame(tick);
     };
@@ -323,7 +335,8 @@ export function initStemDemoPlayer(
       cancelAnimationFrame(liveRaf);
       liveRaf = 0;
     }
-    if (peaksApplied) writeHeights();
+    // Idle reads like a muted lane: every bar at the zero-peak height.
+    resetBars();
   };
 
   const applyRealPeaks = () => {
@@ -332,25 +345,44 @@ export function initStemDemoPlayer(
     const stemPeaks = player.getStemPeaks();
     if (stemPeaks.length === 0) return;
     peaksApplied = true;
+    // Normalize each lane to its own 95th-percentile envelope peak. Stems are
+    // mastered at very different levels (drums dominate this demo), so a shared
+    // absolute scale leaves quiet stems pinned to the bar floor.
+    stemCeilings = stemPeaks.map((peaks) => {
+      if (peaks.length === 0) return 1;
+      const sorted = Array.from(peaks).sort((a, b) => a - b);
+      const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] ?? 0;
+      return Math.max(0.02, p95);
+    });
     for (const set of barSets) {
       set.heights = barHeightsFromPeaks(
         stemPeaks[set.stem] ?? new Float32Array(0),
         set.bars.length,
+        stemCeilings[set.stem] ?? 1,
       );
-      set.container.dataset.ready = "true";
     }
-    if (liveRaf === 0) writeHeights();
+    if (lastPlaying && liveRaf === 0) writeHeights();
   };
 
   const onBreakpointChange = () => {
     // The live loop rewrites the visible variant every frame; when it is not
     // running (paused or reduced motion), the new variant needs static heights.
-    if (peaksApplied && liveRaf === 0) writeHeights();
+    if (!peaksApplied) return;
+    if (lastPlaying && liveRaf === 0) writeHeights();
+    else if (!lastPlaying) resetBars();
   };
   desktopQuery.addEventListener("change", onBreakpointChange);
   const onReducedMotionChange = () => {
-    if (reducedMotionQuery.matches) stopLiveVis();
-    else if (lastPlaying) startLiveVis();
+    if (!lastPlaying) {
+      resetBars();
+      return;
+    }
+    if (reducedMotionQuery.matches) {
+      stopLiveVis();
+      writeHeights();
+    } else {
+      startLiveVis();
+    }
   };
   reducedMotionQuery.addEventListener("change", onReducedMotionChange);
 
