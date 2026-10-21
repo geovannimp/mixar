@@ -205,6 +205,13 @@ impl LibraryManager {
             // trim (and a Camelot code is never normalized from whitespace).
             key: normalize_optional_text(edit.key).map(|v| tags::normalize_key_notation(&v)),
             isrc: normalize_optional_text(edit.isrc),
+            // 0 means "unrated" in every source that stores a numeric rating.
+            rating: edit.rating.filter(|rating| (1..=5).contains(rating)),
+            comment: normalize_optional_text(edit.comment),
+            year: edit.year.filter(|year| *year > 0),
+            track_number: edit.track_number.filter(|number| *number > 0),
+            disc_number: edit.disc_number.filter(|number| *number > 0),
+            color_label: edit.color_label,
         };
         self.store()
             .update_track_metadata(track_id, &normalized, &unix_secs_string())

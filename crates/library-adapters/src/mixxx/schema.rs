@@ -29,6 +29,11 @@ const METADATA_COLUMNS: &[&str] = &[
     "bitrate",
     "replaygain",
     "key",
+    "comment",
+    "rating",
+    "year",
+    "tracknumber",
+    "discnumber",
 ];
 
 pub(crate) struct LibrarySchema {
@@ -126,4 +131,38 @@ pub(crate) fn detect(conn: &Connection) -> Result<LibrarySchema> {
         has_mixxx_deleted: columns.iter().any(|column| column == "mixxx_deleted"),
         columns,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn schema(columns: &[&str]) -> LibrarySchema {
+        LibrarySchema {
+            location_is_integer: true,
+            has_mixxx_deleted: false,
+            columns: columns.iter().map(|column| (*column).to_string()).collect(),
+        }
+    }
+
+    #[test]
+    fn metadata_select_aliases_present_columns_and_nulls_missing_ones() {
+        let full = schema(METADATA_COLUMNS);
+        let select = full.metadata_select();
+        for column in METADATA_COLUMNS {
+            assert!(
+                select.contains(&format!("l.{column} AS {column}")),
+                "missing {column} in {select}"
+            );
+        }
+
+        let legacy = schema(&METADATA_COLUMNS[..METADATA_COLUMNS.len() - 5]);
+        let select = legacy.metadata_select();
+        for column in ["comment", "rating", "year", "tracknumber", "discnumber"] {
+            assert!(
+                select.contains(&format!("NULL AS {column}")),
+                "missing NULL alias for {column} in {select}"
+            );
+        }
+    }
 }

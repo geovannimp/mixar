@@ -24,6 +24,12 @@ typedef UpdateTrackMetadataCall = ({
   double? bpm,
   String? key,
   String? isrc,
+  int? rating,
+  String? comment,
+  int? year,
+  int? trackNumber,
+  int? discNumber,
+  LibraryColorLabel? colorLabel,
 });
 
 /// One captured `exportCdjUsb` request.
@@ -328,6 +334,12 @@ class FakeLibraryTransport implements LibraryTransport {
     double? bpm,
     String? key,
     String? isrc,
+    int? rating,
+    String? comment,
+    int? year,
+    int? trackNumber,
+    int? discNumber,
+    LibraryColorLabel? colorLabel,
   }) async {
     final call = (
       trackId: trackId,
@@ -338,6 +350,12 @@ class FakeLibraryTransport implements LibraryTransport {
       bpm: bpm,
       key: key,
       isrc: isrc,
+      rating: rating,
+      comment: comment,
+      year: year,
+      trackNumber: trackNumber,
+      discNumber: discNumber,
+      colorLabel: colorLabel,
     );
     updateTrackMetadataCalls.add(call);
     final handler = updateTrackMetadataHandler;

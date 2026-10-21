@@ -24,8 +24,6 @@ import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
 import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
 
-import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

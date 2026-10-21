@@ -253,6 +253,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  LibraryColorLabel dco_decode_box_autoadd_library_color_label(dynamic raw);
+
+  @protected
   LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(dynamic raw);
 
   @protected
@@ -372,6 +375,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LibraryCollectionSummary dco_decode_library_collection_summary(dynamic raw);
+
+  @protected
+  LibraryColorLabel dco_decode_library_color_label(dynamic raw);
 
   @protected
   LibraryDrawerSideSetting dco_decode_library_drawer_side_setting(dynamic raw);
@@ -497,6 +503,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  LibraryColorLabel? dco_decode_opt_box_autoadd_library_color_label(
+    dynamic raw,
+  );
 
   @protected
   LibraryTrackSummary? dco_decode_opt_box_autoadd_library_track_summary(
@@ -822,6 +833,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  LibraryColorLabel sse_decode_box_autoadd_library_color_label(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LibraryTrackSummary sse_decode_box_autoadd_library_track_summary(
     SseDeserializer deserializer,
   );
@@ -967,6 +983,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LibraryCollectionSummary sse_decode_library_collection_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LibraryColorLabel sse_decode_library_color_label(
     SseDeserializer deserializer,
   );
 
@@ -1128,6 +1149,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  LibraryColorLabel? sse_decode_opt_box_autoadd_library_color_label(
+    SseDeserializer deserializer,
+  );
 
   @protected
   LibraryTrackSummary? sse_decode_opt_box_autoadd_library_track_summary(
@@ -1518,6 +1544,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_library_color_label(
+    LibraryColorLabel self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_library_track_summary(
     LibraryTrackSummary self,
     SseSerializer serializer,
@@ -1697,6 +1729,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_library_collection_summary(
     LibraryCollectionSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_library_color_label(
+    LibraryColorLabel self,
     SseSerializer serializer,
   );
 
@@ -1895,6 +1933,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_library_color_label(
+    LibraryColorLabel? self,
     SseSerializer serializer,
   );
 

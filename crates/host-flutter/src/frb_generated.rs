@@ -6788,6 +6788,13 @@ fn wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
             let api_bpm = <Option<f64>>::sse_decode(&mut deserializer);
             let api_key = <Option<String>>::sse_decode(&mut deserializer);
             let api_isrc = <Option<String>>::sse_decode(&mut deserializer);
+            let api_rating = <Option<u8>>::sse_decode(&mut deserializer);
+            let api_comment = <Option<String>>::sse_decode(&mut deserializer);
+            let api_year = <Option<u16>>::sse_decode(&mut deserializer);
+            let api_track_number = <Option<u16>>::sse_decode(&mut deserializer);
+            let api_disc_number = <Option<u16>>::sse_decode(&mut deserializer);
+            let api_color_label =
+                <Option<crate::api::library::LibraryColorLabel>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -6815,6 +6822,12 @@ fn wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
                         api_bpm,
                         api_key,
                         api_isrc,
+                        api_rating,
+                        api_comment,
+                        api_year,
+                        api_track_number,
+                        api_disc_number,
+                        api_color_label,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -8377,6 +8390,24 @@ impl SseDecode for crate::api::library::LibraryCollectionSummary {
     }
 }
 
+impl SseDecode for crate::api::library::LibraryColorLabel {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::library::LibraryColorLabel::Pink,
+            1 => crate::api::library::LibraryColorLabel::Red,
+            2 => crate::api::library::LibraryColorLabel::Orange,
+            3 => crate::api::library::LibraryColorLabel::Yellow,
+            4 => crate::api::library::LibraryColorLabel::Green,
+            5 => crate::api::library::LibraryColorLabel::Aqua,
+            6 => crate::api::library::LibraryColorLabel::Blue,
+            7 => crate::api::library::LibraryColorLabel::Purple,
+            _ => unreachable!("Invalid variant for LibraryColorLabel: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::settings::LibraryDrawerSideSetting {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8474,6 +8505,13 @@ impl SseDecode for crate::api::library::LibraryTrackSummary {
         let mut var_durationMs = <Option<i32>>::sse_decode(deserializer);
         let mut var_path = <String>::sse_decode(deserializer);
         let mut var_isrc = <Option<String>>::sse_decode(deserializer);
+        let mut var_rating = <Option<u8>>::sse_decode(deserializer);
+        let mut var_comment = <Option<String>>::sse_decode(deserializer);
+        let mut var_year = <Option<u16>>::sse_decode(deserializer);
+        let mut var_trackNumber = <Option<u16>>::sse_decode(deserializer);
+        let mut var_discNumber = <Option<u16>>::sse_decode(deserializer);
+        let mut var_colorLabel =
+            <Option<crate::api::library::LibraryColorLabel>>::sse_decode(deserializer);
         let mut var_artwork = <Option<Vec<u8>>>::sse_decode(deserializer);
         return crate::api::library::LibraryTrackSummary {
             entry_id: var_entryId,
@@ -8488,6 +8526,12 @@ impl SseDecode for crate::api::library::LibraryTrackSummary {
             duration_ms: var_durationMs,
             path: var_path,
             isrc: var_isrc,
+            rating: var_rating,
+            comment: var_comment,
+            year: var_year,
+            track_number: var_trackNumber,
+            disc_number: var_discNumber,
+            color_label: var_colorLabel,
             artwork: var_artwork,
         };
     }
@@ -8926,6 +8970,19 @@ impl SseDecode for Option<i64> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<i64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::library::LibraryColorLabel> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::library::LibraryColorLabel>::sse_decode(
+                deserializer,
+            ));
         } else {
             return None;
         }
@@ -11156,6 +11213,33 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::LibraryCollectionSum
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryColorLabel {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Pink => 0.into_dart(),
+            Self::Red => 1.into_dart(),
+            Self::Orange => 2.into_dart(),
+            Self::Yellow => 3.into_dart(),
+            Self::Green => 4.into_dart(),
+            Self::Aqua => 5.into_dart(),
+            Self::Blue => 6.into_dart(),
+            Self::Purple => 7.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::library::LibraryColorLabel
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::library::LibraryColorLabel>
+    for crate::api::library::LibraryColorLabel
+{
+    fn into_into_dart(self) -> crate::api::library::LibraryColorLabel {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::LibraryDrawerSideSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -11276,6 +11360,12 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryTrackSummary 
             self.duration_ms.into_into_dart().into_dart(),
             self.path.into_into_dart().into_dart(),
             self.isrc.into_into_dart().into_dart(),
+            self.rating.into_into_dart().into_dart(),
+            self.comment.into_into_dart().into_dart(),
+            self.year.into_into_dart().into_dart(),
+            self.track_number.into_into_dart().into_dart(),
+            self.disc_number.into_into_dart().into_dart(),
+            self.color_label.into_into_dart().into_dart(),
             self.artwork.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -12430,6 +12520,28 @@ impl SseEncode for crate::api::library::LibraryCollectionSummary {
     }
 }
 
+impl SseEncode for crate::api::library::LibraryColorLabel {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::library::LibraryColorLabel::Pink => 0,
+                crate::api::library::LibraryColorLabel::Red => 1,
+                crate::api::library::LibraryColorLabel::Orange => 2,
+                crate::api::library::LibraryColorLabel::Yellow => 3,
+                crate::api::library::LibraryColorLabel::Green => 4,
+                crate::api::library::LibraryColorLabel::Aqua => 5,
+                crate::api::library::LibraryColorLabel::Blue => 6,
+                crate::api::library::LibraryColorLabel::Purple => 7,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::settings::LibraryDrawerSideSetting {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -12522,6 +12634,12 @@ impl SseEncode for crate::api::library::LibraryTrackSummary {
         <Option<i32>>::sse_encode(self.duration_ms, serializer);
         <String>::sse_encode(self.path, serializer);
         <Option<String>>::sse_encode(self.isrc, serializer);
+        <Option<u8>>::sse_encode(self.rating, serializer);
+        <Option<String>>::sse_encode(self.comment, serializer);
+        <Option<u16>>::sse_encode(self.year, serializer);
+        <Option<u16>>::sse_encode(self.track_number, serializer);
+        <Option<u16>>::sse_encode(self.disc_number, serializer);
+        <Option<crate::api::library::LibraryColorLabel>>::sse_encode(self.color_label, serializer);
         <Option<Vec<u8>>>::sse_encode(self.artwork, serializer);
     }
 }
@@ -12859,6 +12977,16 @@ impl SseEncode for Option<i64> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <i64>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::library::LibraryColorLabel> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::library::LibraryColorLabel>::sse_encode(value, serializer);
         }
     }
 }

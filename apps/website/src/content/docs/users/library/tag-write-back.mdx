@@ -28,23 +28,25 @@ Note that forcing re-analysis **replaces** Mixar's stored BPM and key with its o
 
 ## What gets written
 
-Only two values:
+These values:
 
 | Value | Where it goes |
 | --- | --- |
 | **BPM** | The file's tempo tag |
 | **Key** | The file's initial-key tag, in musical notation (`Am`, `F#m`) |
+| **Rating** | The file's star-rating field (1–5) |
+| **Comment**, **year**, **track/disc number**, **colour label** | The matching tag field |
 
-Nothing else is touched. Mixar does not write title, artist, album, or genre, and it does not write hot cues, saved loops, or beat grids — those stay in Mixar's database, and everything else already in the file (cover art, ReplayGain, comments, other apps' data) is left exactly as it was.
+Nothing else is touched. Mixar does not write title, artist, album, or genre, and it does not write hot cues, saved loops, or beat grids — those stay in Mixar's database, and everything else already in the file (cover art, ReplayGain, other apps' data) is left exactly as it was.
 
 ## Which files it can write
 
 | File type | Result |
 | --- | --- |
-| MP3, WAV, AIFF, AAC | BPM and key written into the ID3 tag |
-| FLAC, OGG, Opus | BPM and key written into the Vorbis comment block |
-| M4A / MP4 | BPM and key written into the iTunes-style metadata atoms |
-| APE, WavPack, Musepack | Skipped — these formats have no standard BPM/key field |
+| MP3, WAV, AIFF, AAC | BPM, key, comment, year, track/disc number and colour label in the ID3 tag; the star rating is not written (ID3 keeps it in a frame the tag library does not expose) |
+| FLAC, OGG, Opus | Everything, in the Vorbis comment block |
+| M4A / MP4 | Everything, in the iTunes-style metadata atoms |
+| APE, WavPack, Musepack | Comment, year, track/disc number and colour; BPM, key and rating are skipped (these formats have no standard field for them) |
 | Native NI Stem files (`.stem.mp4`) | Skipped — see below |
 
 A skipped file is left exactly as it was. Mixar logs the reason instead of guessing.
@@ -57,6 +59,13 @@ A skipped file is left exactly as it was. Mixar logs the reason instead of guess
 - **Audio is never re-encoded.** Write-back edits metadata only; the sound data is copied through untouched.
 - **Nothing partial.** If a file cannot be written safely, Mixar skips it and leaves it byte-for-byte identical.
 - **Your database is still the source of truth.** Mixar's table and decks use the values it stored; the file tags are a copy for other software.
+
+### Rating on MP3
+
+MP3, WAV, AIFF and AAC keep ratings in ID3's `POPM` frame, which the tag library
+Mixar uses does not expose for reading or writing. Mixar still stores and
+exports the rating, but the value does not travel into those files' tags. FLAC,
+OGG, Opus, M4A and MP4 do get it.
 
 ### One rounding caveat
 

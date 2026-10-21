@@ -272,7 +272,17 @@ impl LibraryManager {
         persist_waveform: bool,
     ) -> Result<(AudioSource, Option<tags::TagWritePlan>)> {
         let path = normalize_path(path)?;
-        let source = self.upsert_file_source(&path, &computed.metadata)?;
+        // A file tag that carries no value for a user-owned field must not
+        // clear what the editor stored. ID3 ratings are the common case: lofty
+        // cannot read POPM, so a re-analysis would otherwise reset the rating.
+        let mut metadata = computed.metadata.clone();
+        if let Some((existing, edited)) = self
+            .store()
+            .file_track_metadata_and_edited(&path.to_string_lossy())?
+        {
+            tags::merge_user_metadata(&mut metadata, &existing, edited);
+        }
+        let source = self.upsert_file_source(&path, &metadata)?;
         analysis::upsert_track_analysis(&self.db, source.id(), &computed.analysis)?;
         if persist_waveform {
             waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
@@ -280,7 +290,7 @@ impl LibraryManager {
         let plan = tags::TagWritePlan::new(
             self.config.tag_write_back,
             path,
-            tags::app_managed_tags(&computed.metadata),
+            tags::app_managed_tags(&metadata),
             self.tag_write_gate(),
         );
         Ok((source, plan))

@@ -21,6 +21,24 @@
 //! | Genre     | `TCON`                   | `GENRE`                         | `©gen`                              | `Genre`          |
 //! | BPM       | `TBPM`, **integer**      | `BPM`, text                     | `----:com.apple.iTunes:BPM`, text   | unsupported      |
 //! | Key       | `TKEY`                   | `INITIALKEY`                    | `----:com.apple.iTunes:initialkey`  | unsupported      |
+//! | Rating    | unsupported¹             | `RATING`, 0.0–1.0               | `rate`, integer 1–5                 | unsupported      |
+//! | Comment   | `COMM`                   | `COMMENT`                       | `©cmt`                              | `Comment`        |
+//! | Year      | `TDRC`                   | `YEAR`                          | `©day`                              | `Year`           |
+//! | Track no. | `TRCK`                   | `TRACKNUMBER`                   | `trkn`                              | `Track`          |
+//! | Disc no.  | `TPOS`                   | `DISCNUMBER`                    | `disk`                              | `Disc`           |
+//! | Color     | `COLOR`                  | `COLOR`                         | `----:com.apple.iTunes:COLOR`       | `Color`          |
+//!
+//! ¹ ID3v2 keeps the rating as a binary `POPM` frame. lofty 0.22 retains that
+//! frame in the tag's format-specific remainder instead of exposing it through
+//! [`lofty::tag::Tag`], so Mixar reports the field `Unsupported` on ID3 rather
+//! than writing a POPM it could not read back (and would therefore rewrite on
+//! every run).
+//!
+//! Reading is wider than writing: Vorbis/MP4 text is accepted as normalized
+//! `0.0–1.0`, stars `1–5`, a 0–100 scale, or a raw POPM byte; a binary POPM is
+//! mapped using its email (`traktor@native-instruments.de` and
+//! `users@musicbrainz.org` use the 51-step scale; MusicBee/Windows Media
+//! Player/Serato use 1/64/128/196/255).
 //!
 //! The BPM/key rows follow Mixxx's write-back (same Vorbis keys, same MP4
 //! freeform atoms), so DJ software reads them back.
@@ -81,17 +99,35 @@ pub enum TagField {
     Bpm,
     /// Initial key, in Mixar's canonical musical notation (`"Am"`, `"F#m"`).
     Key,
+    /// Star rating 1–5 (`POPM`, `RATING`, `rate`).
+    Rating,
+    /// Free-form comment.
+    Comment,
+    /// Release year.
+    Year,
+    /// Track number within its disc.
+    TrackNumber,
+    /// Disc number within its release.
+    DiscNumber,
+    /// Colour label name (`"Pink"` … `"Purple"`).
+    Color,
 }
 
 impl TagField {
     /// Every writable field, in report order.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 12] = [
         Self::Title,
         Self::Artist,
         Self::Album,
         Self::Genre,
         Self::Bpm,
         Self::Key,
+        Self::Rating,
+        Self::Comment,
+        Self::Year,
+        Self::TrackNumber,
+        Self::DiscNumber,
+        Self::Color,
     ];
 
     /// Short name for logs.
@@ -103,6 +139,12 @@ impl TagField {
             Self::Genre => "genre",
             Self::Bpm => "bpm",
             Self::Key => "key",
+            Self::Rating => "rating",
+            Self::Comment => "comment",
+            Self::Year => "year",
+            Self::TrackNumber => "track_number",
+            Self::DiscNumber => "disc_number",
+            Self::Color => "color",
         }
     }
 }
@@ -127,6 +169,18 @@ pub struct TrackTags {
     pub bpm: Option<f64>,
     /// Musical key in Mixar's canonical notation (`"Am"`, `"F#m"`) — never Camelot.
     pub key: Option<String>,
+    /// Star rating 1–5. `Some(0)` is treated as "unrated" and written nowhere.
+    pub rating: Option<u8>,
+    /// Free-form comment.
+    pub comment: Option<String>,
+    /// Release year.
+    pub year: Option<u16>,
+    /// Track number within its disc. `Some(0)` is treated as absent.
+    pub track_number: Option<u16>,
+    /// Disc number within its release. `Some(0)` is treated as absent.
+    pub disc_number: Option<u16>,
+    /// Colour label name (`"Pink"` … `"Purple"`), written to `COLOR`.
+    pub color: Option<String>,
 }
 
 impl TrackTags {
@@ -145,6 +199,12 @@ impl TrackTags {
             self.genre.as_deref().map(Request::Genre),
             self.bpm.map(Request::Bpm),
             self.key.as_deref().map(Request::Key),
+            self.rating.map(Request::Rating),
+            self.comment.as_deref().map(Request::Comment),
+            self.year.map(Request::Year),
+            self.track_number.map(Request::TrackNumber),
+            self.disc_number.map(Request::DiscNumber),
+            self.color.as_deref().map(Request::Color),
         ]
         .into_iter()
         .flatten()
@@ -161,6 +221,12 @@ enum Request<'a> {
     Genre(&'a str),
     Bpm(f64),
     Key(&'a str),
+    Rating(u8),
+    Comment(&'a str),
+    Year(u16),
+    TrackNumber(u16),
+    DiscNumber(u16),
+    Color(&'a str),
 }
 
 impl Request<'_> {
@@ -172,6 +238,12 @@ impl Request<'_> {
             Self::Genre(_) => TagField::Genre,
             Self::Bpm(_) => TagField::Bpm,
             Self::Key(_) => TagField::Key,
+            Self::Rating(_) => TagField::Rating,
+            Self::Comment(_) => TagField::Comment,
+            Self::Year(_) => TagField::Year,
+            Self::TrackNumber(_) => TagField::TrackNumber,
+            Self::DiscNumber(_) => TagField::DiscNumber,
+            Self::Color(_) => TagField::Color,
         }
     }
 }
@@ -359,6 +431,94 @@ fn apply(tag: &mut Tag, request: Request<'_>) -> FieldWrite {
         Request::Genre(value) => apply_text(tag, ItemKey::Genre, value),
         Request::Bpm(bpm) => apply_bpm(tag, bpm),
         Request::Key(value) => apply_text(tag, ItemKey::InitialKey, value),
+        Request::Rating(rating) => apply_rating(tag, rating),
+        Request::Comment(value) => apply_text(tag, ItemKey::Comment, value),
+        Request::Year(year) => apply_year(tag, year),
+        Request::TrackNumber(number) => apply_number(tag, ItemKey::TrackNumber, number),
+        Request::DiscNumber(number) => apply_number(tag, ItemKey::DiscNumber, number),
+        Request::Color(value) => apply_text(tag, ItemKey::Color, value),
+    }
+}
+
+/// Set a track/disc number, skipping zero (the format's own "unset").
+fn apply_number(tag: &mut Tag, key: ItemKey, number: u16) -> FieldWrite {
+    if number == 0 {
+        return FieldWrite::Absent;
+    }
+    // "3/12" already carries the number in its leading digits; rewriting it as
+    // "3" would silently drop the track total.
+    if let Some(existing) = tag.get_string(&key) {
+        if crate::leading_u16(existing) == Some(number) {
+            return FieldWrite::Unchanged;
+        }
+    }
+    apply_text(tag, key, &number.to_string())
+}
+
+/// Set the release year in the container's date field.
+///
+/// ID3v2 has no year frame (lofty maps `YEAR` nowhere) and MP4's field is the
+/// `©day` date atom, so those two take `RecordingDate`; Vorbis comments and APE
+/// have a dedicated `YEAR`/`Year` field.
+fn apply_year(tag: &mut Tag, year: u16) -> FieldWrite {
+    if year == 0 {
+        return FieldWrite::Absent;
+    }
+    let key = match tag.tag_type() {
+        TagType::Id3v2 | TagType::Mp4Ilst => ItemKey::RecordingDate,
+        _ => ItemKey::Year,
+    };
+    let text = year.to_string();
+    // A full date (`2024-05-01`) already carries this year; rewriting it to
+    // `2024` would lose the month/day and break the idempotency contract.
+    // Vorbis/APE may carry the date under DATE instead of YEAR, and the reader
+    // accepts either.
+    for existing in [
+        tag.get_string(&key),
+        tag.get_string(&ItemKey::RecordingDate),
+        tag.get_string(&ItemKey::ReleaseDate),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if let Some(rest) = existing.trim().strip_prefix(&text) {
+            // "2024-05-01" preserves the year, but "1999" must not satisfy 199.
+            if !rest.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+                return FieldWrite::Unchanged;
+            }
+        }
+    }
+    apply_text(tag, key, &text)
+}
+
+/// Set the star rating in the container's rating field.
+///
+/// Vorbis comments follow the Quod Libet / MusicBrainz Picard convention:
+/// `RATING` is a decimal between `0.0` and `1.0` (`0.8` = four stars). MP4
+/// `rate` is written as the star count itself, which is what lofty's generic
+/// `Popularimeter` mapping has always emitted. ID3v2 is reported
+/// [`FieldWrite::Unsupported`]: its rating is the binary `POPM` frame, which
+/// lofty 0.22 keeps in the tag's format-specific remainder instead of exposing
+/// through [`Tag`]. Writing one would be invisible to the reader (so a second
+/// write could never be idempotent), and Mixar must not churn an mp3's frames
+/// on every analysis just to leave the file functionally unchanged. APE's key
+/// map has no rating entry at all.
+fn apply_rating(tag: &mut Tag, rating: u8) -> FieldWrite {
+    if rating == 0 || rating > 5 {
+        return FieldWrite::Absent;
+    }
+    let text = match tag.tag_type() {
+        TagType::VorbisComments => format!("{:.1}", f64::from(rating) / 5.0),
+        TagType::Mp4Ilst => rating.to_string(),
+        _ => return FieldWrite::Unsupported,
+    };
+    if tag.get_string(&ItemKey::Popularimeter) == Some(text.as_str()) {
+        return FieldWrite::Unchanged;
+    }
+    if tag.insert_text(ItemKey::Popularimeter, text) {
+        FieldWrite::Written
+    } else {
+        FieldWrite::Unsupported
     }
 }
 
@@ -446,6 +606,12 @@ mod tests {
             genre: Some("House".into()),
             bpm: Some(128.0),
             key: Some("Am".into()),
+            rating: Some(4),
+            comment: Some("Peak-time".into()),
+            year: Some(2024),
+            track_number: Some(3),
+            disc_number: Some(1),
+            color: Some("Pink".into()),
         }
     }
 
@@ -533,11 +699,14 @@ mod tests {
         assert_eq!(report.container, Some(TagContainer::Id3v2));
         assert!(report.wrote());
         for field in TagField::ALL {
-            assert_eq!(
-                report.outcome(field),
-                Some(FieldWrite::Written),
-                "{field:?}"
-            );
+            // ID3v2 stores the rating in a binary POPM frame that lofty 0.22
+            // keeps out of the generic tag, so it is documented unsupported.
+            let expected = if field == TagField::Rating {
+                FieldWrite::Unsupported
+            } else {
+                FieldWrite::Written
+            };
+            assert_eq!(report.outcome(field), Some(expected), "{field:?}");
         }
 
         let tags = read_file_tags(&path).unwrap();
@@ -547,6 +716,67 @@ mod tests {
         assert_eq!(tags.genre.as_deref(), Some("House"));
         assert_eq!(tags.bpm, Some(128.0));
         assert_eq!(tags.key.as_deref(), Some("Am"));
+        assert_eq!(tags.rating, None, "ID3 POPM is not exposed by lofty 0.22");
+        assert_eq!(tags.comment.as_deref(), Some("Peak-time"));
+        assert_eq!(tags.year, Some(2024));
+        assert_eq!(tags.track_number, Some(3));
+        assert_eq!(tags.disc_number, Some(1));
+        assert_eq!(tags.color.as_deref(), Some("Pink"));
+    }
+
+    #[test]
+    fn year_write_keeps_a_full_date() {
+        let mut tag = Tag::new(TagType::VorbisComments);
+        assert!(tag.insert_text(ItemKey::Year, "2024-05-01".to_string()));
+        assert_eq!(apply_year(&mut tag, 2024), FieldWrite::Unchanged);
+        assert_eq!(tag.get_string(&ItemKey::Year), Some("2024-05-01"));
+
+        assert_eq!(apply_year(&mut tag, 2025), FieldWrite::Written);
+        assert_eq!(tag.get_string(&ItemKey::Year), Some("2025"));
+
+        // A longer stored year must not satisfy a shorter requested prefix.
+        assert!(tag.insert_text(ItemKey::Year, "1999".to_string()));
+        assert_eq!(apply_year(&mut tag, 199), FieldWrite::Written);
+        assert_eq!(tag.get_string(&ItemKey::Year), Some("199"));
+    }
+
+    #[test]
+    fn year_write_keeps_a_matching_date_tag() {
+        let mut tag = Tag::new(TagType::VorbisComments);
+        assert!(tag.insert_text(ItemKey::RecordingDate, "2024-05-01".to_string()));
+        assert_eq!(apply_year(&mut tag, 2024), FieldWrite::Unchanged);
+        assert_eq!(tag.get_string(&ItemKey::Year), None);
+    }
+
+    #[test]
+    fn number_write_keeps_a_slash_total() {
+        let mut tag = Tag::new(TagType::VorbisComments);
+        assert!(tag.insert_text(ItemKey::TrackNumber, "3/12".to_string()));
+        assert_eq!(
+            apply_number(&mut tag, ItemKey::TrackNumber, 3),
+            FieldWrite::Unchanged
+        );
+        assert_eq!(tag.get_string(&ItemKey::TrackNumber), Some("3/12"));
+
+        assert_eq!(
+            apply_number(&mut tag, ItemKey::TrackNumber, 4),
+            FieldWrite::Written
+        );
+        assert_eq!(tag.get_string(&ItemKey::TrackNumber), Some("4"));
+    }
+
+    #[test]
+    fn rating_round_trips_in_text_containers_and_is_unsupported_in_id3() {
+        let mut tag = Tag::new(TagType::VorbisComments);
+        assert_eq!(apply_rating(&mut tag, 4), FieldWrite::Written);
+        assert_eq!(tag.get_string(&ItemKey::Popularimeter), Some("0.8"));
+        assert_eq!(apply_rating(&mut tag, 4), FieldWrite::Unchanged);
+        assert_eq!(apply_rating(&mut tag, 0), FieldWrite::Absent);
+        assert_eq!(apply_rating(&mut tag, 6), FieldWrite::Absent);
+
+        let mut id3 = Tag::new(TagType::Id3v2);
+        assert_eq!(apply_rating(&mut id3, 4), FieldWrite::Unsupported);
+        assert_eq!(id3.items().count(), 0, "no frame written");
     }
 
     #[test]
@@ -592,6 +822,12 @@ mod tests {
             bpm: Some(127.98),
             key: Some("F#m".into()),
             title: Some("Night Drive".into()),
+            rating: Some(4),
+            comment: Some("Peak time".into()),
+            year: Some(2024),
+            track_number: Some(3),
+            disc_number: Some(2),
+            color: Some("Aqua".into()),
             ..TrackTags::default()
         };
         let report = write_track_tags(&path, &patch).unwrap();
@@ -605,12 +841,33 @@ mod tests {
         assert_eq!(tags.bpm, Some(127.98));
         assert_eq!(tags.key.as_deref(), Some("F#m"));
         assert_eq!(tags.title.as_deref(), Some("Night Drive"));
+        assert_eq!(tags.rating, Some(4));
+        assert_eq!(tags.comment.as_deref(), Some("Peak time"));
+        assert_eq!(tags.year, Some(2024));
+        assert_eq!(tags.track_number, Some(3));
+        assert_eq!(tags.disc_number, Some(2));
+        assert_eq!(tags.color.as_deref(), Some("Aqua"));
 
         let before = std::fs::read(&path).unwrap();
         let report = write_track_tags(&path, &patch).unwrap();
         assert!(!report.wrote());
-        assert_eq!(report.outcome(TagField::Bpm), Some(FieldWrite::Unchanged));
-        assert_eq!(report.outcome(TagField::Key), Some(FieldWrite::Unchanged));
+        for field in [
+            TagField::Bpm,
+            TagField::Key,
+            TagField::Title,
+            TagField::Rating,
+            TagField::Comment,
+            TagField::Year,
+            TagField::TrackNumber,
+            TagField::DiscNumber,
+            TagField::Color,
+        ] {
+            assert_eq!(
+                report.outcome(field),
+                Some(FieldWrite::Unchanged),
+                "{field:?}"
+            );
+        }
         assert_eq!(std::fs::read(&path).unwrap(), before);
     }
 
@@ -643,10 +900,22 @@ mod tests {
             (ItemKey::AlbumTitle, "Some Album"),
             (ItemKey::Genre, "House"),
             (ItemKey::InitialKey, "Am"),
+            (ItemKey::Comment, "Peak time"),
+            (ItemKey::Color, "Pink"),
         ] {
             assert_eq!(apply_text(&mut tag, key, value), FieldWrite::Written);
         }
         assert_eq!(apply_bpm(&mut tag, 127.98), FieldWrite::Written);
+        assert_eq!(apply_rating(&mut tag, 4), FieldWrite::Written);
+        assert_eq!(apply_year(&mut tag, 2024), FieldWrite::Written);
+        assert_eq!(
+            apply_number(&mut tag, ItemKey::TrackNumber, 3),
+            FieldWrite::Written
+        );
+        assert_eq!(
+            apply_number(&mut tag, ItemKey::DiscNumber, 1),
+            FieldWrite::Written
+        );
 
         // Round-trip through the MP4 atom mapping proves the fields land on the
         // atoms TagLib/Mixxx read — including the freeform BPM and initialkey
@@ -660,6 +929,12 @@ mod tests {
         assert_eq!(back.get_string(&ItemKey::Bpm), Some("127.98"));
         assert_eq!(back.get_string(&ItemKey::InitialKey), Some("Am"));
         assert_eq!(back.get_string(&ItemKey::IntegerBpm), None);
+        assert_eq!(back.get_string(&ItemKey::Popularimeter), Some("4"));
+        assert_eq!(back.get_string(&ItemKey::Comment), Some("Peak time"));
+        assert_eq!(back.get_string(&ItemKey::RecordingDate), Some("2024"));
+        assert_eq!(back.get_string(&ItemKey::TrackNumber), Some("3"));
+        assert_eq!(back.get_string(&ItemKey::DiscNumber), Some("1"));
+        assert_eq!(back.get_string(&ItemKey::Color), Some("Pink"));
     }
 
     #[test]
@@ -678,7 +953,17 @@ mod tests {
             apply_text(&mut tag, ItemKey::InitialKey, "Am"),
             FieldWrite::Unsupported
         );
-        assert_eq!(tag.items().count(), 2);
+        for (key, value) in [(ItemKey::Comment, "Peak time"), (ItemKey::Color, "Pink")] {
+            assert_eq!(apply_text(&mut tag, key, value), FieldWrite::Written);
+        }
+        // APE's key map has no rating entry.
+        assert_eq!(apply_rating(&mut tag, 4), FieldWrite::Unsupported);
+        assert_eq!(apply_year(&mut tag, 2024), FieldWrite::Written);
+        assert_eq!(
+            apply_number(&mut tag, ItemKey::TrackNumber, 3),
+            FieldWrite::Written
+        );
+        assert_eq!(tag.items().count(), 6);
     }
 
     #[test]

@@ -367,9 +367,30 @@ impl AudioDecoder {
     }
 }
 
+/// Leading decimal run of `text` as a number (`"3/12"` -> `Some(3)`).
+pub(crate) fn leading_u16(text: &str) -> Option<u16> {
+    let digits: String = text
+        .trim()
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn leading_u16_reads_the_leading_decimal_run() {
+        assert_eq!(leading_u16("3"), Some(3));
+        assert_eq!(leading_u16("03"), Some(3));
+        assert_eq!(leading_u16("3/12"), Some(3));
+        assert_eq!(leading_u16(" 12 "), Some(12));
+        assert_eq!(leading_u16("0"), Some(0));
+        assert_eq!(leading_u16(""), None);
+        assert_eq!(leading_u16("abc"), None);
+    }
 
     #[test]
     fn test_fixture_decodes_and_reports_metadata() {

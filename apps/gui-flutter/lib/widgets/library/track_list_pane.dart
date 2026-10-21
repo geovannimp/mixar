@@ -254,8 +254,21 @@ List<Widget> trackRowExtraMenuItems(
       enabled: inLibrary,
       onPress: inLibrary
           ? () {
+              // The menu's context/ref are disposed by `dismiss()`, so start
+              // the async open first and hand the drawer the navigator's
+              // stable context plus the app-scoped container.
+              final navigator = Navigator.of(context);
+              final container = ProviderScope.containerOf(
+                context,
+                listen: false,
+              );
+              final opening = showTrackEditDrawer(
+                navigator.context,
+                container,
+                trackId: track.id,
+              );
               dismiss();
-              unawaited(showTrackEditDrawer(context, ref, trackId: track.id));
+              unawaited(opening);
             }
           : null,
     ),
@@ -287,12 +300,23 @@ class _CompactRow extends StatelessWidget {
     );
     return LayoutBuilder(
       builder: (context, constraints) {
+        final extraMetaWidth =
+            (trackShowsRating(track.rating)
+                ? kMetaPillGap + kRatingSlotWidth
+                : 0.0) +
+            (trackShowsColorLabel(track.colorLabel)
+                ? kMetaPillGap + kColorSlotWidth
+                : 0.0);
         final metaWidth = trailingMetaWidth(
           constraints.maxWidth,
           artSize + kArtworkGap,
           // Compact has no metadata pills, so the trailing group carries
           // the length too and must reserve room for it.
-          natural: kDurationSlotWidth + kMetaPillGap + kTrailingMetaBaseWidth,
+          natural:
+              kDurationSlotWidth +
+              kMetaPillGap +
+              kTrailingMetaBaseWidth +
+              extraMetaWidth,
         );
         // Status sits immediately left of TrailingMeta (not inside the title
         // Expanded), capped so long labels ellipsize without eating the title.
@@ -330,6 +354,8 @@ class _CompactRow extends StatelessWidget {
                 keyDisplayMode: keyDisplayMode,
                 keyColorMode: keyColorMode,
                 durationMs: track.durationMs,
+                rating: track.rating,
+                colorLabel: track.colorLabel,
               ),
             ),
             actionsSlot,

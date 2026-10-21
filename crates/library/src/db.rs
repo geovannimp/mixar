@@ -194,6 +194,89 @@ mod tests {
         }
     }
 
+    fn track_columns(db: &Db) -> Vec<String> {
+        db.conn()
+            .unwrap()
+            .as_connection()
+            .query_all_raw(Statement::from_string(
+                sea_orm::DatabaseBackend::Sqlite,
+                "PRAGMA table_info(tracks)".to_string(),
+            ))
+            .map_err(db_err)
+            .unwrap()
+            .into_iter()
+            .map(|row| row.try_get::<String>("", "name").unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn fresh_tracks_table_has_the_musicbrainz_style_columns() {
+        let db = open_in_memory().unwrap();
+        let columns = track_columns(&db);
+        for column in [
+            "rating",
+            "comment",
+            "year",
+            "track_number",
+            "disc_number",
+            "color_label",
+            "metadata_edited",
+        ] {
+            assert!(columns.iter().any(|name| name == column), "{column}");
+        }
+    }
+
+    #[test]
+    fn sync_adds_new_track_columns_to_an_existing_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("library.db");
+        {
+            // The `tracks` schema before rating/year/comment/numbers/colour.
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE tracks (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    source_type TEXT NOT NULL,
+                    source_ref TEXT NOT NULL,
+                    provider TEXT,
+                    title TEXT,
+                    artist TEXT,
+                    album TEXT,
+                    genre TEXT,
+                    bpm REAL,
+                    key TEXT,
+                    duration_ms INTEGER,
+                    sample_rate INTEGER,
+                    channels INTEGER,
+                    bitrate_kbps INTEGER,
+                    replaygain_track_gain_db REAL,
+                    isrc TEXT,
+                    last_sampler_bank_id TEXT,
+                    added_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );",
+            )
+            .unwrap();
+        }
+
+        let db = open(&db_path).unwrap();
+        let columns = track_columns(&db);
+        for column in [
+            "rating",
+            "comment",
+            "year",
+            "track_number",
+            "disc_number",
+            "color_label",
+            "metadata_edited",
+        ] {
+            assert!(
+                columns.iter().any(|name| name == column),
+                "sync did not add {column}"
+            );
+        }
+    }
+
     #[test]
     fn open_creates_parent_dirs() {
         let dir = tempfile::tempdir().unwrap();

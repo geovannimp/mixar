@@ -27,6 +27,12 @@ const _track = LibraryTrackSummary(
   bpm: 128,
   key: 'Am',
   isrc: 'USRC1',
+  rating: 4,
+  year: 1999,
+  trackNumber: 3,
+  discNumber: 1,
+  comment: 'Peak time',
+  colorLabel: LibraryColorLabel.pink,
   path: '/tmp/t1.wav',
 );
 
@@ -55,8 +61,11 @@ void main() {
           home: Consumer(
             builder: (context, ref, _) => Center(
               child: GestureDetector(
-                onTap: () =>
-                    showTrackEditDrawer(context, ref, trackId: _track.id),
+                onTap: () => showTrackEditDrawer(
+                  context,
+                  ProviderScope.containerOf(context, listen: false),
+                  trackId: _track.id,
+                ),
                 child: const Text('open'),
               ),
             ),
@@ -80,7 +89,16 @@ void main() {
     matching: find.byType(EditableText),
   );
 
-  testWidgets('drawer prefills and saves all seven fields', (tester) async {
+  Future<void> chooseAndSave(WidgetTester tester, Finder target) async {
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    await tester.tap(target);
+    await tester.pump();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('drawer prefills and saves every editable field', (tester) async {
     final fake = await pumpDrawer(tester);
 
     for (final label in [
@@ -91,10 +109,32 @@ void main() {
       'BPM',
       'Key',
       'ISRC',
+      'Year',
+      'Track #',
+      'Disc #',
+      'Comment',
     ]) {
       expect(fieldFor(label), findsOneWidget, reason: '$label field rendered');
     }
     expect(tester.widget<EditableText>(fieldFor('BPM')).controller.text, '128');
+    expect(find.text('★'), findsNWidgets(4), reason: 'four filled stars');
+    expect(find.text('☆'), findsNWidgets(1), reason: 'one empty star');
+    expect(
+      tester.widget<EditableText>(fieldFor('Year')).controller.text,
+      '1999',
+    );
+    expect(
+      tester.widget<EditableText>(fieldFor('Track #')).controller.text,
+      '3',
+    );
+    expect(
+      tester.widget<EditableText>(fieldFor('Disc #')).controller.text,
+      '1',
+    );
+    expect(
+      tester.widget<EditableText>(fieldFor('Comment')).controller.text,
+      'Peak time',
+    );
 
     await tester.enterText(fieldFor('Title'), 'Edited Title');
     await tester.enterText(fieldFor('Artist'), 'Edited Artist');
@@ -103,6 +143,23 @@ void main() {
     await tester.enterText(fieldFor('BPM'), '128.5');
     await tester.enterText(fieldFor('Key'), '8A');
     await tester.enterText(fieldFor('ISRC'), 'NEW1');
+    final drawerScroll = find
+        .ancestor(
+          of: find.byKey(const ValueKey('rating-star-5')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final position = tester.state<ScrollableState>(drawerScroll).position;
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    position.jumpTo(position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('rating-star-5')));
+    await tester.pump();
+    await tester.enterText(fieldFor('Year'), '2024');
+    await tester.enterText(fieldFor('Track #'), '7');
+    await tester.enterText(fieldFor('Disc #'), '2');
+    await tester.enterText(fieldFor('Comment'), 'Warm up');
     await tester.pump();
 
     await tester.tap(find.text('Save'));
@@ -118,7 +175,59 @@ void main() {
     // Raw strings: trimming / Camelot normalization happens Rust-side.
     expect(call.key, '8A');
     expect(call.isrc, 'NEW1');
+    expect(call.rating, 5);
+    expect(call.year, 2024);
+    expect(call.trackNumber, 7);
+    expect(call.discNumber, 2);
+    expect(call.comment, 'Warm up');
+    expect(call.colorLabel, LibraryColorLabel.pink, reason: 'colour untouched');
     expect(find.text('Save'), findsNothing, reason: 'drawer popped on save');
+  });
+
+  testWidgets('colour picker saves the selected label', (tester) async {
+    final fake = await pumpDrawer(tester);
+
+    await chooseAndSave(tester, find.bySemanticsLabel('Blue'));
+    expect(
+      fake.updateTrackMetadataCalls.single.colorLabel,
+      LibraryColorLabel.blue,
+    );
+  });
+
+  testWidgets('colour picker clears the label through None', (tester) async {
+    final fake = await pumpDrawer(tester);
+
+    await chooseAndSave(tester, find.bySemanticsLabel('None'));
+    expect(fake.updateTrackMetadataCalls.single.colorLabel, isNull);
+  });
+
+  testWidgets('tapping the active star clears the rating', (tester) async {
+    final fake = await pumpDrawer(tester);
+
+    await tester.ensureVisible(find.byKey(const ValueKey('rating-star-4')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('rating-star-4')));
+    await tester.pump();
+    expect(find.text('★'), findsNothing, reason: 'toggled to unrated');
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(fake.updateTrackMetadataCalls.single.rating, isNull);
+  });
+
+  testWidgets('star rating sets the value', (tester) async {
+    final fake = await pumpDrawer(tester);
+
+    await tester.ensureVisible(find.byKey(const ValueKey('rating-star-3')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('rating-star-3')));
+    await tester.pump();
+    expect(find.text('★'), findsNWidgets(3));
+    expect(find.text('☆'), findsNWidgets(2));
+
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(fake.updateTrackMetadataCalls.single.rating, 3);
   });
 
   testWidgets('Save is disabled until a field changes', (tester) async {
@@ -147,6 +256,31 @@ void main() {
     await tester.enterText(fieldFor('Artist'), 'Artist');
     await tester.pump();
     expect(saveEnabled(tester), isFalse);
+  });
+
+  testWidgets('stars fill the drawer width evenly', (tester) async {
+    await pumpDrawer(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('rating-star-1')));
+    await tester.pumpAndSettle();
+
+    final widths = [
+      for (var star = 1; star <= 5; star++)
+        tester.getSize(find.byKey(ValueKey('rating-star-$star'))).width,
+    ];
+    expect(widths.toSet().length, 1, reason: 'each star gets an equal cell');
+    expect(
+      widths.reduce((a, b) => a + b),
+      moreOrLessEquals(trackEditDrawerWidth - 32, epsilon: 1),
+      reason: 'the row spans the drawer content width',
+    );
+
+    final glyph = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const ValueKey('rating-star-5')),
+        matching: find.byType(Text),
+      ),
+    );
+    expect(glyph.style?.fontSize, 40);
   });
 
   testWidgets('Save spans the drawer footer', (tester) async {

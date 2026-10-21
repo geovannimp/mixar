@@ -38,7 +38,7 @@ fn analyze_and_wait(
         match rx.recv_timeout(Duration::from_millis(100)) {
             Ok(Some(event)) => {
                 if let Ok(EvtBody::TrackAnalyzed { track }) = decode_evt_body(event.payload()) {
-                    return track;
+                    return *track;
                 }
             }
             Ok(None) => continue,

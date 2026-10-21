@@ -60,9 +60,20 @@ class TrackListComfortableRow extends StatelessWidget {
         // A pill is bounded to one run and the group to two (the fit test in
         // the details column), so the metadata can never paint a third run
         // past the fixed `itemExtent`, where it would be silently clipped.
+        //
+        // Rating and colour take trailing slots only when set, so rows without
+        // them keep the previous budget.
+        final extraMetaWidth =
+            (trackShowsRating(track.rating)
+                ? kMetaPillGap + kRatingSlotWidth
+                : 0.0) +
+            (trackShowsColorLabel(track.colorLabel)
+                ? kMetaPillGap + kColorSlotWidth
+                : 0.0);
         final metaWidth = trailingMetaWidth(
           constraints.maxWidth,
           artSize + kArtworkGap,
+          natural: kTrailingMetaBaseWidth + extraMetaWidth,
         );
         // Title column width excludes status + trailing meta; status sits
         // immediately left of TrailingMeta so it does not float mid-row.
@@ -193,6 +204,8 @@ class TrackListComfortableRow extends StatelessWidget {
                 rawKey: track.key ?? '',
                 keyDisplayMode: keyDisplayMode,
                 keyColorMode: keyColorMode,
+                rating: track.rating,
+                colorLabel: track.colorLabel,
               ),
             ),
             const SizedBox(width: kRowGutter),

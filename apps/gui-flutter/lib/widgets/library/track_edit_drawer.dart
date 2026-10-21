@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_hook_form/flutter_hook_form.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/core/utils/color_labels.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -31,12 +32,44 @@ enum TrackFormField implements FieldSchema<String> {
   genre,
   bpm(validators: [BpmValidator()]),
   key(validators: [KeyNotationValidator()]),
-  isrc;
+  isrc,
+  year(validators: [_IntegerRangeValidator(1, 9999, 'Year must be 1–9999')]),
+  trackNumber(
+    validators: [
+      _IntegerRangeValidator(1, 65535, 'Track number must be a whole number'),
+    ],
+  ),
+  discNumber(
+    validators: [
+      _IntegerRangeValidator(1, 65535, 'Disc number must be a whole number'),
+    ],
+  ),
+  comment;
 
   new({this.validators});
 
   @override
   final List<Validator<String>>? validators;
+}
+
+/// An optional whole number inside `min..=max`; empty clears the field.
+class _IntegerRangeValidator extends FieldValidator<String> {
+  const _IntegerRangeValidator(this.min, this.max, this.failure)
+    : super(errorCode: 'invalid_integer');
+
+  final int min;
+  final int max;
+  final String failure;
+
+  @override
+  FieldValidatorFn<String> get validator => (value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final parsed = int.tryParse(trimmed);
+    return parsed != null && parsed >= min && parsed <= max ? null : failure;
+  };
 }
 
 /// Trimmed BPM text → positive finite double, or null when empty/invalid.
@@ -93,19 +126,26 @@ class KeyNotationValidator extends FieldValidator<String> {
 /// stored edit reverts unless the tags themselves change (tag write-back is
 /// tracked separately, issue #451).
 ///
-/// The store is a full replacement of the seven metadata columns, so a blank
-/// field clears the stored value and untouched fields are sent back verbatim
-/// (see `_TrackEditPanel.save`) — an edit never rewrites a field the user did
-/// not touch.
+/// The store is a full replacement of every editable metadata column, so a
+/// blank field clears the stored value and untouched fields are sent back
+/// verbatim (see `_TrackEditPanel.save`) — an edit never rewrites a field the
+/// user did not touch.
 Future<void> showTrackEditDrawer(
   BuildContext context,
-  WidgetRef ref, {
+  ProviderContainer container, {
   required String trackId,
 }) async {
   try {
-    final transport = await ref.read(libraryTransportProvider.future);
-    // `ref` belongs to the caller's element, so it may only be used while that
-    // element is mounted — check before every await resumes.
+    // Start resolving the transport synchronously: menu callers invoke this
+    // just before dismissing their popup, which disposes the popup's
+    // `WidgetRef`. The container and the navigator context passed here belong
+    // to the app and stay alive after the menu closes.
+    final transportFuture = container.read(libraryTransportProvider.future);
+    if (!context.mounted) {
+      transportFuture.ignore();
+      return;
+    }
+    final transport = await transportFuture;
     if (!context.mounted) {
       return;
     }
@@ -114,7 +154,7 @@ Future<void> showTrackEditDrawer(
       return;
     }
     if (track == null) {
-      ref
+      container
           .read(appNoticeProvider.notifier)
           .setError('Track no longer exists in the library');
       return;
@@ -158,8 +198,179 @@ Future<void> showTrackEditDrawer(
   } on Object catch (e) {
     // Same channel as the rest of the shell: AppNoticeBridge toasts it.
     if (context.mounted) {
-      ref.read(appNoticeProvider.notifier).setError('$e');
+      container.read(appNoticeProvider.notifier).setError('$e');
     }
+  }
+}
+
+/// Five-star rating input.
+///
+/// Clicking a star sets that many stars; clicking the active star again clears
+/// the rating, matching the tap-to-toggle behaviour of most library views. A
+/// `Clear` link is offered as well so clearing is discoverable without knowing
+/// the toggle.
+class _StarRating extends StatelessWidget {
+  const _StarRating({required this.value, required this.onChanged});
+
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final current = value ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Rating',
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.mutedForeground,
+              ),
+            ),
+            if (current > 0) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => onChanged(null),
+                child: Text(
+                  'Clear',
+                  style: theme.typography.body.xs.copyWith(
+                    color: theme.colors.mutedForeground,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            for (var star = 1; star <= 5; star++)
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: current >= star,
+                  label: star == 1 ? '1 star' : '$star stars',
+                  excludeSemantics: true,
+                  onTap: () => onChanged(current == star ? null : star),
+                  child: GestureDetector(
+                    key: ValueKey('rating-star-$star'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onChanged(current == star ? null : star),
+                    // A filled star when active; the outline makes the empty
+                    // positions visible without a second icon font.
+                    child: Center(
+                      child: Text(
+                        current >= star ? '★' : '☆',
+                        style: theme.typography.body.xl.copyWith(
+                          fontSize: 40,
+                          height: 1.15,
+                          color: current >= star
+                              ? theme.colors.primary
+                              : theme.colors.mutedForeground,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// None + the eight device colours, as swatches of their stored label.
+class _ColorLabelPicker extends StatelessWidget {
+  const _ColorLabelPicker({required this.value, required this.onChanged});
+
+  final LibraryColorLabel? value;
+  final ValueChanged<LibraryColorLabel?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Colour label',
+          style: theme.typography.body.sm.copyWith(
+            color: theme.colors.mutedForeground,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _Swatch(
+              label: 'None',
+              color: null,
+              selected: value == null,
+              onTap: () => onChanged(null),
+            ),
+            for (final label in colorLabelNames)
+              _Swatch(
+                label: colorLabelDisplayName(label),
+                color: colorLabelColor(label),
+                selected: value == label,
+                onTap: () => onChanged(label),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Swatch extends StatelessWidget {
+  const _Swatch({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color? color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color ?? theme.colors.card,
+            border: Border.all(
+              color: selected ? theme.colors.primary : theme.colors.border,
+              width: selected ? 2 : theme.style.borderWidth,
+            ),
+          ),
+          child: color == null
+              ? Icon(
+                  LucideIcons.x,
+                  size: 14,
+                  color: theme.colors.mutedForeground,
+                )
+              : null,
+        ),
+      ),
+    );
   }
 }
 
@@ -189,13 +400,22 @@ class _TrackEditPanel extends HookConsumerWidget {
         TrackFormField.bpm: _formatBpm(track.bpm),
         TrackFormField.key: track.key ?? '',
         TrackFormField.isrc: track.isrc ?? '',
+        TrackFormField.year: _intText(track.year),
+        TrackFormField.trackNumber: _intText(track.trackNumber),
+        TrackFormField.discNumber: _intText(track.discNumber),
+        TrackFormField.comment: track.comment ?? '',
       },
     );
+    // The star rating and colour picker are not text fields, so they live
+    // outside the form and participate in "is there anything to save" by
+    // comparison.
+    final rating = useState<int?>(track.rating);
+    final color = useState<LibraryColorLabel?>(track.colorLabel);
 
-    final canSave = form.listen(
-      TrackFormField.values.toSet(),
-      (get) => form.hasChanged,
-    );
+    final canSave =
+        form.listen(TrackFormField.values.toSet(), (get) => form.hasChanged) ||
+        rating.value != track.rating ||
+        color.value != track.colorLabel;
     final saving = useState(false);
     final dismissed = useRef(false);
     useEffect(
@@ -230,6 +450,8 @@ class _TrackEditPanel extends HookConsumerWidget {
           for (final field in TrackFormField.values)
             field: form.getValue<String>(field),
         };
+        final ratingDirty = rating.value != track.rating;
+        final colorDirty = color.value != track.colorLabel;
         bool isDirty(TrackFormField field) => dirty[field] ?? false;
         for (final field in TrackFormField.values) {
           if (isDirty(field) && !form.validateField(field)) {
@@ -256,6 +478,8 @@ class _TrackEditPanel extends HookConsumerWidget {
         // stored precision instead of being re-parsed from the prefill text).
         String? edited(TrackFormField field, String? loaded) =>
             isDirty(field) ? values[field] : loaded;
+        int? editedInt(TrackFormField field, int? loaded) =>
+            isDirty(field) ? _parseOptionalInt(values[field]) : loaded;
         // Raw strings: trimming and key normalization happen Rust-side.
         await transport.updateTrackMetadata(
           trackId: trackId,
@@ -268,6 +492,12 @@ class _TrackEditPanel extends HookConsumerWidget {
               : base.bpm,
           key: edited(TrackFormField.key, base.key),
           isrc: edited(TrackFormField.isrc, base.isrc),
+          rating: ratingDirty ? rating.value : base.rating,
+          comment: edited(TrackFormField.comment, base.comment),
+          year: editedInt(TrackFormField.year, base.year),
+          trackNumber: editedInt(TrackFormField.trackNumber, base.trackNumber),
+          discNumber: editedInt(TrackFormField.discNumber, base.discNumber),
+          colorLabel: colorDirty ? color.value : base.colorLabel,
         );
         container
           ..invalidate(collectionTracksProvider)
@@ -385,6 +615,37 @@ class _TrackEditPanel extends HookConsumerWidget {
                       TrackFormField.isrc,
                       hint: 'International Standard Recording Code',
                     ),
+                    const SizedBox(height: 12),
+                    _buildField(
+                      'Year',
+                      TrackFormField.year,
+                      hint: 'Release year',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildField(
+                      'Track #',
+                      TrackFormField.trackNumber,
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildField(
+                      'Disc #',
+                      TrackFormField.discNumber,
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildField('Comment', TrackFormField.comment, maxLines: 3),
+                    const SizedBox(height: 16),
+                    _StarRating(
+                      value: rating.value,
+                      onChanged: (value) => rating.value = value,
+                    ),
+                    const SizedBox(height: 16),
+                    _ColorLabelPicker(
+                      value: color.value,
+                      onChanged: (value) => color.value = value,
+                    ),
                   ],
                 ),
               ),
@@ -409,6 +670,7 @@ class _TrackEditPanel extends HookConsumerWidget {
     TrackFormField field, {
     String? hint,
     TextInputType? keyboardType,
+    int maxLines = 1,
   }) {
     return HookedFormField<String, TrackFormField>(
       fieldHook: field,
@@ -417,11 +679,21 @@ class _TrackEditPanel extends HookConsumerWidget {
         label: Text(label),
         hint: hint,
         keyboardType: keyboardType,
+        maxLines: maxLines,
         initialValue: value,
         onChanged: onChanged,
         errorText: error,
       ),
     );
+  }
+
+  /// Optional integer prefills as plain decimal text (empty for `null`).
+  static String _intText(int? value) => value?.toString() ?? '';
+
+  /// Trimmed optional integer; empty or `0` clears the field.
+  static int? _parseOptionalInt(String? raw) {
+    final value = int.tryParse(raw?.trim() ?? '');
+    return value == null || value <= 0 ? null : value;
   }
 
   /// `128.0` renders as `128`; everything else renders as its shortest exact

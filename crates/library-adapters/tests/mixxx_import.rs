@@ -48,6 +48,11 @@ fn build_fixture() -> Fixture {
             replaygain FLOAT,
             key varchar(16),
             key_id INTEGER,
+            comment varchar(256),
+            rating INTEGER,
+            year varchar(4),
+            tracknumber varchar(8),
+            discnumber varchar(8),
             location INTEGER,
             mixxx_deleted INTEGER DEFAULT 0
         );
@@ -102,14 +107,14 @@ fn build_fixture() -> Fixture {
     insert_location(&conn, 2, &missing);
 
     conn.execute(
-        "INSERT INTO library (id, artist, title, album, genre, duration, bitrate, samplerate, bpm, channels, replaygain, key, location, mixxx_deleted)
-         VALUES (1, 'Artist A', 'Present', 'Album', 'House', 210.5, 320, 44100, 128.0, 2, 1.5, '8A', 1, 0)",
+        "INSERT INTO library (id, artist, title, album, genre, duration, bitrate, samplerate, bpm, channels, replaygain, key, location, mixxx_deleted, comment, rating, year, tracknumber, discnumber)
+         VALUES (1, 'Artist A', 'Present', 'Album', 'House', 210.5, 320, 44100, 128.0, 2, 1.5, '8A', 1, 0, 'Peak time', 4, '1999', '3', '1')",
         [],
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO library (id, artist, title, album, genre, duration, bitrate, samplerate, bpm, channels, replaygain, key, location, mixxx_deleted)
-         VALUES (2, NULL, 'Missing', NULL, NULL, 0.0, 0, 0, 0.0, 0, 1.0, 'C', 2, 0)",
+        "INSERT INTO library (id, artist, title, album, genre, duration, bitrate, samplerate, bpm, channels, replaygain, key, location, mixxx_deleted, rating)
+         VALUES (2, NULL, 'Missing', NULL, NULL, 0.0, 0, 0, 0.0, 0, 1.0, 'C', 2, 0, 9)",
         [],
     )
     .unwrap();
@@ -237,6 +242,11 @@ fn camelot_key_normalized_to_musical() {
     let gain = present.metadata().replaygain_track_gain_db.unwrap();
     assert!((gain - 20.0 * 1.5f64.log10()).abs() < 1e-6);
     assert_eq!(present.metadata().duration_ms, Some(210_500));
+    assert_eq!(present.metadata().comment.as_deref(), Some("Peak time"));
+    assert_eq!(present.metadata().rating, Some(4));
+    assert_eq!(present.metadata().year, Some(1999));
+    assert_eq!(present.metadata().track_number, Some(3));
+    assert_eq!(present.metadata().disc_number, Some(1));
     assert_eq!(present.file().unwrap().path(), fixture.present.as_path());
 
     // Missing file track is still listed; already-musical key passes through.
@@ -249,6 +259,8 @@ fn camelot_key_normalized_to_musical() {
     assert_eq!(missing.metadata().bpm, None);
     // A replaygain ratio of exactly 1.0 (unity/unset) maps to no gain.
     assert_eq!(missing.metadata().replaygain_track_gain_db, None);
+    // An out-of-range Mixxx rating (1–5) is treated as unrated.
+    assert_eq!(missing.metadata().rating, None);
 
     // A track with mixxx_deleted = 1 is not loaded.
     assert!(library

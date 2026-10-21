@@ -114,12 +114,13 @@ GPL-3.0 writer is modelled on for page allocation and the fixed tables). `rekord
 
 ## Known drops
 
-Rating/year/track/disc numbers, comments and colour labels ([#571](https://github.com/geovannimp/mixar/issues/571)),
-history, My Tags ([#572](https://github.com/geovannimp/mixar/issues/572)), stems
+History, My Tags ([#572](https://github.com/geovannimp/mixar/issues/572)), stems
 ([#573](https://github.com/geovannimp/mixar/issues/573)), and the OneLibrary `exportLibrary.db`
 ([#559](https://github.com/geovannimp/mixar/issues/559)) plus `.2EX` 3-band waveforms
 ([#574](https://github.com/geovannimp/mixar/issues/574)) newer players prefer. The high-resolution
-`_m` cover variant Rekordbox writes beside the primary thumbnail is not written either. Long
-path components are truncated and de-duplicated, and the undocumented bytes rekordbox fills in
-extended cue entries are written zeroed. The full list lives in the
+`_m` cover variant Rekordbox writes beside the primary thumbnail is not written either. Track
+rating, year, comment, track/disc number and colour label are written into the track row; a
+colour label maps onto the fixed eight-row `colors` table, so an arbitrary RGB value has no
+representation. Long path components are truncated and de-duplicated, and the undocumented
+bytes rekordbox fills in extended cue entries are written zeroed. The full list lives in the
 [`library-adapters` README](https://github.com/geovannimp/mixar/blob/main/crates/library-adapters/README.md).

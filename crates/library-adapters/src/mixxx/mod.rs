@@ -580,6 +580,10 @@ fn metadata_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrackMetadata>
     let channels: Option<i64> = row.get("channels")?;
     let bitrate: Option<i64> = row.get("bitrate")?;
     let replaygain: Option<f64> = row.get("replaygain")?;
+    let rating: Option<i64> = row.get("rating")?;
+    let year: Option<String> = row.get("year")?;
+    let track_number: Option<String> = row.get("tracknumber")?;
+    let disc_number: Option<String> = row.get("discnumber")?;
 
     Ok(TrackMetadata {
         title: clean(row.get("title")?),
@@ -605,8 +609,29 @@ fn metadata_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrackMetadata>
         replaygain_track_gain_db: replaygain
             .filter(|value| value.is_finite() && *value > 0.0 && *value != 1.0)
             .map(|value| 20.0 * value.log10()),
+        comment: clean(row.get("comment")?),
+        rating: rating
+            .filter(|value| (1..=5).contains(value))
+            .map(|value| value as u8),
+        year: parse_leading_u16(year.as_deref()),
+        track_number: parse_leading_u16(track_number.as_deref()),
+        disc_number: parse_leading_u16(disc_number.as_deref()),
+        // Mixxx stores an RGB integer; the eight-label palette cannot represent
+        // an arbitrary colour without picking a nearest neighbour, so it stays
+        // unimported (documented in the adapter README).
+        color_label: None,
         ..TrackMetadata::default()
     })
+}
+
+/// Leading decimal number of a text column (`"3"`, `"03"`, `"3/12"`).
+fn parse_leading_u16(raw: Option<&str>) -> Option<u16> {
+    let digits: String = raw?
+        .trim()
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok().filter(|value| *value > 0)
 }
 
 fn load_folders(conn: &Connection) -> Result<Vec<(CollectionId, PathBuf)>> {
@@ -735,6 +760,37 @@ fn load_memberships(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn metadata_from_row_keeps_only_ratings_from_1_to_5() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        let metadata = |rating: i64| {
+            conn.query_row(
+                "SELECT NULL AS bpm, NULL AS key, NULL AS duration,
+                        NULL AS samplerate, NULL AS channels, NULL AS bitrate,
+                        NULL AS replaygain, ?1 AS rating, NULL AS year,
+                        NULL AS tracknumber, NULL AS discnumber, NULL AS title,
+                        NULL AS artist, NULL AS album, NULL AS genre,
+                        NULL AS comment",
+                [rating],
+                metadata_from_row,
+            )
+            .unwrap()
+        };
+        assert_eq!(metadata(4).rating, Some(4));
+        assert_eq!(metadata(0).rating, None);
+        assert_eq!(metadata(6).rating, None);
+    }
+
+    #[test]
+    fn parses_leading_number_of_text_columns() {
+        assert_eq!(parse_leading_u16(Some("3")), Some(3));
+        assert_eq!(parse_leading_u16(Some("03")), Some(3));
+        assert_eq!(parse_leading_u16(Some("3/12")), Some(3));
+        assert_eq!(parse_leading_u16(Some("0")), None);
+        assert_eq!(parse_leading_u16(Some("")), None);
+        assert_eq!(parse_leading_u16(Some("abc")), None);
+    }
 
     #[test]
     #[cfg(target_os = "linux")]

@@ -591,7 +591,13 @@ impl LibraryManager {
         }
         let id = Self::track_id_for(&path);
         let existed = self.store().track_exists(&id)?;
-        let metadata = tags::read_tags(&path)?;
+        let mut metadata = tags::read_tags(&path)?;
+        let source_ref = path.to_string_lossy();
+        if let Some((existing, edited)) =
+            self.store().file_track_metadata_and_edited(&source_ref)?
+        {
+            tags::merge_user_metadata(&mut metadata, &existing, edited);
+        }
         let source = self.upsert_file_source(&path, &metadata)?;
         Ok((source, existed))
     }

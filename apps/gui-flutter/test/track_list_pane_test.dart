@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/core/utils/color_labels.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/focused_load.dart';
@@ -18,6 +19,7 @@ import 'package:gui_flutter/widgets/library/track_list_pane.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
 import 'package:gui_flutter/widgets/library/track_title_line.dart';
+import 'package:gui_flutter/widgets/library/trailing_meta.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -32,6 +34,36 @@ import 'support/mixar_material_app.dart';
 /// The row element whose text is [label], for the row-height assertions.
 Finder rowByText(String label) =>
     find.ancestor(of: find.text(label), matching: find.byType(TrackListRow));
+
+LibraryTrackSummary demoTrack({
+  String? artist,
+  double? bpm,
+  String? key,
+  int? rating,
+  LibraryColorLabel? colorLabel,
+  int? durationMs,
+}) {
+  return LibraryTrackSummary(
+    id: 't1',
+    displayName: 'Demo Track',
+    title: 'Demo Track',
+    artist: artist,
+    bpm: bpm,
+    key: key,
+    rating: rating,
+    colorLabel: colorLabel,
+    durationMs: durationMs,
+    path: '/tmp/samples/demo.wav',
+  );
+}
+
+void expectStarGlyph(Finder rating, {String? reason}) {
+  expect(
+    find.descendant(of: rating, matching: find.byIcon(LucideIcons.star)),
+    findsOneWidget,
+    reason: reason,
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -671,6 +703,71 @@ void main() {
         reason: '${density.name} is missing the key glyph',
       );
     }
+  });
+
+  testWidgets('rating and colour render as trailing pills', (tester) async {
+    await pumpList(
+      tester,
+      width: 1000,
+      tracks: [demoTrack(rating: 4, colorLabel: LibraryColorLabel.orange)],
+    );
+
+    final rating = find.byKey(kTrackRatingPillKey);
+    expect(
+      find.descendant(of: rating, matching: find.text('4')),
+      findsOneWidget,
+    );
+    expectStarGlyph(rating, reason: 'the rating pill carries a star glyph');
+    expect(
+      tester.getSize(rating).width,
+      lessThan(50),
+      reason: 'the pill hugs its star and digit',
+    );
+
+    final colour = find.byKey(kTrackColorPillKey);
+    expect(colour, findsOneWidget);
+    final decoration =
+        tester.widget<Container>(colour).decoration! as BoxDecoration;
+    expect(decoration.shape, BoxShape.circle);
+    expect(decoration.color, colorLabelColor(LibraryColorLabel.orange));
+  });
+
+  testWidgets('rating and colour pills fit a narrow comfortable row', (
+    tester,
+  ) async {
+    final overflows = <String>[];
+    final previous = FlutterError.onError;
+    FlutterError.onError = (d) {
+      final text = d.toString();
+      if (text.contains('overflowed')) overflows.add(text);
+      previous?.call(d);
+    };
+    try {
+      await pumpList(
+        tester,
+        width: 420,
+        tracks: [
+          demoTrack(
+            artist: 'Artist',
+            bpm: 128,
+            key: '8A',
+            rating: 5,
+            colorLabel: LibraryColorLabel.purple,
+            durationMs: 180000,
+          ),
+        ],
+      );
+      final rating = find.byKey(kTrackRatingPillKey);
+      expect(rating, findsOneWidget);
+      expectStarGlyph(
+        rating,
+        reason: 'narrow rows must not drop the star glyph',
+      );
+      expect(find.byKey(kTrackColorPillKey), findsOneWidget);
+    } finally {
+      FlutterError.onError = previous;
+    }
+    expect(overflows, isEmpty);
   });
 
   testWidgets('BPM and key render as pills, not bare text', (tester) async {

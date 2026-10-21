@@ -4,7 +4,7 @@
 //! `pdb`/`anlz` never reach back into the library, the database or the DSP
 //! pipeline.
 
-use library_core::{ExportBeatGrid, ExportCue, SpectralPeak};
+use library_core::{ColorLabel, ExportBeatGrid, ExportCue, SpectralPeak};
 use serde::{Deserialize, Serialize};
 
 /// Pioneer's file-type discriminant, written into each track row.
@@ -59,6 +59,27 @@ pub struct CdjTrack {
     pub album: String,
     /// Genre, omitted from the database when `None` or empty.
     pub genre: Option<String>,
+    /// Star rating 1–5; `None` or `0` writes the device's "unrated" zero.
+    ///
+    /// `#[serde(default)]` keeps manifests written before these fields existed
+    /// readable.
+    #[serde(default)]
+    pub rating: Option<u8>,
+    /// Free-form comment, written to the track row's comment field.
+    #[serde(default)]
+    pub comment: Option<String>,
+    /// Release year.
+    #[serde(default)]
+    pub year: Option<u16>,
+    /// Track number within its disc.
+    #[serde(default)]
+    pub track_number: Option<u16>,
+    /// Disc number within its release.
+    #[serde(default)]
+    pub disc_number: Option<u16>,
+    /// Colour label; the row stores its one-based id in the device table.
+    #[serde(default)]
+    pub color: Option<ColorLabel>,
     /// BPM, written as whole hundredths.
     pub bpm: Option<f64>,
     /// Pioneer key-table id (1–24); `None` leaves the key unknown.

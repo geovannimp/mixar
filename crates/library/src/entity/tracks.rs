@@ -25,6 +25,17 @@ pub struct Model {
     pub bitrate_kbps: Option<i32>,
     pub replaygain_track_gain_db: Option<f64>,
     pub isrc: Option<String>,
+    /// Star rating 1–5; `NULL` means unrated.
+    pub rating: Option<i32>,
+    pub comment: Option<String>,
+    pub year: Option<i32>,
+    pub track_number: Option<i32>,
+    pub disc_number: Option<i32>,
+    /// Canonical [`library_core::ColorLabel`] name (`"pink"` … `"purple"`).
+    pub color_label: Option<String>,
+    /// Set once the editor writes the user-owned metadata columns, making the
+    /// row authoritative over stale file tags on later re-analysis.
+    pub metadata_edited: Option<bool>,
     pub last_sampler_bank_id: Option<String>,
     pub added_at: String,
     pub updated_at: String,

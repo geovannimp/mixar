@@ -85,19 +85,62 @@ pub(crate) fn write_back_track_tags(path: &Path, tags: &TrackTags) -> Option<Tag
     }
 }
 
-/// The fields Mixar owns and mirrors today: BPM and key.
+/// The fields Mixar owns and mirrors: BPM, key, rating, comment, year,
+/// track/disc number and colour label.
 ///
 /// Title/artist/album/genre are deliberately **not** passed even though the
 /// writer supports them: they are file-derived today (`track_metadata_from_file_tags`
 /// falls back to the file name for a missing title), so mirroring the library row
-/// would stamp guesses into files that carry no tags. A track editor that actually
-/// owns those values should extend this function.
+/// would stamp guesses into files that carry no tags. A track editor that
+/// actually owns those values should extend this function.
+///
+/// The rating is skipped on ID3v2 by the writer (see `codec::tag_write`); the
+/// caller still asks for it, so the report names the field instead of silently
+/// dropping it.
 pub(crate) fn app_managed_tags(metadata: &TrackMetadata) -> TrackTags {
     TrackTags {
         bpm: metadata.bpm,
         key: metadata.key.clone(),
+        rating: metadata.rating,
+        comment: metadata.comment.clone(),
+        year: metadata.year,
+        track_number: metadata.track_number,
+        disc_number: metadata.disc_number,
+        color: metadata.color_label.map(|label| label.label().to_string()),
         ..TrackTags::default()
     }
+}
+
+/// Merge user-owned metadata from a stored row into freshly read file tags.
+///
+/// Before the first editor save, a tag that carries a value wins (the file may
+/// have been updated elsewhere) and a missing tag must not clear what the
+/// editor stored. Once the editor has written the row, the row is
+/// authoritative for all six fields, including `None`: otherwise a cleared
+/// rating/comment/year/number/colour would be resurrected from its stale tag
+/// on the next analysis. ID3 ratings are the common case because lofty cannot
+/// read POPM.
+pub(crate) fn merge_user_metadata(
+    metadata: &mut TrackMetadata,
+    stored: &TrackMetadata,
+    stored_is_authoritative: bool,
+) {
+    if stored_is_authoritative {
+        metadata.rating = stored.rating;
+        metadata.comment = stored.comment.clone();
+        metadata.year = stored.year;
+        metadata.track_number = stored.track_number;
+        metadata.disc_number = stored.disc_number;
+        metadata.color_label = stored.color_label;
+        return;
+    }
+    metadata.rating = metadata.rating.or(stored.rating);
+    let comment = metadata.comment.take().filter(|c| !c.trim().is_empty());
+    metadata.comment = comment.or_else(|| stored.comment.clone());
+    metadata.year = metadata.year.or(stored.year);
+    metadata.track_number = metadata.track_number.or(stored.track_number);
+    metadata.disc_number = metadata.disc_number.or(stored.disc_number);
+    metadata.color_label = metadata.color_label.or(stored.color_label);
 }
 
 /// Read the ReplayGain track gain tag, in decibels, when present and valid.
@@ -130,6 +173,12 @@ fn track_metadata_from_file_tags(path: &Path, tags: FileTags) -> TrackMetadata {
         bitrate_kbps: tags.bitrate_kbps,
         replaygain_track_gain_db: tags.replaygain_track_gain_db,
         isrc: tags.isrc,
+        rating: tags.rating,
+        comment: tags.comment,
+        year: tags.year,
+        track_number: tags.track_number,
+        disc_number: tags.disc_number,
+        color_label: tags.color.as_deref().and_then(|color| color.parse().ok()),
         ..TrackMetadata::default()
     };
 
@@ -181,6 +230,18 @@ fn io_backend(message: String) -> library_core::LibraryError {
 mod tests {
     use super::*;
 
+    fn full_user_metadata() -> TrackMetadata {
+        TrackMetadata {
+            rating: Some(5),
+            comment: Some("Keep me".into()),
+            year: Some(1999),
+            track_number: Some(7),
+            disc_number: Some(2),
+            color_label: Some(library_core::ColorLabel::Aqua),
+            ..TrackMetadata::default()
+        }
+    }
+
     #[test]
     fn normalize_camelot_key_to_musical() {
         assert_eq!(
@@ -201,12 +262,106 @@ mod tests {
         let tags = FileTags {
             artist: Some("Artist".into()),
             key: Some("8A".into()),
+            rating: Some(4),
+            comment: Some("Peak time".into()),
+            year: Some(2024),
+            track_number: Some(3),
+            disc_number: Some(2),
+            color: Some("pink".into()),
             ..FileTags::default()
         };
         let meta = track_metadata_from_file_tags(Path::new("/music/My Song.flac"), tags);
         assert_eq!(meta.artist.as_deref(), Some("Artist"));
         assert_eq!(meta.key.as_deref(), Some("Am"));
         assert_eq!(meta.title.as_deref(), Some("My Song"));
+        assert_eq!(meta.rating, Some(4));
+        assert_eq!(meta.comment.as_deref(), Some("Peak time"));
+        assert_eq!(meta.year, Some(2024));
+        assert_eq!(meta.track_number, Some(3));
+        assert_eq!(meta.disc_number, Some(2));
+        assert_eq!(meta.color_label, Some(library_core::ColorLabel::Pink));
+
+        let unknown_color = track_metadata_from_file_tags(
+            Path::new("/music/Other.flac"),
+            FileTags {
+                color: Some("chartreuse".into()),
+                ..FileTags::default()
+            },
+        );
+        assert_eq!(unknown_color.color_label, None);
+    }
+
+    #[test]
+    fn merge_user_metadata_preserves_stored_values_when_tags_are_missing() {
+        let stored = full_user_metadata();
+        let mut fresh = TrackMetadata::default();
+        merge_user_metadata(&mut fresh, &stored, false);
+        assert_eq!(fresh, stored);
+    }
+
+    #[test]
+    fn app_managed_tags_maps_the_new_fields() {
+        let metadata = TrackMetadata {
+            bpm: Some(128.0),
+            key: Some("Am".into()),
+            ..full_user_metadata()
+        };
+        let tags = app_managed_tags(&metadata);
+        assert_eq!(tags.bpm, Some(128.0));
+        assert_eq!(tags.key.as_deref(), Some("Am"));
+        assert_eq!(tags.rating, Some(5));
+        assert_eq!(tags.comment.as_deref(), Some("Keep me"));
+        assert_eq!(tags.year, Some(1999));
+        assert_eq!(tags.track_number, Some(7));
+        assert_eq!(tags.disc_number, Some(2));
+        assert_eq!(tags.color.as_deref(), Some("Aqua"));
+
+        let empty = app_managed_tags(&TrackMetadata::default());
+        assert_eq!(empty.rating, None);
+        assert_eq!(empty.comment, None);
+        assert_eq!(empty.year, None);
+        assert_eq!(empty.track_number, None);
+        assert_eq!(empty.disc_number, None);
+        assert_eq!(empty.color, None);
+    }
+
+    #[test]
+    fn merge_user_metadata_treats_blank_tag_comment_as_missing() {
+        let stored = full_user_metadata();
+        let mut fresh = TrackMetadata {
+            comment: Some("   ".into()),
+            ..TrackMetadata::default()
+        };
+        merge_user_metadata(&mut fresh, &stored, false);
+        assert_eq!(fresh.comment.as_deref(), Some("Keep me"));
+    }
+
+    #[test]
+    fn merge_user_metadata_keeps_cleared_fields_cleared_after_edit() {
+        let stored = TrackMetadata::default();
+        let mut fresh = full_user_metadata();
+        merge_user_metadata(&mut fresh, &stored, true);
+        assert_eq!(fresh, stored);
+    }
+
+    #[test]
+    fn merge_user_metadata_prefers_tag_values() {
+        let stored = TrackMetadata {
+            rating: Some(5),
+            comment: Some("Old".into()),
+            year: Some(1999),
+            ..TrackMetadata::default()
+        };
+        let mut fresh = TrackMetadata {
+            rating: Some(2),
+            comment: Some("New".into()),
+            year: Some(2024),
+            ..TrackMetadata::default()
+        };
+        merge_user_metadata(&mut fresh, &stored, false);
+        assert_eq!(fresh.rating, Some(2));
+        assert_eq!(fresh.comment.as_deref(), Some("New"));
+        assert_eq!(fresh.year, Some(2024));
     }
 
     #[test]
