@@ -155,6 +155,7 @@ class DeckPadsPanel extends StatelessWidget {
             value: padMode,
             options: kPadModes,
             labelBuilder: (mode) => _modeLabel(mode, l10n),
+            optionLabelBuilder: padModeShortLabel,
             labelSpanBuilder: (mode) =>
                 _modeLabelSpan(mode, theme.colors.mutedForeground, l10n),
             unfocusAfterPointerSelection: true,

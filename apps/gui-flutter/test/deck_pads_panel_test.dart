@@ -179,6 +179,15 @@ void main() {
     );
     expect(suffix.style?.color, MixarThemeData.dark().colors.mutedForeground);
 
+    // The open list uses plain mode names; only the collapsed chip carries
+    // the selected mode's source suffix.
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    expect(find.text('Stems'), findsOneWidget);
+    expect(padLabel('Stems (Realtime)'), findsOneWidget);
+    await tester.tap(find.text('Stems'));
+    await tester.pumpAndSettle();
+
     await pumpPanel(
       tester,
       hasTrack: true,

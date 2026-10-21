@@ -22,15 +22,11 @@ class _MobileSelectOption extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onPress,
-    this.labelSpan,
     this.subtitle,
     super.key,
   });
 
   final String label;
-
-  /// Optional styled label; [label] remains the semantics fallback.
-  final InlineSpan? labelSpan;
   final String? subtitle;
   final bool selected;
   final VoidCallback onPress;
@@ -69,24 +65,14 @@ class _MobileSelectOption extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (labelSpan == null)
-                  Text(
-                    label,
-                    textAlign: TextAlign.start,
-                    style: theme.typography.body.sm.copyWith(
-                      color: labelColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                else
-                  Text.rich(
-                    labelSpan!,
-                    textAlign: TextAlign.start,
-                    style: theme.typography.body.sm.copyWith(
-                      color: labelColor,
-                      fontWeight: FontWeight.w600,
-                    ),
+                Text(
+                  label,
+                  textAlign: TextAlign.start,
+                  style: theme.typography.body.sm.copyWith(
+                    color: labelColor,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(
@@ -119,6 +105,7 @@ class MixarSelect<T> extends StatefulWidget {
     required this.onChanged,
     super.key,
     this.labelSpanBuilder,
+    this.optionLabelBuilder,
     this.subtitleBuilder,
     this.enabled = true,
     this.placeholder,
@@ -139,6 +126,10 @@ class MixarSelect<T> extends StatefulWidget {
   /// Optional rich label. Use this when part of the label needs a different
   /// color/weight; [labelBuilder] remains the semantics fallback.
   final InlineSpan? Function(T value)? labelSpanBuilder;
+
+  /// Plain label for dropdown/dialog rows. Defaults to [labelBuilder]; use this
+  /// when the collapsed selection carries a suffix the list should omit.
+  final String Function(T value)? optionLabelBuilder;
   final String Function(T value)? subtitleBuilder;
   final ValueChanged<T> onChanged;
   final bool enabled;
@@ -194,8 +185,9 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: _MobileSelectOption(
                       key: ValueKey(option),
-                      label: widget.labelBuilder(option),
-                      labelSpan: widget.labelSpanBuilder?.call(option),
+                      label: (widget.optionLabelBuilder ?? widget.labelBuilder)(
+                        option,
+                      ),
                       subtitle: widget.subtitleBuilder?.call(option),
                       selected: option == widget.value,
                       onPress: () => Navigator.of(dialogContext).pop(option),
@@ -232,10 +224,10 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
     final mobile = style == SelectStyleSetting.mobile;
 
     Widget buildOption(T option) {
-      final span = widget.labelSpanBuilder?.call(option);
-      final label = span == null
-          ? Text(widget.labelBuilder(option))
-          : Text.rich(span);
+      final optionLabel = (widget.optionLabelBuilder ?? widget.labelBuilder)(
+        option,
+      );
+      final label = Text(optionLabel);
       final child = widget.subtitleBuilder == null
           ? label
           : Column(
