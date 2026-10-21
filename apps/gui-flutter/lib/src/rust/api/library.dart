@@ -85,6 +85,12 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Delete cached waveform overview rows (regenerated on next fetch).
   Future<void> clearWaveformCache();
 
+  /// Create a sampler bank and return the stored row.
+  Future<SamplerBankInfo> createSamplerBank({
+    required String name,
+    SamplerPlayMode? playMode,
+  });
+
   Future<void> deleteHistorySession({required String sessionId});
 
   /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).

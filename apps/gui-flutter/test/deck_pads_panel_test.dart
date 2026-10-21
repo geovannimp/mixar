@@ -8,7 +8,10 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/widgets/mixer/deck_pads_panel.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
+import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/key_shift_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/keyboard_pads.dart';
@@ -19,6 +22,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 import 'support/mixar_material_app.dart';
+import 'support/pad_finders.dart';
 
 void main() {
   Future<void> pumpPanel(
@@ -97,6 +101,8 @@ void main() {
                     onSamplerRelease: (_) {},
                     onSelectBank: (id) => setState(() => bankId = id),
                     onSaveBank: (_, _, _) {},
+                    onCreateBank: (_, _) {},
+                    onSelectPage: (_) {},
                     onKeyShiftPress: onKeyShiftPress ?? (_) {},
                     onKeyboardPress: onKeyboardPress ?? (_) {},
                     onKeyboardRelease: (_) {},
@@ -131,7 +137,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
-    expect(find.text('Bank 1'), findsOneWidget);
+    expect(find.text('Sample (Bank 1)'), findsOneWidget);
     expect(find.text('Kick'), findsOneWidget);
   });
 
@@ -204,17 +210,32 @@ void main() {
     expect(find.text('0:01.0'), findsOneWidget);
   });
 
-  testWidgets('sampler bank next cycles active bank', (tester) async {
+  testWidgets('sampler config menu switches banks', (tester) async {
     await pumpPanel(tester, hasTrack: true);
     await tester.tap(find.byType(MixarSelect<PadMode>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
+    expect(find.text('Sample (Bank 1)'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('Next sampler bank'));
+    final configButton = find.byType(MixerButton);
+    expect(
+      tester.widget<MixerButton>(configButton).variant,
+      MixarButtonVariant.outline,
+    );
+
+    await tester.tap(find.bySemanticsLabel('Sample settings'));
     await tester.pumpAndSettle();
-    expect(find.text('Bank 2'), findsOneWidget);
-    expect(find.text('hold'), findsOneWidget);
+    expect(
+      tester.widget<MixerButton>(configButton).variant,
+      MixarButtonVariant.primary,
+    );
+    expect(find.text('New bank…'), findsOneWidget);
+    expect(find.text('Edit bank…'), findsOneWidget);
+
+    await tester.tap(find.text('Bank 2'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sample (Bank 2)'), findsOneWidget);
   });
 
   /// keep main's Keyboard / Key Shift coverage, driven through the dropdown
@@ -231,14 +252,22 @@ void main() {
 
     expect(find.byType(KeyboardPads), findsOneWidget);
     expect(find.byType(KeyShiftPads), findsNothing);
-    // Default page is the `0…+7` range, with hot cue 1 showing as the root.
-    expect(find.text('0…+7'), findsOneWidget);
-    expect(find.text('HC 1'), findsOneWidget);
+    // Default page range is part of the selected mode label.
+    expect(find.text('Keys (0…+7)'), findsOneWidget);
 
     // A pad hold forwards the pressed slot to the host.
     await tester.tap(find.text('+1'));
     await tester.pumpAndSettle();
     expect(pressed, [1]);
+
+    // Root cue and page live in the config menu.
+    await tester.tap(find.bySemanticsLabel('Keys settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Root hot cue'), findsOneWidget);
+    expect(find.text('Hot cue 1'), findsOneWidget);
+    expect(find.text('-1…-8'), findsOneWidget);
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byType(MixarSelect<PadMode>));
     await tester.pumpAndSettle();
@@ -246,9 +275,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(KeyShiftPads), findsOneWidget);
     expect(find.byType(KeyboardPads), findsNothing);
-    expect(find.text('0…+7'), findsOneWidget);
-    // The root chip belongs to the Keyboard grid only.
-    expect(find.text('HC 1'), findsNothing);
+    expect(find.text('Shift (0…+7)'), findsOneWidget);
   });
 
   testWidgets('pad mode can change without a track', (tester) async {
@@ -258,7 +285,115 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Roll').last);
     await tester.pumpAndSettle();
-    expect(find.text('roll'), findsWidgets);
+    expect(find.text('ROLL'), findsWidgets);
+  });
+
+  testWidgets('momentary pads highlight primary while held', (tester) async {
+    await pumpPanel(tester, hasTrack: true);
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Jump').last);
+    await tester.pumpAndSettle();
+
+    final theme = MixarThemeData.dark();
+    final pad = find.byType(PadButton).first;
+    expect(padDecorationOf(tester, pad).color, theme.colors.card);
+    final gesture = await tester.startGesture(tester.getCenter(pad));
+    await tester.pump();
+    expect(padDecorationOf(tester, pad).color, theme.colors.primary);
+    expect(
+      padDecorationOf(tester, pad).border!.top.color,
+      theme.colors.primary,
+    );
+
+    await gesture.up();
+    await tester.pump();
+    expect(padDecorationOf(tester, pad).color, theme.colors.card);
+  });
+
+  testWidgets('new bank dialog opens from the config menu', (tester) async {
+    await pumpPanel(tester, hasTrack: true);
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sample').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Sample settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New bank…'));
+    await tester.pumpAndSettle();
+    expect(find.text('New bank'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('config button keeps clear of the bottom-right pad', (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sample').last);
+    await tester.pumpAndSettle();
+
+    final pad = tester.getRect(find.byType(PadButton).last);
+    final button = tester.getRect(find.bySemanticsLabel('Sample settings'));
+    expect(pad.bottom, lessThanOrEqualTo(button.top));
+  });
+
+  testWidgets('sampler duration sits bottom-right like a cue time', (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sample').last);
+    await tester.pumpAndSettle();
+
+    final padRect = tester.getRect(find.byType(PadButton).first);
+    final time = tester.getRect(find.text('0:00.5'));
+    expect(time.right, closeTo(padRect.right - 8, 0.5));
+    expect(time.bottom, closeTo(padRect.bottom - 8, 0.5));
+    // The centred name stays above the footer.
+    expect(
+      tester.getRect(find.text('Kick')).bottom,
+      lessThanOrEqualTo(time.top),
+    );
+  });
+
+  testWidgets('assigned cue rests outlined and fills while held', (
+    tester,
+  ) async {
+    await pumpPanel(tester, hasTrack: true);
+    final theme = MixarThemeData.dark();
+    final pad = find.byType(PadButton).first;
+    BoxDecoration decoration() =>
+        tester
+                .widget<DecoratedBox>(
+                  find
+                      .descendant(of: pad, matching: find.byType(DecoratedBox))
+                      .first,
+                )
+                .decoration
+            as BoxDecoration;
+
+    expect(decoration().color, theme.colors.card);
+    expect(
+      decoration().border!.top.color,
+      Color.alphaBlend(
+        hotCueAccent(0).fill.withValues(alpha: 0.4),
+        theme.colors.border,
+      ),
+    );
+
+    final gesture = await tester.startGesture(tester.getCenter(pad));
+    await tester.pump();
+    expect(decoration().color, hotCueAccent(0).fill.withValues(alpha: 1));
+
+    await gesture.up();
+    await tester.pump();
+    expect(decoration().color, theme.colors.card);
   });
 
   testWidgets('pad actions stay disabled without a track', (tester) async {
@@ -268,7 +403,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Roll').last);
     await tester.pumpAndSettle();
-    expect(find.text('roll'), findsWidgets);
+    expect(find.text('ROLL'), findsWidgets);
   });
 
   testWidgets('disabled panel blocks mode selection and pad actions', (
@@ -318,7 +453,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
-    expect(find.text('roll'), findsWidgets);
+    expect(find.text('ROLL'), findsWidgets);
     expect(state.focusNode.hasFocus, isTrue);
   });
 }

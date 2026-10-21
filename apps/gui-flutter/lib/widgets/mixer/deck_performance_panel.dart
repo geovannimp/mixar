@@ -94,6 +94,8 @@ class DeckPerformancePanel extends StatelessWidget {
                             onSamplerRelease: (_) {},
                             onSelectBank: (_) {},
                             onSaveBank: (_, _, _) {},
+                            onCreateBank: (_, _) {},
+                            onSelectPage: (_) {},
                             onKeyShiftPress: (_) {},
                             onKeyboardPress: (_) {},
                             onKeyboardRelease: (_) {},

@@ -11,8 +11,9 @@ class HoldPadButton extends StatefulWidget {
     this.onPress,
     this.skipBeginWhenShift = false,
     this.disabled = false,
-    this.accentSlot,
+    this.chrome,
     this.tooltip,
+    this.fillChild = false,
     super.key,
   });
 
@@ -22,8 +23,9 @@ class HoldPadButton extends StatefulWidget {
   final VoidCallback? onPress;
   final bool skipBeginWhenShift;
   final bool disabled;
-  final int? accentSlot;
+  final PadChrome? chrome;
   final String? tooltip;
+  final bool fillChild;
 
   @override
   State<HoldPadButton> createState() => _HoldPadButtonState();
@@ -69,13 +71,14 @@ class _HoldPadButtonState extends State<HoldPadButton> {
   Widget build(BuildContext context) {
     return PadButton(
       disabled: widget.disabled,
-      accentSlot: widget.accentSlot,
+      chrome: widget.chrome,
       tooltip: widget.tooltip,
       onPress: widget.onPress,
       onPointerDown: _begin,
       onPointerUp: _end,
       onPointerCancel: _end,
       onPointerExit: _end,
+      fillChild: widget.fillChild,
       child: widget.child,
     );
   }

@@ -13,6 +13,7 @@ import 'package:gui_flutter/widgets/mixer/pads/hold_pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 
 import 'support/mixar_material_app.dart';
+import 'support/pad_finders.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,45 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('pressed state clears when the pad becomes disabled', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    var disabled = false;
+    late StateSetter setPad;
+    await pumpPad(
+      tester,
+      pad: StatefulBuilder(
+        builder: (context, setState) {
+          setPad = setState;
+          return PadButton(
+            disabled: disabled,
+            onPress: () {},
+            child: const SizedBox.shrink(),
+          );
+        },
+      ),
+    );
+
+    final pad = find.byType(PadButton);
+    final gesture = await tester.startGesture(tester.getCenter(pad));
+    await tester.pump();
+    expect(padDecorationOf(tester, pad).color, theme.colors.primary);
+
+    setPad(() => disabled = true);
+    await tester.pump();
+    expect(
+      padDecorationOf(tester, pad).color,
+      theme.colors.secondary.withValues(alpha: 0.35),
+    );
+
+    setPad(() => disabled = false);
+    await tester.pump();
+    expect(padDecorationOf(tester, pad).color, theme.colors.card);
+
+    await gesture.up();
+  });
 
   testWidgets('tooltip PadButton exposes tap action that fires onPress', (
     tester,
