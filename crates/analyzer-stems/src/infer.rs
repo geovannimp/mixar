@@ -198,7 +198,8 @@ pub(crate) fn fill_chunk_reflect(
 }
 
 /// Finalize one stride-sized window from the current chunk and the previous
-/// chunk's tail (shared by the offline and live paths so both are identical).
+/// chunk's tail. Mirrors the offline accumulation exactly; the live path uses
+/// this instead of buffering a whole track.
 ///
 /// `prev` contributes only the first [`OVERLAP`] frames; `cur` covers the whole
 /// window. Contributions are added in offline order (`prev` first, then `cur`)

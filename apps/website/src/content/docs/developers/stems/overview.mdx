@@ -32,8 +32,9 @@ When a track has no cache and the model is **already on disk**, deck load starts
 decoded PCM and publishes stride-sized windows into a 2^20-frame (≈23.8 s)
 `LiveStemRing` that the audio callback reads lock-free.
 
-- Same chunk / overlap-add math as the offline path (`finalize_window`), so live
-  stems are byte-identical to a cached separation of the same audio.
+- Mirrors the offline chunk / overlap-add math (`finalize_window`) and anchors
+  each epoch to the offline chunk grid, so live stems are byte-identical to a
+  cached separation of the same audio (verified after a seek too).
 - No `.stem.mp4` is written: live playback adds **no file duplication**.
 - The deck plays the main mix until the first window is published, then
   crossfades over 5 ms; pads become ready when coverage exists.
