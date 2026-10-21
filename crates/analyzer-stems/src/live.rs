@@ -1,7 +1,7 @@
 //! Live (on-the-fly) stem separation into a bounded ring.
 //!
-//! The producer uses the same chunk/window math as the offline path
-//! ([`infer::finalize_window`]), so a live track's stems are bit-identical to a
+//! The producer mirrors the offline chunk/window math (see
+//! [`infer::finalize_window`]), so a live track's stems are bit-identical to a
 //! cached separation of the same audio. It runs ahead of the deck's published
 //! playhead and never writes files.
 
