@@ -5,7 +5,7 @@ use std::path::Path;
 use anyhow::{anyhow, Result};
 use tracing::info;
 
-use crate::infer::{self, SAMPLE_RATE};
+use crate::infer::SAMPLE_RATE;
 use crate::manifest::{resolve_model, DEFAULT_MODEL};
 
 /// Canonical stem file order / names.
@@ -58,7 +58,8 @@ pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitRe
         "stem split: begin"
     );
 
-    let (stems, ep) = infer::separate_interleaved(
+    let (stems, ep) = crate::separate_with_model(
+        &mf.name,
         &handle.local_path,
         req.interleaved_stereo,
         req.sample_rate,

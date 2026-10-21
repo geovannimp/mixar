@@ -26,8 +26,13 @@ pub type Evt = omnibus::Event<Origin, Kind, Arc<[u8]>>;
 /// (Tauri `library://bus`) with a monotonic library-state counter.
 /// `analysis_duration` is the worker default for `AnalyzeTrack` when the cmd
 /// does not override duration (shared with engine/settings at session start).
-/// `stems_format` / `stems_root` / `models_root` configure the standalone
-/// `GenerateStems` action and the stem cache read on deck load.
+/// `stems_format` / `stems_model` / `stems_root` / `models_root` configure the
+/// standalone `GenerateStems` action and the stem cache read on deck load.
+/// Default offline separation model (HTDemucs ONNX).
+pub const DEFAULT_STEMS_MODEL: &str = "htdemucs_mixxx_v1";
+/// Optional SCNet int8 ONNX (spectrogram I/O, faster segments).
+pub const SCNET_STEMS_MODEL: &str = "scnet_int8_v1";
+
 #[derive(Clone)]
 pub struct LibraryBuses {
     cmd: LibraryBus,
@@ -35,6 +40,7 @@ pub struct LibraryBuses {
     revision: Arc<AtomicU64>,
     analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
     stems_format: Arc<Mutex<String>>,
+    stems_model: Arc<Mutex<String>>,
     stems_root: Arc<Mutex<std::path::PathBuf>>,
     models_root: Arc<Mutex<std::path::PathBuf>>,
     /// Serial stem-job queue. `GenerateStems` cmds enqueue a track id here and a
@@ -55,6 +61,7 @@ impl LibraryBuses {
             revision: Arc::new(AtomicU64::new(0)),
             analysis_duration: Arc::new(Mutex::new(AnalysisDurationMode::default())),
             stems_format: Arc::new(Mutex::new(String::from("opus"))),
+            stems_model: Arc::new(Mutex::new(DEFAULT_STEMS_MODEL.to_string())),
             stems_root: Arc::new(Mutex::new(std::path::PathBuf::from("stems"))),
             models_root: Arc::new(Mutex::new(std::path::PathBuf::from("models"))),
             stem_queue: Arc::new(Mutex::new(None)),
@@ -112,6 +119,16 @@ impl LibraryBuses {
         *self.stems_format.lock().unwrap_or_else(|e| e.into_inner()) = normalized;
     }
 
+    /// Separation model id (`htdemucs_mixxx_v1` | `scnet_int8_v1`).
+    pub fn set_stems_model(&self, model: impl Into<String>) {
+        let model = model.into();
+        let normalized = match model.as_str() {
+            SCNET_STEMS_MODEL => SCNET_STEMS_MODEL.to_string(),
+            _ => DEFAULT_STEMS_MODEL.to_string(),
+        };
+        *self.stems_model.lock().unwrap_or_else(|e| e.into_inner()) = normalized;
+    }
+
     /// Root directory for stem caches (`{root}/{fnv64(track_id)}/`).
     pub fn set_stems_root(&self, root: std::path::PathBuf) {
         *self.stems_root.lock().unwrap_or_else(|e| e.into_inner()) = root;
@@ -125,6 +142,14 @@ impl LibraryBuses {
     /// Current stem cache codec (`opus` | `flac`).
     pub fn stems_format(&self) -> String {
         self.stems_format
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    /// Current separation model id.
+    pub fn stems_model(&self) -> String {
+        self.stems_model
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone()
@@ -204,4 +229,19 @@ pub fn new_buses() -> (LibraryBus, LibraryBus) {
         LibraryBus::with_capacity(4096),
         LibraryBus::with_capacity(2048),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stems_model_defaults_and_normalizes() {
+        let buses = LibraryBuses::new();
+        assert_eq!(buses.stems_model(), DEFAULT_STEMS_MODEL);
+        buses.set_stems_model(SCNET_STEMS_MODEL);
+        assert_eq!(buses.stems_model(), SCNET_STEMS_MODEL);
+        buses.set_stems_model("unknown");
+        assert_eq!(buses.stems_model(), DEFAULT_STEMS_MODEL);
+    }
 }

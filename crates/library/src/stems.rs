@@ -138,13 +138,14 @@ pub(crate) fn cache_matches_source_file(info: &TrackStemsInfo, source: &Path) ->
         .starts_with(&format!("v1:{}:{}:{}:", source.display(), mtime, size))
 }
 
-fn expected_backend() -> &'static str {
+fn expected_backend(model_name: &str) -> &str {
     #[cfg(feature = "analysis")]
     {
-        analyzer_stems::DEFAULT_MODEL
+        model_name
     }
     #[cfg(not(feature = "analysis"))]
     {
+        let _ = model_name;
         ""
     }
 }
@@ -222,6 +223,7 @@ pub(crate) fn upsert_track_stems(db: &Db, track_id: &TrackId, info: &TrackStemsI
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn generate_stem_files(
     id: &TrackId,
     stems_root: &Path,
@@ -229,6 +231,7 @@ fn generate_stem_files(
     audio: &LoadedAudio,
     fingerprint: &str,
     format: &str,
+    model_name: &str,
     progress: Option<StemProgressFn>,
 ) -> Result<TrackStemsInfo> {
     let report = |phase: &str, fraction: Option<f32>| {
@@ -251,16 +254,17 @@ fn generate_stem_files(
             codec::StemMuxFormat::Flac => stem_rate,
         };
 
-        let handle =
-            analyzer_stems::resolve_model(models_root, analyzer_stems::DEFAULT_MODEL, None)
-                .map_err(|e| LibraryError::Backend {
-                    backend: "stems",
-                    message: e.to_string(),
-                })?;
+        let handle = analyzer_stems::resolve_model(models_root, model_name, None).map_err(|e| {
+            LibraryError::Backend {
+                backend: "stems",
+                message: e.to_string(),
+            }
+        })?;
 
         report("stems_separate", None);
         let progress_for_split = progress.clone();
-        let (stems, ep) = analyzer_stems::separate_interleaved(
+        let (stems, ep) = analyzer_stems::separate_with_model(
+            model_name,
             &handle.local_path,
             &audio.samples,
             audio.sample_rate,
@@ -346,7 +350,7 @@ fn generate_stem_files(
         report("stems_encode", Some(1.0));
 
         Ok(TrackStemsInfo {
-            backend: format!("{}/{ep}", analyzer_stems::DEFAULT_MODEL),
+            backend: format!("{model_name}/{ep}"),
             source_fingerprint: fingerprint.to_string(),
             format: format.to_string(),
             sample_rate: mux_rate as i32,
@@ -383,8 +387,17 @@ pub fn ensure_track_stems(
     stems_root: &Path,
     models_root: &Path,
     format: &str,
+    model_name: &str,
 ) -> Result<()> {
-    ensure_track_stems_with_progress(library, id, stems_root, models_root, format, None)
+    ensure_track_stems_with_progress(
+        library,
+        id,
+        stems_root,
+        models_root,
+        format,
+        model_name,
+        None,
+    )
 }
 
 /// Like [`ensure_track_stems`] with optional phase progress callbacks.
@@ -394,6 +407,7 @@ pub fn ensure_track_stems_with_progress(
     stems_root: &Path,
     models_root: &Path,
     format: &str,
+    model_name: &str,
     progress: Option<StemProgressFn>,
 ) -> Result<()> {
     let report = |phase: &str, fraction: Option<f32>| {
@@ -402,7 +416,7 @@ pub fn ensure_track_stems_with_progress(
         }
     };
 
-    let backend = expected_backend();
+    let backend = expected_backend(model_name);
     let format = normalize_stems_format(format);
     let path = {
         let lib = LibraryManager::lock_library(library)?;
@@ -489,6 +503,7 @@ pub fn ensure_track_stems_with_progress(
         &audio,
         &fingerprint,
         format,
+        model_name,
         progress.clone(),
     )?;
     let lib = LibraryManager::lock_library(library)?;
@@ -659,8 +674,9 @@ impl LibraryManager {
         stems_root: &Path,
         models_root: &Path,
         format: &str,
+        model_name: &str,
     ) -> Result<()> {
-        ensure_track_stems(library, id, stems_root, models_root, format)
+        ensure_track_stems(library, id, stems_root, models_root, format, model_name)
     }
 
     /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
@@ -829,7 +845,15 @@ mod tests {
         let id = TrackId::new("/missing/track.wav");
         // Stems are opt-in per track now, so an unknown id is a hard error
         // rather than a silent no-op.
-        assert!(ensure_track_stems(&library, &id, dir.path(), dir.path(), "opus").is_err());
+        assert!(ensure_track_stems(
+            &library,
+            &id,
+            dir.path(),
+            dir.path(),
+            "opus",
+            "htdemucs_mixxx_v1"
+        )
+        .is_err());
         let lib = library.lock().unwrap();
         assert!(!has_track_stems(&lib.db, &id).unwrap());
     }
@@ -918,6 +942,7 @@ mod tests {
         };
         assert!(info.matches("fp", "htdemucs_mixxx_v1", "opus"));
         assert!(!info.matches("fp", "htdemucs_mixxx_v1", "flac"));
+        assert!(!info.matches("fp", "scnet_int8_v1", "opus"));
     }
 
     #[test]

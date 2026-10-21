@@ -1,5 +1,6 @@
 //! Process-global ort Session for Mixxx HTDemucs ONNX.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
@@ -15,17 +16,21 @@ use crate::ep::preferred_ep_cascade;
 pub const SEGMENT_SAMPLES: usize = 343_980;
 
 struct LoadedSession {
-    path: PathBuf,
     session: Session,
     ep_label: &'static str,
     input_name: String,
     output_name: String,
 }
 
-static SESSION: OnceLock<Mutex<Option<LoadedSession>>> = OnceLock::new();
+/// Keep one session per model path. Switching models (HTDemucs ↔ SCNet) must
+/// not reload a several-hundred-MB graph on every chunk, and a live HTDemucs
+/// producer may overlap an SCNet generation.
+const MAX_CACHED_SESSIONS: usize = 2;
 
-fn slot() -> &'static Mutex<Option<LoadedSession>> {
-    SESSION.get_or_init(|| Mutex::new(None))
+static SESSIONS: OnceLock<Mutex<HashMap<PathBuf, LoadedSession>>> = OnceLock::new();
+
+fn slot() -> &'static Mutex<HashMap<PathBuf, LoadedSession>> {
+    SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 /// Ensure a process-global Session for `onnx_path`.
@@ -36,10 +41,16 @@ pub fn with_session<R>(
     f: impl FnOnce(&mut Session, &'static str, &str, &str) -> Result<R>,
 ) -> Result<R> {
     let mut guard = slot().lock().unwrap_or_else(|e| e.into_inner());
-    if guard.as_ref().is_none_or(|s| s.path != onnx_path) {
-        *guard = Some(load_session(onnx_path)?);
+    if !guard.contains_key(onnx_path) {
+        // Bounded: two built-in models fit; a future third evicts the cache
+        // rather than growing without limit.
+        if guard.len() >= MAX_CACHED_SESSIONS {
+            guard.clear();
+        }
+        let loaded = load_session(onnx_path)?;
+        guard.insert(onnx_path.to_path_buf(), loaded);
     }
-    let loaded = guard.as_mut().expect("session just loaded");
+    let loaded = guard.get_mut(onnx_path).expect("session just loaded");
     f(
         &mut loaded.session,
         loaded.ep_label,
@@ -86,7 +97,6 @@ fn load_session(path: &Path) -> Result<LoadedSession> {
                     "stem ort: session ready"
                 );
                 return Ok(LoadedSession {
-                    path: path.to_path_buf(),
                     session,
                     ep_label: label,
                     input_name,
@@ -140,14 +150,29 @@ pub(crate) fn resolve_io_names(session: &Session) -> Result<(String, String)> {
 }
 
 /// One zero-input forward so unsupported ops fail before real audio.
+///
+/// Uses the graph's declared input shape; HTDemucs is `[1,2,343980]` and
+/// SCNet is `[1,4,2049,476]`.
 fn probe_session(session: &mut Session, input_name: &str) -> Result<()> {
     use ort::value::Tensor;
+    use ort::value::ValueType;
 
-    let zeros = vec![0.0f32; 2 * SEGMENT_SAMPLES];
-    let input =
-        Tensor::from_array(([1usize, 2, SEGMENT_SAMPLES], zeros)).context("ort probe tensor")?;
+    let input = session
+        .inputs()
+        .first()
+        .ok_or_else(|| anyhow!("ONNX graph has no inputs"))?;
+    let ValueType::Tensor { shape, .. } = input.dtype() else {
+        bail!("unsupported ONNX input type {:?}", input.dtype());
+    };
+    let dims: Vec<usize> = shape
+        .iter()
+        .map(|d| if *d > 0 { *d as usize } else { 1 })
+        .collect();
+    let len = dims.iter().product::<usize>();
+    let zeros = vec![0.0f32; len];
+    let tensor = Tensor::from_array((dims, zeros)).context("ort probe tensor")?;
     let _outputs = session
-        .run(ort::inputs![input_name => input])
+        .run(ort::inputs![input_name => tensor])
         .context("ort probe run")?;
     Ok(())
 }

@@ -66,10 +66,11 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required double minDeckVolume,
   });
 
-  /// Apply library analysis duration, stem format, and tag write-back from app settings.
+  /// Apply library analysis duration, stem format/model, and tag write-back.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
     required String stemsFormat,
+    required String stemsModel,
     required bool tagWriteBack,
   });
 

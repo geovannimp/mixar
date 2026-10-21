@@ -132,6 +132,7 @@ final librarySettingsBootstrapProvider = Provider<void>((ref) {
           settings.value.analysisDuration,
         ),
         stemsFormat: settings.value.stemsFormat,
+        stemsModel: settings.value.stemsModel,
         tagWriteBack: settings.value.tagWriteBack,
       ),
     );
@@ -198,6 +199,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
     await library.applyLibrarySettings(
       analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
       stemsFormat: normalized.stemsFormat,
+      stemsModel: normalized.stemsModel,
       tagWriteBack: normalized.tagWriteBack,
     );
     await library.applyHistorySettings(

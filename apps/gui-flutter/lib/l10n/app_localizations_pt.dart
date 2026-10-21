@@ -536,10 +536,13 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsLibraryStemsDescription =>
-      'Codec usado ao gravar caches de stems separados.';
+      'Modelo e codec usados ao gravar caches de stems separados.';
 
   @override
   String get settingsLibraryStemFormat => 'Formato de stems';
+
+  @override
+  String get settingsLibraryStemModel => 'Modelo de stems';
 
   @override
   String get settingsLibraryStemOpus => 'Opus (160 kbps)';
@@ -1017,4 +1020,11 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String settingsStepperIncrease(String field) {
     return 'Aumentar $field';
   }
+
+  @override
+  String get settingsLibraryStemsDescription =>
+      'Modelo e codec usados ao gravar caches de stems separados.';
+
+  @override
+  String get settingsLibraryStemModel => 'Modelo de stems';
 }

@@ -5,26 +5,27 @@ section: "Stems"
 order: 2
 ---
 
-Mixar owns HTDemucs ONNX weights under app support (not third-party ProjectDirs caches). Settings exposes a minimal Storage panel: stem-cache size, model size, and clear-all for each.
+Mixar owns the separation ONNX weights under app support (not third-party ProjectDirs caches): HTDemucs by default and optionally SCNet int8. Settings exposes a minimal Storage panel: stem-cache size, model size, and clear-all for each.
 
 ## Decisions
 
 | Topic | Choice |
 |-------|--------|
 | Storage UI depth | Minimal: sizes + Clear all stems / Clear model |
-| Model location | `{app_support}/models/` — Mixar download + verify + ONNX path for ort Session |
+| Model location | `{app_support}/models/{model}-{sha8}.onnx` — Mixar download + verify + ONNX path for ort Session |
 | Clear stems | Delete `{stems_root}/**` and all `track_stem` rows; never touch original audio |
 | Sync stems | Remove orphan files under `{stems_root}` not referenced by `track_stem`, and drop rows whose files are missing |
 | Clear model | Delete `{models_root}/**` |
 | Eviction | Manual only |
-| Cache backend id | `{model}/{ep}`, default `htdemucs_mixxx_v1/<ep>` (older SSC / Burn ids miss and regenerate) |
+| Cache backend id | `{model}/{ep}` (`htdemucs_mixxx_v1/<ep>` or `scnet_int8_v1/<ep>`); model id changes invalidate the cache |
 
 ## Flow
 
 ```text
-analyzer-stems::ensure_model(models_root, name)
+analyzer-stems::resolve_model(models_root, name)
   → registry manifest + download/verify into models_root
-  → local ONNX path → ort Session (EP cascade) → mux `.stem.mp4`
+  → local ONNX path → model-specific split (HTDemucs or SCNet)
+  → mux `.stem.mp4`
 
 LibraryBuses: stems_root + models_root
 LibraryTransport: storageUsage / clearStemCache / clearModelCache

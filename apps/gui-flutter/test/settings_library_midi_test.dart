@@ -36,6 +36,34 @@ void main() {
     expect(find.text('KEY COLOR MODE'), findsOneWidget);
   }, semanticsEnabled: false);
 
+  testWidgets('library settings swaps the stem model', (tester) async {
+    final theme = MixarThemeData.dark();
+    AppSettings? changed;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: mixarTestMaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SettingsLibraryPanel(
+                draft: defaultAppSettings(),
+                onChanged: (value) => changed = value,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('STEM MODEL'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('HTDemucs'), 300);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('HTDemucs'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('SCNet (int8)').last);
+    await tester.pumpAndSettle();
+    expect(changed?.stemsModel, 'scnet_int8_v1');
+  }, semanticsEnabled: false);
+
   testWidgets('controllers settings lists MIDI ports', (tester) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
