@@ -1,8 +1,11 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
+import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 
 Future<LibraryCollectionSummary?> createCollection(
   WidgetRef ref,
@@ -90,5 +93,64 @@ Future<void> analyzeCollectionAction(
         );
   } catch (e) {
     ref.read(appNoticeProvider.notifier).setError('$e');
+  }
+}
+
+/// Confirm then delete a collection. Tracks only referenced by it go too.
+Future<void> deleteCollectionAction(
+  BuildContext context,
+  WidgetRef ref,
+  LibraryCollectionSummary collection,
+) async {
+  final confirmed = await showMixarConfirm<bool>(
+    context: context,
+    title: 'Delete this collection?',
+    body:
+        'Removes “${collection.name}” from your library. \n'
+        '\n'
+        '• Tracks only used by this collection are removed too.\n'
+        '• Original audio files on disk are preserved.\n',
+    actions: const [
+      MixarDialogAction(
+        label: 'Cancel',
+        value: false,
+        variant: MixarButtonVariant.outline,
+      ),
+      MixarDialogAction(
+        label: 'Delete',
+        value: true,
+        variant: MixarButtonVariant.destructive,
+      ),
+    ],
+  );
+  if (confirmed != true || !context.mounted) {
+    return;
+  }
+  ref.read(appNoticeProvider.notifier).clear();
+  var deleted = false;
+  try {
+    final transport = await ref.read(libraryTransportProvider.future);
+    await transport.deleteCollection(collectionId: collection.id);
+    deleted = true;
+  } catch (e) {
+    // The collection row may already be gone when track cleanup fails, so the
+    // list must refresh either way or the UI keeps offering a stale row.
+    if (context.mounted) {
+      ref.read(appNoticeProvider.notifier).setError('$e');
+    }
+  }
+  // `ref` dies with the widget; the awaited call can outlive the topbar.
+  if (!context.mounted) {
+    return;
+  }
+  if (ref.read(selectedCollectionIdProvider) == collection.id) {
+    ref.read(selectedCollectionIdProvider.notifier).set(null);
+  }
+  ref.invalidate(collectionsProvider);
+  ref.invalidate(collectionTracksProvider);
+  if (deleted) {
+    ref
+        .read(appNoticeProvider.notifier)
+        .setNotice('Deleted “${collection.name}”.');
   }
 }

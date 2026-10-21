@@ -16,7 +16,7 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Three-dot menu for a collection (browse in Drive for folders, queue
-/// collection-wide analysis, export to a CDJ USB drive). Lives in the
+/// collection-wide analysis, export to a CDJ USB drive, delete). Lives in the
 /// track-list topbar — mirroring the history session actions menu — acting on
 /// the active collection.
 class CollectionActionsMenu extends ConsumerWidget {
@@ -65,12 +65,24 @@ class CollectionActionsMenu extends ConsumerWidget {
     await showExportCdjUsbDialog(context, collection: collection);
   }
 
+  Future<void> _delete(
+    BuildContext context,
+    WidgetRef ref,
+    MixarOverlayController controller,
+  ) async {
+    controller.hide();
+    if (!context.mounted) {
+      return;
+    }
+    await deleteCollectionAction(context, ref, collection);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final browsePath = collection.kind == 'folder' ? collection.path : null;
     return MixarMenuAnchor(
       dialogTitle: 'Collection actions',
-      menuBuilder: (context, controller) => MixarMenuBody(
+      menuBuilder: (menuContext, controller) => MixarMenuBody(
         groups: [
           MixarMenuGroup(
             children: [
@@ -95,6 +107,17 @@ class CollectionActionsMenu extends ConsumerWidget {
                 title: const Text('Export to CDJ USB…'),
                 onPress: () {
                   unawaited(_exportCdjUsb(context, controller));
+                },
+              ),
+            ],
+          ),
+          MixarMenuGroup(
+            children: [
+              MixarMenuItem(
+                title: const Text('Delete'),
+                destructive: true,
+                onPress: () {
+                  unawaited(_delete(context, ref, controller));
                 },
               ),
             ],

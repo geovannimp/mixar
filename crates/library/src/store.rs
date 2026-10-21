@@ -1,6 +1,6 @@
 //! SeaORM persistence for the library manager.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use library_core::{
@@ -21,6 +21,13 @@ use crate::entity::{
 };
 use crate::model;
 use uuid::Uuid;
+
+/// SQLite caps host parameters per statement; bind large id sets in chunks.
+const TRACK_ID_CHUNK: usize = 500;
+
+fn track_id_strings(ids: &[TrackId]) -> Vec<String> {
+    ids.iter().map(|id| id.as_str().to_string()).collect()
+}
 
 /// Assign the user-editable metadata columns on an insert/upsert model.
 fn apply_metadata_columns(active: &mut tracks::ActiveModel, metadata: &TrackMetadata) {
@@ -180,22 +187,23 @@ impl<'a> Store<'a> {
         &self,
         ids: &[TrackId],
     ) -> Result<HashMap<String, library_core::AudioSource>> {
+        let mut by_id = HashMap::new();
         if ids.is_empty() {
-            return Ok(HashMap::new());
+            return Ok(by_id);
         }
-        let id_strings: Vec<String> = ids.iter().map(|id| id.as_str().to_string()).collect();
-        let rows = TrackEntity::find()
-            .filter(tracks::Column::Id.is_in(id_strings))
-            .all(self.db.conn()?.as_connection())
-            .map_err(db::db_err)?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|row| {
+        let conn = self.db.conn()?;
+        for chunk in ids.chunks(TRACK_ID_CHUNK) {
+            let rows = TrackEntity::find()
+                .filter(tracks::Column::Id.is_in(track_id_strings(chunk)))
+                .all(conn.as_connection())
+                .map_err(db::db_err)?;
+            by_id.extend(rows.into_iter().filter_map(|row| {
                 model::track_source(row)
                     .ok()
                     .map(|source| (source.id().as_str().to_string(), source))
-            })
-            .collect())
+            }));
+        }
+        Ok(by_id)
     }
 
     pub fn get_track(&self, id: &TrackId) -> Result<Option<library_core::AudioSource>> {
@@ -323,6 +331,57 @@ impl<'a> Store<'a> {
             .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
+    }
+
+    /// Distinct track ids among `ids` that still have a playlist entry.
+    pub fn playlist_linked_track_ids(&self, ids: &[TrackId]) -> Result<HashSet<String>> {
+        let mut linked = HashSet::new();
+        if ids.is_empty() {
+            return Ok(linked);
+        }
+        let conn = self.db.conn()?;
+        for chunk in ids.chunks(TRACK_ID_CHUNK) {
+            let rows = CollectionEntryEntity::find()
+                .filter(collection_entries::Column::TrackId.is_in(track_id_strings(chunk)))
+                .all(conn.as_connection())
+                .map_err(db::db_err)?;
+            linked.extend(rows.into_iter().map(|row| row.track_id));
+        }
+        Ok(linked)
+    }
+
+    /// Delete the given track rows in one transaction (related rows cascade).
+    pub fn delete_tracks(&self, ids: &[TrackId]) -> Result<()> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let conn = self.db.conn()?;
+        let txn = conn
+            .as_connection()
+            .begin_with_options(TransactionOptions {
+                sqlite_transaction_mode: Some(SqliteTransactionMode::Immediate),
+                ..Default::default()
+            })
+            .map_err(db::db_err)?;
+        let result = (|| -> Result<()> {
+            for chunk in ids.chunks(TRACK_ID_CHUNK) {
+                TrackEntity::delete_many()
+                    .filter(tracks::Column::Id.is_in(track_id_strings(chunk)))
+                    .exec(&txn)
+                    .map_err(db::db_err)?;
+            }
+            Ok(())
+        })();
+        match result {
+            Ok(()) => {
+                txn.commit().map_err(db::db_err)?;
+                Ok(())
+            }
+            Err(error) => {
+                let _ = txn.rollback();
+                Err(error)
+            }
+        }
     }
 
     /// Test helper: remove a track row but leave playlist entries pointing at it.

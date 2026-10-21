@@ -91,6 +91,10 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     SamplerPlayMode? playMode,
   });
 
+  /// Delete a collection (folder or playlist). Member tracks that no other
+  /// collection references are removed from the pool.
+  Future<void> deleteCollection({required String collectionId});
+
   Future<void> deleteHistorySession({required String sessionId});
 
   /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
@@ -720,6 +724,9 @@ class LibraryTrackSummary {
     this.colorLabel,
     this.artwork,
   });
+
+  static Future<LibraryTrackSummary> default_() =>
+      RustLib.instance.api.crateApiLibraryLibraryTrackSummaryDefault();
 
   @override
   int get hashCode =>

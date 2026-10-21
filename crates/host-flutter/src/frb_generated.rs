@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 331924456;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1100773749;
 
 // Section: executor
 
@@ -5038,6 +5038,59 @@ fn wire__crate__api__library__LibraryTransport_create_sampler_bank_impl(
         },
     )
 }
+fn wire__crate__api__library__LibraryTransport_delete_collection_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "LibraryTransport_delete_collection",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
+            >>::sse_decode(&mut deserializer);
+            let api_collection_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::library::LibraryTransport::delete_collection(
+                        &*api_that_guard,
+                        api_collection_id,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__library__LibraryTransport_delete_history_session_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -7282,6 +7335,39 @@ fn wire__crate__api__settings__library_row_density_setting_default_impl(
                 transform_result_sse::<_, ()>((move || {
                     let output_ok =
                         Ok::<_, ()>(crate::api::settings::LibraryRowDensitySetting::default())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__library__library_track_summary_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "library_track_summary_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Ok::<_, ()>(crate::api::library::LibraryTrackSummary::default())?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -10004,293 +10090,305 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        93 => wire__crate__api__library__LibraryTransport_delete_history_session_impl(
+        93 => wire__crate__api__library__LibraryTransport_delete_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__library__LibraryTransport_delete_loop_impl(
+        94 => wire__crate__api__library__LibraryTransport_delete_history_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__library__LibraryTransport_export_cdj_usb_impl(
+        95 => wire__crate__api__library__LibraryTransport_delete_loop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__library__LibraryTransport_export_history_session_impl(
+        96 => wire__crate__api__library__LibraryTransport_export_cdj_usb_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__library__LibraryTransport_generate_stems_impl(
+        97 => wire__crate__api__library__LibraryTransport_export_history_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__library__LibraryTransport_get_beat_grid_impl(
+        98 => wire__crate__api__library__LibraryTransport_generate_stems_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__library__LibraryTransport_get_track_impl(
+        99 => wire__crate__api__library__LibraryTransport_get_beat_grid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => wire__crate__api__library__LibraryTransport_get_waveform_overview_impl(
+        100 => wire__crate__api__library__LibraryTransport_get_track_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__library__LibraryTransport_get_waveform_window_impl(
+        101 => wire__crate__api__library__LibraryTransport_get_waveform_overview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__library__LibraryTransport_history_can_resume_impl(
+        102 => wire__crate__api__library__LibraryTransport_get_waveform_window_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__library__LibraryTransport_history_decline_restore_impl(
+        103 => wire__crate__api__library__LibraryTransport_history_can_resume_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__library__LibraryTransport_history_dir_impl(
+        104 => wire__crate__api__library__LibraryTransport_history_decline_restore_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        105 => wire__crate__api__library__LibraryTransport_history_new_session_impl(
+        105 => wire__crate__api__library__LibraryTransport_history_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__library__LibraryTransport_history_restore_prompt_impl(
+        106 => wire__crate__api__library__LibraryTransport_history_new_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__library__LibraryTransport_history_restore_session_impl(
+        107 => wire__crate__api__library__LibraryTransport_history_restore_prompt_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => wire__crate__api__library__LibraryTransport_history_resume_session_impl(
+        108 => wire__crate__api__library__LibraryTransport_history_restore_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        109 => wire__crate__api__library__LibraryTransport_history_session_entries_impl(
+        109 => wire__crate__api__library__LibraryTransport_history_resume_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        110 => wire__crate__api__library__LibraryTransport_import_mixxx_library_impl(
+        110 => wire__crate__api__library__LibraryTransport_history_session_entries_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        111 => wire__crate__api__library__LibraryTransport_list_collection_entries_impl(
+        111 => wire__crate__api__library__LibraryTransport_import_mixxx_library_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        112 => wire__crate__api__library__LibraryTransport_list_collections_impl(
+        112 => wire__crate__api__library__LibraryTransport_list_collection_entries_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        113 => wire__crate__api__library__LibraryTransport_list_history_sessions_impl(
+        113 => wire__crate__api__library__LibraryTransport_list_collections_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        114 => wire__crate__api__library__LibraryTransport_list_sampler_banks_impl(
+        114 => wire__crate__api__library__LibraryTransport_list_history_sessions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        115 => {
+        115 => wire__crate__api__library__LibraryTransport_list_sampler_banks_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        116 => {
             wire__crate__api__library__LibraryTransport_open_impl(port, ptr, rust_vec_len, data_len)
         }
-        116 => wire__crate__api__library__LibraryTransport_open_in_memory_impl(
+        117 => wire__crate__api__library__LibraryTransport_open_in_memory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__library__LibraryTransport_refresh_track_impl(
+        118 => wire__crate__api__library__LibraryTransport_refresh_track_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        118 => wire__crate__api__library__LibraryTransport_rename_history_session_impl(
+        119 => wire__crate__api__library__LibraryTransport_rename_history_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        119 => wire__crate__api__library__LibraryTransport_resolve_tracks_for_paths_impl(
+        120 => wire__crate__api__library__LibraryTransport_resolve_tracks_for_paths_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        120 => wire__crate__api__library__LibraryTransport_reveal_history_folder_impl(
+        121 => wire__crate__api__library__LibraryTransport_reveal_history_folder_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        121 => wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
+        122 => wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        122 => wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
+        123 => wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        123 => wire__crate__api__library__LibraryTransport_save_loop_impl(
+        124 => wire__crate__api__library__LibraryTransport_save_loop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        124 => wire__crate__api__library__LibraryTransport_storage_usage_impl(
+        125 => wire__crate__api__library__LibraryTransport_storage_usage_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        125 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
+        126 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        126 => wire__crate__api__library__LibraryTransport_sync_stem_cache_impl(
+        127 => wire__crate__api__library__LibraryTransport_sync_stem_cache_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        127 => wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
+        128 => wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        128 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
+        129 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        129 => wire__crate__api__settings__SettingsTransport_open_impl(
+        130 => wire__crate__api__settings__SettingsTransport_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        130 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
+        131 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        132 => wire__crate__api__fs_browser__browse_fs_directory_impl(
+        133 => wire__crate__api__fs_browser__browse_fs_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        133 => wire__crate__api__settings__bus_channel_mode_default_impl(
+        134 => wire__crate__api__settings__bus_channel_mode_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        134 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        135 => wire__crate__api__settings__key_color_mode_setting_default_impl(
+        135 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
+        136 => wire__crate__api__settings__key_color_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        136 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+        137 => wire__crate__api__settings__key_display_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        137 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
+        138 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        138 => wire__crate__api__settings__library_row_density_setting_default_impl(
+        139 => wire__crate__api__settings__library_row_density_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        139 => {
-            wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
-        }
-        140 => wire__crate__api__library__mixxx_default_database_path_impl(
+        140 => wire__crate__api__library__library_track_summary_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
         141 => {
+            wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
+        }
+        142 => wire__crate__api__library__mixxx_default_database_path_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        143 => {
             wire__crate__api__library__mixxx_import_preview_impl(port, ptr, rust_vec_len, data_len)
         }
-        142 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
+        144 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        143 => wire__crate__api__settings__select_style_setting_default_impl(
+        145 => wire__crate__api__settings__select_style_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        144 => wire__crate__api__settings__ui_language_setting_default_impl(
+        146 => wire__crate__api__settings__ui_language_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -10313,7 +10411,7 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        131 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
+        132 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

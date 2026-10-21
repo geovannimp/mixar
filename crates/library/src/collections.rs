@@ -526,7 +526,32 @@ impl LibraryManager {
         self.upsert_stream_source(uri, metadata, provider)
     }
 
-    pub(crate) fn track_linked_to_collections(&self, track_id: &TrackId) -> Result<bool> {
+    /// Whether `path` sits under any of the given folder roots.
+    fn is_under_any_folder(path: &Path, folder_roots: &[PathBuf]) -> bool {
+        folder_roots
+            .iter()
+            .any(|root| path_under_folder(path, root))
+    }
+
+    /// Folder roots of every remaining folder collection.
+    fn folder_roots(&self) -> Result<Vec<PathBuf>> {
+        let mut roots = Vec::new();
+        for collection in self.list_collections()? {
+            if collection.collection_type() != CollectionType::Folder {
+                continue;
+            }
+            if let Some(fs_path) = collection.fs_path() {
+                roots.push(fs_path.to_path_buf());
+            }
+        }
+        Ok(roots)
+    }
+
+    fn track_linked_to_collections_with(
+        &self,
+        track_id: &TrackId,
+        folder_roots: &[PathBuf],
+    ) -> Result<bool> {
         if self.store().count_playlist_links(track_id)? > 0 {
             return Ok(true);
         }
@@ -538,22 +563,20 @@ impl LibraryManager {
             return Ok(false);
         };
 
-        for collection in self.list_collections()? {
-            if collection.collection_type() != CollectionType::Folder {
-                continue;
-            }
-            let Some(fs_path) = collection.fs_path() else {
-                continue;
-            };
-            if path_under_folder(file.path(), fs_path) {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+        Ok(Self::is_under_any_folder(file.path(), folder_roots))
     }
 
     pub(crate) fn remove_track_if_orphaned(&self, track_id: &TrackId) -> Result<()> {
-        if self.track_linked_to_collections(track_id)? {
+        let folder_roots = self.folder_roots()?;
+        self.remove_track_if_orphaned_with(track_id, &folder_roots)
+    }
+
+    fn remove_track_if_orphaned_with(
+        &self,
+        track_id: &TrackId,
+        folder_roots: &[PathBuf],
+    ) -> Result<()> {
+        if self.track_linked_to_collections_with(track_id, folder_roots)? {
             return Ok(());
         }
         self.store().delete_track(track_id)?;
@@ -707,9 +730,65 @@ impl WritableLibrary for LibraryManager {
     }
 
     fn delete_collection(&mut self, id: &CollectionId) -> Result<()> {
+        // Capture membership before the delete cascades collection entries.
+        // Folder membership is path-derived, so read the pool under its root.
+        let (track_ids, sources): (Vec<TrackId>, std::collections::HashMap<String, AudioSource>) =
+            match self.get_collection(id)? {
+                Some(collection) if collection.collection_type() == CollectionType::Playlist => {
+                    let track_ids: Vec<TrackId> = self
+                        .list_collection_entries(id)?
+                        .into_iter()
+                        .map(|entry| entry.track_id)
+                        .collect();
+                    let sources = self.store().get_tracks_by_ids(&track_ids)?;
+                    (track_ids, sources)
+                }
+                Some(_) => {
+                    let members = self.list_collection_tracks(id)?;
+                    let track_ids: Vec<TrackId> =
+                        members.iter().map(|source| source.id().clone()).collect();
+                    let sources = members
+                        .into_iter()
+                        .map(|source| (source.id().as_str().to_string(), source))
+                        .collect();
+                    (track_ids, sources)
+                }
+                None => (Vec::new(), std::collections::HashMap::new()),
+            };
+
         if !self.store().delete_collection(id)? {
             return Err(LibraryError::NotFound(id.to_string()));
         }
+
+        // Drop member tracks that no other collection (playlist entry or
+        // folder path) still references; shared tracks stay in the pool.
+        // Set-based on purpose: deleting a large folder must not issue one
+        // query per track while the library lock is held. Sortable playlists
+        // may repeat a track, so dedupe the captured ids first.
+        let mut seen = std::collections::HashSet::new();
+        let track_ids: Vec<TrackId> = track_ids
+            .into_iter()
+            .filter(|track_id| seen.insert(track_id.clone()))
+            .collect();
+
+        let folder_roots = self.folder_roots()?;
+        let playlist_linked = self.store().playlist_linked_track_ids(&track_ids)?;
+        let orphan_ids: Vec<TrackId> = track_ids
+            .into_iter()
+            .filter(|track_id| {
+                if playlist_linked.contains(track_id.as_str()) {
+                    return false;
+                }
+                let Some(file) = sources
+                    .get(track_id.as_str())
+                    .and_then(|source| source.file())
+                else {
+                    return false;
+                };
+                !Self::is_under_any_folder(file.path(), &folder_roots)
+            })
+            .collect();
+        self.store().delete_tracks(&orphan_ids)?;
         Ok(())
     }
 
