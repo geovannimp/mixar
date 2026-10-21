@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Offline stem separation for Mixar (HTDemucs via ort + Mixxx ONNX)"
+description = "Offline and live stem separation for Mixar (HTDemucs via ort + Mixxx ONNX)"
 
 [features]
 # Desktop default: WebGPU (Vulkan/DX12/Metal) so GPUs work without a CUDA toolkit.
@@ -16,6 +16,7 @@ webgpu = ["ort/webgpu"]
 
 [dependencies]
 anyhow.workspace = true
+audio-core = { path = "../audio-core" }
 flacenc = "0.5"
 hex = "0.4"
 libc = "0.2"

@@ -46,6 +46,14 @@ impl Engine {
         Some(matches!(deck.state(), engine_dsp::DeckState::Playing))
     }
 
+    /// Whether stem audio is attached and usable (live: first window published).
+    pub fn deck_stems_ready(&self, deck_id: usize) -> Option<bool> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        Some(deck.stems_ready())
+    }
+
     /// Whether jog may be moving the playhead (scratch / bend / release).
     pub fn deck_jog_driving_audio(&self, deck_id: usize) -> Option<bool> {
         let dsp_engine = self.dsp_engine.as_ref()?;

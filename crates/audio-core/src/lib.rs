@@ -8,6 +8,7 @@
 //! re-export dasp's `Frame` trait and `slice` module for frame/sample conversions.
 
 mod audio_source;
+mod live_stems;
 pub mod time;
 mod waveform;
 
@@ -16,6 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub use audio_source::{LoadableAudio, LoadedAudio};
+pub use live_stems::{LiveStemRing, DEFAULT_LIVE_STEM_CAPACITY, LIVE_STEM_COUNT};
 pub use time::{ms_to_secs, secs_to_ms};
 pub use waveform::{
     compute_full_track_envelope, compute_overview_envelope, compute_peak_envelope,

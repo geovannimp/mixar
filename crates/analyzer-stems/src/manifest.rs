@@ -68,6 +68,20 @@ pub fn builtin_manifest(model_name: &str) -> Result<ModelManifest> {
     }
 }
 
+/// Resolve a built-in model **only if its artifact is already on disk**.
+///
+/// Never downloads: the live path uses this to stay silent on machines that
+/// have not opted into stems by generating a cache first.
+pub fn cached_model(models_root: &Path, model_name: &str) -> Result<Option<ModelHandle>> {
+    let manifest = builtin_manifest(model_name)?;
+    let artifact = manifest.resolve_primary_artifact()?;
+    let local_path = artifact_path(models_root, &manifest, &artifact.file, &artifact.sha256)?;
+    Ok(local_path.is_file().then_some(ModelHandle {
+        manifest,
+        local_path,
+    }))
+}
+
 /// Download / verify model weights into `models_root`.
 pub fn ensure_model(models_root: &Path, model_name: &str) -> Result<()> {
     let handle = resolve_model(models_root, model_name, None)?;

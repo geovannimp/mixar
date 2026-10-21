@@ -6,7 +6,7 @@
 use crate::platter_motion::{MotionMode, PlatterMotion};
 use crate::transport::DeckTransportEvent;
 use anyhow::Result;
-use audio_core::{secs_to_ms, LoadedAudio, Sample};
+use audio_core::{secs_to_ms, LiveStemRing, LoadedAudio, Sample, LIVE_STEM_COUNT};
 use dasp_graph::Buffer;
 use resampler::Resampler;
 use std::fmt;
@@ -111,7 +111,11 @@ pub struct Deck {
     /// Shared decoded audio (cache and multiple decks can reference the same buffer).
     loaded: Option<Arc<LoadedAudio>>,
     /// Optional four stem layers (drums, bass, other, vocals — NI index order), same playhead as `loaded`.
-    stems: Option<[Arc<LoadedAudio>; 4]>,
+    stems: Option<DeckStems>,
+    /// Crossfade from the main mix into live stems (0..=1), ramped per sample.
+    live_blend: f32,
+    /// Ring coverage snapshot refreshed once per process block.
+    live_coverage: Option<(u64, u64)>,
     /// Per-stem mute (true = silent).
     stem_mute: [bool; 4],
     /// When set, only this stem index is audible.
@@ -198,6 +202,8 @@ impl Deck {
             processing: false,
             loaded: None,
             stems: None,
+            live_blend: 0.0,
+            live_coverage: None,
             stem_mute: [false; 4],
             stem_isolate: None,
             stem_gain_current: [1.0; 4],
@@ -832,7 +838,7 @@ impl Deck {
         self.position_frames = 0;
         self.position_frac = 0.0;
         self.loaded = None;
-        self.stems = None;
+        self.release_stems();
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.resampler = None;
@@ -1007,7 +1013,7 @@ impl Deck {
         self.cue_point_ms = Some(0);
         self.cue_hold_return = None;
         self.loaded = Some(audio);
-        self.stems = None;
+        self.release_stems();
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         // Session-only key shift must not leak onto a newly loaded track.
@@ -1041,22 +1047,47 @@ impl Deck {
 
     /// Attach four stem buffers (drums, bass, other, vocals — NI index order). Cleared on next [`Self::load`].
     pub fn attach_stems(&mut self, stems: [Arc<LoadedAudio>; 4]) {
-        self.stems = Some(stems);
+        self.stems = Some(DeckStems::Buffers(stems));
+        self.live_blend = 1.0;
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_gain_current = [1.0; 4];
     }
 
-    /// Clear attached stems (keeps the main buffer).
+    /// Attach a live stem ring. The deck plays the main mix until the producer
+    /// publishes the current position, then crossfades into the stems.
+    pub fn attach_live_stems(&mut self, ring: Arc<LiveStemRing>) {
+        self.stems = Some(DeckStems::Live(ring));
+        self.live_blend = 0.0;
+        self.live_coverage = None;
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
+        self.stem_gain_current = [1.0; 4];
+    }
+
+    /// Clear attached stems (keeps the main buffer) and stop a live producer.
     pub fn clear_stems(&mut self) {
-        self.stems = None;
+        self.release_stems();
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_gain_current = [1.0; 4];
     }
 
+    fn release_stems(&mut self) {
+        if let Some(DeckStems::Live(ring)) = self.stems.take() {
+            ring.close();
+        }
+        self.live_blend = 0.0;
+        self.live_coverage = None;
+    }
+
+    /// True once stem audio is attached (live: the first window has been published).
     pub fn stems_ready(&self) -> bool {
-        self.stems.is_some()
+        match self.stems.as_ref() {
+            Some(DeckStems::Buffers(_)) => true,
+            Some(DeckStems::Live(ring)) => ring.coverage().is_some(),
+            None => false,
+        }
     }
 
     pub fn stem_mute(&self) -> [bool; 4] {
@@ -1119,34 +1150,111 @@ impl Deck {
         }
     }
 
+    /// Publish the deck position to a live stem producer and snapshot its
+    /// coverage once per block (avoids per-sample span loads in the mixer).
+    fn publish_live_playhead(&mut self) {
+        let Some(loaded) = self.loaded.as_ref() else {
+            self.live_coverage = None;
+            return;
+        };
+        let pos = self.position_frac.max(0.0);
+        let coverage = match self.stems.as_ref() {
+            Some(DeckStems::Live(ring)) => {
+                let frame = if loaded.sample_rate == ring.rate() {
+                    pos
+                } else {
+                    pos * f64::from(ring.rate()) / f64::from(loaded.sample_rate.max(1))
+                };
+                if frame.is_finite() && frame >= 0.0 {
+                    ring.set_playhead(frame as u64);
+                }
+                ring.coverage()
+            }
+            _ => None,
+        };
+        self.live_coverage = coverage;
+    }
+
     /// Mix stems (or main buffer) at a playhead expressed in **main-track** frames.
     fn mix_at_position(
-        &self,
+        &mut self,
         pos: f64,
         fallback: &[Sample],
         main_sample_rate: u32,
     ) -> (Sample, Sample) {
-        let Some(stems) = self.stems.as_ref() else {
-            return interpolate_stereo(fallback, pos);
-        };
-        let mut left = 0.0;
-        let mut right = 0.0;
-        for (i, stem) in stems.iter().enumerate() {
-            let g = self.stem_gain_current[i];
-            if g == 0.0 {
-                continue;
+        match self.stems.as_ref() {
+            None => interpolate_stereo(fallback, pos),
+            Some(DeckStems::Buffers(stems)) => {
+                let mut left = 0.0;
+                let mut right = 0.0;
+                for (i, stem) in stems.iter().enumerate() {
+                    let g = self.stem_gain_current[i];
+                    if g == 0.0 {
+                        continue;
+                    }
+                    // Stem buffers may be 44.1 kHz while the deck main buffer is engine-rate.
+                    let stem_pos = if main_sample_rate == 0 || stem.sample_rate == main_sample_rate
+                    {
+                        pos
+                    } else {
+                        pos * f64::from(stem.sample_rate) / f64::from(main_sample_rate)
+                    };
+                    let (sl, sr) = interpolate_stereo(&stem.samples, stem_pos);
+                    left += sl * g;
+                    right += sr * g;
+                }
+                (left, right)
             }
-            // Stem WAVs may be 44.1 kHz while the deck main buffer is engine-rate.
-            let stem_pos = if main_sample_rate == 0 || stem.sample_rate == main_sample_rate {
-                pos
-            } else {
-                pos * f64::from(stem.sample_rate) / f64::from(main_sample_rate)
-            };
-            let (sl, sr) = interpolate_stereo(&stem.samples, stem_pos);
-            left += sl * g;
-            right += sr * g;
+            Some(DeckStems::Live(ring)) => {
+                let rate = ring.rate();
+                let stem_pos = if main_sample_rate == 0 || rate == main_sample_rate {
+                    pos
+                } else {
+                    pos * f64::from(rate) / f64::from(main_sample_rate)
+                };
+                let frame_f = stem_pos.floor();
+                let frame = frame_f as u64;
+                let frac = (stem_pos - frame_f) as f32;
+                let covered = match self.live_coverage {
+                    Some((start, end)) => {
+                        stem_pos >= 0.0 && frame >= start && frame.saturating_add(1) < end
+                    }
+                    None => false,
+                };
+                // 5 ms crossfade between the main mix and the stems; the stems
+                // sum back to the mix, so the transition is nearly transparent.
+                let target = if covered { 1.0 } else { 0.0 };
+                let step = (1.0 / (0.005 * f64::from(self.sample_rate.max(1)))) as f32;
+                if (self.live_blend - target).abs() <= step {
+                    self.live_blend = target;
+                } else if self.live_blend < target {
+                    self.live_blend += step;
+                } else {
+                    self.live_blend -= step;
+                }
+                if !covered {
+                    return interpolate_stereo(fallback, pos);
+                }
+                let mut left = 0.0;
+                let mut right = 0.0;
+                for i in 0..LIVE_STEM_COUNT {
+                    let g = self.stem_gain_current[i];
+                    if g == 0.0 {
+                        continue;
+                    }
+                    let (l0, r0) = ring.frame(i, frame);
+                    let (l1, r1) = ring.frame(i, frame + 1);
+                    left += (l0 + (l1 - l0) * frac) * g;
+                    right += (r0 + (r1 - r0) * frac) * g;
+                }
+                if self.live_blend >= 1.0 {
+                    return (left, right);
+                }
+                let (ml, mr) = interpolate_stereo(fallback, pos);
+                let blend = self.live_blend;
+                (ml + (left - ml) * blend, mr + (right - mr) * blend)
+            }
         }
-        (left, right)
     }
 
     /// Borrow the loaded audio reference, if any.
@@ -1178,6 +1286,7 @@ impl Deck {
     pub fn process(&mut self, frames: usize) -> Result<&[Sample]> {
         self.advance_brake(frames);
         self.tick_jog(frames);
+        self.publish_live_playhead();
 
         let transport_playing = self.state == DeckState::Playing;
         if !transport_playing && !self.jog_driving_audio() {
@@ -1316,7 +1425,7 @@ impl Deck {
     /// Read one interleaved stereo frame for the stretch feed: stem mix when
     /// stems are attached (so key shift keeps stems audible), else the main buffer.
     fn read_frame_at(
-        &self,
+        &mut self,
         pos: f64,
         fallback: &[Sample],
         main_sample_rate: u32,
@@ -1551,6 +1660,14 @@ pub struct DeckLoadSpec {
     key_lock: bool,
 }
 
+/// Stem audio attached to a deck.
+pub enum DeckStems {
+    /// Fully decoded stem buffers (native `.stem.mp4` or a generated cache).
+    Buffers([Arc<LoadedAudio>; 4]),
+    /// Producer-fed ring; the deck falls back to the main mix outside coverage.
+    Live(Arc<LiveStemRing>),
+}
+
 /// Resampler and stretcher built for a track, ready to swap in under the DSP lock.
 pub struct PreparedDeckLoad {
     audio: Arc<LoadedAudio>,
@@ -1609,6 +1726,12 @@ impl DeckLoadSpec {
             resampler,
             stretcher,
         })
+    }
+}
+
+impl Drop for Deck {
+    fn drop(&mut self) {
+        self.release_stems();
     }
 }
 
@@ -3560,5 +3683,85 @@ mod tests {
         );
         deck.clear_loop();
         assert!(deck.shadow_position_frac.is_none());
+    }
+
+    #[test]
+    fn live_stems_play_main_mix_until_covered_then_blend_into_stems() {
+        let mut deck = new_deck(64);
+        let rate = ENGINE_RATE;
+        let main: Vec<Sample> = (0..256)
+            .flat_map(|i| {
+                let s = ((i as f32) * 0.03).sin() * 0.4;
+                [s, s * 0.5]
+            })
+            .collect();
+        load_test_samples(&mut deck, main.clone(), rate);
+
+        let ring = Arc::new(LiveStemRing::new(rate, 1 << 19));
+        deck.attach_live_stems(Arc::clone(&ring));
+        assert!(!deck.stems_ready(), "no window published yet");
+
+        deck.play().unwrap();
+        let before = deck.process(64).unwrap().to_vec();
+        assert_eq!(before[..], main[..128], "uncovered audio is the main mix");
+
+        // Four stems that sum back to the main mix.
+        let quarter: Vec<Sample> = main.iter().map(|s| s * 0.25).collect();
+        ring.publish(0, 256, &[&quarter, &quarter, &quarter, &quarter]);
+        assert!(deck.stems_ready());
+
+        let after = deck.process(64).unwrap().to_vec();
+        let mut worst = 0.0f32;
+        for (i, expected) in main[128..256].iter().enumerate() {
+            worst = worst.max((after[i] - expected).abs());
+        }
+        assert!(worst < 1e-5, "live stems vs main mix: worst {worst}");
+    }
+
+    #[test]
+    fn clearing_live_stems_closes_the_producer() {
+        let mut deck = new_deck(64);
+        load_test_samples(&mut deck, vec![0.1; 256], ENGINE_RATE);
+        let ring = Arc::new(LiveStemRing::new(ENGINE_RATE, 1 << 19));
+        deck.attach_live_stems(Arc::clone(&ring));
+
+        deck.clear_stems();
+
+        assert!(ring.is_closed());
+        assert!(!deck.stems_ready());
+    }
+
+    #[test]
+    fn live_stems_fall_back_when_producer_is_behind() {
+        let mut deck = new_deck(64);
+        let rate = ENGINE_RATE;
+        let main: Vec<Sample> = (0..512)
+            .flat_map(|i| {
+                let s = ((i as f32) * 0.02).cos() * 0.2;
+                [s, -s]
+            })
+            .collect();
+        load_test_samples(&mut deck, main.clone(), rate);
+        let ring = Arc::new(LiveStemRing::new(rate, 1 << 19));
+        ring.publish(
+            0,
+            64,
+            &[&main[..128], &main[..128], &main[..128], &main[..128]],
+        );
+        deck.attach_live_stems(Arc::clone(&ring));
+        deck.play().unwrap();
+
+        // First block is inside coverage (stems are wrong on purpose), then the
+        // playhead leaves it and the deck must return to the main mix.
+        deck.process(64).unwrap();
+        let after = deck.process(64).unwrap().to_vec();
+        let mut worst = 0.0f32;
+        for (i, expected) in main[128..256].iter().enumerate() {
+            worst = worst.max((after[i] - expected).abs());
+        }
+        assert!(
+            worst < 1e-5,
+            "uncovered audio must fall back: worst {worst}"
+        );
     }
 }

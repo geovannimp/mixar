@@ -11,6 +11,7 @@ order: 4
 | --- | --- | --- |
 | **Native NI Stem** | Your original `.stem.mp4` on disk | Opened in place; Mixar does not duplicate it into the stem cache. See [Native NI Stem files](/docs/users/stems/native-ni). |
 | **Generated stems** | Mixar app support → `stems/` | One `.stem.mp4` per track, managed by Mixar. Not written next to your music files. |
+| **Live stems** | Memory only (per loaded deck) | Generated on the fly when no cache exists; never written to disk. |
 | **Separation model** | Mixar app support → `models/` | Downloaded on first [Generate stems](/docs/users/stems/generate); shared by all generates. |
 
 Your library tracks and music folders are never modified by generate or clear. Only Mixar’s cache directories (and library rows that point at generated stem files) change.

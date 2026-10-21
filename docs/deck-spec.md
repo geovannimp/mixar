@@ -82,7 +82,7 @@ Typical deck layout:
 | State sync | Partial | FRB `EngineTransport.subscribeEvents` → Riverpod; MIDI host → [#49](https://github.com/geovannimp/mixar/issues/49) |
 | Library UI | Implemented | FRB `LibraryTransport` for tracks / artwork / waveform peaks |
 | FX slots UI | Not implemented | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems pad mode | Implemented | Offline HTDemucs + pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46)); Stem EQ / Storage / realtime still open |
+| Stems pad mode | Implemented | Offline HTDemucs, live on-load separation, pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46), [#568](https://github.com/geovannimp/mixar/issues/568)); Stem EQ still open |
 | Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
 | Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
@@ -103,7 +103,7 @@ Typical deck layout:
 | Slip mode | Yes |
 | Jog / scratch | Yes |
 | FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems | Yes → four-stem mix, offline generation, non-blocking attach, pad mute/isolate; Stem EQ / Storage UI / realtime separation remain open — [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stems | Yes → four-stem mix, cached or live on-load separation, non-blocking attach, pad mute/isolate; Stem EQ remains open — [#46](https://github.com/geovannimp/mixar/issues/46) |
 
 ### Library metadata
 
@@ -316,7 +316,7 @@ Current pad-mode controls are documented in the [user guide](https://mixar.top/d
 
 | Follow-up | Status |
 |-----------|--------|
-| Stem EQ, storage UI, and realtime separation | Open — [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stem EQ | Open — [#567](https://github.com/geovannimp/mixar/issues/567) |
 | Slicer pad mode | Not implemented — [#60](https://github.com/geovannimp/mixar/issues/60) |
 
 Keyboard and Key Shift pad modes are shipped ([#298](https://github.com/geovannimp/mixar/issues/298)); their page tables, root selection, and session-only key shift are specified in [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md) and described for users in the [user guide](https://mixar.top/docs/users/performance-pads).
