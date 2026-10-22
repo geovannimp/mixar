@@ -47,6 +47,17 @@ struct State {
     data: Vec<f32>,
 }
 
+/// One separation hop: audio in, the previous hop's four stems out.
+///
+/// The producer loop is generic over this so CI can drive it with a stub
+/// instead of the 32 MB StemgenRT artifact.
+trait HopRunner {
+    fn run(&mut self, audio: &[f32]) -> Result<[Vec<f32>; STEMS]>;
+
+    /// Clear the carried recurrent state (seek / re-epoch).
+    fn reset(&mut self);
+}
+
 /// True when the playhead moved like a seek rather than normal playback.
 ///
 /// `last_playhead` is the last observed value, so a producer that is merely
@@ -161,7 +172,26 @@ fn load_session(weights: &Path) -> Result<(Session, Vec<State>)> {
     Ok((session, states))
 }
 
-/// Run one 128-frame hop. Returns the separated previous hop, `[stem][interleaved]`.
+/// The real model: one ONNX session plus its carried recurrent states.
+struct OnnxRunner {
+    session: Session,
+    states: Vec<State>,
+}
+
+impl HopRunner for OnnxRunner {
+    /// Run one 128-frame hop. Returns the separated previous hop, `[stem][interleaved]`.
+    fn run(&mut self, audio: &[f32]) -> Result<[Vec<f32>; STEMS]> {
+        run_hop(&mut self.session, &mut self.states, audio)
+    }
+
+    fn reset(&mut self) {
+        for state in self.states.iter_mut() {
+            state.data.fill(0.0);
+        }
+    }
+}
+
+/// Run one 128-frame hop against the ONNX graph.
 fn run_hop(
     session: &mut Session,
     states: &mut [State],
@@ -262,7 +292,7 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
         return;
     }
 
-    let (mut session, mut states) = match load_session(weights) {
+    let (session, states) = match load_session(weights) {
         Ok(loaded) => loaded,
         Err(err) => {
             warn!(error = %format!("{err:#}"), "StemgenRT live: session failed");
@@ -270,19 +300,64 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
             return;
         }
     };
+    let mut runner = OnnxRunner { session, states };
+    let mut state = ProducerState::new();
 
-    let mut frame = 0u64;
-    let mut publish_at = 0u64;
-    let mut epoch_start = 0u64;
-    let mut first = true;
-    let mut flushed = false;
-    let mut last_playhead: Option<u64> = None;
+    pump(&mut runner, pcm, total, ring, stop, &mut state, u64::MAX);
+}
+
+/// Drive the producer loop: separate hops ahead of the playhead and publish
+/// them into the ring. Generic over the hop runner so tests can substitute a
+/// stub for the ONNX model.
+/// Producer epoch state: where the stream is, what is published, and what
+/// the last observed playhead was.
+#[derive(Default)]
+struct ProducerState {
+    frame: u64,
+    publish_at: u64,
+    epoch_start: u64,
+    first: bool,
+    flushed: bool,
+    last_playhead: Option<u64>,
+}
+
+impl ProducerState {
+    fn new() -> Self {
+        Self {
+            first: true,
+            ..Self::default()
+        }
+    }
+}
+
+fn pump(
+    runner: &mut impl HopRunner,
+    pcm: &[f32],
+    total: u64,
+    ring: &LiveStemRing,
+    stop: &AtomicBool,
+    state: &mut ProducerState,
+    max_hops: u64,
+) {
+    let ProducerState {
+        frame,
+        publish_at,
+        epoch_start,
+        first,
+        flushed,
+        last_playhead,
+    } = state;
+    let mut hops = 0u64;
     let mut audio_chunk = vec![0.0f32; 2 * HOP];
 
     loop {
         if stop.load(Ordering::Acquire) || ring.is_closed() {
             break;
         }
+        if hops >= max_hops {
+            break;
+        }
+        hops += 1;
 
         let playhead = ring.playhead().min(total);
 
@@ -290,19 +365,17 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
         // measured against the last observed playhead, not against the
         // published end. The latter would re-arm immediately after a re-epoch
         // (the warm-up and lookahead are both two seconds) and reset forever.
-        let seek = should_reepoch(playhead, last_playhead, epoch_start);
-        last_playhead = Some(playhead);
+        let seek = should_reepoch(playhead, *last_playhead, *epoch_start);
+        *last_playhead = Some(playhead);
         if seek {
             let start = playhead.saturating_sub(WARMUP);
-            for state in states.iter_mut() {
-                state.data.fill(0.0);
-            }
+            runner.reset();
             ring.reset(start);
-            frame = start;
-            publish_at = start;
-            epoch_start = start;
-            first = true;
-            flushed = false;
+            *frame = start;
+            *publish_at = start;
+            *epoch_start = start;
+            *first = true;
+            *flushed = false;
             info!(frame = start, playhead, "StemgenRT live: epoch start");
             continue;
         }
@@ -312,18 +385,18 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
             continue;
         }
 
-        if frame >= total {
-            if !flushed {
+        if *frame >= total {
+            if !*flushed {
                 // One zero hop flushes the final pending hop. Skip it when the
                 // stream never produced a pending output.
-                if !first {
+                if !*first {
                     audio_chunk.fill(0.0);
-                    match run_hop(&mut session, &mut states, &audio_chunk) {
+                    match runner.run(&audio_chunk) {
                         Ok(separated) => {
-                            let valid = ((total - publish_at) as usize).min(HOP);
+                            let valid = ((total - *publish_at) as usize).min(HOP);
                             if valid > 0 {
-                                publish(ring, &separated, publish_at, valid);
-                                publish_at += HOP as u64;
+                                publish(ring, &separated, *publish_at, valid);
+                                *publish_at += HOP as u64;
                             }
                         }
                         Err(err) => {
@@ -333,21 +406,21 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
                         }
                     }
                 }
-                flushed = true;
+                *flushed = true;
             }
             thread::sleep(POLL);
             continue;
         }
 
-        let frames = ((total - frame) as usize).min(HOP);
+        let frames = ((total - *frame) as usize).min(HOP);
         audio_chunk.fill(0.0);
         for i in 0..frames {
-            let source = (frame as usize + i) * 2;
+            let source = (*frame as usize + i) * 2;
             audio_chunk[i] = pcm[source];
             audio_chunk[HOP + i] = pcm[source + 1];
         }
 
-        let separated = match run_hop(&mut session, &mut states, &audio_chunk) {
+        let separated = match runner.run(&audio_chunk) {
             Ok(separated) => separated,
             Err(err) => {
                 warn!(error = %format!("{err:#}"), "StemgenRT live: separation failed");
@@ -356,17 +429,17 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
             }
         };
 
-        if !first {
-            let valid = ((total - publish_at) as usize).min(HOP);
+        if !*first {
+            let valid = ((total - *publish_at) as usize).min(HOP);
             if valid > 0 {
-                publish(ring, &separated, publish_at, valid);
-                publish_at += HOP as u64;
+                publish(ring, &separated, *publish_at, valid);
+                *publish_at += HOP as u64;
             }
         } else {
-            first = false;
+            *first = false;
         }
 
-        frame = frame.saturating_add(HOP as u64);
+        *frame = frame.saturating_add(HOP as u64);
     }
 
     info!("StemgenRT live: producer stopped");
@@ -375,6 +448,72 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Stub separator: marks every hop with its call index so the test can
+    /// tell which hop landed in the ring.
+    struct StubRunner {
+        calls: usize,
+        resets: usize,
+    }
+
+    impl HopRunner for StubRunner {
+        fn run(&mut self, _audio: &[f32]) -> Result<[Vec<f32>; STEMS]> {
+            self.calls += 1;
+            let mut out: [Vec<f32>; STEMS] = std::array::from_fn(|_| vec![0.0; HOP * 2]);
+            out[2].fill(self.calls as f32);
+            Ok(out)
+        }
+
+        fn reset(&mut self) {
+            self.resets += 1;
+        }
+    }
+
+    #[test]
+    fn stub_producer_publishes_coverage_and_resets_on_seek() {
+        // Long enough that a playhead past the lookahead is inside the track.
+        let frames = 3 * MAX_AHEAD as usize;
+        let pcm: Vec<f32> = (0..frames * 2).map(|i| i as f32 * 0.01).collect();
+        let ring = LiveStemRing::new(SAMPLE_RATE, 1 << 19);
+        ring.set_playhead(0);
+        let stop = AtomicBool::new(false);
+        let mut runner = StubRunner {
+            calls: 0,
+            resets: 0,
+        };
+        let mut state = ProducerState::new();
+
+        pump(
+            &mut runner,
+            &pcm,
+            frames as u64,
+            &ring,
+            &stop,
+            &mut state,
+            8,
+        );
+
+        // The first hop is pre-roll; the second hop publishes hop 0.
+        let (start, end) = ring.coverage().expect("coverage");
+        assert_eq!(start, 0);
+        assert!(end > 0);
+        // The stub marks hop n with n + 1, so published hop 0 carries 2.0.
+        assert_eq!(ring.frame(3, 0), (2.0, 2.0));
+
+        // A jump beyond the lookahead is a seek: the producer re-epochs and
+        // clears its recurrent state.
+        ring.set_playhead(MAX_AHEAD + 1);
+        pump(
+            &mut runner,
+            &pcm,
+            frames as u64,
+            &ring,
+            &stop,
+            &mut state,
+            4,
+        );
+        assert!(runner.resets >= 1);
+    }
 
     #[test]
     fn publish_maps_model_order_into_ring_coverage() {

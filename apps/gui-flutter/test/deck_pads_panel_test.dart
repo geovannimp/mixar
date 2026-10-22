@@ -34,6 +34,18 @@ TextSpan padSuffixSpan(WidgetTester tester, String label, String suffixText) {
   );
 }
 
+/// The pad-mode suffix must render in the muted foreground colour.
+void expectMutedPadSuffix(
+  WidgetTester tester,
+  String label,
+  String suffixText,
+) {
+  expect(
+    padSuffixSpan(tester, label, suffixText).style?.color,
+    MixarThemeData.dark().colors.mutedForeground,
+  );
+}
+
 void main() {
   Future<void> pumpPanel(
     WidgetTester tester, {
@@ -154,11 +166,7 @@ void main() {
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
     expect(padLabel('Sample (Bank 1)'), findsOneWidget);
-    final bankSuffix = padSuffixSpan(tester, 'Sample (Bank 1)', ' (Bank 1)');
-    expect(
-      bankSuffix.style?.color,
-      MixarThemeData.dark().colors.mutedForeground,
-    );
+    expectMutedPadSuffix(tester, 'Sample (Bank 1)', ' (Bank 1)');
     expect(find.text('Kick'), findsOneWidget);
   });
 
@@ -174,8 +182,7 @@ void main() {
       realtimeStemsEnabled: true,
     );
     expect(padLabel('Stems (Realtime)'), findsOneWidget);
-    final suffix = padSuffixSpan(tester, 'Stems (Realtime)', ' (Realtime)');
-    expect(suffix.style?.color, MixarThemeData.dark().colors.mutedForeground);
+    expectMutedPadSuffix(tester, 'Stems (Realtime)', ' (Realtime)');
 
     // The open list uses plain mode names; only the collapsed chip carries
     // the selected mode's source suffix.
