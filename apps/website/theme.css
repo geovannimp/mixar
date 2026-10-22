@@ -4,11 +4,13 @@
  *
  * Mixar's palette and type are its own (Outfit / Space Grotesk / Noto Sans
  * Mono, square corners, dark by default), so the docs chrome is restyled here
- * rather than inherited from Blume's defaults.
+ * rather than inherited from Blume's defaults. The typefaces themselves come
+ * from `theme.fonts` in `blume.config.ts`, which points at the same
+ * `@fontsource-variable` packages the marketing pages load — Blume's own
+ * `--blume-font-*` tokens resolve through `--blume-font-*-src` to them, so
+ * naming a family here would break that link and fall back to the system
+ * stack.
  */
-@import "@fontsource-variable/outfit";
-@import "@fontsource-variable/space-grotesk";
-@import "@fontsource-variable/noto-sans-mono";
 
 :root {
   --blume-accent: #0f766e;
@@ -21,9 +23,6 @@
   --blume-code-background: #f4f4f5;
   --blume-radius: 0;
   --blume-content-width: 48rem;
-  --blume-font-display: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
-  --blume-font-body: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
-  --blume-font-mono: "Noto Sans Mono Variable", ui-monospace, monospace;
 }
 
 :root[data-theme="dark"] {
@@ -36,3 +35,50 @@
   --blume-border-hover: rgba(161, 161, 170, 0.35);
   --blume-code-background: #121216;
 }
+
+/*
+ * The brand accent, spent where the site spends it: on the things that say
+ * "you are here" and on the top-level names.
+ *
+ * Blume's chrome is deliberately neutral — its own tokens match the site's
+ * palette exactly, but it spends the accent on almost nothing, so the docs
+ * read black and white next to the marketing pages. These rules put it back
+ * the way the pre-migration sidebar had it: the audience name in teal, the
+ * topic names muted, and the current page marked in teal.
+ */
+
+/* The audience heading ("Users", "Developers") — the top-level name. */
+.blume-nav-heading {
+  color: var(--blume-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The topic heading ("Library", "MIDI Mappings") — a level down, so muted. */
+.blume-nav-heading-link {
+  color: var(--blume-muted-foreground);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.blume-nav-heading-link:hover {
+  color: var(--blume-foreground);
+}
+
+/* The page you are on. */
+.blume-nav-link[aria-current="page"] {
+  color: var(--blume-accent);
+  background-color: color-mix(in oklab, var(--blume-accent) 12%, transparent);
+  font-weight: 600;
+}
+
+/* The table of contents marks the current heading the same way. */
+[aria-current="location"] {
+  color: var(--blume-accent);
+  font-weight: 500;
+}
+
