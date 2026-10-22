@@ -576,6 +576,44 @@ fn non_recursive_folder_collection_hides_already_indexed_nested_tracks() {
 }
 
 #[test]
+fn folder_membership_ignores_siblings_that_differ_only_in_case() {
+    let dir = tempfile::tempdir().unwrap();
+    // A case-insensitive filesystem cannot hold both directories, so there
+    // is nothing to tell apart there.
+    let probe = dir.path().join("CaseProbe");
+    std::fs::create_dir(&probe).unwrap();
+    if dir.path().join("caseprobe").exists() {
+        std::fs::remove_dir(&probe).unwrap();
+        return;
+    }
+    std::fs::remove_dir(&probe).unwrap();
+
+    let set = dir.path().join("Set");
+    let upper = set.join("Music");
+    let lower = set.join("music");
+    std::fs::create_dir_all(&upper).unwrap();
+    std::fs::create_dir_all(&lower).unwrap();
+    write_minimal_wav(&upper.join("a.wav"));
+    write_minimal_wav(&lower.join("b.wav"));
+
+    for recursive in [false, true] {
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let collection = lib
+            .add_collection(&NewCollection::folder_scan(&upper, recursive))
+            .unwrap();
+        lib.sync_collection(Some(&collection.id)).unwrap();
+
+        let tracks = lib.list_collection_tracks(&collection.id).unwrap();
+        assert_eq!(
+            tracks.len(),
+            1,
+            "a sibling that differs only in case is not a member (recursive: {recursive}): {tracks:?}"
+        );
+        assert!(tracks[0].file().unwrap().path().starts_with(&upper));
+    }
+}
+
+#[test]
 fn adding_a_second_collection_for_the_same_folder_is_rejected() {
     let dir = tempfile::tempdir().unwrap();
     write_minimal_wav(&dir.path().join("a.wav"));

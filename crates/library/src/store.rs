@@ -307,34 +307,38 @@ impl<'a> Store<'a> {
 
     /// File sources under `root`.
     ///
-    /// `prefix` is the escaped `root/%` LIKE pattern. A non-recursive query
-    /// also excludes anything nested below a direct child, so the caller never
-    /// has to filter the result set in Rust.
+    /// The comparison is case-sensitive: SQLite's `LIKE` is ASCII
+    /// case-insensitive, so a sibling directory whose name differs only in
+    /// case would otherwise pass for a member. A non-recursive query also
+    /// excludes anything nested below a direct child, so the caller never has
+    /// to filter the result set in Rust.
     pub fn find_file_sources_under(
         &self,
         root: &str,
-        prefix: &str,
         recursive: bool,
     ) -> Result<Vec<library_core::AudioSource>> {
-        // One grouped predicate: `ESCAPE` and the NOT LIKE have to apply to
-        // the LIKE branch only, so the whole membership rule stays in SQL.
+        let prefix = format!("{root}/");
+        // SQLite counts characters, not bytes.
+        let prefix_len = prefix.chars().count() as i64;
         let (sql, values): (&str, Vec<sea_orm::Value>) = if recursive {
             (
-                "(source_ref = ? OR source_ref LIKE ? ESCAPE '\\')",
+                "(source_ref = ? OR substr(source_ref, 1, ?) = ?)",
                 vec![
                     sea_orm::Value::from(root.to_string()),
-                    sea_orm::Value::from(prefix.to_string()),
+                    sea_orm::Value::from(prefix_len),
+                    sea_orm::Value::from(prefix),
                 ],
             )
         } else {
+            // The remainder after the prefix must not hold a separator, so a
+            // direct child matches and a nested path does not.
             (
-                "(source_ref = ? OR (source_ref LIKE ? ESCAPE '\\' AND source_ref NOT LIKE ? ESCAPE '\\'))",
+                "(source_ref = ? OR (substr(source_ref, 1, ?) = ? AND instr(substr(source_ref, ?), '/') = 0))",
                 vec![
                     sea_orm::Value::from(root.to_string()),
-                    sea_orm::Value::from(prefix.to_string()),
-                    // `prefix` ends in a wildcard, so this pattern only matches
-                    // paths with a second separator after the root.
-                    sea_orm::Value::from(format!("{prefix}/%")),
+                    sea_orm::Value::from(prefix_len),
+                    sea_orm::Value::from(prefix),
+                    sea_orm::Value::from(prefix_len + 1),
                 ],
             )
         };

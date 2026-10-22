@@ -419,13 +419,6 @@ pub(crate) fn collect_audio_files(root: &Path, recursive: bool) -> Result<Vec<Pa
     Ok(files)
 }
 
-pub(crate) fn escape_like(input: &str) -> String {
-    input
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
-}
-
 pub(crate) fn unix_secs_string() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
