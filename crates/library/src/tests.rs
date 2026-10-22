@@ -578,17 +578,20 @@ fn non_recursive_folder_collection_hides_already_indexed_nested_tracks() {
 #[test]
 fn folder_membership_ignores_siblings_that_differ_only_in_case() {
     let dir = tempfile::tempdir().unwrap();
+    // The library canonicalizes the folder it stores, so the paths under
+    // test have to be canonical too (a tempdir can sit behind a symlink).
+    let base = dir.path().canonicalize().unwrap();
     // A case-insensitive filesystem cannot hold both directories, so there
     // is nothing to tell apart there.
-    let probe = dir.path().join("CaseProbe");
+    let probe = base.join("CaseProbe");
     std::fs::create_dir(&probe).unwrap();
-    if dir.path().join("caseprobe").exists() {
+    if base.join("caseprobe").exists() {
         std::fs::remove_dir(&probe).unwrap();
         return;
     }
     std::fs::remove_dir(&probe).unwrap();
 
-    let set = dir.path().join("Set");
+    let set = base.join("Set");
     let upper = set.join("Music");
     let lower = set.join("music");
     std::fs::create_dir_all(&upper).unwrap();
