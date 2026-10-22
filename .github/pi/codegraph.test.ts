@@ -126,6 +126,10 @@ test('rejects unsafe or incomplete arguments', () => {
     { action: 'explore', query: 'x'.repeat(4097) },
     { action: 'explore', query: 'x', file: '../outside.rs' },
     { action: 'explore', query: 'x', file: '/etc/passwd' },
+    // The project root is not a file: it would reach the CLI as an empty
+    // --file, which widens the lookup instead of narrowing it.
+    { action: 'callers', query: 'x', file: '.' },
+    { action: 'callers', query: 'x', file: 'crates/..' },
     { action: 'explore', query: 'x', maxFiles: 0 },
     { action: 'impact', query: 'x', depth: 99 },
     { action: 'callers', query: 'x', limit: 1.5 },

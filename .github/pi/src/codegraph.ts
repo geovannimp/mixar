@@ -98,6 +98,11 @@ function validFile(project: string, value: unknown): string | undefined {
   if (path.isAbsolute(file)) throw new Error('file must be relative to the project');
   const resolved = path.resolve(project, file);
   const relative = path.relative(project, resolved);
+  if (relative === '') {
+    // The project root is not a file. Passing it would reach the CLI as an
+    // empty --file, which widens the lookup instead of narrowing it.
+    throw new Error('file must name a file inside the project');
+  }
   if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error('file must stay inside the project');
   }
