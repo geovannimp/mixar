@@ -5,7 +5,6 @@ import 'package:gui_flutter/widgets/library/library_drag_card.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
 
 /// Library surface width at or above which the sidebar + content split shows.
@@ -231,54 +230,33 @@ String formatTrackDuration(int? ms) {
   return '$m:${s.toString().padLeft(2, '0')}';
 }
 
-/// Sessions whose [libraryTrackDragSource] `onDragEnd` has already fired.
-///
-/// The provider can run more than once for one session, and the flag has to
-/// outlive a single invocation or each run would report its own end.
-final Expando<bool> _dragEndReported = Expando('libraryDragEndReported');
-
 /// Wraps a list row in the shared drag source. Both the tracks and history
-/// lists drag a [TrackDragPayload] onto a deck, so the drag item, its platform
-/// format and its drag card live here rather than in each pane.
+/// lists drag a [TrackDragPayload] onto a deck, so the drag item and its drag
+/// card live here rather than in each pane.
 ///
-/// [onDragStart] runs as the drag starts: `DragItemWidget` exposes no lifecycle
-/// callbacks, so building the drag item is the only hook the source can offer.
-/// It may run more than once for one session, so it must be idempotent.
-/// [onDragEnd] runs once, when the session completes — on a drop or a cancel —
-/// off the session's `dragCompleted` listenable, which the plugin itself relies
-/// on to retire sessions.
+/// [onDragStart] runs as the drag starts and [onDragEnd] when it completes —
+/// on a drop or a cancel. Both fire once per drag.
+///
+/// `childWhenDragging` keeps the row mounted for the whole drag: the drawer
+/// tucks itself away while a drag is in flight, and the drag dies with its
+/// source if the row leaves the tree.
 Widget libraryTrackDragSource({
   required TrackDragPayload payload,
   required Widget child,
   VoidCallback? onDragStart,
   VoidCallback? onDragEnd,
 }) {
-  return DragItemWidget(
-    dragItemProvider: (request) async {
-      onDragStart?.call();
-      // Every invocation listens so every listener is removed again, but only
-      // the first completion reports: the guard is per session, not per call.
-      void end() {
-        request.session.dragCompleted.removeListener(end);
-        if (_dragEndReported[request.session] ?? false) {
-          return;
-        }
-        _dragEndReported[request.session] = true;
-        onDragEnd?.call();
-      }
-
-      request.session.dragCompleted.addListener(end);
-      return DragItem(
-        localData: payload.toLocalData(),
-        suggestedName: payload.title,
-      )..add(Formats.plainText(encodeTrackDragPlainText(payload)));
-    },
-    allowedOperations: () => [DropOperation.copy],
-    dragBuilder: (context, _) => LibraryDragCard(title: payload.title),
-    child: DraggableWidget(
-      hitTestBehavior: HitTestBehavior.opaque,
-      child: child,
-    ),
+  return Draggable<TrackDragPayload>(
+    data: payload,
+    // The whole row is the drag handle, padding and gaps included: the
+    // plugin's drag source behaved the same way.
+    hitTestBehavior: HitTestBehavior.opaque,
+    dragAnchorStrategy: pointerDragAnchorStrategy,
+    feedback: IgnorePointer(child: LibraryDragCard(title: payload.title)),
+    childWhenDragging: child,
+    onDragStarted: onDragStart,
+    onDragEnd: (_) => onDragEnd?.call(),
+    child: child,
   );
 }
 

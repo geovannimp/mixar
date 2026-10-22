@@ -1,15 +1,20 @@
 import 'dart:async';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/widgets/mixer/deck_drop_hover.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-/// Deck drop target: in-app [TrackDragPayload] plus OS `fileUri` audio files.
+/// Deck drop target: in-app [TrackDragPayload] plus OS audio files.
+///
+/// Two mechanisms, because they are two different things: a `DragTarget`
+/// takes the track a row in the library hands over inside the app, and
+/// [DropTarget] takes files dragged in from the desktop.
 class TrackDropZone extends ConsumerStatefulWidget {
   const new({required this.deckId, required this.child, super.key});
 
@@ -23,11 +28,22 @@ class TrackDropZone extends ConsumerStatefulWidget {
 class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
   var _over = false;
 
+  void _setOver(bool value) {
+    if (_over == value) {
+      return;
+    }
+    setState(() => _over = value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final engine = ref.watch(engineTransportProvider).asData?.value;
     final running = ref.watch(engineRunningProvider);
     final enabled = engine != null && running;
+    // The drawer floats over the mixer, and `desktop_drop` picks its target by
+    // geometry, so a file dropped on the drawer would land on the deck
+    // underneath it. While the drawer is up the deck takes no OS files.
+    final drawerOpen = ref.watch(libraryDrawerOpenProvider);
 
     final content = DeckDropHover(
       active: _over && enabled,
@@ -38,120 +54,39 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
       return content;
     }
 
-    return DropRegion(
-      formats: const [Formats.plainText, Formats.fileUri],
+    return DragTarget<TrackDragPayload>(
       hitTestBehavior: HitTestBehavior.opaque,
-      onDropOver: (event) {
-        if (!_canAcceptNative(event)) {
-          return DropOperation.none;
-        }
-        final op = _dropOperation(event.session.allowedOperations);
-        return op == DropOperation.none ? DropOperation.copy : op;
+      onWillAcceptWithDetails: (_) => true,
+      onMove: (_) => _setOver(true),
+      onLeave: (_) => _setOver(false),
+      onAcceptWithDetails: (details) {
+        _setOver(false);
+        unawaited(_load(details.data));
       },
-      onDropEnter: (_) => setState(() => _over = true),
-      onDropLeave: (_) => setState(() => _over = false),
-      onPerformDrop: (event) async {
-        setState(() => _over = false);
-        _performDrop(event);
-      },
-      child: content,
+      builder: (context, _, _) => DropTarget(
+        enable: !drawerOpen,
+        onDragEntered: (_) => _setOver(true),
+        onDragExited: (_) => _setOver(false),
+        onDragDone: _onOsDrop,
+        child: content,
+      ),
     );
   }
 
-  bool _canAcceptNative(DropOverEvent event) {
-    for (final item in event.session.items) {
-      if (parseTrackDragLocalData(item.localData) != null) {
-        return true;
-      }
-      if (item.canProvide(Formats.plainText) ||
-          item.canProvide(Formats.fileUri)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  DropOperation _dropOperation(Set<DropOperation> allowed) {
-    switch (preferredTrackDropOperation(allowed.map((op) => op.name))) {
-      case 'copy':
-        return DropOperation.copy;
-      case 'move':
-        return DropOperation.move;
-      case 'link':
-        return DropOperation.link;
-      default:
-        return DropOperation.copy;
-    }
-  }
-
-  void _performDrop(PerformDropEvent event) {
-    var loaded = false;
-    void tryLoad(TrackDragPayload? payload) {
-      if (loaded || payload == null) {
-        return;
-      }
-      loaded = true;
-      unawaited(_load(payload));
-    }
-
-    for (final item in event.session.items) {
-      tryLoad(parseTrackDragLocalData(item.localData));
-      if (loaded) {
-        return;
-      }
-    }
-
-    final fileItems = <DropItem>[];
-    for (final item in event.session.items) {
-      final reader = item.dataReader;
-      if (reader == null) {
-        continue;
-      }
-      if (item.canProvide(Formats.plainText)) {
-        reader.getValue<String>(
-          Formats.plainText,
-          (text) => tryLoad(parseTrackDragPlainText(text)),
-        );
-      }
-      if (item.canProvide(Formats.fileUri)) {
-        fileItems.add(item);
-      }
-    }
-
-    if (fileItems.isEmpty) {
+  void _onOsDrop(DropDoneDetails details) {
+    _setOver(false);
+    final paths = <String>[
+      for (final item in details.files)
+        if (item is DropItemFile && isSupportedAudioPath(item.path)) item.path,
+    ];
+    if (paths.isEmpty) {
+      showMixarToast(
+        context: context,
+        title: const Text('No supported audio files in drop'),
+      );
       return;
     }
-
-    var remaining = fileItems.length;
-    for (final item in fileItems) {
-      item.dataReader!.getValue<Uri>(
-        Formats.fileUri,
-        (uri) {
-          remaining--;
-          if (!loaded && uri != null) {
-            final path = pathFromDroppedUri(uri);
-            if (isSupportedAudioPath(path)) {
-              tryLoad(payloadFromOsPath(path));
-            }
-          }
-          if (remaining == 0 && !loaded && mounted) {
-            showMixarToast(
-              context: context,
-              title: const Text('No supported audio files in drop'),
-            );
-          }
-        },
-        onError: (_) {
-          remaining--;
-          if (remaining == 0 && !loaded && mounted) {
-            showMixarToast(
-              context: context,
-              title: const Text('No supported audio files in drop'),
-            );
-          }
-        },
-      );
-    }
+    unawaited(_load(payloadFromOsPath(paths.first)));
   }
 
   Future<void> _load(TrackDragPayload payload) async {
