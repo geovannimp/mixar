@@ -52,6 +52,7 @@ class FakeLibraryTransport implements LibraryTransport {
     this.exportCdjUsbHandler,
     this.entries = const [],
     this.collections = const [],
+    this.deleteCollectionError,
     StreamController<LibraryEvt>? events,
   }) : _events = events ?? StreamController<LibraryEvt>.broadcast();
 
@@ -64,9 +65,13 @@ class FakeLibraryTransport implements LibraryTransport {
   ExportCdjUsbHandler? exportCdjUsbHandler;
   List<LibraryTrackSummary> entries;
   List<LibraryCollectionSummary> collections;
+
+  /// When set, [deleteCollection] throws it after the collection row is gone.
+  final Object? deleteCollectionError;
   final StreamController<LibraryEvt> _events;
   final List<String> getTrackCalls = [];
   final List<String> listCollectionEntriesCalls = [];
+  int listCollectionsCalls = 0;
   final List<UpdateTrackMetadataCall> updateTrackMetadataCalls = [];
   final List<CdjExportRequest> exportCdjUsbCalls = [];
   int outstandingGetTracks = 0;
@@ -148,7 +153,10 @@ class FakeLibraryTransport implements LibraryTransport {
   }
 
   @override
-  Future<List<LibraryCollectionSummary>> listCollections() async => collections;
+  Future<List<LibraryCollectionSummary>> listCollections() async {
+    listCollectionsCalls++;
+    return collections;
+  }
 
   @override
   Stream<LibraryEvt> subscribeEvents() => _events.stream;
@@ -172,6 +180,21 @@ class FakeLibraryTransport implements LibraryTransport {
     required bool force,
     required bool generateStems,
   }) async => throw UnimplementedError('analyzeCollection');
+
+  final List<String> deleteCollectionCalls = [];
+
+  @override
+  Future<void> deleteCollection({required String collectionId}) async {
+    deleteCollectionCalls.add(collectionId);
+    collections = [
+      for (final collection in collections)
+        if (collection.id != collectionId) collection,
+    ];
+    final error = deleteCollectionError;
+    if (error != null) {
+      throw error;
+    }
+  }
 
   @override
   Future<void> analyzeTrack({

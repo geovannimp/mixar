@@ -65,7 +65,8 @@ pub trait WritableLibrary: Library {
     /// Update collection fields (name, sortable, …).
     fn update_collection(&mut self, id: &CollectionId, update: &UpdateCollection) -> Result<()>;
 
-    /// Delete a collection (folder or playlist). Tracks in the pool are kept.
+    /// Delete a collection (folder or playlist). Member tracks that no other
+    /// collection references are removed from the pool.
     fn delete_collection(&mut self, id: &CollectionId) -> Result<()>;
 
     /// Add a track to a playlist collection. Errors if not a Playlist.

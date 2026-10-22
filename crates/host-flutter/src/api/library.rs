@@ -612,6 +612,17 @@ impl LibraryTransport {
         collection_summary(&lib, collection)
     }
 
+    /// Delete a collection (folder or playlist). Member tracks that no other
+    /// collection references are removed from the pool.
+    pub fn delete_collection(&self, collection_id: String) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.delete_collection(&CollectionId::new(collection_id))
+            .map_err(|e| e.to_string())
+    }
+
     /// Import a Mixxx library at `db_path` into this transport's manager.
     ///
     /// Reads the Mixxx database outside the manager lock, then migrates into the

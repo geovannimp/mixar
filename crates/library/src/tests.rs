@@ -853,10 +853,18 @@ fn sortable_to_unsortable_dedupes_duplicate_tracks() {
     assert!(rows[0].position.is_none());
 }
 
+/// In-memory library with one folder collection synced from `path`.
+fn library_with_synced_folder(path: &Path) -> (LibraryManager, Collection) {
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let folder = lib.add_collection(&NewCollection::folder(path)).unwrap();
+    lib.sync_collection(Some(&folder.id)).unwrap();
+    (lib, folder)
+}
+
 #[test]
-fn delete_playlist_keeps_tracks() {
+fn delete_playlist_removes_unreferenced_tracks() {
     let dir = tempfile::tempdir().unwrap();
-    let wav = dir.path().join("keep.wav");
+    let wav = dir.path().join("gone.wav");
     write_minimal_wav(&wav);
 
     let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
@@ -868,25 +876,132 @@ fn delete_playlist_keeps_tracks() {
     lib.delete_collection(&pl.id).unwrap();
 
     assert!(lib.get_collection(&pl.id).unwrap().is_none());
-    assert!(lib.get_track(track.id()).unwrap().is_some());
+    assert!(
+        lib.get_track(track.id()).unwrap().is_none(),
+        "the playlist was the only reference"
+    );
 }
 
 #[test]
-fn delete_folder_keeps_tracks() {
+fn delete_folder_removes_unreferenced_tracks() {
     let dir = tempfile::tempdir().unwrap();
     write_minimal_wav(&dir.path().join("t.wav"));
 
-    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-    let folder = lib
-        .add_collection(&NewCollection::folder(dir.path()))
-        .unwrap();
-    lib.sync_collection(Some(&folder.id)).unwrap();
+    let (mut lib, folder) = library_with_synced_folder(dir.path());
     let track_id = lib.list_collection_tracks(&folder.id).unwrap()[0]
         .id()
         .clone();
 
     lib.delete_collection(&folder.id).unwrap();
-    assert!(lib.get_track(&track_id).unwrap().is_some());
+    assert!(
+        lib.get_track(&track_id).unwrap().is_none(),
+        "the folder was the only reference"
+    );
+}
+
+#[test]
+fn delete_folder_removes_tracks_across_id_chunks() {
+    let dir = tempfile::tempdir().unwrap();
+    for i in 0..501 {
+        write_minimal_wav(&dir.path().join(format!("t{i}.wav")));
+    }
+
+    let (mut lib, folder) = library_with_synced_folder(dir.path());
+    let tracks = lib.list_collection_tracks(&folder.id).unwrap();
+    assert_eq!(tracks.len(), 501);
+
+    lib.delete_collection(&folder.id).unwrap();
+    for track in tracks {
+        assert!(
+            lib.get_track(track.id()).unwrap().is_none(),
+            "orphan cleanup must cover every id chunk"
+        );
+    }
+}
+
+#[test]
+fn store_bulk_track_helpers_cover_empty_and_chunked_ids() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let mut ids = Vec::new();
+    for i in 0..501 {
+        let path = dir.path().join(format!("chunk{i}.wav"));
+        write_minimal_wav(&path);
+        ids.push(lib.import_file_path(&path).unwrap().id().clone());
+    }
+
+    // Empty inputs are no-ops.
+    assert!(lib
+        .store()
+        .playlist_linked_track_ids(&[])
+        .unwrap()
+        .is_empty());
+    lib.store().delete_tracks(&[]).unwrap();
+    assert_eq!(lib.store().get_tracks_by_ids(&ids).unwrap().len(), 501);
+
+    // A set spanning the chunk boundary keeps only playlist-linked ids.
+    let playlist = lib
+        .add_collection(&NewCollection::playlist("Keep", true))
+        .unwrap();
+    for id in ids.iter().take(3) {
+        lib.add_collection_entry(&playlist.id, id, None).unwrap();
+    }
+    assert_eq!(
+        lib.store().playlist_linked_track_ids(&ids).unwrap().len(),
+        3
+    );
+
+    // Chunked deletes remove every row, including the linked subset (cascade).
+    lib.store().delete_tracks(&ids).unwrap();
+    assert!(lib.store().get_tracks_by_ids(&ids).unwrap().is_empty());
+}
+
+#[test]
+fn delete_collection_keeps_track_referenced_by_a_playlist() {
+    let dir = tempfile::tempdir().unwrap();
+    write_minimal_wav(&dir.path().join("shared.wav"));
+
+    let (mut lib, folder) = library_with_synced_folder(dir.path());
+    let track_id = lib.list_collection_tracks(&folder.id).unwrap()[0]
+        .id()
+        .clone();
+    let pl = lib
+        .add_collection(&NewCollection::playlist("Keep", true))
+        .unwrap();
+    lib.add_collection_entry(&pl.id, &track_id, None).unwrap();
+
+    lib.delete_collection(&folder.id).unwrap();
+    assert!(
+        lib.get_track(&track_id).unwrap().is_some(),
+        "the playlist still references the track"
+    );
+
+    lib.delete_collection(&pl.id).unwrap();
+    assert!(lib.get_track(&track_id).unwrap().is_none());
+}
+
+#[test]
+fn delete_folder_keeps_track_covered_by_another_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let sub = dir.path().join("sub");
+    std::fs::create_dir(&sub).unwrap();
+    write_minimal_wav(&sub.join("t.wav"));
+
+    let (mut lib, parent) = library_with_synced_folder(dir.path());
+    let child = lib.add_collection(&NewCollection::folder(&sub)).unwrap();
+    lib.sync_collection(Some(&child.id)).unwrap();
+    let track_id = lib.list_collection_tracks(&child.id).unwrap()[0]
+        .id()
+        .clone();
+
+    lib.delete_collection(&parent.id).unwrap();
+    assert!(
+        lib.get_track(&track_id).unwrap().is_some(),
+        "the child folder still covers the track"
+    );
+
+    lib.delete_collection(&child.id).unwrap();
+    assert!(lib.get_track(&track_id).unwrap().is_none());
 }
 
 #[test]
@@ -896,11 +1011,7 @@ fn collection_analyze_targets_skips_tagged_and_analyzed() {
     write_minimal_wav(&dir.path().join("tagged.wav"));
     write_minimal_wav(&dir.path().join("done.wav"));
 
-    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-    let folder = lib
-        .add_collection(&NewCollection::folder(dir.path()))
-        .unwrap();
-    lib.sync_collection(Some(&folder.id)).unwrap();
+    let (lib, folder) = library_with_synced_folder(dir.path());
 
     // Stamp BPM on one track (as file tags would) and an analysis row on another.
     for track in lib.list_collection_tracks(&folder.id).unwrap() {
@@ -1149,11 +1260,7 @@ fn remove_collection_entry_keeps_folder_linked_file() {
     let dir = tempfile::tempdir().unwrap();
     write_minimal_wav(&dir.path().join("keep.wav"));
 
-    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-    let folder = lib
-        .add_collection(&NewCollection::folder(dir.path()))
-        .unwrap();
-    lib.sync_collection(Some(&folder.id)).unwrap();
+    let (mut lib, folder) = library_with_synced_folder(dir.path());
     let track_id = lib.list_collection_tracks(&folder.id).unwrap()[0]
         .id()
         .clone();
@@ -1503,11 +1610,7 @@ fn clearing_user_metadata_survives_reanalysis() {
 fn folder_resync_preserves_edited_metadata() {
     let dir = tempfile::tempdir().unwrap();
     short_beats_fixture_copy(dir.path());
-    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-    let folder = lib
-        .add_collection(&NewCollection::folder(dir.path()))
-        .unwrap();
-    lib.sync_collection(Some(&folder.id)).unwrap();
+    let (mut lib, folder) = library_with_synced_folder(dir.path());
     let id = lib.list_collection_tracks(&folder.id).unwrap()[0]
         .id()
         .clone();

@@ -152,6 +152,35 @@ fn add_folder_resolve_and_track_artwork_metadata() {
 }
 
 #[test]
+fn delete_collection_removes_orphaned_tracks() {
+    let dir = tempfile::tempdir().unwrap();
+    write_minimal_wav(&dir.path().join("keep.wav"));
+
+    let transport = LibraryTransport::open_in_memory().unwrap();
+    let added = transport
+        .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
+        .unwrap();
+    let collection_id = added.collection.id.clone();
+    let track_id = transport
+        .list_collection_entries(collection_id.clone())
+        .unwrap()[0]
+        .id
+        .clone();
+
+    transport.delete_collection(collection_id.clone()).unwrap();
+
+    assert!(transport.list_collections().unwrap().is_empty());
+    assert!(
+        transport.get_track(track_id).unwrap().is_none(),
+        "the collection was the only reference to the track"
+    );
+    assert!(
+        transport.delete_collection(collection_id).is_err(),
+        "second delete reports the missing collection"
+    );
+}
+
+#[test]
 fn add_folder_collection_skips_nested_when_not_recursive() {
     let dir = tempfile::tempdir().unwrap();
     write_minimal_wav(&dir.path().join("root.wav"));
