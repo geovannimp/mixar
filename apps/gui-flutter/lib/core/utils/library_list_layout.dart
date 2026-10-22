@@ -6,7 +6,6 @@ import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
-import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
 
 /// Library surface width at or above which the sidebar + content split shows.

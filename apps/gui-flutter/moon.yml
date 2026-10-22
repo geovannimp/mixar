@@ -141,7 +141,11 @@ tasks:
       runInCI: false
       cache: false
 
-  analyze:
+  # Static analysis. Named `lint` (not `analyze`) so the root `:lint` task
+  # picks it up — `npm run lint` in CI runs this via `moon run :lint`.
+  # `flutter analyze` is Flutter's linter; `--no-fatal-infos` keeps lint
+  # suggestions non-fatal, while warnings and errors still fail the task.
+  lint:
     command: "mise"
     args: ["exec", "--", "flutter", "analyze", "--no-fatal-infos"]
     toolchain: "system"
@@ -186,7 +190,7 @@ tasks:
         passDotWhenNoResults: false
 
   # Pre-commit only (lefthook → moon --affected --status staged).
-  # Same analyze as CI `analyze`. `pass: false` so flutter does not get file path args;
+  # Same analyzer as CI `lint`. `pass: false` so flutter does not get file path args;
   # `passDotWhenNoResults: false` skips when no `.dart` is staged.
   lint-files:
     command: "bash"
@@ -227,9 +231,9 @@ tasks:
   # resolved through the import graph — see scripts/test_impacted.dart.
   #
   # CI must keep using `:test` (the full suite) above, never this task. Its
-  # runInCI stays true because moon 2.4.4 cannot *resolve* a runInCI:false task
-  # without --affected (same reason `lint-files`/`format-files` are always
-  # invoked with --affected) — flip it back and this task stops being runnable.
+  # runInCI stays true so CI's `moon ci` never picks it up; moon 2.6.2 can
+  # resolve a runInCI:false task without --affected, so the flag is a CI-scope
+  # choice now, not a moon limitation.
   test-affected:
     command: "bash"
     args:

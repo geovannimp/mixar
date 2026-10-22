@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:gui_flutter/widgets/shell/m_tabs.dart';
 
 /// Minimum height of a horizontal tab bar (= [kMTabHeaderMinSize]).
 const double kMTabBarMinHeight = kMTabHeaderMinSize;
