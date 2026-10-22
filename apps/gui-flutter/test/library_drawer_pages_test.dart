@@ -15,7 +15,6 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/library_pane_back_button.dart';
 import 'package:gui_flutter/widgets/library/library_row_density_button.dart';
-import 'package:gui_flutter/widgets/library/track_list_row.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';

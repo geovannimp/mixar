@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
-import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_face.dart';
 import 'package:gui_flutter/widgets/mixer/pads/sampler_pads.dart';
@@ -71,12 +70,12 @@ void main() {
                       ),
                     ),
                   ),
-                  Positioned(
+                  const Positioned(
                     bottom: 40,
                     left: 20,
                     child: TrackDropZone(
                       deckId: 1,
-                      child: const ColoredBox(
+                      child: ColoredBox(
                         key: _targetKey,
                         color: Color(0xFF00FF00),
                         child: SizedBox(width: 120, height: 120),
