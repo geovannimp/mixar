@@ -390,25 +390,13 @@ impl LibraryManager {
         }
 
         let id = Self::folder_id_for(&path);
-        if let Some(existing) = self.get_collection(&id)? {
-            let current = match &existing.config {
-                CollectionConfig::Folder {
-                    scan_folder_tree, ..
-                } => Some(*scan_folder_tree),
-                _ => None,
-            };
-            if current == Some(*scan_folder_tree) {
-                return Ok(existing);
-            }
-            self.store()
-                .update_collection_scan_folder_tree(&id, *scan_folder_tree)?;
-            return Ok(Collection {
-                id: existing.id,
-                name: existing.name,
-                config: CollectionConfig::Folder {
-                    fs_path: path,
-                    scan_folder_tree: *scan_folder_tree,
-                },
+        // One collection per folder: the id is path-derived, so a second
+        // request for the same folder must not reuse (or silently re-point)
+        // the existing collection.
+        if self.get_collection(&id)?.is_some() {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: format!("a collection already exists for {}", path_label(&path)),
             });
         }
 

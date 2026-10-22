@@ -576,33 +576,34 @@ fn non_recursive_folder_collection_hides_already_indexed_nested_tracks() {
 }
 
 #[test]
-fn recreating_folder_collection_applies_requested_scan_flag() {
+fn adding_a_second_collection_for_the_same_folder_is_rejected() {
     let dir = tempfile::tempdir().unwrap();
     write_minimal_wav(&dir.path().join("a.wav"));
-    let nested = dir.path().join("nested");
-    std::fs::create_dir(&nested).unwrap();
-    write_minimal_wav(&nested.join("b.wav"));
 
     let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
     let first = lib
         .add_collection(&NewCollection::folder_scan(dir.path(), true))
         .unwrap();
-    lib.sync_collection(Some(&first.id)).unwrap();
 
-    let again = lib
+    let error = lib
         .add_collection(&NewCollection::folder_scan(dir.path(), false))
-        .unwrap();
-    assert_eq!(again.id, first.id);
-    assert_eq!(
-        again.config,
-        CollectionConfig::Folder {
-            fs_path: dir.path().canonicalize().unwrap(),
-            scan_folder_tree: false,
-        }
+        .expect_err("a folder can only back one collection");
+    assert!(
+        error.to_string().contains("already exists"),
+        "unexpected error: {error}"
     );
 
-    lib.sync_collection(Some(&again.id)).unwrap();
-    assert_eq!(lib.list_collection_tracks(&again.id).unwrap().len(), 1);
+    // The existing collection keeps its own scan mode and stays the only one.
+    let collections = lib.list_collections().unwrap();
+    assert_eq!(collections.len(), 1);
+    assert_eq!(collections[0].id, first.id);
+    assert_eq!(
+        collections[0].config,
+        CollectionConfig::Folder {
+            fs_path: dir.path().canonicalize().unwrap(),
+            scan_folder_tree: true,
+        }
+    );
 }
 
 #[test]

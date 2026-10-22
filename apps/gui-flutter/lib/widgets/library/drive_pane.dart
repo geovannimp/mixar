@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
+import 'package:gui_flutter/core/utils/folder_path.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
@@ -41,6 +42,16 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
       return;
     }
     selectCreatedCollection(ref, collection);
+  }
+
+  /// The action is only offered for folders that do not back a collection
+  /// yet: one folder backs at most one collection.
+  Widget? _createCollectionButton(String path) {
+    final collected = ref.watch(collectedFolderPathsProvider);
+    if (collected.contains(normalizeFolderPath(path))) {
+      return null;
+    }
+    return _CreateCollectionButton(onPress: () => _createCollection(path));
   }
 
   @override
@@ -163,9 +174,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                               // the user never pressed.
                               ? () => pressPath(dir.parent!)
                               : null,
-                          trailing: _CreateCollectionButton(
-                            onPress: () => _createCollection(dir.path),
-                          ),
+                          trailing: _createCollectionButton(dir.path),
                         ),
                         if (dir.directories.isEmpty)
                           Padding(
@@ -185,9 +194,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                               indented: true,
                               focused: focusedPath == d.path,
                               onPress: () => pressPath(d.path),
-                              trailing: _CreateCollectionButton(
-                                onPress: () => _createCollection(d.path),
-                              ),
+                              trailing: _createCollectionButton(d.path),
                             ),
                       ],
                     );

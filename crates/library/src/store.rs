@@ -510,22 +510,6 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
-    pub fn update_collection_scan_folder_tree(
-        &self,
-        id: &CollectionId,
-        scan_folder_tree: bool,
-    ) -> Result<()> {
-        CollectionEntity::update_many()
-            .col_expr(
-                collections::Column::ScanFolderTree,
-                Expr::value(i32::from(scan_folder_tree)),
-            )
-            .filter(collections::Column::Id.eq(id.as_str()))
-            .exec(self.db.conn()?.as_connection())
-            .map_err(db::db_err)?;
-        Ok(())
-    }
-
     pub fn delete_collection(&self, id: &CollectionId) -> Result<bool> {
         let result = CollectionEntity::delete_by_id(id.as_str())
             .exec(self.db.conn()?.as_connection())
