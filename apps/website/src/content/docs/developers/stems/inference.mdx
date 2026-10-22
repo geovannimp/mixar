@@ -1,8 +1,6 @@
 ---
 title: "Inference"
 description: "Stem separation with pykeio/ort and a single-file HTDemucs ONNX — execution providers, model cache, and the split pipeline."
-section: "Stems"
-order: 3
 ---
 
 Stem separation runs with **[pykeio/ort](https://github.com/pykeio/ort)** (ONNX Runtime) on a single-file HTDemucs ONNX. Mixar prefers the most capable execution provider available, then falls back through slower EPs to CPU. Separated PCM is muxed to NI `.stem.mp4` (see [NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4)).

@@ -1,0 +1,38 @@
+/*
+ * Theme overrides. The last layer in the cascade: it wins over Blume's
+ * defaults and the config tokens.
+ *
+ * Mixar's palette and type are its own (Outfit / Space Grotesk / Noto Sans
+ * Mono, square corners, dark by default), so the docs chrome is restyled here
+ * rather than inherited from Blume's defaults.
+ */
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/noto-sans-mono";
+
+:root {
+  --blume-accent: #0f766e;
+  --blume-background: #fafafa;
+  --blume-foreground: #18181b;
+  --blume-muted: #f4f4f5;
+  --blume-muted-foreground: #52525b;
+  --blume-border: rgba(0, 0, 0, 0.08);
+  --blume-border-hover: rgba(113, 113, 122, 0.35);
+  --blume-code-background: #f4f4f5;
+  --blume-radius: 0;
+  --blume-content-width: 48rem;
+  --blume-font-display: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --blume-font-body: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+  --blume-font-mono: "Noto Sans Mono Variable", ui-monospace, monospace;
+}
+
+:root[data-theme="dark"] {
+  --blume-accent: #2dd4bf;
+  --blume-background: #09090b;
+  --blume-foreground: #f4f4f5;
+  --blume-muted: #121216;
+  --blume-muted-foreground: #a1a1aa;
+  --blume-border: rgba(255, 255, 255, 0.08);
+  --blume-border-hover: rgba(161, 161, 170, 0.35);
+  --blume-code-background: #121216;
+}

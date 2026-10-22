@@ -1,8 +1,6 @@
 ---
-title: "map.toml — [inputs]"
+title: "[inputs]"
 description: "Input binding forms, fields, modifiers, soft takeover, invert, absolute vs relative inputs, and rate limiting."
-section: "MIDI Mappings"
-order: 4
 ---
 
 `[inputs]` is the **hardware → app** direction of a mapping: it binds the controls declared in `device.toml` to engine and library actions, so a pressed button or turned knob does something in Mixar. Everything here is validated against the closed action and alias catalogs, so a name that is not in the catalog is rejected at load time — see [Actions & aliases](/docs/developers/midi-mappings/actions) for the vocabulary, [device.toml](/docs/developers/midi-mappings/device-toml) for the control declarations `map.toml` refers to, and [outputs](/docs/developers/midi-mappings/map-toml/outputs) for the app → hardware direction.

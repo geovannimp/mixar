@@ -15,7 +15,9 @@ fileGroups:
   sources:
     - "src/**/*"
     - "public/**/*"
-    - "astro.config.mjs"
+    - "blume.config.ts"
+    - "components.ts"
+    - "theme.css"
     - "package.json"
   # Both the test and lint tasks are sensitive to both config files.
   configs:

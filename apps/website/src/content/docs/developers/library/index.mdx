@@ -1,8 +1,6 @@
 ---
 title: "Overview"
 description: "How the library crate owns tracks, collections, analysis results, and DJ data — and where each piece is documented."
-section: "Library"
-order: 1
 ---
 
 Mixar has exactly one library per user: the `library` crate (`LibraryManager`) implements the `library-core` traits `Library` + `WritableLibrary` and stores everything in a single SQLite file, `library.db`. Storage is an implementation detail — nothing outside the crate depends on the schema.

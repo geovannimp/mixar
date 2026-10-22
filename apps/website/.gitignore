@@ -1,5 +1,7 @@
 dist/
 .astro/
+# Blume's generated runtime — recreated on every `blume dev`/`blume build`.
+.blume/
 
 # impeccable-live-ignore-start
 .impeccable/hook.cache.json

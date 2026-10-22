@@ -53,7 +53,7 @@ jobs:
       #
       # - POSTHOG_API_KEY is a *personal* token (phx_) with write access on
       #   error tracking, needed to upload source maps. A pull_request run
-      #   executes code the PR controls — astro.config.mjs, package.json, and
+      #   executes code the PR controls — blume.config.ts, package.json, and
       #   `npm ci` install scripts — all of which can read the environment and
       #   exfiltrate it. Fork PRs get no secrets, but a PR from a branch *inside*
       #   this repository does, so the secret is withheld from every

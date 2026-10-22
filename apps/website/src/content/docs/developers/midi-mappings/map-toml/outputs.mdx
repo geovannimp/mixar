@@ -1,8 +1,6 @@
 ---
-title: "map.toml — [outputs]"
+title: "[outputs]"
 description: "Signal-driven LED and meter outputs: binding fields, the signal catalog, LED modes (on/off/blink), caching and refresh rules."
-section: "MIDI Mappings"
-order: 5
 ---
 
 `[outputs.<section>]` is the **app → hardware** direction of a mapping: it watches a closed-catalog signal for the section and emits MIDI when it turns on or off — how the app lights LEDs and drives callbacks on the controller. This page is the reference for the table; [map.toml](/docs/developers/midi-mappings/map-toml) is its overview, [inputs](/docs/developers/midi-mappings/map-toml/inputs) is the opposite (hardware → app) direction, and the control declarations these targets point at live in [device.toml](/docs/developers/midi-mappings/device-toml).

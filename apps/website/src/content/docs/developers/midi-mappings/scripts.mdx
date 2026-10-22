@@ -1,8 +1,6 @@
 ---
 title: "Scripting (Rhai)"
 description: "Lifecycle hooks and script bindings for mapping bundles that declarative actions cannot express."
-section: "MIDI Mappings"
-order: 8
 ---
 
 ## When to script
@@ -55,7 +53,7 @@ An unrecognized `origin` or `kind` falls back to `"engine"` / `"notice"`. If the
 
 The `set_volume` example (from the test suite):
 
-```rhai
+```rust
 fn on_init() {
     publish("deck1", "set_volume", "{\"type\":\"set_volume\",\"volume\":0.5}");
 }
@@ -92,7 +90,7 @@ play_pause = { script = "on_play_pause" }
 
 The runtime calls:
 
-```rhai
+```rust
 fn on_play_pause(value_01, active) {
     // ...
 }
@@ -109,7 +107,7 @@ A script binding runs with a **null MIDI sink**: `midi_out(...)` calls from an i
 
 Top-level `const` and `let` declarations in `script.rhai` are evaluated once and remain visible inside every hook and input-script call. This is what lets `on_init` and `idle_heartbeat` share a constant SysEx payload:
 
-```rhai
+```rust
 const PC_MODE_SYSEX = [
     0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x02, 0x06, 0x00, 0x03, 0x01, 0xF7
 ];
@@ -138,7 +136,7 @@ The DDJ-400 needs a Pioneer SysEx at startup to stay in PC MIDI mode; every pad 
 
 `mappings/ddj-400/script.rhai`:
 
-```rhai
+```rust
 // Forcing SysEx so the unit stays in PC MIDI mode.
 const PC_MODE_SYSEX = [
     0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x02, 0x06, 0x00, 0x03, 0x01, 0xF7

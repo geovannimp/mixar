@@ -1,0 +1,35 @@
+---
+import { META_NAME, resolvePosthogHost } from "../../scripts/analytics";
+
+// Analytics is opt-in by configuration, not by consent UI. With no key the
+// element below is not rendered, the script's config read returns null, and
+// the posthog-js chunk is never fetched — which is the default for local dev
+// and for pull requests from forks, since those get no repository secrets.
+const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY?.trim() ?? "";
+// Through the shared helper rather than re-reading the env var, so the
+// endpoint the privacy page names and the one events go to cannot drift apart.
+const posthogHost = resolvePosthogHost();
+// ANDed with DEV on purpose: a PUBLIC_ flag alone is deployable, so a stray
+// value in CI would turn on verbose SDK logging for every visitor.
+const posthogDebug =
+  import.meta.env.DEV && import.meta.env.PUBLIC_POSTHOG_DEBUG === "true";
+const analyticsEnabled = posthogKey !== "";
+---
+
+{
+  analyticsEnabled && (
+    <meta
+      name={META_NAME}
+      data-key={posthogKey}
+      data-host={posthogHost}
+      data-debug={posthogDebug ? "true" : undefined}
+    />
+  )
+}
+<script>
+  import { initAnalytics } from "../../scripts/analytics";
+
+  // Resolves immediately with no key configured; the SDK is behind a dynamic
+  // import so an unconfigured build never fetches it.
+  void initAnalytics();
+</script>

@@ -1,8 +1,6 @@
 ---
 title: "FX chain"
 description: "The pre-fader FX insert in engine-dsp: the Fx trait, echo and reverb DSP, the shared-unit wire contract, and how to add an effect."
-section: "Mixer"
-order: 2
 ---
 
 The FX unit is a per-deck **pre-fader insert chain** in `engine-dsp`, configured as one **shared** unit: every deck's chain always holds the same configuration, and a per-deck gate decides whether that deck's signal runs through it. Today the [Beat FX strip](/docs/users/mixer/beat-fx) drives one slot; the chain capacity is the slot model a preset editor will program.

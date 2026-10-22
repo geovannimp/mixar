@@ -1,10 +1,63 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { docPath, getDocs } from "../../lib/docs";
+import data from "blume:data";
 import { ArrowRight, BookOpen } from "@lucide/astro";
 
-const { docs, categories } = await getDocs();
-const total = docs.length;
+/**
+ * The docs landing page: the two audiences and the topics under them, built
+ * from the navigation tree Blume infers from the content.
+ */
+
+interface NavNode {
+  kind: "page" | "group";
+  label: string;
+  route?: string;
+  description?: string;
+  children?: NavNode[];
+}
+
+/** The blurb shown above each audience's topics. */
+const AUDIENCE_DESCRIPTIONS: Record<string, string> = {
+  Users: "Using Mixar to play and organize music.",
+  Developers: "Building, extending, and integrating with Mixar.",
+};
+
+/** Every page under a node, the node's own landing page included. */
+function pageCount(node: NavNode): number {
+  if (node.kind === "page") return 1;
+  return (node.children ?? []).reduce((sum, child) => sum + pageCount(child), 0);
+}
+
+/** The page a group is served at: the child whose route is the group's own. */
+function landingPage(node: NavNode): NavNode | undefined {
+  const children = node.children ?? [];
+  return (
+    children.find((child) => child.kind === "page" && child.route === node.route) ??
+    children.find((child) => child.kind === "page")
+  );
+}
+
+const sidebar = (data.navigation?.sidebar ?? []) as NavNode[];
+
+const audiences = sidebar
+  .filter((node) => node.kind === "group")
+  .map((audience) => ({
+    label: audience.label,
+    description: AUDIENCE_DESCRIPTIONS[audience.label] ?? "",
+    topics: (audience.children ?? [])
+      .filter((child) => child.kind === "group")
+      .map((topic) => {
+        const landing = landingPage(topic);
+        return {
+          label: topic.label,
+          href: topic.route ?? landing?.route ?? "",
+          description: landing?.description ?? "",
+          count: pageCount(topic),
+        };
+      }),
+  }));
+
+const total = sidebar.reduce((sum, node) => sum + pageCount(node), 0);
 ---
 
 <BaseLayout
@@ -28,45 +81,41 @@ const total = docs.length;
 
     <div class="grid gap-12">
       {
-        categories.map((category) => (
+        audiences.map((audience) => (
           <section>
             <h2 class="m-0 font-serif text-[1.5rem] font-bold tracking-[-0.02em]">
-              {category.name}
+              {audience.label}
             </h2>
-            <p class="mt-1 text-[0.9375rem] text-muted">{category.description}</p>
+            <p class="mt-1 text-[0.9375rem] text-muted">{audience.description}</p>
 
-            {category.topics.length > 0 ? (
+            {audience.topics.length > 0 ? (
               <div class="mt-5 grid gap-6 sm:grid-cols-2">
-                {category.topics.map((topic) => {
-                  const overview = topic.overview;
-                  const count = topic.entries.length;
-                  return (
-                    <a
-                      href={docPath(overview.id)}
-                      class="group flex flex-col rounded-2xl border border-border bg-bg-card p-6 transition hover:border-border-hover hover:bg-accent-dim"
-                    >
-                      <div class="flex items-center justify-between gap-4">
-                        <h3 class="m-0 font-serif text-[1.25rem] font-bold tracking-[-0.02em]">
-                          {topic.name}
-                        </h3>
-                        <ArrowRight
-                          class="size-5 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent"
-                          aria-hidden="true"
-                        />
-                      </div>
-                      <p class="mt-2 text-[0.9375rem] leading-relaxed text-muted">
-                        {overview.data.description}
-                      </p>
-                      <span class="mt-5 text-[0.8125rem] font-medium uppercase tracking-wide text-muted">
-                        {count} page{count === 1 ? "" : "s"}
-                      </span>
-                    </a>
-                  );
-                })}
+                {audience.topics.map((topic) => (
+                  <a
+                    href={topic.href}
+                    class="group flex flex-col rounded-2xl border border-border bg-bg-card p-6 transition hover:border-border-hover hover:bg-accent-dim"
+                  >
+                    <div class="flex items-center justify-between gap-4">
+                      <h3 class="m-0 font-serif text-[1.25rem] font-bold tracking-[-0.02em]">
+                        {topic.label}
+                      </h3>
+                      <ArrowRight
+                        class="size-5 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <p class="mt-2 text-[0.9375rem] leading-relaxed text-muted">
+                      {topic.description}
+                    </p>
+                    <span class="mt-5 text-[0.8125rem] font-medium uppercase tracking-wide text-muted">
+                      {topic.count} page{topic.count === 1 ? "" : "s"}
+                    </span>
+                  </a>
+                ))}
               </div>
             ) : (
               <p class="mt-5 rounded-2xl border border-dashed border-border bg-bg-elevated px-6 py-8 text-[0.9375rem] text-muted">
-                {category.empty}
+                Guides are on the way.
               </p>
             )}
           </section>

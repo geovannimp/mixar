@@ -3,6 +3,15 @@
 @import "@fontsource-variable/space-grotesk";
 @import "@fontsource-variable/noto-sans-mono";
 
+/* Blume builds the site from a generated runtime in `.blume/`, so Vite's root —
+   and with it Tailwind's automatic source detection — no longer covers the
+   site's own components. These are the folders the marketing pages' classes
+   live in, relative to this file. */
+@source "../components";
+@source "../layouts";
+@source "../pages";
+@source "../scripts";
+
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root,

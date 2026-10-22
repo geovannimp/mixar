@@ -1,8 +1,6 @@
 ---
 title: "Overview"
 description: "How the mixer subsystem is put together: the lane graph, the channel strip order, the buses, and where FX sits in the chain."
-section: "Mixer"
-order: 1
 ---
 
 The mixer is a `dasp_graph` graph of one node per deck. Each node owns that deck's playback, its sampler, and its channel strip, so the whole path from PCM to bus lives in `engine-dsp` with no I/O.

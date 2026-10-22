@@ -1,8 +1,6 @@
 ---
 title: "Validation & errors"
 description: "Validate mapping bundles with map-check, understand common errors, and contribute a mapping."
-section: "MIDI Mappings"
-order: 9
 ---
 
 `map-check` is the controller crate's static validator. It loads and checks a mapping bundle **without any hardware**, so you can catch a bad `device.toml` / `map.toml` / `script.rhai` before launching the app. The same checks run in CI over every shipped bundle.
