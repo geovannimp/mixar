@@ -4750,6 +4750,7 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                     &mut deserializer,
                 );
             let api_stems_format = <String>::sse_decode(&mut deserializer);
+            let api_stems_model = <String>::sse_decode(&mut deserializer);
             let api_tag_write_back = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
@@ -4772,6 +4773,7 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                         &*api_that_guard,
                         api_analysis_duration,
                         api_stems_format,
+                        api_stems_model,
                         api_tag_write_back,
                     )?;
                     std::result::Result::Ok(output_ok)
@@ -7896,6 +7898,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             <crate::api::settings::SelectStyleSetting>::sse_decode(deserializer);
         let mut var_dimPlayedTracks = <bool>::sse_decode(deserializer);
         let mut var_stemsFormat = <String>::sse_decode(deserializer);
+        let mut var_stemsModel = <String>::sse_decode(deserializer);
         let mut var_uiLanguage =
             <crate::api::settings::UiLanguageSetting>::sse_decode(deserializer);
         let mut var_libraryDrawerEnabled = <bool>::sse_decode(deserializer);
@@ -7939,6 +7942,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             select_style: var_selectStyle,
             dim_played_tracks: var_dimPlayedTracks,
             stems_format: var_stemsFormat,
+            stems_model: var_stemsModel,
             ui_language: var_uiLanguage,
             library_drawer_enabled: var_libraryDrawerEnabled,
             library_drawer_side: var_libraryDrawerSide,
@@ -10667,6 +10671,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.select_style.into_into_dart().into_dart(),
             self.dim_played_tracks.into_into_dart().into_dart(),
             self.stems_format.into_into_dart().into_dart(),
+            self.stems_model.into_into_dart().into_dart(),
             self.ui_language.into_into_dart().into_dart(),
             self.library_drawer_enabled.into_into_dart().into_dart(),
             self.library_drawer_side.into_into_dart().into_dart(),
@@ -12211,6 +12216,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <crate::api::settings::SelectStyleSetting>::sse_encode(self.select_style, serializer);
         <bool>::sse_encode(self.dim_played_tracks, serializer);
         <String>::sse_encode(self.stems_format, serializer);
+        <String>::sse_encode(self.stems_model, serializer);
         <crate::api::settings::UiLanguageSetting>::sse_encode(self.ui_language, serializer);
         <bool>::sse_encode(self.library_drawer_enabled, serializer);
         <crate::api::settings::LibraryDrawerSideSetting>::sse_encode(

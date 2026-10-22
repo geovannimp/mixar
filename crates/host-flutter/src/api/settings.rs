@@ -333,6 +333,9 @@ pub struct AppSettings {
     /// Stem cache codec: `opus` (default) or `flac`.
     #[serde(default = "default_stems_format")]
     pub stems_format: String,
+    /// Offline separation model id (`htdemucs_mixxx_v1` | `scnet_int8_v1`).
+    #[serde(default = "default_stems_model")]
+    pub stems_model: String,
     #[serde(default)]
     pub ui_language: UiLanguageSetting,
     /// Open the library as an overlay drawer instead of the docked panel.
@@ -372,6 +375,7 @@ struct SettingsHost {
     select_style: SelectStyleSetting,
     dim_played_tracks: bool,
     stems_format: String,
+    stems_model: String,
     ui_language: UiLanguageSetting,
     library_drawer_enabled: bool,
     library_drawer_side: LibraryDrawerSideSetting,
@@ -406,6 +410,7 @@ impl Default for SettingsHost {
             select_style: SelectStyleSetting::default(),
             dim_played_tracks: default_dim_played_tracks(),
             stems_format: default_stems_format(),
+            stems_model: default_stems_model(),
             ui_language: UiLanguageSetting::default(),
             library_drawer_enabled: false,
             library_drawer_side: LibraryDrawerSideSetting::Bottom,
@@ -447,6 +452,19 @@ fn default_dim_played_tracks() -> bool {
 
 fn default_stems_format() -> String {
     "opus".into()
+}
+
+fn default_stems_model() -> String {
+    analyzer_stems::DEFAULT_MODEL.into()
+}
+
+fn normalize_stems_model(model: &str) -> String {
+    let model = model.trim();
+    if analyzer_stems::STEM_MODELS.contains(&model) {
+        model.into()
+    } else {
+        default_stems_model()
+    }
 }
 
 fn normalize_stems_format(format: &str) -> String {
@@ -567,6 +585,7 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     }
 
     settings.stems_format = normalize_stems_format(&settings.stems_format);
+    settings.stems_model = normalize_stems_model(&settings.stems_model);
 
     if errors.is_empty() {
         Ok(settings)
@@ -689,6 +708,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         select_style: host.select_style,
         dim_played_tracks: host.dim_played_tracks,
         stems_format: host.stems_format.clone(),
+        stems_model: host.stems_model.clone(),
         ui_language: host.ui_language,
         library_drawer_enabled: host.library_drawer_enabled,
         library_drawer_side: host.library_drawer_side,
@@ -738,6 +758,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.select_style = settings.select_style;
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
+    host.stems_model = settings.stems_model;
     host.ui_language = settings.ui_language;
     host.library_drawer_enabled = settings.library_drawer_enabled;
     host.library_drawer_side = settings.library_drawer_side;
@@ -853,6 +874,24 @@ mod tests {
         assert!(parsed.show_mixer_meters);
         assert!(parsed.mixer_meters_mono);
         assert_eq!(parsed.stems_format, "opus");
+        assert_eq!(parsed.stems_model, analyzer_stems::DEFAULT_MODEL);
+    }
+
+    #[test]
+    fn missing_or_unknown_stems_model_defaults_htdemucs() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value.as_object_mut().expect("object").remove("stems_model");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(settings.stems_model, analyzer_stems::DEFAULT_MODEL);
+
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("stems_model".into(), serde_json::json!("nope"));
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        let normalized = parse_settings(settings).expect("normalize");
+        assert_eq!(normalized.stems_model, analyzer_stems::DEFAULT_MODEL);
     }
 
     #[test]

@@ -1050,7 +1050,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsLibraryStemsDescription.
   ///
   /// In en, this message translates to:
-  /// **'Codec used when writing separated stem caches.'**
+  /// **'Model and codec used when writing separated stem caches.'**
   String get settingsLibraryStemsDescription;
 
   /// No description provided for @settingsLibraryStemFormat.
@@ -1058,6 +1058,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stem format'**
   String get settingsLibraryStemFormat;
+
+  /// No description provided for @settingsLibraryStemModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Stem model'**
+  String get settingsLibraryStemModel;
 
   /// No description provided for @settingsLibraryStemOpus.
   ///

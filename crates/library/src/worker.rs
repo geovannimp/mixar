@@ -406,6 +406,7 @@ fn run_stem_ensure_job(library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuse
     let stems_root = buses.stems_root();
     let models_root = buses.models_root();
     let format = buses.stems_format();
+    let model = buses.stems_model();
     let evt_bus = buses.evt_bus();
     let revision = buses.revision_arc();
     let track_id_for_cb = track_id.to_string();
@@ -430,6 +431,7 @@ fn run_stem_ensure_job(library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuse
         &stems_root,
         &models_root,
         &format,
+        &model,
         Some(progress),
     );
     match result {

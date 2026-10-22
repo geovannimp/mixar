@@ -100,6 +100,23 @@ void main() {
     );
   });
 
+  test('stemsModel defaults HTDemucs and dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.stemsModel, kDefaultStemModel);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, stemsModel: 'scnet_int8_v1'),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      normalizeAppSettings(copyAppSettings(baseline, stemsModel: 'not-a-model'))
+          .stemsModel,
+      kDefaultStemModel,
+    );
+  });
+
   test('tagWriteBack defaults off and is dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.tagWriteBack, isFalse);

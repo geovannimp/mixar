@@ -530,10 +530,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsLibraryStemsDescription =>
-      'Codec used when writing separated stem caches.';
+      'Model and codec used when writing separated stem caches.';
 
   @override
   String get settingsLibraryStemFormat => 'Stem format';
+
+  @override
+  String get settingsLibraryStemModel => 'Stem model';
 
   @override
   String get settingsLibraryStemOpus => 'Opus (160 kbps)';

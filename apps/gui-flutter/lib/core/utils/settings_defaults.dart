@@ -6,6 +6,10 @@ import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
+/// Built-in offline separation models (must match analyzer-stems).
+const kStemModels = ['htdemucs_mixxx_v1', 'scnet_int8_v1'];
+const kDefaultStemModel = 'htdemucs_mixxx_v1';
+
 WaveformDisplayMode waveformModeFromSettings(WaveformDisplayModeSetting mode) {
   return switch (mode) {
     WaveformDisplayModeSetting.rgb => WaveformDisplayMode.rgb,
@@ -131,6 +135,7 @@ AppSettings defaultAppSettings() {
     selectStyle: SelectStyleSetting.auto,
     dimPlayedTracks: true,
     stemsFormat: 'opus',
+    stemsModel: kDefaultStemModel,
     uiLanguage: UiLanguageSetting.system,
     libraryDrawerEnabled: false,
     libraryDrawerSide: LibraryDrawerSideSetting.bottom,
@@ -154,6 +159,9 @@ AppSettings normalizeAppSettings(AppSettings settings) {
     deckDefaultSamplerBankId: banks,
     masterBus: _normalizeBus(settings.masterBus),
     previewBus: _normalizeBus(settings.previewBus),
+    stemsModel: kStemModels.contains(settings.stemsModel)
+        ? settings.stemsModel
+        : kDefaultStemModel,
   );
 }
 
@@ -207,6 +215,7 @@ AppSettings copyAppSettings(
   SelectStyleSetting? selectStyle,
   bool? dimPlayedTracks,
   String? stemsFormat,
+  String? stemsModel,
   UiLanguageSetting? uiLanguage,
   bool? libraryDrawerEnabled,
   LibraryDrawerSideSetting? libraryDrawerSide,
@@ -253,6 +262,7 @@ AppSettings copyAppSettings(
     selectStyle: selectStyle ?? base.selectStyle,
     dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
     stemsFormat: stemsFormat ?? base.stemsFormat,
+    stemsModel: stemsModel ?? base.stemsModel,
     uiLanguage: uiLanguage ?? base.uiLanguage,
     libraryDrawerEnabled: libraryDrawerEnabled ?? base.libraryDrawerEnabled,
     libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
@@ -297,6 +307,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.selectStyle != baseline.selectStyle ||
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       draft.stemsFormat != baseline.stemsFormat ||
+      draft.stemsModel != baseline.stemsModel ||
       draft.uiLanguage != baseline.uiLanguage ||
       draft.libraryDrawerEnabled != baseline.libraryDrawerEnabled ||
       draft.libraryDrawerSide != baseline.libraryDrawerSide ||

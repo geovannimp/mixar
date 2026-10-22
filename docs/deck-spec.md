@@ -103,7 +103,7 @@ Typical deck layout:
 | Slip mode | Yes |
 | Jog / scratch | Yes |
 | FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems | Yes → four-stem mix, offline generation, non-blocking attach, pad mute/isolate; Stem EQ / Storage UI / realtime separation remain open — [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stems | Yes → four-stem mix, HTDemucs or SCNet offline cache, non-blocking attach, pad mute/isolate; Stem EQ / Storage UI / realtime separation remain open — [#46](https://github.com/geovannimp/mixar/issues/46) |
 
 ### Library metadata
 

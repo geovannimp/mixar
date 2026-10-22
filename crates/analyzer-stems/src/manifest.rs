@@ -7,10 +7,18 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Sole built-in HTDemucs ONNX model id (Mixxx GSoC export — same I/O as stemgen 0.5).
+/// Default HTDemucs ONNX model id (Mixxx GSoC export — same I/O as stemgen 0.5).
 ///
 /// See <https://mixxx.org/news/2025-10-27-gsoc2025-demucs-to-onnx-dhunstack/>.
 pub const DEFAULT_MODEL: &str = "htdemucs_mixxx_v1";
+
+/// SCNet int8 ONNX (spectrogram I/O, 11 s segments, 75% overlap).
+///
+/// Export by audiojs of the official MIT SCNet checkpoint, 12.9 MB.
+pub const SCNET_MODEL: &str = "scnet_int8_v1";
+
+/// Built-in separation models selectable from Settings → Library.
+pub const STEM_MODELS: [&str; 2] = [DEFAULT_MODEL, SCNET_MODEL];
 
 /// On-disk artifact descriptor in a Mixar model manifest.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -64,8 +72,33 @@ pub fn builtin_manifest(model_name: &str) -> Result<ModelManifest> {
                 format: "onnx".into(),
             }],
         }),
+        "scnet_int8_v1" => Ok(ModelManifest {
+            name: "scnet_int8_v1".into(),
+            sample_rate: 44_100,
+            artifacts: vec![Artifact {
+                file: "scnet.int8.onnx".into(),
+                sha256: "98228931494151762a1c4ab1ec7899a894b1f81fd4a509921a9d2f9bacc50845".into(),
+                size_bytes: 12_900_277,
+                url: "https://huggingface.co/audiojs/scnet/resolve/main/scnet.int8.onnx"
+                    .into(),
+                format: "onnx-int8".into(),
+            }],
+        }),
         other => Err(anyhow!("unknown built-in stem model '{other}'")),
     }
+}
+
+/// Resolve a built-in model **only if its artifact is already on disk**.
+///
+/// Never downloads: callers use this for optional preloading.
+pub fn cached_model(models_root: &Path, model_name: &str) -> Result<Option<ModelHandle>> {
+    let manifest = builtin_manifest(model_name)?;
+    let artifact = manifest.resolve_primary_artifact()?;
+    let local_path = artifact_path(models_root, &manifest, &artifact.file, &artifact.sha256)?;
+    Ok(local_path.is_file().then_some(ModelHandle {
+        manifest,
+        local_path,
+    }))
 }
 
 /// Download / verify model weights into `models_root`.
@@ -293,6 +326,20 @@ mod tests {
             artifacts: vec![],
         };
         assert!(artifact_path(root, &m, "m.onnx", "abcdef01").is_err());
+    }
+
+    #[test]
+    fn builtin_manifest_has_scnet_int8() {
+        let m = builtin_manifest(SCNET_MODEL).expect("scnet");
+        let art = m.resolve_primary_artifact().expect("artifact");
+        assert_eq!(m.sample_rate, 44_100);
+        assert_eq!(art.file, "scnet.int8.onnx");
+        assert_eq!(art.size_bytes, 12_900_277);
+        assert_eq!(
+            art.sha256,
+            "98228931494151762a1c4ab1ec7899a894b1f81fd4a509921a9d2f9bacc50845"
+        );
+        assert_eq!(STEM_MODELS, ["htdemucs_mixxx_v1", "scnet_int8_v1"]);
     }
 
     #[test]

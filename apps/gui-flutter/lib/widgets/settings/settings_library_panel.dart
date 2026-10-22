@@ -23,6 +23,14 @@ class SettingsLibraryPanel extends StatelessWidget {
   static String _normalizedStemsFormat(String format) =>
       _stemsFormats.contains(format) ? format : 'opus';
 
+  static String _normalizedStemsModel(String model) =>
+      kStemModels.contains(model) ? model : kDefaultStemModel;
+
+  static String _stemsModelLabel(String model) => switch (model) {
+    'scnet_int8_v1' => 'SCNet (int8)',
+    _ => 'HTDemucs',
+  };
+
   static String _analysisLabel(
     AppLocalizations l10n,
     AnalysisDurationSetting mode,
@@ -162,16 +170,33 @@ class SettingsLibraryPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsLibraryStemsTitle,
           subtitle: l10n.settingsLibraryStemsDescription,
-          child: SettingsField(
-            label: l10n.settingsLibraryStemFormat,
-            child: SettingsSelect<String>(
-              dialogTitle: l10n.settingsLibraryStemFormat,
-              value: _normalizedStemsFormat(draft.stemsFormat),
-              options: _stemsFormats,
-              labelBuilder: (format) => _stemsFormatLabel(l10n, format),
-              onChanged: (v) =>
-                  onChanged(copyAppSettings(draft, stemsFormat: v)),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 16,
+            children: [
+              SettingsField(
+                label: l10n.settingsLibraryStemModel,
+                child: SettingsSelect<String>(
+                  dialogTitle: l10n.settingsLibraryStemModel,
+                  value: _normalizedStemsModel(draft.stemsModel),
+                  options: kStemModels,
+                  labelBuilder: _stemsModelLabel,
+                  onChanged: (v) =>
+                      onChanged(copyAppSettings(draft, stemsModel: v)),
+                ),
+              ),
+              SettingsField(
+                label: l10n.settingsLibraryStemFormat,
+                child: SettingsSelect<String>(
+                  dialogTitle: l10n.settingsLibraryStemFormat,
+                  value: _normalizedStemsFormat(draft.stemsFormat),
+                  options: _stemsFormats,
+                  labelBuilder: (format) => _stemsFormatLabel(l10n, format),
+                  onChanged: (v) =>
+                      onChanged(copyAppSettings(draft, stemsFormat: v)),
+                ),
+              ),
+            ],
           ),
         ),
         const MixxxImportPanel(),

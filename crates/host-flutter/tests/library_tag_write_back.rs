@@ -55,7 +55,12 @@ fn analyze_writes_the_library_bpm_and_key_into_the_file() {
 
     let transport = LibraryTransport::open_in_memory().unwrap();
     transport
-        .apply_library_settings(LibraryAnalysisDurationSetting::Fast, "opus".into(), true)
+        .apply_library_settings(
+            LibraryAnalysisDurationSetting::Fast,
+            "opus".into(),
+            "htdemucs_mixxx_v1".into(),
+            true,
+        )
         .unwrap();
     transport
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
@@ -84,7 +89,12 @@ fn analyze_leaves_the_file_alone_without_opt_in() {
     let transport = LibraryTransport::open_in_memory().unwrap();
     // Default: tag write-back off.
     transport
-        .apply_library_settings(LibraryAnalysisDurationSetting::Fast, "opus".into(), false)
+        .apply_library_settings(
+            LibraryAnalysisDurationSetting::Fast,
+            "opus".into(),
+            "htdemucs_mixxx_v1".into(),
+            false,
+        )
         .unwrap();
     transport
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)

@@ -1000,15 +1000,17 @@ impl LibraryTransport {
         self.buses.clone()
     }
 
-    /// Apply library analysis duration, stem format, and tag write-back from app settings.
+    /// Apply library analysis duration, stem format/model, and tag write-back.
     pub fn apply_library_settings(
         &self,
         analysis_duration: LibraryAnalysisDurationSetting,
         stems_format: String,
+        stems_model: String,
         tag_write_back: bool,
     ) -> Result<(), String> {
         self.buses.set_analysis_duration(analysis_duration.into());
         self.buses.set_stems_format(stems_format);
+        self.buses.set_stems_model(stems_model);
         let mut lib = self
             .library
             .lock()
@@ -1850,6 +1852,29 @@ mod tests {
         let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
         let mapped = map_library_evt(ev.as_ref()).expect("HistorySessionUpdated maps");
         assert_eq!(mapped.kind, LibraryEvtKind::HistorySessionUpdated);
+    }
+
+    #[test]
+    fn apply_library_settings_updates_stems_model() {
+        let transport = LibraryTransport::open_in_memory().unwrap();
+        transport
+            .apply_library_settings(
+                LibraryAnalysisDurationSetting::Fast,
+                "opus".into(),
+                "scnet_int8_v1".into(),
+                false,
+            )
+            .unwrap();
+        assert_eq!(transport.buses.stems_model(), "scnet_int8_v1");
+        transport
+            .apply_library_settings(
+                LibraryAnalysisDurationSetting::Fast,
+                "opus".into(),
+                "bogus".into(),
+                false,
+            )
+            .unwrap();
+        assert_eq!(transport.buses.stems_model(), "htdemucs_mixxx_v1");
     }
 
     #[test]

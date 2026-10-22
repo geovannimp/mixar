@@ -15,7 +15,7 @@ order: 4
 
 Your library tracks and music folders are never modified by generate or clear. Only Mixar’s cache directories (and library rows that point at generated stem files) change.
 
-**Stem format** (Opus by default, or FLAC) is under **Settings → Library → Stem format**. That setting applies to **new** generated caches; changing it can make older generated files stale so Mixar regenerates them the next time you ask.
+**Stem model** (HTDemucs by default, or SCNet int8) and **Stem format** (Opus by default, or FLAC) are under **Settings → Library**. Both apply to **new** generated caches; changing either makes older generated files stale, so Mixar regenerates them the next time you generate. Existing caches stay playable until then. Live stem playback currently uses HTDemucs only.
 
 ## Clean stems and free space
 
@@ -30,6 +30,6 @@ Open **Settings → Storage**. The overview shows how much space Mixar is using,
 
 **Sync stem cache** — removes orphan cache files that are not listed in the library database, and drops database rows whose files are missing. Referenced caches and original audio stay. Use this if the cache and library got out of sync.
 
-**Clear stem model** — deletes the downloaded model. The next **Generate stems** downloads it again. Clearing the model does not delete already-generated stem files.
+**Clear stem model** — deletes every downloaded separation model (HTDemucs and/or SCNet). The next **Generate stems** downloads the selected one again. Clearing models does not delete already-generated stem files.
 
 Clear is best-effort if a deck still has stems attached — you may see a partial-failure toast. Reload the track or regenerate later if needed.

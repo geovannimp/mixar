@@ -22,5 +22,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "settingsLibraryStemsDescription": "Modelo e codec usados ao gravar caches de stems separados.",
+  "settingsLibraryStemModel": "Modelo de stems"
 }
