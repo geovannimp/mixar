@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import { RELEASES_URL } from "../consts";
@@ -101,6 +102,7 @@ const analyticsEnabled = posthogKey !== "";
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <ClientRouter />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <title>{fullTitle}</title>
@@ -156,19 +158,49 @@ const analyticsEnabled = posthogKey !== "";
     <script>
       import { initRevealGroups } from "../scripts/features-reveal";
 
-      const toggle = document.getElementById("theme-toggle");
-      const themeStatus = document.getElementById("theme-status");
-      toggle?.addEventListener("click", () => {
-        const root = document.documentElement;
-        const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-        root.setAttribute("data-theme", next);
-        localStorage.setItem("theme", next);
-        if (themeStatus) {
-          themeStatus.textContent = `${next === "dark" ? "Dark" : "Light"} theme enabled`;
-        }
+      const storedTheme = () => {
+        const stored = localStorage.getItem("theme");
+        return stored === "light" ? "light" : "dark";
+      };
+
+      // The router swaps <html>'s attributes for the incoming document's, which
+      // drops the runtime `data-theme` the inline head script set. Re-apply it
+      // inside the swap so the arriving page is captured — and rendered — in
+      // the visitor's theme rather than the default one.
+      const applyTheme = () => {
+        document.documentElement.setAttribute("data-theme", storedTheme());
+      };
+
+      // The header is re-rendered on every navigation, so the toggle is a new
+      // element each time and has to be wired again.
+      const bindThemeToggle = () => {
+        const toggle = document.getElementById("theme-toggle");
+        if (!toggle || toggle.dataset.themeToggleBound) return;
+        toggle.dataset.themeToggleBound = "";
+
+        const themeStatus = document.getElementById("theme-status");
+        toggle.addEventListener("click", () => {
+          const root = document.documentElement;
+          const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+          root.setAttribute("data-theme", next);
+          localStorage.setItem("theme", next);
+          if (themeStatus) {
+            themeStatus.textContent = `${next === "dark" ? "Dark" : "Light"} theme enabled`;
+          }
+        });
+      };
+
+      applyTheme();
+
+      document.addEventListener("astro:after-swap", () => {
+        applyTheme();
       });
 
-      initRevealGroups();
+      document.addEventListener("astro:page-load", () => {
+        applyTheme();
+        bindThemeToggle();
+        initRevealGroups();
+      });
     </script>
     <script>
       import { initAnalytics } from "../scripts/analytics";

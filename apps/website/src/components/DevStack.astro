@@ -66,5 +66,5 @@ const iconProps = { size: 24, "stroke-width": 2 };
 
 <script>
  import { drawGhostWordOnEnter } from "../lib/ghost-word";
- drawGhostWordOnEnter();
+ document.addEventListener("astro:page-load", () => drawGhostWordOnEnter());
 </script>

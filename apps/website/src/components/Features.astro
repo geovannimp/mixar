@@ -83,5 +83,7 @@ const iconProps = { size: 24, "stroke-width": 2 };
 
 <script>
   import { drawGhostWordOnEnter } from "../lib/ghost-word";
-  drawGhostWordOnEnter();
+  // The router replaces the page without re-running bundled scripts, so the
+  // draw is armed again for every arrival.
+  document.addEventListener("astro:page-load", () => drawGhostWordOnEnter());
 </script>

@@ -287,13 +287,14 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 
 ### Motion
 
-- **Scroll reveal:** Fade + 16px translate, 500ms ease, staggered 100ms; disabled when `prefers-reduced-motion`. The hero copy uses the same reveal as its on-load entrance (screenshot excluded — it stays unhidden for LCP).
+- **Page navigation (view transitions):** The Astro `ClientRouter` swaps pages without a reload. The header (`site-header`) and the docs menu (`docs-menu`) are named layers that hold still while the page body changes; the body exits with a 220ms fade and an 8px lift and enters on a 300ms expo curve with the site's 16px reveal distance, so the two layers overlap and the page never dips through the background. Forward navigation rises into place; back navigation settles down from above (Astro's `data-astro-transition` on `<html>`). Under `prefers-reduced-motion` the swap is a 120/160ms crossfade with no translation or scale. Styles live in `apps/website/src/styles/view-transitions.css`.
+- **Scroll reveal:** 500ms fade + 16px translate, staggered 100ms; off under reduced motion. Hero copy stays visible for LCP.
 - **Hero tablet:** Motion-driven float/tilt on desktop; scroll-scrubbed tilt on mobile. No scanline or status chrome sits on the device.
 - **Hero stage:** Star layers drift and twinkle, the audio glyphs float, and the mirrored oscilloscope trace drifts; all ambient animation stops under `prefers-reduced-motion`.
 - **Closing developers section:** The shared starfield and audio glyphs drift and twinkle on the section behind the flat tinted card under the same reduced-motion guard.
 - **Ghost word draw:** The features ghost outline word traces itself in via `stroke-dashoffset` (2000→0, 1.8s ease-out) when scrolled into view — timings follow the site reveal language; drawn instantly under `prefers-reduced-motion`.
 - **Marquee ticker:** Full-bleed duplicated-track divider (`.marquee-track`, six copies so the `-50%` loop keeps the band covered at every offset, ~90s linear loop); static under `prefers-reduced-motion`. Content words repeat copy that also appears in real sections.
-- **Band video:** The NI Stems section opens with a muted looping full-bleed video band; JS holds it on frame one under `prefers-reduced-motion`.
+- **Band video:** The NI Stems section opens with a muted looping full-bleed video band. It never autoplayed before an explicit Play — Astro's cached back-navigation used to restore it already running, which read as the demo auto-starting — so it plays only while the stem player is actually playing and holds one frame under `prefers-reduced-motion`.
 - **Teal contrast band:** `band-teal` tints whole sections to the teal primary scale (Pricing and the dev-page CTA) — teal-950 on the dark page, teal-50 on the light page — with a single surface tone: cards match the band and the alpha hairline border does the lift, so no second green stripe appears.
 - **Select open (app):** Height factor 0→1 from top + fade (~160ms ease-out); not the stock scale pop
 

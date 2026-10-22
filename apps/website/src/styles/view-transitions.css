@@ -1,0 +1,131 @@
+/* --- View transitions ------------------------------------------------------
+   Navigation choreography for the marketing site.
+
+   The header and the docs menu are named layers: they hold still while the
+   page body changes underneath, so a navigation reads as the booth chrome
+   staying put and only the deck changing. Everything else lives in one root
+   layer that exits fast and enters slower, using the site's own reveal
+   distance (16px) and its expo ease.
+
+   Direction follows travel: a forward navigation rises into place, a back
+   navigation settles down from above (Astro writes `data-astro-transition`
+   on <html> before the transition starts).
+
+   Reduced motion keeps the crossfade — the state change stays legible — and
+   drops every translation and scale.
+*/
+
+:root {
+  --vt-exit-duration: 220ms;
+  --vt-enter-duration: 300ms;
+  --vt-ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --vt-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+::view-transition-group(root) {
+  animation-duration: var(--vt-enter-duration);
+  animation-timing-function: var(--vt-ease-enter);
+}
+
+/* The two layers overlap: the outgoing page holds its opacity longer than it
+   holds its position, and the incoming page arrives on an expo curve. Their
+   opacities sum to roughly one throughout, so the page never dips through
+   the background. */
+::view-transition-old(root) {
+  animation: mixar-page-exit var(--vt-exit-duration) var(--vt-ease-exit) both;
+}
+
+::view-transition-new(root) {
+  animation: mixar-page-enter var(--vt-enter-duration) var(--vt-ease-enter) both;
+}
+
+/* Named layers hold their geometry: the chrome does not slide or morph. */
+::view-transition-group(site-header),
+::view-transition-group(docs-menu) {
+  animation-duration: var(--vt-enter-duration);
+}
+
+@keyframes mixar-page-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.995);
+  }
+}
+
+@keyframes mixar-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html[data-astro-transition="back"]::view-transition-old(root) {
+  animation-name: mixar-page-exit-back;
+}
+
+html[data-astro-transition="back"]::view-transition-new(root) {
+  animation-name: mixar-page-enter-back;
+}
+
+@keyframes mixar-page-exit-back {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+}
+
+@keyframes mixar-page-enter-back {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-group(site-header),
+  ::view-transition-group(docs-menu) {
+    animation-duration: 160ms;
+  }
+
+  ::view-transition-old(root) {
+    animation: mixar-fade-out 120ms linear both;
+  }
+
+  ::view-transition-new(root) {
+    animation: mixar-fade-in 160ms linear both;
+    animation-delay: 0ms;
+  }
+}
+
+@keyframes mixar-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes mixar-fade-in {
+  from {
+    opacity: 0;
+  }
+}

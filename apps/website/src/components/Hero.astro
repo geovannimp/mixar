@@ -190,5 +190,18 @@ const audioGlyphs = [
 <script>
   import { initHeroMobileTilt } from "../scripts/hero-mobile-tilt";
 
-  initHeroMobileTilt();
+  let disposeTilt: (() => void) | undefined;
+
+  const initTilt = () => {
+    disposeTilt?.();
+    disposeTilt = initHeroMobileTilt();
+  };
+
+  // The router replaces the page without re-running bundled scripts: release
+  // the old tilt with the element it was bound to, and arm the new one.
+  document.addEventListener("astro:before-swap", () => {
+    disposeTilt?.();
+    disposeTilt = undefined;
+  });
+  document.addEventListener("astro:page-load", initTilt);
 </script>
