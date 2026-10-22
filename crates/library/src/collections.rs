@@ -391,7 +391,25 @@ impl LibraryManager {
 
         let id = Self::folder_id_for(&path);
         if let Some(existing) = self.get_collection(&id)? {
-            return Ok(existing);
+            let current = match &existing.config {
+                CollectionConfig::Folder {
+                    scan_folder_tree, ..
+                } => Some(*scan_folder_tree),
+                _ => None,
+            };
+            if current == Some(*scan_folder_tree) {
+                return Ok(existing);
+            }
+            self.store()
+                .update_collection_scan_folder_tree(&id, *scan_folder_tree)?;
+            return Ok(Collection {
+                id: existing.id,
+                name: existing.name,
+                config: CollectionConfig::Folder {
+                    fs_path: path,
+                    scan_folder_tree: *scan_folder_tree,
+                },
+            });
         }
 
         let name = collection

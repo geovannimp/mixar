@@ -331,7 +331,29 @@ impl Library for LibraryManager {
                     backend: "library",
                     message: format!("folder {collection_id} has no fs_path"),
                 })?;
-                self.file_sources_under(fs_path)
+                let CollectionConfig::Folder {
+                    scan_folder_tree, ..
+                } = &collection.config
+                else {
+                    return Err(LibraryError::Backend {
+                        backend: "library",
+                        message: format!("folder {collection_id} has non-folder config"),
+                    });
+                };
+                let sources = self.file_sources_under(fs_path)?;
+                if *scan_folder_tree {
+                    return Ok(sources);
+                }
+                // The prefix query also matches tracks indexed through another
+                // collection; a non-recursive folder only owns its direct files.
+                Ok(sources
+                    .into_iter()
+                    .filter(|source| {
+                        source
+                            .file()
+                            .is_some_and(|file| file.path().parent() == Some(fs_path))
+                    })
+                    .collect())
             }
             CollectionType::Playlist => {
                 let rows = self.list_collection_entries(collection_id)?;

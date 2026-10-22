@@ -547,6 +547,65 @@ fn resync_folder_counts_updated_not_added() {
 }
 
 #[test]
+fn non_recursive_folder_collection_hides_already_indexed_nested_tracks() {
+    let dir = tempfile::tempdir().unwrap();
+    write_minimal_wav(&dir.path().join("a.wav"));
+    let nested = dir.path().join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    write_minimal_wav(&nested.join("b.wav"));
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    // The nested track is already in the library through another collection.
+    let deep = lib
+        .add_collection(&NewCollection::folder_scan(&nested, true))
+        .unwrap();
+    lib.sync_collection(Some(&deep.id)).unwrap();
+
+    let shallow = lib
+        .add_collection(&NewCollection::folder_scan(dir.path(), false))
+        .unwrap();
+    let report = lib.sync_collection(Some(&shallow.id)).unwrap();
+    assert_eq!(report.added, 1);
+
+    let tracks = lib.list_collection_tracks(&shallow.id).unwrap();
+    assert_eq!(
+        tracks.len(),
+        1,
+        "a non-recursive collection must not list nested tracks: {tracks:?}"
+    );
+}
+
+#[test]
+fn recreating_folder_collection_applies_requested_scan_flag() {
+    let dir = tempfile::tempdir().unwrap();
+    write_minimal_wav(&dir.path().join("a.wav"));
+    let nested = dir.path().join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    write_minimal_wav(&nested.join("b.wav"));
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let first = lib
+        .add_collection(&NewCollection::folder_scan(dir.path(), true))
+        .unwrap();
+    lib.sync_collection(Some(&first.id)).unwrap();
+
+    let again = lib
+        .add_collection(&NewCollection::folder_scan(dir.path(), false))
+        .unwrap();
+    assert_eq!(again.id, first.id);
+    assert_eq!(
+        again.config,
+        CollectionConfig::Folder {
+            fs_path: dir.path().canonicalize().unwrap(),
+            scan_folder_tree: false,
+        }
+    );
+
+    lib.sync_collection(Some(&again.id)).unwrap();
+    assert_eq!(lib.list_collection_tracks(&again.id).unwrap().len(), 1);
+}
+
+#[test]
 fn sync_collection_off_mutex_matches_in_process_sync() {
     use std::sync::Mutex;
 
