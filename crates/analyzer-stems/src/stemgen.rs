@@ -258,6 +258,22 @@ fn run_hop(
     Ok(out)
 }
 
+/// Publish one hop's stems and advance the published end.
+///
+/// Returns the new published end; the caller owns the epoch state.
+fn publish_hop(
+    ring: &LiveStemRing,
+    separated: &[Vec<f32>; STEMS],
+    publish_at: &mut u64,
+    total: u64,
+) {
+    let valid = ((total - *publish_at) as usize).min(HOP);
+    if valid > 0 {
+        publish(ring, separated, *publish_at, valid);
+        *publish_at += HOP as u64;
+    }
+}
+
 fn publish(ring: &LiveStemRing, separated: &[Vec<f32>; STEMS], start: u64, valid: usize) {
     // Model output order is Drums, Bass, Vocals, Other; the ring is
     // Drums, Bass, Other, Vocals (Mixar/NI order).
@@ -392,13 +408,7 @@ fn pump(
                 if !*first {
                     audio_chunk.fill(0.0);
                     match runner.run(&audio_chunk) {
-                        Ok(separated) => {
-                            let valid = ((total - *publish_at) as usize).min(HOP);
-                            if valid > 0 {
-                                publish(ring, &separated, *publish_at, valid);
-                                *publish_at += HOP as u64;
-                            }
-                        }
+                        Ok(separated) => publish_hop(ring, &separated, publish_at, total),
                         Err(err) => {
                             warn!(error = %format!("{err:#}"), "StemgenRT live: flush failed");
                             ring.close();
@@ -430,11 +440,7 @@ fn pump(
         };
 
         if !*first {
-            let valid = ((total - *publish_at) as usize).min(HOP);
-            if valid > 0 {
-                publish(ring, &separated, *publish_at, valid);
-                *publish_at += HOP as u64;
-            }
+            publish_hop(ring, &separated, publish_at, total);
         } else {
             *first = false;
         }
