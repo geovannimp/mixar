@@ -394,10 +394,7 @@ impl LibraryManager {
         // request for the same folder must not reuse (or silently re-point)
         // the existing collection.
         if self.get_collection(&id)?.is_some() {
-            return Err(LibraryError::Backend {
-                backend: "library",
-                message: format!("a collection already exists for {}", path_label(&path)),
-            });
+            return Err(LibraryError::AlreadyExists(path_label(&path)));
         }
 
         let name = collection

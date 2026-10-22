@@ -29,6 +29,10 @@ pub enum LibraryError {
     #[error("not a directory: {0}")]
     NotADirectory(String),
 
+    /// A collection already exists for this folder.
+    #[error("a collection already exists for {0}")]
+    AlreadyExists(String),
+
     /// Operation requires a different collection type.
     #[error("expected {expected} collection, got {got}")]
     WrongCollectionType {
