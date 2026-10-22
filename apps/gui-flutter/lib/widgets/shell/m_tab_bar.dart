@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
 import 'package:gui_flutter/widgets/shell/m_tabs.dart';
-import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class MTabBar extends StatelessWidget {

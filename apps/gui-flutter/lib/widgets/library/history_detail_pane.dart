@@ -308,7 +308,6 @@ class _CompactEntryRow extends StatelessWidget {
     required this.keyDisplayMode,
     required this.keyColorMode,
     required this.actionsSlot,
-    super.key,
   });
 
   final KeyDisplayMode keyDisplayMode;
