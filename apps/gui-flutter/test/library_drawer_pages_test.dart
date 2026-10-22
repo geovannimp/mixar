@@ -15,7 +15,6 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/library_pane_back_button.dart';
 import 'package:gui_flutter/widgets/library/library_row_density_button.dart';
-import 'package:gui_flutter/widgets/library/track_list_row.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
@@ -23,7 +22,6 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import 'helpers/collection_tracks_override.dart';
 
@@ -375,18 +373,12 @@ void main() {
     expect(find.byType(LibraryPanel), findsOneWidget);
     expect(find.text('Demo Track'), findsOneWidget);
 
-    // Run the row's own drag source: a native drag cannot start in a widget
-    // test, and this provider is what the platform calls as the drag starts.
-    final dragItem = tester.widget<DragItemWidget>(
-      find.descendant(
-        of: find.byType(TrackListRow),
-        matching: find.byType(DragItemWidget),
-      ),
+    // Drag the row for real: the drag source is a Flutter `Draggable`, so a
+    // pointer gesture drives it the way it drives the app.
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Demo Track')),
     );
-    final session = _FakeDragSession();
-    await dragItem.dragItemProvider(
-      DragItemRequest(location: Offset.zero, session: session),
-    );
+    await gesture.moveBy(const Offset(40, 0));
     await tester.pumpAndSettle();
 
     // Tucked fully off its edge, so the deck it is dragged to is uncovered —
@@ -404,7 +396,7 @@ void main() {
     // close must not drag it back into view on the way out. It used to: the
     // tuck was released while the route still animated out, and the route's
     // window-height slide outran the panel-height un-tuck mid-animation.
-    session.complete(DropOperation.copy);
+    await gesture.up();
     for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 40));
       final panels = find.byType(LibraryPanel);
@@ -732,64 +724,47 @@ void main() {
     );
   });
 
-  testWidgets('a drag source reports one end per session', (tester) async {
+  testWidgets('a drag source reports one start and one end per drag', (
+    tester,
+  ) async {
+    var starts = 0;
     var ends = 0;
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: libraryTrackDragSource(
-          payload: const TrackDragPayload(
-            source: TrackDragSource.library,
-            path: '/tmp/samples/demo.wav',
-            title: 'Demo Track',
+      // The theme sits above the app, like it does in the real app: the drag
+      // card is built in the overlay, which is inside the theme scope.
+      MixarTheme(
+        data: MixarThemeData.light(),
+        child: MaterialApp(
+          home: Center(
+            child: libraryTrackDragSource(
+              payload: const TrackDragPayload(
+                source: TrackDragSource.library,
+                path: '/tmp/samples/demo.wav',
+                title: 'Demo Track',
+              ),
+              onDragStart: () => starts++,
+              onDragEnd: () => ends++,
+              // A coloured box, not a bare `SizedBox`: an empty box is not hit
+              // testable, so the drag source would never see the pointer.
+              child: const ColoredBox(
+                color: Color(0xFF000000),
+                child: SizedBox(width: 24, height: 24),
+              ),
+            ),
           ),
-          onDragEnd: () => ends++,
-          child: const SizedBox(width: 24, height: 24),
         ),
       ),
     );
 
-    final source = tester.widget<DragItemWidget>(find.byType(DragItemWidget));
-    final session = _FakeDragSession();
-    // The plugin may build the item more than once for a single session.
-    await source.dragItemProvider(
-      DragItemRequest(location: Offset.zero, session: session),
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(SizedBox)),
     );
-    await source.dragItemProvider(
-      DragItemRequest(location: Offset.zero, session: session),
-    );
-    session.complete(DropOperation.copy);
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump();
+    await gesture.up();
     await tester.pump();
 
-    expect(ends, 1, reason: 'onDragEnd is per session, not per provider run');
+    expect(starts, 1, reason: 'the drag starts once');
+    expect(ends, 1, reason: 'the drag ends once');
   });
-}
-
-/// Minimal [DragSession] so a test can run a row's drag source without a
-/// platform drag: `dragItemProvider` is what the plugin calls as it starts.
-///
-/// Field types are spelled out because a field that overrides an interface
-/// getter would otherwise be inferred as that getter's `ValueListenable` type,
-/// which has no settable `value`.
-class _FakeDragSession implements DragSession {
-  @override
-  final ValueNotifier<bool> dragging = ValueNotifier<bool>(true);
-
-  @override
-  final ValueNotifier<DropOperation?> dragCompleted =
-      ValueNotifier<DropOperation?>(null);
-
-  @override
-  final ValueNotifier<Offset?> lastScreenLocation = ValueNotifier<Offset?>(
-    null,
-  );
-
-  @override
-  bool get dragStarted => dragging.value || dragCompleted.value != null;
-
-  /// Finish the session the way a drop or a cancel does.
-  void complete(DropOperation operation) => dragCompleted.value = operation;
-
-  @override
-  Future<List<Object?>?> getLocalData() async => null;
 }

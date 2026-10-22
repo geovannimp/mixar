@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 /// Matches `codec` `SUPPORTED_AUDIO_EXTENSIONS`.
 const supportedAudioExtensions = [
   'mp3',
@@ -31,14 +29,6 @@ class TrackDragPayload {
   final String? trackId;
   final String path;
   final String title;
-
-  Map<String, Object?> toLocalData() => {
-    'type': 'track',
-    'source': source.name,
-    'trackId': trackId,
-    'path': path,
-    'title': title,
-  };
 
   @override
   int get hashCode =>
@@ -96,75 +86,6 @@ TrackDragPayload payloadFromOsPath(String path) {
   );
 }
 
-TrackDragPayload? parseTrackDragLocalData(Object? data) {
-  if (data is! Map) {
-    return null;
-  }
-  if (data['type'] != 'track') {
-    return null;
-  }
-  final sourceName = data['source'];
-  final path = data['path'];
-  final title = data['title'];
-  if (sourceName is! String || path is! String || title is! String) {
-    return null;
-  }
-  final source = switch (sourceName) {
-    'library' => TrackDragSource.library,
-    'filesystem' => TrackDragSource.filesystem,
-    _ => null,
-  };
-  if (source == null) {
-    return null;
-  }
-  final trackId = data['trackId'];
-  return TrackDragPayload(
-    source: source,
-    trackId: trackId is String && trackId.isNotEmpty ? trackId : null,
-    path: path,
-    title: trackDisplayTitle(title: title, path: path),
-  );
-}
-
-/// GTK needs a platform format on the drag item; `localData` alone yields an
-/// empty target list and the drop session never reaches Flutter.
-String encodeTrackDragPlainText(TrackDragPayload payload) =>
-    jsonEncode(payload.toLocalData());
-
-TrackDragPayload? parseTrackDragPlainText(String? text) {
-  if (text == null || text.isEmpty) {
-    return null;
-  }
-  try {
-    final payload = parseTrackDragLocalData(jsonDecode(text));
-    if (payload == null) {
-      return null;
-    }
-    if (payload.source == TrackDragSource.filesystem &&
-        !isSupportedAudioPath(payload.path)) {
-      return null;
-    }
-    return payload;
-  } on FormatException {
-    return null;
-  }
-}
-
-/// Prefer copy; Linux GTK often advertises move instead.
-String preferredTrackDropOperation(Iterable<String> allowed) {
-  final set = allowed.toSet();
-  if (set.contains('copy')) {
-    return 'copy';
-  }
-  if (set.contains('move')) {
-    return 'move';
-  }
-  if (set.contains('link')) {
-    return 'link';
-  }
-  return 'copy';
-}
-
 bool isSupportedAudioPath(String path) {
   final base = fileNameFromPath(path);
   final dot = base.lastIndexOf('.');
@@ -179,8 +100,6 @@ List<String> filterAudioFilePaths(Iterable<String> paths) => [
   for (final path in paths)
     if (isSupportedAudioPath(path)) path,
 ];
-
-String pathFromDroppedUri(Uri uri) => uri.toFilePath();
 
 Future<void> applyTrackDrop({
   required int deckId,

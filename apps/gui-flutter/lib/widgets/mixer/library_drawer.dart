@@ -20,8 +20,8 @@ const _scrimColor = Color(0x80000000);
 /// A route, so the panel overlays the mixer without reflowing it. Deliberately
 /// not `showGeneralDialog`: that route always installs a modal barrier, and the
 /// barrier absorbs the very hit tests deck drop targets are resolved through
-/// (`super_drag_and_drop` scans `GestureBinding.hitTest` for its drop region),
-/// so no track could ever be dropped while the drawer was open. Flutter's own
+/// (a `DragTarget` is found by hit testing the pointer position), so no track
+/// could ever be dropped while the drawer was open. Flutter's own
 /// `BottomSheetRoute` suppresses the barrier the same way.
 ///
 /// A track drag tucks the panel off its edge — keeping it mounted, because the

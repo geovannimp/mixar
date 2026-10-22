@@ -1,13 +1,15 @@
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/utils/pad_format.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hold_pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_face.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 class SamplerSlot {
   const new({this.label, this.durationMs, this.path});
@@ -31,7 +33,7 @@ class SamplerBank {
   final String? playMode;
 }
 
-class SamplerPads extends StatelessWidget {
+class SamplerPads extends ConsumerWidget {
   const new({
     required this.slots,
     required this.holdLike,
@@ -50,15 +52,20 @@ class SamplerPads extends StatelessWidget {
   final bool disabled;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // `desktop_drop` picks its target by geometry, so a file dropped on the
+    // library drawer would land on the pad underneath it. While the drawer is
+    // up the pads take no OS files.
+    final drawerOpen = ref.watch(libraryDrawerOpenProvider);
     return PadGrid(
       children: [
-        for (var slot = 0; slot < 8; slot++) _slotPad(context.theme, slot),
+        for (var slot = 0; slot < 8; slot++)
+          _slotPad(context.theme, slot, drawerOpen),
       ],
     );
   }
 
-  Widget _slotPad(MixarThemeData theme, int slot) {
+  Widget _slotPad(MixarThemeData theme, int slot, bool drawerOpen) {
     final sample = slot < slots.length ? slots[slot] : const SamplerSlot();
     final filled = sample.filled;
     final label = sample.label?.trim();
@@ -97,75 +104,44 @@ class SamplerPads extends StatelessWidget {
     if (assign == null) {
       return pad;
     }
-    return DropRegion(
-      formats: const [Formats.plainText, Formats.fileUri],
+    return DragTarget<TrackDragPayload>(
       hitTestBehavior: HitTestBehavior.opaque,
-      onDropOver: (event) {
-        if (disabled) {
-          return DropOperation.none;
-        }
-        for (final item in event.session.items) {
-          if (parseTrackDragLocalData(item.localData) != null ||
-              item.canProvide(Formats.plainText) ||
-              item.canProvide(Formats.fileUri)) {
-            return DropOperation.copy;
-          }
-        }
-        return DropOperation.none;
-      },
-      onPerformDrop: (event) async {
+      onWillAcceptWithDetails: (_) => !disabled,
+      onAcceptWithDetails: (details) {
         if (disabled) {
           return;
         }
-        _performSamplerAssignDrop(event, slot, assign);
+        assign(slot, details.data);
       },
-      child: pad,
+      builder: (context, _, _) => DropTarget(
+        enable: !disabled && !drawerOpen,
+        onDragDone: (details) {
+          if (disabled) {
+            return;
+          }
+          _assignOsFile(details, slot, assign);
+        },
+        child: pad,
+      ),
     );
   }
 }
 
-void _performSamplerAssignDrop(
-  PerformDropEvent event,
+/// Assign the first supported audio file of an OS drop to the pad.
+void _assignOsFile(
+  DropDoneDetails details,
   int slot,
   void Function(int slot, TrackDragPayload payload) assign,
 ) {
-  var assigned = false;
-  void tryAssign(TrackDragPayload? payload) {
-    if (assigned || payload == null) {
-      return;
-    }
-    assigned = true;
-    assign(slot, payload);
-  }
-
-  for (final item in event.session.items) {
-    tryAssign(parseTrackDragLocalData(item.localData));
-    if (assigned) {
-      return;
-    }
-  }
-
-  for (final item in event.session.items) {
-    final reader = item.dataReader;
-    if (reader == null) {
+  for (final item in details.files) {
+    if (item is! DropItemFile) {
       continue;
     }
-    if (item.canProvide(Formats.plainText)) {
-      reader.getValue<String>(
-        Formats.plainText,
-        (text) => tryAssign(parseTrackDragPlainText(text)),
-      );
+    final path = item.path;
+    if (!isSupportedAudioPath(path)) {
+      continue;
     }
-    if (item.canProvide(Formats.fileUri)) {
-      reader.getValue<Uri>(Formats.fileUri, (uri) {
-        if (uri == null) {
-          return;
-        }
-        final path = pathFromDroppedUri(uri);
-        if (isSupportedAudioPath(path)) {
-          tryAssign(payloadFromOsPath(path));
-        }
-      });
-    }
+    assign(slot, payloadFromOsPath(path));
+    return;
   }
 }
