@@ -83,11 +83,16 @@ For each file:
    group's content as a mandatory checklist. If no group matches, use the
    default group.
 3. Read surrounding code when the diff alone cannot prove or disprove an issue.
-   If CodeGraph is available, use it for callers, definitions, and impact. When
-   its tools are deferred (pi), call `tool_search` first; the primary tool is
-   `mcp__codegraph__codegraph_explore`. If it returns nothing, fall back to
-   `read`/`grep` for files it does not index. Never claim a symbol is missing
-   without searching.
+   Use CodeGraph for callers, definitions, and impact. Its tool is named
+   differently by host, so pick the one you have:
+   - pi (CI): the `codegraph` tool. `codegraph(action: "explore", query: ...)`
+     returns the relevant symbols' verbatim source, their call paths and their
+     blast radius; `node`, `callers`, `callees` and `impact` answer for one
+     named symbol.
+   - other hosts: the CodeGraph MCP server's `codegraph_explore` tool.
+
+   If it returns nothing, fall back to `read`/`grep` for files it does not
+   index. Never claim a symbol is missing without searching.
 
 Focus on added and modified lines. Deleted lines are reference only. Cross-file
 issues among the changed files are in scope.

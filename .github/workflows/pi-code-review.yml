@@ -1,7 +1,13 @@
 name: Pi Code Review
 
+# pull_request_target runs this file as it exists on the default branch, not the
+# PR's merge ref. Under pull_request an unmerged branch could edit this same
+# file - widening loaded_tools (bash, write, the thread-mutation tools), the
+# extensions path, or the steps that pin the review contract - and have that
+# run with the job's secrets before any review. The PR head is untrusted input
+# and is only ever checked out as a tree to read.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
@@ -14,9 +20,12 @@ concurrency:
 
 jobs:
   # The extension's own tests run here, in a job with no secret, so PR code never
-  # executes in the credential-bearing review job.
+  # executes in the credential-bearing review job. Same-repo only, like the
+  # review job: a fork's head commit is not in this repository, so it cannot be
+  # checked out here.
   extension-test:
     name: extension test
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -122,12 +131,40 @@ jobs:
           OCR_NO_UPDATE: '1'
         run: npm install -g --ignore-scripts "@alibaba-group/open-code-review@1.13.2"
 
+      # CodeGraph answers the structural questions a review needs - who calls
+      # this, what breaks if it changes - which grep and read cannot. The
+      # reviewer calls the CLI through the extension's codegraph tool, so no MCP
+      # server is spawned and no long-lived child can outlive the step.
+      - name: Install CodeGraph
+        env:
+          # Pinned: the tool surface and the index format are versioned.
+          CODEGRAPH_VERSION: '1.6.2'
+        run: npm install -g --ignore-scripts "@colbymchenry/codegraph@${CODEGRAPH_VERSION}"
+
+      # The index is built from the PR head tree, so the graph describes the
+      # code under review rather than the base branch. Indexing parses code; it
+      # never executes anything from the PR. Non-fatal: without an index the
+      # reviewer falls back to read and grep instead of losing the whole review.
+      - name: Index the PR head tree
+        continue-on-error: true
+        env:
+          # The platform bundle ships with the npm package. Forbid the shim
+          # from downloading one at run time, so the review never reaches out
+          # to the network for a binary.
+          CODEGRAPH_NO_DOWNLOAD: '1'
+        run: |
+          set -euo pipefail
+          codegraph init -y .
+          codegraph status . | head -20
+
       - name: Pi review
         if: steps.tooling.outputs.extension != ''
         uses: shaftoe/pi-coding-agent-action@381f578da466b8d2ef48f0fdb8a940f276fe4c3c # v2.30.1
         env:
           # The ocr tool reads this and refuses any other rule file.
           OCR_RULE_FILE: ${{ github.workspace }}/.review-base-rule.json
+          # The tree the index was built from.
+          CODEGRAPH_PROJECT: ${{ github.workspace }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: opencode-go
@@ -140,6 +177,7 @@ jobs:
           diff_max_bytes: 524288
           loaded_tools: |
             ocr
+            codegraph
             read
             grep
             find
@@ -155,6 +193,10 @@ jobs:
 
             Follow .agents/skills/code-review/SKILL.md. Build the OCR plan first
             with the `ocr` tool, then review every file in the plan. Do not use bash.
+
+            Use the codegraph tool first to understand the code a diff touches:
+            codegraph(action='explore') returns the relevant symbols' verbatim
+            source, their call paths and their blast radius.
 
             Post exactly one review with create_pull_request_review:
             - event: COMMENT

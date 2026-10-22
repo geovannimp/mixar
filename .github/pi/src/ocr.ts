@@ -1,6 +1,7 @@
-import { execFile } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import path from 'node:path';
+
+import { execFileText, type ExecOptions, type ExecResult } from './exec.ts';
 
 export type OcrAction = 'preview' | 'rule';
 
@@ -59,26 +60,13 @@ export interface OcrRules {
 
 export type OcrResult = OcrPreview | OcrRules;
 
-export interface OcrExecOptions {
-  cwd: string;
-  env: NodeJS.ProcessEnv;
-  timeout: number;
-  maxBuffer: number;
-  shell: false;
-}
-
-export interface OcrExecResult {
-  stdout: string;
-  stderr: string;
-}
-
 export interface OcrDeps {
   workspace: string;
   run: (
     cmd: string,
     args: string[],
-    options: OcrExecOptions,
-  ) => Promise<OcrExecResult>;
+    options: ExecOptions,
+  ) => Promise<ExecResult>;
   exists: (candidate: string) => boolean;
   stat: (candidate: string) => { isDirectory(): boolean; isFile(): boolean };
   bin?: string;
@@ -88,23 +76,6 @@ export interface OcrDeps {
 /** Refs handed to execFile never reach a shell, but a leading '-' would be read as a flag. */
 const REF = /^[A-Za-z0-9_+][A-Za-z0-9._/@{}^~+-]*$/;
 const COMMIT = /^[0-9a-fA-F]{4,64}$/;
-
-export function execFileText(
-  cmd: string,
-  args: string[],
-  options: OcrExecOptions,
-): Promise<OcrExecResult> {
-  const { promise, resolve, reject } = Promise.withResolvers<OcrExecResult>();
-  execFile(cmd, args, { ...options, encoding: 'utf8' }, (error, stdout, stderr) => {
-    if (error) {
-      (error as Error & { stderr?: string }).stderr = String(stderr ?? '');
-      reject(error);
-      return;
-    }
-    resolve({ stdout: String(stdout ?? ''), stderr: String(stderr ?? '') });
-  });
-  return promise;
-}
 
 export function defaultOcrDeps(env: NodeJS.ProcessEnv = process.env): OcrDeps {
   return {
@@ -378,7 +349,7 @@ export async function executeOcr(
     OCR_NO_UPDATE: '1',
   };
 
-  let result: OcrExecResult;
+  let result: ExecResult;
   try {
     result = await deps.run(deps.bin ?? 'ocr', args, {
       cwd,

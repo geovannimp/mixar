@@ -4,16 +4,16 @@ import { existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { execFileText, type ExecResult } from './src/exec.ts';
 import {
   buildOcrArgs,
-  execFileText,
   executeOcr,
   parsePreview,
   parseRules,
   type OcrDeps,
-  type OcrExecResult,
   type OcrParams,
 } from './src/ocr.ts';
+import { registerTools } from './src/tools.ts';
 
 const PREVIEW = `# Files (2 reviewable / 4 total)
 
@@ -79,7 +79,7 @@ function fakeDeps(
     },
     exists: existsSync,
     stat: statSync,
-    run: async (cmd, args, options): Promise<OcrExecResult> => {
+    run: async (cmd, args, options): Promise<ExecResult> => {
       calls.push({ cmd, args, env: options.env });
       return { stdout: output, stderr: '' };
     },
@@ -249,8 +249,7 @@ test('execute: missing binary and non-zero exit surface actionable errors', asyn
   );
 });
 
-test('tools: the extension registers the ocr tool', async () => {
-  const { registerTools } = await import('./src/tools.ts');
+test('tools: the extension registers the ocr and codegraph tools', () => {
   const names: string[] = [];
   const pi = {
     registerTool: (tool: { name: string }) => {
@@ -258,7 +257,7 @@ test('tools: the extension registers the ocr tool', async () => {
     },
   } as unknown as Parameters<typeof registerTools>[0];
   registerTools(pi);
-  assert.deepEqual(names, ['ocr']);
+  assert.deepEqual(names, ['ocr', 'codegraph']);
 });
 
 test('a rule path outside the workspace is rejected', () => {
