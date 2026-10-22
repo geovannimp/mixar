@@ -235,10 +235,10 @@ pub(crate) fn finalize_window(
         for (stem, window) in out.iter_mut().enumerate() {
             let mut left = 0.0f32;
             let mut right = 0.0f32;
-            if let Some(prev) = prev {
+            if let Some(prev_chunk) = prev {
                 if i < overlap {
-                    left += w_prev * prev[stem][(CHUNK_STRIDE + i) * 2];
-                    right += w_prev * prev[stem][(CHUNK_STRIDE + i) * 2 + 1];
+                    left += w_prev * prev_chunk[stem][(CHUNK_STRIDE + i) * 2];
+                    right += w_prev * prev_chunk[stem][(CHUNK_STRIDE + i) * 2 + 1];
                 }
             }
             left += w_cur * cur[stem][i * 2];

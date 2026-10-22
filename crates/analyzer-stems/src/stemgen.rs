@@ -62,8 +62,17 @@ trait HopRunner {
 ///
 /// `last_playhead` is the last observed value, so a producer that is merely
 /// behind does not trigger a re-epoch; only a jump beyond the lookahead does.
-fn should_reepoch(playhead: u64, last_playhead: Option<u64>, epoch_start: u64) -> bool {
+/// A backward seek is detected against the resident coverage start (and the
+/// epoch origin), so rewinding out of the published window re-epochs instead of
+/// parking the producer behind the deck.
+fn should_reepoch(
+    playhead: u64,
+    last_playhead: Option<u64>,
+    epoch_start: u64,
+    coverage_start: Option<u64>,
+) -> bool {
     playhead < epoch_start
+        || coverage_start.is_some_and(|start| playhead < start)
         || last_playhead.is_some_and(|previous| playhead > previous.saturating_add(MAX_AHEAD))
 }
 
@@ -381,7 +390,8 @@ fn pump(
         // measured against the last observed playhead, not against the
         // published end. The latter would re-arm immediately after a re-epoch
         // (the warm-up and lookahead are both two seconds) and reset forever.
-        let seek = should_reepoch(playhead, *last_playhead, *epoch_start);
+        let coverage_start = ring.coverage().map(|(start, _)| start);
+        let seek = should_reepoch(playhead, *last_playhead, *epoch_start, coverage_start);
         *last_playhead = Some(playhead);
         if seek {
             let start = playhead.saturating_sub(WARMUP);
@@ -539,15 +549,20 @@ mod tests {
 
     #[test]
     fn normal_advance_and_producer_lag_do_not_reepoch() {
-        assert!(!should_reepoch(0, None, 0));
-        assert!(!should_reepoch(44_100, Some(0), 0));
-        assert!(!should_reepoch(88_200, Some(44_100), 0));
-        assert!(!should_reepoch(2 * MAX_AHEAD, Some(MAX_AHEAD), 0));
+        assert!(!should_reepoch(0, None, 0, None));
+        assert!(!should_reepoch(44_100, Some(0), 0, None));
+        assert!(!should_reepoch(88_200, Some(44_100), 0, None));
+        assert!(!should_reepoch(2 * MAX_AHEAD, Some(MAX_AHEAD), 0, None));
     }
 
     #[test]
     fn forward_and_backward_seeks_reepoch() {
-        assert!(should_reepoch(MAX_AHEAD + 1, Some(0), 0));
-        assert!(should_reepoch(10, None, 44_100));
+        assert!(should_reepoch(MAX_AHEAD + 1, Some(0), 0, None));
+        assert!(should_reepoch(10, None, 44_100, None));
+        // Rewinding out of the resident coverage must re-epoch, even though the
+        // epoch origin is at zero.
+        assert!(should_reepoch(10, Some(30_000), 0, Some(20_000)));
+        // Staying inside the coverage is normal playback.
+        assert!(!should_reepoch(25_000, Some(30_000), 0, Some(20_000)));
     }
 }
