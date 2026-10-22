@@ -15,7 +15,6 @@ import 'package:gui_flutter/widgets/library/history_detail_pane.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
 
@@ -221,12 +220,12 @@ void main() {
 
   testWidgets('row drag attaches after the engine starts', (tester) async {
     final container = await pumpPane(tester);
-    expect(find.byType(DragItemWidget), findsNothing);
+    expect(find.byType(Draggable<TrackDragPayload>), findsNothing);
 
     container.read(engineUiProvider.notifier).setRunning(true);
     await tester.pumpAndSettle();
 
-    expect(find.byType(DragItemWidget), findsWidgets);
+    expect(find.byType(Draggable<TrackDragPayload>), findsWidgets);
   });
 
   testWidgets('arrow keys move the focused row, like the track list', (

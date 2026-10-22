@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/color_labels.dart';
@@ -24,7 +25,6 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import 'helpers/collection_tracks_override.dart';
 
@@ -158,12 +158,12 @@ void main() {
       'collection', (tester) async {
     final container = await pumpList(tester);
     expect(find.text('Demo Track'), findsOneWidget);
-    expect(find.byType(DragItemWidget), findsNothing);
+    expect(find.byType(Draggable<TrackDragPayload>), findsNothing);
 
     container.read(engineUiProvider.notifier).setRunning(true);
     await tester.pumpAndSettle();
 
-    expect(find.byType(DragItemWidget), findsWidgets);
+    expect(find.byType(Draggable<TrackDragPayload>), findsWidgets);
   });
 
   testWidgets('MIDI focus survives analysis-state row rebuild', (tester) async {
