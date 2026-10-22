@@ -121,8 +121,9 @@ pub(crate) fn separate(
     let mut inverse_scratch = vec![Complex32::ZERO; inverse.get_scratch_len()];
 
     let window = chunk_window();
-    let mut result: [[Vec<f32>; CHANNELS]; SOURCES] =
-        std::array::from_fn(|_| std::array::from_fn(|_| vec![0.0f32; length]));
+    // Interleaved per source: four buffers instead of eight channel buffers
+    // plus a second full output copy at the end.
+    let mut result: [Vec<f32>; SOURCES] = std::array::from_fn(|_| vec![0.0f32; length * 2]);
     let mut counter = vec![0.0f32; length];
     let total = length.div_ceil(STEP);
     if let Some(report) = on_progress {
@@ -134,18 +135,8 @@ pub(crate) fn separate(
     let mut offset = 0usize;
     while offset < length {
         let chunk_len = (length - offset).min(CHUNK);
-        let (chunk_left, chunk_right) = if chunk_len > CHUNK / 2 {
-            (
-                pad_reflect_right(&padded_left[offset..offset + chunk_len], CHUNK),
-                pad_reflect_right(&padded_right[offset..offset + chunk_len], CHUNK),
-            )
-        } else {
-            let mut l = vec![0.0f32; CHUNK];
-            let mut r = vec![0.0f32; CHUNK];
-            l[..chunk_len].copy_from_slice(&padded_left[offset..offset + chunk_len]);
-            r[..chunk_len].copy_from_slice(&padded_right[offset..offset + chunk_len]);
-            (l, r)
-        };
+        let chunk_left = fit_chunk(&padded_left, offset, chunk_len);
+        let chunk_right = fit_chunk(&padded_right, offset, chunk_len);
 
         let stems = session::with_session(weights, |sess, ep, input, output| {
             ep_label = Some(ep);
@@ -171,11 +162,10 @@ pub(crate) fn separate(
         if last {
             weight[CHUNK - FADE..].fill(1.0);
         }
-        for (result_channels, channels) in result.iter_mut().zip(stems.iter()) {
-            for (out, samples) in result_channels.iter_mut().zip(channels.iter()) {
-                for i in 0..chunk_len {
-                    out[offset + i] += samples[i] * weight[i];
-                }
+        for (out, channels) in result.iter_mut().zip(stems.iter()) {
+            for i in 0..chunk_len {
+                out[(offset + i) * 2] += channels[0][i] * weight[i];
+                out[(offset + i) * 2 + 1] += channels[1][i] * weight[i];
             }
         }
         for i in 0..chunk_len {
@@ -190,18 +180,18 @@ pub(crate) fn separate(
     }
 
     let start = if length == frames { 0 } else { BORDER };
-    let stems: [Vec<f32>; SOURCES] = std::array::from_fn(|stem| {
-        let mut out = Vec::with_capacity(frames * 2);
+    let mut stems = result;
+    for out in stems.iter_mut() {
         for frame in 0..frames {
             let idx = start + frame;
             let w = counter[idx].max(1e-8);
-            let l = f64::from(result[stem][0][idx] / w) * std + mean;
-            let r = f64::from(result[stem][1][idx] / w) * std + mean;
-            out.push(l as f32);
-            out.push(r as f32);
+            let left = f64::from(out[idx * 2] / w) * std + mean;
+            let right = f64::from(out[idx * 2 + 1] / w) * std + mean;
+            out[frame * 2] = left as f32;
+            out[frame * 2 + 1] = right as f32;
         }
-        out
-    });
+        out.truncate(frames * 2);
+    }
 
     let ep = ep_label.context("SCNet separation produced no segments")?;
     info!(frames, ep, "scnet: done");
@@ -245,6 +235,17 @@ fn pad_reflect_right(signal: &[f32], target: usize) -> Vec<f32> {
     out
 }
 
+/// Copy or reflect-pad a chunk into the model's [`CHUNK`]-sample window.
+fn fit_chunk(signal: &[f32], offset: usize, len: usize) -> Vec<f32> {
+    if len > CHUNK / 2 {
+        pad_reflect_right(&signal[offset..offset + len], CHUNK)
+    } else {
+        let mut out = vec![0.0f32; CHUNK];
+        out[..len].copy_from_slice(&signal[offset..offset + len]);
+        out
+    }
+}
+
 /// Run one 11 s segment through the ONNX and return four stereo stems.
 #[allow(clippy::too_many_arguments)]
 fn run_segment(
@@ -269,14 +270,14 @@ fn run_segment(
 
     let left_spec = stft(&padded_left, forward, forward_scratch)?;
     let right_spec = stft(&padded_right, forward, forward_scratch)?;
-    let mut input = vec![0.0f32; 4 * N_BINS * FRAMES];
-    fill_tensor_channel(&mut input, 0, &left_spec, false);
-    fill_tensor_channel(&mut input, 1, &left_spec, true);
-    fill_tensor_channel(&mut input, 2, &right_spec, false);
-    fill_tensor_channel(&mut input, 3, &right_spec, true);
+    let mut spec_tensor = vec![0.0f32; 4 * N_BINS * FRAMES];
+    fill_tensor_channel(&mut spec_tensor, 0, &left_spec, false);
+    fill_tensor_channel(&mut spec_tensor, 1, &left_spec, true);
+    fill_tensor_channel(&mut spec_tensor, 2, &right_spec, false);
+    fill_tensor_channel(&mut spec_tensor, 3, &right_spec, true);
 
-    let tensor =
-        Tensor::from_array(([1usize, 4, N_BINS, FRAMES], input)).context("scnet input tensor")?;
+    let tensor = Tensor::from_array(([1usize, 4, N_BINS, FRAMES], spec_tensor))
+        .context("scnet input tensor")?;
     let outputs = sess
         .run(ort::inputs![input_name => tensor])
         .context("scnet ort run")?;

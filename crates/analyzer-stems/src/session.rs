@@ -42,12 +42,12 @@ pub fn with_session<R>(
 ) -> Result<R> {
     let mut guard = slot().lock().unwrap_or_else(|e| e.into_inner());
     if !guard.contains_key(onnx_path) {
-        // Bounded: two built-in models fit; a future third evicts the cache
-        // rather than growing without limit.
+        // Load first so a failed graph does not destroy healthy sessions.
+        // Then enforce the bounded cache, evicting only after success.
+        let loaded = load_session(onnx_path)?;
         if guard.len() >= MAX_CACHED_SESSIONS {
             guard.clear();
         }
-        let loaded = load_session(onnx_path)?;
         guard.insert(onnx_path.to_path_buf(), loaded);
     }
     let loaded = guard.get_mut(onnx_path).expect("session just loaded");
