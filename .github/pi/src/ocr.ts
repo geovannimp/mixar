@@ -201,6 +201,8 @@ export function buildOcrArgs(
   const rule = resolveRule(workspace, params, deps);
   const args = ['delegate', params.action];
 
+  // Only the action-specific flags are chosen here; the repo and the rule file
+  // are the same for both verbs and are appended once, below.
   if (params.action === 'preview') {
     const hasRange = params.from !== undefined || params.to !== undefined;
     if (hasRange && params.commit !== undefined) {
@@ -213,15 +215,12 @@ export function buildOcrArgs(
     } else if (params.commit !== undefined) {
       args.push('--commit', validCommit(params.commit));
     }
-    args.push('--repo', repo);
-    args.push('--rule', rule);
-    return { args, cwd: repo, rule };
   }
 
-  const paths = validPaths(params.paths);
   args.push('--repo', repo);
   args.push('--rule', rule);
-  args.push(...paths);
+  // The paths are positional, so they must come after the flags.
+  if (params.action === 'rule') args.push(...validPaths(params.paths));
   return { args, cwd: repo, rule };
 }
 

@@ -42,6 +42,7 @@ jobs:
           node-version-file: .node-version
 
       - name: Test OCR extension
+        if: hashFiles('.github/pi/package.json') != ''
         working-directory: .github/pi
         run: |
           npm ci --ignore-scripts
@@ -81,6 +82,7 @@ jobs:
       # `exclude`, so that file is replaced too, and every other skill the PR
       # ships is removed so the agent cannot be pointed at new instructions.
       - name: Pin base review contract
+        id: contract
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
@@ -94,16 +96,22 @@ jobs:
           fi
           mkdir -p .opencodereview
           cp .review-base-rule.json .opencodereview/rule.json
+          # Only the pinned contract may reach the agent, so every skill the PR
+          # ships is removed first and the base branch's copy is put in place
+          # afterwards.
           mkdir -p .agents/skills
+          find .agents/skills -mindepth 1 -maxdepth 1 -exec rm -rf {} +
           if [ -d trusted/.agents/skills/code-review ]; then
             echo "Using the base branch's review skill"
-            rm -rf .agents/skills/code-review
             cp -r trusted/.agents/skills/code-review .agents/skills/code-review
+            echo "skill=1" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::the base branch has no review skill; the PR's own skill will be used"
+            # Fail closed. The PR's own skill must not reach the agent: it
+            # authors the instructions the reviewer follows, so it could
+            # suppress findings or fake the coverage ledger.
+            echo "::warning::the base branch has no review skill; the PR's own skill is removed and the review is skipped"
+            echo "skill=0" >> "$GITHUB_OUTPUT"
           fi
-          # Only the pinned contract may reach the agent.
-          find .agents/skills -mindepth 1 -maxdepth 1 ! -name code-review -exec rm -rf {} +
           # One source of truth for the contract: the copies under trusted/ would
           # otherwise be a second, divergent one.
           rm -rf trusted/.agents trusted/.opencodereview
@@ -158,7 +166,10 @@ jobs:
           codegraph status . | head -20
 
       - name: Pi review
-        if: steps.tooling.outputs.extension != ''
+        # The review runs only when the base branch supplied both the extension
+        # and the skill. Without them the agent would follow instructions the PR
+        # itself wrote.
+        if: steps.tooling.outputs.extension != '' && steps.contract.outputs.skill == '1'
         uses: shaftoe/pi-coding-agent-action@381f578da466b8d2ef48f0fdb8a940f276fe4c3c # v2.30.1
         env:
           # The ocr tool reads this and refuses any other rule file.
@@ -167,9 +178,9 @@ jobs:
           CODEGRAPH_PROJECT: ${{ github.workspace }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          provider: opencode-go
+          provider: ${{ vars.PI_REVIEW_PROVIDER }}
           model: ${{ vars.PI_REVIEW_MODEL }}
-          token: ${{ secrets.PI_REVIEW_AUTH_TOKEN }}
+          token: ${{ secrets.OPENROUTER_API_KEY }}
           extensions: ${{ steps.tooling.outputs.extension }}
           thinking_level: high
           refresh_model_catalog: 'false'
