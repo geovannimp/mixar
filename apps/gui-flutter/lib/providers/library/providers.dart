@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/color_labels.dart';
+import 'package:gui_flutter/core/utils/folder_path.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
@@ -27,6 +28,23 @@ final collectionsProvider = FutureProvider<List<LibraryCollectionSummary>>((
 ) async {
   final transport = await ref.watch(libraryTransportProvider.future);
   return transport.listCollections();
+});
+
+/// Folder paths that already back a collection.
+///
+/// One folder backs at most one collection, so the drive pane hides the
+/// “Create collection” action for these paths instead of asking the library
+/// to add a duplicate.
+final collectedFolderPathsProvider = Provider<Set<String>>((ref) {
+  final collections = ref.watch(collectionsProvider).asData?.value;
+  if (collections == null) {
+    return const {};
+  }
+  return {
+    for (final collection in collections)
+      if (collection.kind == 'folder' && collection.path != null)
+        normalizeFolderPath(collection.path!),
+  };
 });
 
 /// Explicit user selection; `null` means “use the first collection”.

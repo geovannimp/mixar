@@ -331,7 +331,18 @@ impl Library for LibraryManager {
                     backend: "library",
                     message: format!("folder {collection_id} has no fs_path"),
                 })?;
-                self.file_sources_under(fs_path)
+                let CollectionConfig::Folder {
+                    scan_folder_tree, ..
+                } = &collection.config
+                else {
+                    return Err(LibraryError::Backend {
+                        backend: "library",
+                        message: format!("folder {collection_id} has non-folder config"),
+                    });
+                };
+                // The query decides membership: a non-recursive folder owns
+                // only its direct files, even when nested tracks are indexed.
+                self.file_sources_under(fs_path, *scan_folder_tree)
             }
             CollectionType::Playlist => {
                 let rows = self.list_collection_entries(collection_id)?;
@@ -406,13 +417,6 @@ pub(crate) fn collect_audio_files(root: &Path, recursive: bool) -> Result<Vec<Pa
     }
     files.sort();
     Ok(files)
-}
-
-pub(crate) fn escape_like(input: &str) -> String {
-    input
-        .replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
 }
 
 pub(crate) fn unix_secs_string() -> String {

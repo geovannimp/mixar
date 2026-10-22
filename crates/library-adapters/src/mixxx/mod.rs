@@ -331,6 +331,11 @@ impl Migratable for MixxxLibrary {
                             report.collections_skipped += 1;
                         }
                     }
+                    // The folder already backs a collection: a re-run skips it
+                    // instead of failing the import.
+                    Err(LibraryError::AlreadyExists(_)) => {
+                        report.collections_skipped += 1;
+                    }
                     Err(err) => {
                         report.failed += 1;
                         report.errors.push(format!("{}: {err}", path_label(path)));

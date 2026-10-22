@@ -10,8 +10,8 @@ use sea_orm::sea_query::{Expr, OnConflict, Order};
 #[cfg(test)]
 use sea_orm::Statement;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, ConnectionTrait, EntityTrait, PaginatorTrait,
-    QueryFilter, QueryOrder, Set, SqliteTransactionMode, TransactionOptions, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, Set, SqliteTransactionMode, TransactionOptions, TransactionTrait,
 };
 
 use crate::db::{self, Db};
@@ -305,21 +305,46 @@ impl<'a> Store<'a> {
         }))
     }
 
+    /// File sources under `root`.
+    ///
+    /// The comparison is case-sensitive: SQLite's `LIKE` is ASCII
+    /// case-insensitive, so a sibling directory whose name differs only in
+    /// case would otherwise pass for a member. A non-recursive query also
+    /// excludes anything nested below a direct child, so the caller never has
+    /// to filter the result set in Rust.
     pub fn find_file_sources_under(
         &self,
         root: &str,
-        prefix: &str,
+        recursive: bool,
     ) -> Result<Vec<library_core::AudioSource>> {
+        let prefix = format!("{root}/");
+        // SQLite counts characters, not bytes.
+        let prefix_len = prefix.chars().count() as i64;
+        let (sql, values): (&str, Vec<sea_orm::Value>) = if recursive {
+            (
+                "(source_ref = ? OR substr(source_ref, 1, ?) = ?)",
+                vec![
+                    sea_orm::Value::from(root.to_string()),
+                    sea_orm::Value::from(prefix_len),
+                    sea_orm::Value::from(prefix),
+                ],
+            )
+        } else {
+            // The remainder after the prefix must not hold a separator, so a
+            // direct child matches and a nested path does not.
+            (
+                "(source_ref = ? OR (substr(source_ref, 1, ?) = ? AND instr(substr(source_ref, ?), '/') = 0))",
+                vec![
+                    sea_orm::Value::from(root.to_string()),
+                    sea_orm::Value::from(prefix_len),
+                    sea_orm::Value::from(prefix),
+                    sea_orm::Value::from(prefix_len + 1),
+                ],
+            )
+        };
         let rows = TrackEntity::find()
             .filter(tracks::Column::SourceType.eq("file"))
-            .filter(
-                Condition::any()
-                    .add(tracks::Column::SourceRef.eq(root))
-                    .add(Expr::cust_with_values(
-                        "source_ref LIKE ? ESCAPE '\\'",
-                        [sea_orm::Value::from(prefix.to_string())],
-                    )),
-            )
+            .filter(Expr::cust_with_values(sql, values))
             .order_by_asc(tracks::Column::SourceRef)
             .all(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;

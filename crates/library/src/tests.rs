@@ -547,6 +547,107 @@ fn resync_folder_counts_updated_not_added() {
 }
 
 #[test]
+fn non_recursive_folder_collection_hides_already_indexed_nested_tracks() {
+    let dir = tempfile::tempdir().unwrap();
+    write_minimal_wav(&dir.path().join("a.wav"));
+    let nested = dir.path().join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    write_minimal_wav(&nested.join("b.wav"));
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    // The nested track is already in the library through another collection.
+    let deep = lib
+        .add_collection(&NewCollection::folder_scan(&nested, true))
+        .unwrap();
+    lib.sync_collection(Some(&deep.id)).unwrap();
+
+    let shallow = lib
+        .add_collection(&NewCollection::folder_scan(dir.path(), false))
+        .unwrap();
+    let report = lib.sync_collection(Some(&shallow.id)).unwrap();
+    assert_eq!(report.added, 1);
+
+    let tracks = lib.list_collection_tracks(&shallow.id).unwrap();
+    assert_eq!(
+        tracks.len(),
+        1,
+        "a non-recursive collection must not list nested tracks: {tracks:?}"
+    );
+}
+
+#[test]
+fn folder_membership_ignores_siblings_that_differ_only_in_case() {
+    let dir = tempfile::tempdir().unwrap();
+    // The library canonicalizes the folder it stores, so the paths under
+    // test have to be canonical too (a tempdir can sit behind a symlink).
+    let base = dir.path().canonicalize().unwrap();
+    // A case-insensitive filesystem cannot hold both directories, so there
+    // is nothing to tell apart there.
+    let probe = base.join("CaseProbe");
+    std::fs::create_dir(&probe).unwrap();
+    if base.join("caseprobe").exists() {
+        std::fs::remove_dir(&probe).unwrap();
+        return;
+    }
+    std::fs::remove_dir(&probe).unwrap();
+
+    let set = base.join("Set");
+    let upper = set.join("Music");
+    let lower = set.join("music");
+    std::fs::create_dir_all(&upper).unwrap();
+    std::fs::create_dir_all(&lower).unwrap();
+    write_minimal_wav(&upper.join("a.wav"));
+    write_minimal_wav(&lower.join("b.wav"));
+
+    for recursive in [false, true] {
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let collection = lib
+            .add_collection(&NewCollection::folder_scan(&upper, recursive))
+            .unwrap();
+        lib.sync_collection(Some(&collection.id)).unwrap();
+
+        let tracks = lib.list_collection_tracks(&collection.id).unwrap();
+        assert_eq!(
+            tracks.len(),
+            1,
+            "a sibling that differs only in case is not a member (recursive: {recursive}): {tracks:?}"
+        );
+        assert!(tracks[0].file().unwrap().path().starts_with(&upper));
+    }
+}
+
+#[test]
+fn adding_a_second_collection_for_the_same_folder_is_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    write_minimal_wav(&dir.path().join("a.wav"));
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let first = lib
+        .add_collection(&NewCollection::folder_scan(dir.path(), true))
+        .unwrap();
+
+    let error = lib
+        .add_collection(&NewCollection::folder_scan(dir.path(), false))
+        .expect_err("a folder can only back one collection");
+    assert!(
+        error.to_string().contains("already exists"),
+        "unexpected error: {error}"
+    );
+
+    // The existing collection keeps its own scan mode and stays the only one.
+    let collections = lib.list_collections().unwrap();
+    assert_eq!(collections.len(), 1);
+    assert_eq!(collections[0].id, first.id);
+    assert_eq!(
+        collections[0].config,
+        CollectionConfig::Folder {
+            fs_path: dir.path().canonicalize().unwrap(),
+            scan_folder_tree: true,
+        }
+    );
+}
+
+#[test]
 fn sync_collection_off_mutex_matches_in_process_sync() {
     use std::sync::Mutex;
 

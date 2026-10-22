@@ -390,8 +390,11 @@ impl LibraryManager {
         }
 
         let id = Self::folder_id_for(&path);
-        if let Some(existing) = self.get_collection(&id)? {
-            return Ok(existing);
+        // One collection per folder: the id is path-derived, so a second
+        // request for the same folder must not reuse (or silently re-point)
+        // the existing collection.
+        if self.get_collection(&id)?.is_some() {
+            return Err(LibraryError::AlreadyExists(path_label(&path)));
         }
 
         let name = collection
@@ -450,10 +453,13 @@ impl LibraryManager {
         })
     }
 
-    pub(crate) fn file_sources_under(&self, root: &Path) -> Result<Vec<AudioSource>> {
+    pub(crate) fn file_sources_under(
+        &self,
+        root: &Path,
+        recursive: bool,
+    ) -> Result<Vec<AudioSource>> {
         let root_str = root.to_string_lossy().into_owned();
-        let prefix = format!("{}/%", escape_like(&root_str));
-        self.store().find_file_sources_under(&root_str, &prefix)
+        self.store().find_file_sources_under(&root_str, recursive)
     }
 
     /// Import or refresh a file track at `path` and return the library source.
