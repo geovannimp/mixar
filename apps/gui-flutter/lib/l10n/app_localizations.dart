@@ -651,6 +651,30 @@ abstract class AppLocalizations {
   /// **'Target LUFS'**
   String get settingsMixerTargetLufs;
 
+  /// No description provided for @settingsMixerRealtimeStemsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Realtime Stems'**
+  String get settingsMixerRealtimeStemsTitle;
+
+  /// No description provided for @settingsMixerRealtimeStemsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Separates tracks without cached stems while they play. Tracks with offline stems always take priority.'**
+  String get settingsMixerRealtimeStemsDescription;
+
+  /// No description provided for @settingsMixerRealtimeStemsNotRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recommended.'**
+  String get settingsMixerRealtimeStemsNotRecommended;
+
+  /// No description provided for @settingsMixerRealtimeStemsWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality is lower and it uses a CPU core.'**
+  String get settingsMixerRealtimeStemsWarning;
+
   /// No description provided for @settingsWaveformDescription.
   ///
   /// In en, this message translates to:
@@ -1040,6 +1064,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.'**
   String get settingsLibraryKeyColorHarmonicSubtitle;
+
+  /// No description provided for @padStemsOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get padStemsOffline;
+
+  /// No description provided for @padStemsRealtime.
+  ///
+  /// In en, this message translates to:
+  /// **'Realtime'**
+  String get padStemsRealtime;
 
   /// No description provided for @settingsLibraryStemsTitle.
   ///

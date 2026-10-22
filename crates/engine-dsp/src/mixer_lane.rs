@@ -90,6 +90,9 @@ impl Node for MixerLane {
     fn process(&mut self, _inputs: &[Input], output: &mut [Buffer]) {
         const FRAMES: usize = Buffer::LEN;
 
+        // The deck sums any stem layers (including the live StemgenRT filter)
+        // here. The channel strip below applies gain, EQ, DJ filter and FX to
+        // that summed signal, so stem separation is upstream of every EQ stage.
         let Ok(dry_buffer) = self.deck.process(FRAMES) else {
             for output_buffer in output.iter_mut() {
                 *output_buffer = Buffer::SILENT;

@@ -136,6 +136,7 @@ AppSettings defaultAppSettings() {
     dimPlayedTracks: true,
     stemsFormat: 'opus',
     stemsModel: kDefaultStemModel,
+    realtimeStems: false,
     uiLanguage: UiLanguageSetting.system,
     libraryDrawerEnabled: false,
     libraryDrawerSide: LibraryDrawerSideSetting.bottom,
@@ -216,6 +217,7 @@ AppSettings copyAppSettings(
   bool? dimPlayedTracks,
   String? stemsFormat,
   String? stemsModel,
+  bool? realtimeStems,
   UiLanguageSetting? uiLanguage,
   bool? libraryDrawerEnabled,
   LibraryDrawerSideSetting? libraryDrawerSide,
@@ -263,6 +265,7 @@ AppSettings copyAppSettings(
     dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
     stemsFormat: stemsFormat ?? base.stemsFormat,
     stemsModel: stemsModel ?? base.stemsModel,
+    realtimeStems: realtimeStems ?? base.realtimeStems,
     uiLanguage: uiLanguage ?? base.uiLanguage,
     libraryDrawerEnabled: libraryDrawerEnabled ?? base.libraryDrawerEnabled,
     libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
@@ -308,6 +311,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       draft.stemsFormat != baseline.stemsFormat ||
       draft.stemsModel != baseline.stemsModel ||
+      draft.realtimeStems != baseline.realtimeStems ||
       draft.uiLanguage != baseline.uiLanguage ||
       draft.libraryDrawerEnabled != baseline.libraryDrawerEnabled ||
       draft.libraryDrawerSide != baseline.libraryDrawerSide ||

@@ -17,6 +17,13 @@ pub const DEFAULT_MODEL: &str = "htdemucs_mixxx_v1";
 /// Export by audiojs of the official MIT SCNet checkpoint, 12.9 MB.
 pub const SCNET_MODEL: &str = "scnet_int8_v1";
 
+/// StemgenRT streaming ONNX: causal, 128-sample hops, 13 recurrent states.
+///
+/// This is a live-only model: it is not part of the offline stem-generation
+/// model selection. It runs on the CPU at roughly 0.9× real time on a Ryzen 7
+/// 5700X.
+pub const STEMGEN_MODEL: &str = "stemgenrt_v1";
+
 /// Built-in separation models selectable from Settings → Library.
 pub const STEM_MODELS: [&str; 2] = [DEFAULT_MODEL, SCNET_MODEL];
 
@@ -82,6 +89,20 @@ pub fn builtin_manifest(model_name: &str) -> Result<ModelManifest> {
                 url: "https://huggingface.co/audiojs/scnet/resolve/main/scnet.int8.onnx"
                     .into(),
                 format: "onnx-int8".into(),
+            }],
+        }),
+        "stemgenrt_v1" => Ok(ModelManifest {
+            name: "stemgenrt_v1".into(),
+            sample_rate: 44_100,
+            artifacts: vec![Artifact {
+                file: "stemgenrt.onnx".into(),
+                sha256: "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7".into(),
+                size_bytes: 31_946_241,
+                // Immutable GitHub media URL pinned to the release commit. The
+                // model is MIT-licensed; see the StemgenRT-5.8 repository.
+                url: "https://media.githubusercontent.com/media/sweetspotsoundsystem/stemgen-rt/96b1cae1c3908e3966ba3b4940f60ecdd32f8bfa/model/model.onnx"
+                    .into(),
+                format: "onnx-streaming".into(),
             }],
         }),
         other => Err(anyhow!("unknown built-in stem model '{other}'")),
@@ -340,6 +361,19 @@ mod tests {
             "98228931494151762a1c4ab1ec7899a894b1f81fd4a509921a9d2f9bacc50845"
         );
         assert_eq!(STEM_MODELS, ["htdemucs_mixxx_v1", "scnet_int8_v1"]);
+    }
+
+    #[test]
+    fn builtin_manifest_has_stemgenrt_streaming_model() {
+        let m = builtin_manifest(STEMGEN_MODEL).expect("stemgenrt");
+        let art = m.resolve_primary_artifact().expect("artifact");
+        assert_eq!(m.sample_rate, 44_100);
+        assert_eq!(art.file, "stemgenrt.onnx");
+        assert_eq!(art.size_bytes, 31_946_241);
+        assert_eq!(
+            art.sha256,
+            "0a49388dd2a47986ab9a161c8764c22853b4d601c188ac052eb530f076d513c7"
+        );
     }
 
     #[test]

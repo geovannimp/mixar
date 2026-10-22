@@ -306,6 +306,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsMixerTargetLufs => 'Target LUFS';
 
   @override
+  String get settingsMixerRealtimeStemsTitle => 'Realtime Stems';
+
+  @override
+  String get settingsMixerRealtimeStemsDescription =>
+      'Separates tracks without cached stems while they play. Tracks with offline stems always take priority.';
+
+  @override
+  String get settingsMixerRealtimeStemsNotRecommended => 'Not recommended.';
+
+  @override
+  String get settingsMixerRealtimeStemsWarning =>
+      'Quality is lower and it uses a CPU core.';
+
+  @override
   String get settingsWaveformDescription =>
       'RGB mixes low/mid/high into one color. Filtered stacks the three bands.';
 
@@ -524,6 +538,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsLibraryKeyColorHarmonicSubtitle =>
       'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.';
+
+  @override
+  String get padStemsOffline => 'Offline';
+
+  @override
+  String get padStemsRealtime => 'Realtime';
 
   @override
   String get settingsLibraryStemsTitle => 'Stems';

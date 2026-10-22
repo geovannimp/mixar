@@ -49,6 +49,29 @@ class SettingsMixerPanel extends StatelessWidget {
                 )
               : null,
         ),
+        SettingsSectionCard(
+          title: l10n.settingsMixerRealtimeStemsTitle,
+          subtitle: l10n.settingsMixerRealtimeStemsDescription,
+          subtitleBuilder: (style) => Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: l10n.settingsMixerRealtimeStemsDescription),
+                TextSpan(
+                  text: '\n${l10n.settingsMixerRealtimeStemsNotRecommended}',
+                  style: style.copyWith(fontWeight: FontWeight.w700),
+                ),
+                TextSpan(text: ' ${l10n.settingsMixerRealtimeStemsWarning}'),
+              ],
+            ),
+            style: style,
+          ),
+          trailing: SettingsHeaderSwitch(
+            value: draft.realtimeStems,
+            semanticsLabel: l10n.settingsMixerRealtimeStemsTitle,
+            onChanged: (enabled) =>
+                onChanged(copyAppSettings(draft, realtimeStems: enabled)),
+          ),
+        ),
       ],
     );
   }

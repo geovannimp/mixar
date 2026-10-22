@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `start_live_stems`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
@@ -384,6 +384,9 @@ class EngineEvt {
   /// True when four stem layers are attached for playback.
   final bool? stemsReady;
 
+  /// True when the attached stems come from the realtime StemgenRT ring.
+  final bool? stemsLive;
+
   /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[drums, bass, other, vocals]`).
   final List<bool>? stemMute;
 
@@ -444,6 +447,7 @@ class EngineEvt {
     this.samplerSlots,
     this.samplerSlotsKnown = false,
     this.stemsReady,
+    this.stemsLive,
     this.stemMute,
     this.stemIsolate,
   });
@@ -503,6 +507,7 @@ class EngineEvt {
       samplerSlots.hashCode ^
       samplerSlotsKnown.hashCode ^
       stemsReady.hashCode ^
+      stemsLive.hashCode ^
       stemMute.hashCode ^
       stemIsolate.hashCode;
 
@@ -564,6 +569,7 @@ class EngineEvt {
           samplerSlots == other.samplerSlots &&
           samplerSlotsKnown == other.samplerSlotsKnown &&
           stemsReady == other.stemsReady &&
+          stemsLive == other.stemsLive &&
           stemMute == other.stemMute &&
           stemIsolate == other.stemIsolate;
 }

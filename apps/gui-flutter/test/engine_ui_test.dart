@@ -412,18 +412,20 @@ void main() {
       expect(snap.samplerSlotsFor(0).single.label, 'kick');
     });
 
-    test('Updated forwards stemsReady mute and isolate', () {
+    test('Updated forwards stemsReady stemsLive mute and isolate', () {
       var snap = applyEngineEvt(
         EngineUiSnapshot.empty,
         const EngineEvt(
           kind: EngineEvtKind.updated,
           deckId: 1,
           stemsReady: true,
+          stemsLive: true,
           stemMute: [true, false, false, false],
           stemIsolate: 2,
         ),
       );
       expect(snap.stemsReadyFor(1), isTrue);
+      expect(snap.stemsLiveFor(1), isTrue);
       expect(snap.stemMuteFor(1), [true, false, false, false]);
       expect(snap.stemIsolateFor(1), 2);
 
@@ -447,6 +449,7 @@ void main() {
         ),
       );
       expect(snap.stemsReadyFor(1), isFalse);
+      expect(snap.stemsLiveFor(1), isFalse);
       expect(snap.stemMuteFor(1), [false, false, false, false]);
     });
 

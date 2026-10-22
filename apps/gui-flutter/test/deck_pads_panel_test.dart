@@ -24,6 +24,28 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'support/mixar_material_app.dart';
 import 'support/pad_finders.dart';
 
+Finder padLabel(String text) => find.text(text, findRichText: true);
+
+TextSpan padSuffixSpan(WidgetTester tester, String label, String suffixText) {
+  final rich = tester.widget<RichText>(padLabel(label));
+  final inner = (rich.text as TextSpan).children!.single as TextSpan;
+  return inner.children!.cast<TextSpan>().singleWhere(
+    (span) => span.text == suffixText,
+  );
+}
+
+/// The pad-mode suffix must render in the muted foreground colour.
+void expectMutedPadSuffix(
+  WidgetTester tester,
+  String label,
+  String suffixText,
+) {
+  expect(
+    padSuffixSpan(tester, label, suffixText).style?.color,
+    MixarThemeData.dark().colors.mutedForeground,
+  );
+}
+
 void main() {
   Future<void> pumpPanel(
     WidgetTester tester, {
@@ -40,6 +62,9 @@ void main() {
       SamplerBank(id: 'bank-2', name: 'Bank 2', playMode: kSamplerPlayModeHold),
     ],
     String? activeBankId = 'bank-1',
+    bool stemsReady = false,
+    bool stemsLive = false,
+    bool realtimeStemsEnabled = false,
     void Function(PadMode mode)? onPadMode,
     void Function(int slot, bool shift)? onHotCuePress,
     void Function(int slot)? onKeyboardPress,
@@ -106,6 +131,9 @@ void main() {
                     onKeyShiftPress: onKeyShiftPress ?? (_) {},
                     onKeyboardPress: onKeyboardPress ?? (_) {},
                     onKeyboardRelease: (_) {},
+                    stemsReady: stemsReady,
+                    stemsLive: stemsLive,
+                    realtimeStemsEnabled: realtimeStemsEnabled,
                     hasTrack: hasTrack,
                     disabled: disabled,
                   ),
@@ -137,8 +165,53 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
-    expect(find.text('Sample (Bank 1)'), findsOneWidget);
+    expect(padLabel('Sample (Bank 1)'), findsOneWidget);
+    expectMutedPadSuffix(tester, 'Sample (Bank 1)', ' (Bank 1)');
     expect(find.text('Kick'), findsOneWidget);
+  });
+
+  testWidgets('stems mode shows its source only when realtime is enabled', (
+    tester,
+  ) async {
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      padMode: PadMode.stems,
+      stemsReady: true,
+      stemsLive: true,
+      realtimeStemsEnabled: true,
+    );
+    expect(padLabel('Stems (Realtime)'), findsOneWidget);
+    expectMutedPadSuffix(tester, 'Stems (Realtime)', ' (Realtime)');
+
+    // The open list uses plain mode names; only the collapsed chip carries
+    // the selected mode's source suffix.
+    await tester.tap(find.byType(MixarSelect<PadMode>));
+    await tester.pumpAndSettle();
+    expect(find.text('Stems'), findsOneWidget);
+    expect(padLabel('Stems (Realtime)'), findsOneWidget);
+    await tester.tap(find.text('Stems'));
+    await tester.pumpAndSettle();
+
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      padMode: PadMode.stems,
+      stemsReady: true,
+      realtimeStemsEnabled: true,
+    );
+    expect(padLabel('Stems (Offline)'), findsOneWidget);
+
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      padMode: PadMode.stems,
+      stemsReady: true,
+      stemsLive: true,
+      realtimeStemsEnabled: false,
+    );
+    expect(find.text('Stems'), findsOneWidget);
+    expect(padLabel('Stems (Realtime)'), findsNothing);
   });
 
   testWidgets('mobile pad mode select shows Pad mode title', (tester) async {
@@ -216,7 +289,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
-    expect(find.text('Sample (Bank 1)'), findsOneWidget);
+    expect(padLabel('Sample (Bank 1)'), findsOneWidget);
 
     final configButton = find.byType(MixerButton);
     expect(
@@ -235,7 +308,7 @@ void main() {
 
     await tester.tap(find.text('Bank 2'));
     await tester.pumpAndSettle();
-    expect(find.text('Sample (Bank 2)'), findsOneWidget);
+    expect(padLabel('Sample (Bank 2)'), findsOneWidget);
   });
 
   /// keep main's Keyboard / Key Shift coverage, driven through the dropdown
@@ -253,7 +326,7 @@ void main() {
     expect(find.byType(KeyboardPads), findsOneWidget);
     expect(find.byType(KeyShiftPads), findsNothing);
     // Default page range is part of the selected mode label.
-    expect(find.text('Keys (0…+7)'), findsOneWidget);
+    expect(padLabel('Keys (0…+7)'), findsOneWidget);
 
     // A pad hold forwards the pressed slot to the host.
     await tester.tap(find.text('+1'));
@@ -275,7 +348,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(KeyShiftPads), findsOneWidget);
     expect(find.byType(KeyboardPads), findsNothing);
-    expect(find.text('Shift (0…+7)'), findsOneWidget);
+    expect(padLabel('Shift (0…+7)'), findsOneWidget);
   });
 
   testWidgets('pad mode can change without a track', (tester) async {

@@ -348,6 +348,7 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         slip_shadow_position_ms: snap.slip_shadow_position_ms,
         pad_mode: snap.pad_mode,
         stems_ready: snap.stems_ready,
+        stems_live: snap.stems_live,
         stem_mute: snap.stem_mute,
         stem_isolate: snap.stem_isolate,
         position_ms: snap.position_ms,
@@ -1252,6 +1253,16 @@ fn tick(
     let transport_events = eng.drain_transport_events();
     for TransportEvent::TrackEnded { deck_id } in transport_events {
         let _ = publish_deck_updated(evt_bus, revision, eng, deck_id);
+    }
+
+    // A live stem producer publishes its first window asynchronously; emit one
+    // Updated so pads/banner reflect readiness without waiting for another cmd.
+    for deck_id in 0..NUM_DECKS {
+        let ready = eng.deck_stems_ready(deck_id).unwrap_or(false);
+        if ready != eng.stems_ready_seen[deck_id] {
+            eng.stems_ready_seen[deck_id] = ready;
+            let _ = publish_deck_updated(evt_bus, revision, eng, deck_id);
+        }
     }
 
     let playback = eng.deck_playback_snapshot();

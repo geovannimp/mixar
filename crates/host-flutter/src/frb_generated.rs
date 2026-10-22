@@ -7899,6 +7899,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_dimPlayedTracks = <bool>::sse_decode(deserializer);
         let mut var_stemsFormat = <String>::sse_decode(deserializer);
         let mut var_stemsModel = <String>::sse_decode(deserializer);
+        let mut var_realtimeStems = <bool>::sse_decode(deserializer);
         let mut var_uiLanguage =
             <crate::api::settings::UiLanguageSetting>::sse_decode(deserializer);
         let mut var_libraryDrawerEnabled = <bool>::sse_decode(deserializer);
@@ -7943,6 +7944,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             dim_played_tracks: var_dimPlayedTracks,
             stems_format: var_stemsFormat,
             stems_model: var_stemsModel,
+            realtime_stems: var_realtimeStems,
             ui_language: var_uiLanguage,
             library_drawer_enabled: var_libraryDrawerEnabled,
             library_drawer_side: var_libraryDrawerSide,
@@ -8163,6 +8165,7 @@ impl SseDecode for crate::api::engine::EngineEvt {
             <Option<Vec<crate::api::engine::SamplerSlotChrome>>>::sse_decode(deserializer);
         let mut var_samplerSlotsKnown = <bool>::sse_decode(deserializer);
         let mut var_stemsReady = <Option<bool>>::sse_decode(deserializer);
+        let mut var_stemsLive = <Option<bool>>::sse_decode(deserializer);
         let mut var_stemMute = <Option<Vec<bool>>>::sse_decode(deserializer);
         let mut var_stemIsolate = <Option<u8>>::sse_decode(deserializer);
         return crate::api::engine::EngineEvt {
@@ -8219,6 +8222,7 @@ impl SseDecode for crate::api::engine::EngineEvt {
             sampler_slots: var_samplerSlots,
             sampler_slots_known: var_samplerSlotsKnown,
             stems_ready: var_stemsReady,
+            stems_live: var_stemsLive,
             stem_mute: var_stemMute,
             stem_isolate: var_stemIsolate,
         };
@@ -10672,6 +10676,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.dim_played_tracks.into_into_dart().into_dart(),
             self.stems_format.into_into_dart().into_dart(),
             self.stems_model.into_into_dart().into_dart(),
+            self.realtime_stems.into_into_dart().into_dart(),
             self.ui_language.into_into_dart().into_dart(),
             self.library_drawer_enabled.into_into_dart().into_dart(),
             self.library_drawer_side.into_into_dart().into_dart(),
@@ -10958,6 +10963,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.sampler_slots.into_into_dart().into_dart(),
             self.sampler_slots_known.into_into_dart().into_dart(),
             self.stems_ready.into_into_dart().into_dart(),
+            self.stems_live.into_into_dart().into_dart(),
             self.stem_mute.into_into_dart().into_dart(),
             self.stem_isolate.into_into_dart().into_dart(),
         ]
@@ -12217,6 +12223,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <bool>::sse_encode(self.dim_played_tracks, serializer);
         <String>::sse_encode(self.stems_format, serializer);
         <String>::sse_encode(self.stems_model, serializer);
+        <bool>::sse_encode(self.realtime_stems, serializer);
         <crate::api::settings::UiLanguageSetting>::sse_encode(self.ui_language, serializer);
         <bool>::sse_encode(self.library_drawer_enabled, serializer);
         <crate::api::settings::LibraryDrawerSideSetting>::sse_encode(
@@ -12408,6 +12415,7 @@ impl SseEncode for crate::api::engine::EngineEvt {
         );
         <bool>::sse_encode(self.sampler_slots_known, serializer);
         <Option<bool>>::sse_encode(self.stems_ready, serializer);
+        <Option<bool>>::sse_encode(self.stems_live, serializer);
         <Option<Vec<bool>>>::sse_encode(self.stem_mute, serializer);
         <Option<u8>>::sse_encode(self.stem_isolate, serializer);
     }

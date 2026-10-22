@@ -6,6 +6,21 @@ use engine_dsp::{DeckState, DspEngine};
 use crate::engine::{DeckTransportState, Engine, NUM_DECKS};
 
 impl Engine {
+    /// Read one deck from the running DSP engine.
+    ///
+    /// Returns `None` when the engine is not running or the deck id is out of
+    /// range, so callers do not repeat the lock-and-lookup sequence.
+    fn with_dsp_deck<R>(
+        &self,
+        deck_id: usize,
+        read: impl FnOnce(&engine_dsp::Deck) -> R,
+    ) -> Option<R> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        Some(read(deck))
+    }
+
     /// Snapshot playback positions for all decks that currently have loaded audio.
     pub fn deck_playback_snapshot(&self) -> Vec<(usize, i32, i32)> {
         let Some(dsp_engine) = self.dsp_engine.as_ref() else {
@@ -40,35 +55,34 @@ impl Engine {
 
     /// Whether a deck is currently playing.
     pub fn deck_is_playing(&self, deck_id: usize) -> Option<bool> {
-        let dsp_engine = self.dsp_engine.as_ref()?;
-        let dsp = dsp_engine.lock().ok()?;
-        let deck = dsp.deck(deck_id)?;
-        Some(matches!(deck.state(), engine_dsp::DeckState::Playing))
+        self.with_dsp_deck(deck_id, |deck| {
+            matches!(deck.state(), engine_dsp::DeckState::Playing)
+        })
+    }
+
+    /// Whether stem audio is attached and usable (live: first window published).
+    pub fn deck_stems_ready(&self, deck_id: usize) -> Option<bool> {
+        self.with_dsp_deck(deck_id, |deck| deck.stems_ready())
     }
 
     /// Whether jog may be moving the playhead (scratch / bend / release).
     pub fn deck_jog_driving_audio(&self, deck_id: usize) -> Option<bool> {
-        let dsp_engine = self.dsp_engine.as_ref()?;
-        let dsp = dsp_engine.lock().ok()?;
-        let deck = dsp.deck(deck_id)?;
-        Some(deck.jog_driving_audio())
+        self.with_dsp_deck(deck_id, |deck| deck.jog_driving_audio())
     }
 
     /// Playback position and duration for a deck (milliseconds), when the engine is running.
     pub fn deck_playback_ms(&self, deck_id: usize) -> Option<(i32, i32)> {
-        let dsp_engine = self.dsp_engine.as_ref()?;
-        let dsp = dsp_engine.lock().ok()?;
-        let deck = dsp.deck(deck_id)?;
-        let duration = secs_to_ms(deck.duration_seconds()?);
-        let position = deck.position_ms().unwrap_or(0);
-        Some((position, duration))
+        self.with_dsp_deck(deck_id, |deck| {
+            let duration = secs_to_ms(deck.duration_seconds()?);
+            let position = deck.position_ms().unwrap_or(0);
+            Some((position, duration))
+        })
+        .flatten()
     }
 
     /// Whether a deck has loaded audio when the engine is running.
     pub fn deck_has_audio_loaded(&self, deck_id: usize) -> Option<bool> {
-        let dsp_engine = self.dsp_engine.as_ref()?;
-        let dsp = dsp_engine.lock().ok()?;
-        Some(dsp.deck(deck_id)?.has_audio_loaded())
+        self.with_dsp_deck(deck_id, |deck| deck.has_audio_loaded())
     }
 
     /// Slim deck snapshot for bus `Updated` events.
@@ -171,6 +185,7 @@ fn deck_snapshot_from_dsp(
         slip_shadow_position_ms: deck.shadow_position_ms(),
         pad_mode: control.pad_mode,
         stems_ready: deck.stems_ready(),
+        stems_live: deck.stems_live(),
         stem_mute: deck.stem_mute(),
         stem_isolate: deck.stem_isolate(),
         position_ms,

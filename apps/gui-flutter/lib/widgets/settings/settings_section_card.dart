@@ -13,16 +13,24 @@ class SettingsSectionCard extends StatelessWidget {
     super.key,
     this.trailing,
     this.child,
+    this.subtitleBuilder,
   });
 
   final String title;
   final String subtitle;
+
+  /// Optional rich subtitle; see [SettingsSectionHeader.descriptionBuilder].
+  final Widget Function(TextStyle style)? subtitleBuilder;
   final Widget? trailing;
   final Widget? child;
 
   @override
   Widget build(BuildContext context) {
-    final header = SettingsSectionHeader(title: title, description: subtitle);
+    final header = SettingsSectionHeader(
+      title: title,
+      description: subtitle,
+      descriptionBuilder: subtitleBuilder,
+    );
     return MCard(
       child: Padding(
         padding: const .fromLTRB(16, 16, 16, 16),

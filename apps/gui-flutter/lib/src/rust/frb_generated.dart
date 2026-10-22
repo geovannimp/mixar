@@ -6986,8 +6986,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 41)
-      throw Exception('unexpected arr length: expect 41 but see ${arr.length}');
+    if (arr.length != 42)
+      throw Exception('unexpected arr length: expect 42 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -7027,9 +7027,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       dimPlayedTracks: dco_decode_bool(arr[35]),
       stemsFormat: dco_decode_String(arr[36]),
       stemsModel: dco_decode_String(arr[37]),
-      uiLanguage: dco_decode_ui_language_setting(arr[38]),
-      libraryDrawerEnabled: dco_decode_bool(arr[39]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[40]),
+      realtimeStems: dco_decode_bool(arr[38]),
+      uiLanguage: dco_decode_ui_language_setting(arr[39]),
+      libraryDrawerEnabled: dco_decode_bool(arr[40]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[41]),
     );
   }
 
@@ -7272,8 +7273,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineEvt dco_decode_engine_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 55)
-      throw Exception('unexpected arr length: expect 55 but see ${arr.length}');
+    if (arr.length != 56)
+      throw Exception('unexpected arr length: expect 56 but see ${arr.length}');
     return EngineEvt(
       kind: dco_decode_engine_evt_kind(arr[0]),
       deckId: dco_decode_opt_box_autoadd_u_16(arr[1]),
@@ -7328,8 +7329,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       samplerSlots: dco_decode_opt_list_sampler_slot_chrome(arr[50]),
       samplerSlotsKnown: dco_decode_bool(arr[51]),
       stemsReady: dco_decode_opt_box_autoadd_bool(arr[52]),
-      stemMute: dco_decode_opt_list_bool(arr[53]),
-      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[54]),
+      stemsLive: dco_decode_opt_box_autoadd_bool(arr[53]),
+      stemMute: dco_decode_opt_list_bool(arr[54]),
+      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[55]),
     );
   }
 
@@ -8550,6 +8552,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_dimPlayedTracks = sse_decode_bool(deserializer);
     var var_stemsFormat = sse_decode_String(deserializer);
     var var_stemsModel = sse_decode_String(deserializer);
+    var var_realtimeStems = sse_decode_bool(deserializer);
     var var_uiLanguage = sse_decode_ui_language_setting(deserializer);
     var var_libraryDrawerEnabled = sse_decode_bool(deserializer);
     var var_libraryDrawerSide = sse_decode_library_drawer_side_setting(
@@ -8594,6 +8597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       dimPlayedTracks: var_dimPlayedTracks,
       stemsFormat: var_stemsFormat,
       stemsModel: var_stemsModel,
+      realtimeStems: var_realtimeStems,
       uiLanguage: var_uiLanguage,
       libraryDrawerEnabled: var_libraryDrawerEnabled,
       libraryDrawerSide: var_libraryDrawerSide,
@@ -8933,6 +8937,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
     var var_samplerSlotsKnown = sse_decode_bool(deserializer);
     var var_stemsReady = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_stemsLive = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_stemMute = sse_decode_opt_list_bool(deserializer);
     var var_stemIsolate = sse_decode_opt_box_autoadd_u_8(deserializer);
     return EngineEvt(
@@ -8989,6 +8994,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       samplerSlots: var_samplerSlots,
       samplerSlotsKnown: var_samplerSlotsKnown,
       stemsReady: var_stemsReady,
+      stemsLive: var_stemsLive,
       stemMute: var_stemMute,
       stemIsolate: var_stemIsolate,
     );
@@ -10615,6 +10621,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.dimPlayedTracks, serializer);
     sse_encode_String(self.stemsFormat, serializer);
     sse_encode_String(self.stemsModel, serializer);
+    sse_encode_bool(self.realtimeStems, serializer);
     sse_encode_ui_language_setting(self.uiLanguage, serializer);
     sse_encode_bool(self.libraryDrawerEnabled, serializer);
     sse_encode_library_drawer_side_setting(self.libraryDrawerSide, serializer);
@@ -10929,6 +10936,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_list_sampler_slot_chrome(self.samplerSlots, serializer);
     sse_encode_bool(self.samplerSlotsKnown, serializer);
     sse_encode_opt_box_autoadd_bool(self.stemsReady, serializer);
+    sse_encode_opt_box_autoadd_bool(self.stemsLive, serializer);
     sse_encode_opt_list_bool(self.stemMute, serializer);
     sse_encode_opt_box_autoadd_u_8(self.stemIsolate, serializer);
   }

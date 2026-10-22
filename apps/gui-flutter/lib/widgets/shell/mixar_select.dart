@@ -104,6 +104,8 @@ class MixarSelect<T> extends StatefulWidget {
     required this.labelBuilder,
     required this.onChanged,
     super.key,
+    this.labelSpanBuilder,
+    this.optionLabelBuilder,
     this.subtitleBuilder,
     this.enabled = true,
     this.placeholder,
@@ -120,6 +122,14 @@ class MixarSelect<T> extends StatefulWidget {
   /// Menu / dialog entries; keep values unique under `==` for stable keys.
   final List<T> options;
   final String Function(T value) labelBuilder;
+
+  /// Optional rich label. Use this when part of the label needs a different
+  /// color/weight; [labelBuilder] remains the semantics fallback.
+  final InlineSpan? Function(T value)? labelSpanBuilder;
+
+  /// Plain label for dropdown/dialog rows. Defaults to [labelBuilder]; use this
+  /// when the collapsed selection carries a suffix the list should omit.
+  final String Function(T value)? optionLabelBuilder;
   final String Function(T value)? subtitleBuilder;
   final ValueChanged<T> onChanged;
   final bool enabled;
@@ -175,7 +185,9 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: _MobileSelectOption(
                       key: ValueKey(option),
-                      label: widget.labelBuilder(option),
+                      label: (widget.optionLabelBuilder ?? widget.labelBuilder)(
+                        option,
+                      ),
                       subtitle: widget.subtitleBuilder?.call(option),
                       selected: option == widget.value,
                       onPress: () => Navigator.of(dialogContext).pop(option),
@@ -212,13 +224,17 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
     final mobile = style == SelectStyleSetting.mobile;
 
     Widget buildOption(T option) {
+      final optionLabel = (widget.optionLabelBuilder ?? widget.labelBuilder)(
+        option,
+      );
+      final label = Text(optionLabel);
       final child = widget.subtitleBuilder == null
-          ? Text(widget.labelBuilder(option))
+          ? label
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(widget.labelBuilder(option)),
+                label,
                 Text(
                   widget.subtitleBuilder!(option),
                   style: theme.typography.body.xs.copyWith(
@@ -268,8 +284,12 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                     });
                   }
                 },
-          selectedOptionBuilder: (context, selected) =>
-              Text(widget.labelBuilder(selected)),
+          selectedOptionBuilder: (context, selected) {
+            final span = widget.labelSpanBuilder?.call(selected);
+            return span == null
+                ? Text(widget.labelBuilder(selected))
+                : Text.rich(span);
+          },
           // Popover options unused when [onPressed] opens the dialog.
           options: mobile
               ? const <Widget>[]

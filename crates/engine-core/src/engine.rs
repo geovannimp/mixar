@@ -39,6 +39,9 @@ pub struct Engine {
     pub(crate) engine_buses: Option<EngineBuses>,
     pub(crate) master_deck: usize,
     pub(crate) deck_control: Vec<DeckControlState>,
+    /// Last published `stems_ready` per deck, so the tick emits one `Updated`
+    /// when a live producer's first window lands.
+    pub(crate) stems_ready_seen: [bool; NUM_DECKS],
     pub(crate) soft_takeover: crate::soft_takeover::SoftTakeoverState,
 }
 
@@ -104,6 +107,7 @@ impl Engine {
                     ..Default::default()
                 })
                 .collect(),
+            stems_ready_seen: [false; NUM_DECKS],
             soft_takeover: crate::soft_takeover::SoftTakeoverState::default(),
         })
     }

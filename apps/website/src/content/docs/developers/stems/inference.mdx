@@ -76,3 +76,19 @@ MIT; its MUSDB18-HQ training corpus is educational-use, the same unresolved
 caveat that applies to other MUSDB-trained artifacts. The adapter is covered by STFT round-trip
 and padding tests, an ignored real-model smoke test, and a frame-level
 comparison against an independent Python/MSST reference.
+
+### Live pipeline
+
+`start_live_separator` runs the same chunk/window loop ahead of a deck playhead
+and publishes each finalized stride window to `audio_core::LiveStemRing` instead
+of accumulating a full-track buffer. The window finalizer is shared with the
+offline path, so output is bit-identical; `tests/live_split_matches_offline.rs`
+(ignored, needs the model) asserts that frame by frame.
+
+- Producer: 10 ms pacing poll, two-stride lookahead, re-epoch on backward/forward
+  seeks, closes on track unload.
+- Consumer: `Deck::mix_at_position` reads up to four covered frames lock-free and
+  crossfades from the main mix over 5 ms; outside coverage it returns the main
+  mix verbatim.
+- No disk I/O, no per-load model download, and no second decode: the producer
+  borrows the deck's decoded `LoadedAudio`.

@@ -18,8 +18,8 @@ pub const SAMPLE_RATE: u32 = 44_100;
 /// Four stems.
 pub const SOURCES: usize = 4;
 /// StemSplit-style OLA: `overlap = N // 4`, `stride = N - overlap`.
-const OVERLAP: usize = SEGMENT_SAMPLES / 4;
-const CHUNK_STRIDE: usize = SEGMENT_SAMPLES - OVERLAP;
+pub(crate) const OVERLAP: usize = SEGMENT_SAMPLES / 4;
+pub(crate) const CHUNK_STRIDE: usize = SEGMENT_SAMPLES - OVERLAP;
 /// ONNX stem order is drums, bass, other, vocals — same as NI / Mixar.
 const SOURCE_ORDER: [usize; SOURCES] = [0, 1, 2, 3];
 
@@ -60,19 +60,38 @@ pub fn separate_interleaved(
     );
 
     let started = Instant::now();
-    let (stems, ep) =
+    // Acquire the process-global session per chunk, not for the whole track, so
+    // a live deck producer can interleave windows with an offline generate job.
+    let mut ep: Option<&'static str> = None;
+    let mut session_logged = false;
+    let stems = overlap_add(&pcm, on_progress, |chunk| {
         session::with_session(weights, |ort_session, ep_label, in_name, out_name| {
+            if !session_logged {
+                info!(
+                    ep = ep_label,
+                    input = in_name,
+                    output = out_name,
+                    "stem separate: ORT session"
+                );
+                session_logged = true;
+            }
+            ep = Some(ep_label);
+            run_chunk(ort_session, chunk, in_name, out_name)
+        })
+    })?;
+    // Empty input never calls the chunker; resolve the EP for the cache label.
+    let ep = match ep {
+        Some(ep) => ep,
+        None => session::with_session(weights, |_, ep_label, in_name, out_name| {
             info!(
                 ep = ep_label,
                 input = in_name,
                 output = out_name,
                 "stem separate: ORT session"
             );
-            let stems = overlap_add(&pcm, on_progress, |chunk| {
-                run_chunk(ort_session, chunk, in_name, out_name)
-            })?;
-            Ok((stems, ep_label))
-        })?;
+            Ok(ep_label)
+        })?,
+    };
 
     info!(
         frames,
@@ -84,7 +103,7 @@ pub fn separate_interleaved(
     Ok((stems, ep))
 }
 
-fn run_chunk(
+pub(crate) fn run_chunk(
     session: &mut ort::session::Session,
     chunk: &[f32],
     input_name: &str,
@@ -134,7 +153,7 @@ fn run_chunk(
 }
 
 /// StemSplit-style OLA window: 1.0 in the middle, linear fade over `OVERLAP`.
-fn chunk_weights() -> Vec<f32> {
+pub(crate) fn chunk_weights() -> Vec<f32> {
     let n = SEGMENT_SAMPLES;
     let mut w = vec![1.0f32; n];
     if OVERLAP <= 1 {
@@ -151,7 +170,13 @@ fn chunk_weights() -> Vec<f32> {
 
 /// Copy `valid` frames from `pcm` at `offset`; reflect-pad the rest of the segment
 /// so the model does not see a hard zero cliff (zero-pad → edge glitches).
-fn fill_chunk_reflect(pcm: &[f32], frames: usize, offset: usize, valid: usize, chunk: &mut [f32]) {
+pub(crate) fn fill_chunk_reflect(
+    pcm: &[f32],
+    frames: usize,
+    offset: usize,
+    valid: usize,
+    chunk: &mut [f32],
+) {
     debug_assert_eq!(chunk.len(), SEGMENT_SAMPLES * 2);
     chunk.fill(0.0);
     if valid == 0 || frames == 0 {
@@ -179,6 +204,52 @@ fn fill_chunk_reflect(pcm: &[f32], frames: usize, offset: usize, valid: usize, c
         }
         chunk[i * 2] = chunk[x * 2];
         chunk[i * 2 + 1] = chunk[x * 2 + 1];
+    }
+}
+
+/// Finalize one stride-sized window from the current chunk and the previous
+/// chunk's tail. Mirrors the offline accumulation exactly; the live path uses
+/// this instead of buffering a whole track.
+///
+/// `prev` contributes only the first [`OVERLAP`] frames; `cur` covers the whole
+/// window. Contributions are added in offline order (`prev` first, then `cur`)
+/// and normalized by the same weight sum.
+pub(crate) fn finalize_window(
+    weights: &[f32],
+    prev: Option<&[Vec<f32>; SOURCES]>,
+    cur: &[Vec<f32>; SOURCES],
+    len: usize,
+    out: &mut [Vec<f32>; SOURCES],
+) {
+    let overlap = len.min(OVERLAP);
+    debug_assert!(cur.iter().all(|stem| stem.len() >= len * 2));
+    debug_assert!(out.iter().all(|window| window.len() >= len * 2));
+    for i in 0..len {
+        let w_cur = weights[i];
+        let w_prev = if prev.is_some() && i < overlap {
+            weights[CHUNK_STRIDE + i]
+        } else {
+            0.0
+        };
+        let sum = w_cur + w_prev;
+        for (stem, window) in out.iter_mut().enumerate() {
+            let mut left = 0.0f32;
+            let mut right = 0.0f32;
+            if let Some(prev_chunk) = prev {
+                if i < overlap {
+                    left += w_prev * prev_chunk[stem][(CHUNK_STRIDE + i) * 2];
+                    right += w_prev * prev_chunk[stem][(CHUNK_STRIDE + i) * 2 + 1];
+                }
+            }
+            left += w_cur * cur[stem][i * 2];
+            right += w_cur * cur[stem][i * 2 + 1];
+            if sum > 1e-8 {
+                left /= sum;
+                right /= sum;
+            }
+            window[i * 2] = left;
+            window[i * 2 + 1] = right;
+        }
     }
 }
 

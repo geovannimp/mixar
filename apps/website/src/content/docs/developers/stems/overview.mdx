@@ -11,7 +11,7 @@ User-facing docs: [Stems](/docs/users/stems) ([native NI](/docs/users/stems/nati
 
 ## Load path
 
-Stem ensure runs only from the per-track **Generate stems** action (library worker). Deck load never starts separation or hot-swaps mid-play.
+Cached stem ensure runs only from the per-track **Generate stems** action (library worker). Deck load never blocks on separation: it attaches a cache when one exists, otherwise it starts the **live producer** below and keeps playing the main mix until the first window lands.
 
 ```text
 Prepare / load track
@@ -21,9 +21,35 @@ Prepare / load track
         ├─ valid stem cache? ──► StemBundle(cache) ──► deck load
         │         (main = mixdown; stems attached)
         │
-        └─ else ──► decode original ──► deck load
-              (pads inert; no ensure)
+        └─ else ──► decode original ──► deck load + live producer
+              (main mix until first window; no disk writes)
 ```
+
+## Live separation
+
+When **Realtime Stems** is enabled in Settings and a track has no cache, deck
+load starts a streaming separation model on a background CPU thread. It reads
+the decoded PCM, runs the causal 128-sample-hop ONNX graph with its 13 recurrent
+states, and publishes four-stem hops into a 2^20-frame (≈23.8 s) `LiveStemRing`
+that the deck reads lock-free. The four stems are summed at the deck output,
+**before** the channel strip gain/EQ/filter chain, so EQ and FX process the stem
+mix as one signal.
+
+- The first model use downloads the 32 MB ONNX in the background; the deck
+  plays the main mix until coverage exists. Cached stems remain authoritative.
+- No `.stem.mp4` is written: live playback adds **no file duplication**.
+- The deck crossfades from the main mix over 5 ms when a hop is covered; pads
+  become ready when coverage exists.
+- Seeks outside the ring re-epoch the producer with a short warm-up; the model
+  is stateful, so a seek starts from reconstructed context rather than an
+  offline-parity cache. The deck falls back to the main mix until it catches up.
+- The live filter runs on the CPU at roughly 0.9× real time on a Ryzen 7 5700X,
+  so it is independent of the GPU EP used by offline HTDemucs generation.
+  The explicit **Generate stems** path is unchanged.
+- The live model is separate from offline stem generation and is a
+  fallback for tracks without cached stems. Tracks with offline stems always
+  take priority. **Not recommended** over offline separation: quality is lower
+  and it uses a CPU core.
 
 ## App-support layout
 
