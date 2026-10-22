@@ -468,10 +468,15 @@ impl LibraryManager {
         })
     }
 
-    pub(crate) fn file_sources_under(&self, root: &Path) -> Result<Vec<AudioSource>> {
+    pub(crate) fn file_sources_under(
+        &self,
+        root: &Path,
+        recursive: bool,
+    ) -> Result<Vec<AudioSource>> {
         let root_str = root.to_string_lossy().into_owned();
         let prefix = format!("{}/%", escape_like(&root_str));
-        self.store().find_file_sources_under(&root_str, &prefix)
+        self.store()
+            .find_file_sources_under(&root_str, &prefix, recursive)
     }
 
     /// Import or refresh a file track at `path` and return the library source.
