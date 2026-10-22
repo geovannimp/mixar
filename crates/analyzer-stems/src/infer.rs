@@ -63,8 +63,18 @@ pub fn separate_interleaved(
     // Acquire the process-global session per chunk, not for the whole track, so
     // a live deck producer can interleave windows with an offline generate job.
     let mut ep: Option<&'static str> = None;
+    let mut session_logged = false;
     let stems = overlap_add(&pcm, on_progress, |chunk| {
         session::with_session(weights, |ort_session, ep_label, in_name, out_name| {
+            if !session_logged {
+                info!(
+                    ep = ep_label,
+                    input = in_name,
+                    output = out_name,
+                    "stem separate: ORT session"
+                );
+                session_logged = true;
+            }
             ep = Some(ep_label);
             run_chunk(ort_session, chunk, in_name, out_name)
         })

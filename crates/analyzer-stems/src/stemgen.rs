@@ -377,6 +377,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn publish_maps_model_order_into_ring_coverage() {
+        let ring = LiveStemRing::new(SAMPLE_RATE, 1 << 19);
+        let separated: [Vec<f32>; STEMS] = std::array::from_fn(|stem| {
+            let value = (stem + 1) as f32;
+            vec![value; HOP * 2]
+        });
+        publish(&ring, &separated, 100, HOP);
+        assert_eq!(ring.coverage(), Some((100, 100 + HOP as u64)));
+        // Model order drums, bass, vocals, other -> ring drums, bass, other, vocals.
+        assert_eq!(ring.frame(0, 100), (1.0, 1.0));
+        assert_eq!(ring.frame(1, 100), (2.0, 2.0));
+        assert_eq!(ring.frame(2, 100), (4.0, 4.0));
+        assert_eq!(ring.frame(3, 100), (3.0, 3.0));
+    }
+
+    #[test]
     fn normal_advance_and_producer_lag_do_not_reepoch() {
         assert!(!should_reepoch(0, None, 0));
         assert!(!should_reepoch(44_100, Some(0), 0));

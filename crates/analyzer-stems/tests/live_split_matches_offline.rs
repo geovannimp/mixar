@@ -13,6 +13,16 @@ use std::time::{Duration, Instant};
 use analyzer_stems::{resolve_model, separate_interleaved, start_live_separator, DEFAULT_MODEL};
 use audio_core::{LiveStemRing, LoadedAudio, DEFAULT_LIVE_STEM_CAPACITY};
 
+fn test_model() -> (tempfile::TempDir, analyzer_stems::ModelHandle) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let models = std::env::var_os("MIXAR_STEMS_MODEL_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| dir.path().join("models"));
+    std::fs::create_dir_all(&models).expect("models dir");
+    let handle = resolve_model(&models, DEFAULT_MODEL, None).expect("model");
+    (dir, handle)
+}
+
 #[test]
 #[ignore = "downloads HTDemucs ONNX (~304MB) and runs ort inference"]
 fn live_windows_match_offline_split() {
@@ -29,13 +39,8 @@ fn live_windows_match_offline_split() {
         pcm.push(s * 0.8);
     }
 
-    let dir = tempfile::tempdir().expect("tempdir");
-    // Reuse a local model cache to avoid a 304 MB download in dev runs.
-    let models = std::env::var_os("MIXAR_STEMS_MODEL_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| dir.path().join("models"));
-    std::fs::create_dir_all(&models).expect("models dir");
-    let handle = resolve_model(&models, DEFAULT_MODEL, None).expect("model");
+    // Keep the temp dir alive for the model handle.
+    let (_dir, handle) = test_model();
 
     let (offline, _) =
         separate_interleaved(&handle.local_path, &pcm, sample_rate, None).expect("offline");
@@ -91,12 +96,7 @@ fn live_seek_uses_offline_chunk_grid() {
         pcm.push(s * 0.8);
     }
 
-    let dir = tempfile::tempdir().expect("tempdir");
-    let models = std::env::var_os("MIXAR_STEMS_MODEL_DIR")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| dir.path().join("models"));
-    std::fs::create_dir_all(&models).expect("models dir");
-    let handle = resolve_model(&models, DEFAULT_MODEL, None).expect("model");
+    let (_dir, handle) = test_model();
 
     let (offline, _) =
         separate_interleaved(&handle.local_path, &pcm, sample_rate, None).expect("offline");
