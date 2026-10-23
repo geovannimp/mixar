@@ -39,6 +39,13 @@ export default defineConfig({
     },
   },
   vite: {
+    optimizeDeps: {
+      // Avoid a Vite dev-server reload the first time the search worker starts.
+      include: ["fuse.js"],
+    },
+    server: {
+      strictPort: false,
+    },
     plugins: [
       tailwindcss(),
       // Dev-safe: the plugin uploads from `writeBundle`, which Vite's dev

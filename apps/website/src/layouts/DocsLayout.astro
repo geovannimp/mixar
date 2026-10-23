@@ -2,6 +2,7 @@
 import type { MarkdownHeading } from "astro";
 import BaseLayout from "./BaseLayout.astro";
 import DocsNav from "../components/docs/DocsNav.astro";
+import DocsSearch from "../components/docs/DocsSearch.astro";
 import { docPath, getDocs, type DocEntry } from "../lib/docs";
 import { ArrowLeft, ArrowRight } from "@lucide/astro";
 
@@ -15,6 +16,7 @@ interface Props {
 }
 
 const { title, description, currentId, headings, prev, next } = Astro.props;
+const searchScope = currentId.split("/")[0] === "users" ? "users" : "developers";
 
 const { categories } = await getDocs();
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
@@ -42,6 +44,7 @@ const tocRailClass =
         transition:name="docs-menu"
         class="mb-8 lg:sticky lg:top-20 lg:mb-0 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2"
       >
+        <DocsSearch scope={searchScope} />
         <details
           id="docs-nav"
           open
