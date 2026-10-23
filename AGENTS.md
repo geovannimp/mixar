@@ -21,6 +21,8 @@
 - Prefer minimal, focused changes; scope may narrow mid-task.
 - When planning features, research how competitors handle the same problem before proposing UX or architecture.
 - Always run the relevant tests (and lint/format as needed) before committing.
+- Before opening a PR, invoke the `open-code-review-delegate` skill and run its review; fix every reported issue, then rerun the review and relevant tests until clean. Delegation uses OCR for deterministic file selection and rules, and the host agent performs the review without requiring OCR LLM credentials.
+- For PRs, use OpenCodeReview's SARIF output when publishing GitHub Code Scanning results; CodeGraph is preferred for structural code questions, while `code_search` is for text search.
 - After pushing, check CI and fix failures before considering the work done.
 
 ## Guardrails

@@ -1,0 +1,80 @@
+name: OpenCodeReview
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ocr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout trusted base revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch pull request head
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: git fetch --no-tags origin "$HEAD_SHA"
+
+      - name: Install OCR and CodeGraph
+        env:
+          OCR_VERSION: '1.13.2'
+          CODEGRAPH_VERSION: '1.6.2'
+        run: |
+          set -euo pipefail
+          npm install -g --ignore-scripts "@alibaba-group/open-code-review@${OCR_VERSION}" "@colbymchenry/codegraph@${CODEGRAPH_VERSION}"
+
+      - name: Index trusted base for CodeGraph
+        continue-on-error: true
+        env:
+          CODEGRAPH_NO_DOWNLOAD: '1'
+        run: |
+          if ! codegraph init -y .; then
+            echo "::warning::CodeGraph initialization failed; continuing review without indexed structural context."
+          fi
+
+      - name: Run OpenCodeReview
+        env:
+          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          OCR_LLM_MODEL: ${{ vars.PI_REVIEW_MODEL }}
+          OCR_LLM_PROTOCOL: openai
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          # This is a pull_request_target job: keep review rules and tools on the trusted base.
+          git checkout --detach "$BASE_SHA"
+          ocr config set mcp_servers.codegraph.command codegraph
+          ocr config set mcp_servers.codegraph.args '["serve","--mcp"]'
+          ocr config set mcp_servers.codegraph.tools '["codegraph_explore"]'
+          ocr_args=(review --from "$BASE_SHA" --to "$HEAD_SHA" --format sarif --audience agent \
+            --background "Review the pull request diff against the trusted base rules. Use CodeGraph for structural context." \
+            --output results.sarif)
+          if [ -f .opencodereview/tools.json ]; then
+            ocr_args+=(--tools .opencodereview/tools.json)
+          fi
+          ocr "${ocr_args[@]}"
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3
+        with:
+          sarif_file: results.sarif
+          category: opencodereview

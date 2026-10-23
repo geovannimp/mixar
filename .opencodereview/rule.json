@@ -71,6 +71,6 @@
   "include": [
     ".agents/skills/**/*.md",
     ".opencodereview/rule.json",
-    ".github/pi/**/*.test.ts"
+    ".opencodereview/tools.json"
   ]
 }
