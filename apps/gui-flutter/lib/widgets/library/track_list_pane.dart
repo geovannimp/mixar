@@ -12,6 +12,7 @@ import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/analyze_collection_dialog.dart';
 import 'package:gui_flutter/widgets/library/collection_actions_menu.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_list_message.dart';
@@ -222,8 +223,22 @@ List<Widget> trackRowExtraMenuItems(
       onPress: !inLibrary || analyzing
           ? null
           : () {
+              final container = ProviderScope.containerOf(
+                context,
+                listen: false,
+              );
+              final dialogContext = Navigator.of(context).context;
               dismiss();
-              unawaited(analyzeTrackAction(ref, track.id));
+              unawaited(() async {
+                final force = await showAnalyzeTrackDialog(
+                  dialogContext,
+                  trackName: track.displayName,
+                );
+                if (force == null || !dialogContext.mounted) {
+                  return;
+                }
+                await analyzeTrackAction(container, track.id, force: force);
+              }());
             },
     ),
     MixarMenuItem(

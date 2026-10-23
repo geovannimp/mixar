@@ -20,7 +20,14 @@ pub(crate) fn upsert_track_analysis(
     db: &Db,
     track_id: &TrackId,
     analysis: &TrackAnalysis,
+    force: bool,
 ) -> Result<()> {
+    // User-edited grids share this row; non-forced analysis keeps their BPM and grid.
+    let has_existing_grid = !force
+        && TrackAnalysisEntity::find_by_id(track_id.as_str())
+            .one(db.conn()?.as_connection())
+            .map_err(db::db_err)?
+            .is_some_and(|row| row.beat_grid_json.is_some());
     let beat_grid_json = analysis
         .beat_grid
         .as_ref()
@@ -47,25 +54,30 @@ pub(crate) fn upsert_track_analysis(
         loudness_lufs: Set(analysis.loudness_lufs),
         beat_grid_json: Set(beat_grid_json),
     };
+    let mut update_columns = vec![
+        track_analysis::Column::Backend,
+        track_analysis::Column::BackendVersion,
+        track_analysis::Column::AnalyzedAt,
+        track_analysis::Column::Key,
+        track_analysis::Column::KeyConfidence,
+        track_analysis::Column::KeyClarity,
+        track_analysis::Column::SampleRate,
+        track_analysis::Column::DurationAnalyzedMs,
+        track_analysis::Column::LoudnessLufs,
+    ];
+    if !has_existing_grid {
+        update_columns.extend([
+            track_analysis::Column::Bpm,
+            track_analysis::Column::BpmConfidence,
+            track_analysis::Column::GridStability,
+            track_analysis::Column::BeatGridJson,
+        ]);
+    }
 
     TrackAnalysisEntity::insert(active)
         .on_conflict(
             OnConflict::column(track_analysis::Column::TrackId)
-                .update_columns([
-                    track_analysis::Column::Backend,
-                    track_analysis::Column::BackendVersion,
-                    track_analysis::Column::AnalyzedAt,
-                    track_analysis::Column::Bpm,
-                    track_analysis::Column::BpmConfidence,
-                    track_analysis::Column::Key,
-                    track_analysis::Column::KeyConfidence,
-                    track_analysis::Column::KeyClarity,
-                    track_analysis::Column::GridStability,
-                    track_analysis::Column::SampleRate,
-                    track_analysis::Column::DurationAnalyzedMs,
-                    track_analysis::Column::LoudnessLufs,
-                    track_analysis::Column::BeatGridJson,
-                ])
+                .update_columns(update_columns)
                 .to_owned(),
         )
         .exec(db.conn()?.as_connection())
@@ -92,6 +104,7 @@ pub(crate) fn analyzer_error(err: AnalyzerError) -> LibraryError {
 pub(crate) struct ComputedFileAnalysis {
     pub(crate) metadata: library_core::TrackMetadata,
     pub(crate) analysis: analyzer::TrackAnalysis,
+    pub(crate) force: bool,
 }
 
 #[cfg(feature = "analysis")]
@@ -137,7 +150,11 @@ pub(crate) fn compute_file_analysis(
     metadata.bpm = merged.bpm;
     metadata.key = merged.key;
 
-    Ok(ComputedFileAnalysis { metadata, analysis })
+    Ok(ComputedFileAnalysis {
+        metadata,
+        analysis,
+        force: options.force,
+    })
 }
 
 /// Decode a `.stem.mp4` mixdown via the repaired Stem path, then analyze mono PCM.

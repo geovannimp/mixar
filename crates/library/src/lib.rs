@@ -283,7 +283,7 @@ impl LibraryManager {
             tags::merge_user_metadata(&mut metadata, &existing, edited);
         }
         let source = self.upsert_file_source(&path, &metadata)?;
-        analysis::upsert_track_analysis(&self.db, source.id(), &computed.analysis)?;
+        analysis::upsert_track_analysis(&self.db, source.id(), &computed.analysis, computed.force)?;
         if persist_waveform {
             waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         }

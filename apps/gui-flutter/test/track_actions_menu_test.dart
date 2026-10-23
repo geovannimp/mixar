@@ -14,6 +14,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/track_list_pane.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
+import 'package:gui_flutter/widgets/shell/mixar_checkbox.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -147,6 +148,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Analyze'), findsOneWidget);
     expect(tester.getSize(find.text('Load to deck')).width, lessThan(300));
+  });
+
+  testWidgets('Analyze passes the replacement opt-in to the library', (
+    tester,
+  ) async {
+    final transport = FakeLibraryTransport();
+    addTearDown(transport.dispose);
+    await pumpMenu(tester, transport: transport);
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Analyze'));
+    await tester.pumpAndSettle();
+
+    final checkbox = find.byType(MixarCheckbox);
+    expect(tester.widget<MixarCheckbox>(checkbox).value, isFalse);
+
+    await tester.tap(find.byType(MixarCheckbox));
+    await tester.pump();
+    await tester.tap(find.text('Start analysis'));
+    await tester.pumpAndSettle();
+    expect(transport.analyzeTrackCalls, [(trackId: 't1', force: true)]);
   });
 
   testWidgets('mobile track actions menu shows Track actions title', (
