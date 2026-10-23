@@ -70,21 +70,18 @@ class TrailingMeta extends StatelessWidget {
         ),
       if (trackShowsColorLabel(colorLabel))
         if (colorLabelColor(colorLabel) case final color?)
-          Flexible(
-            fit: FlexFit.loose,
-            child: Semantics(
-              label: 'Colour ${colorLabelDisplayName(colorLabel)}',
-              child: Container(
-                key: kTrackColorPillKey,
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                  border: Border.all(
-                    color: context.theme.colors.border,
-                    width: context.theme.style.borderWidth,
-                  ),
+          Semantics(
+            label: 'Colour ${colorLabelDisplayName(colorLabel)}',
+            child: Container(
+              key: kTrackColorPillKey,
+              width: kColorSlotWidth,
+              height: kColorSlotWidth,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+                border: Border.all(
+                  color: context.theme.colors.border,
+                  width: context.theme.style.borderWidth,
                 ),
               ),
             ),
@@ -92,6 +89,7 @@ class TrailingMeta extends StatelessWidget {
       if (trackShowsRating(rating))
         Flexible(
           fit: FlexFit.loose,
+          flex: kRatingSlotFlex,
           child: MetaPill(
             key: kTrackRatingPillKey,
             text: '$rating',

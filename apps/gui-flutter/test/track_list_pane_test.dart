@@ -726,6 +726,11 @@ void main() {
 
     final colour = find.byKey(kTrackColorPillKey);
     expect(colour, findsOneWidget);
+    expect(
+      tester.getSize(colour),
+      const Size(16, 16),
+      reason: 'the colour label stays a full-size swatch',
+    );
     final decoration =
         tester.widget<Container>(colour).decoration! as BoxDecoration;
     expect(decoration.shape, BoxShape.circle);
@@ -763,7 +768,13 @@ void main() {
         rating,
         reason: 'narrow rows must not drop the star glyph',
       );
-      expect(find.byKey(kTrackColorPillKey), findsOneWidget);
+      final colour = find.byKey(kTrackColorPillKey);
+      expect(colour, findsOneWidget);
+      expect(
+        tester.getSize(colour),
+        const Size(16, 16),
+        reason: 'the colour label stays a full-size swatch',
+      );
     } finally {
       FlutterError.onError = previous;
     }
