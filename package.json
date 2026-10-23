@@ -2,7 +2,7 @@
   "name": "mixar",
   "private": true,
   "engines": {
-    "node": ">=22.18"
+    "node": ">=22.23.4"
   },
   "workspaces": [
     "apps/*",

@@ -1,0 +1,272 @@
+---
+import type { SearchScope } from "../../lib/docs-fuse-search";
+import { Search } from "@lucide/astro";
+
+interface Props {
+  scope: SearchScope;
+}
+const { scope } = Astro.props;
+---
+
+<button
+  id="docs-search-open"
+  type="button"
+  class="docs-search-trigger"
+  aria-haspopup="dialog"
+  aria-keyshortcuts="Meta+K Control+K"
+>
+  <Search class="docs-search-trigger-icon" stroke-width={2} aria-hidden="true" />
+  <span class="docs-search-trigger-label">Search docs</span>
+  <kbd id="docs-search-shortcut" class="docs-search-kbd">Ctrl K</kbd>
+</button>
+
+<dialog id="docs-search-dialog" class="docs-search" aria-label="Search documentation" data-search-scope={scope}>
+  <div class="docs-search-field">
+    <Search class="docs-search-field-icon" stroke-width={2} aria-hidden="true" />
+    <input
+      id="docs-search-input"
+      class="docs-search-input"
+      type="search"
+      placeholder="Search the docs"
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
+      role="combobox"
+      aria-expanded="false"
+      aria-autocomplete="list"
+      aria-controls="docs-search-results"
+      aria-label="Search documentation"
+    />
+    <kbd class="docs-search-kbd">Esc</kbd>
+  </div>
+  <div class="docs-search-scopes" role="group" aria-label="Search documentation audience">
+    <span class="docs-search-scopes-label">Search in</span>
+    <button
+      type="button"
+      data-docs-search-scope="users"
+      aria-pressed={String(scope === "users")}
+    >Users</button>
+    <button
+      type="button"
+      data-docs-search-scope="developers"
+      aria-pressed={String(scope === "developers")}
+    >Developers</button>
+  </div>
+
+  <p id="docs-search-empty" class="docs-search-empty"></p>
+  <p id="docs-search-status" class="sr-only" role="status" aria-live="polite"></p>
+  <ul id="docs-search-results" class="docs-search-results" role="listbox" aria-label="Search results"></ul>
+</dialog>
+
+<script>
+  import { initDocsSearch } from "../../scripts/docs-search";
+
+  initDocsSearch();
+</script>
+
+<style is:global>
+  /* Docs search. Semantic classes rather than utilities because the result
+     rows are built in docs-search.ts, outside Tailwind's template scanner. */
+  .docs-search-trigger {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.875rem;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      border-color 150ms,
+      color 150ms;
+  }
+
+  .docs-search-trigger:hover {
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+
+  .docs-search-trigger-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+  }
+
+  .docs-search-trigger-label {
+    flex: 1;
+  }
+
+  .docs-search-kbd {
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    padding: 0.05rem 0.3rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1.6;
+  }
+
+  .docs-search {
+    width: min(40rem, calc(100vw - 2rem));
+    max-height: min(70vh, 32rem);
+    margin: 10vh auto auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text);
+    overflow: hidden;
+    box-shadow: var(--screenshot-shadow);
+  }
+
+  .docs-search::backdrop {
+    background: color-mix(in srgb, var(--bg) 65%, transparent);
+    backdrop-filter: blur(4px);
+  }
+
+  .docs-search[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .docs-search-field {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .docs-search-field-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
+
+  .docs-search-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.9rem 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.9375rem;
+    outline: none;
+  }
+
+  .docs-search-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .docs-search-scopes {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+  }
+
+  .docs-search-scopes-label {
+    margin-right: 0.25rem;
+    color: var(--text-muted);
+  }
+
+  .docs-search-scopes button {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .docs-search-scopes button:hover,
+  .docs-search-scopes button[aria-pressed="true"] {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .docs-search-scopes button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .docs-search-empty {
+    margin: 0;
+    padding: 1rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  .docs-search-empty[hidden] {
+    display: none;
+  }
+
+  .docs-search-results {
+    margin: 0;
+    padding: 0.375rem;
+    list-style: none;
+    overflow-y: auto;
+  }
+
+  .docs-search-results:empty {
+    display: none;
+  }
+
+  .docs-search-result {
+    margin: 0;
+  }
+
+  .docs-search-result-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem 0.75rem;
+    border-left: 2px solid transparent;
+    color: inherit;
+  }
+
+  .docs-search-result-link:hover,
+  .docs-search-result[aria-selected="true"] .docs-search-result-link {
+    background: var(--accent-dim);
+    border-left-color: var(--accent);
+  }
+
+  .docs-search-result-meta {
+    color: var(--text-muted);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .docs-search-result-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .docs-search-result-section {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .docs-search-result-snippet {
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+  }
+
+  .docs-search-result-snippet mark {
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+    color: var(--text);
+    border-radius: 2px;
+  }
+</style>
