@@ -38,7 +38,10 @@ const tocRailClass =
 <BaseLayout title={title} description={description} currentPage="docs">
   <div class="mx-auto max-w-content px-section py-10 lg:py-14">
     <div class={gridClass}>
-      <aside class="mb-8 lg:sticky lg:top-20 lg:mb-0 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2">
+      <aside
+        transition:name="docs-menu"
+        class="mb-8 lg:sticky lg:top-20 lg:mb-0 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2"
+      >
         <details
           id="docs-nav"
           open

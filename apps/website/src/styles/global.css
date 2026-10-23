@@ -2,6 +2,7 @@
 @import "@fontsource-variable/outfit";
 @import "@fontsource-variable/space-grotesk";
 @import "@fontsource-variable/noto-sans-mono";
+@import "./view-transitions.css";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 

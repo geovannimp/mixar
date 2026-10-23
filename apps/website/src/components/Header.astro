@@ -16,6 +16,7 @@ const iconProps = { size: 18, "stroke-width": 2 };
 
 <header
   id="site-header"
+  transition:name="site-header"
   class="sticky top-0 z-100 h-16 border-b border-transparent bg-(--header-bg) backdrop-blur-md transition-[border-color] duration-150"
 >
   <nav
@@ -84,14 +85,16 @@ const iconProps = { size: 18, "stroke-width": 2 };
 </header>
 
 <script>
-  const header = document.getElementById("site-header");
-  if (header) {
-    const syncBorder = () => {
-      const scrolled = window.scrollY > 8;
-      header.classList.toggle("border-border", scrolled);
-      header.classList.toggle("border-transparent", !scrolled);
-    };
-    syncBorder();
-    window.addEventListener("scroll", syncBorder, { passive: true });
-  }
+  // The header is re-rendered on every navigation, so the border state is read
+  // from the live element each time instead of a captured reference.
+  const syncBorder = () => {
+    const header = document.getElementById("site-header");
+    if (!header) return;
+    const scrolled = window.scrollY > 8;
+    header.classList.toggle("border-border", scrolled);
+    header.classList.toggle("border-transparent", !scrolled);
+  };
+
+  window.addEventListener("scroll", syncBorder, { passive: true });
+  document.addEventListener("astro:page-load", syncBorder);
 </script>

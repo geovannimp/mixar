@@ -9,12 +9,12 @@ const DESKTOP_ROTATE_Y = -4;
 const DESKTOP_ROTATE_X = 5;
 const FLOAT_DURATION = 20;
 
-export function initHeroMobileTilt() {
+export function initHeroMobileTilt(): (() => void) | undefined {
   const tilt = document.querySelector<HTMLElement>(".hero-screenshot-tilt");
-  if (!tilt) return;
+  if (!tilt) return undefined;
 
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    return;
+    return undefined;
   }
 
   const desktop = window.matchMedia("(min-width: 1024px)");
@@ -108,4 +108,18 @@ export function initHeroMobileTilt() {
 
   desktop.addEventListener("change", mount);
   mount();
+
+  // The router swaps the page out without reloading, so the scroll-linked
+  // animation and the hover listeners have to be released with the element
+  // they were bound to.
+  return () => {
+    desktop.removeEventListener("change", mount);
+    cancelScroll?.();
+    cancelScroll = undefined;
+    unbindHover?.();
+    unbindHover = undefined;
+    floatAnimation?.stop();
+    floatAnimation = undefined;
+    clearTransforms();
+  };
 }

@@ -70,7 +70,6 @@ const points = [
     <video
       data-stems-band
       class="absolute inset-0 size-full object-cover"
-      autoplay
       muted
       loop
       playsinline
@@ -435,24 +434,58 @@ const points = [
     render();
   };
 
-  // The band video is decorative motion: hold it on frame one when the visitor
-  // asked for reduced motion (autoplay is a HTML attribute, so JS undoes it).
-  const bandVideo = document.querySelector<HTMLVideoElement>("[data-stems-band]");
-  if (bandVideo?.autoplay && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    bandVideo.removeAttribute("autoplay");
-    bandVideo.pause();
-  }
+  const initStems = () => {
+    // The band video is a decorative backdrop. It never autoplayed before an
+    // honest interaction: a cached back-navigation used to restore it already
+    // running, which read as the demo playing itself. Pause it on every arrival
+    // (including cached restores) and run it only while the stem player is
+    // actually playing, which itself starts from an explicit Play. Under
+    // reduced motion it never runs at all.
+    const bandVideo = document.querySelector<HTMLVideoElement>("[data-stems-band]");
+    const prefersReduced =
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (bandVideo) {
+      // History restores `.muted` independently of the `muted` attribute.
+      bandVideo.muted = true;
+      bandVideo.pause();
+      bandVideo.currentTime = 0;
+    }
+    // Keep the backdrop drifting without re-looping the audio track: once it
+    // creeps past the held frame, snap it back so only the ambient loop plays.
+    const frameFreeze = () => {
+      if (bandVideo && !bandVideo.paused && bandVideo.currentTime >= 4.05) {
+        bandVideo.currentTime = 4;
+      }
+    };
 
-  for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
-    if (root.dataset.stemsInit !== undefined) continue;
-    root.dataset.stemsInit = "";
-    const connectorFlow = initStemConnectorFlow(root);
-    initStemsDemo(
-      root,
-      connectorFlow,
-      initStemDemoPlayer(root, {
-        onPlayingChange: (playing) => connectorFlow?.setPlaying(playing),
-      }),
-    );
-  }
+    for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
+      if (root.dataset.stemsInit !== undefined) continue;
+      root.dataset.stemsInit = "";
+      const connectorFlow = initStemConnectorFlow(root);
+      initStemsDemo(
+        root,
+        connectorFlow,
+        initStemDemoPlayer(root, {
+          onPlayingChange: (playing) => {
+            if (!bandVideo) {
+              connectorFlow?.setPlaying(playing);
+              return;
+            }
+            if (!prefersReduced && playing) {
+              bandVideo.addEventListener("timeupdate", frameFreeze);
+              void bandVideo.play().catch(() => {});
+            } else {
+              bandVideo.removeEventListener("timeupdate", frameFreeze);
+              bandVideo.pause();
+            }
+            connectorFlow?.setPlaying(playing);
+          },
+        }),
+      );
+    }
+  };
+
+  // The router swaps pages without re-running bundled scripts, so each arriving
+  // Stems section is wired again — and the band video is re-paused by hand.
+  document.addEventListener("astro:page-load", initStems);
 </script>
