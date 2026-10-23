@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "open-code-review-delegate": {
+      "source": "alibaba/open-code-review",
+      "sourceType": "github",
+      "skillPath": "skills/open-code-review-delegate/SKILL.md",
+      "computedHash": "6aee032812ee5a362396499d4f96808fcca54ce5d580d0cb89829153273392ad"
+    },
     "ponytail": {
       "source": "DietrichGebert/ponytail",
       "sourceType": "github",
