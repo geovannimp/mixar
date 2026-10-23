@@ -52,7 +52,7 @@ jobs:
 
       - name: Run OpenCodeReview
         env:
-          OCR_LLM_URL: ${{ secrets.OCR_LLM_URL }}
+          OCR_LLM_URL: ${{ vars.OCR_LLM_URL }}
           OCR_LLM_TOKEN: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           OCR_LLM_MODEL: ${{ vars.PI_REVIEW_MODEL }}
           OCR_LLM_PROTOCOL: openai
