@@ -286,17 +286,29 @@ const points = [
             </span>
             <svg
               data-stem-connector
-              class="h-full w-8 shrink-0 sm:w-10 [&_path]:fill-none [&_path]:[stroke:color-mix(in_srgb,var(--accent)_55%,var(--border))] [&_path]:[stroke-width:1.5] [&_path]:[stroke-linecap:round] [&_path]:[vector-effect:non-scaling-stroke]"
+              class="h-full w-8 shrink-0 sm:w-10 [&_path]:fill-none [&_path]:[stroke-width:1.5] [&_path]:[stroke-linecap:round] [&_path]:[vector-effect:non-scaling-stroke]"
               viewBox="0 0 48 152"
               preserveAspectRatio="none"
               focusable="false"
             >
-              <path data-stem="0" d="M0 76 C24 76 24 16 48 16" />
-              <path data-stem="1" d="M0 76 C24 76 24 56 48 56" />
-              <path data-stem="2" d="M0 76 C24 76 24 96 48 96" />
-              <path data-stem="3" d="M0 76 C24 76 24 136 48 138" />
+              <defs>
+                {
+                  stems.map((stem, index) => (
+                    <linearGradient id={`stem-connector-${index}`} gradientUnits="userSpaceOnUse" x1="0" y1="76" x2="48" y2={[16, 56, 96, 138][index]}>
+                      <stop offset="0" stop-color="var(--accent)" />
+                      <stop offset="0.1" stop-color="var(--accent)" />
+                      <stop offset="0.9" stop-color={stem.color} />
+                      <stop offset="1" stop-color={stem.color} />
+                    </linearGradient>
+                  ))
+                }
+              </defs>
+              <path data-stem="0" style={`--stem: ${stems[0].color}`} stroke="url(#stem-connector-0)" d="M0 76 C24 76 24 16 48 16" />
+              <path data-stem="1" style={`--stem: ${stems[1].color}`} stroke="url(#stem-connector-1)" d="M0 76 C24 76 24 56 48 56" />
+              <path data-stem="2" style={`--stem: ${stems[2].color}`} stroke="url(#stem-connector-2)" d="M0 76 C24 76 24 96 48 96" />
+              <path data-stem="3" style={`--stem: ${stems[3].color}`} stroke="url(#stem-connector-3)" d="M0 76 C24 76 24 136 48 138" />
             </svg>
-            <ul class="flex min-w-0 grow flex-col gap-4">
+            <ul class="flex min-w-0 grow flex-col gap-4 justify-around">
               {
                 stems.map((stem, index) => (
                   <li
@@ -304,7 +316,7 @@ const points = [
                     data-stem={index}
                     data-audible="true"
                     style={`--stem: ${stem.color}`}
-                    class="flex w-full min-w-0 grow flex-row items-center justify-between gap-2 transition-[opacity,filter] duration-300 data-[audible=false]:opacity-25 data-[audible=false]:grayscale motion-reduce:transition-none"
+                    class="flex w-full min-w-0 grow flex-row items-center justify-between gap-4 transition-[opacity,filter] duration-300 data-[audible=false]:opacity-25 data-[audible=false]:grayscale motion-reduce:transition-none"
                   >
                     <span class="flex w-16 shrink-0 items-center gap-2 pl-2 font-mono text-[0.6875rem] font-medium uppercase tracking-[0.1em] text-muted">
                       <span class="size-2 shrink-0 rounded-full bg-(--stem)" aria-hidden="true"></span>
