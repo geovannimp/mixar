@@ -181,6 +181,7 @@ const kColorSlotWidth = 16.0;
 const kDurationSlotFlex = 84;
 const kBpmSlotFlex = 144;
 const kKeySlotFlex = 72;
+const kRatingSlotFlex = 40;
 
 /// Natural width of the trailing group without the duration pill.
 const double kTrailingMetaBaseWidth =
