@@ -736,7 +736,11 @@ pub(crate) fn prepare_native_stem_for_playback(
         let mut metadata = tag_metadata;
         metadata.bpm = merged.bpm;
         metadata.key = merged.key;
-        let computed = ComputedFileAnalysis { metadata, analysis };
+        let computed = ComputedFileAnalysis {
+            metadata,
+            analysis,
+            force: options.force,
+        };
         let plan = {
             let lib = LibraryManager::lock_library(library)?;
             if lib.needs_playback_analysis(&track_id)? {

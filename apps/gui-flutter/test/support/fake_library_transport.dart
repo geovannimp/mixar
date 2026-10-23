@@ -196,11 +196,15 @@ class FakeLibraryTransport implements LibraryTransport {
     }
   }
 
+  final List<({String trackId, bool force})> analyzeTrackCalls = [];
+
   @override
   Future<void> analyzeTrack({
     required String trackId,
     required bool force,
-  }) async {}
+  }) async {
+    analyzeTrackCalls.add((trackId: trackId, force: force));
+  }
 
   @override
   Future<void> applyHistorySettings({

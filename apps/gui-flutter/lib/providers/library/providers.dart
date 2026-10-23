@@ -853,15 +853,19 @@ final libraryEventsBootstrapProvider = Provider<void>((ref) {
   }
 });
 
-Future<void> analyzeTrackAction(WidgetRef ref, String trackId) async {
-  ref.read(analyzingTrackIdsProvider.notifier).add(trackId);
-  ref.read(appNoticeProvider.notifier).clear();
+Future<void> analyzeTrackAction(
+  ProviderContainer container,
+  String trackId, {
+  bool force = false,
+}) async {
+  container.read(analyzingTrackIdsProvider.notifier).add(trackId);
+  container.read(appNoticeProvider.notifier).clear();
   try {
-    final transport = await ref.read(libraryTransportProvider.future);
-    await transport.analyzeTrack(trackId: trackId, force: false);
+    final transport = await container.read(libraryTransportProvider.future);
+    await transport.analyzeTrack(trackId: trackId, force: force);
   } catch (e) {
-    ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
-    ref.read(appNoticeProvider.notifier).setError('$e');
+    container.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
+    container.read(appNoticeProvider.notifier).setError('$e');
   }
 }
 

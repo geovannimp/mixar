@@ -61,7 +61,7 @@ Analysis answers: *“What tempo, key, and beat positions does this track have?�
 - **Time-stretch / pitch-shift** — future `engine-dsp` extension.
 - **Stem separation, genre/mood classification, chord recognition** — out of MVP; optional via secondary backend later.
 - **Cloud analysis services** — local-only for privacy and offline libraries.
-- **Replacing tag reading** — file tags remain the fast path; analysis supplements or overrides stale tags.
+- **Replacing tag reading** — file tags remain the fast path; analysis fills missing fields and replaces existing values only when explicitly forced.
 - **WASM analysis in the browser** — possible later; not MVP (stratum-dsp pulls symphonia/rayon; evaluate separately).
 
 ---
@@ -70,7 +70,7 @@ Analysis answers: *“What tempo, key, and beat positions does this track have?�
 
 | Component | Role today | After analyzer |
 |-----------|------------|----------------|
-| `library/src/tags.rs` | Reads ID3/Vorbis tags via `lofty` (incl. BPM/key from tags) | Still used first; analyzer runs when forced or tags missing/low confidence |
+| `library/src/tags.rs` | Reads ID3/Vorbis tags via `lofty` (incl. BPM/key from tags) | Still used first; analysis fills missing fields unless explicitly forced |
 | `library::analyze_track` | Re-reads tags + audio properties only | Full DSP analysis + DB persist |
 | `TrackMetadata` (`library-core`) | `bpm`, `key` optional fields | `key` is always musical notation; beat grid stored separately (§11) |
 | `engine-dsp` | Playback DSP only | Uses BPM/key/beat grid from loaded track metadata, not live analysis |
@@ -360,8 +360,8 @@ pub struct AnalyzeTrackOptions {
 2. Read tags via `tags::read_tags` → baseline `TrackMetadata`.
 3. Run `analyzer::analyze_file(path, &library_analysis_config)`.
 4. **Merge policy** (via `merge_analyzed_metadata`):
-   - **`force: false` (default):** keep tag BPM/key when present; use analysis only for missing fields (respecting confidence thresholds once implemented).
-   - **`force: true`:** always use analysis BPM/key (musical notation) over tag values; beat grid always taken from analysis when `BEAT_GRID` target enabled.
+   - **`force: false` (default):** keep tag BPM/key and any stored beat grid; analysis fills missing BPM/key and generates a beat grid only when none is stored.
+   - **`force: true`:** explicit user opt-in; replace tag BPM/key and any stored beat grid with analysis results.
 5. Upsert `tracks` row (`key` column = musical string only) + `track_analysis` / beat grid storage (§11).
 6. Return updated `AudioSource`.
 
@@ -509,7 +509,7 @@ There is no *standardized* tag representation for cues/loops/grids, and Mixar ke
 
 **Where it runs** — analysis (`persist_file_analysis`, i.e. single/bulk analyze, playback pre-analysis, stem analysis) and manual beat-grid saves. Both are off the audio callback; the beat-grid path plans the write under the library lock and performs the file I/O after releasing it.
 
-**Whose value wins.** Write-back mirrors what Mixar stored, so it inherits the analysis merge policy: with `force: false` the merge can still prefer a high-confidence analysis result over a value that is already present (see §9.1), and write-back then pushes that override into the file. Replacing existing data without explicit consent is tracked in [#552](https://github.com/geovannimp/mixar/issues/552); the merge half is [#429](https://github.com/geovannimp/mixar/issues/429).
+**Whose value wins.** Write-back mirrors what Mixar stored: without `force`, existing tag BPM/key win and analysis fills only missing fields; with `force`, the user has explicitly opted to replace them.
 
 ---
 
@@ -546,7 +546,7 @@ Mitigations:
 ### Library tests
 
 - `analyze_track` updates DB `bpm`/`key` when tags absent.
-- `analyze_track` preserves high-confidence tags when analysis confidence low (mock backend in tests).
+- `analyze_track` preserves present BPM/key tags without force, regardless of analysis confidence.
 - Tag write-back (§11.6): analysis mirrors BPM/key into the file when enabled, leaves the file byte-identical when off, and a second identical analysis does not rewrite it.
 
 ### Acceptance (Phase 1 done when)
@@ -599,7 +599,7 @@ Mitigations:
 | Crate split | `analyzer-core` + `analyzer-qmdsp` + `analyzer` | Stable boundary; swap backends without touching library |
 | Decode location | `analyzer` crate uses `codec` | Single decode policy; stratum-dsp does not own file I/O |
 | Playback tempo/key source | Library track metadata | Single source of truth from offline analysis; no live BPM in `engine-dsp` |
-| Tag vs analysis merge | Confidence-based | Respect good vendor tags; override stale/missing |
+| Tag vs analysis merge | Consent-based | Preserve present tags unless the user explicitly forces replacement |
 | Beat grid storage | JSON on `track_analysis` (MVP) | Simple; migrate to normalized beats if needed |
 | oximedia-mir | Phase 2 optional | Broader MIR; less DJ validation; use if downbeat/structure gaps |
 | FFI backends (aubio/Essentia) | Not MVP | CI complexity, licensing, build weight |

@@ -4,13 +4,12 @@ import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
-/// Options for collection-wide analysis, mirroring the non-force skip rule in
-/// `TrackMetadata::needs_analysis` (skip tracks that already carry BPM/key or
-/// have an analysis row).
+/// Options for collection-wide analysis. Re-analysis is also the explicit
+/// opt-in to replace existing BPM/key and beat grid.
 class AnalyzeCollectionOptions {
   const new({required this.force, required this.generateStems});
 
-  /// Re-analyze every file track, overriding tag BPM/key.
+  /// Re-analyze every file track and replace existing BPM/key and beat grid.
   final bool force;
 
   /// Also queue stem generation for every file track (one at a time on the
@@ -18,8 +17,8 @@ class AnalyzeCollectionOptions {
   final bool generateStems;
 }
 
-/// Options dialog for collection-wide analysis: skip-up-to-date default, force
-/// re-analysis opt-in, and optional stem generation.
+/// Options dialog for collection-wide analysis: skip-up-to-date default, opt-in
+/// replacement of existing analysis, and optional stem generation.
 Future<AnalyzeCollectionOptions?> showAnalyzeCollectionDialog(
   BuildContext context, {
   required String collectionName,
@@ -75,7 +74,8 @@ class _AnalyzeCollectionDialogBodyState
           ),
           const SizedBox(height: 16),
           SettingsCheckbox(
-            label: 'Force re-analysis',
+            label:
+                'Force re-analysis — replaces existing BPM/key and beat grid',
             value: _force,
             onChanged: (value) => setState(() => _force = value),
           ),
@@ -103,6 +103,81 @@ class _AnalyzeCollectionDialogBodyState
                     ),
                   );
                 },
+                child: const Text('Start analysis'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Per-track analysis confirmation. Existing BPM/key and beat grid are kept
+/// unless the user checks the replacement option.
+Future<bool?> showAnalyzeTrackDialog(
+  BuildContext context, {
+  required String trackName,
+}) {
+  return showMixarDialog<bool?>(
+    context: context,
+    builder: (context) => _AnalyzeTrackDialogBody(trackName: trackName),
+  );
+}
+
+class _AnalyzeTrackDialogBody extends StatefulWidget {
+  const _AnalyzeTrackDialogBody({required this.trackName});
+
+  final String trackName;
+
+  @override
+  State<_AnalyzeTrackDialogBody> createState() =>
+      _AnalyzeTrackDialogBodyState();
+}
+
+class _AnalyzeTrackDialogBodyState extends State<_AnalyzeTrackDialogBody> {
+  var _force = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Analyze ${widget.trackName}',
+            style: theme.typography.body.md.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Existing BPM/key are kept by default; analysis fills missing '
+            'values only.',
+            style: theme.typography.body.sm.copyWith(
+              color: theme.colors.mutedForeground,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SettingsCheckbox(
+            label: 'Replace existing BPM/key and beat grid',
+            value: _force,
+            onChanged: (value) => setState(() => _force = value),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            spacing: 8,
+            children: [
+              AppButton(
+                variant: .outline,
+                onPress: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              AppButton(
+                onPress: () => Navigator.of(context).pop(_force),
                 child: const Text('Start analysis'),
               ),
             ],

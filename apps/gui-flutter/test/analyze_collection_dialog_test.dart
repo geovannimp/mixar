@@ -75,7 +75,10 @@ void main() {
     await tester.tap(find.text('Analyze tracks…'));
     await tester.pumpAndSettle();
     expect(find.text('Analyze STEMS FINAL'), findsOneWidget);
-    expect(find.text('Force re-analysis'), findsOneWidget);
+    expect(
+      find.text('Force re-analysis — replaces existing BPM/key and beat grid'),
+      findsOneWidget,
+    );
     expect(find.text('Also generate stems'), findsOneWidget);
     expect(find.text('Start analysis'), findsOneWidget);
   });
@@ -110,5 +113,40 @@ void main() {
     expect(result, isNotNull);
     expect(result!.force, isTrue);
     expect(result!.generateStems, isTrue);
+  });
+
+  testWidgets('single-track analysis requires explicit replacement opt-in', (
+    tester,
+  ) async {
+    bool? force;
+    final theme = MixarThemeData.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: const Scaffold(body: SizedBox.shrink()),
+      ),
+    );
+    final context = tester.element(find.byType(Scaffold));
+    unawaited(
+      showAnalyzeTrackDialog(
+        context,
+        trackName: 'Track',
+      ).then((value) => force = value),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Existing BPM/key are kept by default; analysis fills missing values only.',
+      ),
+      findsOneWidget,
+    );
+    final checkbox = find.byType(MixarCheckbox);
+    expect(checkbox, findsOneWidget);
+    await tester.tap(checkbox);
+    await tester.pump();
+    await tester.tap(find.text('Start analysis'));
+    await tester.pumpAndSettle();
+    expect(force, isTrue);
   });
 }

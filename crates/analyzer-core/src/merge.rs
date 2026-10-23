@@ -7,7 +7,8 @@ pub struct TagMetadata {
     pub key: Option<String>,
 }
 
-/// Merge file tags with analysis results according to force/confidence policy.
+/// Merge file tags with analysis results. Existing tags win unless forced;
+/// confidence thresholds apply only when filling missing fields.
 pub fn merge_track_metadata(
     tags: &TagMetadata,
     analysis: &TrackAnalysis,
@@ -18,14 +19,14 @@ pub fn merge_track_metadata(
     let mut out = tags.clone();
 
     if let Some(bpm) = &analysis.bpm {
-        let use_analysis = force || out.bpm.is_none() || bpm.confidence >= min_bpm_confidence;
+        let use_analysis = force || out.bpm.is_none() && bpm.confidence >= min_bpm_confidence;
         if use_analysis {
             out.bpm = Some(bpm.bpm);
         }
     }
 
     if let Some(key) = &analysis.key {
-        let use_analysis = force || out.key.is_none() || key.confidence >= min_key_confidence;
+        let use_analysis = force || out.key.is_none() && key.confidence >= min_key_confidence;
         if use_analysis {
             out.key = Some(key.musical.clone());
         }
@@ -72,6 +73,18 @@ mod tests {
         let merged = merge_track_metadata(&tags, &analysis, true, 0.5, 0.5);
         assert_eq!(merged.bpm, Some(128.0));
         assert_eq!(merged.key.as_deref(), Some("F#m"));
+    }
+
+    #[test]
+    fn present_tags_win_without_force_even_when_analysis_confidence_is_high() {
+        let tags = TagMetadata {
+            bpm: Some(120.0),
+            key: Some("Am".into()),
+        };
+        let analysis = sample_analysis(128.0, 0.9, "F#m", 0.9);
+        let merged = merge_track_metadata(&tags, &analysis, false, 0.5, 0.5);
+        assert_eq!(merged.bpm, Some(120.0));
+        assert_eq!(merged.key.as_deref(), Some("Am"));
     }
 
     #[test]

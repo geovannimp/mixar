@@ -1154,6 +1154,7 @@ fn collection_analyze_targets_skips_tagged_and_analyzed() {
                 duration_analyzed_ms: 2,
             },
         },
+        false,
     )
     .unwrap();
 
@@ -1446,6 +1447,41 @@ fn short_beats_fixture_copy(dir: &Path) -> PathBuf {
     let path = dir.join("short-beats.wav");
     std::fs::copy(source, &path).unwrap();
     path
+}
+
+#[test]
+#[cfg(feature = "analysis")]
+fn analysis_without_force_keeps_tagged_bpm_and_key_with_write_back_enabled() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = short_beats_fixture_copy(dir.path());
+    codec::write_track_tags(
+        &wav,
+        &codec::TrackTags {
+            bpm: Some(87.0),
+            key: Some("Cm".into()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let mut lib = LibraryManager::open_in_memory(LibraryConfig {
+        tag_write_back: TagWriteBack::On,
+    })
+    .unwrap();
+    let id = lib.import_file_path(&wav).unwrap().id().clone();
+    let original_grid = lib.save_track_beat_grid(&id, 87.0, 0.25).unwrap();
+    lib.analyze_track(&id, AnalyzeTrackOptions::default())
+        .unwrap();
+
+    let metadata = lib.get_track(&id).unwrap().unwrap().metadata().clone();
+    assert_eq!(metadata.bpm, Some(87.0));
+    assert_eq!(metadata.key.as_deref(), Some("Cm"));
+    let preserved_grid = lib.get_track_beat_grid(&id).unwrap().unwrap();
+    assert_eq!(preserved_grid.bpm, original_grid.bpm);
+    assert_eq!(preserved_grid.beats, original_grid.beats);
+    let tags = crate::tags::read_tags(&wav).unwrap();
+    assert_eq!(tags.bpm, Some(87.0));
+    assert_eq!(tags.key.as_deref(), Some("Cm"));
 }
 
 #[test]
