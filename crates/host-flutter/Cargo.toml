@@ -8,6 +8,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
 anyhow = { workspace = true }
+analytics = { path = "../analytics" }
 analyzer-stems = { path = "../analyzer-stems" }
 engine-api = { path = "../engine-api" }
 engine-core = { path = "../engine-core" }

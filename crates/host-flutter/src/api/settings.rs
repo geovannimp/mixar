@@ -348,6 +348,8 @@ pub struct AppSettings {
     /// Edge the drawer opens from.
     #[serde(default)]
     pub library_drawer_side: LibraryDrawerSideSetting,
+    #[serde(default)]
+    pub analytics_enabled: bool,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -384,6 +386,7 @@ struct SettingsHost {
     ui_language: UiLanguageSetting,
     library_drawer_enabled: bool,
     library_drawer_side: LibraryDrawerSideSetting,
+    analytics_enabled: bool,
 }
 
 impl Default for SettingsHost {
@@ -420,6 +423,7 @@ impl Default for SettingsHost {
             ui_language: UiLanguageSetting::default(),
             library_drawer_enabled: false,
             library_drawer_side: LibraryDrawerSideSetting::Bottom,
+            analytics_enabled: false,
         }
     }
 }
@@ -719,6 +723,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         ui_language: host.ui_language,
         library_drawer_enabled: host.library_drawer_enabled,
         library_drawer_side: host.library_drawer_side,
+        analytics_enabled: host.analytics_enabled,
     }
 }
 
@@ -769,6 +774,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.realtime_stems = settings.realtime_stems;
     host.ui_language = settings.ui_language;
     host.library_drawer_enabled = settings.library_drawer_enabled;
+    host.analytics_enabled = settings.analytics_enabled;
     host.library_drawer_side = settings.library_drawer_side;
     host.configured = true;
     Ok(())
@@ -1412,5 +1418,13 @@ mod tests {
         let host = load_host(&path);
         assert!(!host.configured);
         assert_eq!(host.engine_config.sample_rate, 48_000);
+    }
+    #[test]
+    fn legacy_settings_default_analytics_opt_out() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        object.remove("analytics_enabled");
+        let settings: AppSettings = serde_json::from_value(value).expect("legacy settings");
+        assert!(!settings.analytics_enabled);
     }
 }

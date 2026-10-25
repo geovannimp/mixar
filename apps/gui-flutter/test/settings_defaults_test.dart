@@ -32,6 +32,17 @@ void main() {
       isTrue,
     );
   });
+  test('analytics settings default off and changes are dirty', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.analyticsEnabled, isFalse);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, analyticsEnabled: true),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
 
   test('normalizeAppSettings keeps the saved row density', () {
     final compact = copyAppSettings(

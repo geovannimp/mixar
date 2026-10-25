@@ -18,6 +18,7 @@ members = [
     "analyzer-qmdsp",
     "analyzer",
     "analyzer-stems",
+    "analytics",
     "controller",
     "host-flutter",
 ]

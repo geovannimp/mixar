@@ -45,7 +45,8 @@ A modular Rust audio engine with runtime-selectable backends (CPAL/PipeWire on L
 
 **Explicit non-goals / deferred (MVP scope):**
 
-- Recording/streaming, telemetry
+- Recording/streaming
+- App telemetry is opt-in anonymous analytics; website analytics is cookieless and EU-hosted.
 - WASAPI exclusive / ASIO / CoreAudio low-latency backends — [#453](https://github.com/geovannimp/mixar/issues/453)
 - WASM browser mixing — [#59](https://github.com/geovannimp/mixar/issues/59)
 - Optional file-tag write-back — [#451](https://github.com/geovannimp/mixar/issues/451)

@@ -202,6 +202,16 @@ class SettingsUiPanel extends StatelessWidget {
                 )
               : null,
         ),
+        SettingsSectionCard(
+          title: l10n.settingsAnalyticsTitle,
+          subtitle: l10n.settingsAnalyticsSubtitle,
+          trailing: SettingsHeaderSwitch(
+            value: draft.analyticsEnabled,
+            semanticsLabel: l10n.settingsAnalyticsToggle,
+            onChanged: (enabled) =>
+                onChanged(copyAppSettings(draft, analyticsEnabled: enabled)),
+          ),
+        ),
       ],
     );
   }

@@ -995,4 +995,13 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get settingsAnalyticsTitle => 'Analytics';
+
+  @override
+  String get settingsAnalyticsSubtitle => 'Share anonymous app data.';
+
+  @override
+  String get settingsAnalyticsToggle => 'Send anonymous usage data';
 }
