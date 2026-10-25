@@ -1,0 +1,61 @@
+use std::{
+    path::PathBuf,
+    sync::mpsc::{self, Sender},
+};
+
+use analytics::Analytics;
+
+enum Command {
+    SetEnabled(bool),
+    AppLaunched,
+}
+
+#[flutter_rust_bridge::frb(opaque)]
+pub struct AnalyticsTransport {
+    commands: Sender<Command>,
+}
+
+impl AnalyticsTransport {
+    pub fn open(app_support_path: String) -> Self {
+        let (commands, receiver) = mpsc::channel();
+        let identity_path = PathBuf::from(app_support_path).join("analytics-id");
+        std::thread::spawn(move || {
+            let mut client: Option<Analytics> = None;
+            while let Ok(command) = receiver.recv() {
+                match command {
+                    Command::SetEnabled(true) => {
+                        if client.is_none() && !analytics::config::token().trim().is_empty() {
+                            match Analytics::enable(&identity_path) {
+                                Ok(analytics) => client = Some(analytics),
+                                Err(error) => {
+                                    tracing::debug!(%error, "analytics enable failed");
+                                }
+                            }
+                        }
+                    }
+                    Command::SetEnabled(false) => {
+                        if let Some(analytics) = client.take() {
+                            analytics.disable();
+                        } else {
+                            let _ = std::fs::remove_file(&identity_path);
+                        }
+                    }
+                    Command::AppLaunched => {
+                        if let Some(analytics) = client.as_ref() {
+                            analytics.app_launched();
+                        }
+                    }
+                }
+            }
+        });
+        Self { commands }
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
+        let _ = self.commands.send(Command::SetEnabled(enabled));
+    }
+
+    pub fn app_launched(&self) {
+        let _ = self.commands.send(Command::AppLaunched);
+    }
+}

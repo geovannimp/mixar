@@ -493,5 +493,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "settingsAnalyticsTitle": "Analytics",
+  "settingsAnalyticsSubtitle": "Share anonymous app data.",
+  "settingsAnalyticsToggle": "Send anonymous usage data"
 }

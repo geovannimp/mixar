@@ -490,5 +490,8 @@
         "type": "int"
       }
     }
-  }
+  },
+  "settingsAnalyticsTitle": "Análises",
+  "settingsAnalyticsSubtitle": "Partilhe dados anónimos da aplicação.",
+  "settingsAnalyticsToggle": "Enviar dados anónimos de utilização"
 }

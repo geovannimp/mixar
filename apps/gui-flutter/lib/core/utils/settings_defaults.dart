@@ -140,6 +140,7 @@ AppSettings defaultAppSettings() {
     uiLanguage: UiLanguageSetting.system,
     libraryDrawerEnabled: false,
     libraryDrawerSide: LibraryDrawerSideSetting.bottom,
+    analyticsEnabled: false,
   );
 }
 
@@ -221,6 +222,7 @@ AppSettings copyAppSettings(
   UiLanguageSetting? uiLanguage,
   bool? libraryDrawerEnabled,
   LibraryDrawerSideSetting? libraryDrawerSide,
+  bool? analyticsEnabled,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -269,6 +271,7 @@ AppSettings copyAppSettings(
     uiLanguage: uiLanguage ?? base.uiLanguage,
     libraryDrawerEnabled: libraryDrawerEnabled ?? base.libraryDrawerEnabled,
     libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
+    analyticsEnabled: analyticsEnabled ?? base.analyticsEnabled,
   );
 }
 
@@ -315,6 +318,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.uiLanguage != baseline.uiLanguage ||
       draft.libraryDrawerEnabled != baseline.libraryDrawerEnabled ||
       draft.libraryDrawerSide != baseline.libraryDrawerSide ||
+      draft.analyticsEnabled != baseline.analyticsEnabled ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||
       draft.tagWriteBack != baseline.tagWriteBack ||
       !_sameList(

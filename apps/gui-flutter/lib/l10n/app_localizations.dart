@@ -1737,6 +1737,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{Removed 1 orphan stem file} other{Removed {count} orphan stem files}}'**
   String settingsStorageRemovedOrphans(int count);
+
+  /// No description provided for @settingsAnalyticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Analytics'**
+  String get settingsAnalyticsTitle;
+
+  /// No description provided for @settingsAnalyticsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share anonymous app data.'**
+  String get settingsAnalyticsSubtitle;
+
+  /// No description provided for @settingsAnalyticsToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send anonymous usage data'**
+  String get settingsAnalyticsToggle;
 }
 
 class _AppLocalizationsDelegate

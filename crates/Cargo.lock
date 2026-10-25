@@ -91,6 +91,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "analytics"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "reqwest",
+ "serde_json",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "analyzer"
 version = "0.1.0"
 dependencies = [
@@ -1980,6 +1991,7 @@ checksum = "ec9d92d097f4749b64e8cc33d924d9f40a2d4eb91402b458014b781f5733d60f"
 name = "host_flutter"
 version = "0.1.0"
 dependencies = [
+ "analytics",
  "analyzer-stems",
  "anyhow",
  "audio-core 0.1.0",

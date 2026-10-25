@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, ProviderListenable;
+import 'package:gui_flutter/analytics/analytics_transport.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
@@ -187,14 +188,30 @@ Future<SaveAppSettingsResult> saveAppSettings(
   AppSettings draft,
 ) async {
   final settings = await ref.read(settingsTransportProvider.future);
-  final library = await ref.read(libraryTransportProvider.future);
   final previous = await ref.read(appSettingsProvider.future);
   final normalized = normalizeAppSettings(draft);
+  final analyticsOnly = !appSettingsDirty(
+    copyAppSettings(normalized, analyticsEnabled: previous.analyticsEnabled),
+    previous,
+  );
   final trustedChanged = !const ListEquality<String>().equals(
     previous.trustedControllerDeviceIds,
     normalized.trustedControllerDeviceIds,
   );
   final saved = await settings.saveSettings(settings: normalized);
+  if (normalized.analyticsEnabled != previous.analyticsEnabled) {
+    try {
+      final analytics = await ref.read(analyticsTransportProvider.future);
+      await analytics.setEnabled(enabled: normalized.analyticsEnabled);
+    } on Object {
+      // Analytics must never turn a successful settings save into a failure.
+    }
+  }
+  if (analyticsOnly) {
+    ref.invalidate(appSettingsProvider);
+    return SaveAppSettingsResult(saved: saved);
+  }
+  final library = await ref.read(libraryTransportProvider.future);
   ref.invalidate(appSettingsProvider);
   ref.invalidate(libraryRowDensitySettingProvider);
   // Drop any session-only density toggle too. It outranks the saved setting in

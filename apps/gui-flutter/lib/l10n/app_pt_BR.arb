@@ -24,5 +24,8 @@
     }
   },
   "settingsLibraryStemsDescription": "Modelo e codec usados ao gravar caches de stems separados.",
-  "settingsLibraryStemModel": "Modelo de stems"
+  "settingsLibraryStemModel": "Modelo de stems",
+  "settingsAnalyticsTitle": "Análises",
+  "settingsAnalyticsSubtitle": "Compartilhe dados anônimos do aplicativo.",
+  "settingsAnalyticsToggle": "Enviar dados anônimos de uso"
 }

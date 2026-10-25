@@ -24,6 +24,11 @@ Runtime contracts for the Mixar engine workspace. Product scope lives in [`PRODU
 
 Headless engine crates provide a reusable audio engine for DJ apps: runtime-selectable backends, modular decks, producer/consumer ring-buffer I/O, pluggable `AudioSource` loading, and one library manager per user.
 
+- The audio engine (`engine-dsp` and the producer thread) sends no telemetry. The desktop host may
+  send one anonymous `app launched` event through the opt-in `crates/analytics` crate after a
+  successful engine start; it has no access to the library, track data, or controller IDs. The
+  event is limited to app version, OS, OS version, architecture, and build mode.
+
 Workspace layout and data-flow diagram: [`DEVELOPER.md`](../DEVELOPER.md#high-level-architecture).
 
 ## 2 — Core Runtime Contracts & APIs

@@ -93,6 +93,7 @@ class AppSettings {
 
   /// Edge the drawer opens from.
   final LibraryDrawerSideSetting libraryDrawerSide;
+  final bool analyticsEnabled;
 
   const AppSettings({
     required this.backend,
@@ -137,6 +138,7 @@ class AppSettings {
     required this.uiLanguage,
     required this.libraryDrawerEnabled,
     required this.libraryDrawerSide,
+    required this.analyticsEnabled,
   });
 
   @override
@@ -182,7 +184,8 @@ class AppSettings {
       realtimeStems.hashCode ^
       uiLanguage.hashCode ^
       libraryDrawerEnabled.hashCode ^
-      libraryDrawerSide.hashCode;
+      libraryDrawerSide.hashCode ^
+      analyticsEnabled.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -230,7 +233,8 @@ class AppSettings {
           realtimeStems == other.realtimeStems &&
           uiLanguage == other.uiLanguage &&
           libraryDrawerEnabled == other.libraryDrawerEnabled &&
-          libraryDrawerSide == other.libraryDrawerSide;
+          libraryDrawerSide == other.libraryDrawerSide &&
+          analyticsEnabled == other.analyticsEnabled;
 }
 
 /// Bus channel routing mode.

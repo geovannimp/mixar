@@ -1008,6 +1008,16 @@ class AppLocalizationsPt extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get settingsAnalyticsTitle => 'Análises';
+
+  @override
+  String get settingsAnalyticsSubtitle =>
+      'Partilhe dados anónimos da aplicação.';
+
+  @override
+  String get settingsAnalyticsToggle => 'Enviar dados anónimos de utilização';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
@@ -1047,4 +1057,14 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get settingsLibraryStemModel => 'Modelo de stems';
+
+  @override
+  String get settingsAnalyticsTitle => 'Análises';
+
+  @override
+  String get settingsAnalyticsSubtitle =>
+      'Compartilhe dados anônimos do aplicativo.';
+
+  @override
+  String get settingsAnalyticsToggle => 'Enviar dados anônimos de uso';
 }

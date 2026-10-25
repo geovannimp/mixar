@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/analytics/analytics_providers.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
@@ -41,6 +42,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     ref.watch(engineEventsBootstrapProvider);
+    ref.watch(analyticsBootstrapProvider);
     ref.watch(libraryEventsBootstrapProvider);
     ref.watch(focusedDeckLoadBootstrapProvider);
     ref.watch(historySettingsBootstrapProvider);
