@@ -274,7 +274,6 @@ fn default_vinyl_brake_stop_secs() -> f32 {
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
-    pub backend: String,
     pub sample_rate: u32,
     pub buffer_size: u32,
     pub low_latency: bool,
@@ -528,10 +527,6 @@ fn default_engine_config() -> EngineConfig {
 fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     let mut errors = Vec::new();
 
-    settings.backend = settings.backend.trim().to_string();
-    if settings.backend.is_empty() {
-        errors.push("backend must not be empty".into());
-    }
     if settings.sample_rate == 0 {
         errors.push("sample_rate must be > 0".into());
     }
@@ -676,7 +671,6 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         .iter()
         .find(|bus| bus.id.as_str() == PREVIEW_BUS_ID);
     AppSettings {
-        backend: config.backend.clone(),
         sample_rate: config.sample_rate,
         buffer_size: config.buffer_size,
         low_latency: config.low_latency,
@@ -731,7 +725,6 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     let settings = parse_settings(settings)?;
     let mut config = host.engine_config.clone();
     config.buses = buses_from_settings(&settings);
-    config.backend = settings.backend.clone();
     config.sample_rate = settings.sample_rate;
     config.buffer_size = settings.buffer_size;
     config.low_latency = settings.low_latency;
@@ -832,27 +825,6 @@ pub(crate) fn settings_engine_config() -> Result<EngineConfig, String> {
     Ok(host.engine_config.clone())
 }
 
-/// Overlay [`EngineStartConfig`] onto the host until the user has saved settings.
-pub(crate) fn seed_engine_config_if_unconfigured(
-    backend: &str,
-    sample_rate: Option<u32>,
-    buffer_size: Option<u32>,
-) -> Result<EngineConfig, String> {
-    let host = shared_host();
-    let mut host = host.lock().map_err(|e| e.to_string())?;
-    if !host.configured {
-        host.engine_config.backend = backend.to_string();
-        if let Some(sr) = sample_rate {
-            host.engine_config.sample_rate = sr;
-        }
-        if let Some(bs) = buffer_size {
-            host.engine_config.buffer_size = bs;
-        }
-    }
-    Ok(host.engine_config.clone())
-}
-
-/// Host-only engine settings applied after start/restart.
 /// Whether the opt-in live StemgenRT filter is enabled for this session.
 ///
 /// Defaults to `false`; a poisoned host lock is treated as disabled so the
@@ -885,7 +857,6 @@ mod tests {
     #[test]
     fn default_settings_round_trip() {
         let parsed = parse_settings(sample_settings()).expect("defaults parse");
-        assert_eq!(parsed.backend, "cpal");
         assert_eq!(parsed.sample_rate, 48_000);
         assert!(parsed.volume_normalizer_enabled);
         assert_eq!(
@@ -901,6 +872,51 @@ mod tests {
         assert_eq!(parsed.stems_format, "opus");
         assert_eq!(parsed.stems_model, analyzer_stems::DEFAULT_MODEL);
         assert!(!parsed.realtime_stems);
+    }
+
+    #[test]
+    fn legacy_backend_key_loads_and_is_dropped_on_save() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("backend".into(), serde_json::json!("cpal"));
+        std::fs::write(&path, serde_json::to_vec_pretty(&value).expect("encode"))
+            .expect("write legacy settings");
+
+        let host = load_host(&path);
+        assert!(host.configured);
+        assert_eq!(host.engine_config.sample_rate, 48_000);
+
+        write_settings_file(&path, &settings_from_host(&host)).expect("save");
+        let text = std::fs::read_to_string(&path).expect("read");
+        assert!(
+            !text.contains("\"backend\""),
+            "saved settings must drop the retired backend key: {text}"
+        );
+        let reloaded: AppSettings = serde_json::from_str(&text).expect("reload");
+        assert_eq!(reloaded.sample_rate, 48_000);
+    }
+
+    #[test]
+    fn settings_file_cannot_select_the_null_backend() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("backend".into(), serde_json::json!("null"));
+        std::fs::write(&path, serde_json::to_vec_pretty(&value).expect("encode"))
+            .expect("write legacy settings");
+
+        let host = load_host(&path);
+        assert_eq!(
+            host.engine_config.backend, "cpal",
+            "settings must not be able to select the headless null backend"
+        );
     }
 
     #[test]

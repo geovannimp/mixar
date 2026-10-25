@@ -34,10 +34,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnalyticsTransport;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_AudioBackendTransportPtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport;
-
-  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_ControllerTransportPtr => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport;
 
@@ -67,12 +63,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   AnalyticsTransport
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnalyticsTransport(
-    dynamic raw,
-  );
-
-  @protected
-  AudioBackendTransport
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
     dynamic raw,
   );
 
@@ -119,12 +109,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  AudioBackendTransport
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    dynamic raw,
-  );
-
-  @protected
   ControllerTransport
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     dynamic raw,
@@ -163,12 +147,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   AnalyticsTransport
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnalyticsTransport(
-    dynamic raw,
-  );
-
-  @protected
-  AudioBackendTransport
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
     dynamic raw,
   );
 
@@ -258,9 +236,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
-  EngineStartConfig dco_decode_box_autoadd_engine_start_config(dynamic raw);
-
-  @protected
   double dco_decode_box_autoadd_f_32(dynamic raw);
 
   @protected
@@ -294,9 +269,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_box_autoadd_u_16(dynamic raw);
-
-  @protected
-  int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_8(dynamic raw);
@@ -333,9 +305,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EngineEvtKind dco_decode_engine_evt_kind(dynamic raw);
-
-  @protected
-  EngineStartConfig dco_decode_engine_start_config(dynamic raw);
 
   @protected
   EqBand dco_decode_eq_band(dynamic raw);
@@ -552,9 +521,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_16(dynamic raw);
 
   @protected
-  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
-
-  @protected
   int? dco_decode_opt_box_autoadd_u_8(dynamic raw);
 
   @protected
@@ -655,12 +621,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  AudioBackendTransport
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   ControllerTransport
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     SseDeserializer deserializer,
@@ -703,12 +663,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  AudioBackendTransport
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   ControllerTransport
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     SseDeserializer deserializer,
@@ -747,12 +701,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   AnalyticsTransport
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnalyticsTransport(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  AudioBackendTransport
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
     SseDeserializer deserializer,
   );
 
@@ -854,11 +802,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
-  EngineStartConfig sse_decode_box_autoadd_engine_start_config(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   double sse_decode_box_autoadd_f_32(SseDeserializer deserializer);
 
   @protected
@@ -898,9 +841,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer);
-
-  @protected
-  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
@@ -947,11 +887,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EngineEvtKind sse_decode_engine_evt_kind(SseDeserializer deserializer);
-
-  @protected
-  EngineStartConfig sse_decode_engine_start_config(
-    SseDeserializer deserializer,
-  );
 
   @protected
   EqBand sse_decode_eq_band(SseDeserializer deserializer);
@@ -1218,9 +1153,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer);
 
   @protected
-  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
-
-  @protected
   int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
@@ -1346,13 +1278,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    AudioBackendTransport self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     ControllerTransport self,
     SseSerializer serializer,
@@ -1402,13 +1327,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    AudioBackendTransport self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     ControllerTransport self,
     SseSerializer serializer,
@@ -1453,13 +1371,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnalyticsTransport(
     AnalyticsTransport self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    AudioBackendTransport self,
     SseSerializer serializer,
   );
 
@@ -1581,12 +1492,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_engine_start_config(
-    EngineStartConfig self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_f_32(double self, SseSerializer serializer);
 
   @protected
@@ -1636,9 +1541,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
@@ -1699,12 +1601,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_engine_evt_kind(EngineEvtKind self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_engine_start_config(
-    EngineStartConfig self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_eq_band(EqBand self, SseSerializer serializer);
@@ -2034,9 +1930,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer);
 
   @protected
-  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
-
-  @protected
   void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer);
 
   @protected
@@ -2191,22 +2084,6 @@ class RustLibWire implements BaseWire {
       );
 
   void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-        ptr,
-      );
-
-  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     int ptr,
   ) => wasmModule
@@ -2316,16 +2193,6 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void
   rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnalyticsTransport(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
     int ptr,
   );
 

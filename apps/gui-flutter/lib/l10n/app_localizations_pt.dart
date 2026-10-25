@@ -212,10 +212,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsAudioEngineDescription =>
-      'Backend, taxa de amostragem, resampler e tamanho do buffer.';
-
-  @override
-  String get settingsAudioBackend => 'Backend';
+      'Taxa de amostragem, resampler e tamanho do buffer.';
 
   @override
   String get settingsAudioLowLatency => 'Baixa latência';

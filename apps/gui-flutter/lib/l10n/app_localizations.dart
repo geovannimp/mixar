@@ -480,14 +480,8 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAudioEngineDescription.
   ///
   /// In en, this message translates to:
-  /// **'Backend, sample rate, resampler, and buffer size.'**
+  /// **'Sample rate, resampler, and buffer size.'**
   String get settingsAudioEngineDescription;
-
-  /// No description provided for @settingsAudioBackend.
-  ///
-  /// In en, this message translates to:
-  /// **'Backend'**
-  String get settingsAudioBackend;
 
   /// No description provided for @settingsAudioLowLatency.
   ///

@@ -28,7 +28,18 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-log = { workspace = true }
 
+[features]
+# Exposes headless engine construction to this crate's own integration tests.
+# Integration tests are separate crates and cannot see `pub(crate)`, so without a
+# feature this hook would have to be unconditionally `pub`.
+#
+# Fragility note: "absent from production builds" relies on the workspace staying
+# on `resolver = "2"` (see crates/Cargo.toml) AND on no crate ever listing
+# `features = ["test-utils"]` on a normal `[dependencies]` entry.
+test-utils = []
+
 [dev-dependencies]
+host_flutter = { path = ".", features = ["test-utils"] }
 lofty = "0.22"
 tempfile = "3.0"
 rusqlite = { workspace = true }

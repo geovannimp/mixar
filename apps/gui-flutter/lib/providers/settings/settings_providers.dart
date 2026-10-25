@@ -2,8 +2,7 @@ import 'dart:async';
 
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart'
-    show FutureProviderFamily, ProviderListenable;
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:gui_flutter/analytics/analytics_transport.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
@@ -46,15 +45,9 @@ final settingsTransportProvider = FutureProvider<SettingsTransport>((
   return SettingsTransport.open(path: p.join(support.path, 'settings.json'));
 });
 
-final audioBackendNamesProvider = Provider<List<String>>(
-  (_) => AudioBackendTransport.listNames(),
+final audioDevicesProvider = FutureProvider<List<OutputDevice>>(
+  (ref) => listOutputDevices(),
 );
-
-final FutureProviderFamily<List<OutputDevice>, String> audioDevicesProvider =
-    FutureProvider.family<List<OutputDevice>, String>((ref, backend) async {
-      final transport = await AudioBackendTransport.open(name: backend);
-      return transport.listOutputDevices();
-    });
 
 final appSettingsProvider = FutureProvider<AppSettings>((ref) async {
   final settings = await ref.watch(settingsTransportProvider.future);

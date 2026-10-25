@@ -855,10 +855,7 @@ final engineTransportProvider = FutureProvider<EngineTransport?>((ref) async {
   }
   final library = await ref.watch(libraryTransportProvider.future);
   try {
-    final engine = await EngineTransport.start(
-      libraryTransport: library,
-      config: const EngineStartConfig(backend: 'auto'),
-    );
+    final engine = await EngineTransport.start(libraryTransport: library);
     ref.keepAlive();
     ref.read(engineUiProvider.notifier).setRunning(true);
     return engine;

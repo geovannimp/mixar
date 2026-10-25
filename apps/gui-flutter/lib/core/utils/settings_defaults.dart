@@ -71,7 +71,6 @@ LibraryRowDensity libraryRowDensityFromSettings(
   LibraryRowDensitySetting.comfortable => LibraryRowDensity.comfortable,
 };
 
-const kDefaultBackend = 'cpal';
 const kDefaultSampleRate = 48000;
 const kDefaultBufferSize = 512;
 const kDefaultTargetLufs = -18.0;
@@ -98,7 +97,6 @@ const kDefaultPreviewBus = BusRouteSettings(
 
 AppSettings defaultAppSettings() {
   return AppSettings(
-    backend: kDefaultBackend,
     sampleRate: kDefaultSampleRate,
     bufferSize: kDefaultBufferSize,
     lowLatency: false,
@@ -180,7 +178,6 @@ BusRouteSettings _normalizeBus(BusRouteSettings route) {
 
 AppSettings copyAppSettings(
   AppSettings base, {
-  String? backend,
   int? sampleRate,
   int? bufferSize,
   bool? lowLatency,
@@ -225,7 +222,6 @@ AppSettings copyAppSettings(
   bool? analyticsEnabled,
 }) {
   return AppSettings(
-    backend: backend ?? base.backend,
     sampleRate: sampleRate ?? base.sampleRate,
     bufferSize: bufferSize ?? base.bufferSize,
     lowLatency: lowLatency ?? base.lowLatency,
@@ -281,8 +277,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
   if (identical(draft, baseline)) {
     return false;
   }
-  return draft.backend != baseline.backend ||
-      draft.sampleRate != baseline.sampleRate ||
+  return draft.sampleRate != baseline.sampleRate ||
       draft.bufferSize != baseline.bufferSize ||
       draft.lowLatency != baseline.lowLatency ||
       draft.resamplerQuality != baseline.resamplerQuality ||

@@ -2001,6 +2001,7 @@ dependencies = [
  "engine-core",
  "flutter_rust_bridge",
  "fs-browser",
+ "host_flutter",
  "image",
  "library",
  "library-adapters",

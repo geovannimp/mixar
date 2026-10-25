@@ -1,4 +1,4 @@
-//! FRB `AudioBackendTransport` (settings discovery) + `EngineTransport` (session + bus).
+//! FRB audio APIs (settings device discovery) + `EngineTransport` (session + bus).
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, DeckSnapshot, EvtBody, Kind, Origin};
 use engine_core::{
-    deck_snapshot_to_evt, spawn_engine_worker, AudioBackend, AudioBackendTrait, Engine,
-    EngineBuses, EngineConfig, EngineWorker, Evt,
+    deck_snapshot_to_evt, spawn_engine_worker, AudioBackend, Engine, EngineBuses, EngineConfig,
+    EngineWorker, Evt,
 };
 use library::{LibraryManager, PreparedTrackPlayback, SamplerSlotRecord};
 use library_core::{AudioSource, TrackId};
@@ -18,8 +18,7 @@ use library_core::{AudioSource, TrackId};
 use crate::api::history_worker::HistoryWorker;
 use crate::api::library::LibraryTransport;
 use crate::api::settings::{
-    seed_engine_config_if_unconfigured, settings_engine_config, settings_host_runtime,
-    settings_realtime_stems_enabled, JogModeSetting,
+    settings_engine_config, settings_host_runtime, settings_realtime_stems_enabled, JogModeSetting,
 };
 use crate::frb_generated::StreamSink;
 
@@ -36,72 +35,23 @@ pub struct OutputDevice {
     pub default_sample_rates: Vec<u32>,
 }
 
-/// Config passed to [`EngineTransport::start`] — maps onto [`EngineConfig`].
-#[derive(Clone, Debug)]
-pub struct EngineStartConfig {
-    pub backend: String,
-    pub sample_rate: Option<u32>,
-    pub buffer_size: Option<u32>,
+/// Output devices of the compiled-in real backend (Settings → Audio).
+///
+/// `"auto"` resolves through the engine registry to the shipped device
+/// backend; it never falls back to the headless `null` backend.
+pub fn list_output_devices() -> Result<Vec<OutputDevice>, String> {
+    let backend = AudioBackend::new("auto").map_err(|e| e.to_string())?;
+    let devices = backend.list_output_devices().map_err(|e| e.to_string())?;
+    Ok(devices.into_iter().map(output_device).collect())
 }
 
-impl EngineStartConfig {
-    fn to_engine_config(&self) -> EngineConfig {
-        seed_engine_config_if_unconfigured(&self.backend, self.sample_rate, self.buffer_size)
-            .unwrap_or_else(|_| {
-                let mut config = EngineConfig {
-                    backend: self.backend.clone(),
-                    ..EngineConfig::default()
-                };
-                if let Some(sr) = self.sample_rate {
-                    config.sample_rate = sr;
-                }
-                if let Some(bs) = self.buffer_size {
-                    config.buffer_size = bs;
-                }
-                config
-            })
-    }
-}
-
-/// Settings-only backend discovery (`AudioBackend::new` + `list_output_devices`).
-#[flutter_rust_bridge::frb(opaque)]
-pub struct AudioBackendTransport {
-    backend: Box<dyn AudioBackendTrait>,
-}
-
-impl AudioBackendTransport {
-    /// Compiled-in backend names, with `"auto"` first (config default; not from `list_names`).
-    #[flutter_rust_bridge::frb(sync)]
-    pub fn list_names() -> Vec<String> {
-        let mut names = AudioBackend::list_names();
-        if !names.iter().any(|n| n == "auto") {
-            names.insert(0, "auto".into());
-        }
-        names
-    }
-
-    /// Open a backend by name (`AudioBackend::new`).
-    pub fn open(name: String) -> Result<Self, String> {
-        let backend = AudioBackend::new(&name).map_err(|e| e.to_string())?;
-        Ok(Self { backend })
-    }
-
-    /// List output devices for this backend instance.
-    pub fn list_output_devices(&self) -> Result<Vec<OutputDevice>, String> {
-        let devices = self
-            .backend
-            .list_output_devices()
-            .map_err(|e| e.to_string())?;
-        Ok(devices
-            .into_iter()
-            .map(|d| OutputDevice {
-                id: d.id.as_str().to_string(),
-                name: d.name,
-                is_default: d.is_default,
-                max_channels: d.max_channels,
-                default_sample_rates: d.default_sample_rates,
-            })
-            .collect())
+fn output_device(device: audio_core::DeviceInfo) -> OutputDevice {
+    OutputDevice {
+        id: device.id.as_str().to_string(),
+        name: device.name,
+        is_default: device.is_default,
+        max_channels: device.max_channels,
+        default_sample_rates: device.default_sample_rates,
     }
 }
 
@@ -577,15 +527,22 @@ impl Drop for EngineTransport {
 }
 
 impl EngineTransport {
-    /// Start the engine from `config` (`Engine::new`), sharing `library` for load-to-deck.
-    pub fn start(
+    /// Start the engine from the saved settings host config.
+    pub fn start(library_transport: &LibraryTransport) -> Result<Self, String> {
+        Self::start_with(library_transport, settings_engine_config()?)
+    }
+
+    /// Start with an explicit config. Crate-private: only the `test-utils`
+    /// `testing::start_engine` seam calls this, so the Dart bridge never
+    /// exposes a backend selector.
+    pub(crate) fn start_with(
         library_transport: &LibraryTransport,
-        config: EngineStartConfig,
+        config: EngineConfig,
     ) -> Result<Self, String> {
         let library_arc = library_transport.library_arc();
         let live_stems_enabled = config.backend != "null";
         let mut engine = Engine::new_with_library_bus(
-            config.to_engine_config(),
+            config,
             Arc::clone(&library_arc),
             library_transport.cmd_bus(),
         )
