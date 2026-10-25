@@ -1028,41 +1028,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAnalyticsToggle => 'Send anonymous usage data';
 
   @override
-  String get settingsUiVisibleFields => 'Visible fields';
+  String get settingsLibraryVisibleFields => 'Visible fields';
 
   @override
-  String get settingsUiFieldAlbum => 'Album';
+  String get settingsLibraryFieldAlbum => 'Album';
 
   @override
-  String get settingsUiFieldGenre => 'Genre';
+  String get settingsLibraryFieldGenre => 'Genre';
 
   @override
-  String get settingsUiFieldYear => 'Year';
+  String get settingsLibraryFieldYear => 'Year';
 
   @override
-  String get settingsUiFieldTrackNumber => 'Track #';
+  String get settingsLibraryFieldTrackNumber => 'Track #';
 
   @override
-  String get settingsUiFieldDiscNumber => 'Disc #';
+  String get settingsLibraryFieldDiscNumber => 'Disc #';
 
   @override
-  String get settingsUiFieldComment => 'Comment';
+  String get settingsLibraryFieldComment => 'Comment';
 
   @override
-  String get settingsUiFieldIsrc => 'ISRC';
+  String get settingsLibraryFieldIsrc => 'ISRC';
 
   @override
-  String get settingsUiFieldDuration => 'Length';
+  String get settingsLibraryFieldDuration => 'Length';
 
   @override
-  String get settingsUiFieldRating => 'Rating';
+  String get settingsLibraryFieldRating => 'Rating';
 
   @override
-  String get settingsUiFieldColor => 'Color label';
+  String get settingsLibraryFieldColor => 'Color label';
 
   @override
-  String get settingsUiFieldBpm => 'BPM';
+  String get settingsLibraryFieldBpm => 'BPM';
 
   @override
-  String get settingsUiFieldKey => 'Key';
+  String get settingsLibraryFieldKey => 'Key';
 }

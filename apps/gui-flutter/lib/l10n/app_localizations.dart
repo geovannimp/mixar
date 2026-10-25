@@ -1798,83 +1798,83 @@ abstract class AppLocalizations {
   /// **'Send anonymous usage data'**
   String get settingsAnalyticsToggle;
 
-  /// No description provided for @settingsUiVisibleFields.
+  /// No description provided for @settingsLibraryVisibleFields.
   ///
   /// In en, this message translates to:
   /// **'Visible fields'**
-  String get settingsUiVisibleFields;
+  String get settingsLibraryVisibleFields;
 
-  /// No description provided for @settingsUiFieldAlbum.
+  /// No description provided for @settingsLibraryFieldAlbum.
   ///
   /// In en, this message translates to:
   /// **'Album'**
-  String get settingsUiFieldAlbum;
+  String get settingsLibraryFieldAlbum;
 
-  /// No description provided for @settingsUiFieldGenre.
+  /// No description provided for @settingsLibraryFieldGenre.
   ///
   /// In en, this message translates to:
   /// **'Genre'**
-  String get settingsUiFieldGenre;
+  String get settingsLibraryFieldGenre;
 
-  /// No description provided for @settingsUiFieldYear.
+  /// No description provided for @settingsLibraryFieldYear.
   ///
   /// In en, this message translates to:
   /// **'Year'**
-  String get settingsUiFieldYear;
+  String get settingsLibraryFieldYear;
 
-  /// No description provided for @settingsUiFieldTrackNumber.
+  /// No description provided for @settingsLibraryFieldTrackNumber.
   ///
   /// In en, this message translates to:
   /// **'Track #'**
-  String get settingsUiFieldTrackNumber;
+  String get settingsLibraryFieldTrackNumber;
 
-  /// No description provided for @settingsUiFieldDiscNumber.
+  /// No description provided for @settingsLibraryFieldDiscNumber.
   ///
   /// In en, this message translates to:
   /// **'Disc #'**
-  String get settingsUiFieldDiscNumber;
+  String get settingsLibraryFieldDiscNumber;
 
-  /// No description provided for @settingsUiFieldComment.
+  /// No description provided for @settingsLibraryFieldComment.
   ///
   /// In en, this message translates to:
   /// **'Comment'**
-  String get settingsUiFieldComment;
+  String get settingsLibraryFieldComment;
 
-  /// No description provided for @settingsUiFieldIsrc.
+  /// No description provided for @settingsLibraryFieldIsrc.
   ///
   /// In en, this message translates to:
   /// **'ISRC'**
-  String get settingsUiFieldIsrc;
+  String get settingsLibraryFieldIsrc;
 
-  /// No description provided for @settingsUiFieldDuration.
+  /// No description provided for @settingsLibraryFieldDuration.
   ///
   /// In en, this message translates to:
   /// **'Length'**
-  String get settingsUiFieldDuration;
+  String get settingsLibraryFieldDuration;
 
-  /// No description provided for @settingsUiFieldRating.
+  /// No description provided for @settingsLibraryFieldRating.
   ///
   /// In en, this message translates to:
   /// **'Rating'**
-  String get settingsUiFieldRating;
+  String get settingsLibraryFieldRating;
 
-  /// No description provided for @settingsUiFieldColor.
+  /// No description provided for @settingsLibraryFieldColor.
   ///
   /// In en, this message translates to:
   /// **'Color label'**
-  String get settingsUiFieldColor;
+  String get settingsLibraryFieldColor;
 
-  /// No description provided for @settingsUiFieldBpm.
+  /// No description provided for @settingsLibraryFieldBpm.
   ///
   /// In en, this message translates to:
   /// **'BPM'**
-  String get settingsUiFieldBpm;
+  String get settingsLibraryFieldBpm;
 
-  /// No description provided for @settingsUiFieldKey.
+  /// No description provided for @settingsLibraryFieldKey.
   ///
   /// In en, this message translates to:
   /// **'Key'**
-  String get settingsUiFieldKey;
+  String get settingsLibraryFieldKey;
 }
 
 class _AppLocalizationsDelegate

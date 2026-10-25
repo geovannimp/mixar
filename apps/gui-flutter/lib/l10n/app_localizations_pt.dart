@@ -1044,43 +1044,43 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAnalyticsToggle => 'Enviar dados anónimos de utilização';
 
   @override
-  String get settingsUiVisibleFields => 'Campos visíveis';
+  String get settingsLibraryVisibleFields => 'Campos visíveis';
 
   @override
-  String get settingsUiFieldAlbum => 'Álbum';
+  String get settingsLibraryFieldAlbum => 'Álbum';
 
   @override
-  String get settingsUiFieldGenre => 'Género';
+  String get settingsLibraryFieldGenre => 'Género';
 
   @override
-  String get settingsUiFieldYear => 'Ano';
+  String get settingsLibraryFieldYear => 'Ano';
 
   @override
-  String get settingsUiFieldTrackNumber => 'Número da faixa';
+  String get settingsLibraryFieldTrackNumber => 'Número da faixa';
 
   @override
-  String get settingsUiFieldDiscNumber => 'Número do disco';
+  String get settingsLibraryFieldDiscNumber => 'Número do disco';
 
   @override
-  String get settingsUiFieldComment => 'Comentário';
+  String get settingsLibraryFieldComment => 'Comentário';
 
   @override
-  String get settingsUiFieldIsrc => 'ISRC';
+  String get settingsLibraryFieldIsrc => 'ISRC';
 
   @override
-  String get settingsUiFieldDuration => 'Duração';
+  String get settingsLibraryFieldDuration => 'Duração';
 
   @override
-  String get settingsUiFieldRating => 'Avaliação';
+  String get settingsLibraryFieldRating => 'Avaliação';
 
   @override
-  String get settingsUiFieldColor => 'Etiqueta de cor';
+  String get settingsLibraryFieldColor => 'Etiqueta de cor';
 
   @override
-  String get settingsUiFieldBpm => 'BPM';
+  String get settingsLibraryFieldBpm => 'BPM';
 
   @override
-  String get settingsUiFieldKey => 'Tom';
+  String get settingsLibraryFieldKey => 'Tom';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
