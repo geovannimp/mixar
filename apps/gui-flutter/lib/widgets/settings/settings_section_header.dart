@@ -5,12 +5,15 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 class SettingsSectionHeader extends StatelessWidget {
   const new({
     required this.title,
-    required this.description,
+    this.description = '',
     this.descriptionBuilder,
     super.key,
   });
 
   final String title;
+
+  /// Muted line under the title. Empty (the default) leaves the header
+  /// title-only, for sections whose fields explain themselves.
   final String description;
 
   /// Optional rich description. Receives the muted body style so spans can
@@ -31,8 +34,10 @@ class SettingsSectionHeader extends StatelessWidget {
           title,
           style: theme.typography.body.md.copyWith(fontWeight: FontWeight.w600),
         ),
-        descriptionBuilder?.call(descriptionStyle) ??
-            Text(description, style: descriptionStyle),
+        if (descriptionBuilder case final builder?)
+          builder(descriptionStyle)
+        else if (description.isNotEmpty)
+          Text(description, style: descriptionStyle),
       ],
     );
   }

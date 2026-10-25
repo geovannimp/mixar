@@ -1031,10 +1031,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsUiVisibleFields => 'Visible fields';
 
   @override
-  String get settingsUiVisibleFieldsHint =>
-      'Chips under each track title. Fields you turn on go after the ones already shown; a chip that does not fit the two-line row is left out rather than clipped.';
-
-  @override
   String get settingsUiFieldAlbum => 'Album';
 
   @override

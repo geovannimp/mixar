@@ -502,7 +502,6 @@
   "settingsAnalyticsSubtitle": "Partilhe dados anónimos da aplicação.",
   "settingsAnalyticsToggle": "Enviar dados anónimos de utilização",
   "settingsUiVisibleFields": "Campos visíveis",
-  "settingsUiVisibleFieldsHint": "Etiquetas sob o título de cada faixa. Os campos que ativar ficam depois dos já visíveis; uma etiqueta que não cabe na linha de duas alturas é omitida em vez de cortada.",
   "settingsUiFieldAlbum": "Álbum",
   "settingsUiFieldGenre": "Género",
   "settingsUiFieldYear": "Ano",

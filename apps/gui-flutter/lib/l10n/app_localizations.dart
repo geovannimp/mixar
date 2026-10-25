@@ -1804,12 +1804,6 @@ abstract class AppLocalizations {
   /// **'Visible fields'**
   String get settingsUiVisibleFields;
 
-  /// No description provided for @settingsUiVisibleFieldsHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Chips under each track title. Fields you turn on go after the ones already shown; a chip that does not fit the two-line row is left out rather than clipped.'**
-  String get settingsUiVisibleFieldsHint;
-
   /// No description provided for @settingsUiFieldAlbum.
   ///
   /// In en, this message translates to:

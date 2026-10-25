@@ -194,31 +194,32 @@ class SettingsUiPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              SettingsField(
-                label: l10n.settingsUiVisibleFields,
-                hint: l10n.settingsUiVisibleFieldsHint,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 10,
-                  children: [
-                    for (final field in LibraryRowFieldSetting.values)
-                      SettingsCheckbox(
-                        label: _rowFieldLabel(l10n, field),
-                        value: draft.libraryRowFields.contains(field),
-                        onChanged: (shown) => onChanged(
-                          copyAppSettings(
-                            draft,
-                            libraryRowFields: toggleLibraryRowField(
-                              draft.libraryRowFields,
-                              field,
-                              shown: shown,
-                            ),
-                          ),
-                        ),
+            ],
+          ),
+        ),
+        // Chips under each title, in the order they were turned on. Split out
+        // of the list card so twelve toggles do not bury the layout controls.
+        SettingsSectionCard(
+          title: l10n.settingsUiVisibleFields,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 10,
+            children: [
+              for (final field in LibraryRowFieldSetting.values)
+                SettingsCheckbox(
+                  label: _rowFieldLabel(l10n, field),
+                  value: draft.libraryRowFields.contains(field),
+                  onChanged: (shown) => onChanged(
+                    copyAppSettings(
+                      draft,
+                      libraryRowFields: toggleLibraryRowField(
+                        draft.libraryRowFields,
+                        field,
+                        shown: shown,
                       ),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

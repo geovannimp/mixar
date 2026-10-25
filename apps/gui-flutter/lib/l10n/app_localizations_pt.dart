@@ -1047,10 +1047,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsUiVisibleFields => 'Campos visíveis';
 
   @override
-  String get settingsUiVisibleFieldsHint =>
-      'Etiquetas sob o título de cada faixa. Os campos que ativar ficam depois dos já visíveis; uma etiqueta que não cabe na linha de duas alturas é omitida em vez de cortada.';
-
-  @override
   String get settingsUiFieldAlbum => 'Álbum';
 
   @override

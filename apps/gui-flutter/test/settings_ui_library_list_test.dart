@@ -4,6 +4,7 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -77,8 +78,11 @@ void main() {
       ),
     );
 
-    // SettingsField uppercases its label; the checkboxes do not.
-    expect(find.text('VISIBLE FIELDS'), findsOneWidget);
+    // Its own card under the UI section, not a field inside the list card.
+    expect(
+      find.widgetWithText(SettingsSectionCard, 'Visible fields'),
+      findsOneWidget,
+    );
     // Every track field is offered, including the drawer-only ones.
     for (final label in ['Album', 'Genre', 'Year', 'Track #', 'Disc #']) {
       expect(find.text(label), findsOneWidget, reason: label);
