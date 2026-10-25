@@ -77,7 +77,7 @@ class PadFace extends StatelessWidget {
                 ),
               // The dot slot is reserved on every pad, with or without a
               // status dot, so the caption always gets the same width.
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               SizedBox(
                 width: 8,
                 height: 8,
@@ -93,35 +93,43 @@ class PadFace extends StatelessWidget {
             ],
           );
 
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        children: [
-          ?header,
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  // Keep the centred label above the footer so they never
-                  // overlap on small pads.
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: footer == null ? 0 : 14),
-                    child: Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: labelWidth == null
-                            ? label
-                            : SizedBox(width: labelWidth, child: label),
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        padding: EdgeInsets.all(
+          constraints.maxWidth < 16 || constraints.maxHeight < 16
+              ? 0
+              : constraints.maxWidth < 40 || constraints.maxHeight < 40
+              ? 3
+              : 8,
+        ),
+        child: Column(
+          children: [
+            ?header,
+            Expanded(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    // Keep the centred label above the footer so they never
+                    // overlap on small pads.
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: footer == null ? 0 : 14),
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: labelWidth == null
+                              ? label
+                              : SizedBox(width: labelWidth, child: label),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (footer != null)
-                  Positioned(right: 0, bottom: 0, child: footer!),
-              ],
+                  if (footer != null)
+                    Positioned(right: 0, bottom: 0, child: footer!),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

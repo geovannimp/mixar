@@ -90,6 +90,7 @@ fn apply_evt(library: &Arc<Mutex<LibraryManager>>, body: &EvtBody) {
             key,
             playing,
             volume,
+            crossfader_assign,
             duration_ms,
             ..
         } => {
@@ -98,6 +99,7 @@ fn apply_evt(library: &Arc<Mutex<LibraryManager>>, body: &EvtBody) {
                 DeckPlaySnapshot {
                     playing: *playing,
                     volume: *volume,
+                    crossfader_assign: *crossfader_assign,
                     track_id: track_id.clone(),
                     track_path: track.clone(),
                     title: title.clone(),
@@ -131,6 +133,7 @@ fn deck_snapshot(deck: &DeckSnapshot) -> DeckPlaySnapshot {
     DeckPlaySnapshot {
         playing: deck.playing,
         volume: deck.volume,
+        crossfader_assign: deck.crossfader_assign,
         track_id: deck.track_id.clone(),
         track_path: deck.track.clone(),
         title: deck.title.clone(),

@@ -33,6 +33,7 @@ pub enum Kind {
     SetHeadphoneCue,
     ToggleHeadphoneCue,
     SetCrossfader,
+    SetCrossfaderAssign,
     SetMasterVolume,
     SetCueVolume,
     SetCueMix,

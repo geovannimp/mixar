@@ -29,6 +29,7 @@ import 'package:gui_flutter/widgets/mixer/master_strip.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
 import 'package:gui_flutter/widgets/mixer/pads/loop_roll_pads.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
@@ -147,13 +148,14 @@ void main() {
     WidgetTester tester, {
     List<Override> extraOverrides = const [],
     bool settle = true,
+    Size size = const Size(1400, 900),
     AppSettings? settings,
   }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
 
     final theme = MixarThemeData.light();
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -183,6 +185,79 @@ void main() {
       await tester.pump();
     }
   }
+
+  testWidgets('four-deck profile renders all four deck panels', (tester) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
+    );
+    expect(find.byType(DeckPanel), findsNWidgets(4));
+    for (final label in ['DECK A', 'DECK B', 'DECK C', 'DECK D']) {
+      expect(_deck(label), findsOneWidget);
+    }
+    expect(tester.getSize(find.byType(LibraryPanel)).height, greaterThan(0));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('four decks keep the docked library reachable at minimum size', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      size: const Size(1024, 768),
+      settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
+    );
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getSize(find.byType(LibraryPanel)).height,
+      greaterThanOrEqualTo(120),
+    );
+    await tester.ensureVisible(find.byType(LibraryPanel));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getBottomLeft(find.byType(LibraryPanel)).dy,
+      lessThanOrEqualTo(768),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pad scrolling stays isolated from library drag scrolling', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      size: const Size(1024, 768),
+      settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
+    );
+    expect(
+      ScrollConfiguration.of(tester.element(find.byType(PadGrid).first))
+          .dragDevices,
+      isEmpty,
+      reason: 'a press-drag on a pad must never become a scroll',
+    );
+    expect(
+      ScrollConfiguration.of(tester.element(find.byType(LibraryPanel)))
+          .dragDevices,
+      isNotEmpty,
+      reason: 'docked library lists keep their default drag scrolling',
+    );
+  });
+
+  testWidgets('four-deck drawer mode expands the deck grid without overflow', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        numDecks: 4,
+        libraryDrawerEnabled: true,
+      ),
+    );
+
+    expect(find.byType(DeckPanel), findsNWidgets(4));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('empty deck can switch pad mode', (tester) async {
     final engine = FakeEngineTransport();

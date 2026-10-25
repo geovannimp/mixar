@@ -4,6 +4,7 @@ use engine_dsp::DeckEqGains;
 use crate::engine::DeckStripNorms;
 use crate::engine::Engine;
 
+use audio_core::CrossfaderAssign;
 impl Engine {
     /// Snapshot pre-fader stereo peaks for all decks (read from their mixer channels).
     pub fn deck_level_snapshot(&self) -> Vec<(usize, f32, f32)> {
@@ -32,6 +33,20 @@ impl Engine {
         let dsp = dsp_engine.lock().ok()?;
         let peaks = dsp.mixer().master_level_peaks();
         Some((peaks.peak_l, peaks.peak_r))
+    }
+
+    /// Assign a deck to crossfader side A, Thru, or side B.
+    pub fn set_deck_crossfader_assign(
+        &mut self,
+        deck_id: usize,
+        assignment: CrossfaderAssign,
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.mixer_mut().set_crossfader_assign(deck_id, assignment)
     }
 
     /// Set a deck's volume (0.0..=1.0), routed through its mixer channel.

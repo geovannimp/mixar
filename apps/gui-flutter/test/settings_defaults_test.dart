@@ -18,6 +18,45 @@ void main() {
     expect(appSettingsDirty(baseline, restored), isFalse);
   });
 
+  test('low latency alone enables saving settings', () {
+    final baseline = defaultAppSettings();
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, lowLatency: !baseline.lowLatency),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
+
+  test('four-deck profile preserves four sampler assignments and is dirty', () {
+    final baseline = defaultAppSettings();
+    final fourDecks = copyAppSettings(
+      baseline,
+      numDecks: 4,
+      deckDefaultSamplerBankId: ['a', null, 'c', 'd'],
+    );
+    final normalized = normalizeAppSettings(fourDecks);
+
+    expect(normalized.numDecks, 4);
+    expect(normalized.deckDefaultSamplerBankId, ['a', null, 'c', 'd']);
+    expect(appSettingsDirty(normalized, baseline), isTrue);
+  });
+
+  test('unsupported deck counts normalize to two decks', () {
+    final baseline = defaultAppSettings();
+    final threeDecks = copyAppSettings(
+      baseline,
+      numDecks: 3,
+      deckDefaultSamplerBankId: ['a', null, 'c'],
+    );
+    final normalized = normalizeAppSettings(threeDecks);
+
+    expect(normalized.numDecks, 2);
+    expect(normalized.deckDefaultSamplerBankId, ['a', null]);
+    expect(appSettingsDirty(normalized, baseline), isTrue);
+  });
+
   test('row density defaults comfortable and is dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.libraryRowDensity, LibraryRowDensitySetting.comfortable);

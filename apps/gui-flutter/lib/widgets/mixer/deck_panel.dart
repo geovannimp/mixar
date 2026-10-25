@@ -37,7 +37,7 @@ class DeckPanel extends ConsumerWidget {
   final String label;
   final FaderAccent accent;
 
-  bool get _tempoOnRight => accent == FaderAccent.a;
+  bool get _tempoOnRight => deckId.isEven;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,88 +95,101 @@ class DeckPanel extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 8,
       children: [
-        Row(
-          children: [
-            Text(
-              label.toUpperCase(),
-              style: theme.typography.display.xs.copyWith(
-                fontFamily: MixarFonts.spaceGrotesk,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6,
-                height: 1,
-                color: accentColor,
+        LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: IntrinsicWidth(
+                child: Row(
+                  children: [
+                    Text(
+                      label.toUpperCase(),
+                      style: theme.typography.display.xs.copyWith(
+                        fontFamily: MixarFonts.spaceGrotesk,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                        height: 1,
+                        color: accentColor,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    DeckGainPopover(deckId: deckId, hasTrack: hasTrack),
+                    const Spacer(),
+                    _MasterButton(
+                      isMaster: isMaster,
+                      disabled: loadDisabled,
+                      onPress: () {
+                        unawaited(
+                          _engineCmd(context, () => setMasterDeck(ref, deckId)),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    _QuantizeButton(
+                      quantize: quantize,
+                      disabled: loadDisabled,
+                      onPress: () {
+                        // Capture the desired state before the async command.
+                        final enabled = !quantize;
+                        unawaited(
+                          _engineCmd(
+                            context,
+                            () => setDeckQuantize(ref, deckId, enabled),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    _SlipButton(
+                      slip: slip,
+                      disabled: loadDisabled,
+                      onPress: () {
+                        final enabled = !slip;
+                        unawaited(
+                          _engineCmd(
+                            context,
+                            () => setDeckSlip(ref, deckId, enabled),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    _FxButton(
+                      routed: fxRouted,
+                      disabled: !engineRunning,
+                      onPress: () {
+                        // Capture the desired state before the async command.
+                        final routed = !fxRouted;
+                        unawaited(
+                          _engineCmd(
+                            context,
+                            () => setDeckFxRouted(ref, deckId, routed),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    _EjectLoadButton(
+                      hasTrack: hasTrack,
+                      disabled: loadDisabled,
+                      onPress: () {
+                        unawaited(
+                          _engineCmd(context, () async {
+                            if (hasTrack) {
+                              await unloadDeck(ref, deckId);
+                              return;
+                            }
+                            await pickTrackForDeck(ref, deckId);
+                          }),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 4),
-            DeckGainPopover(deckId: deckId, hasTrack: hasTrack),
-            const Spacer(),
-            _MasterButton(
-              isMaster: isMaster,
-              disabled: loadDisabled,
-              onPress: () {
-                unawaited(
-                  _engineCmd(context, () => setMasterDeck(ref, deckId)),
-                );
-              },
-            ),
-            const SizedBox(width: 4),
-            _QuantizeButton(
-              quantize: quantize,
-              disabled: loadDisabled,
-              onPress: () {
-                // Absolute desired state from visible chrome (never re-invert later).
-                final enabled = !quantize;
-                unawaited(
-                  _engineCmd(
-                    context,
-                    () => setDeckQuantize(ref, deckId, enabled),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 4),
-            _SlipButton(
-              slip: slip,
-              disabled: loadDisabled,
-              onPress: () {
-                final enabled = !slip;
-                unawaited(
-                  _engineCmd(context, () => setDeckSlip(ref, deckId, enabled)),
-                );
-              },
-            ),
-            const SizedBox(width: 4),
-            _FxButton(
-              routed: fxRouted,
-              disabled: !engineRunning,
-              onPress: () {
-                // Absolute desired state from visible chrome (never re-invert later).
-                final routed = !fxRouted;
-                unawaited(
-                  _engineCmd(
-                    context,
-                    () => setDeckFxRouted(ref, deckId, routed),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 4),
-            _EjectLoadButton(
-              hasTrack: hasTrack,
-              disabled: loadDisabled,
-              onPress: () {
-                unawaited(
-                  _engineCmd(context, () async {
-                    if (hasTrack) {
-                      await unloadDeck(ref, deckId);
-                      return;
-                    }
-                    await pickTrackForDeck(ref, deckId);
-                  }),
-                );
-              },
-            ),
-          ],
+          ),
         ),
         DeckTrackInfo(deckId: deckId, hasTrack: hasTrack, title: loadedTitle),
         Expanded(
@@ -192,7 +205,7 @@ class DeckPanel extends ConsumerWidget {
         ),
         Row(
           spacing: 8,
-          children: accent == FaderAccent.a ? [cueWrap, play] : [play, cueWrap],
+          children: _tempoOnRight ? [cueWrap, play] : [play, cueWrap],
         ),
       ],
     );

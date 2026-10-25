@@ -55,7 +55,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   AppSettings? _draft;
   AppSettings? _baseline;
   var _busy = false;
-  String? _error;
   var _didSchedulePreviewScroll = false;
   var _previewScrollAttempts = 0;
 
@@ -219,15 +218,38 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  Future<void> _save(AppSettings draft) async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+  Future<bool> _save(AppSettings draft) async {
+    if (!mounted || _busy) {
+      return false;
+    }
+    setState(() => _busy = true);
     try {
+      final previousDeckCount = _baseline?.numDecks;
+      if (previousDeckCount != null && previousDeckCount != draft.numDecks) {
+        final l10n = AppLocalizations.of(context)!;
+        final confirmed = await showMixarConfirm<bool>(
+          context: context,
+          title: l10n.settingsDeckCountRestartTitle,
+          body: l10n.settingsDeckCountRestartBody,
+          actions: [
+            MixarDialogAction(
+              label: l10n.settingsCancel,
+              value: false,
+              variant: MixarButtonVariant.outline,
+            ),
+            MixarDialogAction(
+              label: l10n.settingsDeckCountRestartConfirm,
+              value: true,
+            ),
+          ],
+        );
+        if (!mounted || confirmed != true) {
+          return false;
+        }
+      }
       final result = await saveAppSettings(ref, draft);
       if (!mounted) {
-        return;
+        return false;
       }
       if (result.trustedControllersChanged) {
         ref.invalidate(controllerTransportProvider);
@@ -237,7 +259,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       setState(() {
         _draft = result.saved;
         _baseline = result.saved;
-        _error = result.applyError;
       });
       final l10n = AppLocalizations.of(context)!;
       if (result.applyError != null) {
@@ -250,10 +271,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       } else {
         showMixarToast(context: context, title: Text(l10n.settingsSavedToast));
       }
+      return result.applyError == null;
     } catch (e) {
       if (mounted) {
         final l10n = AppLocalizations.of(context)!;
-        setState(() => _error = '$e');
         showMixarToast(
           context: context,
           title: Text(l10n.settingsSaveFailedToast),
@@ -261,6 +282,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           variant: MixarToastVariant.destructive,
         );
       }
+      return false;
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -269,6 +291,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   Future<void> _close(bool dirty) async {
+    if (!mounted || _busy) {
+      return;
+    }
     if (!dirty) {
       widget.onClose?.call();
       return;
@@ -307,8 +332,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         if (draft == null) {
           return;
         }
-        await _save(draft);
-        if (mounted && _error == null) {
+        final savedAndApplied = await _save(draft);
+        if (mounted && savedAndApplied) {
           widget.onClose?.call();
         }
     }

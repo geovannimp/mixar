@@ -11,7 +11,6 @@ use engine_core::{
 };
 use resampler::normalize_resampler_quality;
 
-const NUM_DECKS: usize = 2;
 const MASTER_BUS_ID: &str = "master";
 const PREVIEW_BUS_ID: &str = "cue";
 const TARGET_LUFS_MIN: f32 = -24.0;
@@ -270,6 +269,9 @@ pub enum LibraryDrawerSideSetting {
 fn default_vinyl_brake_stop_secs() -> f32 {
     0.5
 }
+fn default_num_decks() -> u8 {
+    2
+}
 
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -291,6 +293,8 @@ pub struct AppSettings {
     pub target_lufs: f32,
     pub sampler_play_mode: SamplerPlayModeSetting,
     pub sampler_strip_route: SamplerStripRouteSettingFrb,
+    #[serde(default = "default_num_decks")]
+    pub num_decks: u8,
     pub deck_default_sampler_bank_id: Vec<Option<String>>,
     pub default_top_jog_mode: JogModeSetting,
     pub default_outer_jog_mode: JogModeSetting,
@@ -526,6 +530,10 @@ fn default_engine_config() -> EngineConfig {
 /// Zod-style parse: reject invalid values, coerce recoverable ones.
 fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     let mut errors = Vec::new();
+    if !matches!(settings.num_decks, 2 | 4) {
+        errors.push("num_decks must be 2 or 4".into());
+        settings.num_decks = default_num_decks();
+    }
 
     if settings.sample_rate == 0 {
         errors.push("sample_rate must be > 0".into());
@@ -567,8 +575,9 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     };
 
     let mut banks = settings.deck_default_sampler_bank_id;
-    banks.resize(NUM_DECKS, None);
-    banks.truncate(NUM_DECKS);
+    let num_decks = usize::from(settings.num_decks);
+    banks.resize(num_decks, None);
+    banks.truncate(num_decks);
     settings.deck_default_sampler_bank_id = banks
         .into_iter()
         .map(|id| match id {
@@ -690,6 +699,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         target_lufs: host.target_lufs,
         sampler_play_mode: host.sampler_play_mode,
         sampler_strip_route: host.sampler_strip_route.into(),
+        num_decks: config.num_decks as u8,
         deck_default_sampler_bank_id: host.deck_default_sampler_bank_id.clone(),
         default_top_jog_mode: host.default_top_jog_mode,
         default_outer_jog_mode: host.default_outer_jog_mode,
@@ -724,6 +734,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
 fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), String> {
     let settings = parse_settings(settings)?;
     let mut config = host.engine_config.clone();
+    config.num_decks = usize::from(settings.num_decks);
     config.buses = buses_from_settings(&settings);
     config.sample_rate = settings.sample_rate;
     config.buffer_size = settings.buffer_size;
@@ -872,6 +883,39 @@ mod tests {
         assert_eq!(parsed.stems_format, "opus");
         assert_eq!(parsed.stems_model, analyzer_stems::DEFAULT_MODEL);
         assert!(!parsed.realtime_stems);
+    }
+
+    #[test]
+    fn deck_profile_and_sampler_defaults_round_trip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.num_decks = 4;
+        settings.deck_default_sampler_bank_id =
+            vec![Some("a".into()), None, Some("c".into()), Some("d".into())];
+        write_settings_file(&path, &settings).expect("write");
+
+        let restored = settings_from_host(&load_host(&path));
+        assert_eq!(restored.num_decks, 4);
+        assert_eq!(
+            restored.deck_default_sampler_bank_id,
+            [Some("a".into()), None, Some("c".into()), Some("d".into())]
+        );
+    }
+
+    #[test]
+    fn missing_deck_profile_defaults_to_two_decks() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value.as_object_mut().expect("object").remove("num_decks");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(settings.num_decks, 2);
+    }
+
+    #[test]
+    fn settings_reject_unsupported_deck_counts() {
+        let mut settings = sample_settings();
+        settings.num_decks = 3;
+        assert!(parse_settings(settings).unwrap_err().contains("num_decks"));
     }
 
     #[test]

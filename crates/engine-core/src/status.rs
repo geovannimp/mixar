@@ -3,7 +3,7 @@ use audio_core::secs_to_ms;
 use engine_api::{DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, LoopRegion, SamplerStatus};
 use engine_dsp::{DeckState, DspEngine};
 
-use crate::engine::{DeckTransportState, Engine, NUM_DECKS};
+use crate::engine::{DeckTransportState, Engine};
 
 impl Engine {
     /// Read one deck from the running DSP engine.
@@ -120,8 +120,8 @@ impl Engine {
                 active_bank_id: None,
                 active_bank_name: None,
                 bank_play_mode: None,
-                deck_slots: vec![Vec::new(); NUM_DECKS],
-                effective_play_modes: vec![Default::default(); NUM_DECKS],
+                deck_slots: vec![Vec::new(); dsp.num_decks()],
+                effective_play_modes: vec![Default::default(); dsp.num_decks()],
             },
         })
     }
@@ -158,6 +158,7 @@ fn deck_snapshot_from_dsp(
         bpm: control.bpm,
         key: control.key.clone(),
         playing: matches!(deck.state(), DeckState::Playing),
+        crossfader_assign: dsp.mixer().crossfader_assign(deck_id)?,
         volume: channel.volume(),
         speed: deck.speed(),
         tempo_range: deck.tempo_range(),

@@ -49,10 +49,20 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     for (final field in OptimisticField.values) field: <int, Object>{},
   };
 
+  int? _activeDeckCount;
+
+  /// Track the live profile, independently of settings saved before a restart.
+  void setActiveDeckCount(int deckCount) => _activeDeckCount = deckCount;
+
   @override
   EngineUiSnapshot build() => EngineUiSnapshot.empty;
 
   void apply(EngineEvt evt) {
+    final deckId = evt.deckId;
+    final deckCount = _activeDeckCount;
+    if (deckId != null && deckCount != null && deckId >= deckCount) {
+      return;
+    }
     if (evt.kind == EngineEvtKind.position) {
       final id = evt.deckId;
       final ms = evt.positionMs;
@@ -312,6 +322,57 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     next[deckId] = enabled;
     state = state.copyWith(keyLocks: next);
   }
+
+  /// Drop all mirrored state for a deck removed by a profile change.
+  void clearDeckState(int deckId) {
+    Map<int, T> withoutDeck<T>(Map<int, T> values) =>
+        Map<int, T>.from(values)..remove(deckId);
+
+    state = state.copyWith(
+      trackPaths: withoutDeck(state.trackPaths),
+      playing: withoutDeck(state.playing),
+      channels: withoutDeck(state.channels),
+      levels: withoutDeck(state.levels),
+      trackIds: withoutDeck(state.trackIds),
+      durationMs: withoutDeck(state.durationMs),
+      speeds: withoutDeck(state.speeds),
+      tempoRanges: withoutDeck(state.tempoRanges),
+      keyLocks: withoutDeck(state.keyLocks),
+      keyShifts: withoutDeck(state.keyShifts),
+      keyboardPages: withoutDeck(state.keyboardPages),
+      keyShiftPages: withoutDeck(state.keyShiftPages),
+      keyboardRoots: withoutDeck(state.keyboardRoots),
+      padModes: withoutDeck(state.padModes),
+      stemsReady: withoutDeck(state.stemsReady),
+      stemsLive: withoutDeck(state.stemsLive),
+      stemMute: withoutDeck(state.stemMute),
+      stemIsolate: withoutDeck(state.stemIsolate),
+      syncModes: withoutDeck(state.syncModes),
+      activeLoops: withoutDeck(state.activeLoops),
+      pendingLoopInMs: withoutDeck(state.pendingLoopInMs),
+      quantize: withoutDeck(state.quantize),
+      slipEnabled: withoutDeck(state.slipEnabled),
+      jogTouching: withoutDeck(state.jogTouching),
+      loudnessLufs: withoutDeck(state.loudnessLufs),
+      autoGainDb: withoutDeck(state.autoGainDb),
+      activeSamplerBankIds: withoutDeck(state.activeSamplerBankIds),
+      samplerSlots: withoutDeck(state.samplerSlots),
+      masterDeck: state.masterDeck == deckId ? 0 : state.masterDeck,
+    );
+    for (final field in [
+      OptimisticField.playing,
+      OptimisticField.quantize,
+      OptimisticField.slip,
+      OptimisticField.keyLock,
+      OptimisticField.fxRouted,
+    ]) {
+      _invalidateOptimistic(field, deckId);
+    }
+    ref.read(deckPlayheadsProvider.notifier).remove(deckId);
+    ref.read(deckSlipShadowsProvider.notifier).remove(deckId);
+    ref.read(deckLoadInFlightProvider.notifier).remove(deckId);
+    ref.read(deckLoadGenerationProvider.notifier).invalidate(deckId);
+  }
 }
 
 final engineUiProvider = NotifierProvider<EngineUi, EngineUiSnapshot>(
@@ -451,6 +512,13 @@ class DeckLoadInFlight extends Notifier<Map<int, int>> {
     }
     state = {...state, deckId: n - 1};
   }
+
+  void remove(int deckId) {
+    if (!state.containsKey(deckId)) {
+      return;
+    }
+    state = {...state}..remove(deckId);
+  }
 }
 
 final deckLoadInFlightProvider =
@@ -469,6 +537,10 @@ class DeckLoadGeneration extends Notifier<Map<int, int>> {
   }
 
   bool isCurrent(int deckId, int generation) => state[deckId] == generation;
+
+  void invalidate(int deckId) {
+    state = {...state, deckId: (state[deckId] ?? 0) + 1};
+  }
 }
 
 final deckLoadGenerationProvider =
@@ -1109,6 +1181,15 @@ Future<void> setDeckHeadphoneCue(
 ) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setHeadphoneCue(deckId: deckId, enabled: enabled);
+}
+
+Future<void> setDeckCrossfaderAssign(
+  WidgetRef ref,
+  int deckId,
+  CrossfaderAssign assignment,
+) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setCrossfaderAssign(deckId: deckId, assignment: assignment);
 }
 
 Future<void> setCrossfader(WidgetRef ref, double position) async {

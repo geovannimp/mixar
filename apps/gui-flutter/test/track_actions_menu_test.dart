@@ -66,6 +66,7 @@ void main() {
     bool running = false,
     bool stemsGenerating = false,
     double width = 200,
+    int deckCount = 2,
     SelectStyleSetting selectStyle = SelectStyleSetting.auto,
     FakeLibraryTransport? transport,
     Future<FakeLibraryTransport>? transportFuture,
@@ -78,8 +79,11 @@ void main() {
             (ref) async => const <String, LibraryTrackSummary>{},
           ),
           appSettingsProvider.overrideWith(
-            (ref) async =>
-                copyAppSettings(defaultAppSettings(), selectStyle: selectStyle),
+            (ref) async => copyAppSettings(
+              defaultAppSettings(),
+              selectStyle: selectStyle,
+              numDecks: deckCount,
+            ),
           ),
           if (transportFuture != null)
             libraryTransportProvider.overrideWith((ref) => transportFuture)
@@ -348,6 +352,17 @@ void main() {
     expect(find.text('Load to deck'), findsOneWidget);
     expect(_loadSegment(tester, 'A').onPress, isNotNull);
     expect(_loadSegment(tester, 'B').onPress, isNotNull);
+  });
+
+  testWidgets('four-deck profile exposes load actions for C and D', (
+    tester,
+  ) async {
+    await pumpMenu(tester, running: true, deckCount: 4);
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+
+    expect(_loadSegment(tester, 'C').onPress, isNotNull);
+    expect(_loadSegment(tester, 'D').onPress, isNotNull);
   });
 
   test('collection tracks stay in-library when id equals path', () {

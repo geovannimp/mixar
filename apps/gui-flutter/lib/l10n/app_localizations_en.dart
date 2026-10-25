@@ -341,6 +341,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Default jog, tempo, and sampler behavior for new decks.';
 
   @override
+  String get settingsDeckCount => 'Deck layout';
+
+  @override
+  String get settingsDeckCountTwo => '2 decks';
+
+  @override
+  String get settingsDeckCountFour => '4 decks';
+
+  @override
   String get settingsDeckJogTitle => 'Jog wheel';
 
   @override
@@ -442,6 +451,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDeckDefaultSamplerBankB => 'Deck B default sampler bank';
+
+  @override
+  String get settingsDeckDefaultSamplerBankC => 'Deck C default sampler bank';
+
+  @override
+  String get settingsDeckDefaultSamplerBankD => 'Deck D default sampler bank';
+
+  @override
+  String get settingsDeckCountRestartTitle => 'Change deck layout?';
+
+  @override
+  String get settingsDeckCountRestartBody =>
+      'Changing the deck count restarts the audio engine and reloads tracks. Tracks on decks removed by switching to 2 decks will not be restored.';
+
+  @override
+  String get settingsDeckCountRestartConfirm => 'Restart and apply';
 
   @override
   String get settingsLibraryDescription =>

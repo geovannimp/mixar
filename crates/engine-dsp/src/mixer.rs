@@ -4,7 +4,7 @@
 //! renders lanes, applies crossfader gains when summing, then routes buses.
 
 use anyhow::Result;
-use audio_core::{slice as audio_slice, BusId, Frame, Sample, StereoFrame};
+use audio_core::{slice as audio_slice, BusId, CrossfaderAssign, Frame, Sample, StereoFrame};
 use dasp_graph::{process, Buffer, Input, Node, NodeData, Processor};
 use petgraph::graph::DiGraph;
 use std::collections::HashMap;
@@ -40,6 +40,8 @@ pub struct Mixer {
     master_cue: bool,
     /// Crossfader position: 0.0 = deck A, 1.0 = deck B.
     crossfader: f32,
+    /// Assignment for each stable deck ID (0=A, 1=B, 2=C, 3=D).
+    crossfader_assignments: [CrossfaderAssign; 4],
     /// Internal mix buffer (interleaved stereo) filled from lane outputs.
     mix_buffer: Vec<Sample>,
     /// Reusable scratch for PFL sum before HeadphoneMonitor blend.
@@ -104,6 +106,12 @@ impl Mixer {
             cue_volume: 1.0,
             cue_mix: 0.5,
             master_cue: false,
+            crossfader_assignments: [
+                CrossfaderAssign::A,
+                CrossfaderAssign::B,
+                CrossfaderAssign::A,
+                CrossfaderAssign::B,
+            ],
             crossfader: 0.5,
             mix_buffer: Vec::new(),
             pfl_scratch: Vec::new(),
@@ -159,6 +167,27 @@ impl Mixer {
     /// Get a mutable mixer channel by index.
     pub fn channel_mut(&mut self, index: usize) -> Option<&mut MixerChannel> {
         self.lane_mut(index).map(|lane| lane.channel_mut())
+    }
+
+    /// Get a lane's crossfader assignment, if the lane is active.
+    pub fn crossfader_assign(&self, lane: usize) -> Option<CrossfaderAssign> {
+        self.lane_node_ids
+            .get(lane)
+            .and_then(|_| self.crossfader_assignments.get(lane).copied())
+    }
+
+    /// Assign a lane to crossfader side A, Thru, or side B.
+    pub fn set_crossfader_assign(
+        &mut self,
+        lane: usize,
+        assignment: CrossfaderAssign,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            lane < self.num_lanes() && lane < self.crossfader_assignments.len(),
+            "lane index {lane} out of range"
+        );
+        self.crossfader_assignments[lane] = assignment;
+        Ok(())
     }
 
     /// Set the lane whose deck provides the FX sync tempo (master deck).
@@ -293,10 +322,10 @@ impl Mixer {
             for (i, &lane_id) in self.lane_node_ids.iter().enumerate() {
                 process(&mut self.processor, &mut self.graph, lane_id);
 
-                let gain = match i {
-                    0 => gain_a,
-                    1 => gain_b,
-                    _ => 1.0,
+                let gain = match self.crossfader_assignments.get(i) {
+                    Some(CrossfaderAssign::A) => gain_a,
+                    Some(CrossfaderAssign::B) => gain_b,
+                    Some(CrossfaderAssign::Thru) | None => 1.0,
                 };
                 let lane_data = self.graph.node_weight(lane_id).unwrap();
                 if lane_data.buffers.len() < 2 {
@@ -400,6 +429,42 @@ impl Mixer {
 
 #[cfg(test)]
 mod tests {
+    fn render_peak(assignment: CrossfaderAssign, position: f32) -> f32 {
+        let mut mixer = new_mixer(1);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.set_crossfader_assign(0, assignment).unwrap();
+        mixer.set_crossfader(position).unwrap();
+        let mut output_buses = HashMap::from([(BusId::new("master"), vec![0.0; 1024])]);
+        mixer.process(512, &mut output_buses).unwrap();
+        output_buses[&BusId::new("master")][..1024]
+            .iter()
+            .map(|sample| sample.abs())
+            .fold(0.0, f32::max)
+    }
+
+    #[test]
+    fn crossfader_assignment_routes_side_decks_and_leaves_thru_open() {
+        for assignment in [CrossfaderAssign::A, CrossfaderAssign::B] {
+            let (open, closed) = match assignment {
+                CrossfaderAssign::A => (0.0, 1.0),
+                CrossfaderAssign::B => (1.0, 0.0),
+                CrossfaderAssign::Thru => unreachable!(),
+            };
+            assert!(
+                render_peak(assignment, open) > 0.5,
+                "{assignment:?} must be audible at its crossfader end"
+            );
+            assert!(
+                render_peak(assignment, closed) < 1e-5,
+                "{assignment:?} must be attenuated at the opposite end"
+            );
+        }
+        let thru_a = render_peak(CrossfaderAssign::Thru, 0.0);
+        let thru_b = render_peak(CrossfaderAssign::Thru, 1.0);
+        assert!(thru_a > 0.5 && thru_b > 0.5);
+        assert!((thru_a - thru_b).abs() < 1e-6);
+    }
     use super::*;
     use audio_core::LoadedAudio;
     use std::sync::Arc;
@@ -427,6 +492,42 @@ mod tests {
             .deck_mut()
             .load(Arc::new(audio))
             .unwrap();
+    }
+    #[test]
+    fn crossfader_assignments_are_per_lane_and_reject_inactive_lanes() {
+        let mut mixer = new_mixer(4);
+        assert_eq!(mixer.crossfader_assign(0), Some(CrossfaderAssign::A));
+        assert_eq!(mixer.crossfader_assign(1), Some(CrossfaderAssign::B));
+        assert_eq!(mixer.crossfader_assign(2), Some(CrossfaderAssign::A));
+        assert_eq!(mixer.crossfader_assign(3), Some(CrossfaderAssign::B));
+
+        mixer
+            .set_crossfader_assign(2, CrossfaderAssign::Thru)
+            .unwrap();
+        assert_eq!(mixer.crossfader_assign(2), Some(CrossfaderAssign::Thru));
+        assert!(mixer.set_crossfader_assign(4, CrossfaderAssign::A).is_err());
+        assert_eq!(mixer.crossfader_assign(2), Some(CrossfaderAssign::Thru));
+    }
+
+    #[test]
+    fn crossfader_assignment_can_render_thru_at_both_ends() {
+        let mut mixer = new_mixer(1);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer
+            .set_crossfader_assign(0, CrossfaderAssign::Thru)
+            .unwrap();
+        let mut output_buses = HashMap::from([(BusId::new("master"), vec![0.0; 1024])]);
+
+        mixer.set_crossfader(0.0).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
+        let a_end = output_buses[&BusId::new("master")][..1024].to_vec();
+        mixer.set_crossfader(1.0).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
+        let b_end = &output_buses[&BusId::new("master")][..1024];
+
+        assert!(a_end.iter().any(|sample| sample.abs() > 0.1));
+        assert!(b_end.iter().any(|sample| sample.abs() > 0.1));
     }
 
     #[test]

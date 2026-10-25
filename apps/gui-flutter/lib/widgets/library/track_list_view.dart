@@ -568,6 +568,7 @@ Widget buildTrackListMenuBody({
   required VoidCallback dismiss,
 }) {
   final engineRunning = ref.watch(engineRunningProvider);
+  final deckCount = ref.watch(appSettingsProvider).value?.numDecks ?? 2;
   void load(int deckId) {
     if (payload == null) {
       return;
@@ -575,6 +576,7 @@ Widget buildTrackListMenuBody({
     unawaited(loadPayloadToDeck(ref, deckId, payload));
   }
 
+  const deckLabels = ['A', 'B', 'C', 'D'];
   return MixarMenuBody(
     groups: [
       MixarMenuGroup(
@@ -582,28 +584,19 @@ Widget buildTrackListMenuBody({
           const MixarMenuLabel(child: Text('Load to deck')),
           MixarMenuSegments(
             segments: [
-              MixarMenuSegment(
-                label: 'A',
-                color: FaderColors.a.grip,
-                semanticsLabel: 'Load to A',
-                onPress: engineRunning && payload != null
-                    ? () {
-                        dismiss();
-                        load(0);
-                      }
-                    : null,
-              ),
-              MixarMenuSegment(
-                label: 'B',
-                color: FaderColors.b.grip,
-                semanticsLabel: 'Load to B',
-                onPress: engineRunning && payload != null
-                    ? () {
-                        dismiss();
-                        load(1);
-                      }
-                    : null,
-              ),
+              for (var deckId = 0; deckId < deckCount; deckId++)
+                MixarMenuSegment(
+                  label: deckLabels[deckId],
+                  color: FaderColors.forAccent(faderAccentForDeck(deckId)!)
+                      .grip,
+                  semanticsLabel: 'Load to ${deckLabels[deckId]}',
+                  onPress: engineRunning && payload != null
+                      ? () {
+                          dismiss();
+                          load(deckId);
+                        }
+                      : null,
+                ),
             ],
           ),
         ],

@@ -26,10 +26,10 @@ effective = deck.volume × crossfader_gain(deck)
 | Input | Source |
 |-------|--------|
 | `deck.volume` | Deck channel fader (`DeckUpdated.volume`, 0.0–1.0) |
-| `crossfader_gain(deck)` | Equal-power crossfader (`EngineStatus.crossfader`): deck 0 → `cos(xf × π/2)`, deck 1 → `sin(xf × π/2)` |
+| `crossfader_gain(deck)` | Equal-power crossfader (`EngineStatus.crossfader`) scaled by the deck's assignment: side A → `cos(xf × π/2)`, side B → `sin(xf × π/2)`, **Thru** → `1.0` |
 
 <Callout type="note">
-Decks 2–3 use gain `1.0` until a 4-deck crossfader model lands (`engine-dsp` currently assigns full gain to lanes ≥ 2).
+Assignments are per lane, so decks 2–3 follow the same rules as A/B. A deck assigned Thru stays audible across the whole crossfader travel, and history counts it at full channel output.
 </Callout>
 
 Gain trim and master volume are **not** included.

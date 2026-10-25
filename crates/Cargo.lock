@@ -1489,6 +1489,7 @@ dependencies = [
 name = "engine-api"
 version = "0.1.0"
 dependencies = [
+ "audio-core 0.1.0",
  "hex",
  "rmp-serde",
  "serde",

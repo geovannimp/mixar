@@ -1,3 +1,4 @@
+use audio_core::CrossfaderAssign;
 use serde::{Deserialize, Serialize};
 
 /// FX chain capacity per deck (bounds a preset's effect count); keep in sync
@@ -176,7 +177,11 @@ pub struct SamplerStatus {
     pub effective_play_modes: Vec<SamplerPlayMode>,
 }
 
-/// Slim deck snapshot for status patches and full snapshots.
+fn default_crossfader_assign() -> CrossfaderAssign {
+    CrossfaderAssign::A
+}
+
+/// Deck state for status patches and full engine snapshots.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckSnapshot {
     pub id: u16,
@@ -191,6 +196,9 @@ pub struct DeckSnapshot {
     pub bpm: Option<f64>,
     pub key: Option<String>,
     pub playing: bool,
+    /// How this deck is routed by the main crossfader.
+    #[serde(default = "default_crossfader_assign")]
+    pub crossfader_assign: CrossfaderAssign,
     /// Channel fader `0..1`.
     pub volume: f32,
     /// Tempo fader position `0..1` (not playback ratio).
@@ -351,6 +359,9 @@ pub enum CmdBody {
         position: f32,
         #[serde(default)]
         soft_takeover: bool,
+    },
+    SetCrossfaderAssign {
+        assignment: CrossfaderAssign,
     },
     SetMasterVolume {
         volume: f32,
@@ -560,6 +571,8 @@ pub enum EvtBody {
         bpm: Option<f64>,
         key: Option<String>,
         playing: bool,
+        #[serde(default = "default_crossfader_assign")]
+        crossfader_assign: CrossfaderAssign,
         volume: f32,
         speed: f32,
         tempo_range: f32,

@@ -2,15 +2,18 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, DeckSnapshot, EvtBody, Kind, Origin};
+use engine_api::{
+    decode_evt_body, encode_cmd_body, CmdBody, CrossfaderAssign as EngineCrossfaderAssign,
+    DeckSnapshot, EvtBody, Kind, Origin,
+};
 use engine_core::{
     deck_snapshot_to_evt, spawn_engine_worker, AudioBackend, Engine, EngineBuses, EngineConfig,
-    EngineWorker, Evt,
+    EngineWorker, Evt, MAX_DECKS,
 };
 use library::{LibraryManager, PreparedTrackPlayback, SamplerSlotRecord};
 use library_core::{AudioSource, TrackId};
@@ -22,7 +25,6 @@ use crate::api::settings::{
 };
 use crate::frb_generated::StreamSink;
 
-const NUM_DECKS: usize = 2;
 const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
 
 /// Output device summary for the Flutter settings / smoke UI.
@@ -33,6 +35,34 @@ pub struct OutputDevice {
     pub is_default: bool,
     pub max_channels: u16,
     pub default_sample_rates: Vec<u32>,
+}
+
+/// How a deck lane is affected by the main crossfader (Dart mirror).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CrossfaderAssign {
+    A,
+    Thru,
+    B,
+}
+
+impl From<EngineCrossfaderAssign> for CrossfaderAssign {
+    fn from(value: EngineCrossfaderAssign) -> Self {
+        match value {
+            EngineCrossfaderAssign::A => Self::A,
+            EngineCrossfaderAssign::Thru => Self::Thru,
+            EngineCrossfaderAssign::B => Self::B,
+        }
+    }
+}
+
+impl From<CrossfaderAssign> for EngineCrossfaderAssign {
+    fn from(value: CrossfaderAssign) -> Self {
+        match value {
+            CrossfaderAssign::A => EngineCrossfaderAssign::A,
+            CrossfaderAssign::Thru => EngineCrossfaderAssign::Thru,
+            CrossfaderAssign::B => EngineCrossfaderAssign::B,
+        }
+    }
 }
 
 /// Output devices of the compiled-in real backend (Settings → Audio).
@@ -204,8 +234,8 @@ fn empty_deck_sampler_chrome() -> Vec<SamplerSlotChrome> {
     vec![SamplerSlotChrome::default(); SAMPLER_SLOT_COUNT]
 }
 
-fn empty_all_sampler_chrome() -> Vec<Vec<SamplerSlotChrome>> {
-    vec![empty_deck_sampler_chrome(); NUM_DECKS]
+fn empty_all_sampler_chrome(num_decks: usize) -> Vec<Vec<SamplerSlotChrome>> {
+    vec![empty_deck_sampler_chrome(); num_decks]
 }
 
 fn source_path(source: &AudioSource) -> Option<String> {
@@ -315,6 +345,7 @@ pub struct EngineEvt {
     pub fx_routed: Option<bool>,
     pub headphone_cue: Option<bool>,
     pub crossfader: Option<f32>,
+    pub crossfader_assign: Option<CrossfaderAssign>,
     pub master_volume: Option<f32>,
     pub cue_volume: Option<f32>,
     pub cue_mix: Option<f32>,
@@ -398,6 +429,7 @@ impl EngineEvt {
             fx_routed: None,
             headphone_cue: None,
             crossfader: None,
+            crossfader_assign: None,
             master_volume: None,
             cue_volume: None,
             cue_mix: None,
@@ -488,11 +520,12 @@ pub struct EngineTransport {
     ///
     /// Shared with a background StemgenRT model download so a track replaced
     /// while the model is downloading never starts a stale producer.
-    deck_load_generation: Arc<[AtomicU64; NUM_DECKS]>,
+    deck_load_generation: Arc<Vec<AtomicU64>>,
+    deck_count: AtomicUsize,
     /// Mixar-owned model root, for opportunistic live separation.
     models_root: std::path::PathBuf,
     /// Live producers per deck; replacing or dropping one stops it.
-    live_separators: Arc<Mutex<[Option<analyzer_stems::LiveSeparator>; NUM_DECKS]>>,
+    live_separators: Arc<Mutex<Vec<Option<analyzer_stems::LiveSeparator>>>>,
     /// Serializes first-use StemgenRT downloads so two deck loads cannot race
     /// on the same `.part` file.
     stemgen_download_lock: Arc<Mutex<()>>,
@@ -541,6 +574,7 @@ impl EngineTransport {
     ) -> Result<Self, String> {
         let library_arc = library_transport.library_arc();
         let live_stems_enabled = config.backend != "null";
+        let deck_count = config.num_decks;
         let mut engine = Engine::new_with_library_bus(
             config,
             Arc::clone(&library_arc),
@@ -581,12 +615,13 @@ impl EngineTransport {
             buses: buses.clone(),
             library: library_arc,
             library_cmd_bus: library_transport.cmd_bus(),
-            sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
+            sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome(deck_count))),
             evt_forwarder: Mutex::new(None),
             history_worker: Mutex::new(Some(history_worker)),
-            deck_load_generation: Arc::new(std::array::from_fn(|_| AtomicU64::new(0))),
+            deck_load_generation: Arc::new((0..MAX_DECKS).map(|_| AtomicU64::new(0)).collect()),
+            deck_count: AtomicUsize::new(deck_count),
             models_root: library_transport.library_buses().models_root(),
-            live_separators: Arc::new(Mutex::new(std::array::from_fn(|_| None))),
+            live_separators: Arc::new(Mutex::new((0..MAX_DECKS).map(|_| None).collect())),
             stemgen_download_lock: Arc::new(Mutex::new(())),
             live_stems_enabled,
         };
@@ -600,6 +635,9 @@ impl EngineTransport {
     /// Stop, rebuild, and start the engine with a new config (settings save).
     #[flutter_rust_bridge::frb(ignore)]
     pub fn restart(&self, config: EngineConfig) -> Result<(), String> {
+        for generation in self.deck_load_generation.iter() {
+            generation.fetch_add(1, Ordering::AcqRel);
+        }
         if let Ok(mut live) = self.live_separators.lock() {
             for slot in live.iter_mut() {
                 slot.take();
@@ -612,9 +650,26 @@ impl EngineTransport {
         if let Some(engine) = guard.as_mut() {
             engine.stop().map_err(|e| e.to_string())?;
         }
+        let previous_deck_count = self.deck_count.load(Ordering::Acquire);
+        let deck_count = config.num_decks;
         match self.build_started_engine(config) {
             Ok(engine) => {
+                // A fresh engine is empty, so deck 0 is a neutral unloaded
+                // template for retiring decks the new profile dropped.
+                let retirement = engine.deck_snapshot(0);
+                if let Ok(mut chrome) = self.sampler_slots.lock() {
+                    chrome.resize_with(deck_count, empty_deck_sampler_chrome);
+                }
+                self.deck_count.store(deck_count, Ordering::Release);
                 *guard = Some(engine);
+                drop(guard);
+                if previous_deck_count > deck_count {
+                    if let Some(blank) = retirement {
+                        self.publish_retired_decks(previous_deck_count, deck_count, blank);
+                    }
+                }
+                // Hydrate every deck of the new profile, including empty ones.
+                self.publish_current_status();
                 Ok(())
             }
             Err(err) => {
@@ -658,7 +713,9 @@ impl EngineTransport {
         engine
             .set_normalizer_target(normalizer_target)
             .map_err(|e| e.to_string())?;
-        for deck_id in 0..2 {
+        // Read under the engine lock: restart updates the count while holding it.
+        let deck_count = self.deck_count.load(Ordering::Acquire);
+        for deck_id in 0..deck_count {
             engine
                 .set_deck_jog_mode(deck_id, top_jog, outer_jog)
                 .map_err(|e| e.to_string())?;
@@ -670,8 +727,12 @@ impl EngineTransport {
     pub fn restart_from_settings(&self) -> Result<(), String> {
         let config = settings_engine_config()?;
         self.restart(config)?;
-        let (target, top, outer) = settings_host_runtime()?;
-        self.apply_host_settings(target, top, outer)
+        let applied = settings_host_runtime()
+            .and_then(|(target, top, outer)| self.apply_host_settings(target, top, outer));
+        // Hydrate every deck of the new profile, including empty ones: a bare
+        // profile swap otherwise leaves their routing/state at mirror defaults.
+        self.publish_current_status();
+        applied
     }
 
     /// Stop audio streams; the transport still owns the worker until Drop.
@@ -832,6 +893,21 @@ impl EngineTransport {
             &CmdBody::SetCrossfader {
                 position,
                 soft_takeover: false,
+            },
+        )
+    }
+
+    /// Assign a deck to crossfader side A, Thru, or side B.
+    pub fn set_crossfader_assign(
+        &self,
+        deck_id: u16,
+        assignment: CrossfaderAssign,
+    ) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetCrossfaderAssign,
+            &CmdBody::SetCrossfaderAssign {
+                assignment: assignment.into(),
             },
         )
     }
@@ -1008,6 +1084,9 @@ impl EngineTransport {
     }
 
     pub fn unload(&self, deck_id: u16) -> Result<(), String> {
+        if usize::from(deck_id) >= self.deck_count.load(Ordering::Acquire) {
+            return Err(format!("Invalid deck ID: {deck_id}"));
+        }
         // Drop the producer + its ring before the deck unload closes coverage.
         if let Ok(mut live) = self.live_separators.lock() {
             if let Some(previous) = live.get_mut(usize::from(deck_id)).and_then(Option::take) {
@@ -1213,7 +1292,7 @@ impl EngineTransport {
     pub fn clear_sampler(&self, deck_id: u16, slot: u8) -> Result<(), String> {
         let deck = usize::from(deck_id);
         let slot_i = usize::from(slot);
-        if deck >= NUM_DECKS || slot_i >= SAMPLER_SLOT_COUNT {
+        if deck >= self.deck_count.load(Ordering::Acquire) || slot_i >= SAMPLER_SLOT_COUNT {
             return Err(format!("Invalid sampler deck/slot: {deck_id}/{slot}"));
         }
         let snap = {
@@ -1227,24 +1306,29 @@ impl EngineTransport {
             engine
                 .clear_sampler_slot(deck, slot_i)
                 .map_err(|e| e.to_string())?;
-            engine
-                .deck_snapshot(deck)
-                .ok_or_else(|| "deck snapshot unavailable".to_string())?
-        };
-        {
+            // Hold the engine lock across the chrome write: `restart` takes the
+            // engine lock before resizing the chrome, so this order keeps a
+            // shrink from truncating the slot between the lookup and the write.
             let mut chrome = self
                 .sampler_slots
                 .lock()
                 .map_err(|_| "sampler chrome lock poisoned".to_string())?;
-            chrome[deck][slot_i] = SamplerSlotChrome::default();
-        }
+            let deck_chrome = chrome
+                .get_mut(deck)
+                .ok_or_else(|| format!("Invalid sampler deck/slot: {deck_id}/{slot}"))?;
+            let snap = engine
+                .deck_snapshot(deck)
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?;
+            deck_chrome[slot_i] = SamplerSlotChrome::default();
+            snap
+        };
         self.publish_deck_updated(deck_id, snap)
     }
 
     /// Load a sampler bank's slots onto a deck (prepare outside the engine lock).
     pub fn set_sampler_bank(&self, deck_id: u16, bank_id: String) -> Result<(), String> {
         let deck = usize::from(deck_id);
-        if deck >= NUM_DECKS {
+        if deck >= self.deck_count.load(Ordering::Acquire) {
             return Err(format!("Invalid deck ID: {deck_id}"));
         }
         let slots = {
@@ -1305,17 +1389,20 @@ impl EngineTransport {
             engine
                 .set_deck_sampler_bank(deck, Some(bank_id))
                 .map_err(|e| e.to_string())?;
-            engine
-                .deck_snapshot(deck)
-                .ok_or_else(|| "deck snapshot unavailable".to_string())?
-        };
-        {
+            // Same lock order as `restart`: engine, then sampler chrome.
             let mut chrome = self
                 .sampler_slots
                 .lock()
                 .map_err(|_| "sampler chrome lock poisoned".to_string())?;
-            chrome[deck] = deck_chrome;
-        }
+            let slot_chrome = chrome
+                .get_mut(deck)
+                .ok_or_else(|| format!("Invalid deck ID: {deck_id}"))?;
+            let snap = engine
+                .deck_snapshot(deck)
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?;
+            *slot_chrome = deck_chrome;
+            snap
+        };
         self.publish_deck_updated(deck_id, snap)
     }
 
@@ -1365,7 +1452,7 @@ impl EngineTransport {
 
     fn begin_deck_load(&self, deck_id: u16) -> Result<u64, String> {
         let idx = usize::from(deck_id);
-        if idx >= NUM_DECKS {
+        if idx >= self.deck_count.load(Ordering::Acquire) {
             return Err(format!("invalid deck id: {deck_id}"));
         }
         Ok(self.deck_load_generation[idx].fetch_add(1, Ordering::AcqRel) + 1)
@@ -1373,7 +1460,8 @@ impl EngineTransport {
 
     fn is_current_deck_load(&self, deck_id: u16, generation: u64) -> bool {
         let idx = usize::from(deck_id);
-        idx < NUM_DECKS && self.deck_load_generation[idx].load(Ordering::Acquire) == generation
+        idx < self.deck_count.load(Ordering::Acquire)
+            && self.deck_load_generation[idx].load(Ordering::Acquire) == generation
     }
 
     /// Opportunistically separate the loaded track on the fly when no cache
@@ -1541,7 +1629,7 @@ impl EngineTransport {
     ) -> Result<(), String> {
         let deck = usize::from(deck_id);
         let slot_i = usize::from(slot);
-        if deck >= NUM_DECKS || slot_i >= SAMPLER_SLOT_COUNT {
+        if deck >= self.deck_count.load(Ordering::Acquire) || slot_i >= SAMPLER_SLOT_COUNT {
             return Err(format!("Invalid sampler deck/slot: {deck_id}/{slot}"));
         }
         let chrome = chrome_from_prepared(&prepared);
@@ -1556,17 +1644,20 @@ impl EngineTransport {
             engine
                 .assign_prepared_sampler(deck, slot_i, prepared)
                 .map_err(|e| e.to_string())?;
-            engine
-                .deck_snapshot(deck)
-                .ok_or_else(|| "deck snapshot unavailable".to_string())?
-        };
-        {
+            // Same lock order as `restart`: engine, then sampler chrome.
             let mut slots = self
                 .sampler_slots
                 .lock()
                 .map_err(|_| "sampler chrome lock poisoned".to_string())?;
-            slots[deck][slot_i] = chrome;
-        }
+            let deck_chrome = slots
+                .get_mut(deck)
+                .ok_or_else(|| format!("Invalid sampler deck/slot: {deck_id}/{slot}"))?;
+            let snap = engine
+                .deck_snapshot(deck)
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?;
+            deck_chrome[slot_i] = chrome;
+            snap
+        };
         self.publish_deck_updated(deck_id, snap)
     }
 
@@ -1578,6 +1669,43 @@ impl EngineTransport {
                 deck_snapshot_to_evt(snap),
             )
             .map_err(|e| e.to_string())
+    }
+
+    /// Publish an empty, stopped snapshot for every deck the new profile dropped.
+    ///
+    /// History and the UI keep per-deck state by id; without this, decks removed
+    /// by shrinking the profile stay "playing" and their set entries never close.
+    fn publish_retired_decks(
+        &self,
+        previous_deck_count: usize,
+        deck_count: usize,
+        mut blank: DeckSnapshot,
+    ) {
+        blank.playing = false;
+        blank.track = None;
+        blank.track_id = None;
+        blank.title = None;
+        blank.artist = None;
+        blank.album = None;
+        blank.isrc = None;
+        blank.bpm = None;
+        blank.key = None;
+        blank.position_ms = None;
+        blank.duration_ms = None;
+        blank.cue_point_ms = None;
+        blank.active_loop = None;
+        blank.pending_loop_in_ms = None;
+        blank.slip_shadow_position_ms = None;
+        blank.stems_ready = false;
+        blank.stems_live = false;
+        blank.loudness_lufs = None;
+        blank.active_sampler_bank_id = None;
+        blank.hot_cues.clear();
+        blank.saved_loops.clear();
+        for deck_id in deck_count..previous_deck_count {
+            blank.id = deck_id as u16;
+            let _ = self.publish_deck_updated(blank.id, blank.clone());
+        }
     }
 
     fn publish_empty(&self, origin: Origin, kind: Kind) -> Result<(), String> {
@@ -1694,6 +1822,7 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.gain_trim = Some(snap.gain_trim);
     evt.fx = Some(snap.fx.iter().map(fx_slot_chrome).collect());
     evt.fx_routed = Some(snap.fx_routed);
+    evt.crossfader_assign = Some(snap.crossfader_assign.into());
     evt.headphone_cue = Some(snap.headphone_cue);
     evt.duration_ms = snap.duration_ms;
     evt.duration_known = true;
@@ -1764,6 +1893,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             key_lock,
             key_shift,
             keyboard_page,
+            crossfader_assign,
             key_shift_page,
             keyboard_root_hot_cue,
             pad_mode,
@@ -1798,6 +1928,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.fx = Some(fx.iter().map(fx_slot_chrome).collect());
             evt.fx_routed = Some(fx_routed);
             evt.headphone_cue = Some(headphone_cue);
+            evt.crossfader_assign = Some(crossfader_assign.into());
             evt.duration_ms = duration_ms;
             evt.duration_known = true;
             evt.speed = Some(speed);
@@ -1898,6 +2029,7 @@ mod tests {
             bpm: None,
             key: None,
             playing: false,
+            crossfader_assign: EngineCrossfaderAssign::A,
             volume,
             speed: 0.5,
             tempo_range: 0.08,
@@ -2053,6 +2185,7 @@ mod tests {
     fn map_status_fans_out_crossfader_and_decks() {
         let mut deck1 = sample_deck(1, 0.7);
         deck1.sync_mode = SyncMode::Tempo;
+        deck1.crossfader_assign = EngineCrossfaderAssign::Thru;
         let mapped = recv_mapped(
             Origin::Mixer,
             Kind::Status,
@@ -2102,7 +2235,7 @@ mod tests {
         assert_eq!(mapped[1].loudness_lufs, None);
         assert_eq!(mapped[1].auto_gain_db, Some(0.0));
         assert_eq!(mapped[2].deck_id, Some(1));
-        assert_eq!(mapped[2].volume, Some(0.7));
+        assert_eq!(mapped[2].crossfader_assign, Some(CrossfaderAssign::Thru));
         assert_eq!(mapped[2].sync_mode, Some(SyncMode::Tempo));
     }
 
@@ -2258,7 +2391,7 @@ mod tests {
     fn attach_sampler_chrome_fills_updated_evt() {
         let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
         evt.deck_id = Some(0);
-        let mut chrome = empty_all_sampler_chrome();
+        let mut chrome = empty_all_sampler_chrome(2);
         chrome[0][0] = SamplerSlotChrome {
             label: Some("kick".into()),
             track_id: None,
@@ -2272,5 +2405,117 @@ mod tests {
         assert_eq!(slots[0].label.as_deref(), Some("kick"));
         assert_eq!(slots[0].path.as_deref(), Some("/samples/kick.wav"));
         assert_eq!(slots[0].duration_ms, Some(250));
+    }
+
+    fn null_transport() -> (EngineTransport, crate::api::library::LibraryTransport) {
+        let library = crate::api::library::LibraryTransport::open_in_memory().unwrap();
+        let transport = EngineTransport::start_with(&library, profile_config(2)).unwrap();
+        (transport, library)
+    }
+
+    fn profile_config(num_decks: usize) -> EngineConfig {
+        EngineConfig {
+            num_decks,
+            backend: "null".into(),
+            ..EngineConfig::default()
+        }
+    }
+
+    fn recv_status(rx: &engine_core::EvtReceiver) -> engine_api::EngineStatus {
+        loop {
+            let event = rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("evt bus")
+                .expect("evt");
+            if *event.kind() == Kind::Status {
+                if let EvtBody::EngineStatus { status } =
+                    decode_evt_body(event.payload()).expect("decode status")
+                {
+                    return status;
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn growing_the_profile_hydrates_every_new_deck() {
+        let (transport, _library) = null_transport();
+        let rx = transport.subscribe_evt_all().unwrap();
+        transport.restart(profile_config(4)).unwrap();
+        let status = recv_status(&rx);
+        assert_eq!(status.decks.len(), 4);
+        let routing: Vec<_> = status
+            .decks
+            .iter()
+            .map(|deck| deck.crossfader_assign)
+            .collect();
+        assert_eq!(
+            routing,
+            vec![
+                EngineCrossfaderAssign::A,
+                EngineCrossfaderAssign::B,
+                EngineCrossfaderAssign::A,
+                EngineCrossfaderAssign::B,
+            ]
+        );
+    }
+
+    #[test]
+    fn shrinking_the_profile_retires_removed_decks() {
+        let (transport, _library) = null_transport();
+        transport.restart(profile_config(4)).unwrap();
+        let rx = transport.subscribe_evt_all().unwrap();
+        transport.restart(profile_config(2)).unwrap();
+        for retired in [2u16, 3] {
+            let body = loop {
+                let event = rx
+                    .recv_timeout(Duration::from_secs(5))
+                    .expect("evt bus")
+                    .expect("evt");
+                if *event.kind() != Kind::Updated {
+                    continue;
+                }
+                if let EvtBody::DeckUpdated { id, .. } =
+                    decode_evt_body(event.payload()).expect("decode evt")
+                {
+                    if id == retired {
+                        break decode_evt_body(event.payload()).unwrap();
+                    }
+                }
+            };
+            let EvtBody::DeckUpdated {
+                playing,
+                track,
+                track_id,
+                duration_ms,
+                ..
+            } = body
+            else {
+                panic!("expected DeckUpdated");
+            };
+            assert!(!playing);
+            assert!(track.is_none());
+            assert!(track_id.is_none());
+            assert!(duration_ms.is_none());
+        }
+        // The retired slots are gone: sampler commands must fail, not panic.
+        assert!(transport.clear_sampler(3, 0).is_err());
+        assert!(transport.set_sampler_bank(3, "bank".into()).is_err());
+    }
+
+    #[test]
+    fn jog_defaults_apply_to_every_enabled_deck() {
+        let (transport, _library) = null_transport();
+        transport.restart(profile_config(4)).unwrap();
+        transport
+            .apply_host_settings(None, JogMode::Ignore, JogMode::Vinyl)
+            .unwrap();
+        let guard = transport.engine.lock().unwrap();
+        let deck = guard
+            .as_ref()
+            .and_then(|engine| engine.deck_snapshot(3))
+            .expect("deck D snapshot");
+        assert_eq!(deck.top_jog_mode, JogMode::Ignore);
+        assert_eq!(deck.outer_jog_mode, JogMode::Vinyl);
     }
 }

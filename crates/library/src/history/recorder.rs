@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use audio_core::CrossfaderAssign;
 use library_core::{Result, TrackId};
 use uuid::Uuid;
 
@@ -37,6 +38,7 @@ impl Default for HistorySettings {
 pub struct DeckPlaySnapshot {
     pub playing: bool,
     pub volume: f32,
+    pub crossfader_assign: CrossfaderAssign,
     pub track_id: Option<String>,
     pub track_path: Option<String>,
     pub title: Option<String>,
@@ -180,6 +182,7 @@ impl HistoryRecorder {
                 snapshot: DeckPlaySnapshot {
                     playing: false,
                     volume: 1.0,
+                    crossfader_assign: CrossfaderAssign::Thru,
                     track_id: None,
                     track_path: None,
                     title: None,
@@ -540,8 +543,11 @@ impl HistoryRecorder {
         let loaded = deck.snapshot.track_id.is_some() || deck.snapshot.track_path.is_some();
         deck.snapshot.playing
             && loaded
-            && effective_output(deck_id, deck.snapshot.volume, self.crossfader)
-                >= self.settings.min_deck_volume
+            && effective_output(
+                deck.snapshot.crossfader_assign,
+                deck.snapshot.volume,
+                self.crossfader,
+            ) >= self.settings.min_deck_volume
     }
 
     fn any_deck_qualifying(&self) -> bool {
@@ -549,24 +555,25 @@ impl HistoryRecorder {
     }
 }
 
-pub fn crossfader_gain(deck_id: usize, crossfader: f32) -> f32 {
+pub fn crossfader_gain(assignment: CrossfaderAssign, crossfader: f32) -> f32 {
     let t = crossfader.clamp(0.0, 1.0);
     let angle = t * std::f32::consts::FRAC_PI_2;
-    match deck_id {
-        0 => angle.cos(),
-        1 => angle.sin(),
-        _ => 1.0,
+    match assignment {
+        CrossfaderAssign::A => angle.cos(),
+        CrossfaderAssign::B => angle.sin(),
+        CrossfaderAssign::Thru => 1.0,
     }
 }
 
-pub fn effective_output(deck_id: usize, volume: f32, crossfader: f32) -> f32 {
-    volume * crossfader_gain(deck_id, crossfader)
+pub fn effective_output(assignment: CrossfaderAssign, volume: f32, crossfader: f32) -> f32 {
+    volume * crossfader_gain(assignment, crossfader)
 }
 
 fn merge_deck_play_snapshot(prev: &DeckPlaySnapshot, next: DeckPlaySnapshot) -> DeckPlaySnapshot {
     DeckPlaySnapshot {
         playing: next.playing,
         volume: next.volume,
+        crossfader_assign: next.crossfader_assign,
         track_id: next.track_id.or_else(|| prev.track_id.clone()),
         track_path: next.track_path.or_else(|| prev.track_path.clone()),
         title: next.title.or_else(|| prev.title.clone()),
@@ -710,6 +717,7 @@ mod tests {
         DeckPlaySnapshot {
             playing,
             volume,
+            crossfader_assign: CrossfaderAssign::A,
             track_id: Some("track-1".into()),
             track_path: Some(path.into()),
             title: Some("Title".into()),
@@ -761,11 +769,13 @@ mod tests {
 
     #[test]
     fn crossfader_gains_match_mixer() {
-        assert!((crossfader_gain(0, 0.0) - 1.0).abs() < f32::EPSILON);
-        assert!((crossfader_gain(1, 1.0) - 1.0).abs() < f32::EPSILON);
-        assert!(effective_output(0, 0.1, 0.0) >= 0.05);
-        assert!(effective_output(1, 0.1, 1.0) >= 0.05);
-        assert!(effective_output(0, 0.1, 1.0) < 0.05);
+        assert!((crossfader_gain(CrossfaderAssign::A, 0.0) - 1.0).abs() < f32::EPSILON);
+        assert!((crossfader_gain(CrossfaderAssign::B, 1.0) - 1.0).abs() < f32::EPSILON);
+        assert_eq!(crossfader_gain(CrossfaderAssign::Thru, 0.0), 1.0);
+        assert_eq!(crossfader_gain(CrossfaderAssign::Thru, 1.0), 1.0);
+        assert!(effective_output(CrossfaderAssign::A, 0.1, 0.0) >= 0.05);
+        assert!(effective_output(CrossfaderAssign::B, 0.1, 1.0) >= 0.05);
+        assert!(effective_output(CrossfaderAssign::A, 0.1, 1.0) < 0.05);
     }
 
     #[test]
@@ -773,6 +783,7 @@ mod tests {
         let prev = DeckPlaySnapshot {
             playing: true,
             volume: 0.8,
+            crossfader_assign: CrossfaderAssign::A,
             track_id: Some("track-1".into()),
             track_path: Some("/music/a.flac".into()),
             title: Some("Title".into()),
@@ -786,6 +797,7 @@ mod tests {
         let next = DeckPlaySnapshot {
             playing: false,
             volume: 0.5,
+            crossfader_assign: CrossfaderAssign::Thru,
             track_id: None,
             track_path: None,
             title: None,
@@ -801,6 +813,7 @@ mod tests {
         assert_eq!(merged.title.as_deref(), Some("Title"));
         assert!(!merged.playing);
         assert!((merged.volume - 0.5).abs() < f32::EPSILON);
+        assert_eq!(merged.crossfader_assign, CrossfaderAssign::Thru);
     }
 
     #[test]
@@ -1005,7 +1018,94 @@ mod tests {
             .expect("deck");
         fx.recorder.tick(&fx.db).expect("tick");
         assert!(fx.recorder.active_session_id().is_none());
-        assert!(effective_output(0, 1.0, 1.0) < 0.05);
+        assert!(effective_output(CrossfaderAssign::A, 1.0, 1.0) < 0.05);
+    }
+
+    #[test]
+    fn deck_a_thru_qualifies_at_full_right() {
+        let mut fx = fixture(fast_settings());
+        fx.recorder.on_crossfader(&fx.db, 1.0).expect("xf");
+        let mut snapshot = snap("/music/a.flac", true, 1.0);
+        snapshot.crossfader_assign = CrossfaderAssign::Thru;
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snapshot)
+            .expect("deck");
+        fx.recorder.tick(&fx.db).expect("tick");
+        let session = fx.recorder.active_session_id().expect("active");
+        let entries = fx
+            .recorder
+            .session_entries(&fx.db, session)
+            .expect("entries");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].deck, 0);
+        assert!(fx.recorder.decks[0].pending.is_some());
+    }
+
+    #[test]
+    fn assigned_decks_c_and_d_do_not_commit_when_cut() {
+        for (deck, assignment, position) in
+            [(2, CrossfaderAssign::A, 1.0), (3, CrossfaderAssign::B, 0.0)]
+        {
+            let mut fx = fixture(fast_settings());
+            fx.recorder.on_crossfader(&fx.db, position).expect("xf");
+            let mut snapshot = snap("/music/cut.flac", true, 1.0);
+            snapshot.crossfader_assign = assignment;
+            fx.recorder
+                .on_deck_updated(&fx.db, deck, snapshot)
+                .expect("deck");
+            fx.recorder.tick(&fx.db).expect("tick");
+            assert!(fx.recorder.active_session_id().is_none());
+            assert!(fx.recorder.decks[deck].pending.is_none());
+        }
+    }
+
+    #[test]
+    fn assignment_changes_reconcile_pending_plays() {
+        let mut fx = fixture(fast_settings());
+        fx.recorder.on_crossfader(&fx.db, 1.0).expect("xf");
+        let mut snapshot = snap("/music/c.flac", true, 1.0);
+        snapshot.crossfader_assign = CrossfaderAssign::Thru;
+        fx.recorder
+            .on_deck_updated(&fx.db, 2, snapshot.clone())
+            .expect("thru");
+        assert!(fx.recorder.decks[2].pending.is_some());
+
+        snapshot.crossfader_assign = CrossfaderAssign::A;
+        fx.recorder
+            .on_deck_updated(&fx.db, 2, snapshot.clone())
+            .expect("cut");
+        assert!(fx.recorder.decks[2].pending.is_none());
+        fx.recorder.tick(&fx.db).expect("tick cut");
+        assert!(fx.recorder.active_session_id().is_none());
+
+        snapshot.crossfader_assign = CrossfaderAssign::B;
+        fx.recorder
+            .on_deck_updated(&fx.db, 2, snapshot.clone())
+            .expect("audible");
+        assert_eq!(
+            fx.recorder.decks[2]
+                .pending
+                .as_ref()
+                .expect("pending")
+                .snapshot
+                .crossfader_assign,
+            CrossfaderAssign::B,
+        );
+        fx.recorder.tick(&fx.db).expect("commit");
+        let session = fx.recorder.active_session_id().expect("active").to_string();
+
+        snapshot.crossfader_assign = CrossfaderAssign::A;
+        fx.recorder
+            .on_deck_updated(&fx.db, 2, snapshot)
+            .expect("cut committed");
+        assert!(fx.recorder.decks[2].pending.is_none());
+        let entries = fx
+            .recorder
+            .session_entries(&fx.db, &session)
+            .expect("entries");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].deck, 2);
+        assert!(entries[0].ended_at.is_some());
     }
 
     /// AC9: bootstrap restore prompt; decline starts fresh on next play.

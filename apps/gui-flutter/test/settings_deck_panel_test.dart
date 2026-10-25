@@ -180,4 +180,45 @@ void main() {
     await tapStep(tester, '+');
     expect(emitted, isNull, reason: 'no emission past the ceiling');
   });
+  testWidgets('four-deck profile shows sampler defaults for decks C and D', (
+    tester,
+  ) async {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    final draft = copyAppSettings(
+      defaultAppSettings(),
+      numDecks: 4,
+      deckDefaultSamplerBankId: [null, null, 'c', 'd'],
+    );
+    await pumpDeckPanel(tester, draft: draft, onChanged: (_) {});
+
+    expect(find.text(l10n.settingsDeckCount.toUpperCase()), findsOneWidget);
+    expect(
+      find.text(l10n.settingsDeckDefaultSamplerBankC.toUpperCase()),
+      findsOneWidget,
+    );
+    expect(
+      find.text(l10n.settingsDeckDefaultSamplerBankD.toUpperCase()),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('switching to four decks adds missing sampler defaults', (
+    tester,
+  ) async {
+    var draft = defaultAppSettings();
+    await pumpDeckPanel(
+      tester,
+      draft: draft,
+      onChanged: (next) => draft = next,
+    );
+
+    await tester.tap(find.text('2 decks'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('4 decks'));
+    await tester.pumpAndSettle();
+
+    await pumpDeckPanel(tester, draft: draft, onChanged: (_) {});
+    expect(tester.takeException(), isNull);
+    expect(draft.deckDefaultSamplerBankId, [null, null, null, null]);
+  });
 }

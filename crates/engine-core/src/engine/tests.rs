@@ -44,6 +44,22 @@ fn started_null_engine() -> Engine {
     engine
 }
 
+#[test]
+fn four_deck_engine_exposes_deck_four_and_rejects_deck_five() {
+    let config = EngineConfig {
+        backend: "null".into(),
+        num_decks: 4,
+        ..Default::default()
+    };
+    let mut engine = Engine::new(config).unwrap();
+    engine.start().unwrap();
+
+    engine.set_deck_volume(3, 0.25).unwrap();
+    assert_eq!(with_channel(&engine, 3, |channel| channel.volume()), 0.25);
+    assert!(engine.set_deck_volume(4, 0.5).is_err());
+    engine.stop().unwrap();
+}
+
 /// Inspect the mixer channel that backs `deck_id`, bypassing the public API so delegation
 /// tests observe mixer-owned state directly instead of trusting the same setter/getter pair.
 fn with_channel<T>(

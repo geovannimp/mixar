@@ -42,6 +42,22 @@ class SettingsDeckPanel extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
+              SettingsField(
+                label: l10n.settingsDeckCount,
+                child: SettingsSelect<int>(
+                  dialogTitle: l10n.settingsDeckCount,
+                  value: draft.numDecks,
+                  options: const [2, 4],
+                  labelBuilder: (count) => count == 2
+                      ? l10n.settingsDeckCountTwo
+                      : l10n.settingsDeckCountFour,
+                  onChanged: (count) => onChanged(
+                    normalizeAppSettings(
+                      copyAppSettings(draft, numDecks: count),
+                    ),
+                  ),
+                ),
+              ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 12,
@@ -176,20 +192,17 @@ class SettingsDeckPanel extends ConsumerWidget {
                       onChanged(copyAppSettings(draft, samplerStripRoute: m)),
                 ),
               ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Wrap(
                 spacing: 12,
+                runSpacing: 12,
                 children: [
-                  for (var deck = 0; deck < 2; deck++)
-                    Expanded(
+                  for (var deck = 0; deck < draft.numDecks; deck++)
+                    SizedBox(
+                      width: 260,
                       child: SettingsField(
-                        label: deck == 0
-                            ? l10n.settingsDeckDefaultSamplerBankA
-                            : l10n.settingsDeckDefaultSamplerBankB,
+                        label: _deckBankLabel(l10n, deck),
                         child: SettingsSelect<String?>(
-                          dialogTitle: deck == 0
-                              ? l10n.settingsDeckDefaultSamplerBankA
-                              : l10n.settingsDeckDefaultSamplerBankB,
+                          dialogTitle: _deckBankLabel(l10n, deck),
                           value: draft.deckDefaultSamplerBankId[deck],
                           options: _bankOptions(
                             banks,
@@ -209,9 +222,17 @@ class SettingsDeckPanel extends ConsumerWidget {
     );
   }
 
+  static String _deckBankLabel(AppLocalizations l10n, int deck) =>
+      switch (deck) {
+        0 => l10n.settingsDeckDefaultSamplerBankA,
+        1 => l10n.settingsDeckDefaultSamplerBankB,
+        2 => l10n.settingsDeckDefaultSamplerBankC,
+        _ => l10n.settingsDeckDefaultSamplerBankD,
+      };
+
   void _setDeckBank(int deck, String? bankId) {
     final banks = List<String?>.from(draft.deckDefaultSamplerBankId);
-    while (banks.length < 2) {
+    while (banks.length < draft.numDecks) {
       banks.add(null);
     }
     banks[deck] = bankId;

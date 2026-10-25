@@ -10,9 +10,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `output_device`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `start_live_stems`, `start_with`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `output_device`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `publish_retired_decks`, `source_label`, `source_path`, `start_live_stems`, `start_with`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
 /// Output devices of the compiled-in real backend (Settings → Audio).
@@ -140,6 +140,12 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Crossfader `0..1` (A … B).
   Future<void> setCrossfader({required double position});
+
+  /// Assign a deck to crossfader side A, Thru, or side B.
+  Future<void> setCrossfaderAssign({
+    required int deckId,
+    required CrossfaderAssign assignment,
+  });
 
   /// Cue/master headphone mix `0..1`.
   Future<void> setCueMix({required double mix});
@@ -285,6 +291,9 @@ class ActiveLoopInfo {
           active == other.active;
 }
 
+/// How a deck lane is affected by the main crossfader (Dart mirror).
+enum CrossfaderAssign { a, thru, b }
+
 /// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
 class EngineEvt {
   final EngineEvtKind kind;
@@ -315,6 +324,7 @@ class EngineEvt {
   final bool? fxRouted;
   final bool? headphoneCue;
   final double? crossfader;
+  final CrossfaderAssign? crossfaderAssign;
   final double? masterVolume;
   final double? cueVolume;
   final double? cueMix;
@@ -407,6 +417,7 @@ class EngineEvt {
     this.fxRouted,
     this.headphoneCue,
     this.crossfader,
+    this.crossfaderAssign,
     this.masterVolume,
     this.cueVolume,
     this.cueMix,
@@ -467,6 +478,7 @@ class EngineEvt {
       fxRouted.hashCode ^
       headphoneCue.hashCode ^
       crossfader.hashCode ^
+      crossfaderAssign.hashCode ^
       masterVolume.hashCode ^
       cueVolume.hashCode ^
       cueMix.hashCode ^
@@ -529,6 +541,7 @@ class EngineEvt {
           fxRouted == other.fxRouted &&
           headphoneCue == other.headphoneCue &&
           crossfader == other.crossfader &&
+          crossfaderAssign == other.crossfaderAssign &&
           masterVolume == other.masterVolume &&
           cueVolume == other.cueVolume &&
           cueMix == other.cueMix &&
