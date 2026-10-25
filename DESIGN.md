@@ -166,6 +166,7 @@ Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom 
 - **MixarTheme semantic tokens** (`background`, `foreground`, `mutedForeground`, `border`, `primary`, `selection`, `primaryTint`, `accentTint`, `cueTint`): Base app chrome — do not override with raw hex in widgets; read from `context.theme.colors`. Solid scales live in `mixar_palette.dart` (teal / sky / rose / amber 50–950).
 - **Fader Deck A sky** (#38bdf8 grip): Vertical/horizontal fader accent for Deck A — matches website `--deck-a`.
 - **Fader Deck B rose** (#fb7185 grip): Fader accent for Deck B — matches website `--deck-b`.
+- **Fader Deck C amber** (#fbbf24 grip) and **Deck D violet** (#a78bfa grip): Distinct four-deck identities, shared across deck chrome, waveforms, mixer controls, history badges, and library load menus through `faderAccentForDeck`.
 - **Cue Amber** (#FCD34D / amber-300 · ring #D97706 / amber-600): Headphone cue / PFL active state.
 - **VU ladder:** teal → amber → red segments for level meters.
 
@@ -217,7 +218,7 @@ Flutter ships **Outfit** (body), **Space Grotesk** (display), and **Noto Sans Mo
 
 **Closing developers section:** The home page's final band is a dark space window in the dark theme - page color at the edges (merging with the preceding section), a low, dark green bloom rising from the bottom center - and the plain page background in the light theme. The shared starfield and audio glyphs are light on the dark band and dark teal on the light one. A flat, opaque tinted card keeps the normal theme tokens: light-on-dark in the dark theme and dark-on-light in the light theme.
 
-**App shell:** Minimum window 1024×768, default 1280×800. Deck layout: Deck A | Mixer | Deck B in a single card row (`deck_grid.dart`). Custom 40px header; undecorated Linux desktop windows keep a 12px top-corner clip (`kDesktopWindowRadius`) so the compositor shadow matches — maximized drops to 0.
+**App shell:** Minimum window 1024×768, default 1280×800. Two-deck layout: Deck A | Mixer | Deck B; four-deck layout stacks A/C at left and B/D at right (`deck_grid.dart`). Four-channel mixer order: EQ/filter A+B | gain/volumes A+B | meters | gain/volumes C+D | EQ/filter C+D. Gain knobs sit above their volume faders, without deck-letter labels. Crossfader endpoint A/B labels open deck-assignment checklists; unchecked decks use Thru. Narrow deck headers scroll rather than shrink their controls. Custom 40px header; undecorated Linux desktop windows keep a 12px top-corner clip (`kDesktopWindowRadius`) so the compositor shadow matches — maximized drops to 0.
 
 **Responsive breakpoints (web):** Tailwind defaults — `sm` 640px, `md` 768px, `lg` 1024px. Below `md` the header keeps the logo, GitHub link, and theme toggle; the section links (Features, NI Stems, Developers) appear from `md` up.
 

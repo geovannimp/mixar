@@ -30,7 +30,6 @@ class MixerPage extends ConsumerStatefulWidget {
 
   static const _waveformDefault = 160.0;
   static const _waveformMin = 110.0;
-  static const _deckRowHeight = 410.0;
 
   @override
   ConsumerState<MixerPage> createState() => _MixerPageState();
@@ -38,6 +37,7 @@ class MixerPage extends ConsumerStatefulWidget {
 
 class _MixerPageState extends ConsumerState<MixerPage> {
   late final PaneController _controller;
+  final _compactScroll = ScrollController();
 
   @override
   void initState() {
@@ -57,6 +57,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   @override
   void dispose() {
     _controller.dispose();
+    _compactScroll.dispose();
     super.dispose();
   }
 
@@ -87,10 +88,10 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final settings = ref
-        .watch(appSettingsProvider)
-        .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
+    final settingsState = ref.watch(appSettingsProvider);
+    final settings = settingsState.value ?? defaultAppSettings();
     final drawerMode = settings.libraryDrawerEnabled;
+    final deckRowHeight = settings.numDecks == 4 ? 560.0 : 410.0;
 
     // The drawer is its own route, so opening it is not a layout concern: the
     // panes below only decide whether the docked library is there at all.
@@ -117,28 +118,72 @@ class _MixerPageState extends ConsumerState<MixerPage> {
           'waveforms' => const WaveformSection(),
           'decks_library' => ColoredBox(
             color: theme.colors.card,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // In drawer mode the deck row fills the pane: the library moves
-                // to the drawer, so there is no split and no dead band below
-                // the decks.
-                if (drawerMode)
-                  const Expanded(child: ClipRect(child: DeckGrid()))
-                else ...[
-                  const SizedBox(
-                    height: MixerPage._deckRowHeight,
-                    child: ClipRect(child: DeckGrid()),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final minHeight = drawerMode
+                    ? constraints.maxHeight
+                    : deckRowHeight +
+                          FxBar.height +
+                          120 +
+                          2 * theme.style.borderWidth;
+                final height = constraints.maxHeight < minHeight
+                    ? minHeight
+                    : constraints.maxHeight;
+                final scrollBehavior = ScrollConfiguration.of(context);
+                return ScrollConfiguration(
+                  // Pad presses must never double as scroll drags; the library
+                  // is re-wrapped below so its lists keep default drag scrolling.
+                  behavior: scrollBehavior.copyWith(dragDevices: const {}),
+                  child: RawScrollbar(
+                    controller: _compactScroll,
+                    interactive: true,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      controller: _compactScroll,
+                      child: SizedBox(
+                        height: height,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // In drawer mode the deck row fills the pane: the library moves
+                            // to the drawer, so there is no split and no dead band below
+                            // the decks.
+                            if (drawerMode)
+                              const Expanded(child: ClipRect(child: DeckGrid()))
+                            else ...[
+                              SizedBox(
+                                height: deckRowHeight,
+                                child: const ClipRect(child: DeckGrid()),
+                              ),
+                              // Split the library from the mixer above it in the same
+                              // border colour as the rest of the library chrome.
+                              MDivider(
+                                padding: .zero,
+                                color: theme.colors.border,
+                              ),
+                              Expanded(
+                                child: ScrollConfiguration(
+                                  behavior: scrollBehavior,
+                                  child: const LibraryPanel(),
+                                ),
+                              ),
+                            ],
+                            // The FX bar rides at the pane's foot in both layouts.
+                            MDivider(
+                              padding: .zero,
+                              color: theme.colors.border,
+                            ),
+                            const SizedBox(
+                              height: FxBar.height,
+                              child: FxBar(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  // Split the library from the mixer above it in the same
-                  // border colour as the rest of the library chrome.
-                  MDivider(padding: .zero, color: theme.colors.border),
-                  const Expanded(child: LibraryPanel()),
-                ],
-                // The FX bar rides at the pane's foot in both layouts.
-                MDivider(padding: .zero, color: theme.colors.border),
-                const SizedBox(height: FxBar.height, child: FxBar()),
-              ],
+                );
+              },
             ),
           ),
           _ => const SizedBox.shrink(),

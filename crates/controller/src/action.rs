@@ -129,7 +129,9 @@ impl ControlSnapshot {
                 _ => {}
             },
             Origin::Deck(d) => {
-                let i = deck_idx(d);
+                let Some(i) = deck_idx(d) else {
+                    return;
+                };
                 match key {
                     "volume" => self.volume[i] = value,
                     "filter" | "filter_db" => self.filter[i] = value,
@@ -175,7 +177,7 @@ impl ControlSnapshot {
                 _ => None,
             };
         }
-        let i = deck_idx(crate::device::origin_deck_id(section)?);
+        let i = deck_idx(crate::device::origin_deck_id(section)?)?;
         Some(match name {
             "playing" => self.playing[i],
             "cue_hold" => self.cue_hold[i],
@@ -249,9 +251,13 @@ fn pad_mode_from_signal(rest: &str) -> Option<PadMode> {
     }
 }
 
-fn deck_idx(d: u16) -> usize {
-    (d as usize).min(3)
+fn deck_idx(d: u16) -> Option<usize> {
+    (d < 4).then_some(d as usize)
 }
+
+/// Normalized selector bands for a mapped three-state crossfader assignment.
+const CROSSFADER_ASSIGN_A_BAND: f32 = 1.0 / 3.0;
+const CROSSFADER_ASSIGN_THRU_BAND: f32 = 2.0 / 3.0;
 
 /// Matches `engine_core::config::DEFAULT_TEMPO_RANGE` / `DEFAULT_TEMPO_RANGE_STEPS`.
 const DEFAULT_TEMPO_RANGE: f32 = 0.06;
@@ -485,7 +491,7 @@ pub fn resolve_action(
             let Origin::Deck(d) = origin else {
                 return None;
             };
-            let i = deck_idx(d);
+            let i = deck_idx(d)?;
             let next = next_tempo_range(snap.tempo_range[i]);
             Some(engine_cmd(
                 origin,
@@ -508,6 +514,23 @@ pub fn resolve_action(
                     gain: norm.clamp(0.0, 1.0),
                     soft_takeover,
                 },
+            ))
+        }
+        "set_crossfader_assign" => {
+            let Origin::Deck(deck) = origin else {
+                return None;
+            };
+            let assignment = if norm < CROSSFADER_ASSIGN_A_BAND {
+                engine_api::CrossfaderAssign::A
+            } else if norm < CROSSFADER_ASSIGN_THRU_BAND {
+                engine_api::CrossfaderAssign::Thru
+            } else {
+                engine_api::CrossfaderAssign::B
+            };
+            Some(engine_cmd(
+                Origin::Deck(deck),
+                Kind::SetCrossfaderAssign,
+                CmdBody::SetCrossfaderAssign { assignment },
             ))
         }
         "set_crossfader" => Some(engine_cmd(
@@ -656,8 +679,9 @@ pub fn resolve_action(
             let Origin::Deck(d) = origin else {
                 return None;
             };
+            let i = deck_idx(d)?;
+            let cues = &snap.hot_cues[i];
             let idx = (slot_u - 1) as usize;
-            let cues = &snap.hot_cues[deck_idx(d)];
             if idx >= cues.len() {
                 return Some(engine_cmd(
                     origin,
@@ -701,11 +725,12 @@ pub fn resolve_action(
             let Origin::Deck(d) = origin else {
                 return None;
             };
+            let i = deck_idx(d)?;
             Some(engine_cmd(
                 origin,
                 Kind::LoopIn,
                 CmdBody::LoopIn {
-                    position_ms: snap.position_ms[deck_idx(d)],
+                    position_ms: snap.position_ms[i],
                 },
             ))
         }
@@ -716,11 +741,12 @@ pub fn resolve_action(
             let Origin::Deck(d) = origin else {
                 return None;
             };
+            let i = deck_idx(d)?;
             Some(engine_cmd(
                 origin,
                 Kind::LoopOut,
                 CmdBody::LoopOut {
-                    position_ms: snap.position_ms[deck_idx(d)],
+                    position_ms: snap.position_ms[i],
                 },
             ))
         }
@@ -1932,6 +1958,39 @@ mod tests {
             &snap,
         )
         .is_none());
+    }
+    #[test]
+    fn crossfader_assign_midi_bands_include_deck_four_and_boundaries() {
+        let snap = ControlSnapshot::default();
+        let map = |value| {
+            resolve_action(
+                "Deck(_)::set_crossfader_assign",
+                "deck_4",
+                ControlValue::Absolute(value),
+                true,
+                false,
+                &snap,
+            )
+        };
+        for (value, expected) in [
+            (0.0, engine_api::CrossfaderAssign::A),
+            (1.0 / 3.0 - 0.0001, engine_api::CrossfaderAssign::A),
+            (1.0 / 3.0, engine_api::CrossfaderAssign::Thru),
+            (2.0 / 3.0 - 0.0001, engine_api::CrossfaderAssign::Thru),
+            (2.0 / 3.0, engine_api::CrossfaderAssign::B),
+            (1.0, engine_api::CrossfaderAssign::B),
+        ] {
+            assert_eq!(
+                map(value),
+                Some(RoutedAction::EngineCmd {
+                    origin: Origin::Deck(3),
+                    kind: Kind::SetCrossfaderAssign,
+                    body: CmdBody::SetCrossfaderAssign {
+                        assignment: expected
+                    },
+                })
+            );
+        }
     }
 
     #[test]

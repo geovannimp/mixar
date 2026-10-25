@@ -6,7 +6,7 @@ const kFaderCenterSnapThreshold = 0.8;
 
 enum FaderOrientation { vertical, horizontal }
 
-enum FaderAccent { a, b, neutral }
+enum FaderAccent { a, b, c, d, neutral }
 
 enum _TickSize { major, minor }
 
@@ -36,7 +36,7 @@ const Map<_TickSize, double> _tickLength = {
   _TickSize.minor: 6.0,
 };
 
-/// Deck A/B / neutral tokens matching Tauri `DECK_ACCENTS` / `NEUTRAL_FADER_TRACK`.
+/// Deck A/B/C/D and neutral fader tokens.
 class FaderColors {
   const new({required this.track, required this.indicator, required this.grip});
 
@@ -56,6 +56,18 @@ class FaderColors {
     grip: Color(0xfffb7185), // rose-400
   );
 
+  static const c = FaderColors(
+    track: Color(0x14f59e0b), // amber-500 @ 8%
+    indicator: Color(0x8cfbbf24), // amber-400 @ 55%
+    grip: Color(0xfffbbf24), // amber-400
+  );
+
+  static const d = FaderColors(
+    track: Color(0x148b5cf6), // violet-500 @ 8%
+    indicator: Color(0x8ca78bfa), // violet-400 @ 55%
+    grip: Color(0xffa78bfa), // violet-400
+  );
+
   static const neutral = FaderColors(
     track: Color(0x1f71717a), // zinc-500 @ 12%
     indicator: Color(0x80a1a1aa), // zinc-400 @ 50%
@@ -65,6 +77,8 @@ class FaderColors {
   static FaderColors forAccent(FaderAccent accent) => switch (accent) {
     FaderAccent.a => a,
     FaderAccent.b => b,
+    FaderAccent.c => c,
+    FaderAccent.d => d,
     FaderAccent.neutral => neutral,
   };
 }
@@ -72,12 +86,16 @@ class FaderColors {
 FaderAccent? faderAccentForDeck(int deckId) => switch (deckId) {
   0 => FaderAccent.a,
   1 => FaderAccent.b,
+  2 => FaderAccent.c,
+  3 => FaderAccent.d,
   _ => null,
 };
 
 String deckDisplayLabel(int deckId) => switch (deckId) {
   0 => 'Deck A',
   1 => 'Deck B',
+  2 => 'Deck C',
+  3 => 'Deck D',
   _ => 'Deck ${deckId + 1}',
 };
 

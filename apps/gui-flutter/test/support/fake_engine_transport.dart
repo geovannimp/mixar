@@ -208,6 +208,12 @@ class FakeEngineTransport implements EngineTransport {
   Future<void> setCrossfader({required double position}) async {}
 
   @override
+  Future<void> setCrossfaderAssign({
+    required int deckId,
+    required CrossfaderAssign assignment,
+  }) async {}
+
+  @override
   Future<void> setCueMix({required double mix}) async {
     cueMixes.add(mix);
   }

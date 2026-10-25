@@ -39,6 +39,18 @@ pub type Sample = f32;
 /// Stereo frame: one sample per channel at a single time (L, R)
 pub type StereoFrame = [Sample; 2];
 
+/// How a deck lane is affected by the main crossfader.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CrossfaderAssign {
+    /// Routed to crossfader side A: silent when the fader is fully at B.
+    A,
+    /// Bypasses the crossfader and stays at full level.
+    Thru,
+    /// Routed to crossfader side B: silent when the fader is fully at A.
+    B,
+}
+
 /// Unique identifier for an audio device
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct DeviceId(pub String);

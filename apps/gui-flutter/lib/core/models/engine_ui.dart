@@ -14,6 +14,7 @@ class MixerChannelUi {
     this.gainTrim = 0.5,
     this.fxRouted = false,
     this.headphoneCue = false,
+    this.crossfaderAssign = CrossfaderAssign.a,
   });
 
   static const defaults = MixerChannelUi();
@@ -26,6 +27,7 @@ class MixerChannelUi {
   final double gainTrim;
   final bool fxRouted;
   final bool headphoneCue;
+  final CrossfaderAssign crossfaderAssign;
 
   MixerChannelUi patchedFrom(EngineEvt evt) => MixerChannelUi(
     volume: evt.volume ?? volume,
@@ -36,6 +38,7 @@ class MixerChannelUi {
     gainTrim: evt.gainTrim ?? gainTrim,
     fxRouted: evt.fxRouted ?? fxRouted,
     headphoneCue: evt.headphoneCue ?? headphoneCue,
+    crossfaderAssign: evt.crossfaderAssign ?? crossfaderAssign,
   );
 
   /// Optimistic write for the FX routing switch (engine evts supersede it).
@@ -48,6 +51,7 @@ class MixerChannelUi {
     gainTrim: gainTrim,
     fxRouted: value,
     headphoneCue: headphoneCue,
+    crossfaderAssign: crossfaderAssign,
   );
 
   @override
@@ -61,7 +65,8 @@ class MixerChannelUi {
           filter == other.filter &&
           gainTrim == other.gainTrim &&
           fxRouted == other.fxRouted &&
-          headphoneCue == other.headphoneCue;
+          headphoneCue == other.headphoneCue &&
+          crossfaderAssign == other.crossfaderAssign;
 
   @override
   int get hashCode => Object.hash(
@@ -73,6 +78,7 @@ class MixerChannelUi {
     gainTrim,
     fxRouted,
     headphoneCue,
+    crossfaderAssign,
   );
 }
 

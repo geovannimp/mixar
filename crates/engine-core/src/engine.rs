@@ -18,8 +18,6 @@ use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
-pub(crate) const NUM_DECKS: usize = 2;
-
 /// Cue point (ms) and optional loop region `(start, end)` for status mirroring.
 pub(crate) type DeckTransportState = (Option<i32>, Option<(i32, i32)>);
 
@@ -41,7 +39,7 @@ pub struct Engine {
     pub(crate) deck_control: Vec<DeckControlState>,
     /// Last published `stems_ready` per deck, so the tick emits one `Updated`
     /// when a live producer's first window lands.
-    pub(crate) stems_ready_seen: [bool; NUM_DECKS],
+    pub(crate) stems_ready_seen: Vec<bool>,
     pub(crate) soft_takeover: crate::soft_takeover::SoftTakeoverState,
 }
 
@@ -87,6 +85,7 @@ impl Engine {
         library_cmd: Option<LibraryBus>,
     ) -> Result<Self> {
         config.validate()?;
+        let num_decks = config.num_decks;
         let backend = create_backend(&config.backend)?;
 
         Ok(Self {
@@ -101,13 +100,13 @@ impl Engine {
             library_cmd,
             engine_buses: None,
             master_deck: 0,
-            deck_control: (0..NUM_DECKS)
+            deck_control: (0..num_decks)
                 .map(|_| DeckControlState {
                     quantize: true,
                     ..Default::default()
                 })
                 .collect(),
-            stems_ready_seen: [false; NUM_DECKS],
+            stems_ready_seen: vec![false; num_decks],
             soft_takeover: crate::soft_takeover::SoftTakeoverState::default(),
         })
     }
@@ -312,7 +311,7 @@ impl Engine {
         let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
             sample_rate,
             buffer_size as u32,
-            2,
+            self.config.num_decks,
             &self.config.resampler_quality(),
             self.config.sampler_strip_route(),
         )));

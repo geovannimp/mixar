@@ -38,6 +38,86 @@ void main() {
         expect(identical(container.read(engineUiProvider), before), isTrue);
       },
     );
+    test('profile removal clears a deck and invalidates pending loads', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      ui.apply(
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 3,
+          trackPath: '/d.wav',
+          trackId: 'track-d',
+          durationMs: 8000,
+          durationKnown: true,
+          positionMs: 1200,
+        ),
+      );
+      ui.setDeckTrackPath(1, '/b.wav');
+      final generation = container
+          .read(deckLoadGenerationProvider.notifier)
+          .begin(3);
+      container.read(deckLoadInFlightProvider.notifier).set(3, true);
+
+      ui.clearDeckState(3);
+
+      final state = container.read(engineUiProvider);
+      expect(state.trackPathFor(3), isNull);
+      expect(state.trackIdFor(3), isNull);
+      expect(state.durationMsFor(3), isNull);
+      expect(state.trackPathFor(1), '/b.wav');
+      expect(container.read(deckPlayheadsProvider), isNot(contains(3)));
+      expect(container.read(deckLoadInFlightProvider), isNot(contains(3)));
+      expect(
+        container
+            .read(deckLoadGenerationProvider.notifier)
+            .isCurrent(3, generation),
+        isFalse,
+      );
+    });
+
+    test('inactive deck events cannot restore cleared profile state', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      ui.setActiveDeckCount(2);
+      final before = container.read(engineUiProvider);
+
+      for (final deckId in [2, 3]) {
+        ui
+          ..apply(
+            EngineEvt(
+              kind: EngineEvtKind.updated,
+              deckId: deckId,
+              trackPath: '/stale.wav',
+              trackId: 'stale',
+              durationKnown: true,
+              durationMs: 8000,
+              positionMs: 1200,
+            ),
+          )
+          ..apply(
+            EngineEvt(
+              kind: EngineEvtKind.position,
+              deckId: deckId,
+              positionMs: 1500,
+              slipShadowPositionMs: 1000,
+            ),
+          )
+          ..apply(
+            EngineEvt(
+              kind: EngineEvtKind.levels,
+              deckId: deckId,
+              peakL: 0.5,
+              peakR: 0.5,
+            ),
+          );
+      }
+
+      expect(identical(container.read(engineUiProvider), before), isTrue);
+      expect(container.read(deckPlayheadsProvider), isEmpty);
+      expect(container.read(deckSlipShadowsProvider), isEmpty);
+    });
 
     test('position put is a no-op when ms is unchanged', () {
       final container = ProviderContainer();
@@ -102,6 +182,24 @@ void main() {
       expect(container.read(deckSlipShadowsProvider)[0], 400);
       expect(container.read(deckSlipEnabledProvider(0)), isTrue);
       expect(container.read(engineUiProvider).trackIdFor(0), 't');
+    });
+    test('updated crossfader assignment patches only its deck', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      container
+          .read(engineUiProvider.notifier)
+          .apply(
+            const EngineEvt(
+              kind: EngineEvtKind.updated,
+              deckId: 3,
+              crossfaderAssign: CrossfaderAssign.thru,
+            ),
+          );
+
+      final ui = container.read(engineUiProvider);
+      expect(ui.channelFor(3).crossfaderAssign, CrossfaderAssign.thru);
+      expect(ui.channelFor(2).crossfaderAssign, CrossfaderAssign.a);
     });
 
     test(

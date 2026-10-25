@@ -51,6 +51,7 @@ void main() {
     WidgetTester tester, {
     required bool hasTrack,
     bool disabled = false,
+    Size size = const Size(360, 320),
     SelectStyleSetting selectStyle = SelectStyleSetting.auto,
     PadMode padMode = PadMode.hotCue,
     List<DeckHotCue> hotCues = const [DeckHotCue(slot: 0, positionMs: 12500)],
@@ -89,8 +90,8 @@ void main() {
             body: StatefulBuilder(
               builder: (context, setState) {
                 return SizedBox(
-                  width: 360,
-                  height: 320,
+                  width: size.width,
+                  height: size.height,
                   child: DeckPadsPanel(
                     padMode: mode,
                     onPadMode: (next) {
@@ -146,6 +147,41 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('compact cue pads remain usable without a config button', (
+    tester,
+  ) async {
+    final pressed = <int>[];
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      size: const Size(200, 70),
+      hotCues: const [],
+      onHotCuePress: (slot, _) => pressed.add(slot),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(find.byType(HotCuePads)),
+        scrollDelta: const Offset(0, 100),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final scroller = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byType(HotCuePads),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(scroller.position.pixels, greaterThan(0));
+    expect(pressed, isEmpty, reason: 'scrolling must not trigger a pad');
+    await tester.ensureVisible(find.text('8'));
+    await tester.tap(find.text('8'));
+    await tester.pumpAndSettle();
+    expect(pressed, [7]);
+    expect(find.text('0:07.0'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('mode select switches grids', (tester) async {
     await pumpPanel(tester, hasTrack: true);

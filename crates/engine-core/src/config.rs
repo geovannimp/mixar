@@ -28,6 +28,9 @@ pub struct EngineConfig {
     pub sample_rate: u32,
     /// Buffer size in frames (must be a multiple of [`BUFFER_SIZE_MULTIPLE`])
     pub buffer_size: u32,
+    /// Number of enabled deck lanes (2 or 4).
+    #[serde(default = "default_num_decks")]
+    pub num_decks: usize,
     /// Low latency hint
     pub low_latency: bool,
     /// Backend to use ("auto", "cpal", "null")
@@ -36,13 +39,19 @@ pub struct EngineConfig {
     pub buses: Vec<BusConfig>,
     /// Device configurations
     pub devices: Option<Vec<DeviceConfig>>,
-    /// Advanced settings
+    /// Advanced configuration
     pub advanced: Option<AdvancedConfig>,
     /// Audio processing settings
     pub audio: Option<AudioConfig>,
     /// How much of each track to analyze when running offline analysis.
     pub analysis_duration: AnalysisDurationMode,
 }
+
+fn default_num_decks() -> usize {
+    2
+}
+
+pub const MAX_DECKS: usize = 4;
 
 /// Device configuration
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -110,6 +119,7 @@ impl Default for EngineConfig {
         Self {
             sample_rate: 48000,
             buffer_size: 512,
+            num_decks: default_num_decks(),
             low_latency: false,
             backend: "auto".to_string(),
             buses: vec![],
@@ -193,6 +203,11 @@ impl EngineConfig {
 
     /// Validate fields that the engine requires to be well-formed.
     pub fn validate(&self) -> Result<()> {
+        ensure!(
+            matches!(self.num_decks, 2 | MAX_DECKS),
+            "num_decks must be 2 or 4 (got {})",
+            self.num_decks
+        );
         validate_buffer_size(self.buffer_size)?;
         if let Some(secs) = self.audio.as_ref().and_then(|a| a.vinyl_brake_stop_secs) {
             ensure!(
@@ -249,6 +264,23 @@ impl EngineConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn deck_count_defaults_to_two_and_accepts_four_only() {
+        let default = EngineConfig::default();
+        assert_eq!(default.num_decks, 2);
+        assert!(default.validate().is_ok());
+
+        let mut four = default.clone();
+        four.num_decks = 4;
+        assert!(four.validate().is_ok());
+
+        for invalid in [0, 1, 3, 5] {
+            let mut config = default.clone();
+            config.num_decks = invalid;
+            assert!(config.validate().is_err(), "accepted {invalid} decks");
+        }
+    }
 
     #[test]
     fn test_engine_config_default() {

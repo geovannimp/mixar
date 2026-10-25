@@ -342,6 +342,15 @@ class AppLocalizationsPt extends AppLocalizations {
       'Comportamento padrão de jog, tempo e sampler para novos decks.';
 
   @override
+  String get settingsDeckCount => 'Layout dos decks';
+
+  @override
+  String get settingsDeckCountTwo => '2 decks';
+
+  @override
+  String get settingsDeckCountFour => '4 decks';
+
+  @override
   String get settingsDeckJogTitle => 'Jog wheel';
 
   @override
@@ -445,6 +454,24 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get settingsDeckDefaultSamplerBankB =>
       'Banco padrão do sampler no deck B';
+
+  @override
+  String get settingsDeckDefaultSamplerBankC =>
+      'Banco padrão do sampler no deck C';
+
+  @override
+  String get settingsDeckDefaultSamplerBankD =>
+      'Banco padrão do sampler no deck D';
+
+  @override
+  String get settingsDeckCountRestartTitle => 'Alterar layout dos decks?';
+
+  @override
+  String get settingsDeckCountRestartBody =>
+      'Alterar a quantidade de decks reinicia o mecanismo de áudio e recarrega as faixas. Faixas em decks removidos ao mudar para 2 decks não serão restauradas.';
+
+  @override
+  String get settingsDeckCountRestartConfirm => 'Reiniciar e aplicar';
 
   @override
   String get settingsLibraryDescription =>

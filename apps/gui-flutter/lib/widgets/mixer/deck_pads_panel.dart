@@ -181,7 +181,9 @@ class DeckPadsPanel extends StatelessWidget {
               Positioned.fill(
                 child: Padding(
                   // Keep the floating button clear of the last pad's hit area.
-                  padding: const EdgeInsets.only(bottom: _kConfigButtonReserve),
+                  padding: EdgeInsets.only(
+                    bottom: _showsConfig ? _kConfigButtonReserve : 0,
+                  ),
                   child: _modeBody(),
                 ),
               ),

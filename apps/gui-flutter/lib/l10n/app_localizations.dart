@@ -711,6 +711,24 @@ abstract class AppLocalizations {
   /// **'Default jog, tempo, and sampler behavior for new decks.'**
   String get settingsDeckDescription;
 
+  /// No description provided for @settingsDeckCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck layout'**
+  String get settingsDeckCount;
+
+  /// No description provided for @settingsDeckCountTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'2 decks'**
+  String get settingsDeckCountTwo;
+
+  /// No description provided for @settingsDeckCountFour.
+  ///
+  /// In en, this message translates to:
+  /// **'4 decks'**
+  String get settingsDeckCountFour;
+
   /// No description provided for @settingsDeckJogTitle.
   ///
   /// In en, this message translates to:
@@ -896,6 +914,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deck B default sampler bank'**
   String get settingsDeckDefaultSamplerBankB;
+
+  /// No description provided for @settingsDeckDefaultSamplerBankC.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck C default sampler bank'**
+  String get settingsDeckDefaultSamplerBankC;
+
+  /// No description provided for @settingsDeckDefaultSamplerBankD.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck D default sampler bank'**
+  String get settingsDeckDefaultSamplerBankD;
+
+  /// No description provided for @settingsDeckCountRestartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change deck layout?'**
+  String get settingsDeckCountRestartTitle;
+
+  /// No description provided for @settingsDeckCountRestartBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Changing the deck count restarts the audio engine and reloads tracks. Tracks on decks removed by switching to 2 decks will not be restored.'**
+  String get settingsDeckCountRestartBody;
+
+  /// No description provided for @settingsDeckCountRestartConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart and apply'**
+  String get settingsDeckCountRestartConfirm;
 
   /// No description provided for @settingsLibraryDescription.
   ///

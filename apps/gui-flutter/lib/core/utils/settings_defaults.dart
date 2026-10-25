@@ -111,6 +111,7 @@ AppSettings defaultAppSettings() {
     targetLufs: kDefaultTargetLufs,
     samplerPlayMode: SamplerPlayModeSetting.oneshot,
     samplerStripRoute: SamplerStripRouteSettingFrb.before,
+    numDecks: 2,
     deckDefaultSamplerBankId: [null, null],
     defaultTopJogMode: JogModeSetting.vinyl,
     defaultOuterJogMode: JogModeSetting.pitchBend,
@@ -146,16 +147,18 @@ AppSettings normalizeAppSettings(AppSettings settings) {
   final target = settings.targetLufs.isFinite
       ? settings.targetLufs.clamp(kMinTargetLufs, kMaxTargetLufs)
       : kDefaultTargetLufs;
+  final numDecks = settings.numDecks == 4 ? 4 : 2;
   final banks = List<String?>.from(settings.deckDefaultSamplerBankId);
-  while (banks.length < 2) {
+  while (banks.length < numDecks) {
     banks.add(null);
   }
-  if (banks.length > 2) {
-    banks.removeRange(2, banks.length);
+  if (banks.length > numDecks) {
+    banks.removeRange(numDecks, banks.length);
   }
   return copyAppSettings(
     settings,
     targetLufs: target,
+    numDecks: numDecks,
     deckDefaultSamplerBankId: banks,
     masterBus: _normalizeBus(settings.masterBus),
     previewBus: _normalizeBus(settings.previewBus),
@@ -192,6 +195,7 @@ AppSettings copyAppSettings(
   double? targetLufs,
   SamplerPlayModeSetting? samplerPlayMode,
   SamplerStripRouteSettingFrb? samplerStripRoute,
+  int? numDecks,
   List<String?>? deckDefaultSamplerBankId,
   JogModeSetting? defaultTopJogMode,
   JogModeSetting? defaultOuterJogMode,
@@ -222,6 +226,7 @@ AppSettings copyAppSettings(
   bool? analyticsEnabled,
 }) {
   return AppSettings(
+    numDecks: numDecks ?? base.numDecks,
     sampleRate: sampleRate ?? base.sampleRate,
     bufferSize: bufferSize ?? base.bufferSize,
     lowLatency: lowLatency ?? base.lowLatency,
@@ -277,7 +282,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
   if (identical(draft, baseline)) {
     return false;
   }
-  return draft.sampleRate != baseline.sampleRate ||
+  return draft.numDecks != baseline.numDecks ||
+      draft.sampleRate != baseline.sampleRate ||
       draft.bufferSize != baseline.bufferSize ||
       draft.lowLatency != baseline.lowLatency ||
       draft.resamplerQuality != baseline.resamplerQuality ||

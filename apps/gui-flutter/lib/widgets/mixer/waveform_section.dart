@@ -1,40 +1,46 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
-/// Dual scrolling lanes. Overview strips live on each deck panel.
+/// Scrolling waveform lanes for every active deck.
 class WaveformSection extends ConsumerWidget {
   const new({super.key});
+
+  static const _labels = ['A', 'B', 'C', 'D'];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
-    final hasA = ref.watch(deckTrackIdProvider(0)) != null;
-    final hasB = ref.watch(deckTrackIdProvider(1)) != null;
+    final numDecks = ref.watch(appSettingsProvider).value?.numDecks ?? 2;
+    final hasTrack = [
+      for (var deckId = 0; deckId < numDecks; deckId++)
+        ref.watch(deckTrackIdProvider(deckId)) != null,
+    ];
 
     return ColoredBox(
       color: theme.colors.background,
       child: Stack(
         children: [
-          const Column(
+          Column(
             children: [
-              Expanded(
-                child: RepaintBoundary(
-                  child: ScrollingLane(deckId: 0, label: 'A'),
+              for (var deckId = 0; deckId < numDecks; deckId++) ...[
+                Expanded(
+                  child: RepaintBoundary(
+                    child: ScrollingLane(
+                      deckId: deckId,
+                      label: _labels[deckId],
+                    ),
+                  ),
                 ),
-              ),
-              MDivider(padding: .zero),
-              Expanded(
-                child: RepaintBoundary(
-                  child: ScrollingLane(deckId: 1, label: 'B'),
-                ),
-              ),
+                if (deckId < numDecks - 1) const MDivider(padding: .zero),
+              ],
             ],
           ),
-          if (!hasA && !hasB)
+          if (!hasTrack.any((loaded) => loaded))
             Center(
               child: Text(
                 'Load tracks to see waveforms.',

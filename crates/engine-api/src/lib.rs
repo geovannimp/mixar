@@ -13,6 +13,7 @@ mod wire;
 /// Product display name shared by desktop hosts (Tauri / Flutter).
 pub const APP_DISPLAY_NAME: &str = "Mixar";
 
+pub use audio_core::CrossfaderAssign;
 pub use kind::Kind;
 pub use origin::Origin;
 pub use pads::{

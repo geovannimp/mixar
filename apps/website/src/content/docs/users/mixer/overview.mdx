@@ -5,9 +5,13 @@ section: "Mixer"
 order: 1
 ---
 
-The mixer screen is where you actually play: a waveform pane on top, the two decks side by side, the library underneath, and a thin **Beat FX** strip pinned to the bottom.
+The mixer screen is where you actually play: a waveform pane on top, the decks around the central channel strips, the library underneath, and a thin **Beat FX** strip pinned to the bottom. Choose a two- or four-deck layout under **Settings → Decks**; changing the layout restarts the audio engine and reloads tracks on decks that remain active. Four-deck mode gives the decks more vertical room. On short windows, use the main scrollbar or mouse wheel to reach the docked library below the decks.
 
 ## Decks
+
+Deck identity colors stay consistent across headers, waveforms, tempo controls, mixer channels, and library load actions: **A blue**, **B rose**, **C amber**, and **D violet**.
+
+In compact layouts, scroll the deck header to reach its remaining buttons. Use the mouse wheel or the pads' scrollbar to reach both rows without shrinking them to unusable sizes; dragging a pad remains a performance gesture.
 
 Each deck card holds the track info, the performance pads, the tempo column, the transport (**Cue** / **Play**), and a row of header buttons:
 
@@ -31,9 +35,13 @@ Every deck owns a channel in the mixer columns between the decks:
 
 The strip runs **gain trim → EQ → filter → FX → meter and cue tap → fader**. That order is why the meter and the headphones already include the effect, while the channel fader still controls how loud the whole channel is.
 
+In four-deck mode, the controls run left to right as **EQ/filter A+B → gain/volumes A+B → meters → gain/volumes C+D → EQ/filter C+D**. Each gain knob sits directly above its volume fader.
+
 ## Crossfader
 
-The crossfader under the channel strips blends deck A and deck B. It is applied after the channel faders, so it scales the effect exactly like the dry signal.
+Click **A** or **B** beside the crossfader to open that side's deck checklist. Check a deck to assign it to that side; assigning it to the other side moves it rather than routing it to both. Uncheck a deck to set it to **Thru**, so the crossfader no longer affects it. The checklist follows assignments made from hardware too. In a four-deck layout, the default assignments are A/C to side A and B/D to side B. The crossfader is applied after the channel faders, so it scales the effect exactly like the dry signal.
+
+Set history uses these assignments when deciding whether a playing deck is audible, including decks assigned to **Thru**.
 
 ## Master levels
 

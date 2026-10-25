@@ -152,23 +152,44 @@ class SaveAppSettingsResult {
   final bool trustedControllersChanged;
 }
 
-/// Reload decks after [EngineTransport.restartFromSettings].
-///
-/// Library tracks prefer [deckTrackIdProvider]; path-only loads fall back to
-/// `engineUiProvider.trackPathFor`.
-Future<void> reloadDecksAfterSettingsRestart(
+/// Restart with frozen reload identities; fresh empty snapshots retire live IDs.
+Future<void> restartDecksFromSettings(
   T Function<T>(ProviderListenable<T> provider) read, {
+  required Future<void> Function() restart,
+  required int previousDeckCount,
   required Future<void> Function({required int deckId, required String trackId})
   loadLibraryTrack,
   required Future<void> Function({required int deckId, required String path})
   loadPath,
+  required int deckCount,
 }) async {
-  for (var deckId = 0; deckId < 2; deckId++) {
-    final trackId = read(deckTrackIdProvider(deckId));
+  final snapshot = read(engineUiProvider);
+  final engineUi = read(engineUiProvider.notifier);
+  final generations = read(deckLoadGenerationProvider.notifier);
+  final restartingDeckCount = previousDeckCount > deckCount
+      ? previousDeckCount
+      : deckCount;
+  for (var deckId = 0; deckId < restartingDeckCount; deckId++) {
+    generations.invalidate(deckId);
+  }
+  // Expansion snapshots can arrive before the restart future completes.
+  engineUi.setActiveDeckCount(restartingDeckCount);
+  try {
+    await restart();
+  } catch (_) {
+    engineUi.setActiveDeckCount(previousDeckCount);
+    rethrow;
+  }
+  engineUi.setActiveDeckCount(deckCount);
+  for (var deckId = deckCount; deckId < previousDeckCount; deckId++) {
+    engineUi.clearDeckState(deckId);
+  }
+  for (var deckId = 0; deckId < deckCount; deckId++) {
+    final trackId = snapshot.trackIdFor(deckId);
     if (trackId != null) {
       await loadLibraryTrack(deckId: deckId, trackId: trackId);
     } else {
-      final path = read(engineUiProvider).trackPathFor(deckId);
+      final path = snapshot.trackPathFor(deckId);
       if (path != null && path.isNotEmpty) {
         await loadPath(deckId: deckId, path: path);
       }
@@ -227,12 +248,24 @@ Future<SaveAppSettingsResult> saveAppSettings(
     );
     final engine = await ref.read(engineTransportProvider.future);
     if (engine != null && await engine.isRunning()) {
-      await engine.restartFromSettings();
-      await reloadDecksAfterSettingsRestart(
+      await restartDecksFromSettings(
         ref.read,
+        restart: engine.restartFromSettings,
+        previousDeckCount: previous.numDecks,
+        deckCount: normalized.numDecks,
         loadLibraryTrack: engine.loadLibraryTrack,
         loadPath: engine.loadPath,
       );
+    } else if (normalized.numDecks < previous.numDecks) {
+      // No restart to retire the removed decks: drop their stale mirror state.
+      final engineUi = ref.read(engineUiProvider.notifier);
+      for (
+        var deckId = normalized.numDecks;
+        deckId < previous.numDecks;
+        deckId++
+      ) {
+        engineUi.clearDeckState(deckId);
+      }
     }
   } catch (e) {
     applyError = '$e';

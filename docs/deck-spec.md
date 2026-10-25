@@ -86,7 +86,7 @@ Typical deck layout:
 | Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
 | Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
-| 4-deck layout | Not implemented | [#63](https://github.com/geovannimp/mixar/issues/63), [#252](https://github.com/geovannimp/mixar/issues/252) |
+| 4-deck layout | Implemented | Select two/four decks in Settings; A/C and B/D stacks, distinct deck colors, grouped mixer channels, and crossfader endpoint assignment menus |
 
 ### Engine / DSP (`engine-dsp`, `engine-core`)
 
@@ -286,7 +286,7 @@ Currently in center `DeckMixer`; may stay centralized or duplicate mini-strips o
 | X3 | **Filter (HP/LP)** | Single knob wet/dry or crossfade | P1 |
 | X4 | **Gain trim** | Pre-fader level; persisted per track | P2 |
 | X5 | **VU / level meter** | Peak or RMS per deck | P2 |
-| X6 | **Crossfader assign** | A / B / thru (4-deck future) | P2 |
+| X6 | **Crossfader assign** | Crossfader A/B endpoint deck checklists; unchecked decks use thru | P2 |
 | X7 | **Channel fader curve** | Configurable crossfader law | P3 |
 
 ---
@@ -678,7 +678,7 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | Slicer pad mode | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | [#62](https://github.com/geovannimp/mixar/issues/62) |
 | MIDI mapping | [#49](https://github.com/geovannimp/mixar/issues/49) |
-| 4-deck layout / crossfader model | [#63](https://github.com/geovannimp/mixar/issues/63), [#252](https://github.com/geovannimp/mixar/issues/252) |
+| 4-deck layout / crossfader model | [#63](https://github.com/geovannimp/mixar/issues/63), [#252](https://github.com/geovannimp/mixar/issues/252) — **shipped** |
 | Filter/EQ waveform tint (optional) | [#35](https://github.com/geovannimp/mixar/issues/35) |
 | Persist per-track gain corrections | [#39](https://github.com/geovannimp/mixar/issues/39) |
 | Momentary reverse-roll / censor | [#295](https://github.com/geovannimp/mixar/issues/295) |

@@ -12,6 +12,9 @@ import 'package:gui_flutter/widgets/mixer/level_meter.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_anchor.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -27,6 +30,7 @@ const _mixerInnerWidthNoMeters = 168.0;
 
 /// Open mixer width with center VU column (5 columns + 4×8).
 const _mixerInnerWidthWithMeters = 212.0;
+const _mixerInnerWidthFour = 388.0;
 
 /// Matches [RotaryKnob] md column: label (8) + gap (2) + dial (36).
 const _gainHeaderHeight = 8.0 + 2.0 + 36.0;
@@ -47,10 +51,12 @@ class _MixerStripState extends ConsumerState<MixerStrip> {
 
   @override
   Widget build(BuildContext context) {
-    final showMeters = ref
-        .watch(appSettingsProvider)
-        .maybeWhen(data: (s) => s.showMixerMeters, orElse: () => true);
-    final innerWidth = showMeters
+    final settings = ref.watch(appSettingsProvider).value;
+    final showMeters = settings?.showMixerMeters ?? true;
+    final numDecks = settings?.numDecks ?? 2;
+    final innerWidth = numDecks == 4
+        ? _mixerInnerWidthFour
+        : showMeters
         ? _mixerInnerWidthWithMeters
         : _mixerInnerWidthNoMeters;
     return Padding(
@@ -88,22 +94,55 @@ class _MixerChannels extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(engineRunningProvider);
-    final showMeters = ref
-        .watch(appSettingsProvider)
-        .maybeWhen(data: (s) => s.showMixerMeters, orElse: () => true);
-    final mono = ref
-        .watch(appSettingsProvider)
-        .maybeWhen(data: (s) => s.mixerMetersMono, orElse: () => true);
+    final settings = ref.watch(appSettingsProvider).value;
+    final showMeters = settings?.showMixerMeters ?? true;
+    final mono = settings?.mixerMetersMono ?? true;
+    final numDecks = settings?.numDecks ?? 2;
+    if (numDecks == 2) {
+      return Row(
+        mainAxisAlignment: .center,
+        crossAxisAlignment: .stretch,
+        spacing: 8,
+        children: [
+          _EqColumn(deckId: 0, accent: .a, enabled: enabled),
+          _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
+          if (showMeters) _LevelMetersColumn(mono: mono, deckIds: const [0, 1]),
+          _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
+          _EqColumn(deckId: 1, accent: .b, enabled: enabled),
+        ],
+      );
+    }
     return Row(
       mainAxisAlignment: .center,
       crossAxisAlignment: .stretch,
-      spacing: 8,
+      spacing: showMeters && !mono ? 4 : 8,
       children: [
-        _EqColumn(deckId: 0, accent: .a, enabled: enabled),
-        _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
-        if (showMeters) _LevelMetersColumn(mono: mono),
-        _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
-        _EqColumn(deckId: 1, accent: .b, enabled: enabled),
+        for (final deckId in const [0, 1])
+          _EqColumn(
+            deckId: deckId,
+            accent: faderAccentForDeck(deckId)!,
+            enabled: enabled,
+          ),
+        for (final deckId in const [0, 1])
+          _VolumeColumn(
+            deckId: deckId,
+            accent: faderAccentForDeck(deckId)!,
+            enabled: enabled,
+          ),
+        if (showMeters)
+          _LevelMetersColumn(mono: mono, deckIds: const [0, 1, 2, 3]),
+        for (final deckId in const [2, 3])
+          _VolumeColumn(
+            deckId: deckId,
+            accent: faderAccentForDeck(deckId)!,
+            enabled: enabled,
+          ),
+        for (final deckId in const [2, 3])
+          _EqColumn(
+            deckId: deckId,
+            accent: faderAccentForDeck(deckId)!,
+            enabled: enabled,
+          ),
       ],
     );
   }
@@ -114,7 +153,6 @@ class _CrossfaderStrip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
     final enabled = ref.watch(engineRunningProvider);
     final crossfader = ref.watch(crossfaderProvider) * 100;
     return SizedBox(
@@ -122,14 +160,7 @@ class _CrossfaderStrip extends ConsumerWidget {
       child: Row(
         spacing: 10,
         children: [
-          Text(
-            'A',
-            style: theme.typography.body.xs.copyWith(
-              color: FaderColors.a.grip,
-              fontWeight: .w600,
-              fontSize: 8,
-            ),
-          ),
+          const _CrossfaderAssignmentMenu(side: CrossfaderAssign.a),
           Expanded(
             child: FaderSlider(
               orientation: .horizontal,
@@ -147,15 +178,129 @@ class _CrossfaderStrip extends ConsumerWidget {
               },
             ),
           ),
-          Text(
-            'B',
-            style: theme.typography.body.xs.copyWith(
-              color: FaderColors.b.grip,
-              fontWeight: .w600,
-              fontSize: 8,
+          const _CrossfaderAssignmentMenu(side: CrossfaderAssign.b),
+        ],
+      ),
+    );
+  }
+}
+
+class _CrossfaderAssignmentMenu extends ConsumerWidget {
+  const new({required this.side});
+
+  final CrossfaderAssign side;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(engineRunningProvider);
+    final theme = context.theme;
+    final label = side == CrossfaderAssign.a ? 'A' : 'B';
+    final color = side == CrossfaderAssign.a
+        ? FaderColors.a.grip
+        : FaderColors.b.grip;
+    return MixarMenuAnchor(
+      enabled: enabled,
+      minWidth: 160,
+      dialogTitle: 'Crossfader $label decks',
+      childBuilder: (context, controller) => MTappable(
+        semanticsLabel: 'Crossfader $label deck assignments',
+        onPress: enabled ? controller.toggle : null,
+        builder: (context, state) => SizedBox(
+          width: 32,
+          height: 24,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: state.active ? theme.colors.selection : null,
+              borderRadius: theme.style.borderRadius.sm,
+            ),
+            child: Center(
+              child: Row(
+                mainAxisSize: .min,
+                spacing: 2,
+                children: [
+                  Text(
+                    label,
+                    style: theme.typography.body.xs.copyWith(
+                      color: enabled ? color : theme.colors.mutedForeground,
+                      fontWeight: .w600,
+                    ),
+                  ),
+                  Icon(
+                    LucideIcons.chevronDown,
+                    size: 10,
+                    color: enabled ? color : theme.colors.mutedForeground,
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
+        ),
+      ),
+      menuBuilder: (menuContext, controller) => Consumer(
+        builder: (context, menuRef, _) {
+          final enabled = menuRef.watch(engineRunningProvider);
+          final numDecks =
+              menuRef.watch(appSettingsProvider).value?.numDecks ?? 2;
+          return Column(
+            mainAxisSize: .min,
+            crossAxisAlignment: .stretch,
+            children: [
+              for (var deckId = 0; deckId < numDecks; deckId++)
+                Consumer(
+                  builder: (context, deckRef, _) {
+                    final selected =
+                        deckRef
+                            .watch(deckMixerChannelProvider(deckId))
+                            .crossfaderAssign ==
+                        side;
+                    final deckLabel = String.fromCharCode(65 + deckId);
+                    return Semantics(
+                      label: 'Deck $deckLabel',
+                      checked: selected,
+                      selected: selected,
+                      child: MixarMenuItem(
+                        enabled: enabled,
+                        title: ExcludeSemantics(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Deck $deckLabel',
+                                  style: TextStyle(
+                                    color: FaderColors.forAccent(
+                                      faderAccentForDeck(deckId)!,
+                                    ).grip,
+                                  ),
+                                ),
+                              ),
+                              if (selected)
+                                Icon(
+                                  LucideIcons.check,
+                                  size: 14,
+                                  color: context.theme.colors.foreground,
+                                ),
+                            ],
+                          ),
+                        ),
+                        onPress: () {
+                          unawaited(
+                            _mixerCmd(
+                              menuContext,
+                              () => setDeckCrossfaderAssign(
+                                deckRef,
+                                deckId,
+                                selected ? CrossfaderAssign.thru : side,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -258,11 +403,13 @@ class _VolumeColumn extends ConsumerWidget {
 
     return Column(
       children: [
-        _MixerGainHeader(
-          gain: ch.gainTrim,
+        RotaryKnob(
+          label: 'GAIN',
+          value: ch.gainTrim,
+          center: kControlNormCenter,
           accentColor: accentColor,
           disabled: !enabled,
-          onGain: (next) {
+          onValueChange: (next) {
             unawaited(
               _mixerCmd(context, () => setDeckGainTrim(ref, deckId, next)),
             );
@@ -277,6 +424,7 @@ class _VolumeColumn extends ConsumerWidget {
                 child: FaderSlider(
                   accent: accent,
                   value: ch.volume * 100,
+                  semanticLabel: '${deckDisplayLabel(deckId)} volume',
                   showMarkers: true,
                   disabled: !enabled,
                   onValueChange: (next) {
@@ -305,33 +453,6 @@ class _VolumeColumn extends ConsumerWidget {
           },
         ),
       ],
-    );
-  }
-}
-
-/// Shared GAIN block so meters and volume columns stay vertically aligned.
-class _MixerGainHeader extends StatelessWidget {
-  const new({
-    required this.gain,
-    required this.accentColor,
-    required this.onGain,
-    required this.disabled,
-  });
-
-  final double gain;
-  final Color accentColor;
-  final ValueChanged<double> onGain;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    return RotaryKnob(
-      label: 'GAIN',
-      value: gain,
-      center: kControlNormCenter,
-      accentColor: accentColor,
-      disabled: disabled,
-      onValueChange: onGain,
     );
   }
 }
@@ -381,17 +502,16 @@ class _MixerCueFooter extends StatelessWidget {
 
 /// VU ladders between faders. Mono/stereo comes from saved settings.
 class _LevelMetersColumn extends ConsumerWidget {
-  const new({required this.mono});
+  const new({required this.mono, required this.deckIds});
 
   final bool mono;
+  final List<int> deckIds;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = mono ? LevelMeterMode.mono : LevelMeterMode.stereo;
-
     return Column(
       children: [
-        // Spacer matching the volume-column GAIN header height.
         const ExcludeSemantics(child: SizedBox(height: _gainHeaderHeight)),
         Expanded(
           child: Padding(
@@ -400,9 +520,12 @@ class _LevelMetersColumn extends ConsumerWidget {
               mainAxisAlignment: .center,
               crossAxisAlignment: .stretch,
               children: [
-                RepaintBoundary(child: _LiveLevelMeter(deckId: 0, mode: mode)),
-                const SizedBox(width: 2),
-                RepaintBoundary(child: _LiveLevelMeter(deckId: 1, mode: mode)),
+                for (var i = 0; i < deckIds.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 2),
+                  RepaintBoundary(
+                    child: _LiveLevelMeter(deckId: deckIds[i], mode: mode),
+                  ),
+                ],
               ],
             ),
           ),

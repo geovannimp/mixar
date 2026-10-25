@@ -1,7 +1,7 @@
 //! Control thread: cmd dispatch and high-rate evt egress.
 
 use crate::bus::EngineBus;
-use crate::engine::{Engine, NUM_DECKS};
+use crate::engine::Engine;
 use crate::soft_takeover;
 use crate::transport::TransportEvent;
 use anyhow::{anyhow, Result};
@@ -42,8 +42,8 @@ struct PeakHoldState {
 
 impl PeakHoldState {
     fn new() -> Self {
-        // Deck slots 0..NUM_DECKS-1 plus master at NUM_DECKS.
-        let slots = NUM_DECKS + 1;
+        // Deck slots plus the master slot; growth handles four-deck engines.
+        let slots = 3;
         Self {
             hold_l: vec![0.0; slots],
             hold_r: vec![0.0; slots],
@@ -324,6 +324,7 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         isrc: snap.isrc,
         bpm: snap.bpm,
         key: snap.key,
+        crossfader_assign: snap.crossfader_assign,
         playing: snap.playing,
         volume: snap.volume,
         speed: snap.speed,
@@ -524,7 +525,10 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::AssignSampler, CmdBody::AssignSampler { .. })
         | (Kind::AssignSamplerTrack, CmdBody::AssignSamplerTrack { .. })
         | (Kind::ClearSampler, CmdBody::ClearSampler { .. })
+        | (Kind::SaveLoop, CmdBody::SaveLoop { .. })
+        | (Kind::DeleteLoop, CmdBody::DeleteLoop { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
+        | (Kind::SetCrossfaderAssign, CmdBody::SetCrossfaderAssign { .. })
         | (Kind::SetMasterVolume, CmdBody::SetMasterVolume { .. })
         | (Kind::SetCueVolume, CmdBody::SetCueVolume { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
@@ -763,6 +767,14 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.set_deck_headphone_cue(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetCrossfaderAssign => {
+            let CmdBody::SetCrossfaderAssign { assignment } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.set_deck_crossfader_assign(deck_id, assignment)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::ToggleHeadphoneCue => {
@@ -1194,7 +1206,9 @@ fn dispatch_mixer_cmd(
                 unreachable!()
             };
             eng.set_fx_unit_slot(slot, crate::status::map_fx_kind(kind))?;
-            Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
+            Ok(CmdOutcome::DecksUpdated(
+                (0..eng.config.num_decks).collect(),
+            ))
         }
         Kind::SetFxUnitSlotEnabled => {
             let CmdBody::SetFxUnitSlotEnabled { slot, enabled } =
@@ -1203,7 +1217,9 @@ fn dispatch_mixer_cmd(
                 unreachable!()
             };
             eng.set_fx_unit_slot_enabled(slot, enabled)?;
-            Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
+            Ok(CmdOutcome::DecksUpdated(
+                (0..eng.config.num_decks).collect(),
+            ))
         }
         Kind::SetFxUnitWet => {
             let CmdBody::SetFxUnitWet {
@@ -1220,7 +1236,9 @@ fn dispatch_mixer_cmd(
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_fx_unit_wet(slot, wet)?;
-            Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
+            Ok(CmdOutcome::DecksUpdated(
+                (0..eng.config.num_decks).collect(),
+            ))
         }
         Kind::SetFxUnitParam => {
             let CmdBody::SetFxUnitParam { slot, param, value } =
@@ -1229,7 +1247,9 @@ fn dispatch_mixer_cmd(
                 unreachable!()
             };
             eng.set_fx_unit_param(slot, param, value)?;
-            Ok(CmdOutcome::DecksUpdated((0..NUM_DECKS).collect()))
+            Ok(CmdOutcome::DecksUpdated(
+                (0..eng.config.num_decks).collect(),
+            ))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),
     })
@@ -1257,7 +1277,7 @@ fn tick(
 
     // A live stem producer publishes its first window asynchronously; emit one
     // Updated so pads/banner reflect readiness without waiting for another cmd.
-    for deck_id in 0..NUM_DECKS {
+    for deck_id in 0..eng.config.num_decks {
         let ready = eng.deck_stems_ready(deck_id).unwrap_or(false);
         if ready != eng.stems_ready_seen[deck_id] {
             eng.stems_ready_seen[deck_id] = ready;
@@ -1324,12 +1344,13 @@ fn tick(
     }
 
     // Master bus peaks (post fader). Hold slot sits above deck indices.
-    const MASTER_HOLD_SLOT: usize = NUM_DECKS;
+    let master_hold_slot = eng.config.num_decks;
     if let Some((peak_l, peak_r)) = eng.master_level_snapshot() {
-        let any_playing = (0..NUM_DECKS).any(|deck_id| eng.deck_is_playing(deck_id) == Some(true));
-        let (peak_hold_l, peak_hold_r) = peak_hold.update(MASTER_HOLD_SLOT, peak_l, peak_r);
+        let any_playing =
+            (0..eng.config.num_decks).any(|deck_id| eng.deck_is_playing(deck_id) == Some(true));
+        let (peak_hold_l, peak_hold_r) = peak_hold.update(master_hold_slot, peak_l, peak_r);
         if !should_publish_levels(any_playing, peak_l, peak_r, peak_hold_l, peak_hold_r) {
-            if peak_hold.take_zero_flush(MASTER_HOLD_SLOT) {
+            if peak_hold.take_zero_flush(master_hold_slot) {
                 publish_evt(
                     evt_bus,
                     Origin::Mixer,
@@ -1343,7 +1364,7 @@ fn tick(
                 );
             }
         } else {
-            peak_hold.mark_published(MASTER_HOLD_SLOT, false);
+            peak_hold.mark_published(master_hold_slot, false);
             publish_evt(
                 evt_bus,
                 Origin::Mixer,

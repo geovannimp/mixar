@@ -7,6 +7,7 @@ repository.workspace = true
 description = "Host-facing engine bus origin/kind/payload schema"
 
 [dependencies]
+audio-core = { path = "../audio-core" }
 serde = { workspace = true, features = ["derive"] }
 serde_bytes = "0.11"
 rmp-serde = "1.3"
