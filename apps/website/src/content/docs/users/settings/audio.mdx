@@ -1,0 +1,59 @@
+---
+title: "Audio"
+description: "Complete reference for engine, master bus, and preview bus settings."
+section: "Settings"
+order: 602
+---
+
+**Settings → Audio** ("Engine output and buses.") holds three cards. All three feed the audio engine, so a save on this page restarts it when it is running. For the procedure and the failure modes, see [Audio setup](/docs/users/getting-started/audio-setup).
+
+## Engine
+
+Card subtitle: "Sample rate, resampler, and buffer size."
+
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Low latency** | checkbox | on / off | off | Passes a low-latency hint to the audio backend for the output stream. |
+| **Sample rate** | select | every rate the master output device reports, plus the current value, sorted ascending | `48000 Hz` | Engine output sample rate. The list is built from the master bus device, so it changes when you pick a different device. |
+| **Resampler quality** | select | **Low**, **Medium**, **High** | Medium | Quality preset for the resampler that converts tracks whose file rate differs from the engine rate. |
+| **Buffer size** | slider | 64–2048 frames in steps of 64 | 512 frames | Frames per mixer chunk. Hint: "Must be a multiple of 64 frames (mixer graph chunk size)." |
+
+While the device list is still loading, the sample rate select is disabled and shows "Loading rates for the master output device…".
+
+## Master bus
+
+Card subtitle: "Primary output device and channel routing."
+
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Device** | select | **System default** first, then every detected output device | System default | Which device the master bus opens on. |
+| **Channel mode** | select | **Stereo pair** / **Mono (fold L+R)** | Stereo pair | One channel on both sides, or a distinct left and right. |
+| **Left channel** | stepper | 1 up to the device's channel count | 1 | First channel of the route. 1-based. |
+| **Right channel** | stepper | 1 up to the device's channel count | 2 | Second channel. Disabled in **Mono (fold L+R)**. |
+
+If **Left channel** and **Right channel** end up equal, Mixar moves the other one by a channel; on a device that reports a single channel it switches the route to **Mono** instead. Both steppers clamp to the selected device's channel count.
+
+## Preview bus
+
+Card subtitle: "Headphones / cue output when preview is enabled." The card's header switch is **Enable preview bus**, off by default; with it off the route fields are not shown at all.
+
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Enable preview bus** | switch | on / off | off | Opens a second output for cueing. Without it, headphone cue is silent. |
+| **Device** | select | **System default** first, then every detected output device | System default | Device for the headphone bus. |
+| **Channel mode** | select | **Stereo pair** / **Mono (fold L+R)** | Stereo pair | Same rules as the master bus. |
+| **Left channel** | stepper | 1 up to the device's channel count | 3 | First channel of the preview route. |
+| **Right channel** | stepper | 1 up to the device's channel count | 4 | Second channel of the preview route. |
+
+What reaches this bus is decided in the mixer. See [Cueing](/docs/users/mixer/cueing).
+
+## What a save rejects
+
+The settings are validated before they are written. A save fails, with the messages in the error toast, when:
+
+- **Sample rate** is zero.
+- **Buffer size** is not a positive multiple of 64.
+- A route has an empty device.
+- A mono route uses channel 0, or a stereo route uses channel 0 or the same channel on both sides.
+
+Channel values the UI clamps on the way in never reach that check; the values above only appear when a settings file is edited outside the app.

@@ -1,0 +1,45 @@
+---
+title: "Channels"
+description: "Knob ranges, fader behaviour, the collapsible sections, and what the meters show."
+section: "Mixer"
+order: 402
+---
+
+Every deck owns a channel in the mixer columns between the decks. The [Mixer overview](/docs/users/mixer) covers what a channel contains and the order it processes in.
+
+## Knobs
+
+A channel has five rotary knobs: **GAIN** and the three EQ bands **HI**, **MID**, **LOW**, plus the filter **FLT**. They all share one travel: the knob position runs 0 to 1 with 0.5 at the centre, and 0.5 means no change. The arc covers 270°; drag vertically to turn.
+
+| Knob | Range | What it does |
+| --- | --- | --- |
+| **GAIN** | ±24 dB | Pre-fader trim for the channel |
+| **HI** | ±24 dB | High shelf at 6 kHz |
+| **MID** | ±24 dB | Peak at 900 Hz, Q 1.4 |
+| **LOW** | ±24 dB | Low shelf at 180 Hz |
+| **FLT** | ±24 dB | One-knob DJ filter, centre = bypass |
+
+The EQ is flat at the centre detent; the knob steps in 0.1 dB increments.
+
+**FLT** is not a fixed crossover. Turned left it fades in a low-pass, turned right a high-pass. At full left the cutoff sits at 180 Hz, at full right at 1.8 kHz. The first steps away from the centre move the cutoff less: the low-pass starts around 7.6 kHz and the high-pass around 2.1 kHz, and both pull further out as you keep turning, so small moves colour the sound instead of gutting it.
+
+Every knob is dimmed and inert while the audio engine is not running.
+
+## Volume fader
+
+The channel fader runs 0 to 100 with a marker every 10%; fully down silences the channel, and the cue and meter taps still work at that point because both sit before the fader. Like the knobs, it is disabled while the engine is stopped.
+
+## Collapsing the strip
+
+The middle column has two headers, **Mixer** and **Crossfader**, that each show or hide their section. They collapse independently. When you collapse both, the column stops reserving any width at all, so the decks take the space instead of leaving a gap.
+
+## Meters
+
+The deck meters sit between the volume faders when **Settings → UI → Mixer meters → Show mixer meters** is on (on by default). **Meter mode** chooses what a ladder shows:
+
+| Mode | Description |
+| --- | --- |
+| **Mono** | "One ladder per deck (max of left/right)." Default. |
+| **Stereo** | "Separate left and right ladders per deck." |
+
+A ladder has twelve segments, lit in order as the level rises. Segments 1–7 are teal, 8–9 amber and 10–12 red; the highest segment a signal reached stays lit as a peak hold. The tap is the same one the headphones use: after the EQ, filter and effect, before the channel fader.

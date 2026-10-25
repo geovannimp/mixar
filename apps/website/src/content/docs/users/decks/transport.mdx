@@ -1,0 +1,57 @@
+---
+title: "Transport"
+description: "Play/pause, the cue button's tap-vs-hold behaviour, ejecting, and the vinyl brake."
+section: "Decks"
+order: 302
+---
+
+The transport is the pair of keys under the performance panel:
+
+| Key | Label |
+| --- | --- |
+| Play / pause | **Play** while stopped, **Pause** while playing |
+| Cue | **Cue** |
+
+Both keys use the same deck-wide enable rule: they are dead (and drawn at half opacity) when the engine is not running, while a track is loading, or when the deck holds no track.
+
+## Play and pause
+
+**Play** starts playback from the playhead and becomes **Pause**; pressing it again stops where the playhead is. Nothing is re-cued when you pause and play again.
+
+## Cue
+
+The **Cue** key has two behaviours decided by how long you hold it:
+
+- **Tap**: release under 180 ms sets the cue point at the playhead. With **Q** on, the point snaps to the beat grid.
+- **Hold**: keep it down past 180 ms and the deck auditions from the cue point, playing forwards. Releasing returns the deck to where it was before the hold, in the state it was in. Playing stays playing, paused stays paused.
+
+A deck with no cue point yet auditions from its current position on the first hold.
+
+The key lights up while you press it, and stays lit through an audition.
+
+## Vinyl brake
+
+Off by default. **Settings → Deck → Vinyl brake pause** is the card, its switch is **Brake on pause**, and its description reads "Pause spins the deck down like a turntable instead of cutting instantly."
+
+With it on, pausing ramps the platter to a stop instead of muting:
+
+| Setting | Range | Default |
+| --- | --- | --- |
+| **Stop time** | 0.05–3.0 s, 0.05 s steps | `0.50 s` |
+
+The hint under it: "How long the platter takes to stop after pause."
+
+The brake is suppressed while your finger is on the jog and starts when you lift off a paused platter. Pressing play or loading a track cancels a brake in progress, so the ramp never rides into new audio.
+
+## Eject and load
+
+The last key in the header swaps role with the deck:
+
+- With a track loaded it reads **Eject track** and clears the deck. The library entry, cues, loops and beat grid stay; you are unloading the player, not the track.
+- With an empty deck it reads **Load track** and opens the picker.
+
+## Time readouts
+
+The track info shows remaining time as `-m:ss.t` and the total duration as `m:ss.t`. Both read **—** before anything is loaded.
+
+Loops and hot cues move the playhead without touching the transport. See [Loops](/docs/users/decks/loops) and [Hot Cues](/docs/users/performance-pads/hot-cues).

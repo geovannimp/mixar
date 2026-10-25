@@ -1,0 +1,73 @@
+---
+title: "Library"
+description: "Analysis quality, file-tag write-back, key display, visible fields, and stem model/format."
+section: "Settings"
+order: 604
+---
+
+**Settings → Library** ("Track import, offline analysis, and list display.") holds the preferences that shape how tracks are analyzed, how their metadata reads in the table and on a deck, and what a generated stem cache looks like.
+
+## Analysis
+
+Card subtitle: "How thoroughly offline analysis scans each track."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Analysis quality** | select | **Fast**: "Analyze a short preview for quick library scans." / **Precise**: "Balanced analysis for most libraries." / **Complete**: "Analyze the full track (slowest, most accurate)." | Precise |
+
+What each level costs, how a queue is started, and what gets filled in: [Analysis](/docs/users/library/analysis).
+
+## File tags
+
+The card's header switch is **Write BPM and key to file tags**, off by default. Its description spells out the rule: "Mixar keeps BPM and key in its own database. When enabled, it also writes them into each file's tags so other DJ software sees the same values. Off by default — Mixar never modifies your files while this is off."
+
+Which tags are written pixel for pixel, and what forcing re-analysis does to your files: [Tag write-back](/docs/users/library/tag-write-back).
+
+## Musical key
+
+Card subtitle: "How keys are labeled and color-coded in deck chrome and the library table."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Key display mode** | select | **Musical**: "Note names in deck chip and library key column — e.g. C, Am, F#m." / **Camelot**: "Mixed In Key codes — e.g. 8B (C major), 8A (A minor), 11B." | Musical |
+| **Key color mode** | select | **Off**: "Key labels use the default text color everywhere." / **Absolute (circle of fifths)**: "Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer)." / **Harmonic (playing deck)**: "Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow." | Off |
+
+Display mode changes the label only; the stored key is the same either way.
+
+## Visible fields
+
+Twelve checkboxes control which metadata a comfortable library row can show. A ticked field is part of the row; an unticked one is not painted at all.
+
+| Field | Default |
+| --- | --- |
+| **Album** | on |
+| **Genre** | on |
+| **Year** | off |
+| **Track #** | off |
+| **Disc #** | off |
+| **Comment** | off |
+| **ISRC** | off |
+| **Length** | on |
+| **Rating** | on |
+| **Color label** | on |
+| **BPM** | on |
+| **Key** | on |
+
+The order you tick fields in is the order they are painted, and turning a field on appends it to the end. A chip you just enabled is therefore the first one dropped when a narrow row runs out of space. Unticking and re-ticking a field moves it to the end.
+
+How the row lays those chips out, and what the toolbar's density toggle does to it: [Browsing](/docs/users/library/browsing).
+
+## Stems
+
+Card subtitle: "Model and codec used when writing separated stem caches."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Stem model** | select | **HTDemucs** / **SCNet (int8)** | HTDemucs |
+| **Stem format** | select | **Opus (160 kbps)** / **FLAC (lossless)** | Opus (160 kbps) |
+
+The model is the separator used by [Generate stems](/docs/users/stems/generate); the format is the codec of the cache file it writes.
+
+## Import from Mixxx
+
+The last card in the section reads a Mixxx library into yours. It needs no saved settings, so its button works straight from this page: [Importing music](/docs/users/library/import).

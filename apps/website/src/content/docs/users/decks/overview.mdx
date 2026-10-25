@@ -1,0 +1,81 @@
+---
+title: "Overview"
+description: "Deck anatomy: track info, header keys, the four performance tabs, and how a track gets loaded."
+section: "Decks"
+order: 301
+---
+
+A deck is one player: a track, a transport, a tempo column, and a performance surface. Mixar shows two or four of them, and a deck's identity colour (**A blue**, **B rose**, **C amber**, **D violet**) follows it through the header, the waveform, the mixer channel, and the library's load actions. [Mixer](/docs/users/mixer) covers how the decks sit around the channel strips.
+
+## The deck card
+
+| Part | What it holds |
+| --- | --- |
+| Header | Deck letter, gain details, master, **Q**, **S**, **FX**, eject/load |
+| Track info | Artwork, title, artist, key, times, and the overview strip |
+| Performance panel | **Pads**, **Loop**, **Grid** and **Jog** tabs |
+| Tempo column | BPM, pitch, sync status, tempo fader, tempo range |
+| Transport | **Play** / **Pause** and **Cue** |
+
+The tempo column faces the mixer: it sits on the right edge of decks A and C, and on the left edge of B and D.
+
+## Track info
+
+- 64 px artwork, with a disc icon when the track has no cover.
+- Title, falling back to the file name. An empty deck reads **No track loaded** over **Drop or load a track**.
+- Artist, or **—** when the file has none.
+- Key chip with a lock icon, which is the key lock control.
+- Time left as `-m:ss.t` on the left, total duration as `m:ss.t` on the right.
+- The overview strip along the bottom: the whole track in one bar.
+
+## Header keys
+
+The header row scrolls sideways when the deck is narrow, so the last keys stay reachable.
+
+| Key | What it does |
+| --- | --- |
+| Info icon | Opens the gain popover (tooltip **Deck gain details**) |
+| **Set master** / **Master** | Crowns this deck as the tempo reference; the crown fills in when it is master |
+| **Q** | Quantize: "Snap cues, loops, and hot cues to the beat grid." |
+| **S** | Slip: a shadow playhead keeps moving through loops and scratch, then catches up |
+| **FX** | Routes the deck through the shared effect unit, see [Beat FX](/docs/users/mixer/beat-fx) |
+| **Load track** / **Eject track** | Opens the picker, or clears the deck |
+
+The gain popover is titled **Gain** and lists **Loudness**, **ReplayGain**, **Auto gain**, **Gain trim**, and **Total gain**.
+
+## Performance tabs
+
+Four vertical icon tabs run down the panel. Each has a tooltip and a screen-reader label.
+
+| Tab | Page |
+| --- | --- |
+| **Pads** | [Performance pads](/docs/users/performance-pads) |
+| **Loop** | [Loops](/docs/users/decks/loops) |
+| **Grid** | [Beat grid](/docs/users/decks/beat-grid) |
+| **Jog** | [Jog and waveform](/docs/users/decks/jog-and-waveform) |
+
+The surfaces need a loaded track before their controls work, but the selected tab survives an empty deck, and the pad mode inside **Pads** stays selectable.
+
+## Loading a track
+
+Three ways, all landing on the same deck:
+
+- Drag a row from the library onto the deck.
+- Press **Load track** and pick a file. The picker accepts the same formats the library imports: `mp3`, `flac`, `wav`, `aiff`, `aif`, `ogg`, `m4a`, `aac`, `opus`, `wma`, `alac`.
+- Drop an audio file from the desktop onto the deck. This OS drop is switched off while the library drawer is open, so a file cannot land on a deck hidden under it; a drop with nothing playable reports "No supported audio files in drop".
+
+While a track loads, the track info shimmers, the BPM readout shows `000.00`, and the transport stays disabled.
+
+## Deck layout
+
+**Settings → Deck → Deck layout** switches between **2 decks** and **4 decks**. Changing it restarts the audio engine and asks **Change deck layout?**; **Restart and apply** commits it. Tracks on the decks removed by going back to two decks are not restored.
+
+## In this section
+
+| Page | What it covers |
+| --- | --- |
+| [Transport](/docs/users/decks/transport) | Play, cue, eject, vinyl brake |
+| [Tempo and sync](/docs/users/decks/tempo-and-sync) | Fader, range, sync, key lock |
+| [Loops](/docs/users/decks/loops) | Auto loops, manual in/out, saved loops |
+| [Beat grid](/docs/users/decks/beat-grid) | BPM and downbeat correction |
+| [Jog and waveform](/docs/users/decks/jog-and-waveform) | Reading and scrubbing the waveform, the platter |

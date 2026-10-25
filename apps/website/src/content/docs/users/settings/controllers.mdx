@@ -1,0 +1,43 @@
+---
+title: "Controllers"
+description: "Connect a MIDI controller, trust it, and manage mapping bundles and MIDI ports."
+section: "Settings"
+order: 608
+---
+
+**Settings → Controllers** ("MIDI mappings and connected hardware. Trust a device to auto-enable it on connect after Save.") has two cards: **Mappings** and **MIDI ports**.
+
+## Mappings
+
+Card subtitle: "Stored in app data. Seed copies shipped maps when missing; Update overwrites from the app bundle." The header button is **Update All**.
+
+Each row shows the device's vendor and product as its title, then pills for the mapping id, the device id, the bundle version, and **Attached** while the mapping is live. On the right:
+
+| Control | What it does |
+| --- | --- |
+| **Update available** | Appears when the mapping shipped with this build is newer than the copy in app data. |
+| **Update** | Overwrites the app-data copy from the app bundle. Acts immediately. |
+| **Trust** | Toggles trust for the device. Part of the draft: it takes effect on **Save**. |
+| **Attach** | Toggles the mapping on or off. Acts immediately. |
+
+With no mapping bundles in app data yet, the card reads "No mappings in app data yet."; **Update All** seeds them from the bundle.
+
+## MIDI ports
+
+Card subtitle: "Detected MIDI inputs and outputs, and the mapping each one matches." Every detected port gets a row: an **IN** or **OUT** chip, the port name, and either the mapping it matched or **No mapping**.
+
+With nothing plugged in, the card reads "No MIDI ports detected."
+
+## Connecting a controller
+
+Plug in a controller Mixar has a mapping for and a toast appears: `<device> connected`, then "Do you want to use this controller?", with a **Always allow this device** checkbox and **Cancel** / **Enable**.
+
+- **Enable** attaches the mapping now.
+- **Always allow this device** plus **Enable** also stores the device id in the trusted list, so the next time it is plugged in the mapping attaches without asking.
+- **Cancel** leaves the port alone; it will not ask again until the device is re-plugged.
+
+**Trust** and **Attach** on each row are the same switches the prompt sets.
+
+## What ships
+
+Only the Pioneer DDJ-400 has a shipped mapping. Adding another controller means authoring a mapping bundle: [MIDI mappings](/docs/developers/midi-mappings).

@@ -1,0 +1,58 @@
+---
+title: "Editing tracks"
+description: "Correct metadata in the library, refresh a track from its file, and know what gets overwritten."
+section: "Library"
+order: 206
+---
+
+Mixar stores track metadata in its own database, and you can edit it there without touching the audio file. Two actions on a row's three-dot menu do this work: **Refresh** and **Edit…**. Both need the row to be a library track. A raw file in the Drive tab has no library row to change.
+
+## Refresh
+
+**Refresh** re-reads that one track's tags from the file on disk and writes the result to the library row. Use it when you retagged a file in another application. It affects that track only; there is no collection-wide refresh.
+
+## Edit
+
+**Edit…** opens a panel along the right edge with every user-editable field:
+
+| Field | Notes |
+| --- | --- |
+| **Title**, **Artist**, **Album**, **Genre** | Free text. |
+| **BPM** | Decimals are supported end to end. |
+| **Key** | Hint reads **e.g. Am, or Camelot 8A**; either notation is accepted. |
+| **ISRC** | Hint reads **International Standard Recording Code**. |
+| **Year** | Hint reads **Release year**. |
+| **Track #**, **Disc #** | Whole numbers. |
+| **Comment** | Multi-line. |
+| **Rating** | Five stars. Click the active star again, or use **Clear**, to remove the rating. |
+| **Colour label** | **None** plus pink, red, orange, yellow, green, aqua, blue, and purple. |
+
+**Save** stays disabled until something changes: a form edit, a rating change, or a colour change.
+
+## What the editor refuses
+
+Invalid input blocks the save with **Fix the highlighted fields**, and each field carries its own message:
+
+| Message | Cause |
+| --- | --- |
+| **BPM must be a positive number** | Zero, negative, or not a number. |
+| **Use a musical key (Am) or Camelot code (8A)** | Text that parses as neither notation. |
+| **Year must be 1–9999** | Outside that range. |
+| **Track number must be a whole number** | Not a whole number in 1–65535. |
+| **Disc number must be a whole number** | Not a whole number in 1–65535. |
+
+Clearing a field and saving removes the value. Fields you leave alone keep their stored precision, so a detected `124.035` BPM survives an edit to the album name.
+
+## What an edit does not do
+
+The editor writes to Mixar's database only. Your file keeps its original tags unless **Write BPM and key to file tags** is on. See [Tag write-back](/docs/users/library/tag-write-back).
+
+<Callout type="warning" title="Edits do not survive a re-read from the file">
+A refresh or a folder re-scan rewrites every metadata column from the file's own tags, so an edit made here reverts unless the file's tags change too. Tag write-back is the way to make an edit durable across both.
+</Callout>
+
+## Related
+
+- [Browsing](/docs/users/library/browsing): the filter, sort, and row menu this page assumes.
+- [Analysis](/docs/users/library/analysis): where BPM, key, and the beat grid normally come from.
+- [Beat grid](/docs/users/decks/beat-grid): correcting tempo and the first downbeat, which the editor does not cover.

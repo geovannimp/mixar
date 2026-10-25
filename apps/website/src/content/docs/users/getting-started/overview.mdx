@@ -1,0 +1,83 @@
+---
+title: "Install Mixar"
+description: "Download a build or run from source, what first launch shows, and where Mixar keeps your data."
+section: "Getting started"
+order: 101
+---
+
+**Mixar** is a desktop DJ app: two or four decks, a mixer, an offline-analyzed library, stems, and a performance pad grid, on top of a Rust audio engine. It runs on Linux, macOS, and Windows. Linux is the primary development platform.
+
+The app is under active development and is not a stable product yet, so settings can change between versions.
+
+## Get a build
+
+Prebuilt packages are attached to [GitHub Releases](https://github.com/geovannimp/mixar/releases):
+
+| Platform | Asset |
+| --- | --- |
+| Linux | `.AppImage`, marked executable and run directly |
+| macOS | `.dmg` |
+| Windows | `.exe` setup |
+
+The latest public build is a **pre-release**. Artefacts ship **unsigned** by default: on macOS you have to allow the app in System Settings after the first launch attempt (notarization is not wired yet), and on Windows you will see a SmartScreen warning. There is no auto-updater; getting a new version means downloading it again.
+
+## Run from source
+
+Prerequisites: [mise](https://mise.jdx.dev), Rust stable with `rustfmt` and `clippy`, Flutter (the version pinned in `mise.toml`), and a working sound device.
+
+On Linux you also need the ALSA and PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu) plus the Flutter Linux desktop dependencies (GTK and friends).
+
+```bash
+git clone https://github.com/geovannimp/mixar.git
+cd mixar
+mise install
+npm install
+npm run flutter:dev
+```
+
+Sample tracks live in `samples/` if you want something to load on the first run.
+
+## First launch
+
+The app opens on the mixer with two empty decks, an empty library, and the engine already started on your system default output device.
+
+| Surface | What it says when empty |
+| --- | --- |
+| Deck track info | **No track loaded** / **Drop or load a track** |
+| Collections sidebar | **No collections yet. Create a folder or playlist collection.** |
+| Track list, Drive tab | **Select a drive or folder to browse audio files** |
+| Track list, folder open | **No tracks** |
+
+Deck layout, jog behaviour, tempo range, and every other default are described in [Settings](/docs/users/settings). The two settings worth visiting before you play are **Settings → Audio** and **Settings → Library → Analysis quality**.
+
+## No output device means no app
+
+The mixer runs inside the audio engine, so a working output device is a hard requirement. With no device enumerated the engine fails with **No output device available** and startup aborts. Plug in or enable an output, then relaunch. See [Audio setup](/docs/users/getting-started/audio-setup).
+
+## Where your data lives
+
+Everything Mixar owns sits in one application-support directory named `top.mixar.app`:
+
+| Platform | Directory |
+| --- | --- |
+| Linux | `$XDG_DATA_HOME/top.mixar.app`, or `~/.local/share/top.mixar.app` |
+| macOS | `~/Library/Application Support/top.mixar.app` |
+| Windows | `%APPDATA%\top.mixar.app` |
+
+| File | What it holds |
+| --- | --- |
+| `library.db` | Tracks, collections, playlists, hot cues, loops, beat grids, waveform overviews |
+| `settings.json` | Every preference, including controller trust and the chosen audio devices |
+| `mixar.log` | Rust diagnostics |
+| `mappings/` | Controller mapping bundles |
+| `stems/`, `models/` | Generated stem caches and the downloaded separation models |
+
+Audio files are never moved or copied. A folder collection is a pointer to a directory you own. Backing up that folder backs up your whole Mixar setup; deleting it resets the app without touching your music.
+
+## Next
+
+| Task | Page |
+| --- | --- |
+| Get sound out, route the headphones | [Audio setup](/docs/users/getting-started/audio-setup) |
+| Add a folder of music and analyze it | [Library](/docs/users/library) |
+| Load a track and play it | [Decks](/docs/users/decks) |

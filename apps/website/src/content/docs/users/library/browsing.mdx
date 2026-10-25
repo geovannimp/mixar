@@ -1,0 +1,63 @@
+---
+title: "Browsing"
+description: "Find tracks fast: filter, sort, row density, per-track actions, and dragging onto a deck."
+section: "Library"
+order: 202
+---
+
+The library screen has a sidebar on the left and the track list on the right. What that list shows depends on the sidebar tab: **Collections** (your imported music), **Drive** (any folder on disk, collection or not), and **History** (recorded sessions, covered under [Settings → Session](/docs/users/settings/session)).
+
+## Collections and folders
+
+Each collection row shows its name and a track count. Folder collections also carry a **Browse … in Drive** button that jumps to the same directory in the Drive tab without going through the collection.
+
+## Filter
+
+The field above the list, hinted **Filter tracks…**, narrows the current list as you type. Matching is case-insensitive and ignores leading and trailing spaces, and it looks at title, artist, album, genre, comment, colour label, year, track number, and disc number. BPM, key, and ISRC are not searched.
+
+One filter state is shared: switching between the Collections and Drive tabs keeps the same text, and both lists filter the same way.
+
+## Sort
+
+**Sort tracks** opens the field menu: **Title**, **Artist**, **BPM**, **Key**, **Length**, **Rating**, **Year**, **Track #**, **Disc #**, **Colour**. The default is Title ascending.
+
+- Picking a field sorts ascending; picking the active field again flips the direction. The active row carries an arrow that points the way the list reads.
+- Tracks missing the value always sink to the bottom, in **both** directions. A track without a BPM never floats above analyzed ones just because you flipped the sort.
+- **Key** sorts by position on the Camelot wheel (`1A, 1B, 2A, … 12B`) rather than as text, so harmonically adjacent keys stay together. Keys that cannot be parsed join the unknowns.
+
+## Row density
+
+The toolbar button toggles between **Compact rows** (36 px, one dense line) and **Comfortable rows** (60 px, title above a metadata line). The toggle is session-only: it overrides the saved **Track row layout** setting until you toggle back, and it never writes to `settings.json`.
+
+Compact rows have no metadata line, so only the trailing fields apply there: length, rating, colour, BPM, and key.
+
+## Track actions
+
+Every row has a three-dot menu, also reachable by right-click or long-press. It opens with a **Load to deck** group of segment buttons (**A**, **B**, and in a four-deck layout **C** and **D**), then the library actions:
+
+| Action | What it does |
+| --- | --- |
+| **Analyze** | Queues analysis for that track. Reads **Analyzing…** and disables itself while a job runs. See [Analysis](/docs/users/library/analysis). |
+| **Generate stems** | Queues offline separation. Reads **Generating stems…** while it runs. See [Generate stems](/docs/users/stems/generate). |
+| **Refresh** | Re-reads that track's tags from the file. |
+| **Edit…** | Opens the metadata drawer. See [Editing tracks](/docs/users/library/track-editing). |
+
+The **Load to deck** buttons need the engine to be running, and the last four actions are only available for tracks in the library. A raw file shown in the Drive tab has no library row to analyze, refresh, or edit.
+
+## Drag to a deck
+
+Drag any row onto a deck to load it. The drag card shows the track title. When the library is open as a [drawer](/docs/users/settings/interface), the panel tucks off its edge for the duration of the drag so it cannot cover the deck you are dropping on, and the drag's end closes the drawer.
+
+## Narrow layouts
+
+The library measures its own width, not the window's. Below 1024 px the sidebar and the list stop sitting side by side and become two pages, with a **Back to library list** button on the content page. The same rule applies to the docked panel and to the drawer at any edge.
+
+## Progress
+
+Analysis and stem generation run on separate queues, so a track can be doing both. Progress appears as a pill on the row with a thin progress bar along its bottom edge:
+
+**Decoding** → **Analyzing** → **Detecting BPM** / **Detecting key** / **Measuring loudness** / **Waveform** for analysis; **Queuing stems** → **Loading stem model** → **Separating stems** → **Encoding stems** → **Stems ready**, or **Stems failed**.
+
+## From the keyboard
+
+With the row list focused: ↑ and ↓ move the row cursor, Home and End jump to the first and last row, Enter loads the focused row to Deck A, and Shift+Enter loads it to Deck B.

@@ -1,0 +1,71 @@
+---
+title: "Tempo and sync"
+description: "Bend the pitch fader, cycle the range, and lock two decks together with tempo or beat sync."
+section: "Decks"
+order: 303
+---
+
+The tempo column is the narrow card on the inner edge of the deck.
+
+## The readout block
+
+The top block of the column stacks three things:
+
+| Line | Shows |
+| --- | --- |
+| BPM | The sounding tempo, two decimals, scaled live by the fader. `—` when the track has no analysed BPM; `000.00` while the track is still loading |
+| Pitch | The fader's signed offset, e.g. `+0.00%` |
+| Status icon | Crown when this deck is master, closed lock when synced, open lock when not |
+
+That whole block is the sync key: clicking it toggles sync.
+
+## The tempo fader
+
+A vertical fader with a centre notch. Centre is 0%; the ends are plus and minus the current range. The fader is disabled while sync is active, because a synced deck's tempo is being driven for it.
+
+## The tempo range
+
+The chip under the fader shows the range, e.g. `±6%`, and its tooltip is **Tempo range**: "Pitch fader span. Click to cycle the max ±% range."
+
+Clicking cycles: `±6%` → `±10%` → `±16%` → `±25%` → `±6%`. The fader stays where it is across the change, so a centred fader keeps the track at its own tempo while an off-centre one lands on a new pitch.
+
+The range a deck starts with comes from **Settings → Deck → Default tempo range**.
+
+## Sync
+
+| Gesture | Effect |
+| --- | --- |
+| Click | Tempo sync: "Tempo follows the master. Click again to turn sync off." |
+| Shift+click | Beat sync: "Tempo and phase follow the master. Click again to turn sync off." |
+| Click while synced | Turns sync off and leaves the tempo where it is |
+
+Tempo sync matches the master's effective BPM. Beat sync does that and also pulls this deck's phase onto the master's beat, clicking the decks into alignment.
+
+Both need an analysed BPM on both decks. Without one, sync raises "Master deck BPM is required for sync." or "Slave deck BPM is required for sync.", and beat sync raises the same message with "beat sync" in place of "sync".
+
+Beat sync respects the deck's **Q** setting when it lands the phase: with quantize off it aligns to the beat without snapping the seek.
+
+## Master
+
+One deck is the tempo reference. Deck A holds it at startup until you crown another deck with **Set master**, the header key on every other deck. The master's own sync key is inert; there is nothing above it to follow, and Mixar refuses the attempt with "Master deck cannot sync to itself. Choose the other deck."
+
+## Key lock
+
+The key chip in the track info is also the key lock control: click the chip to toggle it.
+
+| State | Tooltip | Behaviour |
+| --- | --- | --- |
+| On | **Key lock on** | "Keeps musical pitch when you change tempo." |
+| Off | **Key lock off** | "Pitch follows tempo changes." (vinyl behaviour) |
+
+It is off by default and each deck starts from **Settings → Deck → Default key lock**, whose hint reads "Tempo-only pitch when on (time-stretch). Off = vinyl tempo." The control is disabled until a track is loaded and the engine is running.
+
+The chip always shows the **sounding** key: the analysed key transposed by the deck's current key shift, in the display mode chosen under **Settings → Library**. That transposition is display-only and never written back.
+
+## Key shift
+
+The Pads surface's **Shift** mode transposes the whole deck by up to 16 semitones. See [Key Shift](/docs/users/performance-pads/key-shift). It is a separate control from key lock: lock decides whether tempo drags the pitch, shift moves the pitch deliberately.
+
+## What listens to the tempo
+
+Sync, quantize, loops, roll and beat jump all read the deck's BPM and beat phase. A track whose BPM is wrong drags sync, quantize and beat jump down with it, so correct the grid in [Beat grid](/docs/users/decks/beat-grid) first.

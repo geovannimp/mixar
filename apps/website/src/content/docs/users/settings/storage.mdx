@@ -1,0 +1,39 @@
+---
+title: "Storage"
+description: "See what Mixar caches on disk and clear or sync each cache safely."
+section: "Settings"
+order: 606
+---
+
+**Settings → Storage** ("Disk use for Mixar caches and library metadata under app support.") has a single card, **Mixar storage**, with the total used shown on the right and a stacked bar plus four rows under it. Nothing on this page waits for **Save**: every button acts immediately after its confirmation.
+
+## What is counted
+
+| Row | What it measures | Actions |
+| --- | --- | --- |
+| **Stem cache** | Generated stem files for your tracks | **Sync**, **Clear** |
+| **Stem model** | Downloaded separation models | **Clear** |
+| **Waveform** | Cached waveform overviews | **Clear** |
+| **Track metadata** | Mixar's library database | none |
+
+**Track metadata** is size-only; there is no button for it, because the database is the library, not a cache.
+
+## Sync stem cache
+
+**Sync** asks **Sync stem cache?**: "Removes stem files that are not listed in the library database, and drops DB rows whose files are missing. Referenced cache files and original audio are kept." Confirm with **Sync** or back out with **Cancel**.
+
+The toast afterwards is "Stem cache already in sync" when nothing had to go, or "Removed 1 orphan stem file" / "Removed N orphan stem files". A failure reads "Sync failed" with the error under it.
+
+## Clear buttons
+
+Each **Clear** confirms first, then acts:
+
+| Button | Dialog title | Body | Toast |
+| --- | --- | --- | --- |
+| Stem cache **Clear** | **Clear stem cache?** | "Deletes generated stem files for all tracks. Original library audio is not touched." | "Stem cache cleared" |
+| Stem model **Clear** | **Clear stem model cache?** | "Deletes downloaded stem separation models. They will re-download when needed." | "Stem model cleared" |
+| Waveform **Clear** | **Clear waveform cache?** | "Deletes cached waveform overviews. They regenerate when you open a track." | "Waveform cache cleared" |
+
+A failure reads "Clear failed" with the error. The buttons are disabled while a clear is running and until the usage figures have loaded.
+
+Clearing never touches your audio files. Stems have to be separated again and models downloaded again, and waveforms rebuild the next time you open a track. What each cache holds: [Storage](/docs/users/stems/storage).

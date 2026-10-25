@@ -1,0 +1,53 @@
+---
+title: "Cueing"
+description: "Send a channel to the headphones, blend cue and master, and set headphone level."
+section: "Mixer"
+order: 403
+---
+
+Cueing sends a channel to your headphones instead of the main output. The channel is tapped before its volume fader, summed into a cue bus, and sent to the **Preview bus** output. It stays silent until that bus is enabled. Set it up under [Audio setup](/docs/users/getting-started/audio-setup) or in the [Audio settings reference](/docs/users/settings/audio).
+
+## Sending a channel to the headphones
+
+Each channel has a **headphone cue** key at the bottom of its volume column, the headphones icon. Press it to put that deck in the cue bus; the icon lights and stays lit for as long as the deck is cued. Several decks can be cued at once and are summed, so you can compare two tracks in the headphones before bringing either in.
+
+The cue tap sits after the channel's FX insert but before its volume fader:
+
+- Channel fader position does not change what you hear in the headphones.
+- The crossfader does not either, because it is applied after the channel faders when the lanes are summed.
+- Routing the deck through **FX** does change it, since the tap is downstream of the effect.
+
+The deck meters read from the same tap, which is why a cued deck with a closed fader still shows levels.
+
+## Levels
+
+Click the master meter to open the **Levels** dialog. It holds two cards.
+
+**Master**: "Output bus volume and master cue." The fader is the master output level; the headphones icon beside it is **Master cue**, which adds the master mix to the cue bus.
+
+**Headphone**: "Cue volume and Cue/Master blend." The top fader is the headphone level. Below the **Mixing** label, the **Cue** / **Mst** fader (announced as "Cue/Mst") blends the two sources and has a centre notch.
+
+When the preview bus is off, the Headphone card shows an **Enable** button that jumps straight to **Settings → Audio** with the preview bus fields in view and closes the dialog.
+
+## How the blend works
+
+The blend is a crossfade between pre-fader listen and the master tap:
+
+| Blend position | What you hear |
+| --- | --- |
+| **Cue** end (0) | Pre-fader listen only |
+| Middle | Both, mixed |
+| **Mst** end (1) | Master tap only |
+
+The master contribution is gated by **Master cue**. With master cue off, the master side of the blend is silence, so the fader only attenuates the cue: at the **Mst** end you hear nothing at all rather than the mix.
+
+## Nothing in the headphones
+
+Work down this list:
+
+1. **Settings → Audio → Preview bus → Enable preview bus** is off, or the preview bus has no device assigned. Cueing has no output without it.
+2. No channel is cued: check the headphones icons in the channel strips.
+3. The **Cue** / **Mst** fader is at the **Mst** end with **Master cue** off.
+4. The preview bus points at channels the audio interface does not have; compare them with the device's channel count in the same settings card.
+
+For the strip, the crossfader sides and the master meter, see [Mixer overview](/docs/users/mixer); for per-control ranges, [Channels](/docs/users/mixer/channels).
