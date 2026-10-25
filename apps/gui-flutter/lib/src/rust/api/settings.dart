@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_master_bus_route`, `default_mixer_meters_mono`, `default_num_decks`, `default_preview_bus_route`, `default_show_mixer_meters`, `default_show_tooltips`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
+// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_mixer_meters_mono`, `default_num_decks`, `default_preview_bus_route`, `default_show_mixer_meters`, `default_show_tooltips`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsHost`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SettingsTransport>>
@@ -43,6 +43,11 @@ class AppSettings {
   final BusRouteSettings previewBus;
   final AnalysisDurationSetting analysisDuration;
   final LibraryRowDensitySetting libraryRowDensity;
+
+  /// Metadata fields a library row shows, in render order. A chip that does
+  /// not fit the row's two-line pill area is dropped on its own; the trailing
+  /// cluster keeps its fixed rating/colour/BPM/key order.
+  final List<LibraryRowFieldSetting> libraryRowFields;
 
   /// Mirror app-managed BPM/key into the file's tags after analysis (off by default).
   final bool tagWriteBack;
@@ -105,6 +110,7 @@ class AppSettings {
     required this.previewBus,
     required this.analysisDuration,
     required this.libraryRowDensity,
+    required this.libraryRowFields,
     required this.tagWriteBack,
     required this.volumeNormalizerEnabled,
     required this.targetLufs,
@@ -152,6 +158,7 @@ class AppSettings {
       previewBus.hashCode ^
       analysisDuration.hashCode ^
       libraryRowDensity.hashCode ^
+      libraryRowFields.hashCode ^
       tagWriteBack.hashCode ^
       volumeNormalizerEnabled.hashCode ^
       targetLufs.hashCode ^
@@ -201,6 +208,7 @@ class AppSettings {
           previewBus == other.previewBus &&
           analysisDuration == other.analysisDuration &&
           libraryRowDensity == other.libraryRowDensity &&
+          libraryRowFields == other.libraryRowFields &&
           tagWriteBack == other.tagWriteBack &&
           volumeNormalizerEnabled == other.volumeNormalizerEnabled &&
           targetLufs == other.targetLufs &&
@@ -319,6 +327,28 @@ enum LibraryRowDensitySetting {
 
   static Future<LibraryRowDensitySetting> default_() =>
       RustLib.instance.api.crateApiSettingsLibraryRowDensitySettingDefault();
+}
+
+/// One metadata field a library track row can show (Settings → UI → Library
+/// list → Visible fields).
+///
+/// The order of [`AppSettings::library_row_fields`] is the render order: chips
+/// paint in that order, and a chip that cannot fit the row's two-line pill area
+/// is left out on its own — the fields after it still get their chance. See
+/// [`default_library_row_fields`] for today's layout.
+enum LibraryRowFieldSetting {
+  album,
+  genre,
+  year,
+  trackNumber,
+  discNumber,
+  comment,
+  isrc,
+  duration,
+  rating,
+  color,
+  bpm,
+  key,
 }
 
 /// Default sampler pad play mode.

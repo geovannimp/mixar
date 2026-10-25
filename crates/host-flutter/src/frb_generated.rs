@@ -7973,6 +7973,8 @@ impl SseDecode for crate::api::settings::AppSettings {
             <crate::api::settings::AnalysisDurationSetting>::sse_decode(deserializer);
         let mut var_libraryRowDensity =
             <crate::api::settings::LibraryRowDensitySetting>::sse_decode(deserializer);
+        let mut var_libraryRowFields =
+            <Vec<crate::api::settings::LibraryRowFieldSetting>>::sse_decode(deserializer);
         let mut var_tagWriteBack = <bool>::sse_decode(deserializer);
         let mut var_volumeNormalizerEnabled = <bool>::sse_decode(deserializer);
         let mut var_targetLufs = <f32>::sse_decode(deserializer);
@@ -8027,6 +8029,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             preview_bus: var_previewBus,
             analysis_duration: var_analysisDuration,
             library_row_density: var_libraryRowDensity,
+            library_row_fields: var_libraryRowFields,
             tag_write_back: var_tagWriteBack,
             volume_normalizer_enabled: var_volumeNormalizerEnabled,
             target_lufs: var_targetLufs,
@@ -8755,6 +8758,28 @@ impl SseDecode for crate::api::settings::LibraryRowDensitySetting {
     }
 }
 
+impl SseDecode for crate::api::settings::LibraryRowFieldSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::LibraryRowFieldSetting::Album,
+            1 => crate::api::settings::LibraryRowFieldSetting::Genre,
+            2 => crate::api::settings::LibraryRowFieldSetting::Year,
+            3 => crate::api::settings::LibraryRowFieldSetting::TrackNumber,
+            4 => crate::api::settings::LibraryRowFieldSetting::DiscNumber,
+            5 => crate::api::settings::LibraryRowFieldSetting::Comment,
+            6 => crate::api::settings::LibraryRowFieldSetting::Isrc,
+            7 => crate::api::settings::LibraryRowFieldSetting::Duration,
+            8 => crate::api::settings::LibraryRowFieldSetting::Rating,
+            9 => crate::api::settings::LibraryRowFieldSetting::Color,
+            10 => crate::api::settings::LibraryRowFieldSetting::Bpm,
+            11 => crate::api::settings::LibraryRowFieldSetting::Key,
+            _ => unreachable!("Invalid variant for LibraryRowFieldSetting: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::library::LibraryTrackSummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8953,6 +8978,20 @@ impl SseDecode for Vec<crate::api::library::LibraryCollectionSummary> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::library::LibraryCollectionSummary>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::settings::LibraryRowFieldSetting> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::settings::LibraryRowFieldSetting>::sse_decode(
                 deserializer,
             ));
         }
@@ -10766,6 +10805,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.preview_bus.into_into_dart().into_dart(),
             self.analysis_duration.into_into_dart().into_dart(),
             self.library_row_density.into_into_dart().into_dart(),
+            self.library_row_fields.into_into_dart().into_dart(),
             self.tag_write_back.into_into_dart().into_dart(),
             self.volume_normalizer_enabled.into_into_dart().into_dart(),
             self.target_lufs.into_into_dart().into_dart(),
@@ -11643,6 +11683,37 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::LibraryRowDensitySe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::LibraryRowFieldSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Album => 0.into_dart(),
+            Self::Genre => 1.into_dart(),
+            Self::Year => 2.into_dart(),
+            Self::TrackNumber => 3.into_dart(),
+            Self::DiscNumber => 4.into_dart(),
+            Self::Comment => 5.into_dart(),
+            Self::Isrc => 6.into_dart(),
+            Self::Duration => 7.into_dart(),
+            Self::Rating => 8.into_dart(),
+            Self::Color => 9.into_dart(),
+            Self::Bpm => 10.into_dart(),
+            Self::Key => 11.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::LibraryRowFieldSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::LibraryRowFieldSetting>
+    for crate::api::settings::LibraryRowFieldSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::LibraryRowFieldSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryTrackSummary {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -12302,6 +12373,10 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.library_row_density,
             serializer,
         );
+        <Vec<crate::api::settings::LibraryRowFieldSetting>>::sse_encode(
+            self.library_row_fields,
+            serializer,
+        );
         <bool>::sse_encode(self.tag_write_back, serializer);
         <bool>::sse_encode(self.volume_normalizer_enabled, serializer);
         <f32>::sse_encode(self.target_lufs, serializer);
@@ -12926,6 +13001,32 @@ impl SseEncode for crate::api::settings::LibraryRowDensitySetting {
     }
 }
 
+impl SseEncode for crate::api::settings::LibraryRowFieldSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::LibraryRowFieldSetting::Album => 0,
+                crate::api::settings::LibraryRowFieldSetting::Genre => 1,
+                crate::api::settings::LibraryRowFieldSetting::Year => 2,
+                crate::api::settings::LibraryRowFieldSetting::TrackNumber => 3,
+                crate::api::settings::LibraryRowFieldSetting::DiscNumber => 4,
+                crate::api::settings::LibraryRowFieldSetting::Comment => 5,
+                crate::api::settings::LibraryRowFieldSetting::Isrc => 6,
+                crate::api::settings::LibraryRowFieldSetting::Duration => 7,
+                crate::api::settings::LibraryRowFieldSetting::Rating => 8,
+                crate::api::settings::LibraryRowFieldSetting::Color => 9,
+                crate::api::settings::LibraryRowFieldSetting::Bpm => 10,
+                crate::api::settings::LibraryRowFieldSetting::Key => 11,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::library::LibraryTrackSummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13067,6 +13168,16 @@ impl SseEncode for Vec<crate::api::library::LibraryCollectionSummary> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::library::LibraryCollectionSummary>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::settings::LibraryRowFieldSetting> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::settings::LibraryRowFieldSetting>::sse_encode(item, serializer);
         }
     }
 }

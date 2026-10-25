@@ -390,6 +390,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryRowDensitySetting dco_decode_library_row_density_setting(dynamic raw);
 
   @protected
+  LibraryRowFieldSetting dco_decode_library_row_field_setting(dynamic raw);
+
+  @protected
   LibraryTrackSummary dco_decode_library_track_summary(dynamic raw);
 
   @protected
@@ -433,6 +436,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<LibraryCollectionSummary> dco_decode_list_library_collection_summary(
+    dynamic raw,
+  );
+
+  @protected
+  List<LibraryRowFieldSetting> dco_decode_list_library_row_field_setting(
     dynamic raw,
   );
 
@@ -1001,6 +1009,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  LibraryRowFieldSetting sse_decode_library_row_field_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LibraryTrackSummary sse_decode_library_track_summary(
     SseDeserializer deserializer,
   );
@@ -1054,6 +1067,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<LibraryCollectionSummary> sse_decode_list_library_collection_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<LibraryRowFieldSetting> sse_decode_list_library_row_field_setting(
     SseDeserializer deserializer,
   );
 
@@ -1752,6 +1770,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_library_row_field_setting(
+    LibraryRowFieldSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_library_track_summary(
     LibraryTrackSummary self,
     SseSerializer serializer,
@@ -1817,6 +1841,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_library_collection_summary(
     List<LibraryCollectionSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_library_row_field_setting(
+    List<LibraryRowFieldSetting> self,
     SseSerializer serializer,
   );
 

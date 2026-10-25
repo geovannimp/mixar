@@ -1042,6 +1042,49 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsAnalyticsToggle => 'Enviar dados anónimos de utilização';
+
+  @override
+  String get settingsUiVisibleFields => 'Campos visíveis';
+
+  @override
+  String get settingsUiVisibleFieldsHint =>
+      'Etiquetas sob o título de cada faixa. Os campos que ativar ficam depois dos já visíveis; uma etiqueta que não cabe na linha de duas alturas é omitida em vez de cortada.';
+
+  @override
+  String get settingsUiFieldAlbum => 'Álbum';
+
+  @override
+  String get settingsUiFieldGenre => 'Género';
+
+  @override
+  String get settingsUiFieldYear => 'Ano';
+
+  @override
+  String get settingsUiFieldTrackNumber => 'Número da faixa';
+
+  @override
+  String get settingsUiFieldDiscNumber => 'Número do disco';
+
+  @override
+  String get settingsUiFieldComment => 'Comentário';
+
+  @override
+  String get settingsUiFieldIsrc => 'ISRC';
+
+  @override
+  String get settingsUiFieldDuration => 'Duração';
+
+  @override
+  String get settingsUiFieldRating => 'Avaliação';
+
+  @override
+  String get settingsUiFieldColor => 'Etiqueta de cor';
+
+  @override
+  String get settingsUiFieldBpm => 'BPM';
+
+  @override
+  String get settingsUiFieldKey => 'Tom';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).

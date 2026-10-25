@@ -1797,6 +1797,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send anonymous usage data'**
   String get settingsAnalyticsToggle;
+
+  /// No description provided for @settingsUiVisibleFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible fields'**
+  String get settingsUiVisibleFields;
+
+  /// No description provided for @settingsUiVisibleFieldsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Chips under each track title. Fields you turn on go after the ones already shown; a chip that does not fit the two-line row is left out rather than clipped.'**
+  String get settingsUiVisibleFieldsHint;
+
+  /// No description provided for @settingsUiFieldAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Album'**
+  String get settingsUiFieldAlbum;
+
+  /// No description provided for @settingsUiFieldGenre.
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get settingsUiFieldGenre;
+
+  /// No description provided for @settingsUiFieldYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get settingsUiFieldYear;
+
+  /// No description provided for @settingsUiFieldTrackNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Track #'**
+  String get settingsUiFieldTrackNumber;
+
+  /// No description provided for @settingsUiFieldDiscNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Disc #'**
+  String get settingsUiFieldDiscNumber;
+
+  /// No description provided for @settingsUiFieldComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment'**
+  String get settingsUiFieldComment;
+
+  /// No description provided for @settingsUiFieldIsrc.
+  ///
+  /// In en, this message translates to:
+  /// **'ISRC'**
+  String get settingsUiFieldIsrc;
+
+  /// No description provided for @settingsUiFieldDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Length'**
+  String get settingsUiFieldDuration;
+
+  /// No description provided for @settingsUiFieldRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get settingsUiFieldRating;
+
+  /// No description provided for @settingsUiFieldColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color label'**
+  String get settingsUiFieldColor;
+
+  /// No description provided for @settingsUiFieldBpm.
+  ///
+  /// In en, this message translates to:
+  /// **'BPM'**
+  String get settingsUiFieldBpm;
+
+  /// No description provided for @settingsUiFieldKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Key'**
+  String get settingsUiFieldKey;
 }
 
 class _AppLocalizationsDelegate

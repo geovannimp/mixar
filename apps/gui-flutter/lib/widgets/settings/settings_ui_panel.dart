@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/library_row_fields.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -56,6 +57,24 @@ class SettingsUiPanel extends StatelessWidget {
     LibraryDrawerSideSetting.right => l10n.settingsUiLibraryDrawerRight,
     LibraryDrawerSideSetting.top => l10n.settingsUiLibraryDrawerTop,
     LibraryDrawerSideSetting.bottom => l10n.settingsUiLibraryDrawerBottom,
+  };
+
+  static String _rowFieldLabel(
+    AppLocalizations l10n,
+    LibraryRowFieldSetting field,
+  ) => switch (field) {
+    LibraryRowFieldSetting.album => l10n.settingsUiFieldAlbum,
+    LibraryRowFieldSetting.genre => l10n.settingsUiFieldGenre,
+    LibraryRowFieldSetting.year => l10n.settingsUiFieldYear,
+    LibraryRowFieldSetting.trackNumber => l10n.settingsUiFieldTrackNumber,
+    LibraryRowFieldSetting.discNumber => l10n.settingsUiFieldDiscNumber,
+    LibraryRowFieldSetting.comment => l10n.settingsUiFieldComment,
+    LibraryRowFieldSetting.isrc => l10n.settingsUiFieldIsrc,
+    LibraryRowFieldSetting.duration => l10n.settingsUiFieldDuration,
+    LibraryRowFieldSetting.rating => l10n.settingsUiFieldRating,
+    LibraryRowFieldSetting.color => l10n.settingsUiFieldColor,
+    LibraryRowFieldSetting.bpm => l10n.settingsUiFieldBpm,
+    LibraryRowFieldSetting.key => l10n.settingsUiFieldKey,
   };
 
   @override
@@ -173,6 +192,31 @@ class SettingsUiPanel extends StatelessWidget {
                   onChanged: (mode) => onChanged(
                     copyAppSettings(draft, libraryRowDensity: mode),
                   ),
+                ),
+              ),
+              SettingsField(
+                label: l10n.settingsUiVisibleFields,
+                hint: l10n.settingsUiVisibleFieldsHint,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 10,
+                  children: [
+                    for (final field in LibraryRowFieldSetting.values)
+                      SettingsCheckbox(
+                        label: _rowFieldLabel(l10n, field),
+                        value: draft.libraryRowFields.contains(field),
+                        onChanged: (shown) => onChanged(
+                          copyAppSettings(
+                            draft,
+                            libraryRowFields: toggleLibraryRowField(
+                              draft.libraryRowFields,
+                              field,
+                              shown: shown,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],

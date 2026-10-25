@@ -503,5 +503,19 @@
   },
   "settingsAnalyticsTitle": "Analytics",
   "settingsAnalyticsSubtitle": "Share anonymous app data.",
-  "settingsAnalyticsToggle": "Send anonymous usage data"
+  "settingsAnalyticsToggle": "Send anonymous usage data",
+  "settingsUiVisibleFields": "Visible fields",
+  "settingsUiVisibleFieldsHint": "Chips under each track title. Fields you turn on go after the ones already shown; a chip that does not fit the two-line row is left out rather than clipped.",
+  "settingsUiFieldAlbum": "Album",
+  "settingsUiFieldGenre": "Genre",
+  "settingsUiFieldYear": "Year",
+  "settingsUiFieldTrackNumber": "Track #",
+  "settingsUiFieldDiscNumber": "Disc #",
+  "settingsUiFieldComment": "Comment",
+  "settingsUiFieldIsrc": "ISRC",
+  "settingsUiFieldDuration": "Length",
+  "settingsUiFieldRating": "Rating",
+  "settingsUiFieldColor": "Color label",
+  "settingsUiFieldBpm": "BPM",
+  "settingsUiFieldKey": "Key"
 }

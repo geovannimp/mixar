@@ -7072,8 +7072,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 43)
-      throw Exception('unexpected arr length: expect 43 but see ${arr.length}');
+    if (arr.length != 44)
+      throw Exception('unexpected arr length: expect 44 but see ${arr.length}');
     return AppSettings(
       sampleRate: dco_decode_u_32(arr[0]),
       bufferSize: dco_decode_u_32(arr[1]),
@@ -7084,40 +7084,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       previewBus: dco_decode_bus_route_settings(arr[6]),
       analysisDuration: dco_decode_analysis_duration_setting(arr[7]),
       libraryRowDensity: dco_decode_library_row_density_setting(arr[8]),
-      tagWriteBack: dco_decode_bool(arr[9]),
-      volumeNormalizerEnabled: dco_decode_bool(arr[10]),
-      targetLufs: dco_decode_f_32(arr[11]),
-      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[12]),
-      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[13]),
-      numDecks: dco_decode_u_8(arr[14]),
-      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[15]),
-      defaultTopJogMode: dco_decode_jog_mode_setting(arr[16]),
-      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[17]),
-      defaultTempoRange: dco_decode_f_32(arr[18]),
-      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[19]),
-      defaultKeyLock: dco_decode_bool(arr[20]),
-      vinylBrakePause: dco_decode_bool(arr[21]),
-      vinylBrakeStopSecs: dco_decode_f_32(arr[22]),
-      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[23]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[24]),
-      keyColorMode: dco_decode_key_color_mode_setting(arr[25]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[26]),
-      historyEnabled: dco_decode_bool(arr[27]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[28]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[29]),
-      historyMinDeckVolume: dco_decode_f_32(arr[30]),
-      showTooltips: dco_decode_bool(arr[31]),
-      showMixerMeters: dco_decode_bool(arr[32]),
-      mixerMetersMono: dco_decode_bool(arr[33]),
-      selectStyle: dco_decode_select_style_setting(arr[34]),
-      dimPlayedTracks: dco_decode_bool(arr[35]),
-      stemsFormat: dco_decode_String(arr[36]),
-      stemsModel: dco_decode_String(arr[37]),
-      realtimeStems: dco_decode_bool(arr[38]),
-      uiLanguage: dco_decode_ui_language_setting(arr[39]),
-      libraryDrawerEnabled: dco_decode_bool(arr[40]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[41]),
-      analyticsEnabled: dco_decode_bool(arr[42]),
+      libraryRowFields: dco_decode_list_library_row_field_setting(arr[9]),
+      tagWriteBack: dco_decode_bool(arr[10]),
+      volumeNormalizerEnabled: dco_decode_bool(arr[11]),
+      targetLufs: dco_decode_f_32(arr[12]),
+      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[13]),
+      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[14]),
+      numDecks: dco_decode_u_8(arr[15]),
+      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[16]),
+      defaultTopJogMode: dco_decode_jog_mode_setting(arr[17]),
+      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[18]),
+      defaultTempoRange: dco_decode_f_32(arr[19]),
+      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[20]),
+      defaultKeyLock: dco_decode_bool(arr[21]),
+      vinylBrakePause: dco_decode_bool(arr[22]),
+      vinylBrakeStopSecs: dco_decode_f_32(arr[23]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[24]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[25]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[26]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[27]),
+      historyEnabled: dco_decode_bool(arr[28]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[29]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[30]),
+      historyMinDeckVolume: dco_decode_f_32(arr[31]),
+      showTooltips: dco_decode_bool(arr[32]),
+      showMixerMeters: dco_decode_bool(arr[33]),
+      mixerMetersMono: dco_decode_bool(arr[34]),
+      selectStyle: dco_decode_select_style_setting(arr[35]),
+      dimPlayedTracks: dco_decode_bool(arr[36]),
+      stemsFormat: dco_decode_String(arr[37]),
+      stemsModel: dco_decode_String(arr[38]),
+      realtimeStems: dco_decode_bool(arr[39]),
+      uiLanguage: dco_decode_ui_language_setting(arr[40]),
+      libraryDrawerEnabled: dco_decode_bool(arr[41]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[42]),
+      analyticsEnabled: dco_decode_bool(arr[43]),
     );
   }
 
@@ -7679,6 +7680,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryRowFieldSetting dco_decode_library_row_field_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryRowFieldSetting.values[raw as int];
+  }
+
+  @protected
   LibraryTrackSummary dco_decode_library_track_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -7792,6 +7799,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>)
         .map(dco_decode_library_collection_summary)
+        .toList();
+  }
+
+  @protected
+  List<LibraryRowFieldSetting> dco_decode_list_library_row_field_setting(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_library_row_field_setting)
         .toList();
   }
 
@@ -8592,6 +8609,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_libraryRowDensity = sse_decode_library_row_density_setting(
       deserializer,
     );
+    var var_libraryRowFields = sse_decode_list_library_row_field_setting(
+      deserializer,
+    );
     var var_tagWriteBack = sse_decode_bool(deserializer);
     var var_volumeNormalizerEnabled = sse_decode_bool(deserializer);
     var var_targetLufs = sse_decode_f_32(deserializer);
@@ -8644,6 +8664,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       previewBus: var_previewBus,
       analysisDuration: var_analysisDuration,
       libraryRowDensity: var_libraryRowDensity,
+      libraryRowFields: var_libraryRowFields,
       tagWriteBack: var_tagWriteBack,
       volumeNormalizerEnabled: var_volumeNormalizerEnabled,
       targetLufs: var_targetLufs,
@@ -9392,6 +9413,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryRowFieldSetting sse_decode_library_row_field_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LibraryRowFieldSetting.values[inner];
+  }
+
+  @protected
   LibraryTrackSummary sse_decode_library_track_summary(
     SseDeserializer deserializer,
   ) {
@@ -9596,6 +9626,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <LibraryCollectionSummary>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_library_collection_summary(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<LibraryRowFieldSetting> sse_decode_list_library_row_field_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LibraryRowFieldSetting>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_library_row_field_setting(deserializer));
     }
     return ans_;
   }
@@ -10655,6 +10699,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bus_route_settings(self.previewBus, serializer);
     sse_encode_analysis_duration_setting(self.analysisDuration, serializer);
     sse_encode_library_row_density_setting(self.libraryRowDensity, serializer);
+    sse_encode_list_library_row_field_setting(
+      self.libraryRowFields,
+      serializer,
+    );
     sse_encode_bool(self.tagWriteBack, serializer);
     sse_encode_bool(self.volumeNormalizerEnabled, serializer);
     sse_encode_f_32(self.targetLufs, serializer);
@@ -11265,6 +11313,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_library_row_field_setting(
+    LibraryRowFieldSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_library_track_summary(
     LibraryTrackSummary self,
     SseSerializer serializer,
@@ -11423,6 +11480,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_library_collection_summary(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_library_row_field_setting(
+    List<LibraryRowFieldSetting> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_library_row_field_setting(item, serializer);
     }
   }
 

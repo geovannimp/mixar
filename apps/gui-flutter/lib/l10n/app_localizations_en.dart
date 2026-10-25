@@ -1026,4 +1026,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAnalyticsToggle => 'Send anonymous usage data';
+
+  @override
+  String get settingsUiVisibleFields => 'Visible fields';
+
+  @override
+  String get settingsUiVisibleFieldsHint =>
+      'Chips under each track title. Fields you turn on go after the ones already shown; a chip that does not fit the two-line row is left out rather than clipped.';
+
+  @override
+  String get settingsUiFieldAlbum => 'Album';
+
+  @override
+  String get settingsUiFieldGenre => 'Genre';
+
+  @override
+  String get settingsUiFieldYear => 'Year';
+
+  @override
+  String get settingsUiFieldTrackNumber => 'Track #';
+
+  @override
+  String get settingsUiFieldDiscNumber => 'Disc #';
+
+  @override
+  String get settingsUiFieldComment => 'Comment';
+
+  @override
+  String get settingsUiFieldIsrc => 'ISRC';
+
+  @override
+  String get settingsUiFieldDuration => 'Length';
+
+  @override
+  String get settingsUiFieldRating => 'Rating';
+
+  @override
+  String get settingsUiFieldColor => 'Color label';
+
+  @override
+  String get settingsUiFieldBpm => 'BPM';
+
+  @override
+  String get settingsUiFieldKey => 'Key';
 }

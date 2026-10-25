@@ -83,6 +83,71 @@ void main() {
     );
   });
 
+  test('row fields default to today\'s pills and are dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.libraryRowFields, kDefaultLibraryRowFields);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(
+          baseline,
+          libraryRowFields: const [
+            LibraryRowFieldSetting.album,
+            LibraryRowFieldSetting.isrc,
+          ],
+        ),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(
+          baseline,
+          libraryRowFields: List<LibraryRowFieldSetting>.from(
+            kDefaultLibraryRowFields,
+          ),
+        ),
+        baseline,
+      ),
+      isFalse,
+      reason: 'the same fields in the same order are not a change',
+    );
+  });
+
+  test('normalizeAppSettings keeps the saved field order', () {
+    const saved = [LibraryRowFieldSetting.isrc, LibraryRowFieldSetting.album];
+    expect(
+      normalizeAppSettings(
+        copyAppSettings(defaultAppSettings(), libraryRowFields: saved),
+      ).libraryRowFields,
+      saved,
+    );
+  });
+
+  test('normalizeAppSettings drops duplicate row fields', () {
+    expect(
+      normalizeAppSettings(
+        copyAppSettings(
+          defaultAppSettings(),
+          libraryRowFields: const [
+            LibraryRowFieldSetting.bpm,
+            LibraryRowFieldSetting.album,
+            LibraryRowFieldSetting.bpm,
+          ],
+        ),
+      ).libraryRowFields,
+      const [LibraryRowFieldSetting.bpm, LibraryRowFieldSetting.album],
+    );
+  });
+
+  test('row fields can all be hidden', () {
+    final empty = copyAppSettings(
+      defaultAppSettings(),
+      libraryRowFields: const [],
+    );
+    expect(normalizeAppSettings(empty).libraryRowFields, isEmpty);
+  });
+
   test('normalizeAppSettings keeps the saved row density', () {
     final compact = copyAppSettings(
       defaultAppSettings(),
