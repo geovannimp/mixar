@@ -95,6 +95,19 @@ const kDefaultPreviewBus = BusRouteSettings(
   mode: BusChannelMode.stereo,
 );
 
+/// Row fields a fresh install shows — today's layout: album/genre/length pills
+/// under the title, rating/colour/BPM/key trailing. Must match the Rust
+/// `default_library_row_fields`.
+const kDefaultLibraryRowFields = <LibraryRowFieldSetting>[
+  LibraryRowFieldSetting.album,
+  LibraryRowFieldSetting.genre,
+  LibraryRowFieldSetting.duration,
+  LibraryRowFieldSetting.rating,
+  LibraryRowFieldSetting.color,
+  LibraryRowFieldSetting.bpm,
+  LibraryRowFieldSetting.key,
+];
+
 AppSettings defaultAppSettings() {
   return AppSettings(
     sampleRate: kDefaultSampleRate,
@@ -106,6 +119,7 @@ AppSettings defaultAppSettings() {
     previewBus: kDefaultPreviewBus,
     analysisDuration: AnalysisDurationSetting.precise,
     libraryRowDensity: LibraryRowDensitySetting.comfortable,
+    libraryRowFields: kDefaultLibraryRowFields,
     tagWriteBack: false,
     volumeNormalizerEnabled: true,
     targetLufs: kDefaultTargetLufs,
@@ -165,7 +179,22 @@ AppSettings normalizeAppSettings(AppSettings settings) {
     stemsModel: kStemModels.contains(settings.stemsModel)
         ? settings.stemsModel
         : kDefaultStemModel,
+    libraryRowFields: _dedupeFields(settings.libraryRowFields),
   );
+}
+
+/// Keep the first occurrence of each field: the order is the row's priority,
+/// and a duplicate would paint the same pill twice.
+List<LibraryRowFieldSetting> _dedupeFields(
+  List<LibraryRowFieldSetting> fields,
+) {
+  final seen = <LibraryRowFieldSetting>[];
+  for (final field in fields) {
+    if (!seen.contains(field)) {
+      seen.add(field);
+    }
+  }
+  return seen;
 }
 
 BusRouteSettings _normalizeBus(BusRouteSettings route) {
@@ -190,6 +219,7 @@ AppSettings copyAppSettings(
   BusRouteSettings? previewBus,
   AnalysisDurationSetting? analysisDuration,
   LibraryRowDensitySetting? libraryRowDensity,
+  List<LibraryRowFieldSetting>? libraryRowFields,
   bool? tagWriteBack,
   bool? volumeNormalizerEnabled,
   double? targetLufs,
@@ -236,6 +266,7 @@ AppSettings copyAppSettings(
     previewBus: previewBus ?? base.previewBus,
     analysisDuration: analysisDuration ?? base.analysisDuration,
     libraryRowDensity: libraryRowDensity ?? base.libraryRowDensity,
+    libraryRowFields: libraryRowFields ?? base.libraryRowFields,
     tagWriteBack: tagWriteBack ?? base.tagWriteBack,
     volumeNormalizerEnabled:
         volumeNormalizerEnabled ?? base.volumeNormalizerEnabled,
@@ -321,6 +352,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.libraryDrawerSide != baseline.libraryDrawerSide ||
       draft.analyticsEnabled != baseline.analyticsEnabled ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||
+      !_sameList(draft.libraryRowFields, baseline.libraryRowFields) ||
       draft.tagWriteBack != baseline.tagWriteBack ||
       !_sameList(
         draft.deckDefaultSamplerBankId,

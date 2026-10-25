@@ -235,6 +235,62 @@ pub enum LibraryRowDensitySetting {
     Comfortable,
 }
 
+/// One metadata field a library track row can show (Settings → UI → Library
+/// list → Visible fields).
+///
+/// The order of [`AppSettings::library_row_fields`] is the render order: chips
+/// paint in that order, and a chip that cannot fit the row's two-line pill area
+/// is left out on its own — the fields after it still get their chance. See
+/// [`default_library_row_fields`] for today's layout.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LibraryRowFieldSetting {
+    Album,
+    Genre,
+    Year,
+    TrackNumber,
+    DiscNumber,
+    Comment,
+    Isrc,
+    Duration,
+    Rating,
+    Color,
+    Bpm,
+    Key,
+}
+
+/// Row fields shown before the user changes them: the comfortable row's
+/// album/genre/length pills on the left and rating/colour/BPM/key trailing.
+fn default_library_row_fields() -> Vec<LibraryRowFieldSetting> {
+    vec![
+        LibraryRowFieldSetting::Album,
+        LibraryRowFieldSetting::Genre,
+        LibraryRowFieldSetting::Duration,
+        LibraryRowFieldSetting::Rating,
+        LibraryRowFieldSetting::Color,
+        LibraryRowFieldSetting::Bpm,
+        LibraryRowFieldSetting::Key,
+    ]
+}
+
+/// Read the saved field order, dropping names this build does not know so a
+/// settings file from a newer (or older) build still loads instead of falling
+/// back to defaults wholesale.
+fn deserialize_library_row_fields<'de, D>(
+    deserializer: D,
+) -> Result<Vec<LibraryRowFieldSetting>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    let values = Vec::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(values
+        .into_iter()
+        .filter_map(|value| serde_json::from_value(value).ok())
+        .collect())
+}
+
 /// Select / dropdown presentation. `Auto` picks desktop vs mobile from the host OS.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -286,6 +342,14 @@ pub struct AppSettings {
     pub analysis_duration: AnalysisDurationSetting,
     #[serde(default)]
     pub library_row_density: LibraryRowDensitySetting,
+    /// Metadata fields a library row shows, in render order. A chip that does
+    /// not fit the row's two-line pill area is dropped on its own; the trailing
+    /// cluster keeps its fixed rating/colour/BPM/key order.
+    #[serde(
+        default = "default_library_row_fields",
+        deserialize_with = "deserialize_library_row_fields"
+    )]
+    pub library_row_fields: Vec<LibraryRowFieldSetting>,
     /// Mirror app-managed BPM/key into the file's tags after analysis (off by default).
     #[serde(default)]
     pub tag_write_back: bool,
@@ -362,6 +426,7 @@ struct SettingsHost {
     persist_path: Option<PathBuf>,
     engine_config: EngineConfig,
     library_row_density: LibraryRowDensitySetting,
+    library_row_fields: Vec<LibraryRowFieldSetting>,
     tag_write_back: bool,
     volume_normalizer_enabled: bool,
     target_lufs: f32,
@@ -399,6 +464,7 @@ impl Default for SettingsHost {
             persist_path: None,
             engine_config: default_engine_config(),
             library_row_density: LibraryRowDensitySetting::default(),
+            library_row_fields: default_library_row_fields(),
             tag_write_back: false,
             volume_normalizer_enabled: true,
             target_lufs: TARGET_LUFS_DEFAULT,
@@ -601,6 +667,18 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     settings.stems_format = normalize_stems_format(&settings.stems_format);
     settings.stems_model = normalize_stems_model(&settings.stems_model);
 
+    // Order is the user's priority, so keep the first occurrence of each field.
+    // An empty list is a real choice (no metadata pills), not a broken value.
+    let mut seen = Vec::with_capacity(settings.library_row_fields.len());
+    settings.library_row_fields.retain(|field| {
+        if seen.contains(field) {
+            false
+        } else {
+            seen.push(*field);
+            true
+        }
+    });
+
     if errors.is_empty() {
         Ok(settings)
     } else {
@@ -694,6 +772,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
             .unwrap_or_else(default_preview_bus_route),
         analysis_duration: config.analysis_duration.into(),
         library_row_density: host.library_row_density,
+        library_row_fields: host.library_row_fields.clone(),
         tag_write_back: host.tag_write_back,
         volume_normalizer_enabled: host.volume_normalizer_enabled,
         target_lufs: host.target_lufs,
@@ -752,6 +831,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     config.validate().map_err(|e| e.to_string())?;
     host.engine_config = config;
     host.library_row_density = settings.library_row_density;
+    host.library_row_fields = settings.library_row_fields;
     host.tag_write_back = settings.tag_write_back;
     host.volume_normalizer_enabled = settings.volume_normalizer_enabled;
     host.target_lufs = settings.target_lufs;
@@ -1060,6 +1140,90 @@ mod tests {
         assert_eq!(
             load_host(&path).library_row_density,
             LibraryRowDensitySetting::Compact
+        );
+    }
+
+    #[test]
+    fn missing_library_row_fields_default_to_todays_pills() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("library_row_fields");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(
+            settings.library_row_fields,
+            default_library_row_fields(),
+            "a settings file written before the field existed keeps today's row"
+        );
+    }
+
+    #[test]
+    fn library_row_fields_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.library_row_fields = vec![
+            LibraryRowFieldSetting::Isrc,
+            LibraryRowFieldSetting::Duration,
+            LibraryRowFieldSetting::Album,
+        ];
+        let mut host = SettingsHost {
+            persist_path: Some(path.clone()),
+            ..Default::default()
+        };
+        apply_to_host(&mut host, settings).expect("apply");
+        let saved = parse_settings(settings_from_host(&host)).expect("parse");
+        write_settings_file(&path, &saved).expect("write");
+        assert_eq!(
+            load_host(&path).library_row_fields,
+            vec![
+                LibraryRowFieldSetting::Isrc,
+                LibraryRowFieldSetting::Duration,
+                LibraryRowFieldSetting::Album,
+            ],
+            "render order is the saved order"
+        );
+    }
+
+    #[test]
+    fn unknown_library_row_field_names_are_dropped() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value.as_object_mut().expect("object").insert(
+            "library_row_fields".into(),
+            serde_json::json!(["isrc", "mood", 3, "album"]),
+        );
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(
+            settings.library_row_fields,
+            vec![LibraryRowFieldSetting::Isrc, LibraryRowFieldSetting::Album],
+            "unknown names must not reset the whole field list"
+        );
+    }
+
+    #[test]
+    fn duplicate_library_row_fields_collapse_to_the_first_occurrence() {
+        let mut settings = sample_settings();
+        settings.library_row_fields = vec![
+            LibraryRowFieldSetting::Bpm,
+            LibraryRowFieldSetting::Album,
+            LibraryRowFieldSetting::Bpm,
+        ];
+        let parsed = parse_settings(settings).expect("parse");
+        assert_eq!(
+            parsed.library_row_fields,
+            vec![LibraryRowFieldSetting::Bpm, LibraryRowFieldSetting::Album]
+        );
+    }
+
+    #[test]
+    fn empty_library_row_fields_is_kept() {
+        let mut settings = sample_settings();
+        settings.library_row_fields.clear();
+        let parsed = parse_settings(settings).expect("parse");
+        assert!(
+            parsed.library_row_fields.is_empty(),
+            "hiding every field is a valid choice, not a missing value"
         );
     }
 

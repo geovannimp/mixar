@@ -1042,6 +1042,45 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsAnalyticsToggle => 'Enviar dados anónimos de utilização';
+
+  @override
+  String get settingsLibraryVisibleFields => 'Campos visíveis';
+
+  @override
+  String get settingsLibraryFieldAlbum => 'Álbum';
+
+  @override
+  String get settingsLibraryFieldGenre => 'Género';
+
+  @override
+  String get settingsLibraryFieldYear => 'Ano';
+
+  @override
+  String get settingsLibraryFieldTrackNumber => 'Número da faixa';
+
+  @override
+  String get settingsLibraryFieldDiscNumber => 'Número do disco';
+
+  @override
+  String get settingsLibraryFieldComment => 'Comentário';
+
+  @override
+  String get settingsLibraryFieldIsrc => 'ISRC';
+
+  @override
+  String get settingsLibraryFieldDuration => 'Duração';
+
+  @override
+  String get settingsLibraryFieldRating => 'Avaliação';
+
+  @override
+  String get settingsLibraryFieldColor => 'Etiqueta de cor';
+
+  @override
+  String get settingsLibraryFieldBpm => 'BPM';
+
+  @override
+  String get settingsLibraryFieldKey => 'Tom';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).

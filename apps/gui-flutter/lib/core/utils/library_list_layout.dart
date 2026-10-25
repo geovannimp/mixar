@@ -187,6 +187,44 @@ const kRatingSlotFlex = 40;
 const double kTrailingMetaBaseWidth =
     kBpmSlotWidth + kMetaPillGap + kKeySlotWidth;
 
+/// Natural width of the trailing cluster for the pills a row actually paints.
+///
+/// Mirrors the trailing cluster's render order (duration, colour, rating, BPM,
+/// key) so the row's width budget cannot reserve slots for pills the user
+/// turned off or that this track has no value for — either would leave a gap
+/// before the row actions.
+double trailingMetaNaturalWidth({
+  bool duration = false,
+  bool color = false,
+  bool rating = false,
+  bool bpm = false,
+  bool key = false,
+}) {
+  var width = 0.0;
+  var count = 0;
+  void add(double slotWidth) {
+    width += (count == 0 ? 0 : kMetaPillGap) + slotWidth;
+    count++;
+  }
+
+  if (duration) {
+    add(kDurationSlotWidth);
+  }
+  if (color) {
+    add(kColorSlotWidth);
+  }
+  if (rating) {
+    add(kRatingSlotWidth);
+  }
+  if (bpm) {
+    add(kBpmSlotWidth);
+  }
+  if (key) {
+    add(kKeySlotWidth);
+  }
+  return width;
+}
+
 /// Height reserved for pills: two runs of a 16px pill plus the 6px gap between
 /// them, with a little slack for metric rounding. Sized from the actual pill
 /// (body.xs line height + vertical padding), not a round number — reserving

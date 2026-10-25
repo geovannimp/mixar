@@ -112,6 +112,9 @@ void main() {
     /// Stubs the engine transport to null so a load short-circuits instead of
     /// reaching the bridge. Lets a test observe which deck a load targeted.
     bool stubEngine = false,
+
+    /// Saved visible-field selection; null keeps today's row.
+    List<LibraryRowFieldSetting>? rowFields,
   }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
@@ -131,7 +134,14 @@ void main() {
           collectionsProvider.overrideWith((ref) async => [collection]),
           overrideCollectionTracksValue(tracks),
           libraryEventsBootstrapProvider.overrideWith((ref) {}),
-          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+          appSettingsProvider.overrideWith(
+            (ref) async => rowFields == null
+                ? defaultAppSettings()
+                : copyAppSettings(
+                    defaultAppSettings(),
+                    libraryRowFields: rowFields,
+                  ),
+          ),
           if (stubEngine)
             engineTransportProvider.overrideWith((ref) async => null),
         ],
@@ -1035,11 +1045,152 @@ void main() {
       ],
     );
 
-    // Three runs at their natural width: the two extras go together and the
-    // duration stays, instead of a cramped extra run being clipped.
+    // Each chip that cannot pack into the row's two runs is left out; the
+    // duration still fits, so it stays instead of being clipped.
     expect(find.text('A Very Long Album Title That Keeps Going'), findsNothing);
     expect(find.text('Progressive Melodic House Music'), findsNothing);
     expect(find.text('3:00'), findsOneWidget);
+  });
+
+  testWidgets('pills paint in the saved field order', (tester) async {
+    await pumpList(
+      tester,
+      rowFields: const [
+        LibraryRowFieldSetting.genre,
+        LibraryRowFieldSetting.album,
+        LibraryRowFieldSetting.duration,
+        LibraryRowFieldSetting.bpm,
+        LibraryRowFieldSetting.key,
+      ],
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Demo Track',
+          title: 'Demo Track',
+          artist: 'Artist',
+          album: 'Album',
+          genre: 'Genre',
+          bpm: 128,
+          key: '8A',
+          durationMs: 180000,
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    expect(
+      tester.getTopLeft(find.text('Genre')).dx,
+      lessThan(tester.getTopLeft(find.text('Album')).dx),
+      reason: 'genre was saved before album, so it paints first',
+    );
+    expect(find.text('3:00'), findsOneWidget);
+  });
+
+  testWidgets('a field turned off is not painted', (tester) async {
+    await pumpList(
+      tester,
+      rowFields: const [
+        LibraryRowFieldSetting.duration,
+        LibraryRowFieldSetting.rating,
+        LibraryRowFieldSetting.bpm,
+      ],
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Demo Track',
+          title: 'Demo Track',
+          artist: 'Artist',
+          album: 'Album',
+          genre: 'Genre',
+          bpm: 128,
+          key: '8A',
+          durationMs: 180000,
+          rating: 4,
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    expect(find.text('Album'), findsNothing);
+    expect(find.text('Genre'), findsNothing);
+    expect(
+      find.text(formatDeckKey('8A', KeyDisplayMode.musical)),
+      findsNothing,
+    );
+    expect(find.text('3:00'), findsOneWidget);
+    // The trailing cluster follows the same selection: rating is on, key off.
+    expect(find.byKey(kTrackRatingPillKey), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(kTrailingMetaKey),
+        matching: find.byIcon(LucideIcons.music2),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('every track field can render as a pill', (tester) async {
+    await pumpList(
+      tester,
+      rowFields: const [
+        LibraryRowFieldSetting.year,
+        LibraryRowFieldSetting.trackNumber,
+        LibraryRowFieldSetting.discNumber,
+        LibraryRowFieldSetting.comment,
+        LibraryRowFieldSetting.isrc,
+      ],
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Demo Track',
+          title: 'Demo Track',
+          year: 1998,
+          trackNumber: 7,
+          discNumber: 2,
+          comment: 'Peak-time weapon',
+          isrc: 'QZABC9800012',
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    for (final label in [
+      '1998',
+      '7',
+      '2',
+      'Peak-time weapon',
+      'QZABC9800012',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+  });
+
+  testWidgets('a chip that does not fit is skipped, not fatal', (tester) async {
+    await pumpList(
+      tester,
+      width: 320,
+      rowFields: const [
+        LibraryRowFieldSetting.album,
+        LibraryRowFieldSetting.isrc,
+      ],
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Demo Track',
+          title: 'Demo Track',
+          album: 'A Very Long Album Title That Keeps Going And Going',
+          isrc: 'QZABC9800012',
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    // The album cannot pack; the shorter field after it still gets its turn.
+    expect(
+      find.text('A Very Long Album Title That Keeps Going And Going'),
+      findsNothing,
+    );
+    expect(find.text('QZABC9800012'), findsOneWidget);
   });
 
   testWidgets('anything shown paints whole, never ellipsized', (tester) async {

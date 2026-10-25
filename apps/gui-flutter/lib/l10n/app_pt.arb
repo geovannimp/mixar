@@ -500,5 +500,18 @@
   },
   "settingsAnalyticsTitle": "Análises",
   "settingsAnalyticsSubtitle": "Partilhe dados anónimos da aplicação.",
-  "settingsAnalyticsToggle": "Enviar dados anónimos de utilização"
+  "settingsAnalyticsToggle": "Enviar dados anónimos de utilização",
+  "settingsLibraryVisibleFields": "Campos visíveis",
+  "settingsLibraryFieldAlbum": "Álbum",
+  "settingsLibraryFieldGenre": "Género",
+  "settingsLibraryFieldYear": "Ano",
+  "settingsLibraryFieldTrackNumber": "Número da faixa",
+  "settingsLibraryFieldDiscNumber": "Número do disco",
+  "settingsLibraryFieldComment": "Comentário",
+  "settingsLibraryFieldIsrc": "ISRC",
+  "settingsLibraryFieldDuration": "Duração",
+  "settingsLibraryFieldRating": "Avaliação",
+  "settingsLibraryFieldColor": "Etiqueta de cor",
+  "settingsLibraryFieldBpm": "BPM",
+  "settingsLibraryFieldKey": "Tom"
 }

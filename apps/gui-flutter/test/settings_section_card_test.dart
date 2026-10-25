@@ -28,6 +28,30 @@ void main() {
     expect(find.byType(Row), findsNothing);
   }, semanticsEnabled: false);
 
+  testWidgets('title-only card renders no description line', (tester) async {
+    await tester.pumpWidget(
+      mixarTestMaterialApp(
+        theme: MixarThemeData.dark(),
+        home: const Scaffold(
+          body: SettingsSectionCard(
+            title: 'Visible fields',
+            child: Text('field-body'),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Visible fields'), findsOneWidget);
+    expect(find.text('field-body'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SettingsSectionHeader),
+        matching: find.byType(Text),
+      ),
+      findsOneWidget,
+      reason: 'a card without a subtitle must not paint an empty line',
+    );
+  }, semanticsEnabled: false);
+
   testWidgets('places trailing beside the header', (tester) async {
     await tester.pumpWidget(
       mixarTestMaterialApp(

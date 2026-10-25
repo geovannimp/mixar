@@ -1026,4 +1026,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAnalyticsToggle => 'Send anonymous usage data';
+
+  @override
+  String get settingsLibraryVisibleFields => 'Visible fields';
+
+  @override
+  String get settingsLibraryFieldAlbum => 'Album';
+
+  @override
+  String get settingsLibraryFieldGenre => 'Genre';
+
+  @override
+  String get settingsLibraryFieldYear => 'Year';
+
+  @override
+  String get settingsLibraryFieldTrackNumber => 'Track #';
+
+  @override
+  String get settingsLibraryFieldDiscNumber => 'Disc #';
+
+  @override
+  String get settingsLibraryFieldComment => 'Comment';
+
+  @override
+  String get settingsLibraryFieldIsrc => 'ISRC';
+
+  @override
+  String get settingsLibraryFieldDuration => 'Length';
+
+  @override
+  String get settingsLibraryFieldRating => 'Rating';
+
+  @override
+  String get settingsLibraryFieldColor => 'Color label';
+
+  @override
+  String get settingsLibraryFieldBpm => 'BPM';
+
+  @override
+  String get settingsLibraryFieldKey => 'Key';
 }

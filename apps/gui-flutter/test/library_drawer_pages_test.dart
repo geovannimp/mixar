@@ -159,10 +159,14 @@ void main() {
     expect(find.byKey(kLibraryToolbarKey), findsOneWidget);
     expect(find.text('Demo Track'), findsOneWidget);
     // Narrowness is not what hides metadata, room is: at this width the title
-    // alone already needs the whole line, so the artist and the extras give way.
+    // alone already needs the whole line, so the artist gives way. The chips
+    // keep the saved order, so album and genre still pack into the two runs a
+    // row can show while the length — last in the default order — is the one
+    // that cannot.
     expect(find.text('Artist'), findsNothing);
-    expect(find.text('Album X'), findsNothing);
-    expect(find.text('Genre Y'), findsNothing);
+    expect(find.text('Album X'), findsOneWidget);
+    expect(find.text('Genre Y'), findsOneWidget);
+    expect(find.text('3:00'), findsNothing);
     expect(find.byIcon(LucideIcons.arrowLeft), findsOneWidget);
     // Its hit/hover box matches the row controls beside it (the density
     // button), so the wash fills the header instead of sitting as a small chip.

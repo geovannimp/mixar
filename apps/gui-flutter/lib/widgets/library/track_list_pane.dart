@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
+import 'package:gui_flutter/core/utils/library_row_fields.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/artwork_cache.dart';
@@ -12,6 +13,7 @@ import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/analyze_collection_dialog.dart';
 import 'package:gui_flutter/widgets/library/collection_actions_menu.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
@@ -61,6 +63,7 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
         .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
     final keyDisplayMode = keyModeFromSettings(settings.keyDisplayMode);
     final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
+    final rowFields = settings.libraryRowFields;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -108,6 +111,7 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
                           keyColorMode: keyColorMode,
                           artSize: density.artSize,
                           actionsSlot: slot,
+                          fields: rowFields,
                         )
                       : TrackListComfortableRow(
                           track: track,
@@ -116,6 +120,7 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
                           keyColorMode: keyColorMode,
                           artSize: density.artSize,
                           actionsSlot: slot,
+                          fields: rowFields,
                         ),
                   emptyBuilder: (context) => LibraryListMessage(
                     drive ? 'No audio files in this folder' : 'No tracks',
@@ -298,6 +303,7 @@ class _CompactRow extends StatelessWidget {
     required this.keyColorMode,
     required this.artSize,
     required this.actionsSlot,
+    required this.fields,
   });
 
   final LibraryTrackSummary track;
@@ -307,31 +313,48 @@ class _CompactRow extends StatelessWidget {
   final double artSize;
   final Widget actionsSlot;
 
+  /// Visible metadata fields in saved order. Compact rows have no pill row,
+  /// so only the trailing toggles (length, rating, colour, BPM, key) apply.
+  final List<LibraryRowFieldSetting> fields;
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     final textStyle = theme.typography.body.sm.copyWith(
       color: theme.colors.foreground,
     );
+    final durationMs =
+        libraryRowFieldShown(fields, LibraryRowFieldSetting.duration)
+        ? track.durationMs
+        : null;
+    final bpm = libraryRowFieldShown(fields, LibraryRowFieldSetting.bpm)
+        ? track.bpm
+        : null;
+    final rawKey = libraryRowFieldShown(fields, LibraryRowFieldSetting.key)
+        ? track.key ?? ''
+        : '';
+    final rating = libraryRowFieldShown(fields, LibraryRowFieldSetting.rating)
+        ? track.rating
+        : null;
+    final colorLabel =
+        libraryRowFieldShown(fields, LibraryRowFieldSetting.color)
+        ? track.colorLabel
+        : null;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final extraMetaWidth =
-            (trackShowsRating(track.rating)
-                ? kMetaPillGap + kRatingSlotWidth
-                : 0.0) +
-            (trackShowsColorLabel(track.colorLabel)
-                ? kMetaPillGap + kColorSlotWidth
-                : 0.0);
         final metaWidth = trailingMetaWidth(
           constraints.maxWidth,
           artSize + kArtworkGap,
           // Compact has no metadata pills, so the trailing group carries
-          // the length too and must reserve room for it.
-          natural:
-              kDurationSlotWidth +
-              kMetaPillGap +
-              kTrailingMetaBaseWidth +
-              extraMetaWidth,
+          // the length too and must reserve room for it — but only for the
+          // fields the user shows that this track has a value for.
+          natural: trailingMetaNaturalWidth(
+            duration: formatTrackDuration(durationMs).isNotEmpty,
+            rating: trackShowsRating(rating),
+            color: trackShowsColorLabel(colorLabel),
+            bpm: bpm != null,
+            key: rawKey.isNotEmpty,
+          ),
         );
         // Status sits immediately left of TrailingMeta (not inside the title
         // Expanded), capped so long labels ellipsize without eating the title.
@@ -364,13 +387,13 @@ class _CompactRow extends StatelessWidget {
             ConstrainedBox(
               constraints: BoxConstraints(maxWidth: metaWidth),
               child: TrailingMeta(
-                bpm: track.bpm,
-                rawKey: track.key ?? '',
+                bpm: bpm,
+                rawKey: rawKey,
                 keyDisplayMode: keyDisplayMode,
                 keyColorMode: keyColorMode,
-                durationMs: track.durationMs,
-                rating: track.rating,
-                colorLabel: track.colorLabel,
+                durationMs: durationMs,
+                rating: rating,
+                colorLabel: colorLabel,
               ),
             ),
             actionsSlot,

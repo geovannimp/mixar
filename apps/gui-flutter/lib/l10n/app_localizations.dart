@@ -1797,6 +1797,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Send anonymous usage data'**
   String get settingsAnalyticsToggle;
+
+  /// No description provided for @settingsLibraryVisibleFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible fields'**
+  String get settingsLibraryVisibleFields;
+
+  /// No description provided for @settingsLibraryFieldAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Album'**
+  String get settingsLibraryFieldAlbum;
+
+  /// No description provided for @settingsLibraryFieldGenre.
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get settingsLibraryFieldGenre;
+
+  /// No description provided for @settingsLibraryFieldYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Year'**
+  String get settingsLibraryFieldYear;
+
+  /// No description provided for @settingsLibraryFieldTrackNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Track #'**
+  String get settingsLibraryFieldTrackNumber;
+
+  /// No description provided for @settingsLibraryFieldDiscNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Disc #'**
+  String get settingsLibraryFieldDiscNumber;
+
+  /// No description provided for @settingsLibraryFieldComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Comment'**
+  String get settingsLibraryFieldComment;
+
+  /// No description provided for @settingsLibraryFieldIsrc.
+  ///
+  /// In en, this message translates to:
+  /// **'ISRC'**
+  String get settingsLibraryFieldIsrc;
+
+  /// No description provided for @settingsLibraryFieldDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Length'**
+  String get settingsLibraryFieldDuration;
+
+  /// No description provided for @settingsLibraryFieldRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get settingsLibraryFieldRating;
+
+  /// No description provided for @settingsLibraryFieldColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Color label'**
+  String get settingsLibraryFieldColor;
+
+  /// No description provided for @settingsLibraryFieldBpm.
+  ///
+  /// In en, this message translates to:
+  /// **'BPM'**
+  String get settingsLibraryFieldBpm;
+
+  /// No description provided for @settingsLibraryFieldKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Key'**
+  String get settingsLibraryFieldKey;
 }
 
 class _AppLocalizationsDelegate

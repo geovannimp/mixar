@@ -503,5 +503,18 @@
   },
   "settingsAnalyticsTitle": "Analytics",
   "settingsAnalyticsSubtitle": "Share anonymous app data.",
-  "settingsAnalyticsToggle": "Send anonymous usage data"
+  "settingsAnalyticsToggle": "Send anonymous usage data",
+  "settingsLibraryVisibleFields": "Visible fields",
+  "settingsLibraryFieldAlbum": "Album",
+  "settingsLibraryFieldGenre": "Genre",
+  "settingsLibraryFieldYear": "Year",
+  "settingsLibraryFieldTrackNumber": "Track #",
+  "settingsLibraryFieldDiscNumber": "Disc #",
+  "settingsLibraryFieldComment": "Comment",
+  "settingsLibraryFieldIsrc": "ISRC",
+  "settingsLibraryFieldDuration": "Length",
+  "settingsLibraryFieldRating": "Rating",
+  "settingsLibraryFieldColor": "Color label",
+  "settingsLibraryFieldBpm": "BPM",
+  "settingsLibraryFieldKey": "Key"
 }

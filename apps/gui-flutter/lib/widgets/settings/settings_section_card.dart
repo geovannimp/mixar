@@ -9,7 +9,7 @@ import 'package:gui_flutter/widgets/shell/m_card.dart';
 class SettingsSectionCard extends StatelessWidget {
   const new({
     required this.title,
-    required this.subtitle,
+    this.subtitle = '',
     super.key,
     this.trailing,
     this.child,
@@ -17,6 +17,8 @@ class SettingsSectionCard extends StatelessWidget {
   });
 
   final String title;
+
+  /// Muted description under the title. Empty leaves the card title-only.
   final String subtitle;
 
   /// Optional rich subtitle; see [SettingsSectionHeader.descriptionBuilder].

@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/library_row_fields.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
@@ -95,6 +97,24 @@ class SettingsLibraryPanel extends StatelessWidget {
         _ => l10n.settingsLibraryStemOpus,
       };
 
+  static String _rowFieldLabel(
+    AppLocalizations l10n,
+    LibraryRowFieldSetting field,
+  ) => switch (field) {
+    LibraryRowFieldSetting.album => l10n.settingsLibraryFieldAlbum,
+    LibraryRowFieldSetting.genre => l10n.settingsLibraryFieldGenre,
+    LibraryRowFieldSetting.year => l10n.settingsLibraryFieldYear,
+    LibraryRowFieldSetting.trackNumber => l10n.settingsLibraryFieldTrackNumber,
+    LibraryRowFieldSetting.discNumber => l10n.settingsLibraryFieldDiscNumber,
+    LibraryRowFieldSetting.comment => l10n.settingsLibraryFieldComment,
+    LibraryRowFieldSetting.isrc => l10n.settingsLibraryFieldIsrc,
+    LibraryRowFieldSetting.duration => l10n.settingsLibraryFieldDuration,
+    LibraryRowFieldSetting.rating => l10n.settingsLibraryFieldRating,
+    LibraryRowFieldSetting.color => l10n.settingsLibraryFieldColor,
+    LibraryRowFieldSetting.bpm => l10n.settingsLibraryFieldBpm,
+    LibraryRowFieldSetting.key => l10n.settingsLibraryFieldKey,
+  };
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -164,6 +184,32 @@ class SettingsLibraryPanel extends StatelessWidget {
                       onChanged(copyAppSettings(draft, keyColorMode: m)),
                 ),
               ),
+            ],
+          ),
+        ),
+        // Chips under each list title, in the order they were turned on. Its
+        // own card so twelve toggles do not bury the analysis and key controls.
+        SettingsSectionCard(
+          title: l10n.settingsLibraryVisibleFields,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 10,
+            children: [
+              for (final field in LibraryRowFieldSetting.values)
+                SettingsCheckbox(
+                  label: _rowFieldLabel(l10n, field),
+                  value: draft.libraryRowFields.contains(field),
+                  onChanged: (shown) => onChanged(
+                    copyAppSettings(
+                      draft,
+                      libraryRowFields: toggleLibraryRowField(
+                        draft.libraryRowFields,
+                        field,
+                        shown: shown,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
