@@ -59,7 +59,7 @@ drive; `CdjExporter` is the entry point that needs a library and a destination.
 - **The `.EXT` file is not optional.** CDJ-3000-class players re-analyze a track when it is
   missing, so the exporter always writes both files.
 - **Analysis is rebuilt at export time.** The detail waveform the players want is 150 entries
-  per second — finer than the resolution the library keeps for its own displays — so exporting
+  per second, finer than the resolution the library keeps for its own displays, so exporting
   a track decodes it once (`ExportSource::export_data`) and hands back the beat grid, cue points
   and both waveform tiers. Tracks with no analysis data are still registered and reported as a
   warning; the player analyzes them on load.
@@ -73,10 +73,10 @@ drive; `CdjExporter` is the entry point that needs a library and a destination.
   reserved), playlists are replaced per source collection, and artwork ids continue after the
   highest id on the drive. The state file also fingerprints the `export.pdb` it wrote: if that
   file changed since (rekordbox rewrote the drive), the state is dropped with a warning and the
-  drive is rebuilt from the current selection — as it is when the state file is missing or
+  drive is rebuilt from the current selection, as it is when the state file is missing or
   unreadable, or when a database sits on the drive with no state beside it.
 - **Artwork is scaled at the source.** `library_core::ExportArtwork` carries a JPEG thumbnail
-  (`EXPORT_ARTWORK_EDGE_PX`, 80 px — the size Rekordbox writes) produced by
+  (`EXPORT_ARTWORK_EDGE_PX`, 80 px, the size Rekordbox writes) produced by
   `codec::read_file_artwork_thumbnail`, so the writer never decodes a cover itself. Covers are
   interned by content (hash plus byte compare): one file and one artwork row per distinct cover,
   with tracks referencing it through `artwork_id`.
@@ -96,7 +96,7 @@ directory picker).
 
 | Check | Where |
 | --- | --- |
-| Every written file is re-parsed with `rekordcrate` — an independent implementation of both formats — and asserted field by field (tracks, playlist order, beat grid, waveform entry counts, cues and loops). | `crates/library-adapters/tests/cdj_export.rs` |
+| Every written file is re-parsed with `rekordcrate`, an independent implementation of both formats, and asserted field by field (tracks, playlist order, beat grid, waveform entry counts, cues and loops). | `crates/library-adapters/tests/cdj_export.rs` |
 | Layout rules, key mapping, DeviceSQL strings, path hash and the page/row writers. | unit tests in `crates/library-adapters/src/cdj/` |
 | A 40-track export whose tables span several database pages, re-read end to end. | same integration test |
 | Artwork rows, ids and file layout, including sharing one cover across tracks, continuing ids across runs, and the no-artwork path. | unit tests in `cdj/pdb.rs` and `cdj/tests.rs` |

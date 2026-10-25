@@ -5,8 +5,8 @@ section: "MIDI Mappings"
 order: 2
 ---
 
-A mapping bundle has two halves: `device.toml` describes **the hardware** — which MIDI
-messages each physical control sends and receives — and [`map.toml`](/docs/developers/midi-mappings/map-toml)
+A mapping bundle has two halves: `device.toml` describes **the hardware**, which MIDI
+messages each physical control sends and receives, and [`map.toml`](/docs/developers/midi-mappings/map-toml)
 binds those controls to engine actions. This page is the complete reference for `device.toml`.
 The alias names you can use as inputs are catalogued in [Actions](/docs/developers/midi-mappings/actions).
 
@@ -68,7 +68,7 @@ shift = { type = "note", channel = 1, note = 0x3F }
 | `usb_pid` | no | integer | USB product id, written hex. |
 | `midi_name_contains` | no | array of strings | Case-insensitive port-name substrings used for identity matching. |
 | `mapping_version` | no | string | Optional bundle version, e.g. `"1.0.0"`. Settings compares it with the built-in mapping to show an "Update available" marker. |
-| `[toml-schema]` | no | table | Editor aid only — ignored at runtime. |
+| `[toml-schema]` | no | table | Editor aid only; ignored at runtime. |
 | `[audio]` | no | table | Audio-output hints. |
 | Sections | no | tables | `[deck_1]`…`[deck_4]`, `[master]`, `[sampler]`, `[custom]`. |
 
@@ -100,7 +100,7 @@ Each section is a table of `alias = { endpoint }`. Unknown section keys are reje
 | `custom` | Free-form aliases, usable **only as modifiers**, referenced as `custom.<alias>`. |
 
 For `deck_*`, `master`, and `sampler`, the alias names of input controls are a **closed
-catalog** — see [Actions](/docs/developers/midi-mappings/actions) for the full list rather than
+catalog**: see [Actions](/docs/developers/midi-mappings/actions) for the full list rather than
 duplicating it here. In shape, deck aliases include `play_pause`, `cue`, `sync`,
 `volume`, `gain`, `tempo`, `eq_high`/`eq_mid`/`eq_low`, `filter`, the `jog_*` family,
 `headphone_cue`, `loop_in`/`loop_out`, the `pad_mode_*` selectors, and numbered names such
@@ -132,7 +132,7 @@ clashes.
 
 ## Message types
 
-### `note` — buttons, pads, jog-touch
+### `note`: buttons, pads, jog-touch
 
 ```toml
 play_pause = { type = "note", channel = 1, note = 0x0B }
@@ -142,7 +142,7 @@ An incoming note-on with velocity greater than 0 is active; a note-on with veloc
 treated as a note-off (and matches the same channel/note). On output, the velocity
 defaults to `0x7F` unless `velocity` is set.
 
-### `cc` — knobs and faders (7-bit)
+### `cc`: knobs and faders (7-bit)
 
 ```toml
 filter = { type = "cc", channel = 1, cc = 0x14 }
@@ -151,7 +151,7 @@ filter = { type = "cc", channel = 1, cc = 0x14 }
 `cc` is a single 7-bit controller number. The incoming value maps to a 0..1 control value
 as `value / 127`.
 
-### `cc14` — 14-bit knobs and faders
+### `cc14`: 14-bit knobs and faders
 
 ```toml
 volume = { type = "cc14", channel = 1, cc = { msb = 0x13, lsb = 0x33 } }
@@ -160,7 +160,7 @@ volume = { type = "cc14", channel = 1, cc = { msb = 0x13, lsb = 0x33 } }
 `cc14` pairs an MSB and an LSB controller into a single 0..1 value:
 `((msb << 7) | lsb) / 16383`. The session tracks the pair per alias and only publishes once
 both bytes have been seen. `msb` and `lsb` must differ. On the `map.toml` side the alias is
-bound just once, like any absolute leaf — see
+bound just once, like any absolute leaf. See
 [inputs](/docs/developers/midi-mappings/map-toml/inputs#absolute-vs-relative-inputs).
 
 ## Relative encoders
@@ -196,7 +196,7 @@ the port name matches:
 - **Name.** If `midi_name_contains` is non-empty, the match succeeds when any entry is a
   case-insensitive substring of the port name.
 
-The two paths are OR'd — either is sufficient.
+The two paths are OR'd; either is sufficient.
 
 ## Validation rules
 
@@ -213,7 +213,7 @@ The two paths are OR'd — either is sufficient.
 - `channel` must be in `1..=16`; `note`, `velocity`, and `value` must be in `0..=127`.
 - `relative` is rejected on anything other than `type = "cc"` (7-bit).
 - **Input MIDI clash.** Across the whole file, two input-eligible endpoints may not claim
-  the same identity — the same `(channel, note)` for notes, or the same `(channel, cc)` for
+  the same identity: the same `(channel, note)` for notes, or the same `(channel, cc)` for
   CCs. A `cc14` endpoint contributes two CC identities (its `msb` and its `lsb`), so both
   must stay clear of other inputs.
 
@@ -222,4 +222,4 @@ The two paths are OR'd — either is sufficient.
 The `[toml-schema]` table (`version`, `location`) is editor metadata pointing at
 `schemas/device.tosd`; it is peeled off before parsing and never used at runtime. The
 `.tosd` file is the authoritative field list, allowed values, and ranges for
-autocompletion — it mirrors the Rust validation described above.
+autocompletion; it mirrors the Rust validation described above.

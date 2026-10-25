@@ -1,6 +1,6 @@
 ---
 title: "Overview"
-description: "How Mixar prepares, caches, and plays NI-compatible stems — ownership, load path, and how the pieces fit together."
+description: "How Mixar prepares, caches, and plays NI-compatible stems: ownership, load path, and how the pieces fit together."
 section: "Stems"
 order: 1
 ---
@@ -78,8 +78,8 @@ Use **`LibraryTransport`** for storage usage/clear and generate actions. No raw 
 
 Conceptual type used by prepare/host:
 
-- [`mixdown`](/docs/users/stems#mixdown) — main `LoadedAudio` (or PCM + rate)
-- `stems: [LoadedAudio; 4]` — **drums, bass, other, vocals**
+- [`mixdown`](/docs/users/stems#mixdown): main `LoadedAudio` (or PCM + rate)
+- `stems: [LoadedAudio; 4]`: **drums, bass, other, vocals**
 - optional STEM atom labels/colors
 - `source_path`
 
@@ -87,10 +87,10 @@ Demucs model output may use a different slot order; **permute once** when packin
 
 ## Pages in this topic
 
-- [Storage & models](/docs/developers/stems/storage-and-models) — cache roots, clear UI, backend ids
-- [Inference](/docs/developers/stems/inference) — ORT + HTDemucs ONNX, EP cascade
-- [NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4) — file format, DB, prepare resolution
-- [Analyze & progress](/docs/developers/stems/analyze-progress) — job split, phases, pad flags
+- [Storage & models](/docs/developers/stems/storage-and-models): cache roots, clear UI, backend ids
+- [Inference](/docs/developers/stems/inference): ORT + HTDemucs ONNX, EP cascade
+- [NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4): file format, DB, prepare resolution
+- [Analyze & progress](/docs/developers/stems/analyze-progress): job split, phases, pad flags
 
 ## References
 

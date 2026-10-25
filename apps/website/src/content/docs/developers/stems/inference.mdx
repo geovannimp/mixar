@@ -1,6 +1,6 @@
 ---
 title: "Inference"
-description: "Stem separation with pykeio/ort and a single-file HTDemucs ONNX — execution providers, model cache, and the split pipeline."
+description: "Stem separation with pykeio/ort and a single-file HTDemucs ONNX: execution providers, model cache, and the split pipeline."
 section: "Stems"
 order: 3
 ---
@@ -21,8 +21,8 @@ Register EPs in preference order; failed register / unsupported ops → next; al
 
 Notes:
 
-- macOS ships arm64-only: `ort-sys` prebuilts exist for `aarch64-apple-darwin` alone — there is no `x86_64-apple-darwin` dist. `ARCHS = arm64` is pinned in `apps/gui-flutter/macos/Runner/Configs/AppInfo.xcconfig` and in the `host_flutter` podspec (cargokit reads `$ARCHS`); both must stay in sync.
-- WebGPU EP is experimental upstream — best-effort, never hard-fail the app.
+- macOS ships arm64-only: `ort-sys` prebuilts exist for `aarch64-apple-darwin` alone, so there is no `x86_64-apple-darwin` dist. `ARCHS = arm64` is pinned in `apps/gui-flutter/macos/Runner/Configs/AppInfo.xcconfig` and in the `host_flutter` podspec (cargokit reads `$ARCHS`); both must stay in sync.
+- WebGPU EP is experimental upstream: best-effort, never hard-fail the app.
 - CUDA/TensorRT only when libs are present; no install gate for launching Mixar.
 - CI / headless: CPU EP only (Cargo features).
 

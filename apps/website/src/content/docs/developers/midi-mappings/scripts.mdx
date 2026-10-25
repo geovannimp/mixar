@@ -7,7 +7,7 @@ order: 8
 
 ## When to script
 
-Most controls should use the declarative action catalog — a binding like `play_pause = "Deck(_)::toggle_play"` is validated, documented, and needs no code. Reach for a Rhai script only when the catalog cannot express what the hardware needs:
+Most controls should use the declarative action catalog: a binding like `play_pause = "Deck(_)::toggle_play"` is validated, documented, and needs no code. Reach for a Rhai script only when the catalog cannot express what the hardware needs:
 
 - **Raw SysEx handshakes / initialization.** Forcing a controller into a mode with a vendor SysEx message, or re-asserting it while idle.
 - **Controller-specific behavior.** Per-device quirks such as pad LEDs that only exist for a particular firmware.
@@ -31,13 +31,13 @@ lifecycle.on_init: script function `on_init` not found in script.rhai
 inputs.deck_1.play_pause[0]: script function `foo` not found in script.rhai
 ```
 
-At runtime a missing hook is silently treated as a no-op — which is exactly why the static check exists.
+At runtime a missing hook is silently treated as a no-op.
 
 A bindings file that only uses the null-modifier form needs no script. The `[lifecycle]` names are the function names to call; they may be anything.
 
 ## Host function reference
 
-The host functions are registered in a global module, so they are **called flat** — `midi_out([...])`, not `host.midi_out(...)`.
+The host functions are registered in a global module, so they are **called flat**: `midi_out([...])`, not `host.midi_out(...)`.
 
 | Function | Purpose | Notes |
 | --- | --- | --- |
@@ -47,9 +47,9 @@ The host functions are registered in a global module, so they are **called flat*
 
 ### `publish` arguments
 
-- `origin` — one of `"engine"`, `"mixer"`, `"deck1"` … `"deck4"`.
-- `kind` — one of `"play"`, `"pause"`, `"set_volume"`, `"notice"`, `"error"`.
-- `payload` — a JSON string that is parsed into the command body. An empty string produces an empty body.
+- `origin`: one of `"engine"`, `"mixer"`, `"deck1"` … `"deck4"`.
+- `kind`: one of `"play"`, `"pause"`, `"set_volume"`, `"notice"`, `"error"`.
+- `payload`: a JSON string that is parsed into the command body. An empty string produces an empty body.
 
 An unrecognized `origin` or `kind` falls back to `"engine"` / `"notice"`. If the payload is non-empty but not valid JSON, that publish is skipped and a `script publish payload parse failed` warning is logged.
 
@@ -69,13 +69,13 @@ Lifecycle hook names are configured in `[lifecycle]`; each maps an event to a fu
 
 | Hook | When it runs | MIDI output |
 | --- | --- | --- |
-| `on_init` | When the mapping attaches to a device. | Allowed — receives the real output port. |
+| `on_init` | When the mapping attaches to a device. | Allowed: receives the real output port. |
 | `on_shutdown` | When the mapping detaches. | Allowed. |
 | `idle_heartbeat` | Roughly once per second, only while **no** deck is playing. | Allowed. |
 
 Hooks take **no arguments** (`fn on_init() { ... }`); they use the host functions for all I/O. A hook that is named but missing from the script is a no-op at runtime, so `map-check` is what catches typos.
 
-`idle_heartbeat` is driven from the MIDI pump, not a timer thread. It fires at most once per second (the first call fires immediately), and it is suppressed while any deck is playing — the host also refuses to schedule it when a deck is active. This makes it a keepalive for controllers that need periodic traffic, without stomping on normal play.
+`idle_heartbeat` is driven from the MIDI pump, not a timer thread. It fires at most once per second (the first call fires immediately), and it is suppressed while any deck is playing; the host also refuses to schedule it when a deck is active. This makes it a keepalive for controllers that need periodic traffic, without stomping on normal play.
 
 <Callout type="note" title="Hooks are optional">
 Even when `[lifecycle]` is present, only the hooks you actually name are invoked. An absent `[lifecycle]` block means no Rhai hook runs at all, even if `script.rhai` exists.
@@ -83,7 +83,7 @@ Even when `[lifecycle]` is present, only the hooks you actually name are invoked
 
 ## Input script bindings
 
-An input binding may name a script function instead of a declarative action. A binding is **exactly one of** `action` or `script` — supplying both, or neither, is a validation error.
+An input binding may name a script function instead of a declarative action. A binding is **exactly one of** `action` or `script`. Supplying both, or neither, is a validation error.
 
 ```toml
 [inputs.deck_1]
@@ -98,8 +98,8 @@ fn on_play_pause(value_01, active) {
 }
 ```
 
-- `value_01` — the normalized `0..1` control value for absolute controls. For relative controls (jog wheels) it is the **integer delta** of the tick, which may be negative.
-- `active` — the button / press state.
+- `value_01`: the normalized `0..1` control value for absolute controls. For relative controls (jog wheels) it is the **integer delta** of the tick, which may be negative.
+- `active`: the button / press state.
 
 <Callout type="warning">
 A script binding runs with a **null MIDI sink**: `midi_out(...)` calls from an input-script function are silently discarded. Publish engine commands instead. Only lifecycle hooks (and `on_init` in particular) are wired to the real output port. Declarative-only options such as `soft_takeover` and `invert` are not applied to script bindings.
@@ -175,7 +175,7 @@ on_shutdown = "on_shutdown"
 Line by line:
 
 - `PC_MODE_SYSEX` is a top-level `const`, so both `on_init` and `idle_heartbeat` can send the identical message without duplicating it.
-- `on_init` lights the two track-loaded pads with note-on messages on the `0x9F` channel first, then sends the mode SysEx — which also queries the unit's current knob and fader positions (soft takeover uses the reply to adopt the first value).
+- `on_init` lights the two track-loaded pads with note-on messages on the `0x9F` channel first, then sends the mode SysEx, which also queries the unit's current knob and fader positions (soft takeover uses the reply to adopt the first value).
 - `idle_heartbeat` re-asserts the same SysEx roughly once a second while the decks are stopped, so the unit does not fall out of PC MIDI mode. The host skips it while a deck is playing.
 - `on_shutdown` clears the two LEDs with note-off (`0x00` velocity).
 
