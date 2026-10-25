@@ -101,6 +101,17 @@ void main() {
     );
     expect(colorForKey('2A', KeyColorMode.harmonic), isNull);
   });
+
+  test('canonicalKey folds flats, Camelot codes, and a lower-case root', () {
+    expect(canonicalKey('Bb'), 'A#');
+    expect(canonicalKey('gb'), 'F#');
+    expect(canonicalKey('bm'), 'Bm');
+    expect(canonicalKey('8A'), 'Am');
+    expect(canonicalKey(' 12b '), 'E');
+    expect(canonicalKey('Am'), 'Am');
+    expect(canonicalKey(''), isNull);
+    expect(canonicalKey('H'), isNull);
+  });
 }
 
 double _hueDistance(Color a, Color b) {

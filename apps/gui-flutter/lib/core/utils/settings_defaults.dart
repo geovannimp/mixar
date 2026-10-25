@@ -154,6 +154,7 @@ AppSettings defaultAppSettings() {
     libraryDrawerEnabled: false,
     libraryDrawerSide: LibraryDrawerSideSetting.bottom,
     analyticsEnabled: false,
+    smartPlaylistPresetsJson: '',
   );
 }
 
@@ -258,6 +259,7 @@ AppSettings copyAppSettings(
   bool? libraryDrawerEnabled,
   LibraryDrawerSideSetting? libraryDrawerSide,
   bool? analyticsEnabled,
+  String? smartPlaylistPresetsJson,
 }) {
   return AppSettings(
     numDecks: numDecks ?? base.numDecks,
@@ -307,6 +309,8 @@ AppSettings copyAppSettings(
     libraryDrawerEnabled: libraryDrawerEnabled ?? base.libraryDrawerEnabled,
     libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
     analyticsEnabled: analyticsEnabled ?? base.analyticsEnabled,
+    smartPlaylistPresetsJson:
+        smartPlaylistPresetsJson ?? base.smartPlaylistPresetsJson,
   );
 }
 

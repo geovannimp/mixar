@@ -125,6 +125,40 @@ void main() {
     expect(optionFill(tester, 'high'), theme.colors.selection);
   });
 
+  testWidgets('clicking outside clears the trigger focus ring', (tester) async {
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
+    final node = tester
+        .widget<ShadSelect<String>>(find.byType(ShadSelect<String>))
+        .focusNode!;
+
+    node.requestFocus();
+    await tester.pump();
+    expect(node.hasFocus, isTrue, reason: 'the ring is drawn while focused');
+
+    // Any press outside the control (and its menu) ends the interaction.
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+
+    expect(node.hasFocus, isFalse);
+  });
+
+  testWidgets('pressing an option is not an outside tap', (tester) async {
+    await pumpSelect(tester, value: 'low', onChanged: (_) {});
+    final node = tester
+        .widget<ShadSelect<String>>(find.byType(ShadSelect<String>))
+        .focusNode!;
+
+    await openMenu(tester);
+    node.requestFocus();
+    await tester.pump();
+    await tester.tap(find.text('medium').last);
+    await tester.pumpAndSettle();
+
+    // The menu shares the control's tap group, so selecting keeps whatever
+    // focus policy the caller asked for instead of unfocusing behind its back.
+    expect(node.hasFocus, isTrue);
+  });
+
   testWidgets('desktop style still uses ShadSelect', (tester) async {
     await pumpSelect(tester, value: 'low', onChanged: (_) {});
     expect(find.byType(ShadSelect<String>), findsOneWidget);

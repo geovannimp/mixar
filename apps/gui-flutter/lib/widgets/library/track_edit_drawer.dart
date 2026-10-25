@@ -1,17 +1,14 @@
-import 'dart:math' as math;
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_hook_form/flutter_hook_form.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/color_labels.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/library_form_drawer.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
-import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -159,41 +156,12 @@ Future<void> showTrackEditDrawer(
           .setError('Track no longer exists in the library');
       return;
     }
-    await showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
+    await showLibraryFormDrawer<void>(
+      context,
       barrierLabel: 'Edit track',
-      transitionBuilder: (context, animation, _, child) {
-        return SlideTransition(
-          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-              .animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              ),
-          child: child,
-        );
-      },
-      pageBuilder: (ctx, _, _) {
-        return Padding(
-          // The drawer stage is the body below the titlebar, as with the
-          // library drawer: the panel never covers the window controls.
-          padding: const EdgeInsets.only(top: kAppHeaderHeight),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: math.min(
-                trackEditDrawerWidth,
-                MediaQuery.sizeOf(ctx).width,
-              ),
-              height: double.infinity,
-              child: _TrackEditPanel(
-                transport: transport,
-                trackId: trackId,
-                track: track,
-              ),
-            ),
-          ),
-        );
-      },
+      width: trackEditDrawerWidth,
+      builder: (ctx) =>
+          _TrackEditPanel(transport: transport, trackId: trackId, track: track),
     );
   } on Object catch (e) {
     // Same channel as the rest of the shell: AppNoticeBridge toasts it.
@@ -387,7 +355,6 @@ class _TrackEditPanel extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
     final title = track.title ?? track.displayName;
     final artist = track.artist;
 
@@ -527,137 +494,77 @@ class _TrackEditPanel extends HookConsumerWidget {
       }
     }
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.card,
-        // Square corners, flush to the screen edge: only the inner edge rules.
-        border: Border(
-          left: BorderSide(
-            color: theme.colors.border,
-            width: theme.style.borderWidth,
-          ),
+    return HookedForm(
+      form: form,
+      child: LibraryFormDrawerShell(
+        title: title,
+        subtitle: artist,
+        action: AppButton(
+          onPress: canSave && !saving.value ? save : null,
+          child: const Text('Save'),
         ),
-      ),
-      child: HookedForm(
-        form: form,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          title,
-                          style: theme.typography.body.md.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (artist != null && artist.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            artist,
-                            style: theme.typography.body.sm.copyWith(
-                              color: theme.colors.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  AppButton.icon(
-                    variant: MixarButtonVariant.ghost,
-                    size: MixarButtonSize.sm,
-                    semanticsLabel: 'Close',
-                    onPress: () => Navigator.of(context).pop(),
-                    child: const Icon(LucideIcons.x, size: 20),
-                  ),
-                ],
+            _buildField('Title', TrackFormField.title),
+            const SizedBox(height: 12),
+            _buildField('Artist', TrackFormField.artist),
+            const SizedBox(height: 12),
+            _buildField('Album', TrackFormField.album),
+            const SizedBox(height: 12),
+            _buildField('Genre', TrackFormField.genre),
+            const SizedBox(height: 12),
+            _buildField(
+              'BPM',
+              TrackFormField.bpm,
+              // Decimal allowed: fractional BPMs are supported end to
+              // end (parseBpm, _formatBpm, the stored column).
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildField('Title', TrackFormField.title),
-                    const SizedBox(height: 12),
-                    _buildField('Artist', TrackFormField.artist),
-                    const SizedBox(height: 12),
-                    _buildField('Album', TrackFormField.album),
-                    const SizedBox(height: 12),
-                    _buildField('Genre', TrackFormField.genre),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'BPM',
-                      TrackFormField.bpm,
-                      // Decimal allowed: fractional BPMs are supported end to
-                      // end (parseBpm, _formatBpm, the stored column).
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'Key',
-                      TrackFormField.key,
-                      hint: 'e.g. Am, or Camelot 8A',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'ISRC',
-                      TrackFormField.isrc,
-                      hint: 'International Standard Recording Code',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'Year',
-                      TrackFormField.year,
-                      hint: 'Release year',
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'Track #',
-                      TrackFormField.trackNumber,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField(
-                      'Disc #',
-                      TrackFormField.discNumber,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildField('Comment', TrackFormField.comment, maxLines: 3),
-                    const SizedBox(height: 16),
-                    _StarRating(
-                      value: rating.value,
-                      onChanged: (value) => rating.value = value,
-                    ),
-                    const SizedBox(height: 16),
-                    _ColorLabelPicker(
-                      value: color.value,
-                      onChanged: (value) => color.value = value,
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 12),
+            _buildField(
+              'Key',
+              TrackFormField.key,
+              hint: 'e.g. Am, or Camelot 8A',
             ),
-            // Outside the scroll area so Save stays reachable in short windows.
-            // Dismissal is the header close button or a barrier tap; no Cancel.
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: AppButton(
-                onPress: canSave && !saving.value ? save : null,
-                child: const Text('Save'),
-              ),
+            const SizedBox(height: 12),
+            _buildField(
+              'ISRC',
+              TrackFormField.isrc,
+              hint: 'International Standard Recording Code',
+            ),
+            const SizedBox(height: 12),
+            _buildField(
+              'Year',
+              TrackFormField.year,
+              hint: 'Release year',
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            _buildField(
+              'Track #',
+              TrackFormField.trackNumber,
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            _buildField(
+              'Disc #',
+              TrackFormField.discNumber,
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 12),
+            _buildField('Comment', TrackFormField.comment, maxLines: 3),
+            const SizedBox(height: 16),
+            _StarRating(
+              value: rating.value,
+              onChanged: (value) => rating.value = value,
+            ),
+            const SizedBox(height: 16),
+            _ColorLabelPicker(
+              value: color.value,
+              onChanged: (value) => color.value = value,
             ),
           ],
         ),

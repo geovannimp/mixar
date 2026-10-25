@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `open_at`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `library_buses`, `subscribe_evt_all`
 
 /// Default Mixxx database path for the current OS, when it exists.
@@ -90,6 +90,13 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   Future<SamplerBankInfo> createSamplerBank({
     required String name,
     SamplerPlayMode? playMode,
+  });
+
+  /// Create a smart playlist from a rules document (validated by the library;
+  /// the canonical form is stored, not the caller's bytes).
+  Future<LibraryCollectionSummary> createSmartPlaylist({
+    required String name,
+    required String rulesJson,
   });
 
   /// Delete a collection (folder or playlist). Member tracks that no other
@@ -224,6 +231,13 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required int outMs,
   });
 
+  /// Replace the deck reference the library uses for deck-relative
+  /// smart-playlist rules. The last set stays in effect until replaced.
+  Future<void> setDeckReference({required List<LibraryDeckReference> decks});
+
+  /// Stored rules document (JSON) of a smart playlist, for the rule editor.
+  Future<String> smartPlaylistRules({required String collectionId});
+
   /// Mixar-managed cache sizes (stems/models dirs + waveform/metadata in library.db).
   Future<StorageUsage> storageUsage();
 
@@ -236,6 +250,13 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   ///
   /// Returns how many on-disk files were deleted under the stems root.
   Future<int> syncStemCache();
+
+  /// Rename a smart playlist and/or replace its rules document.
+  Future<LibraryCollectionSummary> updateSmartPlaylist({
+    required String collectionId,
+    required String name,
+    required String rulesJson,
+  });
 
   /// Save the user-editable metadata of a track (library DB only).
   ///
@@ -557,14 +578,17 @@ class LibraryCollectionSummary {
   final String name;
   final String kind;
   final String? path;
-  final int trackCount;
+
+  /// Member count; `None` for smart playlists, whose membership is computed
+  /// on read (counting it would scan the whole pool per sidebar row).
+  final int? trackCount;
 
   const LibraryCollectionSummary({
     required this.id,
     required this.name,
     required this.kind,
     this.path,
-    required this.trackCount,
+    this.trackCount,
   });
 
   @override
@@ -592,6 +616,44 @@ class LibraryCollectionSummary {
 /// Mirrors `library_core::ColorLabel` so the UI can switch exhaustively instead
 /// of handling free-form strings.
 enum LibraryColorLabel { pink, red, orange, yellow, green, aqua, blue, purple }
+
+/// One deck's currently sounding values, as deck-relative smart-playlist rules
+/// consume them. The host applies the tempo fader and Key Shift; the library
+/// only does the percent and harmonic math.
+class LibraryDeckReference {
+  /// Zero-based deck index (deck A is 0).
+  final int deckId;
+
+  /// Whether the deck is sounding; rules that name no deck read playing decks only.
+  final bool playing;
+
+  /// Sounding BPM.
+  final double? bpm;
+
+  /// Sounding key.
+  final String? key;
+
+  const LibraryDeckReference({
+    required this.deckId,
+    required this.playing,
+    this.bpm,
+    this.key,
+  });
+
+  @override
+  int get hashCode =>
+      deckId.hashCode ^ playing.hashCode ^ bpm.hashCode ^ key.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LibraryDeckReference &&
+          runtimeType == other.runtimeType &&
+          deckId == other.deckId &&
+          playing == other.playing &&
+          bpm == other.bpm &&
+          key == other.key;
+}
 
 /// Thin typed library egress for Dart (no MessagePack on the Flutter side).
 ///

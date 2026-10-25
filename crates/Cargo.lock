@@ -2626,6 +2626,7 @@ dependencies = [
  "audio-core 0.1.0",
  "codec",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 

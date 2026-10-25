@@ -7,6 +7,7 @@ import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
+import 'package:gui_flutter/providers/mixer/deck_reference.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
@@ -44,6 +45,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.watch(engineEventsBootstrapProvider);
     ref.watch(analyticsBootstrapProvider);
     ref.watch(libraryEventsBootstrapProvider);
+    ref.watch(deckReferenceBridgeProvider);
     ref.watch(focusedDeckLoadBootstrapProvider);
     ref.watch(historySettingsBootstrapProvider);
     ref.watch(librarySettingsBootstrapProvider);

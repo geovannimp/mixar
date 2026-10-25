@@ -13,7 +13,7 @@ Runtime contracts: `docs/tech-spec.md` §5 (*Library Manager (Collections Model)
 
 | Data | Home |
 |------|------|
-| Tracks, collections (folders + playlists), membership | `library.db` tables `tracks`, `collections`, `collection_entries` |
+| Tracks, collections (folders, playlists, smart playlists), membership | `library.db` tables `tracks`, `collections`, `collection_entries`; a smart playlist's rules live in `collections.rules_json` |
 | Offline analysis (BPM, key, confidences, beat grid JSON, loudness) | `track_analysis` |
 | Hot cues and saved loops | `track_hot_cue`, `track_loop` |
 | Waveform overviews | `track_waveform` |
@@ -27,6 +27,7 @@ Third-party DJ libraries (Rekordbox, Serato, Traktor, Mixxx) are read through `l
 ## Pages
 
 - [Tag write-back](/docs/developers/library/tag-write-back): the opt-in mirror of app-managed BPM/key into file tags, with the per-format field matrix and its lossiness.
+- [Smart playlist rules](/docs/developers/library/smart-playlist-rules): the versioned rule document, its validation matrix and evaluation semantics, and the deck reference contract.
 - [CDJ USB export](/docs/developers/library/cdj-usb-export): the DeviceSQL database and ANLZ analysis writers, the drive layout they produce, and how the output is verified.
 
 ## Related

@@ -155,6 +155,20 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   bool _pointerSelection = false;
   bool _isOpening = false;
 
+  /// Focus of the collapsed control. Owning it lets an outside tap drop the
+  /// focus ring, the way a text field's ring goes away when you click away.
+  final _focus = FocusNode(debugLabel: 'MixarSelect');
+
+  /// One tap region for the control and its menu, so pressing an option is not
+  /// an outside tap.
+  final _tapGroup = Object();
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
   void _resetPointerSelection() {
     scheduleMicrotask(() => _pointerSelection = false);
   }
@@ -208,14 +222,20 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
   @override
   Widget build(BuildContext context) {
     final override = widget.style;
-    if (override != null) {
-      return _buildForStyle(effectiveSelectStyle(override));
-    }
-    return Consumer(
-      builder: (context, ref, _) {
-        final setting = ref.watch(selectStyleSettingProvider);
-        return _buildForStyle(effectiveSelectStyle(setting));
-      },
+    final control = override != null
+        ? _buildForStyle(effectiveSelectStyle(override))
+        : Consumer(
+            builder: (context, ref, _) {
+              final setting = ref.watch(selectStyleSettingProvider);
+              return _buildForStyle(effectiveSelectStyle(setting));
+            },
+          );
+    // Clicking anywhere else ends the interaction and clears the ring. The
+    // group covers the menu too, so choosing an option is not "outside".
+    return TapRegion(
+      groupId: _tapGroup,
+      onTapOutside: (_) => _focus.unfocus(),
+      child: control,
     );
   }
 
@@ -263,6 +283,8 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
             : null;
         return ShadSelect<T>(
           initialValue: widget.value,
+          focusNode: _focus,
+          groupId: _tapGroup,
           enabled: widget.enabled,
           placeholder: widget.placeholder,
           minWidth: fill,

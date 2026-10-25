@@ -101,6 +101,28 @@ String? camelotToMusical(String code) {
   return minor ? kMinorKeys[index] : kMajorKeys[index];
 }
 
+/// Canonical musical spelling for a musical or Camelot token, mirroring
+/// `library_core::key_format::canonical_key`.
+///
+/// Folds the common flat spellings and a lower-case root onto the sharp names
+/// [kMajorKeys] / [kMinorKeys] use, and resolves Camelot codes. `null` for an
+/// empty or unknown token.
+String? canonicalKey(String key) {
+  final trimmed = key.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  final camelot = camelotToMusical(trimmed);
+  if (camelot != null) {
+    return camelot;
+  }
+  final normalized = trimmed[0].toUpperCase() + trimmed.substring(1);
+  final sharp = _sharpSpell(normalized);
+  return kMajorKeys.contains(sharp) || kMinorKeys.contains(sharp)
+      ? sharp
+      : null;
+}
+
 /// Camelot wheel slot `(1–12, A=minor / B=major)` for musical or Camelot input.
 (int number, bool minor)? camelotSlotForKey(String key) {
   final trimmed = key.trim();

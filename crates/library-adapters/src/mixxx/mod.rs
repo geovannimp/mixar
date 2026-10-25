@@ -287,6 +287,9 @@ impl Migratable for MixxxLibrary {
                     existing_lists
                         .insert((collection.name.trim().to_string(), collection.sortable()));
                 }
+                // Imported foreign smart playlists stay snapshots, so they never
+                // match a re-imported playlist and never collide with one.
+                CollectionType::SmartPlaylist => {}
             }
         }
 

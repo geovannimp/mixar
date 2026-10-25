@@ -4,7 +4,7 @@ import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/core/utils/folder_path.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
-import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
+import 'package:gui_flutter/widgets/library/create_collection_drawer.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/widgets/library/library_pane_label.dart';
@@ -30,7 +30,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
   }
 
   Future<void> _createCollection(String folderPath) async {
-    final result = await showCreateCollectionDialog(
+    final result = await showCreateCollectionDrawer(
       context,
       input: CreateCollectionInput(initialFolderPath: folderPath),
     );

@@ -18,8 +18,9 @@ use library_api::{
     TrackSummary as ApiTrackSummary,
 };
 use library_core::{
-    AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, CollectionType,
-    ExportOptions, Exportable as _, Library, Migratable, MigrateOptions,
+    AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionConfigUpdate,
+    CollectionId, CollectionType, DeckReference, ExportOptions, Exportable as _, Library,
+    Migratable, MigrateOptions, UpdateCollection,
 };
 
 use crate::bridge::BridgeResult;
@@ -137,7 +138,24 @@ pub struct LibraryCollectionSummary {
     pub name: String,
     pub kind: String,
     pub path: Option<String>,
-    pub track_count: u32,
+    /// Member count; `None` for smart playlists, whose membership is computed
+    /// on read (counting it would scan the whole pool per sidebar row).
+    pub track_count: Option<u32>,
+}
+
+/// One deck's currently sounding values, as deck-relative smart-playlist rules
+/// consume them. The host applies the tempo fader and Key Shift; the library
+/// only does the percent and harmonic math.
+#[derive(Clone, Debug)]
+pub struct LibraryDeckReference {
+    /// Zero-based deck index (deck A is 0).
+    pub deck_id: u16,
+    /// Whether the deck is sounding; rules that name no deck read playing decks only.
+    pub playing: bool,
+    /// Sounding BPM.
+    pub bpm: Option<f64>,
+    /// Sounding key.
+    pub key: Option<String>,
 }
 
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
@@ -518,7 +536,10 @@ impl LibraryTransport {
                     })
                     .collect())
             }
-            CollectionType::Folder => {
+            // Folders derive membership from the path and smart playlists
+            // compute it from rules, so neither has `collection_entries` rows
+            // to map — both list the resolved sources directly.
+            CollectionType::Folder | CollectionType::SmartPlaylist => {
                 let sources = lib.list_collection_tracks(&collection_id).bridge()?;
                 Ok(sources
                     .iter()
@@ -611,6 +632,92 @@ impl LibraryTransport {
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
         collection_summary(&lib, collection)
+    }
+
+    /// Create a smart playlist from a rules document (validated by the library;
+    /// the canonical form is stored, not the caller's bytes).
+    pub fn create_smart_playlist(
+        &self,
+        name: String,
+        rules_json: String,
+    ) -> Result<LibraryCollectionSummary, String> {
+        let collection = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.add_collection(&NewCollection::smart_playlist(name.trim(), rules_json))
+                .bridge()?
+        };
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        collection_summary(&lib, collection)
+    }
+
+    /// Rename a smart playlist and/or replace its rules document.
+    pub fn update_smart_playlist(
+        &self,
+        collection_id: String,
+        name: String,
+        rules_json: String,
+    ) -> Result<LibraryCollectionSummary, String> {
+        let id = CollectionId::new(collection_id);
+        {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.update_collection(
+                &id,
+                &UpdateCollection {
+                    name: Some(name.trim().to_string()),
+                    config: Some(CollectionConfigUpdate::SmartPlaylist { rules_json }),
+                },
+            )
+            .bridge()?;
+        }
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        let collection = lib
+            .get_collection(&id)
+            .bridge()?
+            .ok_or_else(|| "collection not found".to_string())?;
+        collection_summary(&lib, collection)
+    }
+
+    /// Stored rules document (JSON) of a smart playlist, for the rule editor.
+    pub fn smart_playlist_rules(&self, collection_id: String) -> Result<String, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.smart_playlist_rules_json(&CollectionId::new(collection_id))
+            .bridge()
+    }
+
+    /// Replace the deck reference the library uses for deck-relative
+    /// smart-playlist rules. The last set stays in effect until replaced.
+    pub fn set_deck_reference(&self, decks: Vec<LibraryDeckReference>) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.set_deck_references(
+            decks
+                .into_iter()
+                .map(|deck| DeckReference {
+                    deck_id: deck.deck_id,
+                    playing: deck.playing,
+                    bpm: deck.bpm,
+                    key: deck.key,
+                })
+                .collect(),
+        );
+        Ok(())
     }
 
     /// Delete a collection (folder or playlist). Member tracks that no other
@@ -1524,10 +1631,17 @@ fn collection_summary(
     library: &LibraryManager,
     collection: Collection,
 ) -> Result<LibraryCollectionSummary, String> {
-    let track_count = library
-        .list_collection_tracks(&collection.id)
-        .bridge()?
-        .len() as u32;
+    // Smart playlists compute their membership; counting one would run a
+    // whole-pool scan per sidebar row.
+    let track_count = match collection.collection_type() {
+        CollectionType::SmartPlaylist => None,
+        _ => Some(
+            library
+                .list_collection_tracks(&collection.id)
+                .bridge()?
+                .len() as u32,
+        ),
+    };
     Ok(LibraryCollectionSummary {
         id: collection.id.as_str().to_string(),
         name: collection.name.clone(),

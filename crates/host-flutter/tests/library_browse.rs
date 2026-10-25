@@ -49,7 +49,7 @@ fn list_collections_and_tracks_from_disk_db() {
     let transport = host_flutter::testing::open_library_at(&db).unwrap();
     let collections = transport.list_collections().unwrap();
     assert_eq!(collections.len(), 1);
-    assert_eq!(collections[0].track_count, 1);
+    assert_eq!(collections[0].track_count, Some(1));
 
     let tracks = transport
         .list_collection_entries(collections[0].id.clone())

@@ -4,20 +4,21 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use library_core::{
-    CollectionEntry, CollectionEntryId, CollectionId, Result, TrackId, TrackMetadata,
+    CollectionEntry, CollectionEntryId, CollectionId, CollectionType, Result, SmartTrackFacts,
+    TrackId, TrackMetadata,
 };
 use sea_orm::sea_query::{Expr, OnConflict, Order};
 #[cfg(test)]
 use sea_orm::Statement;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter,
-    QueryOrder, Set, SqliteTransactionMode, TransactionOptions, TransactionTrait,
+    QueryOrder, QuerySelect, Set, SqliteTransactionMode, TransactionOptions, TransactionTrait,
 };
 
 use crate::db::{self, Db};
 use crate::entity::{
-    collection_entries, collections, tracks, CollectionEntity, CollectionEntryEntity,
-    TrackAnalysisEntity, TrackEntity,
+    collection_entries, collections, track_analysis, tracks, CollectionEntity,
+    CollectionEntryEntity, TrackAnalysisEntity, TrackEntity,
 };
 use crate::model;
 use uuid::Uuid;
@@ -469,10 +470,11 @@ impl<'a> Store<'a> {
         let active = collections::ActiveModel {
             id: Set(id.as_str().to_string()),
             name: Set(name.to_string()),
-            collection_type: Set(CollectionTypeWire::Folder.label().to_string()),
+            collection_type: Set(CollectionType::Folder.as_str().to_string()),
             sortable: Set(0),
             scan_folder_tree: Set(i32::from(scan_folder_tree)),
             fs_path: Set(Some(fs_path.to_string())),
+            rules_json: Set(None),
         };
         CollectionEntity::insert(active)
             .exec(self.db.conn()?.as_connection())
@@ -489,15 +491,109 @@ impl<'a> Store<'a> {
         let active = collections::ActiveModel {
             id: Set(id.as_str().to_string()),
             name: Set(name.to_string()),
-            collection_type: Set(CollectionTypeWire::Playlist.label().to_string()),
+            collection_type: Set(CollectionType::Playlist.as_str().to_string()),
             sortable: Set(i32::from(sortable)),
             scan_folder_tree: Set(1),
             fs_path: Set(None),
+            rules_json: Set(None),
         };
         CollectionEntity::insert(active)
             .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
+    }
+
+    pub fn insert_smart_playlist_collection(
+        &self,
+        id: &CollectionId,
+        name: &str,
+        rules_json: &str,
+    ) -> Result<()> {
+        let active = collections::ActiveModel {
+            id: Set(id.as_str().to_string()),
+            name: Set(name.to_string()),
+            collection_type: Set(CollectionType::SmartPlaylist.as_str().to_string()),
+            sortable: Set(0),
+            scan_folder_tree: Set(1),
+            fs_path: Set(None),
+            rules_json: Set(Some(rules_json.to_string())),
+        };
+        CollectionEntity::insert(active)
+            .exec(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(())
+    }
+
+    pub fn update_collection_rules_json(
+        &self,
+        id: &CollectionId,
+        rules_json: &str,
+    ) -> Result<bool> {
+        let result = CollectionEntity::update_many()
+            .col_expr(collections::Column::RulesJson, Expr::value(rules_json))
+            .filter(collections::Column::Id.eq(id.as_str()))
+            .exec(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(result.rows_affected > 0)
+    }
+
+    /// Every file track's condition-relevant values, joined against analysis in
+    /// memory rather than in SQL: two whole-table reads beat a join here, and
+    /// the manager evaluates one fact set per smart-playlist read.
+    ///
+    /// Stream tracks are excluded — they carry no analysis and are not
+    /// DJ-library material.
+    pub fn list_smart_playlist_facts(&self) -> Result<Vec<SmartTrackFacts>> {
+        let conn = self.db.conn()?;
+        let tracks = TrackEntity::find()
+            .filter(tracks::Column::SourceType.eq("file"))
+            .all(conn.as_connection())
+            .map_err(db::db_err)?;
+        // Only the two columns the rules read: hydrating whole
+        // `track_analysis` rows would pull every beat-grid blob while the
+        // library lock is held.
+        let loudness: HashMap<String, Option<f64>> = TrackAnalysisEntity::find()
+            .select_only()
+            .columns([
+                track_analysis::Column::TrackId,
+                track_analysis::Column::LoudnessLufs,
+            ])
+            .into_tuple::<(String, Option<f64>)>()
+            .all(conn.as_connection())
+            .map_err(db::db_err)?
+            .into_iter()
+            .collect();
+
+        Ok(tracks
+            .into_iter()
+            .map(|row| {
+                let loudness_lufs = loudness.get(&row.id).copied().flatten();
+                SmartTrackFacts {
+                    id: row.id,
+                    title: row.title,
+                    artist: row.artist,
+                    album: row.album,
+                    genre: row.genre,
+                    comment: row.comment,
+                    bpm: row.bpm,
+                    key: row.key,
+                    rating: row
+                        .rating
+                        .and_then(|rating| u8::try_from(rating).ok())
+                        .filter(|rating| (1..=5).contains(rating)),
+                    color_label: row.color_label.as_deref().and_then(|raw| raw.parse().ok()),
+                    // Stored year 0 means "unknown", the same as the rest of
+                    // the library model.
+                    year: row
+                        .year
+                        .and_then(|year| u16::try_from(year).ok())
+                        .filter(|year| *year > 0),
+                    duration_ms: row.duration_ms,
+                    loudness_lufs,
+                    added_at_unix: row.added_at.parse::<i64>().ok(),
+                }
+            })
+            .collect())
     }
 
     pub fn list_collections(&self) -> Result<Vec<library_core::Collection>> {
@@ -831,20 +927,6 @@ pub struct TrackBeatGridContext {
     pub duration_ms: i32,
     pub key: Option<String>,
     pub sample_rate: i32,
-}
-
-enum CollectionTypeWire {
-    Folder,
-    Playlist,
-}
-
-impl CollectionTypeWire {
-    fn label(self) -> &'static str {
-        match self {
-            Self::Folder => "folder",
-            Self::Playlist => "playlist",
-        }
-    }
 }
 
 #[cfg(test)]
