@@ -47,11 +47,10 @@ const tocRailClass =
         <DocsSearch scope={searchScope} />
         <details
           id="docs-nav"
-          open
           class="rounded-xl border border-border bg-bg-elevated px-4 py-3 lg:border-0 lg:bg-transparent lg:p-0"
         >
           <summary class="cursor-pointer font-semibold text-fg lg:hidden">Documentation</summary>
-          <div class="pt-4 lg:pt-0">
+          <div class="pt-4 lg:block lg:pt-0">
             <DocsNav categories={categories} currentId={currentId} />
           </div>
         </details>
@@ -135,6 +134,16 @@ const tocRailClass =
 </BaseLayout>
 
 <style is:global>
+  /* The docs menu is a <details> that ships collapsed — that is the mobile
+     default. From `lg` up it must read as expanded even before the module
+     script sets `open`, so the desktop column never paints empty. */
+  @media (min-width: 64rem) {
+    #docs-nav::details-content {
+      display: block;
+      content-visibility: visible;
+    }
+  }
+
   /* Docs prose. MDX content is authored in the entry, so the elements do not
      carry this component's scope hash — the `.docs-prose` ancestor is the
      namespace instead. Plain CSS over the Mixar tokens (no typography plugin). */
@@ -297,3 +306,19 @@ const tocRailClass =
     text-decoration: var(--shiki-dark-text-decoration) !important;
   }
 </style>
+
+<script>
+  // The docs menu is a <details> that starts collapsed — that is the mobile
+  // default. From `lg` up the <summary> is hidden and the nav must be open,
+  // so sync the attribute to the viewport (once per client navigation, since
+  // the layout is swapped in by the router, and on resize).
+  const desktopNav = window.matchMedia("(min-width: 64rem)");
+
+  const syncDocsNav = () => {
+    const nav = document.getElementById("docs-nav");
+    if (nav instanceof HTMLDetailsElement) nav.open = desktopNav.matches;
+  };
+
+  document.addEventListener("astro:page-load", syncDocsNav);
+  desktopNav.addEventListener("change", syncDocsNav);
+</script>
