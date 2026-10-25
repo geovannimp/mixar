@@ -211,10 +211,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAudioEngineDescription =>
-      'Backend, sample rate, resampler, and buffer size.';
-
-  @override
-  String get settingsAudioBackend => 'Backend';
+      'Sample rate, resampler, and buffer size.';
 
   @override
   String get settingsAudioLowLatency => 'Low latency';

@@ -10,24 +10,17 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `start_live_stems`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `output_device`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `start_live_stems`, `start_with`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
-abstract class AudioBackendTransport implements RustOpaqueInterface {
-  /// Compiled-in backend names, with `"auto"` first (config default; not from `list_names`).
-  static List<String> listNames() =>
-      RustLib.instance.api.crateApiEngineAudioBackendTransportListNames();
-
-  /// List output devices for this backend instance.
-  Future<List<OutputDevice>> listOutputDevices();
-
-  /// Open a backend by name (`AudioBackend::new`).
-  static Future<AudioBackendTransport> open({required String name}) =>
-      RustLib.instance.api.crateApiEngineAudioBackendTransportOpen(name: name);
-}
+/// Output devices of the compiled-in real backend (Settings → Audio).
+///
+/// `"auto"` resolves through the engine registry to the shipped device
+/// backend; it never falls back to the headless `null` backend.
+Future<List<OutputDevice>> listOutputDevices() =>
+    RustLib.instance.api.crateApiEngineListOutputDevices();
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineBusHandle>>
 abstract class EngineBusHandle implements RustOpaqueInterface {}
@@ -239,13 +232,11 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Channel fader `0..1`.
   Future<void> setVolume({required int deckId, required double volume});
 
-  /// Start the engine from `config` (`Engine::new`), sharing `library` for load-to-deck.
+  /// Start the engine from the saved settings host config.
   static Future<EngineTransport> start({
     required LibraryTransport libraryTransport,
-    required EngineStartConfig config,
   }) => RustLib.instance.api.crateApiEngineEngineTransportStart(
     libraryTransport: libraryTransport,
-    config: config,
   );
 
   /// Stop audio streams; the transport still owns the worker until Drop.
@@ -576,32 +567,6 @@ class EngineEvt {
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).
 enum EngineEvtKind { status, updated, position, levels, error, notice }
-
-/// Config passed to [`EngineTransport::start`] — maps onto [`EngineConfig`].
-class EngineStartConfig {
-  final String backend;
-  final int? sampleRate;
-  final int? bufferSize;
-
-  const EngineStartConfig({
-    required this.backend,
-    this.sampleRate,
-    this.bufferSize,
-  });
-
-  @override
-  int get hashCode =>
-      backend.hashCode ^ sampleRate.hashCode ^ bufferSize.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EngineStartConfig &&
-          runtimeType == other.runtimeType &&
-          backend == other.backend &&
-          sampleRate == other.sampleRate &&
-          bufferSize == other.bufferSize;
-}
 
 /// EQ band for [`EngineTransport::set_eq_band`].
 enum EqBand { low, mid, high }

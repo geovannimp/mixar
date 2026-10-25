@@ -103,10 +103,7 @@ List<Override> _settingsOverrides([AppSettings? settings]) => [
   appSettingsProvider.overrideWith(
     (ref) async => settings ?? defaultAppSettings(),
   ),
-  audioDevicesProvider.overrideWith((ref, backend) async => const []),
-  audioBackendNamesProvider.overrideWith(
-    (ref) => const ['cpal', 'auto', 'null'],
-  ),
+  audioDevicesProvider.overrideWith((ref) async => const []),
   samplerBanksProvider.overrideWith((ref) async => const []),
   controllerTransportProvider.overrideWith((ref) async => null),
 ];
@@ -672,6 +669,9 @@ void main() {
 
     await tester.tap(find.text('Audio'));
     await tester.pumpAndSettle();
+    expect(find.text('BACKEND'), findsNothing);
+    expect(find.text('SAMPLE RATE'), findsOneWidget);
+    expect(find.text('Low latency'), findsOneWidget);
     await tester.tap(find.byType(MixarSwitch).first);
     await tester.pumpAndSettle();
     expect(find.text('Save'), findsOneWidget);

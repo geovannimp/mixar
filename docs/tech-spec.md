@@ -197,7 +197,7 @@ Config is loaded via `EngineConfig::from_toml_file` / `to_toml_file`. Fields map
 sample_rate = 48000
 buffer_size = 512
 low_latency = false
-backend = "auto"            # "auto", "cpal", or "null"
+backend = "auto"            # headless/test only: "auto", "cpal", or "null"
 
 [[devices]]
 name = "Focusrite USB"
@@ -207,8 +207,10 @@ id = "hw:1,0"
 # BusConfig fields: id, name, device, channels (see audio-core)
 ```
 
-- `backend = "auto"` tries CPAL first (when compiled in), then falls back to null.
+- `backend` is a headless/test selector only: the desktop app always boots the compiled-in real backend (CPAL) and never persists or shows a backend choice.
+- `backend = "auto"` resolves to CPAL when it is compiled in; it never falls back to `null`.
 - Valid backend names: `"auto"`, `"cpal"`, `"null"`.
+- `"null"` is reserved for headless tests and `engine-core` test configs.
 - `backend-cpal` is an optional Cargo feature on `engine-core` (enabled by default).
 
 See [`README.md`](../README.md) for a minimal embed example.

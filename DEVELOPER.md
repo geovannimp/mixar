@@ -106,7 +106,7 @@ Controller MIDI/Rhai failures are written through `tracing` (and therefore into 
 
 ## Audio backends
 
-All backends are compiled into the binary (subject to Cargo features) and chosen at runtime via config or `AudioBackend::new(name)`. No dynamic loading.
+Backends are compiled in (Cargo features) and selected by `AudioBackend::new(name)`; no dynamic loading. The desktop app always boots the compiled-in real backend — `null` is only reachable from headless test configs.
 
 | Backend | Role |
 | --- | --- |

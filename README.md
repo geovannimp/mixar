@@ -18,7 +18,7 @@ Linux is the primary development platform. The app is under active development a
 - Hot cues, loops, performance pads, sampler, and beat sync
 - Library with folder collections, track metadata, and offline analysis (BPM, key, loudness, artwork)
 - MIDI controller mappings
-- Runtime-selectable audio backends: CPAL (PipeWire on Linux when available), or `null` for tests
+- CPAL audio backend (PipeWire on Linux when available); `null` exists only for headless tests
 
 The desktop UI is **Flutter** (`apps/gui-flutter`), bridged to Rust via flutter_rust_bridge (`crates/host-flutter`).
 

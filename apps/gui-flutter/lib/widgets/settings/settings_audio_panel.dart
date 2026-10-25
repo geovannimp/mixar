@@ -35,13 +35,8 @@ class SettingsAudioPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final devicesAsync = ref.watch(audioDevicesProvider(draft.backend));
+    final devicesAsync = ref.watch(audioDevicesProvider);
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
-    final backends = ref.watch(audioBackendNamesProvider);
-    final backendOptions = [
-      if (!backends.contains(draft.backend)) draft.backend,
-      ...backends,
-    ];
     final sampleRates = _masterBusSampleRates(
       devices: deviceList,
       masterDeviceId: draft.masterBus.deviceId,
@@ -63,28 +58,11 @@ class SettingsAudioPanel extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 6,
-                children: [
-                  SettingsField(
-                    label: l10n.settingsAudioBackend,
-                    child: SettingsSelect(
-                      dialogTitle: l10n.settingsAudioBackend,
-                      value: draft.backend,
-                      options: backendOptions,
-                      labelBuilder: (v) => v,
-                      onChanged: (backend) =>
-                          onChanged(copyAppSettings(draft, backend: backend)),
-                    ),
-                  ),
-                  SettingsCheckbox(
-                    label: l10n.settingsAudioLowLatency,
-                    value: draft.lowLatency,
-                    onChanged: (v) =>
-                        onChanged(copyAppSettings(draft, lowLatency: v)),
-                  ),
-                ],
+              SettingsCheckbox(
+                label: l10n.settingsAudioLowLatency,
+                value: draft.lowLatency,
+                onChanged: (v) =>
+                    onChanged(copyAppSettings(draft, lowLatency: v)),
               ),
               SettingsField(
                 label: l10n.settingsAudioSampleRate,

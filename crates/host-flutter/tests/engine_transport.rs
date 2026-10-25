@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use engine_api::{decode_evt_body, EvtBody, Kind, Origin};
-use host_flutter::api::engine::{EngineStartConfig, EngineTransport, FxKind};
+use host_flutter::api::engine::{EngineTransport, FxKind};
 use host_flutter::api::library::LibraryTransport;
+use host_flutter::testing;
 
 fn short_tone_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
@@ -17,11 +18,10 @@ fn short_beats_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-beats.wav")
 }
 
-fn null_start_config() -> EngineStartConfig {
-    EngineStartConfig {
+fn null_engine_config() -> engine_core::EngineConfig {
+    engine_core::EngineConfig {
         backend: "null".into(),
-        sample_rate: None,
-        buffer_size: None,
+        ..engine_core::EngineConfig::default()
     }
 }
 
@@ -106,7 +106,7 @@ fn expect_deck_fx_routed(rx: &engine_core::EvtReceiver, deck_id: u16, timeout: D
 #[test]
 fn start_stop_null_backend() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     assert!(transport.is_running());
     transport.stop().unwrap();
     assert!(!transport.is_running());
@@ -115,7 +115,7 @@ fn start_stop_null_backend() {
 #[test]
 fn play_on_empty_deck_publishes_error() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport.play(0).unwrap();
     let event = recv_kind(&rx, Kind::Error, Duration::from_secs(2));
@@ -125,7 +125,7 @@ fn play_on_empty_deck_publishes_error() {
 #[test]
 fn load_path_publishes_updated() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport
         .load_path(0, short_tone_fixture().to_string_lossy().into_owned())
@@ -150,7 +150,7 @@ fn load_path_publishes_updated() {
 #[test]
 fn set_volume_publishes_updated() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport.set_volume(0, 0.25).unwrap();
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
@@ -164,7 +164,7 @@ fn set_volume_publishes_updated() {
 #[test]
 fn set_crossfader_publishes_status() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport.set_crossfader(0.2).unwrap();
     let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
@@ -178,7 +178,7 @@ fn set_crossfader_publishes_status() {
 #[test]
 fn set_cue_volume_publishes_status() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport.set_cue_volume(0.33).unwrap();
     let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
@@ -192,7 +192,7 @@ fn set_cue_volume_publishes_status() {
 #[test]
 fn set_master_volume_publishes_status() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport.set_master_volume(0.42).unwrap();
     let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
@@ -206,7 +206,7 @@ fn set_master_volume_publishes_status() {
 #[test]
 fn set_cue_mix_publishes_status() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport.set_cue_mix(0.35).unwrap();
     let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
@@ -220,7 +220,7 @@ fn set_cue_mix_publishes_status() {
 #[test]
 fn set_master_cue_publishes_status() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport.set_master_cue(true).unwrap();
     let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
@@ -234,7 +234,7 @@ fn set_master_cue_publishes_status() {
 #[test]
 fn load_path_exposes_waveform_peaks() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let path = short_tone_fixture().to_string_lossy().into_owned();
     transport.load_path(0, path.clone()).unwrap();
 
@@ -255,7 +255,7 @@ fn load_path_exposes_waveform_peaks() {
 #[test]
 fn seek_after_load_publishes_updated() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport
         .load_path(0, short_tone_fixture().to_string_lossy().into_owned())
@@ -268,7 +268,7 @@ fn seek_after_load_publishes_updated() {
 #[test]
 fn set_speed_after_load_publishes_updated() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     load_fixture(&transport, &rx, 0);
     transport.set_speed(0, 0.25).unwrap();
@@ -283,7 +283,7 @@ fn set_speed_after_load_publishes_updated() {
 #[test]
 fn set_cue_point_after_load_publishes_updated() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     load_fixture(&transport, &rx, 0);
     transport.set_cue_point(0).unwrap();
@@ -299,7 +299,7 @@ fn set_cue_point_after_load_publishes_updated() {
 #[test]
 fn loop_in_after_load_publishes_pending_loop_in() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     load_beat_fixture(&transport, &rx, 0);
     transport.loop_in(0, 0).unwrap();
@@ -321,7 +321,7 @@ fn loop_in_after_load_publishes_pending_loop_in() {
 #[test]
 fn set_auto_loop_after_load_publishes_active_loop() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     load_beat_fixture(&transport, &rx, 0);
     transport.set_auto_loop(0, 4.0).unwrap();
@@ -337,7 +337,7 @@ fn set_auto_loop_after_load_publishes_active_loop() {
 #[test]
 fn set_master_deck_publishes_status() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     load_fixture(&transport, &rx, 0);
     load_fixture(&transport, &rx, 1);
@@ -358,7 +358,7 @@ fn set_sampler_bank_publishes_active_bank_id() {
         let guard = lib.lock().unwrap();
         guard.create_sampler_bank("pads", None).unwrap().id
     };
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     transport.set_sampler_bank(0, bank_id.clone()).unwrap();
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
@@ -376,7 +376,7 @@ fn set_sampler_bank_publishes_active_bank_id() {
 #[test]
 fn fx_unit_and_deck_routing_publish_updated() {
     let library = LibraryTransport::open_in_memory().unwrap();
-    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let transport = testing::start_engine(&library, null_engine_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
 
     transport.set_fx_unit_slot(0, FxKind::Echo).unwrap();
