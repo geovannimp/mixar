@@ -1,0 +1,80 @@
+---
+title: "Interface"
+description: "Waveform mode, language, tooltips, select style, meters, library list, drawer, and analytics."
+section: "Settings"
+order: 605
+---
+
+**Waveform** is a single card. **UI** holds the language, control presentation, meter, list, drawer, and analytics cards.
+
+## Waveform → Display
+
+Section and card subtitle are the same sentence: "RGB mixes low/mid/high into one color. Filtered stacks the three bands."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Display mode** | select | **RGB** / **Filtered** | RGB |
+
+RGB blends the low, mid and high bands into one colour; Filtered stacks them as three separate bands. Both draw the same analysed data. See [Jog and waveform](/docs/users/decks/jog-and-waveform) for what the display shows.
+
+## UI → Chrome and controls
+
+Card subtitle: "Language, hover tips, and how selects open."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Language** | select | **System default** / **English** / **Português (Brasil)** | System default |
+| **Show tooltips** | checkbox | on / off | on |
+| **Select style** | select | **Auto**: "Platform default — desktop OS uses popovers, phones use dialogs." / **Desktop**: "Anchored popovers for selects and ⋯ menus." / **Mobile**: "Open selects and ⋯ menus in a dialog." | Auto |
+
+**Auto** resolves against the host: on desktop it behaves as **Desktop**, on a phone as **Mobile**.
+
+## UI → Mixer meters
+
+Card subtitle: "Deck VU meters between the volume faders. Master meter sits in the FX bar at the bottom."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Show mixer meters** | header switch | on / off | on |
+| **Meter mode** | select | **Mono**: "One ladder per deck (max of left/right)." / **Stereo**: "Separate left and right ladders per deck." | Mono |
+
+Turning the meters off hides the mode select with them.
+
+## UI → Library list
+
+Card subtitle: "How tracks look in the library table."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Dim played tracks** | checkbox | on / off | on |
+| **Track row layout** | select | **Comfortable**: "Two lines per track: title above artist, BPM, key and length." / **Compact**: "One dense line per track — fits the most rows on screen." | Comfortable |
+
+This is the saved default. The library toolbar has its own **Compact rows** / **Comfortable rows** toggle that overrides it for the current session only, without touching the setting. See [Browsing](/docs/users/library/browsing).
+
+## UI → Library drawer
+
+Card subtitle: "Where the library opens. Drawer mode hides the docked library and opens it over the mixer."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Library as a drawer** | header switch | on / off | off |
+| **Position** | select | **Left** / **Right** / **Top** / **Bottom** | Bottom |
+
+With the drawer off, the library is docked under the decks. With it on, the docked library is gone and the library opens over the mixer from the edge you picked. **Position** is only shown when the drawer is enabled.
+
+- The drawer starts closed. It opens from its header toggle, and nothing reopens it on launch.
+- A dimming scrim covers the mixer behind it. The scrim does not block input: the mixer stays interactive, which is what lets you drag a track out of the drawer and drop it on a deck.
+- A press outside the panel, or the header toggle, closes it.
+- The inner edge carries a resize grip; drag it to change how much of the mixer the drawer covers. The size holds for the rest of the session.
+- Dragging a track out tucks the panel off its edge so the deck is never covered at drop time; the drag end closes the drawer.
+- The drawer sits below the app header, so it never covers the window controls.
+
+## UI → Analytics
+
+The last card is **Analytics**, subtitle "Share anonymous app data."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Send anonymous usage data** | header switch | on / off | off |
+
+There is no prompt at any point, and this switch is one of the two that save without restarting the engine.

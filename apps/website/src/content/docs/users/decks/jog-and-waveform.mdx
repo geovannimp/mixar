@@ -1,0 +1,76 @@
+---
+title: "Jog and waveform"
+description: "Read the waveform, jump by clicking it, scrub by dragging, and use the jog platter."
+section: "Decks"
+order: 306
+---
+
+Two displays show the same track at different scales.
+
+| Display | Where | Shows |
+| --- | --- | --- |
+| Overview strip | Along the bottom of the deck's track info, 36 px tall | The whole track in one bar, plus its loop and cue markers |
+| Scrolling lane | The waveform pane at the top of the mixer, one lane per deck | A zoomed window (about 24 seconds at normal pitch) with the playhead pinned in the middle |
+
+With no tracks loaded, the waveform pane reads **Load tracks to see waveforms.**
+
+## Moving the playhead
+
+| Gesture | Where | Effect |
+| --- | --- | --- |
+| Click or tap | Overview strip | Seeks to that point in the track |
+| Drag | Scrolling lane | Scrubs; the view follows your finger and the audio follows the drag |
+
+Dragging the lane sends seeks while you move, throttled so a fast drag does not flood the engine, and a final seek on release. Between gestures the playhead eases back onto the engine's position rather than jumping: small drift is corrected gradually, and only a real jump (180 ms or more, or any pause) snaps it.
+
+## Colours
+
+Each band of the spectrum has a fixed colour:
+
+| Band | Colour |
+| --- | --- |
+| Low | `#FF4830` |
+| Mid | `#76E458` |
+| High | `#48BCFF` |
+
+**Settings → Waveform → Display** holds the two ways to draw them. **Display mode**:
+
+| Mode | Look |
+| --- | --- |
+| **RGB** (default) | Low, mid and high mixed into one colour per bar |
+| **Filtered** | Three stacked bands, low widest |
+
+The section description reads "RGB mixes low/mid/high into one color. Filtered stacks the three bands."
+
+## Overlays
+
+Drawn on top of the waveform, in the lane and on the overview:
+
+- **Beat lines**, with every fourth beat brighter as the bar line.
+- The **active loop** as a filled region, and a pending loop-in as a flagged vertical line.
+- **Hot cue** flags at each saved cue point.
+- **Saved loop** blocks, dimmer than the active loop.
+- The **slip shadow** playhead, when **S** is on and the shadow has drifted away from the audible position.
+
+## The jog
+
+The **Jog** tab holds a platter with a progress ring around its rim and a marker that turns with the audio. Drag anywhere on it to turn the platter.
+
+Dragging holds the platter, so with the default top mode the deck treats it as a hand on the record: turn it while playing and the audio scratches, let go and the motor picks the platter back up with a short ramp. The progress ring tracks how far into the track you are.
+
+How the platter responds is set under **Settings → Deck → Jog wheel**:
+
+| Setting | Options | Default |
+| --- | --- | --- |
+| **Top jog mode** | Vinyl (scratch), Pitch bend, Ignore | Vinyl (scratch) |
+| **Outer jog mode** | Vinyl (scratch), Pitch bend, Ignore | Pitch bend |
+
+**Ignore** makes that surface inert. On a paused deck a **Pitch bend** surface scrubs instead: there is no tempo to bend when nothing is playing, so the platter moves the playhead.
+
+The card's description reads "Defaults for top (touch) and outer (freewheel) platter policy." The on-screen platter counts as the top surface, so **Top jog mode** is what it follows.
+
+## Related
+
+- [Loops](/docs/users/decks/loops): the loop regions these overlays draw.
+- [Hot Cues](/docs/users/performance-pads/hot-cues): the cue flags.
+- [Tempo and sync](/docs/users/decks/tempo-and-sync): what the tempo fader is doing to the waveform's zoom.

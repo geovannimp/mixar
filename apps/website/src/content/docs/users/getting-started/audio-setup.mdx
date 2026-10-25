@@ -1,0 +1,48 @@
+---
+title: "Audio setup"
+description: "Point Mixar at the right output device, set the engine buffer, and route the headphone bus."
+section: "Getting started"
+order: 102
+---
+
+Mixar makes sound through a master bus and, optionally, a separate **preview bus** for headphones. Both live under **Settings → Audio**, whose description is *Engine output and buses*.
+
+For every field on that screen with its range and default, see [Settings → Audio](/docs/users/settings/audio).
+
+## Send audio to a device
+
+1. Open **Settings → Audio → Master bus**.
+2. Pick the output under **Device**. The first entry is **System default**, which follows your operating system's current default output.
+3. Confirm the channel layout: **Channel mode** is either **Stereo pair** or **Mono (fold L+R)**, and **Left channel** / **Right channel** are 1-based channel numbers clamped to what the device reports. **Right channel** is disabled in Mono.
+4. Press **Save**.
+
+Saving restarts the engine whenever it is running, then reloads the tracks that were already on the decks. A restart also happens if you change **Sample rate**, **Resampler quality**, or **Buffer size** in the **Engine** card. Closing the page with unsaved edits asks **Unsaved settings** / *Save changes before closing?*, so you can Save, Discard, or Cancel.
+
+If the settings were written but the engine refused them, the toast reads **Settings saved, but not applied** and carries the error. **Save failed** means the file on disk could not be written at all.
+
+The **System default** entry reports two channels, so the master bus defaults to channels 1 and 2.
+
+## Route the headphones
+
+Cueing needs its own output path, so it is off until you enable it:
+
+1. Open **Settings → Audio → Preview bus**.
+2. Turn on **Enable preview bus**.
+3. Pick the **Device** and its channels. The defaults are the system default device on channels **3 and 4**, which assumes a four-channel interface where channels 1 and 2 carry master.
+4. Press **Save**.
+
+The channel numbers are clamped when you switch devices. If a stereo pair would collide on a device with fewer channels, Mixar moves the right channel over by one; on a single-channel device it switches to Mono.
+
+The mixer's **Levels** popover shows an **Enable** button on its **Headphone** card while the preview bus is off. Pressing it opens Settings on the preview bus card so you can turn it on. See [Cueing](/docs/users/mixer/cueing).
+
+## When nothing is audible
+
+| Symptom | Cause |
+| --- | --- |
+| The app does not start | No output device was enumerated. The engine reports **No output device available** and startup aborts. Enable an output and relaunch. |
+| Deck levels move, no sound | Master bus points at the wrong device, or at a channel pair the device does not drive. Recheck **Device** and **Channel mode**. |
+| Only one side is audible | **Channel mode** is set to **Mono (fold L+R)**, which folds both sides into one channel by design. |
+| Cueing is silent, master is fine | **Enable preview bus** is off, or the preview bus sits on a channel pair the interface does not own. |
+| Clicks, dropouts, or a refusal to start | **Buffer size** is not a multiple of 64 frames. The hint states the rule: *Must be a multiple of 64 frames (mixer graph chunk size).* |
+
+**Low latency** asks the backend for a shorter path, and the default **Buffer size** is 512 frames. Lower the buffer on a solid driver for a snappier response, and raise it if you hear dropouts.

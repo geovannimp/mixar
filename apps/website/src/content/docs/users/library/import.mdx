@@ -1,0 +1,65 @@
+---
+title: "Importing music"
+description: "Bring a Mixxx library into Mixar and understand what is copied."
+section: "Library"
+order: 205
+---
+
+Mixar reads an existing **Mixxx** library and copies its structure into yours: tracks, playlists, crates, and watched folders. It is the only migration path Mixar ships.
+
+It lives in **Settings → Library → Import from Mixxx**, described as *Bring tracks, playlists, and crates from your Mixxx library into Mixar.*
+
+## What it looks for
+
+The card checks the standard Mixxx database location on launch and reports one of four states:
+
+| State | Meaning |
+| --- | --- |
+| **Looking for a Mixxx library…** | The check has not finished. |
+| **Found:** `<path>` | A database was found and can be imported. |
+| **No Mixxx library found on this computer.** | Nothing to import on this machine. |
+| **Could not check for a Mixxx library.** | The lookup itself failed; the error is in the log. |
+
+**Import from Mixxx library…** is enabled only when a database was found and no import is already running.
+
+## The confirmation
+
+The dialog is titled **Import from Mixxx?** and lists exactly what is about to happen: the source path, the track count with a missing-file count, and how many playlists, crates, and watched folders were found. It closes with the line that governs the result: *Missing files are imported as unavailable tracks.*
+
+They stay in the library as rows with no playable audio, so a list does not silently lose entries when a drive is offline.
+
+## What it copies
+
+Lists and track references, never audio files. Your music stays where it is; the imported playlists and crates become [collections](/docs/users/library/collections).
+
+| Mixxx | Becomes |
+| --- | --- |
+| Playlists | Sortable collections, so they keep a manual order column |
+| Crates | Unsortable collections |
+| Watched folders that still exist | Folder collections that scan subfolders |
+
+Hidden lists are skipped: Mixxx's AutoDJ queue and its own history are not imported.
+
+Mixar also creates an unsortable collection named **Mixxx** holding every imported track, so nothing ends up in the library unreachable from a collection. That catch-all is not counted in the playlist totals.
+
+Track metadata comes across where Mixxx stored it: title, artist, album, genre, comment, rating, year, track and disc numbers, sample rate, channels, bitrate, replay gain, and BPM. Keys are normalized to Mixar's musical form, so `8A` arrives as `Am`. A BPM of zero or less is dropped rather than stored as a bogus tempo.
+
+The import is idempotent: a list whose name and kind already exist in Mixar is skipped, so running it twice does not duplicate your library.
+
+## Result
+
+A toast reports the outcome: **Imported … from Mixxx** with per-kind counts, and a `(N missing)` suffix when files were unavailable. Other outcomes:
+
+| Toast | Meaning |
+| --- | --- |
+| **Mixxx library already imported** | Nothing new; the lists already exist. |
+| **Nothing to import from Mixxx** | The database contained nothing importable. |
+| **Mixxx import finished with N error(s)** | Partial success. The first few errors are listed under the title. |
+| **Could not read Mixxx library** | The database exists but could not be parsed. |
+| **Mixxx import failed** | The import aborted; the error text is attached. |
+
+## After the import
+
+Mixxx's beat grids are not part of the migration, so imported tracks have BPM and key but no grid of their own. Queue [analysis](/docs/users/library/analysis) on the imported collections, then correct anything it gets wrong in the deck's [Beat grid](/docs/users/decks/beat-grid) tab.
+
+Metadata that came across wrong is editable in the [track editor](/docs/users/library/track-editing).

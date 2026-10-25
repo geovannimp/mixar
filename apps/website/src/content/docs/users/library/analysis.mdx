@@ -1,0 +1,51 @@
+---
+title: "Analysis"
+description: "Queue BPM, key, beat-grid, waveform, and loudness analysis for a collection or a single track."
+section: "Library"
+order: 204
+---
+
+Analysis runs offline on your machine and reads the audio file itself. It fills the values the deck and the list depend on: BPM, musical key, the beat grid, the waveform overview, and loudness. [Library overview](/docs/users/library) covers what each one is used for.
+
+A fresh folder collection shows an empty BPM column until you queue work.
+
+## How thorough it gets
+
+**Settings → Library → Analysis → Analysis quality** decides how much of each track is examined:
+
+| Quality | Subtitle | What it decodes |
+| --- | --- | --- |
+| **Fast** | *Analyze a short preview for quick library scans.* | The first 30 seconds |
+| **Precise** (default) | *Balanced analysis for most libraries.* | The first half of the track |
+| **Complete** | *Analyze the full track (slowest, most accurate).* | The whole file |
+
+Half a track is enough for most four-four material and twice as quick as a full read. Long intros and tempo changes are where **Precise** can miss and **Complete** wins.
+
+## Analyze a whole collection
+
+Open the collection, then its three-dot menu → **Analyze tracks…**. The dialog is titled **Analyze** followed by the collection name, and its body reads *N tracks. Tracks that already have BPM/key or were analyzed before are skipped.*
+
+Two checkboxes:
+
+- **Force re-analysis — replaces existing BPM/key and beat grid**: off means analysis only fills what is missing.
+- **Also generate stems**: queues separation for every file track on the same run. See [Generate stems](/docs/users/stems/generate).
+
+**Start analysis** queues the work and closes the dialog.
+
+## Analyze one track
+
+A row's three-dot menu → **Analyze**. The dialog is titled **Analyze** followed by the track name, and says *Existing BPM/key are kept by default; analysis fills missing values only.* The single checkbox is **Replace existing BPM/key and beat grid**, and the action is **Start analysis**.
+
+## Watching it run
+
+Progress shows on the affected rows as a pill with a thin bar along the bottom edge: **Decoding**, **Analyzing**, then **Detecting BPM**, **Detecting key**, **Measuring loudness**, and **Waveform**. Percentages are appended once a job reports progress.
+
+Analysis and stem generation queue separately, so a collection run with **Also generate stems** shows two lanes progressing at once. While a job is active on a row, its menu entry reads **Analyzing…** or **Generating stems…** and cannot be started twice.
+
+## What it writes
+
+Results go into `library.db` for that track. Your audio files are untouched unless **Write BPM and key to file tags** is on, which is [Tag write-back](/docs/users/library/tag-write-back) and off by default.
+
+## After analysis: correcting it
+
+Analysis is a guess, and a wrong beat grid makes sync, quantize, and beat jump wrong too. Fix it per track in the deck's [Beat grid](/docs/users/decks/beat-grid) tab; that edit replaces what analysis found for that track.

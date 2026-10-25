@@ -1,0 +1,60 @@
+---
+title: "Beat grid"
+description: "Fix the BPM and first downbeat so sync, quantize, and beat jump land on the beat."
+section: "Decks"
+order: 305
+---
+
+The **Grid** tab corrects the two numbers everything beat-related depends on: the tempo, and where beat one falls. Analysis guesses both.
+
+```
+Grid
+Tempo
+−  [128.00]  +
+Downbeat
+⇤  Now  ⇥
+```
+
+## Tempo
+
+| Control | Action |
+| --- | --- |
+| **−** | Decrease BPM (tooltip "Decrease BPM"), 0.01 per press |
+| BPM field | Type a value; digits and `.` only, hint **BPM** |
+| **+** | Increase BPM (tooltip "Increase BPM"), 0.01 per press |
+
+Typing commits on Enter or when the field loses focus. A value that does not parse (or that falls outside 20 to 400) is thrown away and the field reverts. Accepted values are clamped to `20.01…399.99`.
+
+The field also takes the wheel: one notch is the fine step, **Shift** with the wheel takes the coarse step of `1`.
+
+## Downbeat
+
+| Control | Action |
+| --- | --- |
+| Left arrow | **Nudge grid back**: shifts the grid 10 ms earlier |
+| **Now** | Sets the downbeat to the playhead |
+| Right arrow | **Nudge grid forward**: shifts the grid 10 ms later |
+
+Nudge a few times to hear the grid slide against the track; the painted beat lines follow as you go.
+
+## What an edit changes
+
+Every change is written to the track's beat grid in the library database, replacing whatever analysis found. From then on, the same values drive:
+
+- the beat lines painted on the waveform, with every fourth beat marked as a bar;
+- tempo sync and beat sync, see [Tempo and sync](/docs/users/decks/tempo-and-sync);
+- quantized cues, loops and hot cues;
+- loop roll and beat jump, see [Loop Roll](/docs/users/performance-pads/loop-roll) and [Beat Jump](/docs/users/performance-pads/beat-jump).
+
+Edits are queued one at a time, so clicking **+** several times in a row writes several values in order rather than racing.
+
+## When to reach for it
+
+| Symptom | Fix |
+| --- | --- |
+| Sync pulls a matched pair out of time | Correct the deck whose BPM is wrong |
+| Cues and loops land consistently off the beat | Nudge the downbeat until the lines sit on the kicks |
+| The grid drifts against a live drummer | This grid is constant-tempo. A track that changes tempo cannot be grid-locked. |
+| Typed BPM keeps reverting | The value was outside 20 to 400 |
+
+The panel stays inert until a track is loaded and the library connection is ready. A track with no stored grid opens with an empty BPM field; the **−** and **+** keys then step from `128` until you type a value.

@@ -1,0 +1,72 @@
+---
+title: "Loops"
+description: "Set an auto loop, drag in and out points, and save loops to the track."
+section: "Decks"
+order: 304
+---
+
+The **Loop** tab holds one panel:
+
+```
+Loop
+‹ beats ›
+IN   OUT
+```
+
+Loops work on the loaded track's playhead, so the panel needs a track. Anything that has to find a beat (an auto loop, or a boundary being snapped) also needs an analysed BPM.
+
+## The Loop key
+
+**Loop** behaves differently depending on what is already there. One press does whichever of these applies first:
+
+| Situation | What happens |
+| --- | --- |
+| Nothing saved under the playhead, no active loop | Starts an auto loop at the current length, snapped to the nearest beat |
+| A saved loop sits under the playhead | Recalls it: seeks to its in point, activates it, and plays |
+| A loop is already active | Exits the loop; playback carries on from wherever the playhead is |
+
+The key is lit while a loop is active.
+
+## The length chip
+
+The chip between **‹** and **›** holds the loop length in beats: **1**, **2**, **4**, **8**, **16**, **32**.
+
+| Key | Action | Disabled |
+| --- | --- | --- |
+| **‹** | Halve the length (tooltip "Halve loop length") | At **1** |
+| **›** | Double the length (tooltip "Double loop length") | At **32** |
+
+Changing the length while a loop is active resizes the running loop from the playhead. The chip is lit whenever a saved loop exists for that length.
+
+## IN and OUT
+
+**IN** and **OUT** mark the region by hand, always at the playhead:
+
+- **IN** with no loop drops a pending in-point, marked on the waveform with a flag.
+- **OUT** completes the region from that pending point.
+- With a loop already active, **IN** and **OUT** move that region's ends instead of starting a new one.
+
+The panel reports these mistakes rather than acting on a half-valid region:
+
+- **OUT** with nothing pending and no active loop: "Set Loop In before Loop Out, or edit an active loop."
+- **OUT** before the pending in-point: "Loop out must be after loop in."
+
+## Quantize
+
+Loop boundaries respect the deck's **Q** setting (on by default): with it on, hand-set in and out points snap to the beat grid; with it off they land exactly where the playhead is. An auto loop always snaps its start to the nearest beat, whichever way **Q** is set.
+
+## Saving and recalling loops
+
+Saved loops are per track and per length slot, stored in the library database next to the cues.
+
+| Gesture | Effect |
+| --- | --- |
+| Shift+click **Loop** while a loop is active | Saves that region into the slot for its beat length |
+| Click the length chip when its slot holds a loop | Recalls that loop: seek to in, activate, play |
+| Shift+click the length chip | Deletes the saved loop in that slot |
+
+The chip is only clickable when a loop is saved for that length, which makes it a compact indicator as well as a control. Saved loops show as blocks on the waveform.
+
+## Held rolls are a pad mode
+
+Rolls that you hold are a pad mode: see [Loop Roll](/docs/users/performance-pads/loop-roll). Loop points get snapped to the beat grid, so a wrong BPM or downbeat moves them; fix that in [Beat grid](/docs/users/decks/beat-grid).

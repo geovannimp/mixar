@@ -1,0 +1,29 @@
+---
+title: "Session"
+description: "Control when Mixar records a performance session and what counts as a play."
+section: "Settings"
+order: 607
+---
+
+**Settings → Session** ("Performance history and session boundaries.") has one card, **Performance history**, whose subtitle is "Log deck playback to XSPF session files under app support."
+
+## Controls
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Record performance history** | header switch | on / off | on |
+| **Session idle timeout** | number field, suffix "minutes" | whole number greater than 0 | 5 |
+| **Minimum play duration** | number field, suffix "seconds" | whole number greater than 0 | 5 |
+| **Minimum effective deck volume** | slider | 0–100% | 5% |
+
+The two other fields and their hints are hidden while **Record performance history** is off:
+
+- **Session idle timeout**: "Close after this long with no qualifying deck output."
+- **Minimum play duration**: "Commit entries after this much qualifying playback." Shorter passes over a deck are not written.
+- **Minimum effective deck volume**: a deck whose effective level sits below this value does not count as playing. The slider moves in 1% steps.
+
+Typed values are taken as you type. Entering something that is not a whole number above zero (blank, `0`, letters) leaves the stored value untouched rather than resetting it.
+
+## Where the sessions go
+
+Recorded sessions show up in the library's **History** tab, and the files live in the app-support folder alongside `library.db`. See [Install Mixar](/docs/users/getting-started) for the paths. The exact rules for what opens, splits, and closes a session, and what an exported session contains, are developer reference: [History](/docs/developers/history).

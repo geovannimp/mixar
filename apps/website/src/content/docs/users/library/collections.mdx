@@ -1,0 +1,53 @@
+---
+title: "Collections"
+description: "Folder collections, playlists, what each collection action does, and what deleting one removes."
+section: "Library"
+order: 203
+---
+
+A collection is a named list in your library, and it comes in two kinds.
+
+## Create one
+
+Press **+** in the Collections sidebar (**Create collection**). The dialog asks for:
+
+| Field | Applies to | Meaning |
+| --- | --- | --- |
+| **Name** | Both | What the sidebar shows. Browsing a folder fills it in from the directory name. |
+| **Type** | Both | **Folder** (*Import audio files from a directory on disk*) or **Playlist** (*A manual track list in your library collections*). |
+| **Folder path** + **Browse…** | Folder | The directory to import, hinted **Choose a folder on disk**. |
+| **Scan subfolders** | Folder | On by default. Off imports only the top level. |
+| **Sortable** | Playlist | On by default. Off makes the list an unordered set. |
+
+**Create** stays disabled until the name is filled and, for a folder, a path is set.
+
+## Folder collections import once
+
+Creating a folder collection scans it immediately and imports every supported audio file it finds: `mp3`, `flac`, `wav`, `aiff`, `aif`, `ogg`, `m4a`, `aac`, `opus`, `wma`, `alac`. Files stay where they are. The collection points at the directory instead of copying it.
+
+- **There is no rescan action.** A folder collection imports once, when you create it. Files you add to that directory later are not picked up. Point a new collection at a subdirectory to bring them in.
+- **One folder backs at most one collection.** The Drive tab only offers the create button for folders that no collection claims yet.
+
+If a folder has disappeared when the scan runs, the import reports `root not found: <path>` and imports nothing.
+
+## Playlists start empty
+
+**Sortable** on keeps a manual order column; off treats the playlist as an unordered crate. Either way, Mixar has no way to add tracks to a playlist yet: dropping a row on a collection does nothing. Playlists currently arrive from two places:
+
+- **Import from Mixxx**, which imports playlists as sortable collections and crates as unsortable ones. See [Importing music](/docs/users/library/import).
+- **History sessions**, where a recorded session offers **Create collection** and copies its tracks into a new playlist.
+
+## Collection actions
+
+The three-dot menu in the list header acts on the collection you have open. Folder collections get **Browse in Drive**, then **Analyze tracks…**, **Export to CDJ USB…**, and **Delete**. Playlists get the same menu minus **Browse in Drive**.
+
+| Action | Effect |
+| --- | --- |
+| **Browse in Drive** | Switches to the Drive tab at the collection's directory. |
+| **Analyze tracks…** | Queues analysis for the collection. See [Analysis](/docs/users/library/analysis). |
+| **Export to CDJ USB…** | Writes the collection to a USB drive Pioneer players read. See [Export to a CDJ USB drive](/docs/users/library/export-to-cdj-usb). |
+| **Delete** | Removes the collection from your library. |
+
+Deleting asks **Delete this collection?** and spells out the scope: *Tracks only used by this collection are removed too* and *Original audio files on disk are preserved*. A track that also belongs to another collection stays in the library.
+
+Analysis is not automatic. A new collection sits with empty BPM and key columns until you queue it.
