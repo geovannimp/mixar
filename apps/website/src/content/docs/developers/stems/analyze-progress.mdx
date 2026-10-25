@@ -59,4 +59,4 @@ decode PCM (progress: decode)
 
 Fired by the per-track `GenerateStems` action; no-op when a valid cache already exists. Runs on its own `stems-ensure-{track_id}` thread, so it never blocks analyze or playback.
 
-Stem ensure runs from the `GenerateStems` action only — **not** on deck load, which reads an existing cache and otherwise plays the original ([NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4)).
+Stem ensure runs from the `GenerateStems` action only, never on deck load, which reads an existing cache and otherwise plays the original ([NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4)).

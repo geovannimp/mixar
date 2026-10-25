@@ -46,7 +46,7 @@ The pre-fader tap is captured **after** EQ, filter and FX, which is why headphon
 | `crates/engine-dsp/src/deck.rs` | Playback, transport, tempo ratio, beat grid, `effective_bpm()` |
 | `crates/engine-dsp/src/mixer_lane.rs` | Graph node: deck + sampler + strip, sampler route into the mix |
 | `crates/engine-dsp/src/mixer_channel.rs` | The strip: gain, EQ, filter, FX, meter/PFL capture, fader |
-| `crates/engine-dsp/src/fx/` | FX chain, echo, reverb — see [FX chain](/docs/developers/mixer/fx-chain) |
+| `crates/engine-dsp/src/fx/` | FX chain, echo, reverb; see [FX chain](/docs/developers/mixer/fx-chain) |
 | `crates/engine-dsp/src/mixer.rs` | Lane rendering, crossfade sum, bus routing, master peaks, FX tempo |
 | `crates/engine-api/src/payload.rs` | `DeckSnapshot` / `DeckUpdated` fields, `CmdBody` variants |
 | `crates/engine-core/src/control.rs` | Command decode + dispatch, mixer vs deck origin |
@@ -56,4 +56,4 @@ The pre-fader tap is captured **after** EQ, filter and FX, which is why headphon
 
 ## Command shape
 
-Mixer-wide commands are published with `Origin::Mixer` and answered with a `DeckUpdated` per deck (`CmdOutcome::DecksUpdated`) because the value lives on every channel — crossfader, master and cue volumes, and the FX unit's shared configuration all work that way. Deck-scoped commands use `Origin::Deck(i)` and answer with a single `DeckUpdated` (`CmdOutcome::DeckUpdated`): volume, EQ, filter, gain trim, cue, and the FX routing switch.
+Mixer-wide commands are published with `Origin::Mixer` and answered with a `DeckUpdated` per deck (`CmdOutcome::DecksUpdated`) because the value lives on every channel: crossfader, master and cue volumes, and the FX unit's shared configuration all work that way. Deck-scoped commands use `Origin::Deck(i)` and answer with a single `DeckUpdated` (`CmdOutcome::DeckUpdated`): volume, EQ, filter, gain trim, cue, and the FX routing switch.

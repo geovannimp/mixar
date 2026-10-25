@@ -26,7 +26,7 @@ The parser rejects:
 - an empty origin or leaf;
 - more than one `::`;
 - an unclosed argument list;
-- an empty `()` — omit the parentheses for no-arg leaves instead;
+- an empty `()`: omit the parentheses for no-arg leaves instead;
 - an empty argument entry (e.g. a trailing comma), a non `key:value` entry, a duplicate key, an invalid key, or an invalid value.
 
 An argument **key** must be a lowercase identifier (ASCII lowercase, digits, `_`, starting with a letter). An argument **value** is one of:
@@ -177,7 +177,7 @@ The `n` argument is not capped at eight: any `n:1+` is accepted, and numbered al
 | `load_to_deck` | `deck:1+` | Load the focused track into deck `deck` (1-based; deck 1 → index 0). |
 
 `navigate` acts on whichever pane owns browser focus. In the track list it moves
-the focused row; in the sidebar it moves the focused row of the active tab — the
+the focused row; in the sidebar it moves the focused row of the active tab: the
 selected collection, the selected history session, or the Drive tree row (a tree
 row's selection is the folder it opens, so the listing follows the focus). The
 two panes flip between each other, so `focus_next` and `focus_prev` are the same
@@ -198,7 +198,7 @@ and pressing it (`focus_next`, note 0x41 on channel 7) or SHIFT + pressing it
 
 ## Named-arg rules
 
-Argument keys are validated per leaf, and a leaf accepts **exactly** the keys listed for it — extra or missing keys are errors. Leaves not listed here take no arguments, and any argument is rejected (`this leaf does not take arguments`).
+Argument keys are validated per leaf, and a leaf accepts **exactly** the keys listed for it. Extra or missing keys are errors. Leaves not listed here take no arguments, and any argument is rejected (`this leaf does not take arguments`).
 
 | Leaf(s) | Required key | Constraint |
 | --- | --- | --- |
@@ -219,7 +219,7 @@ Most leaves are **buttons** (edge-triggered on press, or press/release pairs suc
 | Absolute | `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed` | Normalized `0..1`, clamped. |
 | Relative | `jog_turn`, `navigate` | A decoded tick delta from the device's `relative` mode. |
 
-Absolute leaves default to soft-takeover behavior (and can opt out per binding), which is also why they are the ones you typically pair with `soft_takeover = true` in `map.toml` — what soft takeover does and why it is useful is [explained on the inputs page](/docs/developers/midi-mappings/map-toml/inputs#soft-takeover--invert):
+Absolute leaves default to soft-takeover behavior (and can opt out per binding), so they are the ones you typically pair with `soft_takeover = true` in `map.toml`. What soft takeover does and why it is useful is [explained on the inputs page](/docs/developers/midi-mappings/map-toml/inputs#soft-takeover--invert):
 
 ```toml
 [inputs.deck_1]

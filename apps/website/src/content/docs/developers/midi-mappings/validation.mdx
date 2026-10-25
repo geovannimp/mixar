@@ -100,7 +100,7 @@ Endpoint shape rules, applied to device endpoints, inline output targets, and al
 | `relative` is set only on `type = "cc"` | `relative is only valid on type=cc (7-bit)` |
 
 <Callout type="warning" title="Relative CCs">
-`relative = "BINARY_OFFSET" | "TWOS_COMPLEMENT" | "SIGN_MAGNITUDE"` turns 7-bit CC values into signed tick deltas. It is invalid on `note` and `cc14` endpoints, and the bound action must be a relative action. In practice that means `jog_turn` (jog wheels) and `navigate` (browse/select encoders) — a plain absolute fader must have no `relative`.
+`relative = "BINARY_OFFSET" | "TWOS_COMPLEMENT" | "SIGN_MAGNITUDE"` turns 7-bit CC values into signed tick deltas. It is invalid on `note` and `cc14` endpoints, and the bound action must be a relative action. In practice that means `jog_turn` (jog wheels) and `navigate` (browse/select encoders). A plain absolute fader must have no `relative`.
 </Callout>
 
 ## Common errors
@@ -140,7 +140,7 @@ Messages below use the real shapes, with `...` standing in for a path or bundle 
 | `unknown outputs section 'deck_5'` | `[outputs.…]` uses an invalid section | use a valid section name |
 | `outputs.deck_1.foo: watch key not in closed catalog` | output watch key typo | use a catalog alias |
 | `outputs.deck_1.play_pause.on: alias 'foo_led' missing from device.toml` | output target alias not defined | add the LED/endpoint |
-| `outputs.deck_1.x.blink: 'blink' requires 'signal' (otherwise the binding is never resolved)` | binding declares `blink` without `signal` | add `signal = "…"` — see [outputs](/docs/developers/midi-mappings/map-toml/outputs) |
+| `outputs.deck_1.x.blink: 'blink' requires 'signal' (otherwise the binding is never resolved)` | binding declares `blink` without `signal` | add `signal = "…"`; see [outputs](/docs/developers/midi-mappings/map-toml/outputs) |
 | `outputs.deck_1.x: unknown signal 'foo' for 'deck_1'` | signal outside the section's closed catalog | use a catalog signal for that section |
 | `no mapping bundle directories found in '...'` | `--all` pointed at an empty or wrong root | pass the real `mappings/` root |
 | `failed to read '...'` | I/O error (missing root, permissions) | fix the path or permissions |
@@ -153,9 +153,9 @@ Messages below use the real shapes, with `...` standing in for a path or bundle 
 
 Start from the **Controller mapping** issue template (label `enhancement`, title `controller: …`). Fill in:
 
-- **Device** — Product; Vendor / model; MIDI name / USB VID:PID (if known).
-- **References** — the official MIDI chart, manufacturer page, and any Mixxx or other mapping you used.
-- **What's wanted** — transport, mixer, jog, pads, LEDs, relative CC, and which parts are must-haves versus nice-to-haves.
+- **Device**: Product; Vendor / model; MIDI name / USB VID:PID (if known).
+- **References**: the official MIDI chart, manufacturer page, and any Mixxx or other mapping you used.
+- **What's wanted**: transport, mixer, jog, pads, LEDs, relative CC, and which parts are must-haves versus nice-to-haves.
 
 Then add the bundle:
 
@@ -166,12 +166,12 @@ mappings/<id>/
   script.rhai     # optional — only if hooks or script bindings are used
 ```
 
-Keep `map-check` green; CI runs `check_all_mappings` over `mappings/`, so any bundle that fails validation fails the build. The shipped [`mappings/ddj-400/`](https://github.com/geovannimp/mixar/tree/main/mappings/ddj-400) bundle is the reference to study — it shows note and `cc14` endpoints, relative jog CCs, per-bank pad aliases, LED outputs, and a `script.rhai` with lifecycle hooks. The older `example-generic` template has been retired in favor of these docs.
+Keep `map-check` green; CI runs `check_all_mappings` over `mappings/`, so any bundle that fails validation fails the build. The shipped [`mappings/ddj-400/`](https://github.com/geovannimp/mixar/tree/main/mappings/ddj-400) bundle is the reference to study: it shows note and `cc14` endpoints, relative jog CCs, per-bank pad aliases, LED outputs, and a `script.rhai` with lifecycle hooks. The older `example-generic` template has been retired in favor of these docs.
 
 ## Where to look next
 
-- [device.toml](/docs/developers/midi-mappings/device-toml) — identity, sections, and endpoint shape.
-- [inputs](/docs/developers/midi-mappings/map-toml/inputs) — `[inputs]` binding forms, fields, modifiers, soft takeover.
-- [outputs](/docs/developers/midi-mappings/map-toml/outputs) — `[outputs]` signals, LED modes (on/off/blink), caching and refresh.
-- [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle) — `[lifecycle]` hooks and when the session calls them.
-- [Actions](/docs/developers/midi-mappings/actions) — the action ids you can bind.
+- [device.toml](/docs/developers/midi-mappings/device-toml): identity, sections, and endpoint shape.
+- [inputs](/docs/developers/midi-mappings/map-toml/inputs): `[inputs]` binding forms, fields, modifiers, soft takeover.
+- [outputs](/docs/developers/midi-mappings/map-toml/outputs): `[outputs]` signals, LED modes (on/off/blink), caching and refresh.
+- [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle): `[lifecycle]` hooks and when the session calls them.
+- [Actions](/docs/developers/midi-mappings/actions): the action ids you can bind.

@@ -1,11 +1,11 @@
 ---
-title: "map.toml — [outputs]"
+title: "map.toml: [outputs]"
 description: "Signal-driven LED and meter outputs: binding fields, the signal catalog, LED modes (on/off/blink), caching and refresh rules."
 section: "MIDI Mappings"
 order: 5
 ---
 
-`[outputs.<section>]` is the **app → hardware** direction of a mapping: it watches a closed-catalog signal for the section and emits MIDI when it turns on or off — how the app lights LEDs and drives callbacks on the controller. This page is the reference for the table; [map.toml](/docs/developers/midi-mappings/map-toml) is its overview, [inputs](/docs/developers/midi-mappings/map-toml/inputs) is the opposite (hardware → app) direction, and the control declarations these targets point at live in [device.toml](/docs/developers/midi-mappings/device-toml).
+`[outputs.<section>]` is the **app → hardware** direction of a mapping: it watches a closed-catalog signal for the section and emits MIDI when it turns on or off, which is how the app lights LEDs and drives callbacks on the controller. This page is the reference for the table; [map.toml](/docs/developers/midi-mappings/map-toml) is its overview, [inputs](/docs/developers/midi-mappings/map-toml/inputs) is the opposite (hardware → app) direction, and the control declarations these targets point at live in [device.toml](/docs/developers/midi-mappings/device-toml).
 
 Sections are `deck_1` through `deck_4`, `master`, `sampler`, and `custom`. Only `deck_*` sections resolve signals, and `master` resolves `master_cue` and `fx_armed`; `sampler` and `custom` are host-driven only.
 
@@ -29,7 +29,7 @@ play_pause = { signal = "playing", on = "play_led", off = { type = "note", chann
 
 Each of `on`, `off`, and `blink` is one of:
 
-- an **alias** resolved against `device.toml` — a section-local bare name, a `section.alias` reference, or a bare name searched across sections;
+- an **alias** resolved against `device.toml`: a section-local bare name, a `section.alias` reference, or a bare name searched across sections;
 - an **inline endpoint** table (`type`, `channel`, and the fields its type requires) serialized directly.
 
 Alias targets resolve exactly like input aliases, so an unresolvable name fails with `outputs.<section>.<alias>.on: alias '<name>' missing from device.toml`.
@@ -65,11 +65,11 @@ Signals are a closed catalog per section: a name outside the list fails load wit
 | --- | --- | --- |
 | `hot_cue_<n>` | `n` = 1..=16 | Library hot-cue slot n holds a cue. |
 | `loop_slot_<n>` | `n` = 1..=8 | Saved-loop slot n is populated. |
-| `pad_hot_cue_<n>` | `n` = 1..=8 | Mode-gated: slot n has a cue, only on the Hot Cue page. |
-| `pad_loop_<n>` | `n` = 1..=8 | Mode-gated: slot n is backed by a saved loop, only on the Loop Roll page. |
-| `pad_beat_jump_<n>`, `pad_sampler_<n>`, `pad_stems_<n>` | `n` = 1..=8 | Mode-gated, but always resolve false — there is no engine slot LED state for these pages yet. Bind them anyway so attach forces the bank off. |
+| `pad_hot_cue_<n>` | `n` = 1..=8 | Mode-gated: the slot has a cue only on the Hot Cue page. |
+| `pad_loop_<n>` | `n` = 1..=8 | Mode-gated: the slot is backed by a saved loop only on the Loop Roll page. |
+| `pad_beat_jump_<n>`, `pad_sampler_<n>`, `pad_stems_<n>` | `n` = 1..=8 | Mode-gated, but always resolve false: there is no engine slot LED state for these pages yet. Bind them anyway so attach forces the bank off. |
 
-Because a pad bank is mode-gated, only the deck's active page can light; the previous page's bank goes dark as soon as the mode changes. `pad_keyboard_*` / `pad_key_shift_*` are deliberately not advertised — those banks are host-driven (see [Host-driven outputs](#host-driven-signal-less-outputs) below).
+Because a pad bank is mode-gated, only the deck's active page can light; the previous page's bank goes dark as soon as the mode changes. `pad_keyboard_*` / `pad_key_shift_*` are not advertised: those banks are host-driven (see [Host-driven outputs](#host-driven-signal-less-outputs) below).
 
 ### Master signals
 
@@ -97,22 +97,22 @@ pad_mode_loop_roll_shift = { signal = "shift_held", blink = "pad_mode_loop_roll_
 ```
 
 <Callout type="warning" title="Don't blink a shared address">
-In the DDJ-400, notes `0x69`/`0x6F` belong to the Keyboard / Key Shift mode lamps — the same physical LEDs as SHIFT+HOT CUE / SHIFT+SAMPLER. Blinking `shift_held` on those addresses fights the solid mode `On` and flickers. One output per physical LED.
+In the DDJ-400, notes `0x69`/`0x6F` belong to the Keyboard / Key Shift mode lamps, the same physical LEDs as SHIFT+HOT CUE / SHIFT+SAMPLER. Blinking `shift_held` on those addresses fights the solid mode `On` and flickers. One output per physical LED.
 </Callout>
 
 ## Caching and refresh
 
 - The last state per binding is cached as `section.alias`, so the same state is never re-sent: an `on` is followed by an `off`, not by repeated `on` messages.
-- State is deliberately **forced** to re-send after a pad-mode switch (`set_deck_pad_mode` → `refresh_deck_leds`), since hardware often clears pad LEDs when the page changes: the session drops the cached value and replays the hot-cue LED state.
-- On attach, the `[lifecycle]` `on_init` script runs first, then a forced sweep (`refresh_all_leds`) re-asserts every lamp — the unit may still hold state from a previous run.
+- State is **forced** to re-send after a pad-mode switch (`set_deck_pad_mode` → `refresh_deck_leds`), since hardware often clears pad LEDs when the page changes: the session drops the cached value and replays the hot-cue LED state.
+- On attach, the `[lifecycle]` `on_init` script runs first, then a forced sweep (`refresh_all_leds`) re-asserts every lamp, since the unit may still hold state from a previous run.
 - On shutdown and detach, every mapped lamp's `off` bytes are sent (`clear_leds`); the cache is dropped first so a failure mid-sweep cannot leave a stale lit entry.
-- Continuous-value commands (jog, EQ, volume, …) skip the per-deck LED resolve on purpose.
+- Continuous-value commands (jog, EQ, volume, …) skip the per-deck LED resolve.
 
 ## Host-driven (signal-less) outputs
 
-Without `signal`, the binding key doubles as the watch name and must be a closed input alias for that section — except in `custom`, where any snake_case key is allowed. The host lights these via `apply_output_signal`.
+Without `signal`, the binding key doubles as the watch name and must be a closed input alias for that section, except in `custom`, where any snake_case key is allowed. The host lights these via `apply_output_signal`.
 
-The DDJ-400's Keyboard and Key Shift pad banks are signal-less for exactly this reason:
+The DDJ-400's Keyboard and Key Shift pad banks are signal-less:
 
 ```toml
 keyboard_pad_1 = { on = "keyboard_pad_1_led", off = { type = "note", channel = 8, note = 0x40, velocity = 0x00 } }
@@ -140,14 +140,14 @@ VU meters are not `[outputs]` bindings. The host drives the `vu_meter` endpoint 
 | `unknown outputs section 'x'` | Use `deck_1`..`deck_4`, `master`, `sampler`, or `custom`. |
 | `outputs.<section>.<alias>: alias must be snake_case` | Rename the binding key. |
 | `outputs.<section>.<alias>: watch key not in closed catalog` | A signal-less binding key must be a closed input alias for that section (any snake_case key works in `custom`), or add a `signal`. |
-| `outputs.<section>.<alias>: 'blink' requires 'signal' (otherwise the binding is never resolved)` | Add `signal = "…"` — without one the binding is only host-driven and can never blink. |
+| `outputs.<section>.<alias>: 'blink' requires 'signal' (otherwise the binding is never resolved)` | Add `signal = "…"`. Without one the binding is only host-driven and can never blink. |
 | `outputs.<section>.<alias>: unknown signal 'x' for 'deck_1'` | Use a signal from this page's catalog for that section. |
 | `outputs.<section>.<alias>.on: alias '<name>' missing from device.toml` | Declare the alias in `device.toml`, or switch to an inline endpoint. |
 
 ## Where to go next
 
-- [inputs](/docs/developers/midi-mappings/map-toml/inputs) — binding forms, fields, modifiers, soft takeover, absolute vs relative inputs, rate limiting.
-- [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle) — the three script hooks and when the session calls them.
-- [Actions & aliases](/docs/developers/midi-mappings/actions) — the action vocabulary and how aliases resolve.
-- [Scripts](/docs/developers/midi-mappings/scripts) — the Rhai side (`on_init`, `idle_heartbeat`, `on_shutdown`).
-- [Validation](/docs/developers/midi-mappings/validation) — load-time checks and the common errors above.
+- [inputs](/docs/developers/midi-mappings/map-toml/inputs): binding forms, fields, modifiers, soft takeover, absolute vs relative inputs, rate limiting.
+- [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle): the three script hooks and when the session calls them.
+- [Actions & aliases](/docs/developers/midi-mappings/actions): the action vocabulary and how aliases resolve.
+- [Scripts](/docs/developers/midi-mappings/scripts): the Rhai side (`on_init`, `idle_heartbeat`, `on_shutdown`).
+- [Validation](/docs/developers/midi-mappings/validation): load-time checks and the common errors above.

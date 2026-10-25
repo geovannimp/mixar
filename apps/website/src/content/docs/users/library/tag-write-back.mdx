@@ -11,7 +11,7 @@ It is **off by default**, and nothing is written to your files until you turn it
 
 ## Turning it on
 
-**Settings → Library → File tags** — flip the switch in the card header, then save.
+**Settings → Library → File tags**: flip the switch in the card header, then save.
 
 With the switch off, Mixar never opens an audio file for writing, whatever else you do.
 
@@ -22,9 +22,9 @@ Write-back happens as part of analysis (and when you save a manual beat grid), s
 To update a library you analyzed earlier:
 
 1. Turn the setting on and save.
-2. Open a collection's three-dot menu and start analysis with **Force re-analysis** enabled. Without it, tracks that already have a BPM or key are skipped — and a skipped track is never written.
+2. Open a collection's three-dot menu and start analysis with **Force re-analysis** enabled. Without it, tracks that already have a BPM or key are skipped, and a skipped track is never written.
 
-Note that forcing re-analysis **replaces** Mixar's stored BPM and key with its own analysis result before writing it back, so your files' existing tags are overwritten too. Forcing is not the only way that can happen today: the confidence-based merge can also prefer the analysis result over a value that is already there, without asking. That is a known problem: [analysis must not replace existing BPM/key without explicit consent (#552)](https://github.com/geovannimp/mixar/issues/552). Until it is fixed, leave forcing off and leave files whose tags you trust out of the analysis run.
+Forcing re-analysis **replaces** Mixar's stored BPM and key with its own analysis result before writing it back, so your files' existing tags are overwritten too. Forcing is not the only way that can happen today: the confidence-based merge can also prefer the analysis result over a value that is already there, without asking. That is a known problem: [analysis must not replace existing BPM/key without explicit consent (#552)](https://github.com/geovannimp/mixar/issues/552). Until it is fixed, leave forcing off and leave files whose tags you trust out of the analysis run.
 
 ## What gets written
 
@@ -37,7 +37,7 @@ These values:
 | **Rating** | The file's star-rating field (1–5) |
 | **Comment**, **year**, **track/disc number**, **colour label** | The matching tag field |
 
-Nothing else is touched. Mixar does not write title, artist, album, or genre, and it does not write hot cues, saved loops, or beat grids — those stay in Mixar's database, and everything else already in the file (cover art, ReplayGain, other apps' data) is left exactly as it was.
+Nothing else is touched. Mixar does not write title, artist, album, or genre, and it does not write hot cues, saved loops, or beat grids: those stay in Mixar's database, and everything else already in the file (cover art, ReplayGain, other apps' data) is left exactly as it was.
 
 ## Which files it can write
 
@@ -47,15 +47,15 @@ Nothing else is touched. Mixar does not write title, artist, album, or genre, an
 | FLAC, OGG, Opus | Everything, in the Vorbis comment block |
 | M4A / MP4 | Everything, in the iTunes-style metadata atoms |
 | APE, WavPack, Musepack | Comment, year, track/disc number and colour; BPM, key and rating are skipped (these formats have no standard field for them) |
-| Native NI Stem files (`.stem.mp4`) | Skipped — see below |
+| Native NI Stem files (`.stem.mp4`) | Skipped; see below |
 
 A skipped file is left exactly as it was. Mixar logs the reason instead of guessing.
 
-**Why `.stem.mp4` files are skipped.** They are MP4 files, but not ordinary ones: a Stem container holds four audio tracks plus a `stem` manifest that lists each layer's name and color, and Traktor and Mixxx read that manifest when they load the file. Rewriting a tag means rewriting the file's metadata section, which is exactly where that manifest lives, and a mistake there loses the layer names — or breaks playback — in the other app. On top of that, Mixar's own Stem files store their audio with a layout the tag library it uses cannot even read, so there is no safe read-modify-write path. Mixar therefore leaves every Stem file alone and writes nothing into it.
+**Why `.stem.mp4` files are skipped.** They are MP4 files, but not ordinary ones: a Stem container holds four audio tracks plus a `stem` manifest that lists each layer's name and color, and Traktor and Mixxx read that manifest when they load the file. Rewriting a tag means rewriting the file's metadata section, which is exactly where that manifest lives, and a mistake there loses the layer names (or breaks playback) in the other app. On top of that, Mixar's own Stem files store their audio with a layout the tag library it uses cannot even read, so there is no safe read-modify-write path. Mixar therefore leaves every Stem file alone and writes nothing into it.
 
 ## What it does to your files
 
-- **Only differences are written.** Write-back compares what Mixar stored against what the file already carries, and writes nothing when they match — so analyzing a library whose BPM and key do not change leaves every file untouched. (A re-analysis that concludes a *different* value is a real difference and is written; see the consent note above.)
+- **Only differences are written.** Write-back compares what Mixar stored against what the file already carries, and writes nothing when they match, so analyzing a library whose BPM and key do not change leaves every file untouched. (A re-analysis that concludes a *different* value is a real difference and is written; see the consent note above.)
 - **Audio is never re-encoded.** Write-back edits metadata only; the sound data is copied through untouched.
 - **Nothing partial.** If a file cannot be written safely, Mixar skips it and leaves it byte-for-byte identical.
 - **Your database is still the source of truth.** Mixar's table and decks use the values it stored; the file tags are a copy for other software.
@@ -73,7 +73,7 @@ MP3, WAV, and AIFF store BPM as a whole number. If Mixar measured `127.98`, the 
 
 ## Turning it off again
 
-Flip the switch off and Mixar stops writing. Tags already written **stay in your files** — they are normal metadata now. To remove them, clear the BPM and key fields in a tag editor or in whichever DJ app you use.
+Flip the switch off and Mixar stops writing. Tags already written **stay in your files**: they are normal metadata now. To remove them, clear the BPM and key fields in a tag editor or in whichever DJ app you use.
 
 ## Checking that it worked
 
@@ -81,9 +81,9 @@ Flip the switch off and Mixar stops writing. Tags already written **stay in your
 2. Open the same file in another player or DJ app.
 3. Its BPM and key should match what Mixar's library shows.
 
-If a file shows no values, it is most likely one of the skipped types above — or the track was analyzed before you turned the switch on (see [applying it to music you already analyzed](#applying-it-to-music-you-already-analyzed)).
+If a file shows no values, it is most likely one of the skipped types above, or the track was analyzed before you turned the switch on (see [applying it to music you already analyzed](#applying-it-to-music-you-already-analyzed)).
 
 ## Related
 
-- [Library overview](/docs/users/library) — collections, analysis, and where Mixar keeps its data.
+- [Library overview](/docs/users/library): collections, analysis, and where Mixar keeps its data.
 - Internals, per-format detail, and known limits: [Tag write-back (developers)](/docs/developers/library/tag-write-back).

@@ -1,11 +1,11 @@
 ---
-title: "map.toml — [inputs]"
+title: "map.toml: [inputs]"
 description: "Input binding forms, fields, modifiers, soft takeover, invert, absolute vs relative inputs, and rate limiting."
 section: "MIDI Mappings"
 order: 4
 ---
 
-`[inputs]` is the **hardware → app** direction of a mapping: it binds the controls declared in `device.toml` to engine and library actions, so a pressed button or turned knob does something in Mixar. Everything here is validated against the closed action and alias catalogs, so a name that is not in the catalog is rejected at load time — see [Actions & aliases](/docs/developers/midi-mappings/actions) for the vocabulary, [device.toml](/docs/developers/midi-mappings/device-toml) for the control declarations `map.toml` refers to, and [outputs](/docs/developers/midi-mappings/map-toml/outputs) for the app → hardware direction.
+`[inputs]` is the **hardware → app** direction of a mapping: it binds the controls declared in `device.toml` to engine and library actions, so a pressed button or turned knob does something in Mixar. Everything here is validated against the closed action and alias catalogs, so a name that is not in the catalog is rejected at load time. See [Actions & aliases](/docs/developers/midi-mappings/actions) for the vocabulary, [device.toml](/docs/developers/midi-mappings/device-toml) for the control declarations `map.toml` refers to, and [outputs](/docs/developers/midi-mappings/map-toml/outputs) for the app → hardware direction.
 
 ## `[inputs]` binding forms
 
@@ -13,17 +13,17 @@ order: 4
 
 A binding has three interchangeable forms:
 
-- **String** — the action id directly:
+- **String**: the action id directly:
   ```toml
   [inputs.deck_1]
   play_pause = "Deck(_)::toggle_play"
   ```
-- **Table** — an action plus options such as `modifier`, `soft_takeover`, `invert`, or a `script` name:
+- **Table**: an action plus options such as `modifier`, `soft_takeover`, `invert`, or a `script` name:
   ```toml
   [inputs.deck_1]
   volume = { action = "Deck(_)::set_volume", soft_takeover = true, invert = false }
   ```
-- **Array of tables** — alternatives selected at runtime by modifier (see [Modifiers & selection](#modifiers--selection)):
+- **Array of tables**: alternatives selected at runtime by modifier (see [Modifiers & selection](#modifiers--selection)):
   ```toml
   [inputs.deck_1]
   volume = [
@@ -52,7 +52,7 @@ Every normalized binding table accepts these fields:
 
 Validation requires **exactly one** of `action` or `script` to be present and non-empty: both, or neither, is rejected with `binding needs exactly one of action or script`. A non-empty `script` also requires the bundle to carry `script.rhai`.
 
-A **leaf** is the action named at the end of an action id — the `set_volume` in `Deck(_)::set_volume`. This page uses *leaf* throughout: **absolute leaves** consume a continuous value (`set_volume`), **relative leaves** consume a tick delta (`jog_turn`). See [Absolute vs relative inputs](#absolute-vs-relative-inputs) and [Actions & aliases](/docs/developers/midi-mappings/actions) for the full grammar.
+A **leaf** is the action named at the end of an action id, the `set_volume` in `Deck(_)::set_volume`. This page uses *leaf* throughout: **absolute leaves** consume a continuous value (`set_volume`), **relative leaves** consume a tick delta (`jog_turn`). See [Absolute vs relative inputs](#absolute-vs-relative-inputs) and [Actions & aliases](/docs/developers/midi-mappings/actions) for the full grammar.
 
 ## Modifiers & selection
 
@@ -78,9 +78,9 @@ So order inside the array matters for overlapping modifiers, and the unmodified 
 
 ## Soft takeover & invert
 
-**Soft takeover** stops a hardware control from jumping the value it drives. Without it, a filter knob left at 80 % while the software value sits at 40 % would slam the value to 80 % the moment you touch it. With soft takeover the control is ignored until its physical position crosses the current value, and only then does it take over smoothly from there — useful for every control whose position is shared with (or unknown to) the screen: mixer knobs after a page load, jog-adjacent encoders, and decks you have not touched yet.
+**Soft takeover** stops a hardware control from jumping the value it drives. Without it, a filter knob left at 80 % while the software value sits at 40 % would slam the value to 80 % the moment you touch it. With soft takeover the control is ignored until its physical position crosses the current value, and only then does it take over smoothly from there, which helps every control whose position is shared with (or unknown to) the screen: mixer knobs after a page load, jog-adjacent encoders, and decks you have not touched yet.
 
-It is enabled by default only for the absolute leaves — those that consume a continuous `0..1` value:
+It is enabled by default only for the absolute leaves that consume a continuous `0..1` value:
 
 `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed`.
 
@@ -99,14 +99,14 @@ tempo = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }
 ```
 
 <Callout type="tip" title="Absolute leaves and soft takeover">
-Because absolute leaves already default to soft takeover, the explicit `soft_takeover = true` you see throughout the stock mappings is documentation as much as configuration — it makes the intent visible at the binding site.
+Because absolute leaves already default to soft takeover, the explicit `soft_takeover = true` you see throughout the stock mappings is documentation as much as configuration: it makes the intent visible at the binding site.
 </Callout>
 
 ## Absolute vs relative inputs
 
 A binding's leaf takes one of two kinds of value:
 
-- **Absolute** leaves consume a normalized `0..1` value (clamped). A 7-bit CC is normalized from `0..127`; a `cc14` endpoint pairs two CCs into one value — see [device.toml](/docs/developers/midi-mappings/device-toml#cc14--14-bit-knobs-and-faders). Relative ticks are never coerced into an absolute action — the action simply does not resolve.
+- **Absolute** leaves consume a normalized `0..1` value (clamped). A 7-bit CC is normalized from `0..127`; a `cc14` endpoint pairs two CCs into one value. See [device.toml](/docs/developers/midi-mappings/device-toml#cc14-14-bit-knobs-and-faders). Relative ticks are never coerced into an absolute action: the action simply does not resolve.
 - **Relative** leaves consume a decoded tick delta: `jog_turn` on a deck and `navigate` on `LibraryNavigation`. The `device.toml` endpoint must declare `relative = "…"` so the raw CC is decoded into signed ticks.
 
 This pairing is enforced at load time. A `type = "cc"` endpoint that declares `relative` must be bound to a relative action, and a relative action must be bound to a `relative` endpoint; a mismatch fails `map-check` with a message naming the action and telling you to set `relative` only for `jog_turn`/`navigate`.
@@ -119,9 +119,9 @@ An absolute value identical to the one last published for that binding is droppe
 
 ## Where to go next
 
-- [outputs](/docs/developers/midi-mappings/map-toml/outputs) — signals, LED modes (on/off/blink), caching, refresh rules, VU meters.
-- [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle) — the three script hooks and when the session calls them.
-- [Actions & aliases](/docs/developers/midi-mappings/actions) — the action vocabulary and how aliases resolve.
-- [device.toml](/docs/developers/midi-mappings/device-toml) — the endpoint and alias declarations these bindings point at.
-- [Scripts](/docs/developers/midi-mappings/scripts) — the Rhai side, when a binding names a function instead of an action.
-- [Validation](/docs/developers/midi-mappings/validation) — load-time checks, including the examples above.
+- [outputs](/docs/developers/midi-mappings/map-toml/outputs): signals, LED modes (on/off/blink), caching, refresh rules, VU meters.
+- [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle): the three script hooks and when the session calls them.
+- [Actions & aliases](/docs/developers/midi-mappings/actions): the action vocabulary and how aliases resolve.
+- [device.toml](/docs/developers/midi-mappings/device-toml): the endpoint and alias declarations these bindings point at.
+- [Scripts](/docs/developers/midi-mappings/scripts): the Rhai side, when a binding names a function instead of an action.
+- [Validation](/docs/developers/midi-mappings/validation): load-time checks, including the examples above.

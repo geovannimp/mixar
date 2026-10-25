@@ -76,7 +76,7 @@ Freeverb topology scaled to the engine sample rate: 8 parallel combs (tunings `1
 | `SetFxUnitParam` | `Mixer` | `{ slot, param, value }` | one `Updated` per deck |
 | `SetDeckFxRouted` | `Deck(i)` | `{ routed }` | that deck's `Updated` |
 
-The four configuration commands fan out to **every** deck inside `Engine::for_each_fx_slot`, so the shared unit cannot drift between channels; that is why they answer with `CmdOutcome::DecksUpdated`. Routing is deck-scoped and answers with `CmdOutcome::DeckUpdated`.
+The four configuration commands fan out to **every** deck inside `Engine::for_each_fx_slot`, so the shared unit cannot drift between channels. They answer with `CmdOutcome::DecksUpdated`. Routing is deck-scoped and answers with `CmdOutcome::DeckUpdated`.
 
 Published state:
 
@@ -91,7 +91,7 @@ FxSlotState { kind: FxKind, enabled: bool, wet: f32, params: [f32; FX_PARAM_COUN
 
 `DeckUpdated` carries the same two fields, `status::fx_slot_state` maps DSP → wire, and `FxKind::Off` survives as the empty-slot state even though the selector does not offer it. A fresh `FxChain` loads **Echo in slot 0, unarmed** (`FxChain::new`), which matches what the strip shows before the first snapshot.
 
-The configuration commands deliberately carry no `soft_takeover` flag: FX knobs are UI-only today — no action leaf exists in `crates/controller/src/catalog.rs` — so there is no hardware takeover to resolve. Adding the field later is backward compatible under `#[serde(default)]`.
+The configuration commands carry no `soft_takeover` flag: FX knobs are UI-only today (no action leaf exists in `crates/controller/src/catalog.rs`), so there is no hardware takeover to resolve. Adding the field later is backward compatible under `#[serde(default)]`.
 
 ## Host and UI plumbing
 

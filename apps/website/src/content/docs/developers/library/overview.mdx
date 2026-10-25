@@ -1,11 +1,11 @@
 ---
 title: "Overview"
-description: "How the library crate owns tracks, collections, analysis results, and DJ data — and where each piece is documented."
+description: "How the library crate owns tracks, collections, analysis results, and DJ data, and where each piece is documented."
 section: "Library"
 order: 1
 ---
 
-Mixar has exactly one library per user: the `library` crate (`LibraryManager`) implements the `library-core` traits `Library` + `WritableLibrary` and stores everything in a single SQLite file, `library.db`. Storage is an implementation detail — nothing outside the crate depends on the schema.
+Mixar has exactly one library per user: the `library` crate (`LibraryManager`) implements the `library-core` traits `Library` + `WritableLibrary` and stores everything in a single SQLite file, `library.db`. Storage is an implementation detail: nothing outside the crate depends on the schema.
 
 Runtime contracts: `docs/tech-spec.md` §5 (*Library Manager (Collections Model)*). Analysis policy, storage schema, and tag write-back: `docs/audio-analyzer-spec.md`.
 
@@ -22,12 +22,12 @@ Runtime contracts: `docs/tech-spec.md` §5 (*Library Manager (Collections Model)
 
 Third-party DJ libraries (Rekordbox, Serato, Traktor, Mixxx) are read through `library-adapters`, which implement `Library` + `Migratable` and write into the user's one library rather than a second parallel manager.
 
-`library.db` is always the source of truth for track information. File tags are an input on import and analysis (see the merge policy in `docs/audio-analyzer-spec.md` §9), and an optional output — see below.
+`library.db` is always the source of truth for track information. File tags are an input on import and analysis (see the merge policy in `docs/audio-analyzer-spec.md` §9), and an optional output; see below.
 
 ## Pages
 
-- [Tag write-back](/docs/developers/library/tag-write-back) — the opt-in mirror of app-managed BPM/key into file tags, with the per-format field matrix and its lossiness.
-- [CDJ USB export](/docs/developers/library/cdj-usb-export) — the DeviceSQL database and ANLZ analysis writers, the drive layout they produce, and how the output is verified.
+- [Tag write-back](/docs/developers/library/tag-write-back): the opt-in mirror of app-managed BPM/key into file tags, with the per-format field matrix and its lossiness.
+- [CDJ USB export](/docs/developers/library/cdj-usb-export): the DeviceSQL database and ANLZ analysis writers, the drive layout they produce, and how the output is verified.
 
 ## Related
 

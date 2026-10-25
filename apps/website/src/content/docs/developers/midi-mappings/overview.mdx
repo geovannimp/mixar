@@ -7,7 +7,7 @@ order: 1
 
 ## What a mapping is
 
-A mapping teaches Mixar how one specific MIDI controller is wired: which note or CC each physical control sends, what that control should do in the app, and which LEDs to drive back. A mapping is a directory — a **bundle** — not a single file, and the directory name is the **mapping id** used everywhere in the app.
+A mapping teaches Mixar how one specific MIDI controller is wired: which note or CC each physical control sends, what that control should do in the app, and which LEDs to drive back. A mapping is a directory (a **bundle**), not a single file, and the directory name is the **mapping id** used everywhere in the app.
 
 | File | Required | Purpose |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ mappings/
 
 ## How Mixar finds mappings
 
-Mixar reads mappings from **app data**, not from the repository or the app bundle. The path is `{app support}/mappings/<id>/` — on Linux with the app id `top.mixar.app`:
+Mixar reads mappings from **app data**, not from the repository or the app bundle. The path is `{app support}/mappings/<id>/`. On Linux with the app id `top.mixar.app` it is:
 
 ```text
 ~/.local/share/top.mixar.app/mappings/
@@ -42,7 +42,7 @@ Mixar reads mappings from **app data**, not from the repository or the app bundl
 
 At start-up Mixar scans each subdirectory there and loads every bundle it finds. A bundle needs both `device.toml` and `map.toml`; a directory that fails to load is skipped with a warning and simply does not appear in the app.
 
-**Matching a port to a mapping.** Each live MIDI port is matched to a bundle by `midi_name_contains` (plus the optional USB VID/PID in `device.toml`). A match associates that port with the bundle's mapping id — the id the attach controls operate on.
+**Matching a port to a mapping.** Each live MIDI port is matched to a bundle by `midi_name_contains` (plus the optional USB VID/PID in `device.toml`). A match associates that port with the bundle's mapping id: the id the attach controls operate on.
 
 ## Managing mappings in the app
 
@@ -64,7 +64,7 @@ A row shows the bundle's `mapping_version` (for example `v1.0.0`) when it sets o
 If a matched device is trusted, Mixar attaches it automatically when it connects. If it is recognized but not trusted, Mixar offers it here; attach and trust it, and later connects auto-attach. Detaching suppresses that port until it is disconnected and reconnected.
 
 <Callout type="tip">
-Do not edit a built-in mapping in place — **Update** overwrites it. To keep changes, copy the folder to a new id and edit that copy instead.
+Do not edit a built-in mapping in place. **Update** overwrites it. To keep changes, copy the folder to a new id and edit that copy instead.
 </Callout>
 
 The **MIDI ports** list shows each detected port as `direction port-name → matched-mapping-id`. The `→ <id>` suffix appears only when the port name matches a bundle; unmatched ports show no arrow. Direction is `input` or `output`. The list refreshes live from attach/detach events. Empty states read "No mappings in app data yet." and "No MIDI ports detected."
@@ -145,10 +145,10 @@ What each part does:
 
 ## Where to go next
 
-- [device.toml reference](/docs/developers/midi-mappings/device-toml) — identity fields, sections, endpoint fields, and validation rules.
-- [map.toml — inputs](/docs/developers/midi-mappings/map-toml/inputs) — binding forms, modifiers, soft takeover, absolute vs relative inputs, rate limiting.
-- [map.toml — outputs](/docs/developers/midi-mappings/map-toml/outputs) — signal catalog, LED modes (`on`/`off`/`blink`), caching and refresh rules.
-- [map.toml — lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle) — the three script hooks and their session semantics.
-- [Actions & aliases](/docs/developers/midi-mappings/actions) — the action-id grammar and the closed alias catalog.
-- [Scripts](/docs/developers/midi-mappings/scripts) — Rhai hooks for behavior beyond declarative bindings.
-- [Validation](/docs/developers/midi-mappings/validation) — `map-check` and common errors.
+- [device.toml reference](/docs/developers/midi-mappings/device-toml): identity fields, sections, endpoint fields, and validation rules.
+- [map.toml: inputs](/docs/developers/midi-mappings/map-toml/inputs): binding forms, modifiers, soft takeover, absolute vs relative inputs, rate limiting.
+- [map.toml: outputs](/docs/developers/midi-mappings/map-toml/outputs): signal catalog, LED modes (`on`/`off`/`blink`), caching and refresh rules.
+- [map.toml: lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle): the three script hooks and their session semantics.
+- [Actions & aliases](/docs/developers/midi-mappings/actions): the action-id grammar and the closed alias catalog.
+- [Scripts](/docs/developers/midi-mappings/scripts): Rhai hooks for behavior beyond declarative bindings.
+- [Validation](/docs/developers/midi-mappings/validation): `map-check` and common errors.

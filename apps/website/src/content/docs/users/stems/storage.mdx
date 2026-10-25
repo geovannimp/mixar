@@ -27,10 +27,10 @@ Open **Settings → Storage**. The overview shows how much space Mixar is using,
 | **Stem cache** | Generated `.stem.mp4` files for library tracks | **Sync** and **Clear** |
 | **Stem model** | Downloaded separation model weights | **Clear** |
 
-**Clear stem cache** — deletes all generated stem files and their library links. Confirm in the dialog. Original audio and native NI Stem files in your music folders are left alone. Afterward, Stems pads stay disabled on those tracks until you [generate](/docs/users/stems/generate) again (or load a native Stem).
+**Clear stem cache**: deletes all generated stem files and their library links. Confirm in the dialog. Original audio and native NI Stem files in your music folders are left alone. Afterward, Stems pads stay disabled on those tracks until you [generate](/docs/users/stems/generate) again (or load a native Stem).
 
-**Sync stem cache** — removes orphan cache files that are not listed in the library database, and drops database rows whose files are missing. Referenced caches and original audio stay. Use this if the cache and library got out of sync.
+**Sync stem cache**: removes orphan cache files that are not listed in the library database, and drops database rows whose files are missing. Referenced caches and original audio stay. Use this if the cache and library got out of sync.
 
-**Clear stem model** — deletes every downloaded separation model (HTDemucs and/or SCNet). The next **Generate stems** downloads the selected one again. Clearing models does not delete already-generated stem files.
+**Clear stem model**: deletes every downloaded separation model (HTDemucs and/or SCNet). The next **Generate stems** downloads the selected one again. Clearing models does not delete already-generated stem files.
 
-Clear is best-effort if a deck still has stems attached — you may see a partial-failure toast. Reload the track or regenerate later if needed.
+Clear is best-effort if a deck still has stems attached: you may see a partial-failure toast. Reload the track or regenerate later if needed.
