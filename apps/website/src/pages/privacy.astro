@@ -73,16 +73,20 @@ const posthogHost = resolvePosthogHost();
         <section>
           <h2 class="text-[1.5rem] font-bold tracking-tight">The Mixar app</h2>
           <p class="mt-3 leading-relaxed text-muted">
-            The desktop app does not collect usage data. Anonymous, opt-in analytics are planned
-            but have not shipped: telemetry is currently an explicit non-goal for this
-            milestone.
+            The app collects nothing unless you turn analytics on. It is off by default: no
+            request leaves your machine until you flip <strong class="font-semibold text-fg">Settings
+            → UI → Analytics</strong> ("Send anonymous usage data").
           </p>
           <p class="mt-3 leading-relaxed text-muted">
-            When it does arrive, it will be off by default with a one-time prompt and a Settings
-            switch, and it will carry only a randomly generated identifier plus your app version,
-            operating system, architecture, and whether it is a debug or release build. Track
-            data is not part of that design: the component that sends analytics has no access to
-            your library or your audio, so it cannot leak them.
+            With it on, each launch sends a single <code class="rounded-sm bg-bg-elevated px-1 py-0.5 font-mono text-[0.875rem]">app launched</code> event to the same EU-hosted PostHog service as this site. It carries your app
+            version, operating system, CPU architecture, and whether this is a debug or release
+            build — nothing else. It is tied to a random identifier generated on your machine the
+            first time you opt in, never to an account or to your library, and that identifier is
+            deleted when you turn the switch back off.
+          </p>
+          <p class="mt-3 leading-relaxed text-muted">
+            Track data is not part of that design: the component that sends analytics has no
+            access to your library or your audio, so it cannot leak them.
           </p>
         </section>
 
@@ -120,12 +124,9 @@ const posthogHost = resolvePosthogHost();
         <section>
           <h2 class="text-[1.5rem] font-bold tracking-tight">Turning it off</h2>
           <p class="mt-3 leading-relaxed text-muted">
-            If your browser sends <strong class="font-semibold text-fg">Do Not Track</strong> or
-            <strong class="font-semibold text-fg">Global Privacy Control</strong>, we collect
+            If your browser sends <strong class="font-semibold text-fg">Do Not Track</strong> or <strong class="font-semibold text-fg">Global Privacy Control</strong>, we collect
             nothing: the analytics code is told to drop every event, so no page view or click
-            reaches PostHog. A content blocker that blocks
-            <code class="rounded-sm bg-bg-elevated px-1 py-0.5 font-mono text-[0.875rem]">{posthogHost}</code>
-            has the same effect. Because the mode is cookieless, blocking it costs nothing: there is
+            reaches PostHog. A content blocker that blocks <code class="rounded-sm bg-bg-elevated px-1 py-0.5 font-mono text-[0.875rem]">{posthogHost}</code> has the same effect. Because the mode is cookieless, blocking it costs nothing: there is
             no stored state to fall back to and nothing to clear afterwards.
           </p>
         </section>
