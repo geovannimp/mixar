@@ -28,23 +28,50 @@ Implementation: `codec::write_track_tags` (lofty) for the format matrix, called 
 | Genre     | `TCON`                   | `GENRE`                         | `©gen`                              | `Genre`          |
 | BPM       | `TBPM`, **integer**      | `BPM`, text                     | `----:com.apple.iTunes:BPM`, text   | unsupported      |
 | Key       | `TKEY`                   | `INITIALKEY`                    | `----:com.apple.iTunes:initialkey`  | unsupported      |
-| Rating    | unsupported¹             | `RATING`, 0.0–1.0               | `rate`, 1–5                         | unsupported      |
+| Rating    | `POPM` per email¹        | `RATING`, 0.0–1.0               | `rate`, 1–5                         | unsupported²     |
 | Comment   | `COMM`                   | `COMMENT`                       | `©cmt`                              | `Comment`        |
 | Year      | `TDRC`                   | `YEAR`                          | `©day`                              | `Year`           |
 | Track no. | `TRCK`                   | `TRACKNUMBER`                   | `trkn`                              | `Track`          |
 | Disc no.  | `TPOS`                   | `DISCNUMBER`                    | `disk`                              | `Disc`           |
 | Color     | `COLOR`                  | `COLOR`                         | `----:com.apple.iTunes:COLOR`       | `Color`          |
 
-¹ ID3v2 keeps ratings in a binary `POPM` frame. lofty 0.22 retains that frame
-outside the generic `Tag`, so Mixar reports it `Unsupported` on ID3 rather than
-writing a value its own reader cannot see (which would also rewrite the file on
-every analysis).
+¹ ID3v2 keeps the rating in a binary `POPM` frame keyed by the email of the app
+that wrote it. Multiple frames are legal, so Mixar writes one per writer:
+MusicBrainz Picard's frame goes through lofty's provider
+(`round(star * 51)` — `51/102/153/204/255`), and Traktor, MusicBee and Windows
+Media Player get the stepped `1/64/128/196/255` set. Each app reads the frame
+carrying its own email, so the same star count reaches all of them at once. A
+frame owned by a reader Mixar does not mirror is re-emitted on the stepped set:
+a stepped writer (Serato, MediaMonkey, foobar2000) keeps its exact byte, while a
+51-scale one keeps its star. Each mirrored frame keeps its play counter.
 
-Reading is deliberately wider than writing: Vorbis/MP4 text accepts normalized
-`0.0–1.0` (Quod Libet/Picard), stars `1–5`, a 0–100 scale, or a raw POPM byte;
-binary POPM frames are mapped by their email (`traktor@native-instruments.de`
-and `users@musicbrainz.org` use the 51-step scale, MusicBee/Windows Media
-Player/Serato use 1/64/128/196/255).
+² APE has no rating key in lofty's (or TagLib's) mapping table, so the field is
+reported `Unsupported` on `.ape`/`.wv`/`.mpc`.
+
+MP4's `rate` atom keeps the scale Mixar has always written: the star count
+itself (`4`). Serato 4 writes a `RATE`/`rate` value whose scale has not been
+verified against a real file, so the writer is unchanged and the reader accepts
+both conventions (a value of `1–5` is the star count, `20–100` is treated as a
+percentage). A literal uppercase `RATE` atom is not read: only `rate` is in
+lofty's atom map, and no fixture has shown `RATE` in the wild.
+
+A per-app Vorbis rating (`RATING:<email>=N`, which Picard writes) cannot be
+written back through lofty's generic tag: its writer would put lofty's internal
+`email|stars|counter` text under plain `RATING`. Any save that rewrites the file
+therefore folds such an alias into the plain normalized `RATING` (`0.8` = four
+stars) instead, keeping the star count every reader understands at the cost of
+the per-app key.
+
+Reading is deliberately wider than writing. Vorbis `RATING` stays raw text, so it
+accepts normalized `0.0–1.0` (Quod Libet/Picard), stars `1–5`, a 0–100 scale, or
+a raw POPM byte above 100 (`204` = four stars; `6–19` fit no scale and are
+rejected). `POPM` frames and MP4 `rate` go through lofty's rating
+providers: a known email is read on its own scale and every other email
+(including an empty one) on the linear 51 scale, whose thresholds also land on
+the right star for the stepped `1/64/128/196/255` writers. Two edges are
+inherent: lofty's `StarRating` has no "unrated" value, so a stored `0` reads as
+one star; and several mirrored frames that disagree resolve in a fixed order,
+with Traktor's frame first.
 
 The mapping matches the TagLib property table, so the keys are the ones MusicBrainz Picard, Mixxx, and the DJ tools above already read and write. Mixxx writes the same Vorbis `BPM` + `INITIALKEY` pair and the same two MP4 freeform atoms.
 
@@ -62,11 +89,8 @@ intent.
 - **ID3v2 `TBPM` is an integer frame**, so a fractional BPM is rounded (`FieldWrite::Rounded`). Mixxx and Mixed In Key round too. `library.db` keeps the exact value, so a rescan that prefers the tag can land up to 0.5 BPM away from the stored beat grid.
 - **MP4 gets the freeform `BPM` atom, not `tmpo`.** The freeform field is what Mixed In Key, Serato, and Traktor write and what Mixxx reads first; `tmpo` is an integer atom, which lofty cannot emit from a text tag. Readers that look only at `tmpo` will not see Mixar's BPM.
 - **APE tags have no BPM/key mapping** in the TagLib/lofty table, so those two fields are reported `Unsupported` on `.ape`, `.wv`, and `.mpc` (the text fields work).
-- **Refused shapes** (`FieldWrite::Refused`, file left byte-identical):
-  - native `.stem.mp4` containers: multi-track MP4s whose `stem` manifest Mixar does not own;
-  - FLAC whose only metadata block is STREAMINFO (e.g. after `metaflac --remove-all --dont-use-padding`): lofty 0.22 would append the new comment block behind a STREAMINFO still flagged last, which decoders then read as audio. Real encoders always emit a comment block.
-- **Legacy aliases are not updated.** Only the recommended keys in the table above are written. A Vorbis file that carries the older `KEY` (or `TEMPO`) alias keeps its stale value, and the same goes for MP4's `----:com.apple.iTunes:KEY`; a reader that prefers the alias over `INITIALKEY`/`BPM` will see the old number. Mixxx additionally updates `KEY` when it is present. Aliases in the wild: Vorbis key `INITIALKEY` (Rekordbox, Serato, Traktor, Mixxx) vs `KEY` (VirtualDJ, Denon Engine DJ); Vorbis BPM `BPM` (MusicBrainz) vs `TEMPO` (Mixxx ≤ 2.0); MP4 key `----:com.apple.iTunes:initialkey` vs `----:com.apple.iTunes:KEY` (Rapid Evolution); MP4 BPM `----:com.apple.iTunes:BPM` vs the integer `tmpo` atom. Mixar *reads* either key alias, but has no mapping for Vorbis `TEMPO`, so a file whose BPM lives only there reads as unknown.
-- **MP4 with a 64-bit `mdat`** (extended size) is a plain I/O failure: lofty 0.22 mis-skips that header by eight bytes and then reports `No "moov" atom found`. The failure is logged and the file is left byte-identical (the write is the last step, so nothing partial can land). Mixar's own stem muxer always writes such an `mdat`, so native Stem files are refused by name above; iTunes, ffmpeg, and Rekordbox write 32-bit sizes and are unaffected.
+- **Refused shape** (`FieldWrite::Refused`, file left byte-identical): native `.stem.mp4` containers, multi-track MP4s whose `stem` manifest Mixar does not own.
+- **Legacy aliases are not updated.** Only the recommended keys in the table above are written. A Vorbis file that carries the older `KEY` (or `TEMPO`) alias keeps its stale value, and the same goes for MP4's `----:com.apple.iTunes:KEY`; a reader that prefers the alias over `INITIALKEY`/`BPM` will see the old number. Mixxx additionally updates `KEY` when it is present. Aliases in the wild: Vorbis key `INITIALKEY` (Rekordbox, Serato, Traktor, Mixxx) vs `KEY` (VirtualDJ, Denon Engine DJ); Vorbis BPM `BPM` (MusicBrainz) vs `TEMPO` (Mixxx ≤ 2.0); MP4 key `----:com.apple.iTunes:initialkey` vs `----:com.apple.iTunes:KEY` (Rapid Evolution); MP4 BPM `----:com.apple.iTunes:BPM` vs the integer `tmpo` atom. Mixar *reads* either key alias, but has no mapping for the older Vorbis `TEMPO`, so a file whose BPM lives only there reads as unknown and is re-analyzed.
 - **Clearing a tag is not expressible yet**: `TrackTags` uses `None` for "leave alone", so removing a field needs that added to the patch type first.
 
 ## Cues, loops, and beat grids
@@ -75,6 +99,6 @@ Cues, loops, and grids are not written to tags: there is no *standardized* tag r
 
 ## Verifying a change
 
-- `cargo test -p codec tag_write`: the per-container matrix (text fields, BPM rounding, APE's missing BPM/key), ID3v2/Vorbis round trips, idempotency, and both refusals (including the tagless-FLAC byte comparison).
+- `cargo test -p codec tag_write`: the per-container matrix (text fields, BPM rounding, APE's missing BPM/key), the `POPM` frame per writer with its byte scale, foreign-frame reads, ID3v2/Vorbis/MP4 round trips, idempotency, and the Stem refusal.
 - `cargo test -p library --all-features write`: analysis and beat-grid write-back against a real WAV, plus the untouched-file case with the setting off.
 - `cargo test -p host_flutter --test library_tag_write_back`: the whole stack, app setting → `LibraryTransport` → worker analysis → file tags, read back with lofty rather than Mixar's own reader.

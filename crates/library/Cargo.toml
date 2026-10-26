@@ -36,5 +36,5 @@ analysis = ["dep:analyzer", "dep:analyzer-core", "dep:analyzer-stems"]
 
 [dev-dependencies]
 tempfile = "3.0"
-lofty = "0.22"
+lofty = "0.25.5"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp"] }

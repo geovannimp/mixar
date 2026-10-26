@@ -1559,9 +1559,8 @@ fn app_managed_tags_round_trip_through_write_back() {
     assert_eq!(read.track_number, Some(3));
     assert_eq!(read.disc_number, Some(2));
     assert_eq!(read.color_label, Some(library_core::ColorLabel::Aqua));
-    // ID3v2 keeps ratings in a binary POPM frame that lofty 0.22 does not
-    // expose; the library row still holds it (and CDJ export reads the row).
-    assert_eq!(read.rating, None);
+    // The rating mirrors into ID3v2 `POPM` frames and reads back.
+    assert_eq!(read.rating, Some(4));
     assert_eq!(metadata.rating, Some(4));
 }
 

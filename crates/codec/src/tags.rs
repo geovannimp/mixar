@@ -60,6 +60,9 @@ pub struct FileTags {
 /// container when available. ReplayGain is omitted for stems (multi-track MP4
 /// confuses lofty's probe on a dedicated ReplayGain-only path).
 pub fn read_file_tags(path: &Path) -> anyhow::Result<FileTags> {
+    // lofty converts `POPM` frames through the process-wide rating provider
+    // during the probe, so it must be installed before the tag is read.
+    crate::rating::install();
     if is_stem_path(path) {
         return read_stem_file_tags(path);
     }
@@ -306,23 +309,23 @@ fn file_tags_from_tagged(tagged: &TaggedFile) -> FileTags {
         tags.album = tag.album().map(|s| s.to_string());
         tags.genre = tag.genre().map(|s| s.to_string());
 
-        if let Some(bpm) = tag.get_string(&ItemKey::Bpm) {
+        if let Some(bpm) = tag.get_string(ItemKey::Bpm) {
             tags.bpm = bpm.parse().ok();
         }
         if tags.bpm.is_none() {
-            if let Some(bpm) = tag.get_string(&ItemKey::IntegerBpm) {
+            if let Some(bpm) = tag.get_string(ItemKey::IntegerBpm) {
                 tags.bpm = bpm.parse().ok();
             }
         }
 
-        tags.key = tag.get_string(&ItemKey::InitialKey).map(|s| s.to_string());
-        tags.isrc = tag.get_string(&ItemKey::Isrc).map(|s| s.to_string());
+        tags.key = tag.get_string(ItemKey::InitialKey).map(|s| s.to_string());
+        tags.isrc = tag.get_string(ItemKey::Isrc).map(|s| s.to_string());
         tags.rating = rating_from_tag(tag);
-        tags.comment = tag.get_string(&ItemKey::Comment).map(|s| s.to_string());
+        tags.comment = tag.get_string(ItemKey::Comment).map(|s| s.to_string());
         tags.year = year_from_tag(tag);
-        tags.track_number = number_from_tag(tag, &ItemKey::TrackNumber);
-        tags.disc_number = number_from_tag(tag, &ItemKey::DiscNumber);
-        tags.color = tag.get_string(&ItemKey::Color).map(|s| s.to_string());
+        tags.track_number = number_from_tag(tag, ItemKey::TrackNumber);
+        tags.disc_number = number_from_tag(tag, ItemKey::DiscNumber);
+        tags.color = tag.get_string(ItemKey::Color).map(|s| s.to_string());
     }
 
     tags.replaygain_track_gain_db = replaygain_track_gain_db(tagged);
@@ -331,25 +334,44 @@ fn file_tags_from_tagged(tagged: &TaggedFile) -> FileTags {
 
 /// Star rating from the format's rating field.
 ///
-/// There is no single rating scale. ID3v2 keeps `POPM` as raw bytes under
-/// [`ItemKey::Popularimeter`] (email + 0–255 value); Vorbis and MP4 map the
-/// same key to text. All observed conventions are accepted:
+/// There is no single rating scale, and the two representations differ:
 ///
-/// - `0.0`–`1.0` with a decimal point: Quod Libet / Picard Vorbis
-///   (`0.8` = four stars);
-/// - `1`–`5`: a bare star count (Traktor-style tools and older Mixar files);
-/// - `6`–`100`: percentage-ish scales (`80` = four stars);
-/// - `101`–`255`: the raw POPM byte scale (`204` = four stars).
-fn rating_from_tag(tag: &Tag) -> Option<u8> {
-    if let Some(text) = tag.get_string(&ItemKey::Popularimeter) {
-        return rating_from_text(text);
+/// - ID3v2 `POPM` frames and MP4 `rate` reach the generic tag as lofty
+///   popularimeters (`email|stars|counter`) whose star already reflects the
+///   writer's own scale (see [`crate::rating`]);
+/// - Vorbis `RATING` stays raw text in the writer's own scale.
+///
+/// Several `POPM` frames are legal and keyed by email, so a file can hold a
+/// different rating per app. Mixar mirrors the frames in [`POPM_EMAILS`] with
+/// one star count, so they agree on any file Mixar wrote; when a foreign writer
+/// updated only its own frame, the first known email in that order wins.
+pub(crate) fn rating_from_tag(tag: &Tag) -> Option<u8> {
+    let best = tag
+        .ratings()
+        .map(|popm| (email_rank(popm.email()), popm.rating() as u8))
+        .min_by_key(|(rank, _)| *rank);
+    if let Some((_, stars)) = best {
+        return Some(stars);
     }
-    let bytes = tag.get_binary(&ItemKey::Popularimeter, false)?;
-    // POPM layout: email, NUL, rating, play counter.
-    let nul = bytes.iter().position(|byte| *byte == 0)?;
-    let email = String::from_utf8_lossy(&bytes[..nul]);
-    let rating = *bytes.get(nul + 1)?;
-    popm_to_stars(&email, rating)
+    tag.get_strings(ItemKey::Popularimeter)
+        .find_map(rating_from_text)
+}
+
+/// Read preference for a `POPM` email: the mirrored emails in
+/// [`POPM_EMAILS`](crate::rating::POPM_EMAILS) order, then `Serato` (the only
+/// foreign reader whose email is known), then everything else — unknown or
+/// empty emails, which read on the linear 51 scale.
+pub(crate) fn email_rank(email: &str) -> u8 {
+    if let Some(rank) = crate::rating::POPM_EMAILS
+        .iter()
+        .position(|mirror| mirror.eq_ignore_ascii_case(email))
+    {
+        return rank as u8;
+    }
+    if email.trim().eq_ignore_ascii_case("serato") {
+        return crate::rating::POPM_EMAILS.len() as u8;
+    }
+    u8::MAX
 }
 
 fn rating_from_text(raw: &str) -> Option<u8> {
@@ -372,61 +394,25 @@ fn rating_from_text(raw: &str) -> Option<u8> {
     } else if value <= 100.0 {
         value / 20.0
     } else {
-        return Some(linear_popm_scale_to_stars(value));
+        return Some(crate::rating::linear_stars_count(
+            value.clamp(0.0, 255.0) as u8
+        ));
     };
     Some(stars.round().clamp(1.0, 5.0) as u8)
-}
-
-/// Map a POPM byte onto 1–5 stars, honouring the writer's scale.
-///
-/// Traktor and MusicBrainz Picard use `round(star * 51)`; MusicBee, Windows
-/// Media Player and Serato use `1, 64, 128, 196, 255`. The email field names
-/// the writer (POPM allows several ratings per file), which is the only
-/// reliable way to tell the two apart.
-fn popm_to_stars(email: &str, rating: u8) -> Option<u8> {
-    if rating == 0 {
-        return None;
-    }
-    let email = email.trim().to_ascii_lowercase();
-    if matches!(
-        email.as_str(),
-        "musicbee" | "windows media player 9 series" | "serato"
-    ) {
-        let stars = if rating <= 1 {
-            1
-        } else if rating <= 64 {
-            2
-        } else if rating <= 128 {
-            3
-        } else if rating <= 196 {
-            4
-        } else {
-            5
-        };
-        return Some(stars);
-    }
-    // Traktor (`traktor@native-instruments.de`), Picard
-    // (`users@musicbrainz.org`) and unknown writers use the linear 51 scale.
-    Some(linear_popm_scale_to_stars(f64::from(rating)))
-}
-
-/// Map the linear POPM 0–255 scale onto 1–5 stars.
-fn linear_popm_scale_to_stars(value: f64) -> u8 {
-    (value / 51.0).round().clamp(1.0, 5.0) as u8
 }
 
 /// Release year from `YEAR`, else the leading four digits of a date tag.
 fn year_from_tag(tag: &Tag) -> Option<u16> {
     let raw = tag
-        .get_string(&ItemKey::Year)
-        .or_else(|| tag.get_string(&ItemKey::RecordingDate))
-        .or_else(|| tag.get_string(&ItemKey::ReleaseDate))?;
+        .get_string(ItemKey::Year)
+        .or_else(|| tag.get_string(ItemKey::RecordingDate))
+        .or_else(|| tag.get_string(ItemKey::ReleaseDate))?;
     let leading: String = raw.trim().chars().take(4).collect();
     leading.parse().ok().filter(|year| *year > 0)
 }
 
 /// A track/disc number tag, ignoring non-numeric and zero values.
-fn number_from_tag(tag: &Tag, key: &ItemKey) -> Option<u16> {
+fn number_from_tag(tag: &Tag, key: ItemKey) -> Option<u16> {
     let raw = tag.get_string(key)?;
     // "3/12" (TRCK/TPOS with a total) carries the number in its leading digits.
     crate::leading_u16(raw).filter(|number| *number > 0)
@@ -434,7 +420,7 @@ fn number_from_tag(tag: &Tag, key: &ItemKey) -> Option<u16> {
 
 fn replaygain_track_gain_db(tagged: &TaggedFile) -> Option<f64> {
     tagged.tags().iter().find_map(|tag| {
-        tag.get_string(&ItemKey::ReplayGainTrackGain)
+        tag.get_string(ItemKey::ReplayGainTrackGain)
             .and_then(parse_replaygain_track_gain_db)
     })
 }
@@ -526,48 +512,64 @@ mod tests {
         assert_eq!(rating_from_text("19"), None);
         assert_eq!(rating_from_text("5.5"), None);
         assert_eq!(rating_from_text("bogus"), None);
-
-        // POPM: the email selects the writer's scale.
-        assert_eq!(popm_to_stars("traktor@native-instruments.de", 51), Some(1));
-        assert_eq!(popm_to_stars("traktor@native-instruments.de", 153), Some(3));
-        assert_eq!(popm_to_stars("users@musicbrainz.org", 102), Some(2));
-        assert_eq!(popm_to_stars("MusicBee", 64), Some(2));
-        assert_eq!(popm_to_stars("Windows Media Player 9 Series", 196), Some(4));
-        assert_eq!(popm_to_stars("Serato", 1), Some(1));
-        // Unknown writers default to the linear 51 scale.
-        assert_eq!(popm_to_stars("", 64), Some(1));
-        assert_eq!(popm_to_stars("", 204), Some(4));
-        assert_eq!(popm_to_stars("", 0), None);
     }
 
     #[test]
-    fn rating_from_tag_reads_text_and_binary_popm() {
+    fn rating_from_tag_reads_text_and_popm_frames() {
         let mut text = Tag::new(TagType::VorbisComments);
         assert!(text.insert_text(ItemKey::Popularimeter, "0.8".into()));
         assert_eq!(rating_from_tag(&text), Some(4));
 
-        let mut binary = Tag::new(TagType::Id3v2);
-        binary.insert(TagItem::new(
+        // lofty hands ID3v2 `POPM` over as `email|stars|counter` text.
+        let mut popm = Tag::new(TagType::Id3v2);
+        assert!(popm.push(TagItem::new(
             ItemKey::Popularimeter,
-            ItemValue::Binary(vec![
-                b't', b'r', b'a', b'k', b't', b'o', b'r', b'@', 0, 204, 0, 0, 0, 0,
-            ]),
-        ));
-        assert_eq!(rating_from_tag(&binary), Some(4));
+            ItemValue::Text("traktor@native-instruments.de|3|0".into())
+        )));
+        assert_eq!(rating_from_tag(&popm), Some(3));
 
-        let mut no_nul = Tag::new(TagType::Id3v2);
-        no_nul.insert(TagItem::new(
-            ItemKey::Popularimeter,
-            ItemValue::Binary(vec![b'x', 204]),
-        ));
-        assert_eq!(rating_from_tag(&no_nul), None);
+        // MP4 `rate` is email-less, so the mirrored email is empty.
+        let mut mp4 = Tag::new(TagType::Mp4Ilst);
+        assert!(mp4.insert_text(ItemKey::Popularimeter, "|4|0".into()));
+        assert_eq!(rating_from_tag(&mp4), Some(4));
 
-        let mut no_rating = Tag::new(TagType::Id3v2);
-        no_rating.insert(TagItem::new(
+        let empty = Tag::new(TagType::Id3v2);
+        assert_eq!(rating_from_tag(&empty), None);
+
+        let mut junk = Tag::new(TagType::Id3v2);
+        assert!(junk.insert_text(ItemKey::Popularimeter, "not a rating".into()));
+        assert_eq!(rating_from_tag(&junk), None);
+    }
+
+    #[test]
+    fn several_popm_frames_resolve_to_the_preferred_writer() {
+        let mut tag = Tag::new(TagType::Id3v2);
+        for (email, stars) in [
+            ("MusicBee", 5),
+            ("Windows Media Player 9 Series", 1),
+            ("users@musicbrainz.org", 2),
+            ("traktor@native-instruments.de", 3),
+        ] {
+            assert!(tag.push(TagItem::new(
+                ItemKey::Popularimeter,
+                ItemValue::Text(format!("{email}|{stars}|0"))
+            )));
+        }
+        // Traktor leads the mirror order, so its frame is authoritative.
+        assert_eq!(rating_from_tag(&tag), Some(3));
+
+        // A frame Mixar does not mirror (e.g. Serato's) ranks above unknowns
+        // but below the mirrored ones.
+        let mut serato = Tag::new(TagType::Id3v2);
+        assert!(serato.push(TagItem::new(
             ItemKey::Popularimeter,
-            ItemValue::Binary(vec![b'x', 0]),
-        ));
-        assert_eq!(rating_from_tag(&no_rating), None);
+            ItemValue::Text("Serato|2|0".into())
+        )));
+        assert!(serato.push(TagItem::new(
+            ItemKey::Popularimeter,
+            ItemValue::Text("foo@example.com|5|0".into())
+        )));
+        assert_eq!(rating_from_tag(&serato), Some(2));
     }
 
     #[test]
@@ -639,7 +641,10 @@ mod tests {
         }
         tagged.primary_tag_mut().expect("id3v2 tag").set_picture(
             0,
-            Picture::new_unchecked(PictureType::CoverFront, Some(mime), None, picture),
+            Picture::unchecked(picture)
+                .pic_type(PictureType::CoverFront)
+                .mime_type(mime)
+                .build(),
         );
         tagged
             .save_to_path(path, WriteOptions::default())

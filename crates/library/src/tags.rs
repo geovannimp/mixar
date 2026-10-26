@@ -94,9 +94,9 @@ pub(crate) fn write_back_track_tags(path: &Path, tags: &TrackTags) -> Option<Tag
 /// would stamp guesses into files that carry no tags. A track editor that
 /// actually owns those values should extend this function.
 ///
-/// The rating is skipped on ID3v2 by the writer (see `codec::tag_write`); the
-/// caller still asks for it, so the report names the field instead of silently
-/// dropping it.
+/// The rating goes out as one `POPM` frame per writer email on ID3v2, as
+/// `RATING` in Vorbis comments and as `rate` in MP4, so other DJ software sees
+/// it even though each app reads its own frame. APE has no rating field.
 pub(crate) fn app_managed_tags(metadata: &TrackMetadata) -> TrackTags {
     TrackTags {
         bpm: metadata.bpm,
@@ -118,8 +118,7 @@ pub(crate) fn app_managed_tags(metadata: &TrackMetadata) -> TrackTags {
 /// editor stored. Once the editor has written the row, the row is
 /// authoritative for all six fields, including `None`: otherwise a cleared
 /// rating/comment/year/number/colour would be resurrected from its stale tag
-/// on the next analysis. ID3 ratings are the common case because lofty cannot
-/// read POPM.
+/// on the next analysis.
 pub(crate) fn merge_user_metadata(
     metadata: &mut TrackMetadata,
     stored: &TrackMetadata,
