@@ -125,3 +125,51 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# === Visual C++ runtime, application-local ===
+# Every C++ module in the bundle imports the Visual C++ runtime: the runner,
+# flutter_windows.dll, native plugins, and the dynamic CRT that rustc links into
+# the host_flutter cdylib by default. Windows only carries those DLLs when the
+# "Microsoft Visual C++ 2015-2022 Redistributable" is installed, so a clean
+# machine dies at launch with "The code execution cannot proceed because
+# MSVCP140.dll was not found". Flutter's Windows packaging docs prescribe
+# application-local deployment: the DLLs beside the exe are what the loader
+# resolves first. install() lands them in the bundle dir, which is exactly what
+# the fastforge/Inno Setup step packs into the installer.
+#
+# Taken from the MSVC redistributable that ships with the Visual Studio instance
+# doing the build — VC/Redist/MSVC/<toolset>/x64/Microsoft.VC14x.CRT. The whole
+# directory is installed rather than a hardcoded name list: the folder and file
+# set drift across toolsets (VC143 for MSVC 14.3x/14.4x, VC145 for 14.5x) and a
+# stale list would silently drop a DLL and reintroduce this crash.
+set(MIXAR_MSVC_CRT_DIR "" CACHE PATH
+  "x64 MSVC CRT redistributable directory to ship beside Mixar.exe. Defaults to the newest one under the Visual Studio install.")
+if(NOT MIXAR_MSVC_CRT_DIR)
+  if(NOT CMAKE_GENERATOR_INSTANCE)
+    message(FATAL_ERROR
+      "Cannot locate the MSVC redistributable: this generator has no Visual Studio instance. "
+      "Pass -DMIXAR_MSVC_CRT_DIR=<VS>/VC/Redist/MSVC/<toolset>/x64/Microsoft.VC14x.CRT so the "
+      "bundle ships the Visual C++ runtime app-locally.")
+  endif()
+  file(GLOB _mixar_msvc_crt_dirs
+    "${CMAKE_GENERATOR_INSTANCE}/VC/Redist/MSVC/*/x64/Microsoft.VC14*.CRT")
+  if(NOT _mixar_msvc_crt_dirs)
+    message(FATAL_ERROR
+      "No MSVC CRT redistributable under `${CMAKE_GENERATOR_INSTANCE}/VC/Redist/MSVC`. "
+      "Install the Visual Studio \"Desktop development with C++\" workload, or pass "
+      "-DMIXAR_MSVC_CRT_DIR=<VS>/VC/Redist/MSVC/<toolset>/x64/Microsoft.VC14x.CRT.")
+  endif()
+  list(SORT _mixar_msvc_crt_dirs)
+  list(GET _mixar_msvc_crt_dirs -1 MIXAR_MSVC_CRT_DIR)
+endif()
+foreach(_mixar_crt_required msvcp140.dll vcruntime140.dll vcruntime140_1.dll)
+  if(NOT EXISTS "${MIXAR_MSVC_CRT_DIR}/${_mixar_crt_required}")
+    message(FATAL_ERROR
+      "`${MIXAR_MSVC_CRT_DIR}` lacks ${_mixar_crt_required}. Flutter's application-local "
+      "deployment needs msvcp140.dll, vcruntime140.dll and vcruntime140_1.dll beside Mixar.exe; "
+      "point MIXAR_MSVC_CRT_DIR at the x64/Microsoft.VC14x.CRT redistributable directory.")
+  endif()
+endforeach()
+file(GLOB _mixar_msvc_crt_dlls "${MIXAR_MSVC_CRT_DIR}/*.dll")
+install(FILES ${_mixar_msvc_crt_dlls} DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)
