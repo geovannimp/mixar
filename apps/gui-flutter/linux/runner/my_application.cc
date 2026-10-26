@@ -76,6 +76,12 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_geometry_hints(window, nullptr, &hints, GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
+  // Impeller misrenders on Linux, so keep the Skia backend. Flutter 3.47
+  // defaults FlDartProject to Impeller and `flutter build linux` has no
+  // --no-enable-impeller option, so opting out here is what covers built
+  // bundles (debug, release, AppImage). `flutter run` additionally passes
+  // --no-enable-impeller from the dev-linux moon task.
+  fl_dart_project_set_enable_impeller(project, FALSE);
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 
