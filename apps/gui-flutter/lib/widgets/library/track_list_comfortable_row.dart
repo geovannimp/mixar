@@ -14,13 +14,18 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// One metadata chip a comfortable row can paint under its title.
 class _RowPill {
-  const _RowPill({required this.text, this.glyph});
+  const new({required this.text, this.glyph, this.trimmable = false});
 
   final String text;
 
   /// Decoration only: the clock goes before the duration text loses a
   /// character to it.
   final IconData? glyph;
+
+  /// Free text that may be cut to a snippet instead of left out when it does
+  /// not fit the row: [LibraryRowFieldSetting.comment] can be arbitrarily
+  /// long, so dropping it would hide the field rather than shorten it.
+  final bool trimmable;
 }
 
 class TrackListComfortableRow extends StatelessWidget {
@@ -48,37 +53,48 @@ class TrackListComfortableRow extends StatelessWidget {
   /// (unknown album, no length, …) or when the field lives in the trailing
   /// cluster instead of the pill group.
   _RowPill? _pillFor(LibraryRowFieldSetting field) {
-    final (text, glyph) = switch (field) {
-      LibraryRowFieldSetting.album => (track.album ?? '', null),
-      LibraryRowFieldSetting.genre => (track.genre ?? '', null),
+    final (text, glyph, trimmable) = switch (field) {
+      LibraryRowFieldSetting.album => (track.album ?? '', null, false),
+      LibraryRowFieldSetting.genre => (track.genre ?? '', null, false),
       LibraryRowFieldSetting.year => (
         track.year?.toString() ?? '',
         LucideIcons.calendar,
+        false,
       ),
       LibraryRowFieldSetting.trackNumber => (
         track.trackNumber?.toString() ?? '',
         LucideIcons.hash,
+        false,
       ),
       LibraryRowFieldSetting.discNumber => (
         track.discNumber?.toString() ?? '',
         LucideIcons.disc3,
+        false,
       ),
       LibraryRowFieldSetting.comment => (
         track.comment ?? '',
         LucideIcons.messageSquareText,
+        true,
       ),
-      LibraryRowFieldSetting.isrc => (track.isrc ?? '', LucideIcons.barcode),
+      LibraryRowFieldSetting.isrc => (
+        track.isrc ?? '',
+        LucideIcons.barcode,
+        false,
+      ),
       LibraryRowFieldSetting.duration => (
         formatTrackDuration(track.durationMs),
         LucideIcons.clock,
+        false,
       ),
       LibraryRowFieldSetting.rating ||
       LibraryRowFieldSetting.color ||
       LibraryRowFieldSetting.bpm ||
-      LibraryRowFieldSetting.key => ('', null),
+      LibraryRowFieldSetting.key => ('', null, false),
     };
     final label = text.trim();
-    return label.isEmpty ? null : _RowPill(text: label, glyph: glyph);
+    return label.isEmpty
+        ? null
+        : _RowPill(text: label, glyph: glyph, trimmable: trimmable);
   }
 
   @override
@@ -108,9 +124,9 @@ class TrackListComfortableRow extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // A pill is bounded to one run and the group to two (the fit test in
-        // the details column), so the metadata can never paint a third run
-        // past the fixed `itemExtent`, where it would be silently clipped.
+        // The pill group is one run (the packer in the details column), so the
+        // metadata can never paint a second line past the fixed `itemExtent`,
+        // where it would be silently clipped.
         //
         // Trailing slots are reserved only for the fields the user shows, and
         // only when this track has a value for them, so hiding one gives its
@@ -118,6 +134,7 @@ class TrackListComfortableRow extends StatelessWidget {
         final metaWidth = trailingMetaWidth(
           constraints.maxWidth,
           artSize + kArtworkGap,
+          minDetails: kMinComfortableDetailsWidth,
           natural: trailingMetaNaturalWidth(
             rating: trackShowsRating(rating),
             color: trackShowsColorLabel(colorLabel),
@@ -134,6 +151,10 @@ class TrackListComfortableRow extends StatelessWidget {
             metaWidth -
             kRowGutter -
             kActionsColumnWidth;
+        // Status pills are transient progress labels, so they keep priority
+        // over the metadata run: capping them at the 200px fields floor would
+        // hide an active job's progress on a narrow pane. The metadata chips
+        // lose their place instead, which is what the packer already does.
         final statusMax = (detailsWidth - kMinTitleWidth).clamp(
           0.0,
           double.infinity,
@@ -145,8 +166,8 @@ class TrackListComfortableRow extends StatelessWidget {
             Expanded(
               // Measure the real title column: in-flow status pills shrink this
               // Expanded, so a status-free detailsWidth cap would leave
-              // maxPillWidth too wide and force a third Wrap run past the
-              // kMetaPillAreaHeight clip.
+              // maxPillWidth too wide and force a second Wrap run past the
+              // kMetaPillRunHeight clip.
               child: LayoutBuilder(
                 builder: (context, columnConstraints) {
                   final available = columnConstraints.maxWidth;
@@ -155,32 +176,64 @@ class TrackListComfortableRow extends StatelessWidget {
                   final pillStyle = theme.typography.body.xs.copyWith(
                     fontWeight: FontWeight.w500,
                   );
+                  // The clip follows the text scale, or a large system font
+                  // would cut the run it is supposed to show.
+                  final pillRunHeight = metaPillRunHeight(
+                    MediaQuery.textScalerOf(context).scale(1),
+                  );
                   double naturalWidth(_RowPill pill, {required bool glyph}) =>
                       measureTextWidth(context, pill.text, pillStyle) +
                       kMetaPillPadding.horizontal +
                       (glyph ? kMetaPillLeadingExtent : 0);
-                  // Saved order is render order. A chip that cannot pack into
-                  // the two runs the row can show is left out on its own, and
+                  // Saved order is render order, on the row's single metadata
+                  // run: a chip that cannot fit is left out on its own, and
                   // the fields after it still get their turn — one long album
                   // title must not cost the row its length. Every kept chip
-                  // paints whole; nothing is ellipsized.
-                  final kept = <(_RowPill, bool)>[];
-                  var widths = <double>[];
+                  // paints whole, except free text (the comment), which is cut
+                  // to a snippet of whatever is left: it can be arbitrarily
+                  // long, so dropping it would hide the field instead of
+                  // shortening it.
+                  final kept = <(_RowPill, bool, double?)>[];
+                  var used = 0.0;
                   for (final pill in pills) {
-                    final glyph =
+                    var glyph =
                         pill.glyph != null &&
                         naturalWidth(pill, glyph: true) <= available;
-                    final width = naturalWidth(pill, glyph: glyph);
-                    if (width > available) {
+                    var natural = naturalWidth(pill, glyph: glyph);
+                    final room = used == 0
+                        ? available
+                        : available - used - kMetaPillGap;
+                    // The glyph is decoration, so a pill whose text still fits
+                    // keeps its field instead of losing it to the icon.
+                    if (natural > room && glyph) {
+                      glyph = false;
+                      natural = naturalWidth(pill, glyph: false);
+                    }
+                    if (natural <= room) {
+                      used = used == 0
+                          ? natural
+                          : used + kMetaPillGap + natural;
+                      kept.add((pill, glyph, null));
                       continue;
                     }
-                    final candidate = [...widths, width];
-                    if (!fitsInRuns(candidate, available: available, runs: 2)) {
-                      continue;
+                    if (pill.trimmable && room >= kMetaPillMinSnippetWidth) {
+                      // [snippet] is the box a cut chip paints in.
+                      used = available;
+                      kept.add((pill, glyph, room));
                     }
-                    widths = candidate;
-                    kept.add((pill, glyph));
                   }
+                  // Shared pill body, so a whole chip and a snippet differ only
+                  // in the box around them.
+                  Widget chip(_RowPill pill, {required bool glyph}) => MetaPill(
+                    text: pill.text,
+                    leading: glyph
+                        ? Icon(
+                            pill.glyph,
+                            size: 11,
+                            color: theme.colors.mutedForeground,
+                          )
+                        : null,
+                  );
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,52 +245,46 @@ class TrackListComfortableRow extends StatelessWidget {
                         artist: artist,
                         titleStyle: titleStyle,
                       ),
-                      // Wrap, not one ellipsized line, so two mid-length
-                      // extras share the width instead of both truncating.
-                      // Only what the fit test above kept is built, and that
-                      // test already packed it into two runs; the per-pill cap
-                      // keeps one pill from spanning both, and the clip is
+                      // Only what the packing pass above kept is built, and
+                      // that pass already fit it into the run; the per-pill cap
+                      // keeps a chip from spanning the row, a snippet is boxed
+                      // to the width it was measured against, and the clip is
                       // belt-and-braces so no label paints past the row edge.
                       if (kept.isNotEmpty && maxPillWidth > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 3),
-                          // maxHeight, not a fixed height. Reserving two runs
-                          // when a row only needs one leaves dead space under
-                          // the pills, which pushes the title + pills group off
-                          // centre. The cap still bounds the area at the two
-                          // runs the width cap above guarantees.
+                          // maxHeight, not a fixed height. Reserving a full run
+                          // when the row shows no pills leaves dead space under
+                          // the title, which pushes the title + pills group off
+                          // centre. The cap still bounds the area at the one
+                          // run the width cap above guarantees.
                           //
                           // Hung left by the pill's own inset so the metadata
                           // text lines up with the title above.
                           child: Transform.translate(
                             offset: const Offset(-kMetaPillInset, 0),
                             child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                maxHeight: kMetaPillAreaHeight,
+                              constraints: BoxConstraints(
+                                maxHeight: pillRunHeight,
                               ),
                               child: Wrap(
                                 spacing: kMetaPillGap,
                                 runSpacing: kMetaPillGap,
                                 clipBehavior: Clip.hardEdge,
                                 children: [
-                                  for (final (pill, glyph) in kept)
-                                    ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxWidth: maxPillWidth,
+                                  for (final (pill, glyph, snippet) in kept)
+                                    if (snippet == null)
+                                      ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxWidth: maxPillWidth,
+                                        ),
+                                        child: chip(pill, glyph: glyph),
+                                      )
+                                    else
+                                      SizedBox(
+                                        width: snippet,
+                                        child: chip(pill, glyph: glyph),
                                       ),
-                                      child: MetaPill(
-                                        text: pill.text,
-                                        leading: glyph
-                                            ? Icon(
-                                                pill.glyph,
-                                                size: 11,
-                                                color: theme
-                                                    .colors
-                                                    .mutedForeground,
-                                              )
-                                            : null,
-                                      ),
-                                    ),
                                 ],
                               ),
                             ),

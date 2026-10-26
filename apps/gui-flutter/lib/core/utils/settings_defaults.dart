@@ -34,8 +34,8 @@ KeyColorMode keyColorModeFromSettings(KeyColorModeSetting mode) {
 
 /// Library list rows: one dense line, or the two-line default.
 ///
-/// `comfortable` is sized for a title plus up to two runs of metadata pills, so
-/// a long artist name wraps onto a second line instead of overflowing the row.
+/// `comfortable` is sized for a title plus one run of metadata pills, so a long
+/// artist name ellipsizes on the title line instead of overflowing the row.
 enum LibraryRowDensity {
   compact(height: 36, artSize: 28),
   comfortable(height: 60, artSize: 40);

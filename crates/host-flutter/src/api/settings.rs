@@ -239,9 +239,11 @@ pub enum LibraryRowDensitySetting {
 /// list → Visible fields).
 ///
 /// The order of [`AppSettings::library_row_fields`] is the render order: chips
-/// paint in that order, and a chip that cannot fit the row's two-line pill area
-/// is left out on its own — the fields after it still get their chance. See
-/// [`default_library_row_fields`] for today's layout.
+/// paint in that order on the row's single metadata line, and a chip that
+/// cannot fit is left out on its own — the fields after it still get their
+/// chance. The comment is the one exception: free text is cut to an ellipsized
+/// snippet, because dropping it would hide the field rather than shorten it.
+/// See [`default_library_row_fields`] for today's layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LibraryRowFieldSetting {
@@ -343,8 +345,9 @@ pub struct AppSettings {
     #[serde(default)]
     pub library_row_density: LibraryRowDensitySetting,
     /// Metadata fields a library row shows, in render order. A chip that does
-    /// not fit the row's two-line pill area is dropped on its own; the trailing
-    /// cluster keeps its fixed rating/colour/BPM/key order.
+    /// not fit the row's single metadata line is dropped on its own, except the
+    /// comment, which is cut to an ellipsized snippet; the trailing cluster
+    /// keeps its fixed rating/colour/BPM/key order.
     #[serde(
         default = "default_library_row_fields",
         deserialize_with = "deserialize_library_row_fields"

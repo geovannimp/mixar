@@ -45,8 +45,9 @@ class AppSettings {
   final LibraryRowDensitySetting libraryRowDensity;
 
   /// Metadata fields a library row shows, in render order. A chip that does
-  /// not fit the row's two-line pill area is dropped on its own; the trailing
-  /// cluster keeps its fixed rating/colour/BPM/key order.
+  /// not fit the row's single metadata line is dropped on its own, except the
+  /// comment, which is cut to an ellipsized snippet; the trailing cluster
+  /// keeps its fixed rating/colour/BPM/key order.
   final List<LibraryRowFieldSetting> libraryRowFields;
 
   /// Mirror app-managed BPM/key into the file's tags after analysis (off by default).
@@ -333,9 +334,11 @@ enum LibraryRowDensitySetting {
 /// list → Visible fields).
 ///
 /// The order of [`AppSettings::library_row_fields`] is the render order: chips
-/// paint in that order, and a chip that cannot fit the row's two-line pill area
-/// is left out on its own — the fields after it still get their chance. See
-/// [`default_library_row_fields`] for today's layout.
+/// paint in that order on the row's single metadata line, and a chip that
+/// cannot fit is left out on its own — the fields after it still get their
+/// chance. The comment is the one exception: free text is cut to an ellipsized
+/// snippet, because dropping it would hide the field rather than shorten it.
+/// See [`default_library_row_fields`] for today's layout.
 enum LibraryRowFieldSetting {
   album,
   genre,

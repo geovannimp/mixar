@@ -17,10 +17,11 @@ const kTrackRatingPillKey = ValueKey<String>('trackRatingPill');
 /// Rating, colour, BPM + key (and optional duration) for a list row's right
 /// side.
 ///
-/// Content-sized: parents pass a `maxWidth` budget via [trailingMetaWidth], but
-/// this widget only takes the width of its pills so the cluster sits flush
-/// against the row actions. Loose flex still lets labels ellipsize when the
-/// budget is tight.
+/// Content-sized: parents pass a `maxWidth` budget via [trailingMetaWidth], and
+/// the cluster only takes the width of the pills it keeps so it sits flush
+/// against the row actions. Pills are laid out in priority order and hidden
+/// once the budget cannot seat one, so a narrow pane drops the widest value
+/// instead of shrinking every pill into an unreadable stub.
 class TrailingMeta extends StatelessWidget {
   const new({
     required this.bpm,
@@ -52,17 +53,20 @@ class TrailingMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // `mainAxisSize: min` so a parent maxWidth budget does not leave empty
-    // space after the key (that read as "not flush right" before the menu).
-    // Loose flex + `fillWidth: false` keeps pills packed with only
-    // `kMetaPillGap` between them and still ellipsizes under pressure.
+    final theme = context.theme;
     final duration = formatTrackDuration(durationMs);
-    final children = <Widget>[
+    // Render order doubles as priority: the cheap, information-dense pills come
+    // first, so a squeezed row keeps the length and rating and gives up the
+    // BPM/key labels.
+    // (slot width, minimum width, pill): the slot is the pill's widest useful
+    // size, the minimum the narrowest it can paint without overflowing. The
+    // colour circle is fixed, so its minimum is its own width.
+    final candidates = <(double, double, Widget)>[
       if (duration.isNotEmpty)
-        Flexible(
-          fit: FlexFit.loose,
-          flex: kDurationSlotFlex,
-          child: MetaPill(
+        (
+          kDurationSlotWidth,
+          kTrailingPillMinWidth,
+          MetaPill(
             text: duration,
             fillWidth: false,
             leading: const MetaPillGlyph(LucideIcons.clock),
@@ -70,27 +74,31 @@ class TrailingMeta extends StatelessWidget {
         ),
       if (trackShowsColorLabel(colorLabel))
         if (colorLabelColor(colorLabel) case final color?)
-          Semantics(
-            label: 'Colour ${colorLabelDisplayName(colorLabel)}',
-            child: Container(
-              key: kTrackColorPillKey,
-              width: kColorSlotWidth,
-              height: kColorSlotWidth,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color,
-                border: Border.all(
-                  color: context.theme.colors.border,
-                  width: context.theme.style.borderWidth,
+          (
+            kColorSlotWidth,
+            kColorSlotWidth,
+            Semantics(
+              label: 'Colour ${colorLabelDisplayName(colorLabel)}',
+              child: Container(
+                key: kTrackColorPillKey,
+                width: kColorSlotWidth,
+                height: kColorSlotWidth,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color,
+                  border: Border.all(
+                    color: theme.colors.border,
+                    width: theme.style.borderWidth,
+                  ),
                 ),
               ),
             ),
           ),
       if (trackShowsRating(rating))
-        Flexible(
-          fit: FlexFit.loose,
-          flex: kRatingSlotFlex,
-          child: MetaPill(
+        (
+          kRatingSlotWidth,
+          kTrailingPillMinWidth,
+          MetaPill(
             key: kTrackRatingPillKey,
             text: '$rating',
             fillWidth: false,
@@ -99,35 +107,60 @@ class TrailingMeta extends StatelessWidget {
           ),
         ),
       if (bpm != null)
-        Flexible(
-          fit: FlexFit.loose,
-          flex: kBpmSlotFlex,
-          child: MetaPill(
+        (
+          kBpmSlotWidth,
+          kTrailingPillMinWidth,
+          MetaPill(
             text: '${bpm!.toStringAsFixed(1)} BPM',
             fillWidth: false,
             leading: const MetaPillGlyph(LucideIcons.metronome),
           ),
         ),
       if (rawKey.isNotEmpty)
-        Flexible(
-          fit: FlexFit.loose,
-          flex: kKeySlotFlex,
-          child: KeyPill(
+        (
+          kKeySlotWidth,
+          kTrailingPillMinWidth,
+          KeyPill(
             rawKey: rawKey,
             keyDisplayMode: keyDisplayMode,
             keyColorMode: keyColorMode,
           ),
         ),
     ];
-    return Row(
-      key: kTrailingMetaKey,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(width: kMetaPillGap),
-          children[i],
-        ],
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final budget = constraints.maxWidth;
+        final pills = <Widget>[];
+        var used = 0.0;
+        for (final (slot, minWidth, pill) in candidates) {
+          final gap = pills.isEmpty ? 0.0 : kMetaPillGap;
+          // A full run leaves no room, and subtracting the gap would go
+          // negative; clamp so the arithmetic below stays a width.
+          final room = (budget - used - gap).clamp(0.0, double.infinity);
+          // The slot is a maximum: a pill narrower than it hugs its content.
+          // `room` only bites when the budget cannot seat the whole slot, and
+          // under the pill minimum the row hides it rather than clipping it.
+          final maxWidth = room < slot ? room : slot;
+          if (maxWidth < minWidth) {
+            continue;
+          }
+          used += gap + maxWidth;
+          if (pills.isNotEmpty) {
+            pills.add(const SizedBox(width: kMetaPillGap));
+          }
+          pills.add(
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: pill,
+            ),
+          );
+        }
+        return Row(
+          key: kTrailingMetaKey,
+          mainAxisSize: MainAxisSize.min,
+          children: pills,
+        );
+      },
     );
   }
 }
