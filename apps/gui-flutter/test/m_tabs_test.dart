@@ -197,10 +197,7 @@ void main() {
       ],
     );
 
-    expect(
-      barBorder(tester).right.color,
-      Color.alphaBlend(theme.colors.border, theme.colors.background),
-    );
+    expect(barBorder(tester).right.color, theme.colors.border);
     expect(barBorder(tester).right.width, theme.style.borderWidth);
   });
 }

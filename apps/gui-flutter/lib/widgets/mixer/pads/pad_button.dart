@@ -39,11 +39,13 @@ PadChrome accentPadChrome(
   MixarThemeData theme,
   ({Color border, Color fill, Color text}) accent,
 ) {
+  // The accent fill is a 20% tint. Mix from its opaque RGB, or the lerp would
+  // carry that alpha into the hairline and reintroduce the surface-dependent
+  // shade this token exists to remove.
+  final accentBase = accent.fill.withValues(alpha: 1);
   return PadChrome(
-    border: Color.alphaBlend(
-      accent.fill.withValues(alpha: 0.4),
-      theme.colors.border,
-    ),
+    // color-mix(in srgb, accent 40%, border), resolved to a solid.
+    border: Color.lerp(theme.colors.border, accentBase, 0.4)!,
     fill: theme.colors.card,
     foreground: theme.colors.foreground,
     hoverBorder: accent.border,
