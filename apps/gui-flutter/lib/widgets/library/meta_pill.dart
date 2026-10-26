@@ -48,13 +48,22 @@ class MetaPill extends StatelessWidget {
     final theme = context.theme;
     return LayoutBuilder(
       builder: (context, constraints) {
+        final innerWidth = constraints.maxWidth - kMetaPillPadding.horizontal;
         // Drop the glyph in a squeezed pill: below this the icon alone consumes
         // the whole box and pushes the label into an overflow. The text carries
         // the meaning, so the icon is the part that goes.
-        final innerWidth = constraints.maxWidth - kMetaPillPadding.horizontal;
         final showLeading =
             leading != null &&
             (keepLeadingGlyph || innerWidth >= kMetaPillIconMinWidth);
+        // Hide instead of clip, and only when the chrome itself cannot fit: the
+        // label would have no width to ellipsize into. A wider box keeps the
+        // pill and lets the text ellipsize.
+        final chrome =
+            kMetaPillPadding.horizontal +
+            (showLeading ? kMetaPillLeadingExtent : 0.0);
+        if (constraints.maxWidth < chrome) {
+          return const SizedBox.shrink();
+        }
         final label = Text(
           text,
           maxLines: 1,

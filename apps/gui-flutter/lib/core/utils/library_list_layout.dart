@@ -60,47 +60,6 @@ double measureTextWidth(BuildContext context, String text, TextStyle style) {
   return width;
 }
 
-/// Whether [widths] pack into [runs] runs of [available] width, the way a
-/// [Wrap] lays them out: greedy, [gap] between neighbours, and an item wider
-/// than a run takes a run of its own.
-bool fitsInRuns(
-  List<double> widths, {
-  required double available,
-  required int runs,
-  double gap = kMetaPillGap,
-}) {
-  if (available <= 0 || runs <= 0) {
-    return false;
-  }
-  var runsUsed = 0;
-  // Width used in the current run; zero means the run is still empty.
-  var used = 0.0;
-  for (final width in widths) {
-    if (width <= 0) {
-      continue;
-    }
-    if (used == 0) {
-      // An item wider than the run still occupies it, and ellipsizes there.
-      used = width;
-      runsUsed++;
-      if (runsUsed > runs) {
-        return false;
-      }
-      continue;
-    }
-    if (used + gap + width <= available) {
-      used += gap + width;
-      continue;
-    }
-    used = width;
-    runsUsed++;
-    if (runsUsed > runs) {
-      return false;
-    }
-  }
-  return true;
-}
-
 /// Width of the trailing actions slot every list row reserves, so trailing
 /// meta and row actions stay aligned down the list.
 const kActionsColumnWidth = 44.0;
@@ -141,6 +100,10 @@ Color libraryToolbarFieldColor(MixarThemeData theme, {bool focused = false}) {
 /// its gap, or the history `#`/deck group — so both list layouts share one
 /// budget instead of two copies that can drift.
 ///
+/// [minDetails] is the width the title and metadata run keep before the
+/// cluster gets anything; the comfortable row passes more than a bare title
+/// needs so its chips are not squeezed to a character each.
+///
 /// Computed rather than left to flex, because `Expanded` title + `Flexible`
 /// meta splits the free space evenly — the meta would claim half the row and
 /// the title would wrap its pills at widths that have plenty of room.
@@ -148,9 +111,10 @@ double trailingMetaWidth(
   double available,
   double leading, {
   double natural = kTrailingMetaBaseWidth,
+  double minDetails = kMinTitleWidth,
 }) {
   final budget =
-      available - leading - kRowGutter - kActionsColumnWidth - kMinTitleWidth;
+      available - leading - kRowGutter - kActionsColumnWidth - minDetails;
   return budget.clamp(0.0, natural);
 }
 
@@ -173,15 +137,6 @@ const kRatingSlotWidth = 40.0;
 
 /// The filled colour circle: intrinsic, no label or padding.
 const kColorSlotWidth = 16.0;
-
-// Flex weights matching the widths above. Equal flexes would split the meta
-// evenly, starving the wider BPM pill and ellipsizing it even in a wide pane;
-// weighting by natural width gives each its full size and shrinks them
-// proportionally when the pane is narrow.
-const kDurationSlotFlex = 84;
-const kBpmSlotFlex = 144;
-const kKeySlotFlex = 72;
-const kRatingSlotFlex = 40;
 
 /// Natural width of the trailing group without the duration pill.
 const double kTrailingMetaBaseWidth =
@@ -225,14 +180,42 @@ double trailingMetaNaturalWidth({
   return width;
 }
 
-/// Height reserved for pills: two runs of a 16px pill plus the 6px gap between
-/// them, with a little slack for metric rounding. Sized from the actual pill
-/// (body.xs line height + vertical padding), not a round number — reserving
-/// more is what left the comfortable rows looking padded.
+/// Height reserved for a history row's pills: two runs of a 16px pill plus the
+/// 6px gap between them, with a little slack for metric rounding. Sized from
+/// the actual pill (body.xs line height + vertical padding), not a round
+/// number — reserving more is what left the rows looking padded. Library rows
+/// paint one run and clip at [kMetaPillRunHeight] instead.
 const kMetaPillAreaHeight = 40.0;
 
 /// Gap between adjacent metadata pills.
 const kMetaPillGap = 6.0;
+
+/// Height of the one metadata run a library row paints at a 1.0 text scale: a
+/// pill plus slack for metric rounding. A row has no vertical room for a second
+/// run, so anything that wraps past this is clipped rather than shown. Scale it
+/// with [metaPillRunHeight] when the UI scales its text.
+const kMetaPillRunHeight = 20.0;
+
+/// [kMetaPillRunHeight] for [textScale].
+///
+/// Only the pill grows with the text; the gap between runs does not, so the
+/// clip stays above the scaled pill and below where a second run would start.
+double metaPillRunHeight(double textScale) =>
+    (kMetaPillRunHeight - kMetaPillGap) * textScale + kMetaPillGap;
+
+/// Narrowest a trailing pill is worth painting: its padding, a leading glyph
+/// and one character. A slot under this keeps nothing readable, so the row
+/// hides the pill and spends the width on the ones it can show.
+const kTrailingPillMinWidth = 40.0;
+
+/// Narrowest a trimmed pill may get: a snippet shorter than this is not worth
+/// the chip it hides.
+const kMetaPillMinSnippetWidth = 96.0;
+
+/// Width the comfortable row keeps for its title and metadata run before the
+/// trailing cluster takes any: enough for the title plus a couple of chips, so
+/// a narrow pane shrinks the trailing pills instead of flattening the fields.
+const kMinComfortableDetailsWidth = 200.0;
 
 /// Comfortable metadata pills: subtle chips under the title. The chip fill is
 /// the row surface colour (`card`), so its background is invisible on a row —

@@ -18,6 +18,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/track_list_pane.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
+import 'package:gui_flutter/widgets/library/meta_pill.dart';
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
 import 'package:gui_flutter/widgets/library/track_title_line.dart';
 import 'package:gui_flutter/widgets/library/trailing_meta.dart';
@@ -34,6 +35,13 @@ import 'support/mixar_material_app.dart';
 /// The row element whose text is [label], for the row-height assertions.
 Finder rowByText(String label) =>
     find.ancestor(of: find.text(label), matching: find.byType(TrackListRow));
+
+/// Longer than any comfortable row's pill area at the widths the row tests
+/// pump, so the comment has to be cut to be shown at all.
+const longComment =
+    'Peak-time weapon: drops hard after the second break, keep the filter '
+    'closed until the vocal comes back in. Classic house, 1998, white '
+    'label — drop it on the A-side and let the loop ride.';
 
 LibraryTrackSummary demoTrack({
   String? artist,
@@ -621,7 +629,7 @@ void main() {
   testWidgets('whatever metadata survives stays inside the row', (
     tester,
   ) async {
-    // Extras that cannot pack into the row's two runs are dropped; the rest must
+    // Extras that cannot fit the row's single run are dropped; the rest must
     // stay inside the row's fixed height instead of being clipped out of it.
     final overflows = <String>[];
     final previous = FlutterError.onError;
@@ -656,14 +664,18 @@ void main() {
         );
 
         final row = tester.getRect(find.byType(TrackListRow));
-        expect(
-          find.text('3:00'),
-          findsOneWidget,
-          reason: 'duration missing at $width',
-        );
+        if (width >= 700) {
+          // The test font's long album chip takes most of a narrow run, so the
+          // duration only always has room once the pane is wide.
+          expect(
+            find.text('3:00'),
+            findsOneWidget,
+            reason: 'duration missing at $width',
+          );
+        }
         if (width == 1000) {
           // Room to spare: every label is kept, so the wide case still pins the
-          // two-run layout.
+          // single-run layout.
           for (final label in labels) {
             expect(
               find.text(label),
@@ -829,10 +841,12 @@ void main() {
   ) async {
     // The slot widths are measured constants; if the font or the label format
     // changes, the trailing pills would silently truncate to "109.7 B...".
-    // Compact reserves an extra duration slot, so its floor is higher — below
-    // roughly 480px pane width it squeezes by design.
+    // Comfortable rows give the metadata run a 200px floor before the trailing
+    // cluster takes anything, so below roughly 540px the cluster keeps the BPM
+    // pill and drops the key instead of squeezing both. Compact reserves an
+    // extra duration slot, so its floor is higher still.
     for (final (density, widths) in [
-      (LibraryRowDensity.comfortable, [420.0, 700.0, 1000.0, 1900.0]),
+      (LibraryRowDensity.comfortable, [540.0, 700.0, 1000.0, 1900.0]),
       (LibraryRowDensity.compact, [520.0, 1000.0, 1900.0]),
     ]) {
       for (final width in widths) {
@@ -985,16 +999,6 @@ void main() {
     ]);
   });
 
-  group('fitsInRuns', () {
-    test('packs greedily, and an over-wide item takes its own run', () {
-      expect(fitsInRuns([60, 60, 60], available: 130, runs: 2), isTrue);
-      expect(fitsInRuns([120, 120, 120], available: 130, runs: 2), isFalse);
-      expect(fitsInRuns([200, 40], available: 130, runs: 2), isTrue);
-      expect(fitsInRuns([200, 40], available: 130, runs: 1), isFalse);
-      expect(fitsInRuns(const [10], available: 0, runs: 2), isFalse);
-    });
-  });
-
   testWidgets('a title that needs the line hides the artist', (tester) async {
     await pumpList(
       tester,
@@ -1045,8 +1049,8 @@ void main() {
       ],
     );
 
-    // Each chip that cannot pack into the row's two runs is left out; the
-    // duration still fits, so it stays instead of being clipped.
+    // Each chip that cannot fit the row's single run is left out; the duration
+    // still fits, so it stays instead of being clipped.
     expect(find.text('A Very Long Album Title That Keeps Going'), findsNothing);
     expect(find.text('Progressive Melodic House Music'), findsNothing);
     expect(find.text('3:00'), findsOneWidget);
@@ -1165,6 +1169,86 @@ void main() {
     }
   });
 
+  test('the metadata run clip grows with the text scale', () {
+    expect(metaPillRunHeight(1), kMetaPillRunHeight);
+    // The pill's measured height at body.xs, for the bounds below.
+    const pillHeight = 16.0;
+    for (final scale in [1.3, 1.5, 2.0]) {
+      final clip = metaPillRunHeight(scale);
+      expect(
+        clip,
+        greaterThanOrEqualTo(pillHeight * scale),
+        reason: 'the clip cuts the scaled run at ${scale}x',
+      );
+      expect(
+        clip,
+        lessThan(pillHeight * scale + kMetaPillGap),
+        reason: 'a second run would show at ${scale}x',
+      );
+    }
+  });
+
+  testWidgets('a pill keeps its text when only the glyph does not fit', (
+    tester,
+  ) async {
+    // At this width the album leaves room for the ISRC text but not for the
+    // barcode before it. The glyph is decoration, so the field keeps its text
+    // instead of losing its place to the icon.
+    await pumpList(
+      tester,
+      width: 320,
+      rowFields: const [
+        LibraryRowFieldSetting.album,
+        LibraryRowFieldSetting.isrc,
+        LibraryRowFieldSetting.rating,
+      ],
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Demo Track',
+          title: 'Demo Track',
+          album: 'Album XYZ',
+          isrc: '5432',
+          rating: 4,
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    final label = find.text('5432');
+    expect(label, findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.ancestor(of: label, matching: find.byType(MetaPill)),
+        matching: find.byIcon(LucideIcons.barcode),
+      ),
+      findsNothing,
+      reason: 'the glyph is the part that did not fit',
+    );
+  });
+
+  testWidgets('a field with no value paints no pill', (tester) async {
+    await pumpList(
+      tester,
+      rowFields: const [
+        LibraryRowFieldSetting.year,
+        LibraryRowFieldSetting.comment,
+        LibraryRowFieldSetting.isrc,
+      ],
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Demo Track',
+          title: 'Demo Track',
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    // Enabled but unset is empty, not a blank chip: the pill row never builds.
+    expect(find.byType(Wrap), findsNothing);
+  });
+
   testWidgets('a chip that does not fit is skipped, not fatal', (tester) async {
     await pumpList(
       tester,
@@ -1191,6 +1275,216 @@ void main() {
       findsNothing,
     );
     expect(find.text('QZABC9800012'), findsOneWidget);
+  });
+
+  testWidgets('a long comment is cut to a snippet, not dropped', (
+    tester,
+  ) async {
+    // Comments are free text and can be longer than the row. Dropping them
+    // like any other over-wide chip would make the field useless, so the row
+    // spends whatever width it has on a snippet instead — at any pane width.
+    for (final width in [380.0, 700.0, 1000.0]) {
+      await pumpList(
+        tester,
+        width: width,
+        rowFields: const [LibraryRowFieldSetting.comment],
+        tracks: const [
+          LibraryTrackSummary(
+            id: 't1',
+            displayName: 'Demo Track',
+            title: 'Demo Track',
+            comment: longComment,
+            path: '/tmp/samples/demo.wav',
+          ),
+        ],
+      );
+
+      final snippet = tester.renderObject<RenderParagraph>(
+        find.text(longComment),
+      );
+      expect(
+        snippet.didExceedMaxLines,
+        isTrue,
+        reason: 'ellipsized at $width, not painted whole',
+      );
+      expect(
+        snippet.size.width,
+        lessThanOrEqualTo(tester.getSize(find.byType(TrackTitleLine)).width),
+        reason: 'inside the pill column at $width',
+      );
+      // The snippet stays inside the two-run budget: the row keeps its height.
+      expect(
+        tester.getSize(rowByText('Demo Track')).height,
+        LibraryRowDensity.comfortable.height,
+        reason: 'no third run at $width',
+      );
+    }
+  });
+
+  testWidgets('a long comment takes the row, later fields are left out', (
+    tester,
+  ) async {
+    await pumpList(
+      tester,
+      rowFields: const [
+        LibraryRowFieldSetting.album,
+        LibraryRowFieldSetting.comment,
+        LibraryRowFieldSetting.isrc,
+      ],
+      tracks: const [
+        LibraryTrackSummary(
+          id: 't1',
+          displayName: 'Demo Track',
+          title: 'Demo Track',
+          album: 'Reggaeton',
+          comment: longComment,
+          isrc: 'QZABC9800012',
+          path: '/tmp/samples/demo.wav',
+        ),
+      ],
+    );
+
+    // One metadata run: the snippet takes what is left after the album, and
+    // the field behind it is left out rather than wrapped onto a second line.
+    expect(find.text('Reggaeton'), findsOneWidget);
+    expect(find.text('QZABC9800012'), findsNothing);
+    expect(
+      tester
+          .renderObject<RenderParagraph>(find.text(longComment))
+          .didExceedMaxLines,
+      isTrue,
+    );
+    expect(
+      tester.getSize(rowByText('Demo Track')).height,
+      LibraryRowDensity.comfortable.height,
+    );
+  });
+
+  testWidgets('the metadata stays on one run however narrow the pane', (
+    tester,
+  ) async {
+    for (final width in [320.0, 380.0, 460.0, 700.0]) {
+      await pumpList(
+        tester,
+        width: width,
+        rowFields: const [
+          LibraryRowFieldSetting.album,
+          LibraryRowFieldSetting.genre,
+          LibraryRowFieldSetting.duration,
+          LibraryRowFieldSetting.isrc,
+          LibraryRowFieldSetting.comment,
+          LibraryRowFieldSetting.year,
+          LibraryRowFieldSetting.trackNumber,
+          LibraryRowFieldSetting.discNumber,
+          LibraryRowFieldSetting.rating,
+          LibraryRowFieldSetting.bpm,
+          LibraryRowFieldSetting.key,
+        ],
+        tracks: const [
+          LibraryTrackSummary(
+            id: 't1',
+            displayName: 'Anade Aceite',
+            title: 'Anade Aceite',
+            artist: 'Hercules',
+            album: 'Reggaeton 2025',
+            genre: 'Reggaeton',
+            durationMs: 226000,
+            isrc: '5432',
+            comment: 'test',
+            year: 2012,
+            trackNumber: 12,
+            discNumber: 2,
+            rating: 4,
+            bpm: 96,
+            key: 'Am',
+            path: '/tmp/samples/demo.wav',
+          ),
+        ],
+      );
+
+      final row = tester.getRect(find.byType(TrackListRow));
+      final metadataPills = find.descendant(
+        of: find.byType(Wrap),
+        matching: find.byType(MetaPill),
+      );
+      final tops = <int>{
+        for (final pill in metadataPills.evaluate())
+          (tester.getRect(find.byWidget(pill.widget)).top - row.top).round(),
+      };
+      expect(tops.length, 1, reason: 'one pill run at $width, tops=$tops');
+      expect(
+        tester.getSize(find.byType(Wrap).first).height,
+        lessThanOrEqualTo(kMetaPillRunHeight),
+        reason: 'no second pill line at $width',
+      );
+      expect(tester.takeException(), isNull, reason: 'no overflow at $width');
+    }
+  });
+
+  testWidgets('a narrow pane shrinks the trailing pills, not the fields', (
+    tester,
+  ) async {
+    for (final width in [320.0, 380.0, 460.0]) {
+      await pumpList(
+        tester,
+        width: width,
+        rowFields: const [
+          LibraryRowFieldSetting.album,
+          LibraryRowFieldSetting.genre,
+          LibraryRowFieldSetting.duration,
+          LibraryRowFieldSetting.isrc,
+          LibraryRowFieldSetting.comment,
+          LibraryRowFieldSetting.year,
+          LibraryRowFieldSetting.trackNumber,
+          LibraryRowFieldSetting.rating,
+          LibraryRowFieldSetting.bpm,
+          LibraryRowFieldSetting.key,
+        ],
+        tracks: const [
+          LibraryTrackSummary(
+            id: 't1',
+            displayName: 'Anade Aceite',
+            title: 'Anade Aceite',
+            artist: 'Hercules',
+            album: 'Reggaeton 2025',
+            genre: 'Reggaeton',
+            durationMs: 226000,
+            isrc: '5432',
+            comment: 'test',
+            year: 2012,
+            trackNumber: 12,
+            rating: 4,
+            bpm: 96,
+            key: 'Am',
+            path: '/tmp/samples/demo.wav',
+          ),
+        ],
+      );
+
+      // The fields column keeps its floor; the trailing cluster gives way.
+      expect(
+        tester.getSize(find.byType(TrackTitleLine)).width,
+        greaterThanOrEqualTo(kMinComfortableDetailsWidth - 0.5),
+        reason: 'fields keep their floor at $width',
+      );
+      // Whatever does not fit is hidden, never squeezed into an overflow.
+      expect(tester.takeException(), isNull, reason: 'no overflow at $width');
+      // The star is the cheapest pill in the group, so it is the last to go:
+      // 380 keeps it while dropping the wide BPM/key labels, 320 cannot seat
+      // any of the three, and 460 seats the BPM (possibly ellipsized) but not
+      // the key.
+      expect(
+        find.text('96.0 BPM'),
+        width < 460 ? findsNothing : findsOneWidget,
+        reason: 'BPM at $width',
+      );
+      expect(find.text('Am'), findsNothing, reason: 'key at $width');
+      expect(
+        find.text('4'),
+        width < 340 ? findsNothing : findsOneWidget,
+        reason: 'rating at $width',
+      );
+    }
   });
 
   testWidgets('anything shown paints whole, never ellipsized', (tester) async {

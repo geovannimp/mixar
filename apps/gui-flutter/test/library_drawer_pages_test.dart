@@ -158,12 +158,11 @@ void main() {
     expect(find.byKey(kMTabBarKey), findsNothing);
     expect(find.byKey(kLibraryToolbarKey), findsOneWidget);
     expect(find.text('Demo Track'), findsOneWidget);
-    // Narrowness is not what hides metadata, room is: at this width the title
-    // alone already needs the whole line, so the artist gives way. The chips
-    // keep the saved order, so album and genre still pack into the two runs a
-    // row can show while the length — last in the default order — is the one
-    // that cannot.
-    expect(find.text('Artist'), findsNothing);
+    // Narrowness is not what hides metadata, room is: the metadata run keeps a
+    // floor before the trailing cluster takes anything, so the title keeps its
+    // artist and the chips keep the saved order. Album and genre fit the single
+    // run; the length, last in the default order, is the one that cannot.
+    expect(find.text('Artist'), findsOneWidget);
     expect(find.text('Album X'), findsOneWidget);
     expect(find.text('Genre Y'), findsOneWidget);
     expect(find.text('3:00'), findsNothing);
