@@ -31,15 +31,20 @@ tasks:
   # Linux-only for now (macOS/Windows/web enabled in Flutter but unverified).
   # Uses repo mise.toml Flutter pin (not a system install).
   # dashmonx: activated by flutter postinstall in mise.toml; hot-reloads on lib/ changes.
+  # --no-enable-impeller: Impeller misrenders on Linux. Passed through to
+  # `flutter run`, which turns it into the enable-impeller=false engine switch.
+  # Built bundles get the same opt-out from linux/runner/my_application.cc.
   dev-linux:
     command: "mise"
-    args: ["exec", "--", "dashmonx", "-d", "linux"]
+    args: ["exec", "--", "dashmonx", "-d", "linux", "--no-enable-impeller"]
     toolchain: "system"
     preset: "server"
     inputs:
       - "@group(sources)"
       - "@group(rustBuilder)"
 
+  # Impeller is disabled for built bundles in linux/runner/my_application.cc
+  # (`flutter build linux` has no --no-enable-impeller flag).
   build-linux:
     command: "mise"
     args: ["exec", "--", "flutter", "build", "linux", "--debug"]
