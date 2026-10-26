@@ -84,11 +84,10 @@ class MTabBar extends StatelessWidget {
     // a 1px gap between the selection wash and the bar edge.
     //
     // Horizontal bars expose [barBottomBorder]; vertical bars paint a hairline
-    // on the trailing edge to separate the rail from content. Blend the
-    // hairline onto background (not muted): opaque border-over-muted reads too
-    // bright next to content-surface hairlines.
+    // on the trailing edge to separate the rail from content. The hairline is
+    // the solid border token, so it matches every other border in the shell.
     final hairline = BorderSide(
-      color: Color.alphaBlend(theme.colors.border, theme.colors.background),
+      color: theme.colors.border,
       width: theme.style.borderWidth,
     );
     // Force the theme hairline on a caller's bottom border: the width is part

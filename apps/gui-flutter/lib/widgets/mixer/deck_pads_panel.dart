@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:anchor_ui/anchor_ui.dart' show Placement;
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
@@ -27,8 +26,11 @@ import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Vertical room reserved for the floating config button.
-const _kConfigButtonReserve = 40.0;
+/// Width of the gear cell in the pads header.
+///
+/// The cell spans the header's full height and sits flush against the panel
+/// edge, so the button owns the whole corner instead of floating inside it.
+const _kConfigCellWidth = 36.0;
 
 /// Presentational deck pads panel (mode select + per-mode grids).
 class DeckPadsPanel extends StatelessWidget {
@@ -134,14 +136,10 @@ class DeckPadsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final l10n = AppLocalizations.of(context);
-    final panelSurface = Color.alphaBlend(
-      theme.colors.background.withValues(alpha: 0.8),
-      theme.colors.card,
-    );
-    final panelBorderColor = Color.alphaBlend(
-      theme.colors.border,
-      panelSurface,
-    );
+    // Keeps the config cell inside the card frame so its wash never covers the
+    // frame's strokes. Unbordered panels sit in the tabs container, which paints
+    // its frame above the content, so they need no inset.
+    final frameInset = bordered ? theme.style.borderWidth : 0.0;
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -150,52 +148,66 @@ class DeckPadsPanel extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: theme.colors.border)),
           ),
-          child: MixarSelect<PadMode>(
-            dialogTitle: 'Pad mode',
-            value: padMode,
-            options: kPadModes,
-            labelBuilder: (mode) => _modeLabel(mode, l10n),
-            optionLabelBuilder: padModeShortLabel,
-            labelSpanBuilder: (mode) =>
-                _modeLabelSpan(mode, theme.colors.mutedForeground, l10n),
-            unfocusAfterPointerSelection: true,
-            borderRadius: BorderRadius.only(
-              topRight: theme.style.borderRadius.sm.topRight,
-            ),
-            borderColor: panelBorderColor,
-            // The card frame, header divider and rail already draw these
-            // edges; the selector only strokes the ones it owns.
-            borderSides: const {
-              MixarBorderSide.top,
-              MixarBorderSide.right,
-              MixarBorderSide.bottom,
-            },
-            onChanged: onPadMode,
-            enabled: !disabled,
-          ),
-        ),
-        Expanded(
+          // The config button shares the header row so it never takes height
+          // from the pads: every mode's grid sees the same box. It lives in a
+          // positioned cell that spans the header (top to divider, flush to the
+          // panel edge) so the whole corner is the button, not a floating icon.
           child: Stack(
-            fit: StackFit.expand,
             children: [
-              Positioned.fill(
-                child: Padding(
-                  // Keep the floating button clear of the last pad's hit area.
-                  padding: EdgeInsets.only(
-                    bottom: _showsConfig ? _kConfigButtonReserve : 0,
+              Row(
+                children: [
+                  Expanded(
+                    child: MixarSelect<PadMode>(
+                      dialogTitle: 'Pad mode',
+                      value: padMode,
+                      options: kPadModes,
+                      labelBuilder: (mode) => _modeLabel(mode, l10n),
+                      optionLabelBuilder: padModeShortLabel,
+                      labelSpanBuilder: (mode) => _modeLabelSpan(
+                        mode,
+                        theme.colors.mutedForeground,
+                        l10n,
+                      ),
+                      unfocusAfterPointerSelection: true,
+                      // Only shapes the focus ring: the header divider and the
+                      // card frame draw every stroke.
+                      borderRadius: _showsConfig
+                          ? null
+                          : BorderRadius.only(
+                              topRight: theme.style.borderRadius.sm.topRight,
+                            ),
+                      borderColor: theme.colors.border,
+                      // The header divider and the card frame draw every edge
+                      // from the same border token. A stroke of its own would
+                      // paint a second, differently blended shade over the
+                      // divider.
+                      borderSides: const <MixarBorderSide>{},
+                      onChanged: onPadMode,
+                      enabled: !disabled,
+                    ),
                   ),
-                  child: _modeBody(),
-                ),
+                  // Reserve the gear's cell so the selector's chevron stays out
+                  // of its hit area.
+                  if (_showsConfig) const SizedBox(width: _kConfigCellWidth),
+                ],
               ),
               if (_showsConfig)
                 Positioned(
-                  right: theme.style.borderWidth,
+                  // The select ends where the reserved cell begins; the insets
+                  // only trim the cell back inside the header, so the two never
+                  // overlap. The bottom always clears the divider, which the
+                  // panel paints itself in both framed and tabs-hosted layouts;
+                  // the top and right only need clearing inside a card frame.
+                  top: frameInset,
                   bottom: theme.style.borderWidth,
+                  right: frameInset,
+                  width: _kConfigCellWidth - frameInset,
                   child: _configButton(context),
                 ),
             ],
           ),
         ),
+        Expanded(child: _modeBody()),
       ],
     );
 
@@ -340,31 +352,31 @@ class DeckPadsPanel extends StatelessWidget {
     return MixarMenuAnchor(
       dialogTitle: '${padModeShortLabel(padMode)} settings',
       minWidth: 220,
-      placement: Placement.topEnd,
       enabled: !disabled,
       menuBuilder: (menuContext, controller) =>
           _configMenu(context, menuContext, controller),
-      childBuilder: (context, controller) => ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) {
-          final showing = controller.isShowing;
-          return MixerButton.icon(
-            semanticsLabel: '${padModeShortLabel(padMode)} settings',
-            // Pressable buttons wear only a border; an open menu fills the
-            // button with the accent colour, like a lit stem pad.
-            variant: showing
-                ? MixarButtonVariant.primary
-                : MixarButtonVariant.outline,
-            size: MixarButtonSize.sm,
-            backgroundColor: showing ? context.theme.colors.accent : null,
-            onPress: controller.toggle,
-            child: Icon(
-              LucideIcons.settings2,
-              size: 16,
-              color: showing ? context.theme.colors.primaryForeground : null,
-            ),
-          );
-        },
+      childBuilder: (context, controller) => SizedBox.expand(
+        child: ListenableBuilder(
+          listenable: controller,
+          builder: (context, _) {
+            final showing = controller.isShowing;
+            final theme = context.theme;
+            return MixerButton.icon(
+              semanticsLabel: '${padModeShortLabel(padMode)} settings',
+              // Ghost: the header already draws the chrome, so the gear is a
+              // bare icon while the whole cell stays the hit and hover surface.
+              variant: MixarButtonVariant.ghost,
+              size: MixarButtonSize.xs,
+              selected: showing,
+              onPress: controller.toggle,
+              child: Icon(
+                LucideIcons.settings2,
+                size: 16,
+                color: showing ? theme.colors.selectionForeground : null,
+              ),
+            );
+          },
+        ),
       ),
     );
   }

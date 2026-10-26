@@ -1,13 +1,33 @@
 import 'package:flutter/painting.dart';
 
-/// Solid Mixar colour scales (Tailwind-aligned).
+// Solid Mixar colour scales (Tailwind-aligned).
+//
+// Prefer these over `withValues(alpha: …)` / `Color.alphaBlend` for fills,
+// borders, and icons. Alpha stays for true see-through surfaces only
+// (dialogs, dimming scrims) that must show content behind them.
+//
+// Brand signal is teal. Deck identity is sky (A) / rose (B) — never a third
+// green/emerald ladder.
+
+/// Zinc scale — neutral chrome: hairlines, borders, muted text.
 ///
-/// Prefer these over `withValues(alpha: …)` / `Color.alphaBlend` for fills,
-/// borders, and icons. Alpha stays for true see-through surfaces only
-/// (dialogs, dimming scrims) that must show content behind them.
-///
-/// Brand signal is teal. Deck identity is sky (A) / rose (B) — never a third
-/// green/emerald ladder.
+/// The dark surfaces already sit on this ladder (`background` is zinc-950,
+/// `foreground` zinc-100, `mutedForeground` zinc-400), so a hairline can name a
+/// solid step instead of compositing translucent white over whatever is behind.
+abstract final class MixarZinc {
+  static const s50 = Color(0xFFFAFAFA);
+  static const s100 = Color(0xFFF4F4F5);
+  static const s200 = Color(0xFFE4E4E7);
+  static const s300 = Color(0xFFD4D4D8);
+  static const s400 = Color(0xFFA1A1AA);
+  static const s500 = Color(0xFF71717A);
+  static const s600 = Color(0xFF52525B);
+  static const s700 = Color(0xFF3F3F46);
+  static const s800 = Color(0xFF27272A);
+  static const s900 = Color(0xFF18181B);
+  static const s950 = Color(0xFF09090B);
+}
+
 abstract final class MixarTeal {
   static const s50 = Color(0xFFF0FDFA);
   static const s100 = Color(0xFFCCFBF1);

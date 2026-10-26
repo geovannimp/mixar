@@ -83,10 +83,7 @@ void main() {
       expect(decoration.color, theme.colors.card);
       expect(
         decoration.border!.top.color,
-        Color.alphaBlend(
-          kStemColors[stem].withValues(alpha: 0.4),
-          theme.colors.border,
-        ),
+        Color.lerp(theme.colors.border, kStemColors[stem], 0.4),
       );
     }
   });
@@ -133,10 +130,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       padDecorationOf(tester, find.byType(PadButton).at(1)).border!.top.color,
-      Color.alphaBlend(
-        kStemColors[1].withValues(alpha: 0.4),
-        theme.colors.border,
-      ),
+      Color.lerp(theme.colors.border, kStemColors[1], 0.4),
     );
   });
 

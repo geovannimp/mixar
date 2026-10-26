@@ -105,10 +105,10 @@ class StemsPads extends StatelessWidget {
     Color nameColor, {
     required bool lit,
   }) {
-    final dimStem = stemColor.withValues(alpha: 0.4);
+    // color-mix(in srgb, stem 40%, border), resolved to a solid hairline.
+    final restBorder = Color.lerp(theme.colors.border, stemColor, 0.4)!;
     return PadChrome(
-      // color-mix(in srgb, stem 40%, border) — tinted hairline at rest.
-      border: lit ? stemColor : Color.alphaBlend(dimStem, theme.colors.border),
+      border: lit ? stemColor : restBorder,
       fill: lit ? stemColor : theme.colors.card,
       foreground: nameColor,
       hoverBorder: stemColor,

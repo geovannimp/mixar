@@ -51,6 +51,7 @@ void main() {
     WidgetTester tester, {
     required bool hasTrack,
     bool disabled = false,
+    bool bordered = true,
     Size size = const Size(360, 320),
     SelectStyleSetting selectStyle = SelectStyleSetting.auto,
     PadMode padMode = PadMode.hotCue,
@@ -137,6 +138,7 @@ void main() {
                     realtimeStemsEnabled: realtimeStemsEnabled,
                     hasTrack: hasTrack,
                     disabled: disabled,
+                    bordered: bordered,
                   ),
                 );
               },
@@ -263,10 +265,12 @@ void main() {
     expect(find.text('Jump'), findsOneWidget);
   });
 
-  testWidgets('pad mode selector border matches panel radius', (tester) async {
+  testWidgets('header divider shares the card frame border color', (
+    tester,
+  ) async {
     await pumpPanel(tester, hasTrack: true);
     final selectFinder = find.byType(ShadSelect<PadMode>);
-    final decoration = tester
+    final selectDecoration = tester
         .widget<ShadDecorator>(
           find
               .descendant(
@@ -276,33 +280,48 @@ void main() {
               .first,
         )
         .decoration;
-    final panelBorder = tester
+    final ancestorDecorations = tester
         .widgetList<DecoratedBox>(
           find.ancestor(of: selectFinder, matching: find.byType(DecoratedBox)),
         )
         .map((widget) => widget.decoration)
         .whereType<BoxDecoration>()
-        .firstWhere((decoration) => decoration.borderRadius != null);
-
+        .toList();
     final theme = MixarThemeData.dark();
-    final panelSurface = Color.alphaBlend(
-      theme.colors.background.withValues(alpha: 0.8),
-      theme.colors.card,
-    );
-    final expectedBorderColor = Color.alphaBlend(
-      theme.colors.border,
-      panelSurface,
-    );
-    expect(decoration?.border?.top?.color, expectedBorderColor);
-    expect(decoration?.border?.right?.color, expectedBorderColor);
-    expect(decoration?.border?.bottom?.color, expectedBorderColor);
-    // The left edge is the tab rail's divider; the selector must not stroke it.
-    expect(decoration?.border?.toBorder().left, BorderSide.none);
 
-    final panelRadius = panelBorder.borderRadius! as BorderRadius;
-    final expectedRadius = BorderRadius.only(topRight: panelRadius.topRight);
-    expect(decoration?.border?.radius, expectedRadius);
-    expect(decoration?.secondaryFocusedBorder?.radius, expectedRadius);
+    // The selector paints no stroke: a second, differently blended line over
+    // the divider is what made the header border look off color.
+    final stroke = selectDecoration?.border?.toBorder();
+    expect(stroke, isNotNull);
+    expect([
+      stroke!.top,
+      stroke.right,
+      stroke.bottom,
+      stroke.left,
+    ], everyElement(BorderSide.none));
+
+    // Header divider and card frame both come from the raw border token.
+    final divider = ancestorDecorations.firstWhere(
+      (decoration) =>
+          decoration.border?.bottom != BorderSide.none &&
+          decoration.border?.top == BorderSide.none,
+    );
+    expect(divider.border!.bottom.color, theme.colors.border);
+
+    final frame = ancestorDecorations.firstWhere(
+      (decoration) =>
+          decoration.borderRadius != null && decoration.border != null,
+    );
+    final frameBorder = frame.border! as Border;
+    expect(frameBorder.top.color, theme.colors.border);
+    expect(frameBorder.right.color, theme.colors.border);
+    expect(frameBorder.bottom.color, theme.colors.border);
+
+    // The focus ring still follows the card's top-right corner.
+    final expectedRadius = BorderRadius.only(
+      topRight: (frame.borderRadius! as BorderRadius).topRight,
+    );
+    expect(selectDecoration?.secondaryFocusedBorder?.radius, expectedRadius);
   });
 
   testWidgets('hot cue press on empty slot reports the pad', (tester) async {
@@ -328,17 +347,13 @@ void main() {
     expect(padLabel('Sample (Bank 1)'), findsOneWidget);
 
     final configButton = find.byType(MixerButton);
-    expect(
-      tester.widget<MixerButton>(configButton).variant,
-      MixarButtonVariant.outline,
-    );
+    final button = tester.widget<MixerButton>(configButton);
+    expect(button.variant, MixarButtonVariant.ghost);
+    expect(button.selected, isFalse);
 
     await tester.tap(find.bySemanticsLabel('Sample settings'));
     await tester.pumpAndSettle();
-    expect(
-      tester.widget<MixerButton>(configButton).variant,
-      MixarButtonVariant.primary,
-    );
+    expect(tester.widget<MixerButton>(configButton).selected, isTrue);
     expect(find.text('New bank…'), findsOneWidget);
     expect(find.text('Edit bank…'), findsOneWidget);
 
@@ -437,7 +452,38 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('config button keeps clear of the bottom-right pad', (
+  testWidgets('configurable modes fit the compact pane header', (tester) async {
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      size: const Size(200, 70),
+      padMode: PadMode.keyShift,
+    );
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getRect(find.bySemanticsLabel('Shift settings')).width,
+      greaterThan(0),
+    );
+  });
+
+  testWidgets('config cell clears the divider in a tabs-hosted panel', (
+    tester,
+  ) async {
+    await pumpPanel(
+      tester,
+      hasTrack: true,
+      bordered: false,
+      padMode: PadMode.sampler,
+    );
+    final button = tester.getRect(find.bySemanticsLabel('Sample settings'));
+    final select = tester.getRect(find.byType(MixarSelect<PadMode>));
+    final theme = MixarThemeData.dark();
+    // No card frame to clear, but the header divider must still show.
+    expect(button.top, select.top);
+    expect(button.bottom, select.bottom - theme.style.borderWidth);
+  });
+
+  testWidgets('config button sits in the header above every pad', (
     tester,
   ) async {
     await pumpPanel(tester, hasTrack: true);
@@ -446,9 +492,52 @@ void main() {
     await tester.tap(find.text('Sample').last);
     await tester.pumpAndSettle();
 
-    final pad = tester.getRect(find.byType(PadButton).last);
     final button = tester.getRect(find.bySemanticsLabel('Sample settings'));
-    expect(pad.bottom, lessThanOrEqualTo(button.top));
+    final theme = MixarThemeData.dark();
+    final panel = tester.getRect(find.byType(DeckPadsPanel));
+    final select = tester.getRect(find.byType(MixarSelect<PadMode>));
+    // The gear owns its whole header cell: inset only by the card frame, and
+    // starting exactly where the selector ends.
+    final border = theme.style.borderWidth;
+    expect(button.right, panel.right - border);
+    expect(button.left, select.right);
+    expect(button.top, select.top + border);
+    expect(button.height, select.height - 2 * border);
+    final pads = find.byType(PadButton);
+    for (var i = 0; i < pads.evaluate().length; i++) {
+      expect(
+        tester.getRect(pads.at(i)).top,
+        greaterThanOrEqualTo(button.bottom),
+      );
+    }
+
+    // Anchored to the header, the menu must open into the panel, not above it.
+    await tester.tap(find.bySemanticsLabel('Sample settings'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(find.text('New bank…')).top,
+      greaterThanOrEqualTo(button.bottom),
+    );
+  });
+
+  testWidgets('configurable modes use the same pad size as plain modes', (
+    tester,
+  ) async {
+    // Wide and short: the grid is height-limited, which is where the old
+    // floating-button reserve shrank the configurable modes' pads.
+    const size = Size(480, 240);
+
+    await pumpPanel(tester, hasTrack: true, size: size);
+    final plain = tester.getSize(find.byType(PadButton).first);
+
+    for (final mode in [PadMode.sampler, PadMode.keyboard, PadMode.keyShift]) {
+      await pumpPanel(tester, hasTrack: true, size: size, padMode: mode);
+      expect(
+        tester.getSize(find.byType(PadButton).first),
+        plain,
+        reason: '$mode pads must match non-configurable modes',
+      );
+    }
   });
 
   testWidgets('sampler duration sits bottom-right like a cue time', (
@@ -488,13 +577,17 @@ void main() {
             as BoxDecoration;
 
     expect(decoration().color, theme.colors.card);
+    final restingBorder = decoration().border!.top.color;
     expect(
-      decoration().border!.top.color,
-      Color.alphaBlend(
-        hotCueAccent(0).fill.withValues(alpha: 0.4),
+      restingBorder,
+      Color.lerp(
         theme.colors.border,
+        hotCueAccent(0).fill.withValues(alpha: 1),
+        0.4,
       ),
     );
+    // The accent fill is a 20% tint; the hairline must still be opaque.
+    expect(restingBorder.a, 1.0);
 
     final gesture = await tester.startGesture(tester.getCenter(pad));
     await tester.pump();

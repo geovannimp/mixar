@@ -58,7 +58,7 @@ class MixarColors {
     destructive: Color(0xFFE7000B),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFFFFFFFF),
-    border: Color(0x14000000),
+    border: MixarZinc.s200,
   );
 
   /// Desktop dark — values from website `global.css` dark theme.
@@ -86,7 +86,7 @@ class MixarColors {
     destructive: Color(0xFFFF6467),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFF18181C),
-    border: Color(0x14FFFFFF),
+    border: MixarZinc.s800,
   );
 
   final Brightness brightness;
@@ -102,6 +102,12 @@ class MixarColors {
   final Color destructive;
   final Color destructiveForeground;
   final Color card;
+
+  /// Hairline colour — a solid palette step, never an alpha wash.
+  ///
+  /// Translucent borders change shade with whatever sits behind them, so two
+  /// lines that should match (panel frame, header divider) drift apart. Pinning
+  /// the step keeps every border the same colour on every surface.
   final Color border;
 
   /// Soft selected-row / menu-option fill — solid teal step, surface-stable.
