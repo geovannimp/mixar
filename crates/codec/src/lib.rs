@@ -3,6 +3,7 @@
 //! This crate provides audio decoding capabilities using symphonia.
 
 mod paths;
+mod rating;
 mod stem_atom;
 mod stem_mp4;
 mod tag_write;

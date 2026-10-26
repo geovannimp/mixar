@@ -47,7 +47,10 @@ fn write_wav_with_cover(path: &Path, mime: MimeType, cover: Vec<u8>) {
     }
     tagged.primary_tag_mut().expect("id3v2 tag").set_picture(
         0,
-        Picture::new_unchecked(PictureType::CoverFront, Some(mime), None, cover),
+        Picture::unchecked(cover)
+            .pic_type(PictureType::CoverFront)
+            .mime_type(mime)
+            .build(),
     );
     tagged
         .save_to_path(path, WriteOptions::default())

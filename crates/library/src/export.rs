@@ -530,7 +530,10 @@ mod tests {
         }
         tagged.primary_tag_mut().expect("id3v2 tag").set_picture(
             0,
-            Picture::new_unchecked(PictureType::CoverFront, Some(MimeType::Png), None, cover),
+            Picture::unchecked(cover)
+                .pic_type(PictureType::CoverFront)
+                .mime_type(MimeType::Png)
+                .build(),
         );
         tagged
             .save_to_path(path, WriteOptions::default())

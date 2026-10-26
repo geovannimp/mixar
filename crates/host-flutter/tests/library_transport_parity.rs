@@ -63,12 +63,10 @@ fn write_wav_with_artwork(path: &Path, artwork: &[u8]) {
     let tag = tagged.primary_tag_mut().expect("id3 tag");
     tag.set_picture(
         0,
-        Picture::new_unchecked(
-            PictureType::CoverFront,
-            Some(MimeType::Png),
-            None,
-            artwork.to_vec(),
-        ),
+        Picture::unchecked(artwork.to_vec())
+            .pic_type(PictureType::CoverFront)
+            .mime_type(MimeType::Png)
+            .build(),
     );
     tagged
         .save_to_path(path, WriteOptions::default())

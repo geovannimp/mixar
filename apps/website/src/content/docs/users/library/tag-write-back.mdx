@@ -43,7 +43,7 @@ Nothing else is touched. Mixar does not write title, artist, album, or genre, an
 
 | File type | Result |
 | --- | --- |
-| MP3, WAV, AIFF, AAC | BPM, key, comment, year, track/disc number and colour label in the ID3 tag; the star rating is not written (ID3 keeps it in a frame the tag library does not expose) |
+| MP3, WAV, AIFF, AAC | Everything, in the ID3 tag (the rating goes into each reader's own `POPM` frame; see below) |
 | FLAC, OGG, Opus | Everything, in the Vorbis comment block |
 | M4A / MP4 | Everything, in the iTunes-style metadata atoms |
 | APE, WavPack, Musepack | Comment, year, track/disc number and colour; BPM, key and rating are skipped (these formats have no standard field for them) |
@@ -51,7 +51,7 @@ Nothing else is touched. Mixar does not write title, artist, album, or genre, an
 
 A skipped file is left exactly as it was. Mixar logs the reason instead of guessing.
 
-**Why `.stem.mp4` files are skipped.** They are MP4 files, but not ordinary ones: a Stem container holds four audio tracks plus a `stem` manifest that lists each layer's name and color, and Traktor and Mixxx read that manifest when they load the file. Rewriting a tag means rewriting the file's metadata section, which is exactly where that manifest lives, and a mistake there loses the layer names (or breaks playback) in the other app. On top of that, Mixar's own Stem files store their audio with a layout the tag library it uses cannot even read, so there is no safe read-modify-write path. Mixar therefore leaves every Stem file alone and writes nothing into it.
+**Why `.stem.mp4` files are skipped.** They are MP4 files, but not ordinary ones: a Stem container holds four audio tracks plus a `stem` manifest that lists each layer's name and color, and Traktor and Mixxx read that manifest when they load the file. Rewriting a tag means rewriting the file's metadata section, which is exactly where that manifest lives, and a mistake there loses the layer names (or breaks playback) in the other app. Mixar therefore leaves every Stem file alone and writes nothing into it.
 
 ## What it does to your files
 
@@ -62,10 +62,12 @@ A skipped file is left exactly as it was. Mixar logs the reason instead of guess
 
 ### Rating on MP3
 
-MP3, WAV, AIFF and AAC keep ratings in ID3's `POPM` frame, which the tag library
-Mixar uses does not expose for reading or writing. Mixar still stores and
-exports the rating, but the value does not travel into those files' tags. FLAC,
-OGG, Opus, M4A and MP4 do get it.
+ID3 keeps star ratings in a `POPM` frame that is keyed by the app that wrote it,
+so there is no single frame every reader agrees on. Mixar writes one frame per
+reader it mirrors — Traktor, MusicBrainz Picard, MusicBee and Windows Media
+Player — so they all show the same star count. A rating frame another app owns
+is re-written on the stepped scale those apps use, so its star count is kept.
+FLAC, OGG, Opus, M4A and MP4 carry the rating in their formats' own field.
 
 ### One rounding caveat
 

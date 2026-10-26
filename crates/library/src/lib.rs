@@ -273,8 +273,8 @@ impl LibraryManager {
     ) -> Result<(AudioSource, Option<tags::TagWritePlan>)> {
         let path = normalize_path(path)?;
         // A file tag that carries no value for a user-owned field must not
-        // clear what the editor stored. ID3 ratings are the common case: lofty
-        // cannot read POPM, so a re-analysis would otherwise reset the rating.
+        // clear what the editor stored: a foreign writer may not have written
+        // the tags Mixar mirrors (or written them on a scale it does not read).
         let mut metadata = computed.metadata.clone();
         if let Some((existing, edited)) = self
             .store()

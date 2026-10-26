@@ -40,7 +40,7 @@ test-utils = []
 
 [dev-dependencies]
 host_flutter = { path = ".", features = ["test-utils"] }
-lofty = "0.22"
+lofty = "0.25.5"
 tempfile = "3.0"
 rusqlite = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp"] }
