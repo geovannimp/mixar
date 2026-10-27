@@ -1,11 +1,21 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// GNOME/Adwaita-style radius for undecorated windows (matches compositor shadow).
 const double kDesktopWindowRadius = 12;
+
+/// Whether this host's window chrome is rounded.
+///
+/// Only GNOME-style Linux windows are: Windows draws square window corners, so
+/// a rounded clip leaves bright corner wedges against the desktop, and macOS
+/// owns its own window shape. Those stay flat.
+bool get isRoundedDesktopChrome =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
 
 /// Clips desktop content to rounded top corners so compositor shadows
 /// aren't squared.
@@ -14,7 +24,8 @@ const double kDesktopWindowRadius = 12;
 /// `linux/runner/my_application.cc` RGBA workaround for
 /// https://github.com/leanflutter/window_manager/issues/179 and
 /// window_manager `WindowOptions.backgroundColor`). Radius drops to 0 when
-/// maximized.
+/// maximized, and is 0 on every host except Linux — see
+/// [isRoundedDesktopChrome].
 class DesktopChrome extends StatefulWidget {
   const new({required this.child, super.key});
 
@@ -59,7 +70,7 @@ class _DesktopChromeState extends State<DesktopChrome> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
-    if (!isDesktopWindow) {
+    if (!isDesktopWindow || !isRoundedDesktopChrome) {
       return widget.child;
     }
     return ClipRRect(
