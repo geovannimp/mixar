@@ -50,25 +50,25 @@ The app opens on the mixer with two empty decks, an empty library, and the engin
 
 Deck layout, jog behaviour, tempo range, and every other default are described in [Settings](/docs/users/settings). The two settings worth visiting before you play are **Settings → Audio** and **Settings → Library → Analysis quality**.
 
-## No output device means no app
+## No output device means no sound
 
-The mixer runs inside the audio engine, so a working output device is a hard requirement. With no device enumerated the engine fails with **No output device available** and startup aborts. Plug in or enable an output, then relaunch. See [Audio setup](/docs/users/getting-started/audio-setup).
+The mixer runs inside the audio engine, so a working output device is what makes sound. With no usable device the engine fails with **No output device available**: the app keeps running without audio and shows an *Audio engine failed to start* notice. Plug in or enable an output, then save settings in the Audio section (or relaunch) to bring audio back. See [Audio setup](/docs/users/getting-started/audio-setup).
 
 ## Where your data lives
 
-Everything Mixar owns sits in one application-support directory named `top.mixar.app`:
+Everything Mixar owns sits in one application-support directory: `top.mixar.app` on Linux and macOS, `Mixar` on Windows.
 
 | Platform | Directory |
 | --- | --- |
 | Linux | `$XDG_DATA_HOME/top.mixar.app`, or `~/.local/share/top.mixar.app` |
 | macOS | `~/Library/Application Support/top.mixar.app` |
-| Windows | `%APPDATA%\top.mixar.app` |
+| Windows | `%APPDATA%\Mixar` |
 
 | File | What it holds |
 | --- | --- |
 | `library.db` | Tracks, collections, playlists, hot cues, loops, beat grids, waveform overviews |
 | `settings.json` | Every preference, including controller trust and the chosen audio devices |
-| `mixar.log` | Rust diagnostics |
+| `mixar.log` | Rust diagnostics, written from launch |
 | `mappings/` | Controller mapping bundles |
 | `stems/`, `models/` | Generated stem caches and the downloaded separation models |
 

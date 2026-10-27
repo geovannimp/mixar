@@ -90,11 +90,19 @@ fn init_tracing() {
     let _ = tracing::subscriber::set_global_default(subscriber);
 }
 
-/// Append Mixar diagnostics to `path` (typically `{app-support}/mixar.log`).
+/// Attach Mixar diagnostics to `path` (Dart passes `{app-support}/mixar.log`).
 ///
-/// Idempotent: later calls replace the open handle. Safe to call after [`init_app`].
-pub fn attach_app_log_file(path: impl AsRef<Path>) {
-    let path = path.as_ref();
+/// Called once at startup so the log exists before any subsystem runs:
+/// `{app-support}` is `%APPDATA%\Mixar` on Windows, `~/.local/share/top.mixar.app`
+/// on Linux and `~/Library/Application Support/top.mixar.app` on macOS.
+///
+/// Idempotent: later calls replace the open handle.
+pub fn attach_app_log_file(path: String) {
+    attach_log_file(Path::new(&path));
+}
+
+/// Implementation for the callers inside this crate, which already hold a path.
+fn attach_log_file(path: &Path) {
     if let Some(parent) = path.parent() {
         if let Err(err) = fs::create_dir_all(parent) {
             tracing::warn!(
@@ -123,13 +131,13 @@ pub fn attach_app_log_file(path: impl AsRef<Path>) {
 }
 
 /// `{mappings_dir}/../mixar.log` when `mappings_dir` is `{app-support}/mappings`.
-pub fn attach_app_log_beside_mappings(mappings_dir: impl AsRef<Path>) {
+pub(crate) fn attach_app_log_beside_mappings(mappings_dir: impl AsRef<Path>) {
     let mappings_dir = mappings_dir.as_ref();
     let path = mappings_dir
         .parent()
         .map(|p| p.join("mixar.log"))
         .unwrap_or_else(|| PathBuf::from("mixar.log"));
-    attach_app_log_file(path);
+    attach_log_file(&path);
 }
 
 #[cfg(test)]
@@ -187,7 +195,7 @@ mod tests {
             .with_ansi(false)
             .finish();
         tracing::subscriber::with_default(subscriber, || {
-            attach_app_log_file(&path);
+            attach_app_log_file(path.to_string_lossy().into_owned());
             tracing::error!(
                 mapping_id = "ddj-400",
                 hook = "on_init",

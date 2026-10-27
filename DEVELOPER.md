@@ -86,9 +86,9 @@ Library DB and settings sit next to each other under the platform application-su
 | --- | --- |
 | Linux | `$XDG_DATA_HOME/top.mixar.app` or `~/.local/share/top.mixar.app` |
 | macOS | `~/Library/Application Support/top.mixar.app` |
-| Windows | `%APPDATA%\top.mixar.app` |
+| Windows | `%APPDATA%\Mixar` |
 
-Files of interest: `library.db`, `settings.json`, `mixar.log` (Rust diagnostics; attached when `ControllerTransport` starts).
+Files of interest: `library.db`, `settings.json`, `mixar.log` (Rust diagnostics; attached from the Flutter host at launch).
 
 ### Raising verbosity
 
