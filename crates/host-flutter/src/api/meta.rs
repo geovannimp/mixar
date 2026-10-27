@@ -90,6 +90,9 @@ fn init_tracing() {
 
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter(tracing_env_filter())
+        // No ANSI escapes: the tee writes the same bytes to `mixar.log`, where colour codes
+        // show up as `^[[2m` garbage (and a Windows console does not interpret them either).
+        .with_ansi(false)
         .with_writer(MakeTee)
         .finish();
     let _ = tracing::subscriber::set_global_default(subscriber);
@@ -191,6 +194,11 @@ mod tests {
         });
         let text = fs::read_to_string(&path).unwrap();
         assert!(text.contains("PC_MODE_SYSEX"), "{text}");
+        // ANSI colour codes belong to a terminal, not to the log file.
+        assert!(
+            !text.contains('\u{1b}'),
+            "log file carries ANSI escapes: {text:?}"
+        );
         assert!(text.contains("on_init"), "{text}");
         assert!(text.contains("ddj-400"), "{text}");
     }
