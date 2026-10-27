@@ -103,12 +103,28 @@ impl CpalBackend {
             .ok_or_else(|| anyhow::anyhow!("Device not found: {}", id_str))
     }
 
-    /// Validate requested buffer size against CPAL-reported device limits.
-    fn validate_buffer_size(
+    /// Frames to request from a device for a configured buffer size.
+    ///
+    /// The configured size is the DSP chunk length, not something the device is obliged to
+    /// produce per callback. WASAPI shared mode owns the callback period (the audio engine's
+    /// ~10 ms, i.e. 480 frames at 48 kHz) and advertises it as `Range { min == max }`, so the
+    /// only size such a device accepts is its period. Asking for the nearest supported size
+    /// keeps the device openable; `engine-core` decouples the callback period from the DSP
+    /// chunk through the ring buffer, so both may differ.
+    fn negotiate_frames(supported: &SupportedBufferSize, requested: u32) -> u32 {
+        match supported {
+            SupportedBufferSize::Range { min, max } if min <= max => requested.clamp(*min, *max),
+            _ => requested,
+        }
+    }
+
+    /// Log what the device will really deliver, so a period that differs from the configured
+    /// chunk is visible instead of looking like a misconfiguration.
+    fn log_device_buffer_limits(
         device: &cpal::Device,
         config_range: &SupportedStreamConfigRange,
         requested: u32,
-    ) -> Result<()> {
+    ) {
         if let Ok(default) = device.default_output_config() {
             tracing::info!(
                 "Device default output buffer size: {:?}",
@@ -118,19 +134,14 @@ impl CpalBackend {
 
         match config_range.buffer_size() {
             SupportedBufferSize::Range { min, max } => {
+                let frames = Self::negotiate_frames(config_range.buffer_size(), requested);
                 tracing::info!(
-                    "Device supported buffer size range: {}..={} frames",
+                    "Device supported buffer size range: {}..={} frames (requesting {} for a configured {} frames)",
                     min,
-                    max
+                    max,
+                    frames,
+                    requested
                 );
-                if requested < *min || requested > *max {
-                    return Err(anyhow::anyhow!(
-                        "Requested buffer size {} frames is outside device range {}..={} frames",
-                        requested,
-                        min,
-                        max
-                    ));
-                }
             }
             SupportedBufferSize::Unknown => {
                 tracing::info!(
@@ -139,8 +150,6 @@ impl CpalBackend {
                 );
             }
         }
-
-        Ok(())
     }
 
     fn device_candidates(&self, preferred: &DeviceId) -> Vec<cpal::Device> {
@@ -214,7 +223,7 @@ impl CpalBackend {
         let config_range =
             Self::pick_config_range(&matching_configs, params.sample_rate, params.channels)?;
 
-        Self::validate_buffer_size(device, &config_range, params.frames_per_buffer)?;
+        Self::log_device_buffer_limits(device, &config_range, params.frames_per_buffer);
 
         Ok(config_range)
     }
@@ -328,22 +337,27 @@ impl AudioBackend for CpalBackend {
             ));
         }
 
+        // The device may only accept its own period (WASAPI shared mode); engine-core keeps the
+        // DSP chunk at the configured size and lets the ring buffer absorb the difference.
+        let requested_frames = params.frames_per_buffer;
+        let device_frames = Self::negotiate_frames(config_range.buffer_size(), requested_frames);
+
         tracing::info!(
-            "Opening CPAL output on '{}' ({} Hz, {} channels, buffer size: {})",
+            "Opening CPAL output on '{}' ({} Hz, {} channels, {} frames/callback, configured {} frames)",
             device_name,
             actual_sample_rate,
             supported_config.channels(),
-            params.frames_per_buffer
+            device_frames,
+            requested_frames
         );
 
         let channels = supported_config.channels();
-        let frames_per_buffer = params.frames_per_buffer;
         let last_callback_frames = Arc::new(AtomicU32::new(0));
 
         let config = StreamConfig {
             channels: supported_config.channels(),
             sample_rate: actual_sample_rate,
-            buffer_size: BufferSize::Fixed(params.frames_per_buffer),
+            buffer_size: BufferSize::Fixed(device_frames),
         };
         let frames = Arc::clone(&last_callback_frames);
         let mut callback = callback;
@@ -363,19 +377,23 @@ impl AudioBackend for CpalBackend {
             )
             .map_err(|error| {
                 anyhow::anyhow!(
-                    "Device does not support fixed buffer size of {} frames: {} (do not use BufferSize::Default — see CPAL buffer size docs)",
-                    params.frames_per_buffer,
+                    "Device '{}' rejected a fixed buffer size of {} frames: {} (do not use BufferSize::Default — see CPAL buffer size docs)",
+                    device_name,
+                    device_frames,
                     error
                 )
             })?;
 
-        let granted_buffer = stream.buffer_size().unwrap_or(frames_per_buffer);
-        if granted_buffer != frames_per_buffer {
-            return Err(anyhow::anyhow!(
-                "CPAL granted stream buffer size {} frames but {} frames were requested (BufferSize::Default causes fast-forward playback — use Fixed)",
+        // The callback's own frame count is authoritative: WASAPI shared mode always delivers its
+        // device period regardless of what was requested, so a differing grant is not an error.
+        let granted_buffer = stream.buffer_size().unwrap_or(device_frames);
+        if granted_buffer != device_frames {
+            tracing::info!(
+                "CPAL granted {} frames on '{}' for a {} frame request",
                 granted_buffer,
-                frames_per_buffer
-            ));
+                device_name,
+                device_frames
+            );
         }
 
         tracing::info!(
@@ -417,6 +435,13 @@ impl AudioStream for CpalStream {
     }
 
     fn actual_buffer_size(&self) -> Option<u32> {
+        // Once the device has called back, its own frame count is the truth: WASAPI shared mode
+        // delivers the device period regardless of the requested size. Before the first callback
+        // this reports what was requested/granted.
+        let live = self.last_callback_frames.load(Ordering::Relaxed);
+        if live > 0 {
+            return Some(live);
+        }
         if let Ok(size) = self.stream.buffer_size() {
             return Some(size);
         }
@@ -483,6 +508,37 @@ mod tests {
         let message = error.to_string();
         assert!(message.contains("48000"));
         assert!(message.contains("4 channels"));
+    }
+
+    #[test]
+    fn negotiate_frames_keeps_a_supported_request() {
+        let supported = SupportedBufferSize::Range { min: 64, max: 2048 };
+        assert_eq!(CpalBackend::negotiate_frames(&supported, 512), 512);
+    }
+
+    #[test]
+    fn negotiate_frames_clamps_to_a_fixed_device_period() {
+        // WASAPI shared mode advertises its own period as `Range { min == max }`, so 512 can
+        // never be granted there; the engine must still be able to open the device.
+        let supported = SupportedBufferSize::Range { min: 480, max: 480 };
+        assert_eq!(CpalBackend::negotiate_frames(&supported, 512), 480);
+    }
+
+    #[test]
+    fn negotiate_frames_clamps_below_range_minimum() {
+        let supported = SupportedBufferSize::Range {
+            min: 1024,
+            max: 4096,
+        };
+        assert_eq!(CpalBackend::negotiate_frames(&supported, 512), 1024);
+    }
+
+    #[test]
+    fn negotiate_frames_keeps_request_when_range_is_unknown() {
+        assert_eq!(
+            CpalBackend::negotiate_frames(&SupportedBufferSize::Unknown, 512),
+            512
+        );
     }
 
     #[test]

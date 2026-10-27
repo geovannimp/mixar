@@ -170,14 +170,17 @@ impl Engine {
         };
 
         // Index 0 is the pacing ("master clock") device: `resolve_device_stream_plans` sorts a
-        // master-hosting plan first when one exists, so the producer paces off its callback.
+        // master-hosting plan first when one exists, so the producer paces off its ring drain.
         let callback_counts: Vec<Arc<AtomicU64>> = device_streams
             .iter()
             .map(|setup| Arc::clone(&setup.callback_count))
             .collect();
-        let pacing_callback_frames_atomic = device_streams[0].callback_frames_atomic.clone();
+        let callback_frames: Vec<Option<Arc<AtomicU32>>> = device_streams
+            .iter()
+            .map(|setup| setup.callback_frames_atomic.clone())
+            .collect();
+        let pacing_callback_frames_atomic = callback_frames[0].clone();
         let pacing_sample_rate = device_streams[0].sample_rate;
-        let pacing_buffer_size = device_streams[0].buffer_size;
 
         let mut streams = Vec::with_capacity(device_streams.len());
         let mut device_producers = Vec::with_capacity(device_streams.len());
@@ -189,8 +192,8 @@ impl Engine {
         let producer_thread = match self.start_dsp_producer(
             device_producers,
             pacing_sample_rate,
-            pacing_buffer_size,
-            pacing_callback_frames_atomic.clone(),
+            self.config.buffer_size as usize,
+            callback_frames,
             callback_counts,
         ) {
             Ok(thread) => thread,
@@ -220,8 +223,12 @@ impl Engine {
         Ok(())
     }
 
-    /// Resolve bus/device plans and open one output stream + ring per device, verifying each
-    /// device's negotiated sample rate and buffer size match config.
+    /// Resolve bus/device plans and open one output stream + ring per device.
+    ///
+    /// The negotiated sample rate must match config (the DSP runs at one rate), but the device's
+    /// callback frame count need not: a backend may only be able to deliver its own period (WASAPI
+    /// shared mode fixes it at ~10 ms, 480 frames at 48 kHz), and the ring buffer decouples that
+    /// from the DSP chunk. See [`producer_thread_loop`].
     fn open_device_streams(&mut self) -> Result<Vec<DeviceStreamSetup>> {
         let devices = self.backend.list_output_devices()?;
         let plans = crate::routing::resolve_device_stream_plans(&self.config.buses, &devices)?;
@@ -244,30 +251,30 @@ impl Engine {
                 .backend
                 .open_output_stream(&plan.device, &params, callback)?;
 
-            let buffer_size = stream
+            let device_frames = stream
                 .actual_buffer_size()
-                .unwrap_or(self.config.buffer_size) as usize;
+                .unwrap_or(self.config.buffer_size);
             let sample_rate = stream
                 .actual_sample_rate()
                 .unwrap_or(self.config.sample_rate);
 
             tracing::info!(
-                "Audio stream opened on device '{}': {} Hz, {} frames/buffer, {} channel(s) (config: {} Hz, {} frames)",
+                "Audio stream opened on device '{}': {} Hz, {} frames/callback, {} channel(s) (config: {} Hz, {} frame DSP chunk)",
                 plan.device.as_str(),
                 sample_rate,
-                buffer_size,
+                device_frames,
                 plan.channels,
                 self.config.sample_rate,
                 self.config.buffer_size
             );
 
-            if buffer_size != self.config.buffer_size as usize {
-                return Err(anyhow::anyhow!(
-                    "Device '{}' buffer size {} frames does not match configured {} frames",
+            if device_frames != self.config.buffer_size {
+                tracing::info!(
+                    "Device '{}' callback period {} frames differs from the {} frame DSP chunk; the ring buffer absorbs the difference",
                     plan.device.as_str(),
-                    buffer_size,
+                    device_frames,
                     self.config.buffer_size
-                ));
+                );
             }
             if sample_rate != self.config.sample_rate {
                 return Err(anyhow::anyhow!(
@@ -287,7 +294,6 @@ impl Engine {
                 callback_count,
                 callback_frames_atomic,
                 sample_rate,
-                buffer_size,
             });
         }
 
@@ -304,13 +310,13 @@ impl Engine {
         &mut self,
         device_producers: Vec<(DeviceStreamPlan, Producer<Sample>)>,
         sample_rate: u32,
-        buffer_size: usize,
-        callback_frames_atomic: Option<Arc<AtomicU32>>,
+        dsp_chunk_frames: usize,
+        callback_frames: Vec<Option<Arc<AtomicU32>>>,
         callback_counts: Vec<Arc<AtomicU64>>,
     ) -> Result<JoinHandle<()>> {
         let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
             sample_rate,
-            buffer_size as u32,
+            dsp_chunk_frames as u32,
             self.config.num_decks,
             &self.config.resampler_quality(),
             self.config.sampler_strip_route(),
@@ -340,8 +346,8 @@ impl Engine {
                 device_producers,
                 running,
                 sample_rate,
-                buffer_size,
-                callback_frames_atomic,
+                dsp_chunk_frames,
+                callback_frames,
                 callback_counts,
                 transport_events,
             );
