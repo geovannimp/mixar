@@ -494,6 +494,28 @@ mod tests {
     }
 
     #[test]
+    fn fixed_input_resampler_carries_a_fractional_ratio_when_upsampling() {
+        // The reverse direction: 512 frames @ 48 kHz is 940.8 frames @ 88.2 kHz.
+        let mut resampler = FixedInputResampler::new(48_000, 88_200, 2, 512, "medium").unwrap();
+        let input = vec![0.5f32; 512 * 2];
+        let mut out = vec![0.0f32; 2_000 * 2];
+
+        let mut frames = 0usize;
+        for _ in 0..400 {
+            let (written, consumed) = resampler.process(&input, &mut out, 2);
+            assert_eq!(consumed, 512);
+            frames += written / 2;
+        }
+
+        let expected = 400.0 * 512.0 * 88_200.0 / 48_000.0;
+        let max_block = resampler.max_output_frames() as f64;
+        assert!(
+            (frames as f64 - expected).abs() <= max_block,
+            "{frames} frames, expected about {expected}"
+        );
+    }
+
+    #[test]
     fn test_resampler_no_resampling() {
         let mut resampler =
             RubatoResampler::new(44100, 44100, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium").unwrap();
