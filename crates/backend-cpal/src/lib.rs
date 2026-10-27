@@ -153,39 +153,6 @@ impl CpalBackend {
         }
     }
 
-    /// Sample rates to try, in order: the selected one, then the device's shared mix rate.
-    ///
-    /// WASAPI answers `S_FALSE` ("usable only with format conversion") for anything that is
-    /// not exactly its shared mix format, and CPAL counts only `S_OK` as supported — even when
-    /// `supported_output_configs()` advertises a range containing the rate. A device mixing at
-    /// 44.1 kHz therefore rejects 48 kHz on open while listing 44.1..=48 kHz. The mix rate is
-    /// what `default_output_config()` reports, so that is the working fallback.
-    fn rate_candidates(requested: u32, device_default: Option<u32>) -> Vec<u32> {
-        let mut rates = vec![requested];
-        if let Some(default) = device_default {
-            if default != requested {
-                rates.push(default);
-            }
-        }
-        rates
-    }
-
-    /// Build (and immediately drop) a silent stream to learn whether the device accepts it.
-    ///
-    /// The only reliable answer for shared mode. A separate stub is required because CPAL
-    /// consumes the real callback on a failed build, so a failed open cannot be retried with
-    /// the same callback.
-    fn stream_supported(device: &cpal::Device, config: &StreamConfig) -> bool {
-        device
-            .build_output_stream::<f32, _, _>(
-                *config,
-                |data: &mut [f32], _: &cpal::OutputCallbackInfo| data.fill(0.0),
-                |_| {},
-                None,
-            )
-            .is_ok()
-    }
-
     fn device_candidates(&self, preferred: &DeviceId) -> Vec<cpal::Device> {
         let mut candidates = Vec::new();
         let mut seen = HashSet::new();
@@ -229,13 +196,12 @@ impl CpalBackend {
     /// - the sample format must be `f32`, because `AudioCallback::render` hands the
     ///   device `f32` samples (CPAL builds a typed `WAVEFORMATEXTENSIBLE` for it);
     /// - the requested channel count;
-    /// - the requested sample rate, falling back to the device's default rate. WASAPI
-    ///   shared mode is locked to the engine mix format, so a virtual/RDP device that
-    ///   mixes at 44.1 kHz can never run 48 kHz; the engine follows the device rather
-    ///   than refusing to start.
+    /// - the requested sample rate, which must be available: a rate the device cannot open
+    ///   is an error, never a silent downgrade. WASAPI shared mode is locked to the engine
+    ///   mix format, so a virtual/RDP device that mixes at 44.1 kHz cannot run 48 kHz; the
+    ///   user picks 44.1 kHz in Settings → Audio (the selector lists the device's rates).
     fn pick_device_format(
         supported: &[SupportedStreamConfigRange],
-        default_rate: Option<u32>,
         requested_rate: u32,
         channels: u16,
     ) -> Result<DeviceFormat> {
@@ -273,43 +239,27 @@ impl CpalBackend {
             });
         }
 
-        // The requested rate is unavailable: use the device default when it fits,
-        // otherwise the bound of some range closest to what was asked for.
-        let sample_rate = default_rate
-            .filter(|rate| candidates.iter().any(|range| contains(range, *rate)))
-            .or_else(|| {
-                candidates
-                    .iter()
-                    .map(|range| {
-                        requested_rate.clamp(range.min_sample_rate(), range.max_sample_rate())
-                    })
-                    .min_by_key(|rate| requested_rate.abs_diff(*rate))
-            })
-            .ok_or_else(|| {
-                anyhow::anyhow!("device cannot run {requested_rate} Hz and reports no usable rate")
-            })?;
-        let range = candidates
+        let available: Vec<String> = candidates
             .iter()
-            .find(|range| contains(range, sample_rate))
-            .copied()
-            .ok_or_else(|| anyhow::anyhow!("no supported config contains {sample_rate} Hz"))?;
-        Ok(DeviceFormat {
-            range: *range,
-            sample_rate,
-        })
+            .map(|range| {
+                format!(
+                    "{}..={} Hz",
+                    range.min_sample_rate(),
+                    range.max_sample_rate()
+                )
+            })
+            .collect();
+        Err(anyhow::anyhow!(
+            "device cannot run {requested_rate} Hz with f32 {channels}-channel output (offers {})",
+            available.join(", ")
+        ))
     }
 
     fn select_stream_config(device: &cpal::Device, params: &StreamParams) -> Result<DeviceFormat> {
         let supported: Vec<_> = device.supported_output_configs()?.collect();
         let default_config = device.default_output_config().ok();
-        let default_rate = default_config.as_ref().map(|config| config.sample_rate());
 
-        let format = Self::pick_device_format(
-            &supported,
-            default_rate,
-            params.sample_rate,
-            params.channels,
-        )?;
+        let format = Self::pick_device_format(&supported, params.sample_rate, params.channels)?;
 
         Self::log_device_formats(&supported, default_config.as_ref(), &format, params);
 
@@ -462,57 +412,7 @@ impl AudioBackend for CpalBackend {
         let requested_frames = params.frames_per_buffer;
         let device_frames = Self::negotiate_frames(format.range.buffer_size(), requested_frames);
 
-        // Picking by advertised range is not enough: probe the selected rate, then the device's
-        // mix rate, and open at the first the device actually accepts.
-        let device_default_rate = cpal_device
-            .default_output_config()
-            .ok()
-            .map(|config| config.sample_rate());
-        let mut candidates = Self::rate_candidates(format.sample_rate, device_default_rate);
-        let actual_sample_rate = if candidates.len() == 1 {
-            candidates.remove(0)
-        } else {
-            tracing::info!(
-                device = %device_name,
-                rates = ?candidates,
-                "probing sample rates: the device mix rate differs from the configured one"
-            );
-            let mut accepted = None;
-            for rate in &candidates {
-                let probe = StreamConfig {
-                    channels: supported_config.channels(),
-                    sample_rate: *rate,
-                    buffer_size: BufferSize::Fixed(device_frames),
-                };
-                if Self::stream_supported(&cpal_device, &probe) {
-                    accepted = Some(*rate);
-                    break;
-                }
-                tracing::warn!(
-                    device = %device_name,
-                    rate_hz = rate,
-                    "device rejected this sample rate in shared mode; trying the device mix rate"
-                );
-            }
-            accepted.ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Device '{}' accepted none of the sample rates {:?} for {:?} {} ch, {} frames/callback",
-                    device_name,
-                    candidates,
-                    supported_config.sample_format(),
-                    supported_config.channels(),
-                    device_frames
-                )
-            })?
-        };
-        if actual_sample_rate != params.sample_rate {
-            tracing::warn!(
-                device = %device_name,
-                requested_hz = params.sample_rate,
-                actual_hz = actual_sample_rate,
-                "device cannot open the configured sample rate in shared mode; opening at its mix rate and running the engine there"
-            );
-        }
+        let actual_sample_rate = format.sample_rate;
 
         tracing::info!(
             "Opening CPAL output on '{}' ({} Hz {:?}, {} channels, {} frames/callback, configured {} Hz / {} frames)",
@@ -688,11 +588,11 @@ mod tests {
             range(4, 48_000, 96_000, SampleFormat::F32),
         ];
 
-        let picked = CpalBackend::pick_device_format(&configs, None, 48_000, 4).unwrap();
+        let picked = CpalBackend::pick_device_format(&configs, 48_000, 4).unwrap();
         assert_eq!(picked.range.channels(), 4);
         assert_eq!(picked.sample_rate, 48_000);
 
-        let picked = CpalBackend::pick_device_format(&configs, None, 48_000, 2).unwrap();
+        let picked = CpalBackend::pick_device_format(&configs, 48_000, 2).unwrap();
         assert_eq!(picked.range.channels(), 2);
     }
 
@@ -700,7 +600,7 @@ mod tests {
     fn pick_device_format_names_available_channels_instead_of_the_request() {
         let configs = [range(2, 48_000, 96_000, SampleFormat::F32)];
 
-        let error = CpalBackend::pick_device_format(&configs, None, 48_000, 4).unwrap_err();
+        let error = CpalBackend::pick_device_format(&configs, 48_000, 4).unwrap_err();
         let message = error.to_string();
         assert!(message.contains("f32 4-channel"), "{message}");
         assert!(message.contains("2ch"), "{message}");
@@ -716,43 +616,20 @@ mod tests {
             range(2, 44_100, 48_000, SampleFormat::U16),
         ];
 
-        let error = CpalBackend::pick_device_format(&configs, None, 48_000, 2).unwrap_err();
+        let error = CpalBackend::pick_device_format(&configs, 48_000, 2).unwrap_err();
         assert!(error.to_string().contains("no f32 2-channel"), "{error}");
     }
 
     #[test]
-    fn pick_device_format_falls_back_to_the_device_default_rate() {
-        // A virtual/RDP device mixing at 44.1 kHz can never run 48 kHz in shared mode.
+    fn pick_device_format_refuses_an_unavailable_rate_instead_of_substituting() {
+        // A device that only mixes at 44.1 kHz must not get 48 kHz quietly downgraded: the
+        // engine either runs at the configured rate or the start fails with this message.
         let configs = [range(2, 44_100, 44_100, SampleFormat::F32)];
 
-        let picked = CpalBackend::pick_device_format(&configs, Some(44_100), 48_000, 2).unwrap();
-        assert_eq!(picked.sample_rate, 44_100);
-    }
-
-    #[test]
-    fn pick_device_format_falls_back_to_the_nearest_bound_without_a_default() {
-        let configs = [range(2, 22_050, 32_000, SampleFormat::F32)];
-
-        let picked = CpalBackend::pick_device_format(&configs, None, 48_000, 2).unwrap();
-        assert_eq!(picked.sample_rate, 32_000);
-    }
-
-    #[test]
-    fn rate_candidates_try_the_requested_rate_first() {
-        assert_eq!(CpalBackend::rate_candidates(48_000, None), vec![48_000]);
-        assert_eq!(
-            CpalBackend::rate_candidates(48_000, Some(48_000)),
-            vec![48_000]
-        );
-    }
-
-    #[test]
-    fn rate_candidates_add_the_device_mix_rate_as_fallback() {
-        // A device mixing at 44.1 kHz rejects 48 kHz in shared mode; 44.1 is the retry.
-        assert_eq!(
-            CpalBackend::rate_candidates(48_000, Some(44_100)),
-            vec![48_000, 44_100]
-        );
+        let error = CpalBackend::pick_device_format(&configs, 48_000, 2).unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("cannot run 48000 Hz"), "{message}");
+        assert!(message.contains("44100..=44100 Hz"), "{message}");
     }
 
     #[test]
