@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:gui_flutter/analytics/analytics_transport.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
+import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -253,7 +254,13 @@ Future<SaveAppSettingsResult> saveAppSettings(
       minPlaySeconds: normalized.historyMinPlaySeconds,
       minDeckVolume: normalized.historyMinDeckVolume,
     );
-    final engine = await ref.read(engineTransportProvider.future);
+    var engine = await ref.read(engineTransportProvider.future);
+    if (engine == null && isDesktopWindow) {
+      // A failed engine start caches no transport, only a notice. Saving settings is the
+      // user's way back: retry once the audio device configuration has been fixed.
+      ref.invalidate(engineTransportProvider);
+      engine = await ref.read(engineTransportProvider.future);
+    }
     if (engine != null && await engine.isRunning()) {
       await restartDecksFromSettings(
         ref.read,

@@ -932,9 +932,14 @@ final engineTransportProvider = FutureProvider<EngineTransport?>((ref) async {
     ref.read(engineUiProvider.notifier).setRunning(true);
     return engine;
   } catch (e, st) {
+    // No audio is a degraded app, not a fatal one: exiting leaves the user with a
+    // window that flashes once and a log they never see. Keep the UI up and say why.
     FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
-    fatalExit();
-    rethrow;
+    ref.read(engineUiProvider.notifier).setRunning(false);
+    ref
+        .read(appNoticeProvider.notifier)
+        .setError('Audio engine failed to start: $e');
+    return null;
   }
 });
 
