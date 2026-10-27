@@ -12,8 +12,6 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 class SettingsDeepLink {
   const SettingsDeepLink({
@@ -42,8 +40,8 @@ final pendingSettingsDeepLinkProvider =
 final settingsTransportProvider = FutureProvider<SettingsTransport>((
   ref,
 ) async {
-  final support = await getApplicationSupportDirectory();
-  return SettingsTransport.open(path: p.join(support.path, 'settings.json'));
+  // Sync bridge call behind a Future: keeps a failed init an async provider error.
+  return Future.sync(SettingsTransport.open);
 });
 
 final audioDevicesProvider = FutureProvider<List<OutputDevice>>(

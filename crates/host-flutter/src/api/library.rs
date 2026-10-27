@@ -433,12 +433,19 @@ impl Drop for LibraryTransport {
 }
 
 impl LibraryTransport {
-    /// Open (or create) a SQLite library at `db_path`.
-    pub fn open(db_path: String) -> Result<Self, String> {
+    /// Open (or create) the app-support library (`{app-support}/library.db`).
+    ///
+    /// Stem and model caches live next to the DB, so they follow the same directory.
+    pub fn open() -> Result<Self, String> {
+        Self::open_at(&crate::app_paths::library_db())
+    }
+
+    /// Open a library at an explicit path (tests: temp directories).
+    pub(crate) fn open_at(db_path: &Path) -> Result<Self, String> {
         let manager =
-            LibraryManager::open(&db_path, LibraryConfig::default()).map_err(|e| e.to_string())?;
+            LibraryManager::open(db_path, LibraryConfig::default()).map_err(|e| e.to_string())?;
         let transport = Self::from_manager(manager)?;
-        if let Some(parent) = Path::new(&db_path).parent() {
+        if let Some(parent) = db_path.parent() {
             transport.buses.set_stems_root(parent.join("stems"));
             transport.buses.set_models_root(parent.join("models"));
         }
@@ -1881,7 +1888,7 @@ mod tests {
     fn open_sets_stems_and_models_roots_and_clear_empties() {
         let dir = tempfile::tempdir().unwrap();
         let db = dir.path().join("library.db");
-        let transport = LibraryTransport::open(db.to_string_lossy().into_owned()).unwrap();
+        let transport = LibraryTransport::open_at(&db).unwrap();
         assert_eq!(transport.buses.stems_root(), dir.path().join("stems"));
         assert_eq!(transport.buses.models_root(), dir.path().join("models"));
 

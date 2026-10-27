@@ -7,16 +7,16 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `open_at`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Command`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AnalyticsTransport>>
 abstract class AnalyticsTransport implements RustOpaqueInterface {
   Future<void> appLaunched();
 
-  static Future<AnalyticsTransport> open({required String appSupportPath}) =>
-      RustLib.instance.api.crateApiAnalyticsAnalyticsTransportOpen(
-        appSupportPath: appSupportPath,
-      );
+  /// Open the analytics host against `{app-support}` (identity file included).
+  static Future<AnalyticsTransport> open() =>
+      RustLib.instance.api.crateApiAnalyticsAnalyticsTransportOpen();
 
   Future<void> setEnabled({required bool enabled});
 }

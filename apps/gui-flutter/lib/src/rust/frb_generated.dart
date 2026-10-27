@@ -75,7 +75,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 2094056437;
+  int get rustContentHash => 2095471438;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -91,9 +91,7 @@ abstract class RustLibApi extends BaseApi {
     required AnalyticsTransport that,
   });
 
-  Future<AnalyticsTransport> crateApiAnalyticsAnalyticsTransportOpen({
-    required String appSupportPath,
-  });
+  Future<AnalyticsTransport> crateApiAnalyticsAnalyticsTransportOpen();
 
   Future<void> crateApiAnalyticsAnalyticsTransportSetEnabled({
     required AnalyticsTransport that,
@@ -129,8 +127,6 @@ abstract class RustLibApi extends BaseApi {
   Future<ControllerTransport> crateApiControllerControllerTransportStart({
     required EngineBusHandle engineBuses,
     required LibraryBusHandle libraryBuses,
-    required String mappingsDir,
-    String? shippedMappingsDir,
     required List<String> trustedDeviceIds,
   });
 
@@ -742,9 +738,7 @@ abstract class RustLibApi extends BaseApi {
     required LibraryTransport that,
   });
 
-  Future<LibraryTransport> crateApiLibraryLibraryTransportOpen({
-    required String dbPath,
-  });
+  Future<LibraryTransport> crateApiLibraryLibraryTransportOpen();
 
   Future<LibraryTransport> crateApiLibraryLibraryTransportOpenInMemory();
 
@@ -826,9 +820,7 @@ abstract class RustLibApi extends BaseApi {
     required SettingsTransport that,
   });
 
-  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen({
-    required String path,
-  });
+  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen();
 
   Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
     required SettingsTransport that,
@@ -836,8 +828,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   String crateApiMetaAppDisplayName();
-
-  Future<void> crateApiMetaAttachAppLogFile({required String path});
 
   Future<FsDirectoryListing> crateApiFsBrowserBrowseFsDirectory({
     required String path,
@@ -984,14 +974,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<AnalyticsTransport> crateApiAnalyticsAnalyticsTransportOpen({
-    required String appSupportPath,
-  }) {
+  Future<AnalyticsTransport> crateApiAnalyticsAnalyticsTransportOpen() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(appSupportPath, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1005,17 +992,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiAnalyticsAnalyticsTransportOpenConstMeta,
-        argValues: [appSupportPath],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiAnalyticsAnalyticsTransportOpenConstMeta =>
-      const TaskConstMeta(
-        debugName: "AnalyticsTransport_open",
-        argNames: ["appSupportPath"],
-      );
+      const TaskConstMeta(debugName: "AnalyticsTransport_open", argNames: []);
 
   @override
   Future<void> crateApiAnalyticsAnalyticsTransportSetEnabled({
@@ -1254,8 +1238,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<ControllerTransport> crateApiControllerControllerTransportStart({
     required EngineBusHandle engineBuses,
     required LibraryBusHandle libraryBuses,
-    required String mappingsDir,
-    String? shippedMappingsDir,
     required List<String> trustedDeviceIds,
   }) {
     return handler.executeNormal(
@@ -1270,8 +1252,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             libraryBuses,
             serializer,
           );
-          sse_encode_String(mappingsDir, serializer);
-          sse_encode_opt_String(shippedMappingsDir, serializer);
           sse_encode_list_String(trustedDeviceIds, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
@@ -1286,13 +1266,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiControllerControllerTransportStartConstMeta,
-        argValues: [
-          engineBuses,
-          libraryBuses,
-          mappingsDir,
-          shippedMappingsDir,
-          trustedDeviceIds,
-        ],
+        argValues: [engineBuses, libraryBuses, trustedDeviceIds],
         apiImpl: this,
       ),
     );
@@ -1301,13 +1275,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiControllerControllerTransportStartConstMeta =>
       const TaskConstMeta(
         debugName: "ControllerTransport_start",
-        argNames: [
-          "engineBuses",
-          "libraryBuses",
-          "mappingsDir",
-          "shippedMappingsDir",
-          "trustedDeviceIds",
-        ],
+        argNames: ["engineBuses", "libraryBuses", "trustedDeviceIds"],
       );
 
   @override
@@ -5600,14 +5568,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<LibraryTransport> crateApiLibraryLibraryTransportOpen({
-    required String dbPath,
-  }) {
+  Future<LibraryTransport> crateApiLibraryLibraryTransportOpen() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(dbPath, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -5621,17 +5586,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiLibraryLibraryTransportOpenConstMeta,
-        argValues: [dbPath],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiLibraryLibraryTransportOpenConstMeta =>
-      const TaskConstMeta(
-        debugName: "LibraryTransport_open",
-        argNames: ["dbPath"],
-      );
+      const TaskConstMeta(debugName: "LibraryTransport_open", argNames: []);
 
   @override
   Future<LibraryTransport> crateApiLibraryLibraryTransportOpenInMemory() {
@@ -6203,14 +6165,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen({
-    required String path,
-  }) {
+  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(path, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -6224,17 +6183,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiSettingsSettingsTransportOpenConstMeta,
-        argValues: [path],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiSettingsSettingsTransportOpenConstMeta =>
-      const TaskConstMeta(
-        debugName: "SettingsTransport_open",
-        argNames: ["path"],
-      );
+      const TaskConstMeta(debugName: "SettingsTransport_open", argNames: []);
 
   @override
   Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
@@ -6301,34 +6257,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "app_display_name", argNames: []);
 
   @override
-  Future<void> crateApiMetaAttachAppLogFile({required String path}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(path, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 134,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiMetaAttachAppLogFileConstMeta,
-        argValues: [path],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiMetaAttachAppLogFileConstMeta =>
-      const TaskConstMeta(debugName: "attach_app_log_file", argNames: ["path"]);
-
-  @override
   Future<FsDirectoryListing> crateApiFsBrowserBrowseFsDirectory({
     required String path,
   }) {
@@ -6340,7 +6268,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 135,
+            funcId: 134,
             port: port_,
           );
         },
@@ -6367,7 +6295,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 135,
             port: port_,
           );
         },
@@ -6394,7 +6322,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 136,
             port: port_,
           );
         },
@@ -6421,7 +6349,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 138,
+            funcId: 137,
             port: port_,
           );
         },
@@ -6451,7 +6379,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 139,
+            funcId: 138,
             port: port_,
           );
         },
@@ -6482,7 +6410,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 140,
+            funcId: 139,
             port: port_,
           );
         },
@@ -6513,7 +6441,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 141,
+            funcId: 140,
             port: port_,
           );
         },
@@ -6543,7 +6471,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 142,
+            funcId: 141,
             port: port_,
           );
         },
@@ -6573,7 +6501,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 143,
+            funcId: 142,
             port: port_,
           );
         },
@@ -6600,7 +6528,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 144,
+            funcId: 143,
             port: port_,
           );
         },
@@ -6627,7 +6555,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 145,
+            funcId: 144,
             port: port_,
           );
         },
@@ -6660,7 +6588,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 146,
+            funcId: 145,
             port: port_,
           );
         },
@@ -6690,7 +6618,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 146,
             port: port_,
           );
         },
@@ -6720,7 +6648,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6750,7 +6678,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 149,
+            funcId: 148,
             port: port_,
           );
         },
