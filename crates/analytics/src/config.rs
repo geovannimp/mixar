@@ -1,4 +1,4 @@
-pub const APP_VERSION: &str = "0.1.5";
+pub const APP_VERSION: &str = "0.1.6";
 pub const APP_LAUNCHED_EVENT: &str = "app launched";
 
 const DEFAULT_TOKEN: &str = "";
