@@ -4,3 +4,14 @@ usr/lib/libasound.so*
 usr/lib/libpipewire*.so*
 lib/libasound.so*
 lib/libpipewire*.so*
+
+# fastforge copies the `ldd` closure of every bundled .so into usr/lib. `jni`
+# (transitive from path_provider_android) ships libdartjni.so, whose NEEDED list
+# is libjvm + libc, so the closure drags a whole 24 MB JDK JVM into a Linux build
+# that never loads JNI. Nothing on Linux dlopens libdartjni.so.
+usr/lib/libjvm.so*
+
+# host_flutter resolves its Dawn sidecar next to itself (RUNPATH=$ORIGIN, so
+# lib/libwebgpu_dawn.so). The closure copy in usr/lib is the same 11 MB library
+# twice; keep only the one the loader actually uses.
+usr/lib/libwebgpu_dawn.so*
