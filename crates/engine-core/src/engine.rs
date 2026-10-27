@@ -159,12 +159,12 @@ impl Engine {
         }
 
         tracing::info!("Starting engine with backend: {}", self.backend.name());
-        *self.running.lock().unwrap() = true;
+        *self.running.lock().expect("running flag mutex poisoned") = true;
 
         let device_streams = match self.open_device_streams() {
             Ok(setups) => setups,
             Err(e) => {
-                *self.running.lock().unwrap() = false;
+                *self.running.lock().expect("running flag mutex poisoned") = false;
                 return Err(e);
             }
         };
@@ -341,7 +341,7 @@ impl Engine {
             let default_key_lock = self.config.default_key_lock();
             let vinyl_brake = self.config.vinyl_brake_pause();
             let vinyl_brake_stop = self.config.vinyl_brake_stop_secs();
-            let mut dsp = dsp_engine.lock().unwrap();
+            let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
             for deck_id in 0..dsp.num_decks() {
                 if let Some(deck) = dsp.deck_mut(deck_id) {
                     deck.set_tempo_range(default_range);
@@ -378,7 +378,7 @@ impl Engine {
 
     /// Tear down a partially started engine after a startup failure.
     fn abort_start(&mut self, producer_thread: Option<JoinHandle<()>>) -> Result<()> {
-        *self.running.lock().unwrap() = false;
+        *self.running.lock().expect("running flag mutex poisoned") = false;
         if let Some(thread) = producer_thread {
             thread
                 .join()
@@ -392,7 +392,7 @@ impl Engine {
     pub fn stop(&mut self) -> Result<()> {
         tracing::info!("Stopping engine");
 
-        *self.running.lock().unwrap() = false;
+        *self.running.lock().expect("running flag mutex poisoned") = false;
         if let Some(thread) = self.producer_thread.take() {
             thread
                 .join()
@@ -406,7 +406,10 @@ impl Engine {
         }
 
         self.dsp_engine = None;
-        self.transport_events.lock().unwrap().clear();
+        self.transport_events
+            .lock()
+            .expect("transport event queue mutex poisoned")
+            .clear();
 
         tracing::info!("Engine stopped");
         Ok(())
@@ -414,7 +417,12 @@ impl Engine {
 
     /// Drain transport events posted by the producer thread (track ended, etc.).
     pub fn drain_transport_events(&mut self) -> Vec<TransportEvent> {
-        std::mem::take(&mut *self.transport_events.lock().unwrap())
+        std::mem::take(
+            &mut *self
+                .transport_events
+                .lock()
+                .expect("transport event queue mutex poisoned"),
+        )
     }
 
     /// Soft-takeover latch table (absolute MIDI controls).

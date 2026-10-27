@@ -17,6 +17,7 @@
 //! subset of it, hence the module-level `dead_code` allow.
 
 #![allow(dead_code)]
+#![allow(clippy::unwrap_used)] // test helper module
 
 use std::io::Write;
 use std::path::{Path, PathBuf};

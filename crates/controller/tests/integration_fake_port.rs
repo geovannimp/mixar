@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use engine_api::{CmdBody, Kind, Origin};
 use std::path::Path;
 

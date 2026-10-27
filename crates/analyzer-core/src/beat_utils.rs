@@ -37,7 +37,9 @@ pub fn calculate_bpm(beats: &[f64], sample_rate: f64) -> Option<f64> {
             beats.len() as i64 - 1,
             sample_rate,
             beats[0],
-            *beats.last().unwrap(),
+            *beats
+                .last()
+                .expect("guarded by the `beats.len() < 2` early return above"),
         );
     }
     let regions = retrieve_const_regions(beats, sample_rate);
@@ -138,7 +140,9 @@ pub fn retrieve_const_regions(coarse_beats: &[f64], sample_rate: f64) -> Vec<Con
 
     // Zero-length final region marking the end.
     regions.push(ConstRegion {
-        first_beat: *coarse_beats.last().unwrap(),
+        first_beat: *coarse_beats
+            .last()
+            .expect("guarded by the `n < 2` early return above"),
         beat_length: 0.0,
     });
     regions

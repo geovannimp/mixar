@@ -1,5 +1,7 @@
 //! Coarse check: time-stretch keeps pitch near the source sine frequency.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
+
 use stretch::create_stretcher;
 
 fn estimate_period_samples(samples: &[f32], channels: usize) -> Option<f64> {

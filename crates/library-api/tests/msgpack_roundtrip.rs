@@ -1,5 +1,6 @@
 //! MessagePack roundtrip for library wire messages and nested bodies.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use library_api::{
     decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,
     CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop, TrackSummary, WireMessage,

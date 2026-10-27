@@ -44,7 +44,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         let sample_rate = dsp.sample_rate();
         let quality = dsp.mixer().resampler_quality().to_string();
         dsp.sampler_mut(deck_id)
@@ -58,7 +58,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.sampler_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
             .clear_slot(slot)
@@ -70,7 +70,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.sampler_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
             .clear_all_slots();
@@ -87,7 +87,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.sampler_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
             .set_play_mode(mode);
@@ -100,7 +100,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.sampler_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
             .trigger(slot)
@@ -112,7 +112,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.sampler_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
             .end(slot)
@@ -140,7 +140,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.sampler_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
             .set_slot_auto_gain_db(slot, auto_gain_db)

@@ -34,3 +34,6 @@ tokio.workspace = true
 library-core = { path = "../library-core" }
 codec = { path = "../codec" }
 tempfile = "3.0"
+
+[lints]
+workspace = true

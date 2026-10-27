@@ -1,5 +1,6 @@
 //! Shipped DDJ-400 bundle: Keyboard / Key Shift pad banks, mode buttons, LEDs.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
 use engine_api::{CmdBody, Kind, Origin, PadMode};

@@ -1,5 +1,6 @@
 //! LibrarySession analyze cmd → TrackAnalyzed evt.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 #![cfg(feature = "analysis")]
 
 use library::{LibraryConfig, LibrarySession, NewCollection, WritableLibrary};

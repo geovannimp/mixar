@@ -24,3 +24,6 @@ realfft = "3"
 # flags; `--no-default-features` gives a genuinely smaller surface.
 default = ["sub"]
 sub = []
+
+[lints]
+workspace = true

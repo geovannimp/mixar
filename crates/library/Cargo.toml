@@ -38,3 +38,6 @@ analysis = ["dep:analyzer", "dep:analyzer-core", "dep:analyzer-stems"]
 tempfile = "3.0"
 lofty = "0.25.5"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp"] }
+
+[lints]
+workspace = true

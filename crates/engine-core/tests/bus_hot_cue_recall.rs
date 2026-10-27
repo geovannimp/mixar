@@ -1,5 +1,6 @@
 //! Integration: trigger hot cue + recall saved loop on the bus.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use common::{recv_evt_kind, source_with_bpm};

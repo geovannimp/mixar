@@ -1,5 +1,6 @@
 //! Integration: FX unit cmds (slot kind/enable/wet/param, deck routing) → Updated evts.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use common::{recv_evt_kind, recv_evt_where, TestReceiver};

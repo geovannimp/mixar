@@ -1,5 +1,6 @@
 //! Integration: Rekordbox page-based Keyboard and Key Shift pad modes (#298).
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use common::{recv_evt_kind, short_tone_fixture, wait_engine_hot_cue_count, TestReceiver};

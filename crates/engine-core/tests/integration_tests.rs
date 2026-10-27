@@ -2,6 +2,7 @@
 //!
 //! These tests verify that the different components work together correctly.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use anyhow::Result;

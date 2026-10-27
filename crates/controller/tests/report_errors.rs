@@ -1,5 +1,6 @@
 //! Controller diagnostics: discarded MIDI/Rhai errors must reach tracing.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::io::{self, Write};
 use std::path::Path;
 use std::sync::{Arc, Mutex};

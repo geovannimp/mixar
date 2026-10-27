@@ -94,7 +94,7 @@ impl EngineSession {
     where
         F: FnOnce(&mut Engine) -> Result<R>,
     {
-        let mut guard = self.engine.lock().unwrap();
+        let mut guard = self.engine.lock().expect("engine handle mutex poisoned");
         let engine = guard
             .as_mut()
             .ok_or_else(|| anyhow::anyhow!("engine not available"))?;

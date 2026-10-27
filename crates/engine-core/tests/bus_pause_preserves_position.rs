@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use common::{recv_evt_kind, short_tone_fixture};

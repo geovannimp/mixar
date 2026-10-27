@@ -1,5 +1,6 @@
 //! Shipped DDJ-400 bundle: on_init Mixxx handshake, then declarative LED sweep.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
 use engine_api::{CmdBody, Kind, Origin};

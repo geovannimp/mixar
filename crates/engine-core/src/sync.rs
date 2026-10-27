@@ -264,7 +264,7 @@ impl Engine {
                 .dsp_engine
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-            let mut dsp = dsp_engine.lock().unwrap();
+            let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
             let deck = dsp
                 .deck_mut(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
@@ -292,7 +292,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         let deck = dsp
             .deck_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
@@ -317,7 +317,7 @@ impl Engine {
             None
         } else if let Some(dsp_engine) = self.dsp_engine.as_ref() {
             let spec = {
-                let dsp = dsp_engine.lock().unwrap();
+                let dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
                 dsp.deck(deck_id).and_then(|deck| deck.stretcher_spec())
             };
             match spec.map(|spec| spec.build()) {
@@ -340,7 +340,7 @@ impl Engine {
             control.pitch_pad.key_shift_semitones = s;
         }
         if let Some(dsp_engine) = self.dsp_engine.as_ref() {
-            let mut dsp = dsp_engine.lock().unwrap();
+            let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
             if let Some(deck) = dsp.deck_mut(deck_id) {
                 if let Some(prepared) = prepared {
                     deck.install_stretcher(prepared);
@@ -394,7 +394,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         if let Some(deck) = dsp.deck_mut(deck_id) {
             deck.set_speed(speed)?;
             Ok(())
@@ -408,7 +408,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         if let Some(deck) = dsp.deck_mut(deck_id) {
             deck.set_playback_ratio(ratio)?;
             Ok(())
@@ -437,7 +437,7 @@ impl Engine {
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?
                 .lock()
-                .unwrap();
+                .expect("DSP engine mutex poisoned");
             dsp.deck(master_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid master deck ID: {master_id}"))?
                 .playback_ratio()

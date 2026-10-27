@@ -74,7 +74,12 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     let anchor = fit_anchor(&grid.beats, snapped_period);
 
     let first = f64::from(grid.beats[0]);
-    let last = f64::from(*grid.beats.last().unwrap());
+    let last = f64::from(
+        *grid
+            .beats
+            .last()
+            .expect("`grid.beats[0]` is read on the line above, so the grid is non-empty"),
+    );
     let k0 = ((first - anchor) / snapped_period).floor() as i64;
     let k1 = ((last - anchor) / snapped_period).ceil() as i64;
     // Guard against a misconfigured (very high) `max_bpm` producing an enormous grid.

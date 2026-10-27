@@ -1,5 +1,6 @@
 //! Integration: sync/master + speed follow on the cmd/evt bus.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use common::{recv_evt_kind, recv_evt_where, source_with_bpm};

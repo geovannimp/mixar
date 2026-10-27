@@ -45,5 +45,5 @@ tempfile = "3.0"
 rusqlite = { workspace = true }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp"] }
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+[lints]
+workspace = true

@@ -63,6 +63,11 @@
       "merge_system_rule": false
     },
     {
+      "path": "crates/**/*.rs",
+      "rule": "Rust review for `crates/`. Imports: flag a `use` block pulling items from two modules (`use foo::{Foo, bar::Bar}` — split it), a hand-rolled prelude module, and free functions imported so they can be called unqualified (call `module::function(…)`; importing types unqualified and importing a trait inside the function that uses it are both fine). Ownership: flag a newly added `Rc`/`Arc` with no stated reason — shared ownership is acceptable only for genuinely cross-thread or FRB state, never in the audio callback; flag a `.clone()` that exists to dodge borrowck, and any clone inside the audio callback or a per-block DSP loop; take `&T`/`&[T]`/`&str`/`Option<&T>` rather than `&Box<T>`/`&Vec<T>`/`&String`/`&Option<T>`. Traits and operators: flag inherent methods that duplicate a std trait (`from_str`, `to_string`, `from`, `default`) instead of the trait impl, and operator impls used as syntax sugar for non-mathematical work or an `Index` that can panic on ordinary input. Panics: flag `is_some()`/`is_ok()` checked and then `unwrap()`ed where `if let`/`match` proves the variant, `unwrap()` in non-test code (`expect` with the invariant instead), and assertions or `expect` messages that do not say why the invariant holds or which value broke it.",
+      "merge_system_rule": true
+    },
+    {
       "path": "**/*",
       "rule": "General review for this repo (Mixar, a Rust audio engine with a Flutter desktop UI). Security: flag hardcoded secrets or credentials, unvalidated paths or shell interpolation, and untrusted input reaching a database query or a process spawn. Correctness: flag duplicated logic that clearly belongs in an existing shared helper. Style: follow the surrounding code and the specs in docs/ — prefer minimal, focused changes over broad refactors. When a change touches a public API or a crate boundary, call out the cross-crate impact. Also check null/empty/zero/negative input; unchecked parsing and silent fallbacks; use-after-await of disposed context/ref/controllers and cancellation; locks held across await, check-then-act and stale snapshots; type/signature breaks across crates, the FRB boundary or callers; cache invalidation, wrong delegate/target and duplicate writes.",
       "merge_system_rule": true

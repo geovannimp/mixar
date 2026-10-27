@@ -25,6 +25,23 @@ members = [
 # Standalone midir probe — optional debug tool (own workspace; not required for the Flutter host).
 resolver = "2"
 
+# Lint policy shared by every crate (`[lints] workspace = true` in each member);
+# the rule set it implements is documented in `.cursor/rules/rust.mdc`. Only
+# lints that are NOT on by default belong here — the rest of that rule set is
+# already enforced by clippy's default groups (`ptr_arg`, `borrowed_box`,
+# `should_implement_trait`, `unnecessary_unwrap`, `unnecessary_to_owned`).
+[workspace.lints.rust]
+# `#[cfg(frb_expand)]` is emitted by flutter_rust_bridge during codegen.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+[workspace.lints.clippy]
+# No glob imports. The lint still permits globs in test code and `::prelude::*`.
+wildcard_imports = "warn"
+# `expect` over `unwrap`; `clippy.toml` exempts test code (`allow-unwrap-in-tests`).
+unwrap_used = "warn"
+# `Option<&T>` over `&Option<T>` — `ptr_arg`/`borrowed_box` do not cover this one.
+ref_option = "warn"
+
 [workspace.package]
 version = "0.1.0"
 edition = "2021"

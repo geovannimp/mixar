@@ -32,3 +32,6 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png"]
 # Pinned to the upstream revision that parses the formats Rekordbox writes
 # today (the released 0.3.0 predates its cue-point and waveform fixes).
 rekordcrate = { git = "https://github.com/Holzhaus/rekordcrate", rev = "14d54eded7b0d2f6fe67c7871533dca35a73e5fa", default-features = false, features = ["json"] }
+
+[lints]
+workspace = true

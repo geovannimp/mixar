@@ -1,5 +1,6 @@
 //! Vinyl jog while paused must publish Position so UI playhead/time track live.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use common::{recv_evt_kind, short_tone_fixture, SHORT_TONE_LEN_MS};

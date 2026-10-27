@@ -1,5 +1,6 @@
 //! EngineTransport: start/stop, play cmd, load path (null backend).
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 

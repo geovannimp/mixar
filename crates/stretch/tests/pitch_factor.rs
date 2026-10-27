@@ -1,5 +1,7 @@
 //! Realtime pitch factor: semitone math, octave-up/down frequency checks.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
+
 use stretch::{semitones_to_pitch, TimeStretcher, TimestretchStretcher};
 
 const SR: u32 = 48_000;

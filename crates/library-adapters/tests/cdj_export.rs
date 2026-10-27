@@ -6,6 +6,7 @@
 //! — an independent parser of the same formats — to check that what a CDJ/XDJ
 //! would read is what we meant to write.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::Path;

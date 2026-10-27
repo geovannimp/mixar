@@ -4,6 +4,7 @@
 //! published cmds and LED frames, so a wrong note number, a stale snapshot read or
 //! an inverted lamp shows up here rather than on hardware.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
 use controller::{load_bundle, ActionPublish, MappingSession, MidiOut};

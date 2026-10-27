@@ -1,5 +1,6 @@
 //! Browse smoke: open library DB, list collections and tracks.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::io::Write;
 use std::path::Path;
 

@@ -1,0 +1,32 @@
+---
+description: Rules for Rust crates — imports, ownership, traits, panics
+globs: crates/**/*.rs
+alwaysApply: false
+---
+
+# Rust Module Rules
+
+## Imports
+
+- **No glob imports.** `clippy::wildcard_imports` (workspace lint, inherited by every member via `[lints] workspace = true`), plus `warn-on-all-wildcard-imports = true` in `crates/clippy.toml` so `…::prelude::*` is not silently exempt.
+  - Exemptions are exactly two: `#[test]` / `#[cfg(test)]` code, and files carrying an explicit `#![allow(clippy::wildcard_imports)]` — today only the sea-orm entity modules (the prelude glob is that template's idiom) and generated code. A hand-rolled prelude module, `use crate::foo::*` or `use some_crate::*` in `src/` fails CI.
+  - Generated code is exempted at the `mod` include site in `crates/host-flutter/src/lib.rs`; never edit `frb_generated.rs` to silence a lint.
+- **One module per `use` statement** — review rule. No `::` inside the `{…}` block: write `use foo::Foo;` + `use foo::bar::Bar;`, never `use foo::{Foo, bar::Bar};`. This matches rustfmt's `imports_granularity = "Module"`, which is nightly-only and this repo pins stable — so the split is on the author/reviewer.
+- **Qualify top-level functions with their module** — review rule. Import the module and call `mem::swap(…)`, `path_label(…)`; do not import a free function just to call it unqualified. Importing types unqualified is expected (`Collection`, not `library_core::Collection`), and importing traits locally inside a function body is preferred when the trait methods are not used throughout the file.
+
+## Ownership
+
+- **Avoid `Rc` and `Arc`** — review rule. Prefer unique ownership and borrows; `Rc`/`Arc` add refcount overhead and hide ownership. Acceptable when the alternative borrow structure would be unreasonably complex to write or maintain, or when shared ownership genuinely crosses a thread/FRB boundary (`engine-core` producer state, `PreparedTrackPlayback` stem buffers). Justify it in the PR when you add one — and never in the audio callback.
+- **Prefer borrows over deep copies** — review rule, partially linted (`clippy::ptr_arg`, `clippy::unnecessary_to_owned`, on by default). `.clone()` is for a genuine deep copy, not a way to escape borrowck. In hot paths (audio callback, per-block DSP loops, per-event dispatch) a clone is a bug until proven necessary; pass `&T` / `&[T]` instead.
+- **Accept flexible references for immutable data** — **lint** (`clippy::ptr_arg` and `clippy::borrowed_box`, on by default, plus `clippy::ref_option`, which they do not cover). Take `&T` not `&Box<T>`, `&[T]` not `&Vec<T>`, `&str` not `&String`, `Option<&T>` not `&Option<T>`.
+
+## Traits and operators
+
+- **Implement known standard library traits instead of custom methods** — **lint** (`clippy::should_implement_trait`, on by default). `impl FromStr for Foo`, `impl Display`, `impl From<A> for B`, `impl Default` — not `Foo::from_str`, `Foo::to_string`, `Foo::from_a`.
+- **Avoid overloading for non-mathematical purposes** — review rule. `Add`/`Sub`/`Mul`/`Index`/`PartialOrd` keep their mathematical/index meaning; model everything else (append, merge, route, apply) as named methods. `Index` must not panic on ordinary input, and operator impls must not allocate per call in DSP types.
+
+## Panics and assertions
+
+- **Prefer pattern matching over check-then-unwrap** — **lint** (`clippy::unnecessary_unwrap`, on by default). `if let Some(v) = x { … }` instead of `if x.is_some() { x.unwrap() }`.
+- **Prefer `expect` over `unwrap`** — **lint** (`clippy::unwrap_used`, a workspace lint in `crates/Cargo.toml`; `crates/clippy.toml` sets `allow-unwrap-in-tests`, so `#[test]` fns and `#[cfg(test)]` modules may `unwrap`). In production code `expect("…")` must state the invariant that makes the panic impossible ("DSP engine mutex poisoned", "lane ids are registered at construction and never removed"); `unwrap()` tells the next reader nothing. An integration test file whose helpers live outside `#[test]` fns needs `#![allow(clippy::unwrap_used)]` at the top — helpers are not test code to clippy.
+- **Use context strings to clarify assertions** — review rule. `assert!(cond, "…")` when the condition alone does not explain *why* it must hold, when a value would help (`"Refund must be positive, got {refund:?}"`), or when failure means caller misuse (`"Call connect() before executing queries"`). Do not restate the condition (`assert!(sorted, "values should be sorted")` adds nothing). The same applies to `debug_assert!` and `expect` messages.

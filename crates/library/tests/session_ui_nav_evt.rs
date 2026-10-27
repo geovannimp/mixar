@@ -1,5 +1,6 @@
 //! LibrarySession UI navigation evt → subscribers (no worker cmd).
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use library::{LibraryConfig, LibrarySession};
 use library_api::{decode_evt_body, EvtBody, Kind, Origin};
 use std::time::Duration;

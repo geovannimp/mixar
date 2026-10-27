@@ -248,7 +248,9 @@ pub fn calculate_beats(df: &[f64], beat_period: &[i32]) -> Vec<f64> {
 
     let mut ibeats = vec![startpoint as usize];
     while ibeats.len() <= df_len {
-        let b = *ibeats.last().unwrap();
+        let b = *ibeats
+            .last()
+            .expect("ibeats is seeded with one element and only grows");
         let bl = backlink[b];
         if bl <= 0 || bl as usize == b {
             break;
