@@ -15,6 +15,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Floor for a low-latency device period: small enough to matter, large enough
+/// that a driver reporting a single digit of frames cannot wedge the callback.
+const LOW_LATENCY_MIN_FRAMES: u32 = 16;
+
 fn id_ends_with_segment(id: &str, segment: &str) -> bool {
     id == segment || id.ends_with(&format!(":{segment}")) || id.ends_with(&format!("/{segment}"))
 }
@@ -123,19 +127,31 @@ impl CpalBackend {
     /// only size such a device accepts is its period. Asking for the nearest supported size
     /// keeps the device openable; `engine-core` decouples the callback period from the DSP
     /// chunk through the ring buffer, so both may differ.
-    fn negotiate_frames(supported: &SupportedBufferSize, requested: u32) -> u32 {
+    fn negotiate_frames(supported: &SupportedBufferSize, requested: u32, low_latency: bool) -> u32 {
         match supported {
-            SupportedBufferSize::Range { min, max } if min <= max => requested.clamp(*min, *max),
+            SupportedBufferSize::Range { min, max } if min <= max => {
+                if low_latency {
+                    // The smallest period the device can run is its lowest-latency
+                    // option; the floor keeps absurd one-frame periods out.
+                    (*min).max(LOW_LATENCY_MIN_FRAMES).min(*max)
+                } else {
+                    requested.clamp(*min, *max)
+                }
+            }
             _ => requested,
         }
     }
 
     /// Log the frames actually negotiated, so a period that differs from the configured
     /// chunk is visible instead of looking like a misconfiguration.
-    fn log_device_buffer_limits_frames(supported: &SupportedBufferSize, requested: u32) {
+    fn log_device_buffer_limits_frames(
+        supported: &SupportedBufferSize,
+        requested: u32,
+        low_latency: bool,
+    ) {
         match supported {
             SupportedBufferSize::Range { min, max } => {
-                let frames = Self::negotiate_frames(supported, requested);
+                let frames = Self::negotiate_frames(supported, requested, low_latency);
                 tracing::info!(
                     "Device supported buffer size range: {}..={} frames (requesting {} for a configured {} frames)",
                     min,
@@ -336,7 +352,11 @@ impl CpalBackend {
             .collect();
         tracing::info!("Device supported output configs: {}", ranges.join(", "));
 
-        Self::log_device_buffer_limits_frames(chosen.range.buffer_size(), params.frames_per_buffer);
+        Self::log_device_buffer_limits_frames(
+            chosen.range.buffer_size(),
+            params.frames_per_buffer,
+            params.low_latency,
+        );
     }
 }
 
@@ -413,6 +433,7 @@ impl AudioBackend for CpalBackend {
         callback: Box<dyn AudioCallback>,
     ) -> Result<Box<dyn AudioStream>> {
         let (cpal_device, format) = self.resolve_open_target(device, params)?;
+        let opened_device = Self::device_id(&cpal_device)?;
         let device_name = Self::device_name(&cpal_device);
         let supported_config = format.range.with_sample_rate(format.sample_rate);
         if supported_config.channels() != params.channels {
@@ -427,7 +448,11 @@ impl AudioBackend for CpalBackend {
         // The device may only accept its own period (WASAPI shared mode); engine-core keeps the
         // DSP chunk at the configured size and lets the ring buffer absorb the difference.
         let requested_frames = params.frames_per_buffer;
-        let device_frames = Self::negotiate_frames(format.range.buffer_size(), requested_frames);
+        let device_frames = Self::negotiate_frames(
+            format.range.buffer_size(),
+            requested_frames,
+            params.low_latency,
+        );
 
         let actual_sample_rate = format.sample_rate;
 
@@ -501,6 +526,7 @@ impl AudioBackend for CpalBackend {
 
         Ok(Box::new(CpalStream {
             stream,
+            device: opened_device,
             frames_per_buffer: granted_buffer,
             sample_rate: actual_sample_rate,
             last_callback_frames,
@@ -511,6 +537,7 @@ impl AudioBackend for CpalBackend {
 /// CPAL stream implementation
 struct CpalStream {
     stream: Stream,
+    device: DeviceId,
     frames_per_buffer: u32,
     sample_rate: u32,
     /// Actual frames per callback (driver may differ from requested)
@@ -521,6 +548,10 @@ struct CpalStream {
 unsafe impl Send for CpalStream {}
 
 impl AudioStream for CpalStream {
+    fn device_id(&self) -> Option<&DeviceId> {
+        Some(&self.device)
+    }
+
     fn start(&mut self) -> Result<()> {
         self.stream.play()?;
         Ok(())
@@ -652,7 +683,21 @@ mod tests {
     #[test]
     fn negotiate_frames_keeps_a_supported_request() {
         let supported = SupportedBufferSize::Range { min: 64, max: 2048 };
-        assert_eq!(CpalBackend::negotiate_frames(&supported, 512), 512);
+        assert_eq!(CpalBackend::negotiate_frames(&supported, 512, false), 512);
+    }
+
+    #[test]
+    fn negotiate_frames_uses_the_device_minimum_for_low_latency() {
+        let range = SupportedBufferSize::Range { min: 64, max: 2048 };
+        assert_eq!(CpalBackend::negotiate_frames(&range, 512, true), 64);
+
+        // A fixed period (WASAPI shared mode) stays what the device offers.
+        let fixed = SupportedBufferSize::Range { min: 480, max: 480 };
+        assert_eq!(CpalBackend::negotiate_frames(&fixed, 512, true), 480);
+
+        // Absurd minima are floored so the callback cannot be wedged.
+        let tiny = SupportedBufferSize::Range { min: 1, max: 4096 };
+        assert_eq!(CpalBackend::negotiate_frames(&tiny, 512, true), 16);
     }
 
     #[test]
@@ -660,7 +705,7 @@ mod tests {
         // WASAPI shared mode advertises its own period as `Range { min == max }`, so 512 can
         // never be granted there; the engine must still be able to open the device.
         let supported = SupportedBufferSize::Range { min: 480, max: 480 };
-        assert_eq!(CpalBackend::negotiate_frames(&supported, 512), 480);
+        assert_eq!(CpalBackend::negotiate_frames(&supported, 512, false), 480);
     }
 
     #[test]
@@ -669,13 +714,13 @@ mod tests {
             min: 1024,
             max: 4096,
         };
-        assert_eq!(CpalBackend::negotiate_frames(&supported, 512), 1024);
+        assert_eq!(CpalBackend::negotiate_frames(&supported, 512, false), 1024);
     }
 
     #[test]
     fn negotiate_frames_keeps_request_when_range_is_unknown() {
         assert_eq!(
-            CpalBackend::negotiate_frames(&SupportedBufferSize::Unknown, 512),
+            CpalBackend::negotiate_frames(&SupportedBufferSize::Unknown, 512, false),
             512
         );
     }

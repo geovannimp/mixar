@@ -134,7 +134,9 @@ pub struct StreamParams {
     pub channels: u16,
     /// Requested frames per buffer (e.g., 512)
     pub frames_per_buffer: u32,
-    /// Hint for low-latency operation
+    /// Hint for low-latency operation: a backend may request its smallest
+    /// safe device period instead of the configured one (CPAL uses the device's
+    /// minimum supported buffer size). Never changes the sample rate.
     pub low_latency: bool,
 }
 
@@ -200,6 +202,15 @@ pub trait AudioStream: Send {
     /// Get the actual latency of the stream
     /// Returns None if not available or not started
     fn actual_latency(&self) -> Option<Duration>;
+
+    /// Device the stream actually opened on, when the backend can report it.
+    ///
+    /// Backends that search for a usable device may open a different one than
+    /// requested; callers use this to notice that instead of assuming the request
+    /// was honoured.
+    fn device_id(&self) -> Option<&DeviceId> {
+        None
+    }
 }
 
 /// Audio backend trait for different audio systems

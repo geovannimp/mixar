@@ -205,7 +205,8 @@ id = "hw:1,0"
 [[buses]]
 # BusConfig fields: id, name, device, channels, sample_rate, low_latency (see audio-core)
 # sample_rate is optional per bus: omit it to follow the device's mix rate.
-# low_latency is a per-bus backend hint; a device stream uses it when any bus asks.
+# low_latency is a per-bus backend hint: CPAL asks for the device's minimum
+# callback period (floored at 16 frames); a device stream uses it when any bus asks.
 ```
 
 Each bus carries its own optional `sample_rate` and its own `low_latency` hint. The engine runs its DSP graph at the master bus's rate; a device opened at another rate gets a resampler in the producer so its stream stays time-aligned. Buses sharing one device share one stream, so they must agree on the rate (an explicit rate wins over an unset one, and the stream then runs at that rate for every bus on it), while `low_latency` is the union of what they ask for.

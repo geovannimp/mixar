@@ -310,6 +310,20 @@ impl Engine {
                 ));
             }
 
+            // The backend may have fallen back to another device than the planned one
+            // (only for `default`); the rate stays what this bus asked for, so such a
+            // device converts internally. Say so instead of hiding it.
+            if let Some(opened) = stream.device_id() {
+                if opened != &plan.device {
+                    tracing::warn!(
+                        planned = plan.device.as_str(),
+                        opened = opened.as_str(),
+                        rate_hz = sample_rate,
+                        "requested device unavailable; opened another device at the bus's rate"
+                    );
+                }
+            }
+
             let callback_frames_atomic = stream.callback_frames_atomic();
 
             // Record the resolved rate so the producer knows whether this device
