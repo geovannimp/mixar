@@ -23,6 +23,7 @@ use library_api::{
 
 use crate::api::engine::EngineBusHandle;
 use crate::api::library::LibraryBusHandle;
+use crate::bridge::BridgeResult;
 use crate::frb_generated::StreamSink;
 
 /// MIDI pump cadence — never blocks on ALSA port enumeration.
@@ -145,8 +146,7 @@ impl ControllerTransport {
     ) -> Result<Self, String> {
         let shipped = shipped_mappings_dir.unwrap_or_else(resolve_shipped_mappings);
         let mut engine =
-            ControllerEngine::open(engine_api::APP_DISPLAY_NAME, mappings_dir, shipped)
-                .map_err(|e| e.to_string())?;
+            ControllerEngine::open(engine_api::APP_DISPLAY_NAME, mappings_dir, shipped).bridge()?;
         engine.set_trusted_device_ids(trusted_device_ids);
         let engine = Arc::new(Mutex::new(engine));
         let stop = Arc::new(AtomicBool::new(false));
@@ -230,7 +230,7 @@ impl ControllerTransport {
             .map_err(|_| "controller lock poisoned".to_string())?;
         eng.list_mappings()
             .map(|rows| rows.into_iter().map(mapping_info).collect())
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     pub fn list_devices(&self) -> Result<Vec<ControllerDeviceInfo>, String> {
@@ -240,7 +240,7 @@ impl ControllerTransport {
             .map_err(|_| "controller lock poisoned".to_string())?;
         eng.list_devices()
             .map(|rows| rows.into_iter().map(device_info).collect())
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     pub fn pending_offers(&self) -> Result<Vec<ControllerEvt>, String> {
@@ -261,7 +261,7 @@ impl ControllerTransport {
             .lock()
             .map_err(|_| "controller lock poisoned".to_string())?;
         eng.enable_mapping(&mapping_id, port_name.as_deref())
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     pub fn disable_mapping(&self, mapping_id: String) -> Result<(), String> {
@@ -269,7 +269,7 @@ impl ControllerTransport {
             .engine
             .lock()
             .map_err(|_| "controller lock poisoned".to_string())?;
-        eng.disable_mapping(&mapping_id).map_err(|e| e.to_string())
+        eng.disable_mapping(&mapping_id).bridge()
     }
 
     pub fn update_mapping(&self, mapping_id: String) -> Result<(), String> {
@@ -277,7 +277,7 @@ impl ControllerTransport {
             .engine
             .lock()
             .map_err(|_| "controller lock poisoned".to_string())?;
-        eng.update_mapping(&mapping_id).map_err(|e| e.to_string())
+        eng.update_mapping(&mapping_id).bridge()
     }
 
     pub fn update_all_mappings(&self) -> Result<(), String> {
@@ -285,7 +285,7 @@ impl ControllerTransport {
             .engine
             .lock()
             .map_err(|_| "controller lock poisoned".to_string())?;
-        eng.update_all_mappings().map_err(|e| e.to_string())
+        eng.update_all_mappings().bridge()
     }
 
     /// Forward mapping offer/attach/detach events to Dart via FRB `StreamSink`.

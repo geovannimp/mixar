@@ -97,6 +97,10 @@ Files of interest: `library.db`, `settings.json`, `mixar.log` (Rust diagnostics;
 - **Rust:** set `RUST_LOG` (e.g. `RUST_LOG=debug`, `RUST_LOG=engine_core=debug,controller=info`) when launching the app; prefer temporary `tracing::debug!` in the crate under investigation over inventing a second logging stack.
 - **Flutter:** use `debugPrint` / DevTools; avoid noisy production `print` in hot paths.
 
+### Errors crossing the bridge
+
+Anything returned to Dart as `Err` goes through `BridgeResult::bridge()` (`crates/host-flutter/src/bridge.rs`), which logs the cause at `ERROR` and returns the same message the UI shows — write `.bridge()?`, not `.map_err(|e| e.to_string())?`, so failures reach `mixar.log` without a second log line per call site. Panics never reach that code; `crates/host-flutter/src/api/handler.rs` supplies `FLUTTER_RUST_BRIDGE_HANDLER` with an `ErrorListener` that logs them (the generated default listener discards them).
+
 ### Notes
 
 Controller MIDI/Rhai failures are written through `tracing` (and therefore into `mixar.log` once attached). Log rotation / shared Dart categories remain a follow-up — do not reintroduce a Tauri/LogTape pipeline or a parallel facade for first-party Mixar code.

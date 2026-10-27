@@ -2,6 +2,7 @@ pub mod analytics;
 pub mod controller;
 pub mod engine;
 pub mod fs_browser;
+pub mod handler;
 pub mod history_worker;
 pub mod library;
 pub mod meta;

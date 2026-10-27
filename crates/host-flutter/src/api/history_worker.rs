@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
+use crate::bridge::BridgeResult;
 use engine_api::{decode_evt_body, DeckSnapshot, EvtBody};
 use engine_core::EngineBuses;
 use library::{DeckPlaySnapshot, LibraryManager};
@@ -28,13 +29,13 @@ impl Drop for HistoryWorker {
 
 impl HistoryWorker {
     pub fn start(buses: &EngineBuses, library: Arc<Mutex<LibraryManager>>) -> Result<Self, String> {
-        let rx = buses.subscribe_evt_all().map_err(|e| e.to_string())?;
+        let rx = buses.subscribe_evt_all().bridge()?;
         let shutdown = Arc::new(AtomicBool::new(false));
         let shutdown_flag = Arc::clone(&shutdown);
         let handle = std::thread::Builder::new()
             .name("history-worker".into())
             .spawn(move || run_loop(rx, library, shutdown_flag))
-            .map_err(|e| e.to_string())?;
+            .bridge()?;
         Ok(Self {
             shutdown,
             handle: Some(handle),

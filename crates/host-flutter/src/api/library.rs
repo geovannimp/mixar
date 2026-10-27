@@ -22,6 +22,7 @@ use library_core::{
     ExportOptions, Exportable as _, Library, Migratable, MigrateOptions,
 };
 
+use crate::bridge::BridgeResult;
 use crate::frb_generated::StreamSink;
 
 /// Closed colour label crossing the FRB boundary.
@@ -396,7 +397,7 @@ pub fn mixxx_default_database_path() -> Option<String> {
 
 /// Read-only summary of a Mixxx database, used to confirm an import.
 pub fn mixxx_import_preview(db_path: String) -> Result<MixxxImportPreview, String> {
-    let library = library_adapters::MixxxLibrary::open(&db_path).map_err(|e| e.to_string())?;
+    let library = library_adapters::MixxxLibrary::open(&db_path).bridge()?;
     let preview = library.preview();
     Ok(MixxxImportPreview {
         db_path,
@@ -442,8 +443,7 @@ impl LibraryTransport {
 
     /// Open a library at an explicit path (tests: temp directories).
     pub(crate) fn open_at(db_path: &Path) -> Result<Self, String> {
-        let manager =
-            LibraryManager::open(db_path, LibraryConfig::default()).map_err(|e| e.to_string())?;
+        let manager = LibraryManager::open(db_path, LibraryConfig::default()).bridge()?;
         let transport = Self::from_manager(manager)?;
         if let Some(parent) = db_path.parent() {
             transport.buses.set_stems_root(parent.join("stems"));
@@ -454,8 +454,7 @@ impl LibraryTransport {
 
     /// In-memory library for tests.
     pub fn open_in_memory() -> Result<Self, String> {
-        let manager =
-            LibraryManager::open_in_memory(LibraryConfig::default()).map_err(|e| e.to_string())?;
+        let manager = LibraryManager::open_in_memory(LibraryConfig::default()).bridge()?;
         Self::from_manager(manager)
     }
 
@@ -463,7 +462,7 @@ impl LibraryTransport {
         let buses = LibraryBuses::new();
         manager.set_buses(buses.clone());
         let library = Arc::new(Mutex::new(manager));
-        let worker = spawn_library_worker(Arc::clone(&library)).map_err(|e| e.to_string())?;
+        let worker = spawn_library_worker(Arc::clone(&library)).bridge()?;
         Ok(Self {
             library,
             buses,
@@ -478,7 +477,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        let collections = lib.list_collections().map_err(|e| e.to_string())?;
+        let collections = lib.list_collections().bridge()?;
         collections
             .into_iter()
             .map(|c| collection_summary(&lib, c))
@@ -497,14 +496,14 @@ impl LibraryTransport {
         let collection_id = CollectionId::new(collection_id);
         let collection = lib
             .get_collection(&collection_id)
-            .map_err(|e| e.to_string())?
+            .bridge()?
             .ok_or_else(|| "collection not found".to_string())?;
 
         match collection.collection_type() {
             CollectionType::Playlist => {
                 let rows = lib
                     .collection_entries_with_sources(&collection_id)
-                    .map_err(|e| e.to_string())?;
+                    .bridge()?;
                 Ok(rows
                     .into_iter()
                     .filter_map(|(row, source)| {
@@ -520,9 +519,7 @@ impl LibraryTransport {
                     .collect())
             }
             CollectionType::Folder => {
-                let sources = lib
-                    .list_collection_tracks(&collection_id)
-                    .map_err(|e| e.to_string())?;
+                let sources = lib.list_collection_tracks(&collection_id).bridge()?;
                 Ok(sources
                     .iter()
                     .filter_map(|s| track_summary(s, false))
@@ -538,8 +535,7 @@ impl LibraryTransport {
                 .library
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
-            lib.get_track(&TrackId::new(track_id))
-                .map_err(|e| e.to_string())?
+            lib.get_track(&TrackId::new(track_id)).bridge()?
         };
         Ok(source.as_ref().and_then(|s| track_summary(s, true)))
     }
@@ -566,22 +562,20 @@ impl LibraryTransport {
                 .library
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
-            lib.add_collection(&new_collection)
-                .map_err(|e| e.to_string())?
-                .id
+            lib.add_collection(&new_collection).bridge()?.id
         };
 
         let (scan, summary) = {
             let scan =
                 LibraryManager::sync_collection_off_mutex(&self.library, Some(&collection_id))
-                    .map_err(|e| e.to_string())?;
+                    .bridge()?;
             let lib = self
                 .library
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
             let collection = lib
                 .list_collections()
-                .map_err(|e| e.to_string())?
+                .bridge()?
                 .into_iter()
                 .find(|c| c.id == collection_id)
                 .ok_or_else(|| "collection missing after sync".to_string())?;
@@ -610,7 +604,7 @@ impl LibraryTransport {
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
             lib.add_collection(&NewCollection::playlist(name.trim(), sortable))
-                .map_err(|e| e.to_string())?
+                .bridge()?
         };
         let lib = self
             .library
@@ -627,7 +621,7 @@ impl LibraryTransport {
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
         lib.delete_collection(&CollectionId::new(collection_id))
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Import a Mixxx library at `db_path` into this transport's manager.
@@ -635,7 +629,7 @@ impl LibraryTransport {
     /// Reads the Mixxx database outside the manager lock, then migrates into the
     /// user's one library. Missing files are imported as unavailable tracks.
     pub fn import_mixxx_library(&self, db_path: String) -> Result<MixxxImportReport, String> {
-        let mixxx = library_adapters::MixxxLibrary::open(&db_path).map_err(|e| e.to_string())?;
+        let mixxx = library_adapters::MixxxLibrary::open(&db_path).bridge()?;
         let report = {
             let mut lib = self
                 .library
@@ -643,7 +637,7 @@ impl LibraryTransport {
                 .map_err(|_| "library lock poisoned".to_string())?;
             mixxx
                 .migrate(&mut *lib, &MigrateOptions::default())
-                .map_err(|e| e.to_string())?
+                .bridge()?
         };
         Ok(MixxxImportReport {
             tracks_added: count_u32(report.tracks_added),
@@ -679,7 +673,7 @@ impl LibraryTransport {
         let source = ExportSession::new(&self.library);
         let report = library_adapters::CdjExporter
             .export(&source, Path::new(&destination), &options)
-            .map_err(|e| e.to_string())?;
+            .bridge()?;
         Ok(CdjExportReport {
             tracks: count_u32(report.tracks),
             tracks_reused: count_u32(report.tracks_reused),
@@ -701,9 +695,7 @@ impl LibraryTransport {
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
         let path_bufs: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
-        let resolved = lib
-            .lookup_file_tracks_at_paths(&path_bufs)
-            .map_err(|e| e.to_string())?;
+        let resolved = lib.lookup_file_tracks_at_paths(&path_bufs).bridge()?;
         Ok(resolved
             .into_iter()
             .filter_map(|(request_path, source)| {
@@ -717,11 +709,10 @@ impl LibraryTransport {
 
     /// Queue analyze for a track via the library cmd bus only (worker emits evt).
     pub fn analyze_track(&self, track_id: String, force: bool) -> Result<(), String> {
-        let bytes = encode_cmd_body(&CmdBody::AnalyzeTrack { track_id, force })
-            .map_err(|e| e.to_string())?;
+        let bytes = encode_cmd_body(&CmdBody::AnalyzeTrack { track_id, force }).bridge()?;
         self.buses
             .publish_cmd(Origin::Library, Kind::AnalyzeTrack, bytes)
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Queue stem generation for a track via the library cmd bus only.
@@ -729,11 +720,10 @@ impl LibraryTransport {
     /// Separate from [`Self::analyze_track`]: analysis never generates stems
     /// implicitly. No-op server-side when a valid stem cache already exists.
     pub fn generate_stems(&self, track_id: String) -> Result<(), String> {
-        let bytes =
-            encode_cmd_body(&CmdBody::GenerateStems { track_id }).map_err(|e| e.to_string())?;
+        let bytes = encode_cmd_body(&CmdBody::GenerateStems { track_id }).bridge()?;
         self.buses
             .publish_cmd(Origin::Library, Kind::GenerateStems, bytes)
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Bulk analysis for a collection, fanned out onto the library cmd bus.
@@ -761,10 +751,9 @@ impl LibraryTransport {
                 .map_err(|_| "library lock poisoned".to_string())?;
             let analyze = lib
                 .collection_analyze_targets(&collection_id, force)
-                .map_err(|e| e.to_string())?;
+                .bridge()?;
             let stems = if generate_stems {
-                lib.collection_file_track_ids(&collection_id)
-                    .map_err(|e| e.to_string())?
+                lib.collection_file_track_ids(&collection_id).bridge()?
             } else {
                 Vec::new()
             };
@@ -787,20 +776,20 @@ impl LibraryTransport {
             let bytes = encode_cmd_body(&CmdBody::GenerateStems {
                 track_id: track_id.clone(),
             })
-            .map_err(|e| e.to_string())?;
+            .bridge()?;
             self.buses
                 .publish_cmd(Origin::Library, Kind::GenerateStems, bytes)
-                .map_err(|e| e.to_string())?;
+                .bridge()?;
         }
         for track_id in &analyze_ids {
             let bytes = encode_cmd_body(&CmdBody::AnalyzeTrack {
                 track_id: track_id.clone(),
                 force,
             })
-            .map_err(|e| e.to_string())?;
+            .bridge()?;
             self.buses
                 .publish_cmd(Origin::Library, Kind::AnalyzeTrack, bytes)
-                .map_err(|e| e.to_string())?;
+                .bridge()?;
         }
         Ok(AnalyzeCollectionResult {
             queued_track_ids: analyze_ids,
@@ -811,21 +800,17 @@ impl LibraryTransport {
     /// L0 overview peaks from the library DB (generates overview when missing).
     pub fn get_waveform_overview(&self, track_id: String) -> Result<Option<WaveformPeaks>, String> {
         let id = TrackId::new(track_id);
-        LibraryManager::ensure_track_waveform(self.library.as_ref(), &id)
-            .map_err(|e| e.to_string())?;
+        LibraryManager::ensure_track_waveform(self.library.as_ref(), &id).bridge()?;
         let lib = self
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        let Some(row) = lib
-            .get_track_waveform_overview(&id)
-            .map_err(|e| e.to_string())?
-        else {
+        let Some(row) = lib.get_track_waveform_overview(&id).bridge()? else {
             return Ok(None);
         };
         let duration_ms = lib
             .get_track(&id)
-            .map_err(|e| e.to_string())?
+            .bridge()?
             .and_then(|t| t.metadata().duration_ms)
             .unwrap_or(0);
         Ok(Some(pack_peaks(&row.peaks, 0, duration_ms)))
@@ -847,7 +832,7 @@ impl LibraryTransport {
             end_ms,
             buckets as usize,
         )
-        .map_err(|e| e.to_string())?;
+        .bridge()?;
         Ok(pack_peaks(&peaks, start_ms, end_ms))
     }
 
@@ -857,10 +842,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        let Some(grid) = lib
-            .get_track_beat_grid(&TrackId::new(track_id))
-            .map_err(|e| e.to_string())?
-        else {
+        let Some(grid) = lib.get_track_beat_grid(&TrackId::new(track_id)).bridge()? else {
             return Ok(None);
         };
         Ok(Some(BeatGridData {
@@ -872,11 +854,10 @@ impl LibraryTransport {
 
     /// Queue metadata refresh for a track via the library cmd bus only.
     pub fn refresh_track(&self, track_id: String) -> Result<(), String> {
-        let bytes =
-            encode_cmd_body(&CmdBody::RefreshTrack { track_id }).map_err(|e| e.to_string())?;
+        let bytes = encode_cmd_body(&CmdBody::RefreshTrack { track_id }).bridge()?;
         self.buses
             .publish_cmd(Origin::Library, Kind::RefreshTrack, bytes)
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Persist an active loop region for a track (worker emits [`LibraryEvtKind::LoopsChanged`]).
@@ -901,10 +882,10 @@ impl LibraryTransport {
             label: None,
             color: None,
         })
-        .map_err(|e| e.to_string())?;
+        .bridge()?;
         self.buses
             .publish_cmd(Origin::Library, Kind::SaveLoop, bytes)
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
@@ -912,11 +893,10 @@ impl LibraryTransport {
         if slot > 15 {
             return Err("loop slot must be 0..=15".into());
         }
-        let bytes =
-            encode_cmd_body(&CmdBody::DeleteLoop { track_id, slot }).map_err(|e| e.to_string())?;
+        let bytes = encode_cmd_body(&CmdBody::DeleteLoop { track_id, slot }).bridge()?;
         self.buses
             .publish_cmd(Origin::Library, Kind::DeleteLoop, bytes)
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Persist a manually edited beat grid (worker emits [`LibraryEvtKind::BeatGridChanged`]).
@@ -937,17 +917,17 @@ impl LibraryTransport {
             bpm,
             first_beat_secs,
         })
-        .map_err(|e| e.to_string())?;
+        .bridge()?;
         self.buses
             .publish_cmd(Origin::Library, Kind::SaveBeatGrid, bytes)
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Forward thin typed library events to Dart via FRB `StreamSink`.
     ///
     /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
     pub fn subscribe_events(&self, sink: StreamSink<LibraryEvt>) -> Result<(), String> {
-        let rx = self.buses.subscribe_evt_all().map_err(|e| e.to_string())?;
+        let rx = self.buses.subscribe_evt_all().bridge()?;
         let shutdown = Arc::new(AtomicBool::new(false));
         let shutdown_flag = Arc::clone(&shutdown);
         let handle = std::thread::Builder::new()
@@ -967,7 +947,7 @@ impl LibraryTransport {
                     }
                 }
             })
-            .map_err(|e| e.to_string())?;
+            .bridge()?;
 
         let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(prev) = slot.take() {
@@ -981,7 +961,7 @@ impl LibraryTransport {
     /// Raw evt subscription for host/tests. Prefer [`Self::subscribe_events`] for Dart.
     #[flutter_rust_bridge::frb(ignore)]
     pub fn subscribe_evt_all(&self) -> Result<library::EvtReceiver, String> {
-        self.buses.subscribe_evt_all().map_err(|e| e.to_string())
+        self.buses.subscribe_evt_all().bridge()
     }
 
     /// Shared manager for engine load-to-deck (prepare outside the engine lock).
@@ -1038,7 +1018,7 @@ impl LibraryTransport {
                 .library
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
-            lib.waveform_cache_bytes().map_err(|e| e.to_string())?
+            lib.waveform_cache_bytes().bridge()?
         };
         let db_path = stems_root
             .parent()
@@ -1060,7 +1040,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.clear_stem_cache(&stems_root).map_err(|e| e.to_string())
+        lib.clear_stem_cache(&stems_root).bridge()
     }
 
     /// Remove orphan stem cache files (and rows whose files are gone).
@@ -1072,12 +1052,12 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.sync_stem_cache(&stems_root).map_err(|e| e.to_string())
+        lib.sync_stem_cache(&stems_root).bridge()
     }
 
     /// Wipe the Mixar-owned ONNX model cache directory.
     pub fn clear_model_cache(&self) -> Result<(), String> {
-        library::clear_model_cache(&self.buses.models_root()).map_err(|e| e.to_string())
+        library::clear_model_cache(&self.buses.models_root()).bridge()
     }
 
     /// Delete cached waveform overview rows (regenerated on next fetch).
@@ -1086,7 +1066,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.clear_waveform_cache().map_err(|e| e.to_string())
+        lib.clear_waveform_cache().bridge()
     }
 
     /// Apply performance history settings from app settings.
@@ -1139,8 +1119,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.history_restore_session(&session_id)
-            .map_err(|e| e.to_string())
+        lib.history_restore_session(&session_id).bridge()
     }
 
     pub fn history_decline_restore(&self) -> Result<(), String> {
@@ -1148,7 +1127,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.history_decline_restore().map_err(|e| e.to_string())
+        lib.history_decline_restore().bridge()
     }
 
     pub fn history_new_session(&self) -> Result<(), String> {
@@ -1156,7 +1135,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.history_new_session().map_err(|e| e.to_string())
+        lib.history_new_session().bridge()
     }
 
     pub fn history_resume_session(&self) -> Result<(), String> {
@@ -1164,7 +1143,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.history_resume_session().map_err(|e| e.to_string())
+        lib.history_resume_session().bridge()
     }
 
     pub fn history_can_resume(&self) -> Result<bool, String> {
@@ -1193,7 +1172,7 @@ impl LibraryTransport {
                     })
                     .collect()
             })
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     pub fn history_session_entries(
@@ -1206,7 +1185,7 @@ impl LibraryTransport {
             .map_err(|_| "library lock poisoned".to_string())?;
         lib.history_session_entries(&session_id)
             .map(|entries| entries.into_iter().map(history_entry_info).collect())
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     pub fn rename_history_session(&self, session_id: String, title: String) -> Result<(), String> {
@@ -1215,7 +1194,7 @@ impl LibraryTransport {
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
         lib.rename_history_session(&session_id, title.trim())
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     pub fn delete_history_session(&self, session_id: String) -> Result<(), String> {
@@ -1223,8 +1202,7 @@ impl LibraryTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.delete_history_session(&session_id)
-            .map_err(|e| e.to_string())
+        lib.delete_history_session(&session_id).bridge()
     }
 
     pub fn export_history_session(
@@ -1238,7 +1216,7 @@ impl LibraryTransport {
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
         lib.export_history_session(&session_id, format.into(), Path::new(&dest_path))
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     pub fn save_history_as_playlist(
@@ -1253,7 +1231,7 @@ impl LibraryTransport {
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
             lib.save_history_as_playlist(&session_id, name.trim(), sortable)
-                .map_err(|e| e.to_string())?
+                .bridge()?
         };
         let lib = self
             .library
@@ -1326,7 +1304,7 @@ impl LibraryTransport {
                 color_label: color_label.map(Into::into),
             },
         )
-        .map_err(|e| e.to_string())
+        .bridge()
     }
 
     /// Sampler banks stored in the library DB.
@@ -1337,7 +1315,7 @@ impl LibraryTransport {
             .map_err(|_| "library lock poisoned".to_string())?;
         lib.list_sampler_banks()
             .map(|rows| rows.into_iter().map(SamplerBankInfo::from).collect())
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Create a sampler bank and return the stored row.
@@ -1361,7 +1339,7 @@ impl LibraryTransport {
             .map_err(|_| "library lock poisoned".to_string())?;
         lib.create_sampler_bank(&name, play_mode)
             .map(SamplerBankInfo::from)
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 }
 
@@ -1538,7 +1516,7 @@ fn reveal_path_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     return Err("reveal in folder is unsupported on this platform".into());
 
-    command.spawn().map_err(|e| e.to_string())?;
+    command.spawn().bridge()?;
     Ok(())
 }
 
@@ -1548,7 +1526,7 @@ fn collection_summary(
 ) -> Result<LibraryCollectionSummary, String> {
     let track_count = library
         .list_collection_tracks(&collection.id)
-        .map_err(|e| e.to_string())?
+        .bridge()?
         .len() as u32;
     Ok(LibraryCollectionSummary {
         id: collection.id.as_str().to_string(),
