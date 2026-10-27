@@ -4,6 +4,8 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
 
+# Least-privilege default: only the `review` job below widens `contents` to
+# write, because resolveReviewThread is gated on repository write access.
 permissions:
   contents: read
   pull-requests: write
@@ -18,7 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: read
+      # `contents: write`, not `read`: GitHub gates resolveReviewThread on
+      # repository write access, so pull-requests: write alone makes
+      # resolve_outdated fail with FORBIDDEN. The job still never executes PR
+      # code — it checks out the base sha and fetches the head as git objects
+      # (persist-credentials: false), so the token only unlocks thread cleanup.
+      contents: write
       pull-requests: write
     steps:
       - name: Checkout trusted base revision
@@ -69,3 +76,12 @@ jobs:
           rule: .opencodereview/rule.json
           background: Review the pull request diff against trusted base rules. Use CodeGraph for structural context.
           github_token: ${{ github.token }}
+          # Non-destructive dedupe: a new inline comment whose (path, line range)
+          # already overlaps an existing bot review comment is skipped, so a
+          # follow-up push does not re-post a finding that is already on the PR.
+          incremental: 'true'
+          # Close the action's own threads that GitHub already marked outdated
+          # (their original lines no longer exist in the diff). Threads with a
+          # human reply, already-resolved threads, and threads a finding from
+          # this run still covers are never touched.
+          resolve_outdated: 'true'
