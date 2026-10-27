@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
+import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
@@ -70,6 +71,10 @@ void main() {
     AppSettings? settings,
     List<Override> extra = const [],
   }) async {
+    // No native audio or MIDI: the engine/controller providers stay null (their
+    // documented widget-test contract) instead of calling the Rust bridge.
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
     final theme = MixarThemeData.dark();
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;

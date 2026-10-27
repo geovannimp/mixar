@@ -2,7 +2,7 @@
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
 use tracing_subscriber::fmt::MakeWriter;
@@ -17,6 +17,11 @@ pub fn app_display_name() -> String {
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
     init_tracing();
+    // Resolve app data and attach `mixar.log` here, before Dart runs: a failure
+    // during Flutter start-up (or a caller that never opens a transport) then still
+    // leaves diagnostics on disk.
+    crate::app_paths::ensure();
+    attach_log_file(&crate::app_paths::log_file());
     // Keep FRB panic backtraces (`RUST_BACKTRACE` + hook); skip its `log` console init.
     flutter_rust_bridge::setup_backtrace();
 }
@@ -90,18 +95,10 @@ fn init_tracing() {
     let _ = tracing::subscriber::set_global_default(subscriber);
 }
 
-/// Attach Mixar diagnostics to `path` (Dart passes `{app-support}/mixar.log`).
+/// Attach Mixar diagnostics to `path` (`{app-support}/mixar.log` at start-up).
 ///
-/// Called once at startup so the log exists before any subsystem runs:
-/// `{app-support}` is `%APPDATA%\Mixar` on Windows, `~/.local/share/top.mixar.app`
-/// on Linux and `~/Library/Application Support/top.mixar.app` on macOS.
-///
-/// Idempotent: later calls replace the open handle.
-pub fn attach_app_log_file(path: String) {
-    attach_log_file(Path::new(&path));
-}
-
-/// Implementation for the callers inside this crate, which already hold a path.
+/// Idempotent: later calls replace the open handle. The path is resolved in Rust
+/// (see [`crate::app_paths`]), so the bridge exposes no path plumbing.
 fn attach_log_file(path: &Path) {
     if let Some(parent) = path.parent() {
         if let Err(err) = fs::create_dir_all(parent) {
@@ -128,16 +125,6 @@ fn attach_log_file(path: &Path) {
             );
         }
     }
-}
-
-/// `{mappings_dir}/../mixar.log` when `mappings_dir` is `{app-support}/mappings`.
-pub(crate) fn attach_app_log_beside_mappings(mappings_dir: impl AsRef<Path>) {
-    let mappings_dir = mappings_dir.as_ref();
-    let path = mappings_dir
-        .parent()
-        .map(|p| p.join("mixar.log"))
-        .unwrap_or_else(|| PathBuf::from("mixar.log"));
-    attach_log_file(&path);
 }
 
 #[cfg(test)]
@@ -195,7 +182,7 @@ mod tests {
             .with_ansi(false)
             .finish();
         tracing::subscriber::with_default(subscriber, || {
-            attach_app_log_file(path.to_string_lossy().into_owned());
+            attach_log_file(&path);
             tracing::error!(
                 mapping_id = "ddj-400",
                 hook = "on_init",

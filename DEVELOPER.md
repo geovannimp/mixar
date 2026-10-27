@@ -73,14 +73,14 @@ The Flutter desktop host and Rust crates share [`tracing`](https://docs.rs/traci
 | Layer | Library | Role |
 | --- | --- | --- |
 | Rust crates / `host-flutter` | [`tracing`](https://docs.rs/tracing) | Facade in engine/library/controller crates; macros `tracing::{error,warn,info,debug,trace}!` |
-| Host init (`init_app`) | [`tracing-subscriber`](https://docs.rs/tracing-subscriber) + [`tracing-log`](https://docs.rs/tracing-log) | stderr + optional app-support file via tee writer; `EnvFilter` (default `info`, override with `RUST_LOG`); bridges leftover `log` crate calls from dependencies |
+| Host init (`init_app`) | [`tracing-subscriber`](https://docs.rs/tracing-subscriber) + [`tracing-log`](https://docs.rs/tracing-log) | stderr + the app-support `mixar.log`, attached at init via a tee writer; `EnvFilter` (default `info`, override with `RUST_LOG`); bridges leftover `log` crate calls from dependencies |
 | Flutter / Dart | console / `debugPrint` | UI diagnostics during development |
 
 ### Where app data lives
 
 Bundle / application id: `top.mixar.app` (Flutter desktop / app-support directory).
 
-Library DB and settings sit next to each other under the platform application-support directory:
+Library DB and settings sit next to each other under the platform application-support directory, resolved in Rust by `crates/host-flutter/src/app_paths.rs` (Dart passes no paths):
 
 | Platform | Directory (typical) |
 | --- | --- |
@@ -88,7 +88,9 @@ Library DB and settings sit next to each other under the platform application-su
 | macOS | `~/Library/Application Support/top.mixar.app` |
 | Windows | `%APPDATA%\Mixar` |
 
-Files of interest: `library.db`, `settings.json`, `mixar.log` (Rust diagnostics; attached from the Flutter host at launch).
+Those rules reproduce what `path_provider` used to derive on the Dart side, so an existing install keeps finding its data; `app_paths` tests pin each rule plus the platform metadata (`APPLICATION_ID`, `PRODUCT_BUNDLE_IDENTIFIER`, `Runner.rc` `ProductName`/empty `CompanyName`).
+
+Files of interest: `library.db`, `settings.json`, `mixar.log` (Rust diagnostics; attached by `init_app` at launch, before Dart runs).
 
 ### Raising verbosity
 

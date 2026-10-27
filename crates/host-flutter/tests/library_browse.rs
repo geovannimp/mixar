@@ -45,7 +45,7 @@ fn list_collections_and_tracks_from_disk_db() {
         assert_eq!(lib.list_collection_tracks(&collection.id).unwrap().len(), 1);
     }
 
-    let transport = LibraryTransport::open(db.to_string_lossy().into_owned()).unwrap();
+    let transport = host_flutter::testing::open_library_at(&db).unwrap();
     let collections = transport.list_collections().unwrap();
     assert_eq!(collections.len(), 1);
     assert_eq!(collections[0].track_count, 1);
@@ -70,7 +70,7 @@ fn analyze_collection_queues_targets_onto_bus() {
     write_minimal_wav(&dir.path().join("b.wav"));
 
     let db = dir.path().join("library.db");
-    let transport = LibraryTransport::open(db.to_string_lossy().into_owned()).unwrap();
+    let transport = host_flutter::testing::open_library_at(&db).unwrap();
     let added = transport
         .add_folder_collection(
             dir.path().to_string_lossy().into_owned(),

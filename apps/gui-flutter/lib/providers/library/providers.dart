@@ -14,14 +14,15 @@ import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
-/// Opens the app-support `library.db` (app id `top.mixar.app`).
-final libraryTransportProvider = FutureProvider<LibraryTransport>((ref) async {
-  final support = await getApplicationSupportDirectory();
-  final dbPath = p.join(support.path, 'library.db');
-  return LibraryTransport.open(dbPath: dbPath);
-});
+/// Opens the app-support `library.db`; Rust resolves the directory.
+///
+/// The bridge call is sync, so it sits behind a `Future`: an uninitialised Rust
+/// side (widget tests) then surfaces as a provider error the way the previous
+/// platform-channel lookup did, instead of throwing out of `create()`.
+final libraryTransportProvider = FutureProvider<LibraryTransport>(
+  (ref) => Future.sync(LibraryTransport.open),
+);
 
 final collectionsProvider = FutureProvider<List<LibraryCollectionSummary>>((
   ref,

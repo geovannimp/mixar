@@ -118,17 +118,32 @@ impl Drop for ControllerTransport {
 
 impl ControllerTransport {
     /// Open `ControllerEngine`, seed app-data mappings, start poll/pump threads.
+    ///
+    /// Mappings live in `{app-support}/mappings`; the shipped bundles are resolved
+    /// from the executable.
     pub fn start(
         engine_buses: &EngineBusHandle,
         library_buses: &LibraryBusHandle,
-        mappings_dir: String,
-        shipped_mappings_dir: Option<String>,
         trusted_device_ids: Vec<String>,
     ) -> Result<Self, String> {
-        let shipped = shipped_mappings_dir
-            .map(PathBuf::from)
-            .unwrap_or_else(resolve_shipped_mappings);
-        crate::api::meta::attach_app_log_beside_mappings(&mappings_dir);
+        Self::start_at(
+            engine_buses,
+            library_buses,
+            crate::app_paths::mappings_dir(),
+            None,
+            trusted_device_ids,
+        )
+    }
+
+    /// Start against explicit mapping directories (tests: temp directories).
+    pub(crate) fn start_at(
+        engine_buses: &EngineBusHandle,
+        library_buses: &LibraryBusHandle,
+        mappings_dir: PathBuf,
+        shipped_mappings_dir: Option<PathBuf>,
+        trusted_device_ids: Vec<String>,
+    ) -> Result<Self, String> {
+        let shipped = shipped_mappings_dir.unwrap_or_else(resolve_shipped_mappings);
         let mut engine =
             ControllerEngine::open(engine_api::APP_DISPLAY_NAME, mappings_dir, shipped)
                 .map_err(|e| e.to_string())?;

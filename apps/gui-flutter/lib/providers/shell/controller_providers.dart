@@ -5,8 +5,6 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 /// Starts once on desktop after engine+library buses exist.
 /// MIDI is optional: start failure is reported and the rest of the shell keeps running.
@@ -24,13 +22,10 @@ final controllerTransportProvider = FutureProvider<ControllerTransport?>((
   }
   // Read once per (re)start — invalidate this provider when trusts change.
   final settings = await ref.read(appSettingsProvider.future);
-  final support = await getApplicationSupportDirectory();
-  final mappingsDir = p.join(support.path, 'mappings');
   try {
     final controller = await ControllerTransport.start(
       engineBuses: await engine.buses(),
       libraryBuses: await library.buses(),
-      mappingsDir: mappingsDir,
       trustedDeviceIds: List<String>.from(settings.trustedControllerDeviceIds),
     );
     ref.keepAlive();

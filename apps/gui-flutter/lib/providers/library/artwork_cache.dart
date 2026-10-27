@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// In-memory artwork keyed by track id
 /// (`getTrack` only — lists stay artwork-free).
@@ -41,7 +42,16 @@ class ArtworkCache extends Notifier<Map<String, Uint8List?>> {
   }
 
   Future<Uint8List?> _loadArtwork(String id) async {
-    final transport = await ref.read(libraryTransportProvider.future);
+    final LibraryTransport transport;
+    try {
+      transport = await ref.read(libraryTransportProvider.future);
+    } on Object {
+      // The transport itself failed to open (no bridge, unreadable DB). The
+      // library pane already reports that once; repeating it for every visible
+      // row would drown the log. Artwork stays empty, the null sentinel is
+      // stored by the caller.
+      return null;
+    }
     final track = await transport.getTrack(trackId: id);
     return track?.artwork;
   }

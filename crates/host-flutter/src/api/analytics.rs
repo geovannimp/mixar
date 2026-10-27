@@ -1,5 +1,5 @@
 use std::{
-    path::PathBuf,
+    path::Path,
     sync::mpsc::{self, Sender},
 };
 
@@ -16,9 +16,15 @@ pub struct AnalyticsTransport {
 }
 
 impl AnalyticsTransport {
-    pub fn open(app_support_path: String) -> Self {
+    /// Open the analytics host against `{app-support}` (identity file included).
+    pub fn open() -> Self {
+        Self::open_at(&crate::app_paths::support())
+    }
+
+    /// Open against an explicit app-support directory (tests: temp directories).
+    pub(crate) fn open_at(app_support: &Path) -> Self {
         let (commands, receiver) = mpsc::channel();
-        let identity_path = PathBuf::from(app_support_path).join("analytics-id");
+        let identity_path = app_support.join("analytics-id");
         std::thread::spawn(move || {
             let mut client: Option<Analytics> = None;
             while let Ok(command) = receiver.recv() {

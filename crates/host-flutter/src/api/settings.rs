@@ -34,10 +34,14 @@ pub struct SettingsTransport {
 impl SettingsTransport {
     /// Open the app-wide settings host (singleton per process).
     ///
-    /// `path` is the JSON file used to load on first open and write on save
-    /// (Flutter: app-support `settings.json`, next to `library.db`).
-    pub fn open(path: String) -> Self {
-        let persist = PathBuf::from(path);
+    /// Persists `{app-support}/settings.json`, next to `library.db`.
+    pub fn open() -> Self {
+        Self::open_at(&crate::app_paths::settings_json())
+    }
+
+    /// Open against an explicit JSON path (tests: temp directories).
+    pub(crate) fn open_at(path: &Path) -> Self {
+        let persist = path.to_path_buf();
         let host = SETTINGS
             .get_or_init(|| Arc::new(Mutex::new(load_host(&persist))))
             .clone();
