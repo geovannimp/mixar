@@ -29,8 +29,6 @@ pub struct EngineConfig {
     /// Number of enabled deck lanes (2 or 4).
     #[serde(default = "default_num_decks")]
     pub num_decks: usize,
-    /// Low latency hint
-    pub low_latency: bool,
     /// Backend to use ("auto", "cpal", "null")
     pub backend: String,
     /// Bus configurations
@@ -117,7 +115,6 @@ impl Default for EngineConfig {
         Self {
             buffer_size: 512,
             num_decks: default_num_decks(),
-            low_latency: false,
             backend: "auto".to_string(),
             buses: vec![],
             devices: None,
@@ -292,7 +289,6 @@ mod tests {
     fn test_engine_config_default() {
         let config = EngineConfig::default();
         assert_eq!(config.buffer_size, 512);
-        assert!(!config.low_latency);
         assert_eq!(config.backend, "auto");
         assert_eq!(config.analysis_duration, AnalysisDurationMode::Precise);
         assert_eq!(config.default_tempo_range(), DEFAULT_TEMPO_RANGE);
@@ -336,7 +332,6 @@ mod tests {
     fn from_toml_rejects_non_multiple_buffer_size() {
         let toml = r#"
 buffer_size = 100
-low_latency = false
 backend = "null"
 buses = []
 analysis_duration = "precise"

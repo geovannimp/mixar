@@ -357,6 +357,11 @@ pub struct BusConfig {
     /// agree, since they share one stream.
     #[serde(default)]
     pub sample_rate: Option<u32>,
+    /// Ask the backend for a shorter stream path on this bus's device. A hint:
+    /// the backend may ignore it, and a device stream shared by several buses
+    /// runs with low latency when any of them asks for it.
+    #[serde(default)]
+    pub low_latency: bool,
 }
 
 impl BusConfig {
@@ -368,12 +373,19 @@ impl BusConfig {
             device,
             channels,
             sample_rate: None,
+            low_latency: false,
         }
     }
 
     /// Set the output rate for this bus (`None` follows the device mix rate).
     pub fn with_sample_rate(mut self, sample_rate: Option<u32>) -> Self {
         self.sample_rate = sample_rate;
+        self
+    }
+
+    /// Ask the backend for a shorter path on this bus's device.
+    pub fn with_low_latency(mut self, low_latency: bool) -> Self {
+        self.low_latency = low_latency;
         self
     }
 }

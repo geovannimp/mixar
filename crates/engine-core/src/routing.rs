@@ -65,6 +65,8 @@ pub(crate) struct DeviceStreamPlan {
     /// Rate the stream is opened at. The first bus on this device with an
     /// explicit rate decides it; `None` follows the device's mix rate.
     pub sample_rate: Option<u32>,
+    /// Low-latency hint for this device: set when any bus on it asks for one.
+    pub low_latency: bool,
     pub routes: Vec<BusRoute>,
 }
 
@@ -284,6 +286,9 @@ pub(crate) fn resolve_device_stream_plans(
                 (None, Some(requested)) => plan.sample_rate = Some(requested),
                 _ => {}
             }
+            // A hint rather than a setting: any bus on the stream asking for low
+            // latency is enough, and it never turns off what another bus asked for.
+            plan.low_latency |= bus.low_latency;
             plan.channels = plan.channels.max(needed);
             plan.routes.push(route);
         } else {
@@ -291,6 +296,7 @@ pub(crate) fn resolve_device_stream_plans(
                 device,
                 channels: needed,
                 sample_rate: bus.sample_rate,
+                low_latency: bus.low_latency,
                 routes: vec![route],
             });
         }
@@ -761,6 +767,28 @@ mod tests {
             err.to_string().contains("one stream runs at one rate"),
             "unexpected error: {err}"
         );
+    }
+
+    #[test]
+    fn low_latency_is_a_hint_shared_by_the_device_stream() {
+        let devices = two_devices();
+        let mut buses = vec![
+            bus_on("master", "Master", "speakers"),
+            bus_on("cue", "Cue", "speakers").with_low_latency(true),
+        ];
+        // Distinct channel pairs so both buses can share the device.
+        buses[1].channels = ChannelMapping::stereo(3, 4);
+
+        let plans = resolve_device_stream_plans(&buses, &devices).unwrap();
+        assert_eq!(plans.len(), 1);
+        assert!(
+            plans[0].low_latency,
+            "one bus asking must enable the hint for the shared stream"
+        );
+
+        // Nothing asked for it: the hint stays off.
+        let quiet = resolve_device_stream_plans(&buses[..1], &devices).unwrap();
+        assert!(!quiet[0].low_latency);
     }
 
     #[test]

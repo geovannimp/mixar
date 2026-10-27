@@ -94,6 +94,9 @@ pub struct BusRouteSettings {
     /// mixes the device at (Settings → Audio shows it as "Device default").
     #[serde(default)]
     pub sample_rate: Option<u32>,
+    /// Ask the backend for a shorter path on this bus's device.
+    #[serde(default)]
+    pub low_latency: bool,
 }
 
 /// Jog platter policy (maps to [`JogMode`]).
@@ -344,7 +347,6 @@ fn default_num_decks() -> u8 {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
     pub buffer_size: u32,
-    pub low_latency: bool,
     pub resampler_quality: String,
     pub master_bus: BusRouteSettings,
     pub preview_enabled: bool,
@@ -572,6 +574,7 @@ fn default_master_bus_route() -> BusRouteSettings {
         right_channel: 2,
         mode: BusChannelMode::Stereo,
         sample_rate: None,
+        low_latency: false,
     }
 }
 
@@ -582,6 +585,7 @@ fn default_preview_bus_route() -> BusRouteSettings {
         right_channel: 4,
         mode: BusChannelMode::Stereo,
         sample_rate: None,
+        low_latency: false,
     }
 }
 
@@ -731,6 +735,7 @@ fn bus_route_from_config(bus: &BusConfig) -> BusRouteSettings {
             ChannelMode::Stereo => BusChannelMode::Stereo,
         },
         sample_rate: bus.sample_rate,
+        low_latency: bus.low_latency,
     }
 }
 
@@ -749,6 +754,7 @@ fn bus_config(id: &str, name: &str, route: &BusRouteSettings) -> BusConfig {
         channel_mapping_from_route(route),
     )
     .with_sample_rate(route.sample_rate)
+    .with_low_latency(route.low_latency)
 }
 
 fn buses_from_settings(settings: &AppSettings) -> Vec<BusConfig> {
@@ -774,7 +780,6 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         .find(|bus| bus.id.as_str() == PREVIEW_BUS_ID);
     AppSettings {
         buffer_size: config.buffer_size,
-        low_latency: config.low_latency,
         resampler_quality: normalize_resampler_quality(
             audio.and_then(|a| a.resampler_quality.as_deref()),
         )
@@ -830,7 +835,6 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     config.num_decks = usize::from(settings.num_decks);
     config.buses = buses_from_settings(&settings);
     config.buffer_size = settings.buffer_size;
-    config.low_latency = settings.low_latency;
     config.analysis_duration = settings.analysis_duration.into();
     config.audio = Some(AudioConfig {
         resampler_quality: Some(settings.resampler_quality.clone()),

@@ -547,6 +547,7 @@ mod tests {
             device: DeviceId::new("pacing"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -557,6 +558,7 @@ mod tests {
             device: DeviceId::new("nonpacing"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("cue"),
                 left: 0,
@@ -666,6 +668,7 @@ mod tests {
             device: DeviceId::new("wasapi-shared"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -758,6 +761,7 @@ mod tests {
             device: DeviceId::new("wasapi-small-buffer"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -968,6 +972,7 @@ mod tests {
             device: DeviceId::new("master-device"),
             channels: CHANNELS,
             sample_rate: Some(DSP_RATE),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -978,6 +983,7 @@ mod tests {
             device: DeviceId::new("cue-device"),
             channels: CHANNELS,
             sample_rate: Some(CUE_RATE),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("cue"),
                 left: 0,

@@ -34,7 +34,6 @@ enum AnalysisDurationSetting { fast, precise, complete }
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 class AppSettings {
   final int bufferSize;
-  final bool lowLatency;
   final String resamplerQuality;
   final BusRouteSettings masterBus;
   final bool previewEnabled;
@@ -101,7 +100,6 @@ class AppSettings {
 
   const AppSettings({
     required this.bufferSize,
-    required this.lowLatency,
     required this.resamplerQuality,
     required this.masterBus,
     required this.previewEnabled,
@@ -148,7 +146,6 @@ class AppSettings {
   @override
   int get hashCode =>
       bufferSize.hashCode ^
-      lowLatency.hashCode ^
       resamplerQuality.hashCode ^
       masterBus.hashCode ^
       previewEnabled.hashCode ^
@@ -197,7 +194,6 @@ class AppSettings {
       other is AppSettings &&
           runtimeType == other.runtimeType &&
           bufferSize == other.bufferSize &&
-          lowLatency == other.lowLatency &&
           resamplerQuality == other.resamplerQuality &&
           masterBus == other.masterBus &&
           previewEnabled == other.previewEnabled &&
@@ -261,12 +257,16 @@ class BusRouteSettings {
   /// mixes the device at (Settings → Audio shows it as "Device default").
   final int? sampleRate;
 
+  /// Ask the backend for a shorter path on this bus's device.
+  final bool lowLatency;
+
   const BusRouteSettings({
     required this.deviceId,
     required this.leftChannel,
     required this.rightChannel,
     required this.mode,
     this.sampleRate,
+    required this.lowLatency,
   });
 
   @override
@@ -275,7 +275,8 @@ class BusRouteSettings {
       leftChannel.hashCode ^
       rightChannel.hashCode ^
       mode.hashCode ^
-      sampleRate.hashCode;
+      sampleRate.hashCode ^
+      lowLatency.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -286,7 +287,8 @@ class BusRouteSettings {
           leftChannel == other.leftChannel &&
           rightChannel == other.rightChannel &&
           mode == other.mode &&
-          sampleRate == other.sampleRate;
+          sampleRate == other.sampleRate &&
+          lowLatency == other.lowLatency;
 }
 
 /// Jog platter policy (maps to [`JogMode`]).

@@ -85,6 +85,7 @@ const kDefaultMasterBus = BusRouteSettings(
   leftChannel: 1,
   rightChannel: 2,
   mode: BusChannelMode.stereo,
+  lowLatency: false,
 );
 
 const kDefaultPreviewBus = BusRouteSettings(
@@ -92,6 +93,7 @@ const kDefaultPreviewBus = BusRouteSettings(
   leftChannel: 3,
   rightChannel: 4,
   mode: BusChannelMode.stereo,
+  lowLatency: false,
 );
 
 /// Row fields a fresh install shows — today's layout: album/genre/length pills
@@ -110,7 +112,6 @@ const kDefaultLibraryRowFields = <LibraryRowFieldSetting>[
 AppSettings defaultAppSettings() {
   return AppSettings(
     bufferSize: kDefaultBufferSize,
-    lowLatency: false,
     resamplerQuality: 'medium',
     masterBus: kDefaultMasterBus,
     previewEnabled: false,
@@ -207,13 +208,13 @@ BusRouteSettings _normalizeBus(BusRouteSettings route) {
     // `null` means "follow the device's mix rate"; a non-positive rate cannot
     // open a stream, so it falls back to that too.
     sampleRate: rate == null || rate <= 0 ? null : rate,
+    lowLatency: route.lowLatency,
   );
 }
 
 AppSettings copyAppSettings(
   AppSettings base, {
   int? bufferSize,
-  bool? lowLatency,
   String? resamplerQuality,
   BusRouteSettings? masterBus,
   bool? previewEnabled,
@@ -259,7 +260,6 @@ AppSettings copyAppSettings(
   return AppSettings(
     numDecks: numDecks ?? base.numDecks,
     bufferSize: bufferSize ?? base.bufferSize,
-    lowLatency: lowLatency ?? base.lowLatency,
     resamplerQuality: resamplerQuality ?? base.resamplerQuality,
     masterBus: masterBus ?? base.masterBus,
     previewEnabled: previewEnabled ?? base.previewEnabled,
@@ -315,7 +315,6 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
   }
   return draft.numDecks != baseline.numDecks ||
       draft.bufferSize != baseline.bufferSize ||
-      draft.lowLatency != baseline.lowLatency ||
       draft.resamplerQuality != baseline.resamplerQuality ||
       draft.masterBus != baseline.masterBus ||
       draft.previewEnabled != baseline.previewEnabled ||

@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -66,6 +67,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                   rightChannel: route.rightChannel,
                   mode: route.mode,
                   sampleRate: route.sampleRate,
+                  lowLatency: route.lowLatency,
                 ),
                 _maxChannelsFor(devices, deviceId),
               ),
@@ -91,7 +93,23 @@ class SettingsBusRouteFields extends StatelessWidget {
                 rightChannel: route.rightChannel,
                 mode: route.mode,
                 sampleRate: rate,
+                lowLatency: route.lowLatency,
               ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SettingsCheckbox(
+          label: l10n.settingsAudioLowLatency,
+          value: route.lowLatency,
+          onChanged: (lowLatency) => onChanged(
+            BusRouteSettings(
+              deviceId: route.deviceId,
+              leftChannel: route.leftChannel,
+              rightChannel: route.rightChannel,
+              mode: route.mode,
+              sampleRate: route.sampleRate,
+              lowLatency: lowLatency,
             ),
           ),
         ),
@@ -112,6 +130,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                 rightChannel: route.rightChannel,
                 mode: mode,
                 sampleRate: route.sampleRate,
+                lowLatency: route.lowLatency,
               ),
             ),
           ),
@@ -132,6 +151,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                       rightChannel: route.rightChannel,
                       mode: route.mode,
                       sampleRate: route.sampleRate,
+                      lowLatency: route.lowLatency,
                     ),
                   ),
                 ),
@@ -152,6 +172,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                       rightChannel: v,
                       mode: route.mode,
                       sampleRate: route.sampleRate,
+                      lowLatency: route.lowLatency,
                     ),
                   ),
                 ),
@@ -197,6 +218,7 @@ BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
     rightChannel: right,
     mode: mode,
     sampleRate: route.sampleRate,
+    lowLatency: route.lowLatency,
   );
 }
 

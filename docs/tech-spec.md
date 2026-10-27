@@ -196,7 +196,6 @@ Config is loaded via `EngineConfig::from_toml_file` / `to_toml_file`. Fields map
 
 ```toml
 buffer_size = 512
-low_latency = false
 backend = "auto"            # headless/test only: "auto", "cpal", or "null"
 
 [[devices]]
@@ -204,11 +203,12 @@ name = "Focusrite USB"
 id = "hw:1,0"
 
 [[buses]]
-# BusConfig fields: id, name, device, channels, sample_rate (see audio-core)
+# BusConfig fields: id, name, device, channels, sample_rate, low_latency (see audio-core)
 # sample_rate is optional per bus: omit it to follow the device's mix rate.
+# low_latency is a per-bus backend hint; a device stream uses it when any bus asks.
 ```
 
-Each bus carries its own optional `sample_rate`. The engine runs its DSP graph at the master bus's rate; a device opened at another rate gets a resampler in the producer so its stream stays time-aligned. Buses sharing one device share one stream, so they must agree on the rate (an explicit rate wins over an unset one).
+Each bus carries its own optional `sample_rate` and its own `low_latency` hint. The engine runs its DSP graph at the master bus's rate; a device opened at another rate gets a resampler in the producer so its stream stays time-aligned. Buses sharing one device share one stream, so they must agree on the rate (an explicit rate wins over an unset one), while `low_latency` is the union of what they ask for. `buffer_size` stays global: it is the mixer chunk, independent of each device's callback period.
 
 - `backend` is a headless/test selector only: the desktop app always boots the compiled-in real backend (CPAL) and never persists or shows a backend choice.
 - `backend = "auto"` resolves to CPAL when it is compiled in; it never falls back to `null`.

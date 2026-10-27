@@ -261,7 +261,7 @@ impl Engine {
                 requested_rate,
                 plan.channels,
                 self.config.buffer_size,
-                self.config.low_latency,
+                plan.low_latency,
             );
 
             let stream = self

@@ -47,4 +47,4 @@ The mixer's **Levels** popover shows an **Enable** button on its **Headphone** c
 | Cueing is silent, master is fine | **Enable preview bus** is off, or the preview bus sits on a channel pair the interface does not own. |
 | Clicks, dropouts, or a refusal to start | **Buffer size** is not a multiple of 64 frames. The hint states the rule: *Must be a multiple of 64 frames (mixer graph chunk size).* |
 
-**Low latency** asks the backend for a shorter path, and the default **Buffer size** is 512 frames. Lower the buffer on a solid driver for a snappier response, and raise it if you hear dropouts.
+**Low latency** is per bus: it asks the backend for a shorter path on that bus's device, and buses that share a device share the request. The **Buffer size** stays global — it is the mixer chunk the engine renders, while the device callback period belongs to the driver. Lower the buffer on a solid driver for a snappier response, and raise it if you hear dropouts.

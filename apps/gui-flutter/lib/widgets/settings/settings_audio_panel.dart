@@ -6,7 +6,6 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_bus_route_fields.dart';
-import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
@@ -53,12 +52,6 @@ class SettingsAudioPanel extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              SettingsCheckbox(
-                label: l10n.settingsAudioLowLatency,
-                value: draft.lowLatency,
-                onChanged: (v) =>
-                    onChanged(copyAppSettings(draft, lowLatency: v)),
-              ),
               SettingsField(
                 label: l10n.settingsAudioResamplerQuality,
                 child: SettingsSelect(
