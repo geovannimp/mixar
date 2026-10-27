@@ -11,30 +11,25 @@ import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 /// Drawer width; clamped to the viewport on narrow windows.
 const smartPresetDrawerWidth = 480.0;
 
-/// Name a rule document so it appears in the preset list from now on.
+/// Write a rule document and name it so it appears in the preset list.
 ///
-/// [initial] pre-fills the rules, which is how "save these rules as a preset"
-/// reads from the editor. [presets] are offered as starting points, so an
+/// The draft starts empty; [presets] are offered as starting points, so an
 /// existing preset can be forked into a new name. Returns `null` when the
 /// drawer is dismissed.
 Future<SmartPreset?> showSmartPresetCreatorDrawer(
   BuildContext context, {
-  SmartPlaylistRules initial = const SmartPlaylistRules.empty(),
   List<SmartPlaylistRulesPreset> presets = const [],
 }) {
   return showLibraryFormDrawer<SmartPreset>(
     context,
     barrierLabel: 'New preset',
     width: smartPresetDrawerWidth,
-    builder: (context) =>
-        _SmartPresetDrawerBody(initial: initial, presets: presets),
+    builder: (context) => _SmartPresetDrawerBody(presets: presets),
   );
 }
 
 class _SmartPresetDrawerBody extends StatefulWidget {
-  const new({required this.initial, this.presets = const []});
-
-  final SmartPlaylistRules initial;
+  const new({this.presets = const []});
 
   /// Presets the draft can be forked from.
   final List<SmartPlaylistRulesPreset> presets;
@@ -45,12 +40,12 @@ class _SmartPresetDrawerBody extends StatefulWidget {
 
 class _SmartPresetDrawerBodyState extends State<_SmartPresetDrawerBody> {
   late final TextEditingController _nameController;
-  late SmartPlaylistRules _rules = widget.initial;
+  SmartPlaylistRules _rules = const SmartPlaylistRules.empty();
 
-  /// `Start from` option showing the rules the drawer opened with.
-  static const _startFromCurrent = 'Current rules';
+  /// `Start from` option that clears the draft: no fork, start from scratch.
+  static const _startFromNone = 'None';
 
-  String _startFrom = _startFromCurrent;
+  String _startFrom = _startFromNone;
 
   /// Bumped when a fork replaces the draft, so the editor rebuilds from the
   /// forked document instead of keeping the previous one's text fields.
@@ -77,19 +72,19 @@ class _SmartPresetDrawerBodyState extends State<_SmartPresetDrawerBody> {
       _rules.root.rules.isNotEmpty &&
       _rules.validate() == null;
 
-  /// Copy a preset, or the drawer's own rules, into the draft.
+  /// Clear the draft, or copy a preset into it.
   void _startFromOption(String option) {
-    final rules = option == _startFromCurrent
-        ? widget.initial
-        : widget.presets.firstWhere((preset) => preset.name == option).build();
+    final fork = option == _startFromNone
+        ? null
+        : widget.presets.firstWhere((preset) => preset.name == option);
     setState(() {
       _startFrom = option;
-      _rules = rules;
+      _rules = fork?.build() ?? const SmartPlaylistRules.empty();
       _draftEpoch += 1;
       // A fork keeps its source: saving under that name would replace the
       // original, so an empty name becomes "<source> copy".
-      if (option != _startFromCurrent && _name.isEmpty) {
-        _nameController.text = '$option copy';
+      if (fork != null && _name.isEmpty) {
+        _nameController.text = '${fork.name} copy';
       }
     });
   }
@@ -98,7 +93,7 @@ class _SmartPresetDrawerBodyState extends State<_SmartPresetDrawerBody> {
   Widget build(BuildContext context) {
     return LibraryFormDrawerShell(
       title: 'New preset',
-      subtitle: 'Starts the rule editor with these rules.',
+      subtitle: 'New rules, or a fork of a preset.',
       action: AppButton(
         onPress: _canSave
             ? () =>
@@ -124,7 +119,7 @@ class _SmartPresetDrawerBodyState extends State<_SmartPresetDrawerBody> {
               child: MixarSelect<String>(
                 value: _startFrom,
                 options: [
-                  _startFromCurrent,
+                  _startFromNone,
                   for (final preset in widget.presets) preset.name,
                 ],
                 labelBuilder: (value) => value,
@@ -134,7 +129,7 @@ class _SmartPresetDrawerBodyState extends State<_SmartPresetDrawerBody> {
             ),
           SettingsField(
             label: 'Rules',
-            hint: _rulesHint,
+            hint: _rules.validate(),
             child: KeyedSubtree(
               key: ValueKey(_draftEpoch),
               child: SmartRulesEditor(
@@ -148,12 +143,5 @@ class _SmartPresetDrawerBodyState extends State<_SmartPresetDrawerBody> {
         ],
       ),
     );
-  }
-
-  String? get _rulesHint {
-    if (_rules.root.rules.isEmpty) {
-      return 'Add at least one rule.';
-    }
-    return _rules.validate();
   }
 }

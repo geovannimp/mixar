@@ -300,7 +300,11 @@ void main() {
     expect(changes.last.root.rules, isEmpty);
     expect(changes.last.sort, isNull, reason: 'the preset ordering goes too');
     expect(find.text('Choose a preset'), findsOneWidget);
-    expect(find.text('Add at least one rule.'), findsNothing);
+    expect(
+      find.text('Match'),
+      findsNothing,
+      reason: 'the cleared document draws no tree',
+    );
   });
 
   testWidgets('a saved preset is offered and applies its rules', (
@@ -329,9 +333,7 @@ void main() {
     expect(find.text('My peak'), findsOneWidget);
   });
 
-  testWidgets('Add preset saves the current rules and applies the preset', (
-    tester,
-  ) async {
+  testWidgets('Add preset saves a new document and applies it', (tester) async {
     final saved = <SmartPreset>[];
     final changes = await _pumpEditor(
       tester,
@@ -348,7 +350,15 @@ void main() {
       reason: 'a preset needs a name',
     );
 
-    // The editor stays mounted behind the drawer, so scope to the drawer.
+    // The drawer starts empty: the rule is written there, not in the editor
+    // behind it (which still shows its own Add rule).
+    await tester.tap(
+      find.descendant(
+        of: find.byType(LibraryFormDrawerShell),
+        matching: find.text('Add rule'),
+      ),
+    );
+    await tester.pumpAndSettle();
     final nameField = find
         .descendant(
           of: find.byType(LibraryFormDrawerShell),
@@ -361,9 +371,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('New preset'), findsNothing);
 
+    const houseOnly = SmartPlaylistRules(
+      root: SmartGroupRule(
+        rules: [
+          SmartConditionRule(
+            field: SmartField.bpm,
+            op: SmartOp.between,
+            min: 120,
+            max: 130,
+          ),
+        ],
+      ),
+    );
     expect(saved.single.name, 'House only');
-    expect(saved.single.rules.toJsonString(), _singleCondition.toJsonString());
-    expect(changes.last.toJsonString(), _singleCondition.toJsonString());
+    expect(saved.single.rules.toJsonString(), houseOnly.toJsonString());
+    expect(changes.last.toJsonString(), houseOnly.toJsonString());
     expect(find.text('House only'), findsOneWidget);
   });
 
@@ -447,11 +469,7 @@ void main() {
     );
 
     await _choose(tester, trigger: 'Choose a preset', option: 'Add preset…');
-    await _choose(
-      tester,
-      trigger: 'Current rules',
-      option: '±6% + harmonic key',
-    );
+    await _choose(tester, trigger: 'None', option: '±6% + harmonic key');
 
     final nameField = find
         .descendant(

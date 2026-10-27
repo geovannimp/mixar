@@ -138,8 +138,7 @@ class _SmartRulesEditorState extends ConsumerState<SmartRulesEditor> {
   Future<void> _createPreset() async {
     final preset = await showSmartPresetCreatorDrawer(
       context,
-      initial: _rules,
-      // Forking starts the draft from one of these; the tree below is read-only
+      // Forking starts the draft from one of these; the tree here is read-only
       // while a preset is applied, so this is how a preset's rules change.
       presets: _presetsWith(ref.read(smartPlaylistPresetsProvider)),
     );

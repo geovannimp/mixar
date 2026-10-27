@@ -144,7 +144,6 @@ void main() {
 
     expect(find.text('Smart playlist'), findsOneWidget);
     expect(find.text('Choose a preset'), findsOneWidget);
-    expect(find.text('Add at least one rule.'), findsOneWidget);
     expect(
       find.text('Add rule'),
       findsNothing,
@@ -285,7 +284,6 @@ void main() {
     // empty playlist is not something to save.
     await _choosePreset(tester, 'Choose a preset');
     expect(_createEnabled(tester), isFalse);
-    expect(find.text('Add at least one rule.'), findsOneWidget);
   });
 
   testWidgets('creating sends the canonical rules document', (tester) async {

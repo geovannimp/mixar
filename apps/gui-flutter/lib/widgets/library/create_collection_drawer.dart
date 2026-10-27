@@ -135,14 +135,6 @@ class _CreateCollectionDrawerBodyState
     }
   }
 
-  /// First problem with the rule document, or a nudge while it has none.
-  String? get _rulesHint {
-    if (_rules.root.rules.isEmpty) {
-      return 'Add at least one rule.';
-    }
-    return _rules.validate();
-  }
-
   bool get _canCreate {
     if (_nameController.text.trim().isEmpty) {
       return false;
@@ -283,7 +275,7 @@ class _CreateCollectionDrawerBodyState
                   ] else if (_type == CreateCollectionType.smartPlaylist) ...[
                     SettingsField(
                       label: 'Rules',
-                      hint: _rulesHint,
+                      hint: _rules.validate(),
                       child: SmartRulesEditor(
                         initial: _rules,
                         onPresetApplied: _applyPresetName,
