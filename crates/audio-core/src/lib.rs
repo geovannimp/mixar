@@ -134,9 +134,11 @@ pub struct StreamParams {
     pub channels: u16,
     /// Requested frames per buffer (e.g., 512)
     pub frames_per_buffer: u32,
-    /// Hint for low-latency operation: a backend may request its smallest
-    /// safe device period instead of the configured one (CPAL uses the device's
-    /// minimum supported buffer size). Never changes the sample rate.
+    /// Hint for low-latency operation: a backend may request its smallest safe
+    /// device period instead of the configured one. CPAL uses the device's
+    /// minimum supported buffer when the driver reports a range (floored at 16
+    /// frames unless the whole range is smaller); a device that reports no range
+    /// keeps the configured size. Never changes the sample rate.
     pub low_latency: bool,
 }
 
