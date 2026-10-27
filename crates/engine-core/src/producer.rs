@@ -46,7 +46,7 @@ pub(crate) struct DeviceRateConverter {
     channels: usize,
     /// Interleaved DSP-rate frames the resampler has not consumed yet.
     pending: Vec<Sample>,
-    /// Interleaved output scratch, two device chunks.
+    /// Interleaved output scratch, one device chunk.
     out: Vec<Sample>,
 }
 
