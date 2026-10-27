@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -172,5 +173,30 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await tester.pumpAndSettle();
     expect(beats, [false, true]);
+  });
+
+  testWidgets('narrow rail keeps every readout on one line', (tester) async {
+    await pumpPanel(tester, trackBpm: 174, speed: 0, tempoRange: 0.25);
+
+    for (final text in [
+      formatBpm(effectiveBpm(174, 0, 0.25)),
+      formatPitchPercent(0, 0.25),
+      formatTempoRange(0.25),
+    ]) {
+      final finder = find.text(text);
+      expect(finder, findsOneWidget);
+      final paragraph = tester.renderObject<RenderParagraph>(finder);
+      final painter = TextPainter(
+        text: paragraph.text,
+        textDirection: TextDirection.ltr,
+      )..layout();
+      expect(
+        painter.width,
+        lessThanOrEqualTo(paragraph.constraints.maxWidth),
+        reason: '"$text" must fit the rail without wrapping',
+      );
+      painter.dispose();
+    }
+    expect(tester.takeException(), isNull);
   });
 }

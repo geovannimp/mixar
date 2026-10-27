@@ -217,7 +217,14 @@ class DeckPanel extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
-            Expanded(child: body),
+            Expanded(
+              // The tempo rail spans the full deck height; only the deck body
+              // keeps the inset.
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: body,
+              ),
+            ),
             if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
           ],
         ),

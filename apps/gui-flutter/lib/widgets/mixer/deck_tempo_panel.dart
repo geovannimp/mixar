@@ -12,7 +12,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-/// Tauri-shaped tempo column: BPM / pitch / sync + pitch fader from engine state.
+/// Full-height tempo rail: BPM / pitch / sync header, pitch fader, range chip.
 class DeckTempoPanel extends StatelessWidget {
   const new({
     required this.accent,
@@ -96,137 +96,138 @@ class DeckTempoPanel extends StatelessWidget {
         : (syncOn ? LucideIcons.lock : LucideIcons.lockOpen);
     final statusColor = syncOn ? kMixerLiveOn : theme.colors.mutedForeground;
 
-    final cardRadius = theme.style.borderRadius.md;
     return SizedBox(
-      width: 88,
+      width: 84,
       child: DecoratedBox(
+        // Side rails only: the column is full-bleed from the waveform pane down
+        // to the library divider, so there is no card chrome. Foreground keeps
+        // the hairlines visible under the synced header tint.
+        position: DecorationPosition.foreground,
         decoration: BoxDecoration(
-          border: Border.all(color: theme.colors.border),
-          borderRadius: cardRadius,
-          color: theme.colors.background.withValues(alpha: 0.8),
-        ),
-        child: ClipRRect(
-          borderRadius: cardRadius,
-          child: Column(
-            children: [
-              // Flush to card edges; divider only under BPM/pitch/status.
-              // MTappable (not MixerButton): MixerButton's inner Row overflows
-              // the 88px tempo column when wrapping a tall BPM/pitch Column.
-              Skeletonizer(
-                enabled: loading,
-                child: AppTooltip(
-                  tip: tip,
-                  description: description,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: theme.colors.border),
-                      ),
-                      color: syncOn ? theme.colors.primaryTint : null,
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: MTappable.child(
-                        selected: syncOn,
-                        onPress: syncPress,
-                        semanticsLabel: tip,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 8,
-                          ),
-                          child: Column(
-                            mainAxisSize: .min,
-                            children: [
-                              Text(
-                                loading ? '000.00' : formatBpm(liveBpm),
-                                textAlign: .center,
-                                style: theme.typography.body.md.copyWith(
-                                  fontFamily: MixarFonts.notoSansMono,
-                                  color: accent,
-                                  fontWeight: .w700,
-                                  height: 1.1,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                    FontFeature.slashedZero(),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                formatPitchPercent(speed, tempoRange),
-                                textAlign: .center,
-                                style: theme.typography.body.xs.copyWith(
-                                  fontFamily: MixarFonts.notoSansMono,
-                                  color: theme.colors.mutedForeground,
-                                  fontWeight: .w500,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Icon(statusIcon, size: 14, color: statusColor),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 12,
-                  ),
-                  child: FaderSlider(
-                    accent: this.accent,
-                    value: sliderValue,
-                    step: 0.05,
-                    showIndicator: false,
-                    showMarkers: true,
-                    centerNotch: true,
-                    disabled: faderDisabled || !enabled,
-                    semanticLabel: 'Tempo',
-                    onValueChange: (next) =>
-                        onSpeedChange(pitchSliderToSpeed(next)),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: AppTooltip(
-                    tip: 'Tempo range',
-                    description:
-                        'Pitch fader span. Click to cycle the max ±% range.',
-                    child: MixerButton(
-                      variant: .ghost,
-                      size: .xs,
-                      mainAxisSize: .min,
-                      onPress: enabled
-                          ? () => onTempoRangeChange(
-                              nextTempoRange(tempoRange, tempoRangeSteps),
-                            )
-                          : null,
-                      semanticsLabel: 'Tempo range',
-                      child: Text(
-                        formatTempoRange(tempoRange),
-                        style: theme.typography.body.xs.copyWith(
-                          fontSize: 12,
-                          fontWeight: .w600,
-                          color: theme.colors.mutedForeground,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          border: Border(
+            left: BorderSide(color: theme.colors.border),
+            right: BorderSide(color: theme.colors.border),
           ),
+        ),
+        child: Column(
+          children: [
+            // Divider only under BPM/pitch/status.
+            // MTappable (not MixerButton): MixerButton's inner Row overflows
+            // the narrow tempo rail when wrapping a tall BPM/pitch Column.
+            Skeletonizer(
+              enabled: loading,
+              child: AppTooltip(
+                tip: tip,
+                description: description,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: theme.colors.border),
+                    ),
+                    color: syncOn ? theme.colors.primaryTint : null,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: MTappable.child(
+                      selected: syncOn,
+                      onPress: syncPress,
+                      semanticsLabel: tip,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 8,
+                        ),
+                        child: Column(
+                          mainAxisSize: .min,
+                          children: [
+                            Text(
+                              loading ? '000.00' : formatBpm(liveBpm),
+                              textAlign: .center,
+                              style: theme.typography.body.md.copyWith(
+                                fontFamily: MixarFonts.notoSansMono,
+                                color: accent,
+                                fontWeight: .w700,
+                                height: 1.1,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                  FontFeature.slashedZero(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              formatPitchPercent(speed, tempoRange),
+                              textAlign: .center,
+                              style: theme.typography.body.xs.copyWith(
+                                fontFamily: MixarFonts.notoSansMono,
+                                color: theme.colors.mutedForeground,
+                                fontWeight: .w500,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Icon(statusIcon, size: 14, color: statusColor),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 12,
+                ),
+                child: FaderSlider(
+                  accent: this.accent,
+                  value: sliderValue,
+                  step: 0.05,
+                  showIndicator: false,
+                  showMarkers: true,
+                  centerNotch: true,
+                  disabled: faderDisabled || !enabled,
+                  semanticLabel: 'Tempo',
+                  onValueChange: (next) =>
+                      onSpeedChange(pitchSliderToSpeed(next)),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: AppTooltip(
+                  tip: 'Tempo range',
+                  description:
+                      'Pitch fader span. Click to cycle the max ±% range.',
+                  child: MixerButton(
+                    variant: .ghost,
+                    size: .xs,
+                    mainAxisSize: .min,
+                    onPress: enabled
+                        ? () => onTempoRangeChange(
+                            nextTempoRange(tempoRange, tempoRangeSteps),
+                          )
+                        : null,
+                    semanticsLabel: 'Tempo range',
+                    child: Text(
+                      formatTempoRange(tempoRange),
+                      style: theme.typography.body.xs.copyWith(
+                        fontSize: 12,
+                        fontWeight: .w600,
+                        color: theme.colors.mutedForeground,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
