@@ -158,6 +158,35 @@ void main() {
     expect(reported, isNotEmpty, reason: 'Errors must be reported');
   });
 
+  test(
+    'a transport that fails to open is not reported per artwork id',
+    () async {
+      // The library pane reports the transport failure once; artwork must not repeat
+      // it for every visible row (that turned one bridge error into N FlutterErrors).
+      final container = ProviderContainer(
+        overrides: [
+          libraryTransportProvider.overrideWith(
+            (ref) => Future<LibraryTransport>.error(StateError('no bridge')),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final reported = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = reported.add;
+      addTearDown(() => FlutterError.onError = previous);
+
+      await container.read(artworkCacheProvider.notifier).ensureLoaded([
+        'a',
+        'b',
+      ]);
+
+      expect(reported, isEmpty);
+      expect(container.read(artworkCacheProvider)['a'], isNull);
+      expect(container.read(artworkCacheProvider)['b'], isNull);
+    },
+  );
+
   test('evicted failure sentinel can be refetched', () async {
     var shouldFail = true;
     final env = boot(
