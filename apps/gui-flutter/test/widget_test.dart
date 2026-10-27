@@ -33,6 +33,7 @@ import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
+import 'package:gui_flutter/widgets/mixer/waveform_section.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
@@ -149,6 +150,7 @@ void main() {
     List<Override> extraOverrides = const [],
     bool settle = true,
     Size size = const Size(1400, 900),
+    double devicePixelRatio = 1,
     AppSettings? settings,
   }) async {
     debugOverrideDesktopWindow = false;
@@ -156,7 +158,7 @@ void main() {
 
     final theme = MixarThemeData.light();
     tester.view.physicalSize = size;
-    tester.view.devicePixelRatio = 1;
+    tester.view.devicePixelRatio = devicePixelRatio;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
@@ -844,5 +846,113 @@ void main() {
     final deckA = _deck('DECK A');
     expect(_enabledSkeletonsUnder(tester, deckA), isTrue);
     expect(find.text('Load tracks to see waveforms.'), findsNothing);
+  });
+
+  testWidgets('tempo rail runs from the waveform pane to the library divider', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+
+    final hairline = MixarThemeData.light().style.borderWidth;
+    final rail = find.descendant(
+      of: _deck('DECK A'),
+      matching: find.byType(DeckTempoPanel),
+    );
+
+    expect(
+      tester.getTopLeft(rail).dy,
+      tester.getBottomLeft(find.byType(WaveformSection)).dy,
+      reason: 'the rail has no card top edge: it meets the waveform pane',
+    );
+    expect(
+      tester.getBottomLeft(rail).dy,
+      tester.getTopLeft(find.byType(LibraryPanel)).dy - hairline,
+      reason: 'the rail meets the divider above the docked library',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('waveform pane ends on a full-width hairline', (tester) async {
+    await pumpShell(tester);
+
+    final hairline = MixarThemeData.light().style.borderWidth;
+    final wave = find.byType(WaveformSection);
+    final foot = tester.getRect(find.byKey(const ValueKey('waveform-foot')));
+
+    expect(foot.width, tester.getSize(wave).width);
+    expect(foot.height, hairline);
+    expect(foot.bottom, tester.getBottomLeft(wave).dy);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('stacked decks are split by a hairline across the column', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
+    );
+
+    final hairline = MixarThemeData.light().style.borderWidth;
+    final deckA = tester.getRect(_deck('DECK A'));
+    final deckC = tester.getRect(_deck('DECK C'));
+    final split = tester.getRect(find.byKey(const ValueKey('deck-split-0')));
+
+    expect(deckC.top - deckA.bottom, hairline);
+    expect(split.top, deckA.bottom);
+    expect(split.bottom, deckC.top);
+    expect(split.left, deckA.left, reason: 'the split stops at the deck edge');
+    expect(
+      split.right,
+      deckA.right,
+      reason: 'the split stops at the deck edge',
+    );
+    expect(find.byKey(const ValueKey('deck-split-1')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('stacked deck split starts on a device pixel at 1.25 dpr', (
+    tester,
+  ) async {
+    const dpr = 1.25;
+    await pumpShell(
+      tester,
+      devicePixelRatio: dpr,
+      settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
+    );
+
+    final splitTop = tester
+        .getTopLeft(find.byKey(const ValueKey('deck-split-0')))
+        .dy;
+    final devicePixels = splitTop * dpr;
+
+    expect(
+      (devicePixels - devicePixels.roundToDouble()).abs(),
+      lessThan(1e-6),
+      reason: 'the split must start on a whole device pixel',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tempo rail keeps the deck height in drawer layout', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+    );
+
+    final deck = _deck('DECK A');
+    final rail = find.descendant(
+      of: deck,
+      matching: find.byType(DeckTempoPanel),
+    );
+
+    expect(tester.getTopLeft(rail).dy, tester.getTopLeft(deck).dy);
+    expect(tester.getBottomLeft(rail).dy, tester.getBottomLeft(deck).dy);
+    expect(tester.takeException(), isNull);
   });
 }
