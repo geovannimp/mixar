@@ -71,7 +71,6 @@ LibraryRowDensity libraryRowDensityFromSettings(
   LibraryRowDensitySetting.comfortable => LibraryRowDensity.comfortable,
 };
 
-const kDefaultSampleRate = 48000;
 const kDefaultBufferSize = 512;
 const kDefaultTargetLufs = -18.0;
 const kMinTargetLufs = -24.0;
@@ -110,7 +109,6 @@ const kDefaultLibraryRowFields = <LibraryRowFieldSetting>[
 
 AppSettings defaultAppSettings() {
   return AppSettings(
-    sampleRate: kDefaultSampleRate,
     bufferSize: kDefaultBufferSize,
     lowLatency: false,
     resamplerQuality: 'medium',
@@ -198,6 +196,7 @@ List<LibraryRowFieldSetting> _dedupeFields(
 }
 
 BusRouteSettings _normalizeBus(BusRouteSettings route) {
+  final rate = route.sampleRate;
   return BusRouteSettings(
     deviceId: route.deviceId,
     leftChannel: route.leftChannel,
@@ -205,12 +204,14 @@ BusRouteSettings _normalizeBus(BusRouteSettings route) {
     mode: route.mode == BusChannelMode.mono
         ? BusChannelMode.mono
         : BusChannelMode.stereo,
+    // `null` means "follow the device's mix rate"; a non-positive rate cannot
+    // open a stream, so it falls back to that too.
+    sampleRate: rate == null || rate <= 0 ? null : rate,
   );
 }
 
 AppSettings copyAppSettings(
   AppSettings base, {
-  int? sampleRate,
   int? bufferSize,
   bool? lowLatency,
   String? resamplerQuality,
@@ -257,7 +258,6 @@ AppSettings copyAppSettings(
 }) {
   return AppSettings(
     numDecks: numDecks ?? base.numDecks,
-    sampleRate: sampleRate ?? base.sampleRate,
     bufferSize: bufferSize ?? base.bufferSize,
     lowLatency: lowLatency ?? base.lowLatency,
     resamplerQuality: resamplerQuality ?? base.resamplerQuality,
@@ -314,7 +314,6 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
     return false;
   }
   return draft.numDecks != baseline.numDecks ||
-      draft.sampleRate != baseline.sampleRate ||
       draft.bufferSize != baseline.bufferSize ||
       draft.lowLatency != baseline.lowLatency ||
       draft.resamplerQuality != baseline.resamplerQuality ||

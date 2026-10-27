@@ -381,8 +381,17 @@ impl AudioBackend for CpalBackend {
             sample_rates.sort();
             sample_rates.dedup();
 
+            // The rate the system mixes this device at when it owns the format.
+            // On WASAPI that is shared mode's mix format; a stream opened at any
+            // other rate goes through the platform resampler.
+            let mix_sample_rate = device
+                .default_output_config()
+                .ok()
+                .map(|config| config.sample_rate());
+
             let device_info =
-                DeviceInfo::new(id, device_name, max_channels, sample_rates, is_default);
+                DeviceInfo::new(id, device_name, max_channels, sample_rates, is_default)
+                    .with_mix_sample_rate(mix_sample_rate);
             devices.push(device_info);
         }
 

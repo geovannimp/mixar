@@ -205,12 +205,11 @@ fn test_config_serialization() -> Result<()> {
 
     // Test TOML serialization
     let toml_string = toml::to_string(&config)?;
-    assert!(toml_string.contains("sample_rate = 48000"));
     assert!(toml_string.contains("backend = \"auto\""));
 
     // Test TOML deserialization
     let parsed_config: EngineConfig = toml::from_str(&toml_string)?;
-    assert_eq!(parsed_config.sample_rate, config.sample_rate);
+    assert_eq!(parsed_config.buffer_size, config.buffer_size);
     assert_eq!(parsed_config.backend, config.backend);
 
     Ok(())
@@ -227,7 +226,7 @@ fn test_config_file_operations() -> Result<()> {
 
     // Load config from file
     let loaded_config = EngineConfig::from_toml_file(&temp_path)?;
-    assert_eq!(loaded_config.sample_rate, config.sample_rate);
+    assert_eq!(loaded_config.buffer_size, config.buffer_size);
     assert_eq!(loaded_config.backend, config.backend);
 
     // `tempdir` removes the file even if an assertion above panics.

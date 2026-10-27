@@ -66,10 +66,28 @@
   "settingsUiSelectStyleMobileSubtitle": "Open selects and ⋯ menus in a dialog.",
   "settingsAudioDescription": "Engine output and buses.",
   "settingsAudioEngineTitle": "Engine",
-  "settingsAudioEngineDescription": "Sample rate, resampler, and buffer size.",
+  "settingsAudioEngineDescription": "Resampler and buffer size.",
   "settingsAudioLowLatency": "Low latency",
   "settingsAudioSampleRate": "Sample rate",
-  "settingsAudioSampleRateLoading": "Loading rates for the master output device…",
+  "settingsAudioSampleRateHint": "Device default follows the rate the output device mixes at.",
+  "settingsAudioSampleRateHz": "{rate} Hz",
+  "@settingsAudioSampleRateHz": {
+    "placeholders": {
+      "rate": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAudioSampleRateDeviceDefault": "Device default",
+  "settingsAudioSampleRateDeviceDefaultWithRate": "Device default ({rate} Hz)",
+  "@settingsAudioSampleRateDeviceDefaultWithRate": {
+    "placeholders": {
+      "rate": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsAudioSampleRateLoading": "Loading rates for this device…",
   "settingsAudioResamplerQuality": "Resampler quality",
   "settingsAudioResamplerLow": "Low",
   "settingsAudioResamplerMedium": "Medium",

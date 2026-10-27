@@ -7952,7 +7952,6 @@ impl SseDecode for crate::api::library::AnalyzeCollectionResult {
 impl SseDecode for crate::api::settings::AppSettings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_sampleRate = <u32>::sse_decode(deserializer);
         let mut var_bufferSize = <u32>::sse_decode(deserializer);
         let mut var_lowLatency = <bool>::sse_decode(deserializer);
         let mut var_resamplerQuality = <String>::sse_decode(deserializer);
@@ -8010,7 +8009,6 @@ impl SseDecode for crate::api::settings::AppSettings {
             <crate::api::settings::LibraryDrawerSideSetting>::sse_decode(deserializer);
         let mut var_analyticsEnabled = <bool>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
-            sample_rate: var_sampleRate,
             buffer_size: var_bufferSize,
             low_latency: var_lowLatency,
             resampler_quality: var_resamplerQuality,
@@ -8098,11 +8096,13 @@ impl SseDecode for crate::api::settings::BusRouteSettings {
         let mut var_leftChannel = <u16>::sse_decode(deserializer);
         let mut var_rightChannel = <u16>::sse_decode(deserializer);
         let mut var_mode = <crate::api::settings::BusChannelMode>::sse_decode(deserializer);
+        let mut var_sampleRate = <Option<u32>>::sse_decode(deserializer);
         return crate::api::settings::BusRouteSettings {
             device_id: var_deviceId,
             left_channel: var_leftChannel,
             right_channel: var_rightChannel,
             mode: var_mode,
+            sample_rate: var_sampleRate,
         };
     }
 }
@@ -9355,6 +9355,17 @@ impl SseDecode for Option<u16> {
     }
 }
 
+impl SseDecode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u32>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9461,12 +9472,14 @@ impl SseDecode for crate::api::engine::OutputDevice {
         let mut var_isDefault = <bool>::sse_decode(deserializer);
         let mut var_maxChannels = <u16>::sse_decode(deserializer);
         let mut var_defaultSampleRates = <Vec<u32>>::sse_decode(deserializer);
+        let mut var_mixSampleRate = <Option<u32>>::sse_decode(deserializer);
         return crate::api::engine::OutputDevice {
             id: var_id,
             name: var_name,
             is_default: var_isDefault,
             max_channels: var_maxChannels,
             default_sample_rates: var_defaultSampleRates,
+            mix_sample_rate: var_mixSampleRate,
         };
     }
 }
@@ -10786,7 +10799,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::AnalyzeCollectionRes
 impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.sample_rate.into_into_dart().into_dart(),
             self.buffer_size.into_into_dart().into_dart(),
             self.low_latency.into_into_dart().into_dart(),
             self.resampler_quality.into_into_dart().into_dart(),
@@ -10902,6 +10914,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::BusRouteSettings {
             self.left_channel.into_into_dart().into_dart(),
             self.right_channel.into_into_dart().into_dart(),
             self.mode.into_into_dart().into_dart(),
+            self.sample_rate.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -11803,6 +11816,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::OutputDevice {
             self.is_default.into_into_dart().into_dart(),
             self.max_channels.into_into_dart().into_dart(),
             self.default_sample_rates.into_into_dart().into_dart(),
+            self.mix_sample_rate.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -12348,7 +12362,6 @@ impl SseEncode for crate::api::library::AnalyzeCollectionResult {
 impl SseEncode for crate::api::settings::AppSettings {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <u32>::sse_encode(self.sample_rate, serializer);
         <u32>::sse_encode(self.buffer_size, serializer);
         <bool>::sse_encode(self.low_latency, serializer);
         <String>::sse_encode(self.resampler_quality, serializer);
@@ -12458,6 +12471,7 @@ impl SseEncode for crate::api::settings::BusRouteSettings {
         <u16>::sse_encode(self.left_channel, serializer);
         <u16>::sse_encode(self.right_channel, serializer);
         <crate::api::settings::BusChannelMode>::sse_encode(self.mode, serializer);
+        <Option<u32>>::sse_encode(self.sample_rate, serializer);
     }
 }
 
@@ -13459,6 +13473,16 @@ impl SseEncode for Option<u16> {
     }
 }
 
+impl SseEncode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u32>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13547,6 +13571,7 @@ impl SseEncode for crate::api::engine::OutputDevice {
         <bool>::sse_encode(self.is_default, serializer);
         <u16>::sse_encode(self.max_channels, serializer);
         <Vec<u32>>::sse_encode(self.default_sample_rates, serializer);
+        <Option<u32>>::sse_encode(self.mix_sample_rate, serializer);
     }
 }
 

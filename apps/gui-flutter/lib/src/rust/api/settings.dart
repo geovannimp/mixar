@@ -33,7 +33,6 @@ enum AnalysisDurationSetting { fast, precise, complete }
 
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 class AppSettings {
-  final int sampleRate;
   final int bufferSize;
   final bool lowLatency;
   final String resamplerQuality;
@@ -101,7 +100,6 @@ class AppSettings {
   final bool analyticsEnabled;
 
   const AppSettings({
-    required this.sampleRate,
     required this.bufferSize,
     required this.lowLatency,
     required this.resamplerQuality,
@@ -149,7 +147,6 @@ class AppSettings {
 
   @override
   int get hashCode =>
-      sampleRate.hashCode ^
       bufferSize.hashCode ^
       lowLatency.hashCode ^
       resamplerQuality.hashCode ^
@@ -199,7 +196,6 @@ class AppSettings {
       identical(this, other) ||
       other is AppSettings &&
           runtimeType == other.runtimeType &&
-          sampleRate == other.sampleRate &&
           bufferSize == other.bufferSize &&
           lowLatency == other.lowLatency &&
           resamplerQuality == other.resamplerQuality &&
@@ -254,18 +250,23 @@ enum BusChannelMode {
       RustLib.instance.api.crateApiSettingsBusChannelModeDefault();
 }
 
-/// Output bus route (device + channels).
+/// Output bus route (device + channels + rate).
 class BusRouteSettings {
   final String deviceId;
   final int leftChannel;
   final int rightChannel;
   final BusChannelMode mode;
 
+  /// Rate this bus's device stream runs at. `None` follows the rate the system
+  /// mixes the device at (Settings → Audio shows it as "Device default").
+  final int? sampleRate;
+
   const BusRouteSettings({
     required this.deviceId,
     required this.leftChannel,
     required this.rightChannel,
     required this.mode,
+    this.sampleRate,
   });
 
   @override
@@ -273,7 +274,8 @@ class BusRouteSettings {
       deviceId.hashCode ^
       leftChannel.hashCode ^
       rightChannel.hashCode ^
-      mode.hashCode;
+      mode.hashCode ^
+      sampleRate.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -283,7 +285,8 @@ class BusRouteSettings {
           deviceId == other.deviceId &&
           leftChannel == other.leftChannel &&
           rightChannel == other.rightChannel &&
-          mode == other.mode;
+          mode == other.mode &&
+          sampleRate == other.sampleRate;
 }
 
 /// Jog platter policy (maps to [`JogMode`]).

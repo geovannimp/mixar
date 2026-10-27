@@ -628,12 +628,17 @@ class OutputDevice {
   final int maxChannels;
   final Uint32List defaultSampleRates;
 
+  /// Rate the system mixes this device at; `None` when the backend cannot report
+  /// it. Settings → Audio shows it as the "Device default" rate.
+  final int? mixSampleRate;
+
   const OutputDevice({
     required this.id,
     required this.name,
     required this.isDefault,
     required this.maxChannels,
     required this.defaultSampleRates,
+    this.mixSampleRate,
   });
 
   @override
@@ -642,7 +647,8 @@ class OutputDevice {
       name.hashCode ^
       isDefault.hashCode ^
       maxChannels.hashCode ^
-      defaultSampleRates.hashCode;
+      defaultSampleRates.hashCode ^
+      mixSampleRate.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -653,7 +659,8 @@ class OutputDevice {
           name == other.name &&
           isDefault == other.isDefault &&
           maxChannels == other.maxChannels &&
-          defaultSampleRates == other.defaultSampleRates;
+          defaultSampleRates == other.defaultSampleRates &&
+          mixSampleRate == other.mixSampleRate;
 }
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].

@@ -16,7 +16,9 @@ For every field on that screen with its range and default, see [Settings → Aud
 3. Confirm the channel layout: **Channel mode** is either **Stereo pair** or **Mono (fold L+R)**, and **Left channel** / **Right channel** are 1-based channel numbers clamped to what the device reports. **Right channel** is disabled in Mono.
 4. Press **Save**.
 
-Saving restarts the engine whenever it is running, then reloads the tracks that were already on the decks. A restart also happens if you change **Sample rate**, **Resampler quality**, or **Buffer size** in the **Engine** card. Closing the page with unsaved edits asks **Unsaved settings** / *Save changes before closing?*, so you can Save, Discard, or Cancel.
+Saving restarts the engine whenever it is running, then reloads the tracks that were already on the decks. A restart also happens if you change **Resampler quality** or **Buffer size** in the **Engine** card, or a bus **Sample rate**. Closing the page with unsaved edits asks **Unsaved settings** / *Save changes before closing?*, so you can Save, Discard, or Cancel.
+
+Each bus has its own **Sample rate**. **Device default** follows the rate the device itself mixes at, which is what a fresh install uses. Buses on different devices may run at different rates; the engine graph runs at the master rate and the preview stream is resampled, so both stay aligned. Two buses on the same device share one stream and therefore one rate.
 
 If the settings were written but the engine refused them, the toast reads **Settings saved, but not applied** and carries the error. **Save failed** means the file on disk could not be written at all.
 

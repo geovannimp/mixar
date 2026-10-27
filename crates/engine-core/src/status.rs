@@ -107,7 +107,7 @@ impl Engine {
         }
         Some(EngineStatus {
             running: true,
-            sample_rate: self.config.sample_rate,
+            sample_rate: dsp.sample_rate(),
             crossfader: dsp.mixer().crossfader(),
             master_volume: dsp.mixer().master_volume(),
             cue_volume: dsp.mixer().cue_volume(),

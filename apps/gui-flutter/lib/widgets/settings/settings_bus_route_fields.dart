@@ -40,6 +40,8 @@ class SettingsBusRouteFields extends StatelessWidget {
         ? route.deviceId
         : 'default';
     final maxChannels = _maxChannelsFor(devices, selectedId);
+    final busDevice = resolveAudioOutputDevice(devices, selectedId);
+    final rateOptions = _rateOptions(busDevice, route.sampleRate);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,8 +65,32 @@ class SettingsBusRouteFields extends StatelessWidget {
                   leftChannel: route.leftChannel,
                   rightChannel: route.rightChannel,
                   mode: route.mode,
+                  sampleRate: route.sampleRate,
                 ),
                 _maxChannelsFor(devices, deviceId),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SettingsField(
+          label: l10n.settingsAudioSampleRate,
+          hint: devicesLoading
+              ? l10n.settingsAudioSampleRateLoading
+              : l10n.settingsAudioSampleRateHint,
+          child: SettingsSelect<int?>(
+            dialogTitle: l10n.settingsAudioSampleRate,
+            value: route.sampleRate,
+            options: rateOptions,
+            enabled: !devicesLoading && rateOptions.length > 1,
+            labelBuilder: (rate) => _rateLabel(l10n, busDevice, rate),
+            onChanged: (rate) => onChanged(
+              BusRouteSettings(
+                deviceId: route.deviceId,
+                leftChannel: route.leftChannel,
+                rightChannel: route.rightChannel,
+                mode: route.mode,
+                sampleRate: rate,
               ),
             ),
           ),
@@ -85,6 +111,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                 leftChannel: route.leftChannel,
                 rightChannel: route.rightChannel,
                 mode: mode,
+                sampleRate: route.sampleRate,
               ),
             ),
           ),
@@ -104,6 +131,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                       leftChannel: v,
                       rightChannel: route.rightChannel,
                       mode: route.mode,
+                      sampleRate: route.sampleRate,
                     ),
                   ),
                 ),
@@ -123,6 +151,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                       leftChannel: route.leftChannel,
                       rightChannel: v,
                       mode: route.mode,
+                      sampleRate: route.sampleRate,
                     ),
                   ),
                 ),
@@ -167,7 +196,34 @@ BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
     leftChannel: left,
     rightChannel: right,
     mode: mode,
+    sampleRate: route.sampleRate,
   );
+}
+
+/// Rate options for a bus: "device default" first, then the rates the device
+/// advertises. A rate the bus already has stays listed so an older value remains
+/// selectable (and visible) even when the device no longer advertises it.
+List<int?> _rateOptions(OutputDevice? device, int? current) {
+  final rates = <int?>[null, if (device != null) ...device.defaultSampleRates];
+  if (current != null && !rates.contains(current)) {
+    rates.add(current);
+  }
+  rates.sort((a, b) {
+    if (a == null) return -1;
+    if (b == null) return 1;
+    return a.compareTo(b);
+  });
+  return rates;
+}
+
+String _rateLabel(AppLocalizations l10n, OutputDevice? device, int? rate) {
+  if (rate != null) {
+    return l10n.settingsAudioSampleRateHz(rate);
+  }
+  final mix = device?.mixSampleRate;
+  return mix == null
+      ? l10n.settingsAudioSampleRateDeviceDefault
+      : l10n.settingsAudioSampleRateDeviceDefaultWithRate(mix);
 }
 
 class _ChannelStepper extends StatelessWidget {

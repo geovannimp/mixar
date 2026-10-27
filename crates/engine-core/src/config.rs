@@ -24,8 +24,6 @@ pub fn validate_buffer_size(buffer_size: u32) -> Result<()> {
 /// Engine configuration
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EngineConfig {
-    /// Sample rate for the engine
-    pub sample_rate: u32,
     /// Buffer size in frames (must be a multiple of [`BUFFER_SIZE_MULTIPLE`])
     pub buffer_size: u32,
     /// Number of enabled deck lanes (2 or 4).
@@ -117,7 +115,6 @@ impl SamplerStripRouteSetting {
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
-            sample_rate: 48000,
             buffer_size: 512,
             num_decks: default_num_decks(),
             low_latency: false,
@@ -209,6 +206,15 @@ impl EngineConfig {
             self.num_decks
         );
         validate_buffer_size(self.buffer_size)?;
+        for bus in &self.buses {
+            if let Some(rate) = bus.sample_rate {
+                ensure!(
+                    rate > 0,
+                    "bus '{}' sample_rate must be > 0 (got {rate})",
+                    bus.id.as_str()
+                );
+            }
+        }
         if let Some(secs) = self.audio.as_ref().and_then(|a| a.vinyl_brake_stop_secs) {
             ensure!(
                 (0.05..=3.0).contains(&secs),
@@ -285,7 +291,6 @@ mod tests {
     #[test]
     fn test_engine_config_default() {
         let config = EngineConfig::default();
-        assert_eq!(config.sample_rate, 48000);
         assert_eq!(config.buffer_size, 512);
         assert!(!config.low_latency);
         assert_eq!(config.backend, "auto");
@@ -330,7 +335,6 @@ mod tests {
     #[test]
     fn from_toml_rejects_non_multiple_buffer_size() {
         let toml = r#"
-sample_rate = 48000
 buffer_size = 100
 low_latency = false
 backend = "null"

@@ -37,11 +37,6 @@ class SettingsAudioPanel extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final devicesAsync = ref.watch(audioDevicesProvider);
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
-    final sampleRates = _masterBusSampleRates(
-      devices: deviceList,
-      masterDeviceId: draft.masterBus.deviceId,
-      current: draft.sampleRate,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,21 +58,6 @@ class SettingsAudioPanel extends ConsumerWidget {
                 value: draft.lowLatency,
                 onChanged: (v) =>
                     onChanged(copyAppSettings(draft, lowLatency: v)),
-              ),
-              SettingsField(
-                label: l10n.settingsAudioSampleRate,
-                hint: devicesAsync.isLoading
-                    ? l10n.settingsAudioSampleRateLoading
-                    : null,
-                child: SettingsSelect(
-                  dialogTitle: l10n.settingsAudioSampleRate,
-                  value: draft.sampleRate,
-                  options: sampleRates,
-                  enabled: !devicesAsync.isLoading && sampleRates.isNotEmpty,
-                  labelBuilder: (v) => '$v Hz',
-                  onChanged: (sr) =>
-                      onChanged(copyAppSettings(draft, sampleRate: sr)),
-                ),
               ),
               SettingsField(
                 label: l10n.settingsAudioResamplerQuality,
@@ -143,20 +123,6 @@ class SettingsAudioPanel extends ConsumerWidget {
       ],
     );
   }
-}
-
-List<int> _masterBusSampleRates({
-  required List<OutputDevice> devices,
-  required String masterDeviceId,
-  required int current,
-}) {
-  final device = resolveAudioOutputDevice(devices, masterDeviceId);
-  final rates = <int>[if (device != null) ...device.defaultSampleRates];
-  if (!rates.contains(current)) {
-    rates.add(current);
-  }
-  rates.sort();
-  return rates;
 }
 
 class _BufferSizeSlider extends StatelessWidget {

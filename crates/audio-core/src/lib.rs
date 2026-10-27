@@ -90,6 +90,11 @@ pub struct DeviceInfo {
     pub max_channels: u16,
     /// Default sample rates supported by this device
     pub default_sample_rates: Vec<u32>,
+    /// Rate the device mixes at when the system owns the format (WASAPI shared
+    /// mode mix rate, PipeWire graph rate). `None` when the backend cannot report
+    /// it; a bus without an explicit rate then has no automatic choice.
+    #[serde(default)]
+    pub mix_sample_rate: Option<u32>,
     /// Whether this device is the system default output device
     pub is_default: bool,
 }
@@ -108,8 +113,15 @@ impl DeviceInfo {
             name,
             max_channels,
             default_sample_rates: sample_rates,
+            mix_sample_rate: None,
             is_default,
         }
+    }
+
+    /// Record the rate the system mixes this device at (see [`Self::mix_sample_rate`]).
+    pub fn with_mix_sample_rate(mut self, rate: Option<u32>) -> Self {
+        self.mix_sample_rate = rate;
+        self
     }
 }
 
@@ -340,6 +352,11 @@ pub struct BusConfig {
     pub device: DeviceId,
     /// Channel mapping for this bus
     pub channels: ChannelMapping,
+    /// Output rate for this bus's device stream. `None` follows the device's
+    /// mix rate ([`DeviceInfo::mix_sample_rate`]). Buses sharing a device must
+    /// agree, since they share one stream.
+    #[serde(default)]
+    pub sample_rate: Option<u32>,
 }
 
 impl BusConfig {
@@ -350,7 +367,14 @@ impl BusConfig {
             name,
             device,
             channels,
+            sample_rate: None,
         }
+    }
+
+    /// Set the output rate for this bus (`None` follows the device mix rate).
+    pub fn with_sample_rate(mut self, sample_rate: Option<u32>) -> Self {
+        self.sample_rate = sample_rate;
+        self
     }
 }
 

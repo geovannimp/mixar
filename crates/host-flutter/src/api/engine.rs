@@ -36,6 +36,9 @@ pub struct OutputDevice {
     pub is_default: bool,
     pub max_channels: u16,
     pub default_sample_rates: Vec<u32>,
+    /// Rate the system mixes this device at; `None` when the backend cannot report
+    /// it. Settings → Audio shows it as the "Device default" rate.
+    pub mix_sample_rate: Option<u32>,
 }
 
 /// How a deck lane is affected by the main crossfader (Dart mirror).
@@ -83,6 +86,7 @@ fn output_device(device: audio_core::DeviceInfo) -> OutputDevice {
         is_default: device.is_default,
         max_channels: device.max_channels,
         default_sample_rates: device.default_sample_rates,
+        mix_sample_rate: device.mix_sample_rate,
     }
 }
 

@@ -82,7 +82,7 @@ pub enum BusChannelMode {
     Mono,
 }
 
-/// Output bus route (device + channels).
+/// Output bus route (device + channels + rate).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BusRouteSettings {
     pub device_id: String,
@@ -90,6 +90,10 @@ pub struct BusRouteSettings {
     pub right_channel: u16,
     #[serde(default)]
     pub mode: BusChannelMode,
+    /// Rate this bus's device stream runs at. `None` follows the rate the system
+    /// mixes the device at (Settings → Audio shows it as "Device default").
+    #[serde(default)]
+    pub sample_rate: Option<u32>,
 }
 
 /// Jog platter policy (maps to [`JogMode`]).
@@ -339,7 +343,6 @@ fn default_num_decks() -> u8 {
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
-    pub sample_rate: u32,
     pub buffer_size: u32,
     pub low_latency: bool,
     pub resampler_quality: String,
@@ -568,6 +571,7 @@ fn default_master_bus_route() -> BusRouteSettings {
         left_channel: 1,
         right_channel: 2,
         mode: BusChannelMode::Stereo,
+        sample_rate: None,
     }
 }
 
@@ -577,6 +581,7 @@ fn default_preview_bus_route() -> BusRouteSettings {
         left_channel: 3,
         right_channel: 4,
         mode: BusChannelMode::Stereo,
+        sample_rate: None,
     }
 }
 
@@ -609,9 +614,6 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         settings.num_decks = default_num_decks();
     }
 
-    if settings.sample_rate == 0 {
-        errors.push("sample_rate must be > 0".into());
-    }
     if let Err(e) = validate_buffer_size(settings.buffer_size) {
         errors.push(e.to_string());
     }
@@ -698,6 +700,9 @@ fn parse_bus(field: &str, route: &BusRouteSettings) -> Result<(), String> {
     if route.device_id.trim().is_empty() {
         return Err(format!("{field}.device_id must not be empty"));
     }
+    if route.sample_rate == Some(0) {
+        return Err(format!("{field}.sample_rate must be > 0"));
+    }
     match route.mode {
         BusChannelMode::Mono => {
             if route.left_channel == 0 {
@@ -725,6 +730,7 @@ fn bus_route_from_config(bus: &BusConfig) -> BusRouteSettings {
             ChannelMode::Mono => BusChannelMode::Mono,
             ChannelMode::Stereo => BusChannelMode::Stereo,
         },
+        sample_rate: bus.sample_rate,
     }
 }
 
@@ -742,6 +748,7 @@ fn bus_config(id: &str, name: &str, route: &BusRouteSettings) -> BusConfig {
         DeviceId::new(route.device_id.clone()),
         channel_mapping_from_route(route),
     )
+    .with_sample_rate(route.sample_rate)
 }
 
 fn buses_from_settings(settings: &AppSettings) -> Vec<BusConfig> {
@@ -766,7 +773,6 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         .iter()
         .find(|bus| bus.id.as_str() == PREVIEW_BUS_ID);
     AppSettings {
-        sample_rate: config.sample_rate,
         buffer_size: config.buffer_size,
         low_latency: config.low_latency,
         resampler_quality: normalize_resampler_quality(
@@ -823,7 +829,6 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     let mut config = host.engine_config.clone();
     config.num_decks = usize::from(settings.num_decks);
     config.buses = buses_from_settings(&settings);
-    config.sample_rate = settings.sample_rate;
     config.buffer_size = settings.buffer_size;
     config.low_latency = settings.low_latency;
     config.analysis_duration = settings.analysis_duration.into();
@@ -956,7 +961,9 @@ mod tests {
     #[test]
     fn default_settings_round_trip() {
         let parsed = parse_settings(sample_settings()).expect("defaults parse");
-        assert_eq!(parsed.sample_rate, 48_000);
+        // Fresh installs follow the device's mix rate rather than pinning one.
+        assert_eq!(parsed.master_bus.sample_rate, None);
+        assert_eq!(parsed.preview_bus.sample_rate, None);
         assert!(parsed.volume_normalizer_enabled);
         assert_eq!(
             parsed.waveform_display_mode,
@@ -1020,7 +1027,7 @@ mod tests {
 
         let host = load_host(&path);
         assert!(host.configured);
-        assert_eq!(host.engine_config.sample_rate, 48_000);
+        assert_eq!(settings_from_host(&host).master_bus.sample_rate, None);
 
         write_settings_file(&path, &settings_from_host(&host)).expect("save");
         let text = std::fs::read_to_string(&path).expect("read");
@@ -1029,7 +1036,7 @@ mod tests {
             "saved settings must drop the retired backend key: {text}"
         );
         let reloaded: AppSettings = serde_json::from_str(&text).expect("reload");
-        assert_eq!(reloaded.sample_rate, 48_000);
+        assert_eq!(reloaded.master_bus.sample_rate, None);
     }
 
     #[test]
@@ -1589,10 +1596,10 @@ mod tests {
         let path = dir.path().join("settings.json");
         let mut settings = sample_settings();
         settings.waveform_display_mode = WaveformDisplayModeSetting::Filtered;
-        settings.sample_rate = 44_100;
+        settings.master_bus.sample_rate = Some(44_100);
         write_settings_file(&path, &settings).expect("write");
 
-        settings.sample_rate = 48_000;
+        settings.master_bus.sample_rate = Some(48_000);
         settings.waveform_display_mode = WaveformDisplayModeSetting::Rgb;
         write_settings_file(&path, &settings).expect("write again");
 
@@ -1602,7 +1609,7 @@ mod tests {
             restored.waveform_display_mode,
             WaveformDisplayModeSetting::Rgb
         );
-        assert_eq!(restored.sample_rate, 48_000);
+        assert_eq!(restored.master_bus.sample_rate, Some(48_000));
     }
 
     #[test]
@@ -1616,11 +1623,15 @@ mod tests {
         };
         let baseline = transport.get_settings().expect("baseline");
         let mut settings = sample_settings();
-        settings.sample_rate = 44_100;
+        settings.master_bus.sample_rate = Some(44_100);
         assert!(transport.save_settings(settings).is_err());
         assert_eq!(
-            transport.get_settings().expect("unchanged").sample_rate,
-            baseline.sample_rate
+            transport
+                .get_settings()
+                .expect("unchanged")
+                .master_bus
+                .sample_rate,
+            baseline.master_bus.sample_rate
         );
     }
 
@@ -1638,7 +1649,10 @@ mod tests {
         let mut host = SettingsHost::default();
         apply_to_host(&mut host, loaded).expect("apply");
         let restored = settings_from_host(&host);
-        assert_eq!(restored.sample_rate, sample_settings().sample_rate);
+        assert_eq!(
+            restored.master_bus.sample_rate,
+            sample_settings().master_bus.sample_rate
+        );
     }
 
     #[test]
@@ -1649,7 +1663,7 @@ mod tests {
         assert!(read_settings_file(&path).is_none());
         let host = load_host(&path);
         assert!(!host.configured);
-        assert_eq!(host.engine_config.sample_rate, 48_000);
+        assert_eq!(settings_from_host(&host).master_bus.sample_rate, None);
     }
     #[test]
     fn legacy_settings_default_analytics_opt_out() {
