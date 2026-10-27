@@ -312,33 +312,55 @@ impl<'a> Store<'a> {
     /// case would otherwise pass for a member. A non-recursive query also
     /// excludes anything nested below a direct child, so the caller never has
     /// to filter the result set in Rust.
+    ///
+    /// Separators are matched, not assumed: stored refs are platform paths, so
+    /// Windows hands back `C:\Music\a.wav` (canonicalized: `\\?\C:\Music\a.wav`)
+    /// while Unix uses `/`. Assuming `/` made every Windows folder collection
+    /// report zero tracks while its files sat in the DB.
     pub fn find_file_sources_under(
         &self,
         root: &str,
         recursive: bool,
     ) -> Result<Vec<library_core::AudioSource>> {
-        let prefix = format!("{root}/");
+        const SEPARATORS: [&str; 2] = ["/", "\\"];
         // SQLite counts characters, not bytes.
-        let prefix_len = prefix.chars().count() as i64;
+        let root_len = root.chars().count() as i64;
+        // First character after `root` plus one separator.
+        let remainder_start = root_len + 2;
+        let root = sea_orm::Value::from(root.to_string());
         let (sql, values): (&str, Vec<sea_orm::Value>) = if recursive {
             (
-                "(source_ref = ? OR substr(source_ref, 1, ?) = ?)",
+                "(source_ref = ? OR (substr(source_ref, 1, ?) = ? \
+                 AND substr(source_ref, ?, 1) IN (?, ?)))",
                 vec![
-                    sea_orm::Value::from(root.to_string()),
-                    sea_orm::Value::from(prefix_len),
-                    sea_orm::Value::from(prefix),
+                    root.clone(),
+                    sea_orm::Value::from(root_len),
+                    root,
+                    sea_orm::Value::from(root_len + 1),
+                    sea_orm::Value::from(SEPARATORS[0].to_string()),
+                    sea_orm::Value::from(SEPARATORS[1].to_string()),
                 ],
             )
         } else {
             // The remainder after the prefix must not hold a separator, so a
-            // direct child matches and a nested path does not.
+            // direct child matches and a nested path does not. Both kinds are
+            // checked: a Windows path may mix them.
             (
-                "(source_ref = ? OR (substr(source_ref, 1, ?) = ? AND instr(substr(source_ref, ?), '/') = 0))",
+                "(source_ref = ? OR (substr(source_ref, 1, ?) = ? \
+                 AND substr(source_ref, ?, 1) IN (?, ?) \
+                 AND instr(substr(source_ref, ?), ?) = 0 \
+                 AND instr(substr(source_ref, ?), ?) = 0))",
                 vec![
-                    sea_orm::Value::from(root.to_string()),
-                    sea_orm::Value::from(prefix_len),
-                    sea_orm::Value::from(prefix),
-                    sea_orm::Value::from(prefix_len + 1),
+                    root.clone(),
+                    sea_orm::Value::from(root_len),
+                    root,
+                    sea_orm::Value::from(root_len + 1),
+                    sea_orm::Value::from(SEPARATORS[0].to_string()),
+                    sea_orm::Value::from(SEPARATORS[1].to_string()),
+                    sea_orm::Value::from(remainder_start),
+                    sea_orm::Value::from(SEPARATORS[0].to_string()),
+                    sea_orm::Value::from(remainder_start),
+                    sea_orm::Value::from(SEPARATORS[1].to_string()),
                 ],
             )
         };
@@ -846,6 +868,54 @@ mod tests {
         let fetched = store.get_track(&id).unwrap().unwrap();
         assert_eq!(fetched.metadata().title.as_deref(), Some("a"));
         assert_eq!(fetched.metadata().duration_ms, Some(12_500));
+    }
+
+    #[test]
+    fn folder_membership_matches_windows_and_unix_separators() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let meta = TrackMetadata::default();
+        // Windows hands canonicalized paths back with backslashes and the `\\?\`
+        // verbatim prefix; a hardcoded `/` made every folder collection empty there.
+        let win_root = r"\\?\C:\Music";
+        for name in [r"\\?\C:\Music\a.wav", r"\\?\C:\Music\sub\b.wav"] {
+            store
+                .upsert_file_track(&TrackId::new(name), Path::new(name), &meta, "1")
+                .unwrap();
+        }
+        // A sibling directory that merely shares the prefix is not a member.
+        let sibling = r"\\?\C:\Musical\c.wav";
+        store
+            .upsert_file_track(&TrackId::new(sibling), Path::new(sibling), &meta, "1")
+            .unwrap();
+        // Unix paths keep working.
+        for name in ["/music/a.wav", "/music/sub/b.wav"] {
+            store
+                .upsert_file_track(&TrackId::new(name), Path::new(name), &meta, "1")
+                .unwrap();
+        }
+
+        let all = store.find_file_sources_under(win_root, true).unwrap();
+        assert_eq!(all.len(), 2, "recursive Windows membership: {all:?}");
+
+        let direct = store.find_file_sources_under(win_root, false).unwrap();
+        assert_eq!(direct.len(), 1, "non-recursive Windows membership");
+        assert_eq!(
+            direct[0].file().unwrap().path(),
+            Path::new(r"\\?\C:\Music\a.wav")
+        );
+
+        assert_eq!(
+            store.find_file_sources_under("/music", true).unwrap().len(),
+            2
+        );
+        assert_eq!(
+            store
+                .find_file_sources_under("/music", false)
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
