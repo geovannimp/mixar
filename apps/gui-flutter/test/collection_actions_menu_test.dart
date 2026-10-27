@@ -192,7 +192,7 @@ void main() {
         .first;
     await tester.tap(preset);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Peak time').last);
+    await tester.tap(find.text('±6% + harmonic key').last);
     await tester.pumpAndSettle();
     await tester.tap(preset);
     await tester.pumpAndSettle();

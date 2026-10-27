@@ -3,6 +3,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/models/smart_playlist_presets.dart';
+import 'package:gui_flutter/core/models/smart_playlist_rules.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
@@ -19,11 +21,13 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'support/fake_library_transport.dart';
 import 'support/mixar_material_app.dart';
 
-/// The bpm 120–130 rule the editor starts a smart playlist with.
-const _defaultRules =
+/// The `±6% + harmonic key` preset, as the canonical document.
+const _windowRules =
     '{"version":1,"root":{"match":"all","rules":['
-    '{"kind":"condition","field":"bpm","op":"between","min":120.0,'
-    '"max":130.0}]}}';
+    '{"kind":"condition","field":"deck_bpm_delta","op":"between",'
+    '"min":-6.0,"max":6.0},'
+    '{"kind":"condition","field":"deck_key",'
+    '"op":"harmonically_compatible"}]}}';
 
 /// Opens the dialog and can persist whatever it returned.
 class _Harness extends ConsumerStatefulWidget {
@@ -106,8 +110,9 @@ bool _createEnabled(WidgetTester tester) {
 
 Future<void> _pumpHarness(
   WidgetTester tester,
-  FakeLibraryTransport transport,
-) async {
+  FakeLibraryTransport transport, {
+  List<SmartPreset> presets = const [],
+}) async {
   tester.view.physicalSize = const Size(1000, 1600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -116,6 +121,7 @@ Future<void> _pumpHarness(
       overrides: [
         libraryTransportProvider.overrideWith((ref) async => transport),
         appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+        smartPlaylistPresetsProvider.overrideWithValue(presets),
       ],
       child: mixarTestMaterialApp(
         theme: MixarThemeData.dark(),
@@ -137,15 +143,19 @@ void main() {
     await _openSmartDialog(tester);
 
     expect(find.text('Smart playlist'), findsOneWidget);
-    expect(find.text('Add rule'), findsOneWidget);
+    expect(find.text('Choose a preset'), findsOneWidget);
     expect(find.text('Add at least one rule.'), findsOneWidget);
+    expect(
+      find.text('Add rule'),
+      findsNothing,
+      reason: 'rules arrive with a preset, not from an empty tree',
+    );
 
     await tester.enterText(find.byType(ShadInput), 'Peak');
     await tester.pumpAndSettle();
     expect(_createEnabled(tester), isFalse);
 
-    await tester.tap(find.text('Add rule'));
-    await tester.pumpAndSettle();
+    await _choosePreset(tester, '±6% + harmonic key');
     expect(_createEnabled(tester), isTrue);
   });
 
@@ -208,40 +218,52 @@ void main() {
     await _openSmartDialog(tester);
     expect(_nameText(tester), isEmpty);
 
-    await _choosePreset(tester, 'Peak time');
-    expect(_nameText(tester), 'Peak time');
+    await _choosePreset(tester, '±6% + harmonic key');
+    expect(_nameText(tester), '±6% + harmonic key');
     expect(_createEnabled(tester), isTrue);
 
     // A newer preset replaces a name this dialog derived...
-    await _choosePreset(tester, 'Unrated');
-    expect(_nameText(tester), 'Unrated');
+    await _choosePreset(tester, 'Same as playing deck');
+    expect(_nameText(tester), 'Same as playing deck');
 
     // ...but never one the user typed.
     await tester.enterText(find.byType(ShadInput).first, 'My peak');
     await tester.pumpAndSettle();
-    await _choosePreset(tester, 'Peak time');
+    await _choosePreset(tester, '±6% + harmonic key');
     expect(_nameText(tester), 'My peak');
   });
 
-  testWidgets('an invalid rule document cannot be created', (tester) async {
+  testWidgets('a saved preset with invalid rules cannot be created', (
+    tester,
+  ) async {
     final transport = FakeLibraryTransport();
     addTearDown(transport.dispose);
-    await _pumpHarness(tester, transport);
+    // Preset blobs load unvalidated, so a playlist can be pointed at a
+    // document the library would reject.
+    const broken = SmartPreset(
+      name: 'Broken window',
+      rules: SmartPlaylistRules(
+        root: SmartGroupRule(
+          rules: [
+            SmartConditionRule(
+              field: SmartField.bpm,
+              op: SmartOp.between,
+              min: 200,
+              max: 130,
+            ),
+          ],
+        ),
+      ),
+    );
+    await _pumpHarness(tester, transport, presets: const [broken]);
     await _openSmartDialog(tester);
 
     await tester.enterText(find.byType(ShadInput), 'Peak');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add rule'));
-    await tester.pumpAndSettle();
-    expect(_createEnabled(tester), isTrue);
+    await _choosePreset(tester, 'Broken window');
 
     // An inverted window is invalid: letting it through would fail after the
     // drawer closed and lose the rule tree.
-    final bounds = find.byType(ShadInput);
-    await tester.enterText(bounds.at(1), '200');
-    await tester.enterText(bounds.at(2), '130');
-    await tester.pumpAndSettle();
-
     expect(_createEnabled(tester), isFalse);
     expect(find.text('min must not exceed max on bpm'), findsOneWidget);
   });
@@ -256,7 +278,7 @@ void main() {
 
     await tester.enterText(find.byType(ShadInput), 'Peak');
     await tester.pumpAndSettle();
-    await _choosePreset(tester, 'Peak time');
+    await _choosePreset(tester, '±6% + harmonic key');
     expect(_createEnabled(tester), isTrue);
 
     // The prompt is the empty document: it drops the preset's rules, and an
@@ -274,8 +296,7 @@ void main() {
     await _openSmartDialog(tester);
     await tester.enterText(find.byType(ShadInput), '  Peak  ');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add rule'));
-    await tester.pumpAndSettle();
+    await _choosePreset(tester, '±6% + harmonic key');
     await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
     expect(find.text('Smart playlist'), findsNothing);
@@ -285,6 +306,6 @@ void main() {
 
     final call = transport.createSmartPlaylistCalls.single;
     expect(call.name, 'Peak');
-    expect(call.rulesJson, _defaultRules);
+    expect(call.rulesJson, _windowRules);
   });
 }

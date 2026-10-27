@@ -110,7 +110,7 @@ void main() {
   });
 
   test('presets are all valid documents', () {
-    expect(smartRulePresets, hasLength(5));
+    expect(smartRulePresets, hasLength(2));
     for (final preset in smartRulePresets) {
       final rules = preset.build();
       expect(rules.validate(), isNull, reason: preset.name);

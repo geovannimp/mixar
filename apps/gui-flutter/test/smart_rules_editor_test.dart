@@ -34,6 +34,7 @@ Future<List<SmartPlaylistRules>> _pumpEditor(
   SmartPlaylistRules initial = const SmartPlaylistRules.empty(),
   List<SmartPreset> presets = const [],
   SmartPresetSaver? savePreset,
+  bool showPresets = true,
 }) async {
   tester.view.physicalSize = const Size(1000, 1800);
   tester.view.devicePixelRatio = 1;
@@ -53,7 +54,11 @@ Future<List<SmartPlaylistRules>> _pumpEditor(
           body: SingleChildScrollView(
             child: SizedBox(
               width: 720,
-              child: SmartRulesEditor(initial: initial, onChanged: changes.add),
+              child: SmartRulesEditor(
+                initial: initial,
+                showPresets: showPresets,
+                onChanged: changes.add,
+              ),
             ),
           ),
         ),
@@ -86,7 +91,8 @@ Future<void> _choose(
 
 void main() {
   testWidgets('appends and removes rules', (tester) async {
-    final changes = await _pumpEditor(tester);
+    // The preset drawer's editor: the one place an empty tree is editable.
+    final changes = await _pumpEditor(tester, showPresets: false);
     expect(find.text('Add rule'), findsOneWidget);
 
     await tester.tap(find.text('Add rule'));
@@ -103,7 +109,7 @@ void main() {
   });
 
   testWidgets('a new group arrives with one rule', (tester) async {
-    final changes = await _pumpEditor(tester);
+    final changes = await _pumpEditor(tester, showPresets: false);
     await tester.tap(find.text('Add group'));
     await tester.pumpAndSettle();
 
@@ -278,10 +284,18 @@ void main() {
     tester,
   ) async {
     final changes = await _pumpEditor(tester);
-    await _choose(tester, trigger: 'Choose a preset', option: 'Peak time');
+    await _choose(
+      tester,
+      trigger: 'Choose a preset',
+      option: '±6% + harmonic key',
+    );
     expect(changes.last.root.rules, hasLength(2));
 
-    await _choose(tester, trigger: 'Peak time', option: 'Choose a preset');
+    await _choose(
+      tester,
+      trigger: '±6% + harmonic key',
+      option: 'Choose a preset',
+    );
 
     expect(changes.last.root.rules, isEmpty);
     expect(changes.last.sort, isNull, reason: 'the preset ordering goes too');
@@ -384,7 +398,11 @@ void main() {
     tester,
   ) async {
     final changes = await _pumpEditor(tester);
-    await _choose(tester, trigger: 'Choose a preset', option: 'Recently added');
+    await _choose(
+      tester,
+      trigger: 'Choose a preset',
+      option: '±6% + harmonic key',
+    );
 
     final inputs = find.byType(ShadInput);
     expect(inputs, findsNWidgets(2));
@@ -397,16 +415,25 @@ void main() {
     }
     expect(find.text('Add rule'), findsNothing);
     expect(find.text('Add group'), findsNothing);
-    expect(
-      find.textContaining('Fork this preset'),
-      findsOneWidget,
-      reason: 'the only way to change the rules has to be on screen',
-    );
 
-    final condition = changes.last.root.rules.single as SmartConditionRule;
-    expect(condition.field, SmartField.addedDaysAgo);
-    expect(condition.min, 0);
-    expect(condition.max, 30);
+    final window = changes.last.root.rules.first as SmartConditionRule;
+    expect(window.field, SmartField.deckBpmDelta);
+    expect(window.min, -6);
+    expect(window.max, 6);
+  });
+
+  testWidgets('an empty document draws only the preset picker', (tester) async {
+    await _pumpEditor(tester);
+
+    expect(find.text('Choose a preset'), findsOneWidget);
+    expect(
+      find.text('Match'),
+      findsNothing,
+      reason: 'rules arrive with a preset, not from an empty tree',
+    );
+    expect(find.text('Add rule'), findsNothing);
+    expect(find.text('Add group'), findsNothing);
+    expect(find.byType(ShadInput), findsNothing);
   });
 
   testWidgets('forking a preset copies its rules and names the copy', (
@@ -420,7 +447,11 @@ void main() {
     );
 
     await _choose(tester, trigger: 'Choose a preset', option: 'Add preset…');
-    await _choose(tester, trigger: 'Current rules', option: 'Peak time');
+    await _choose(
+      tester,
+      trigger: 'Current rules',
+      option: '±6% + harmonic key',
+    );
 
     final nameField = find
         .descendant(
@@ -430,19 +461,19 @@ void main() {
         .first;
     expect(
       tester.widget<ShadInput>(nameField).controller?.text,
-      'Peak time copy',
+      '±6% + harmonic key copy',
       reason: 'saving over the source would rename it, not fork it',
     );
 
     await tester.tap(find.widgetWithText(AppButton, 'Save preset'));
     await tester.pumpAndSettle();
 
-    final peak = smartRulePresets
-        .firstWhere((preset) => preset.name == 'Peak time')
+    final window = smartRulePresets
+        .firstWhere((preset) => preset.name == '±6% + harmonic key')
         .build();
-    expect(saved.single.name, 'Peak time copy');
-    expect(saved.single.rules.toJsonString(), peak.toJsonString());
-    expect(changes.last.toJsonString(), peak.toJsonString());
-    expect(find.text('Peak time copy'), findsOneWidget);
+    expect(saved.single.name, '±6% + harmonic key copy');
+    expect(saved.single.rules.toJsonString(), window.toJsonString());
+    expect(changes.last.toJsonString(), window.toJsonString());
+    expect(find.text('±6% + harmonic key copy'), findsOneWidget);
   });
 }

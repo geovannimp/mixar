@@ -24,17 +24,14 @@ The **Preset** list above the rule tree replaces the whole document in one press
 
 | Preset | What it sets |
 | --- | --- |
-| **Peak time** | BPM is between 126 and 132, and Rating is between 4 and 5. |
-| **Recently added** | Days since added is between 0 and 30, and the list is ordered by when each track was added, newest first. |
-| **Unrated** | Rating is empty. |
 | **Same as playing deck** | Deck BPM (±%) is between -0.5 and 0.5, and Deck key is the key of the playing deck. |
 | **±6% + harmonic key** | Deck BPM (±%) is between -6 and 6, and Deck key is harmonically compatible with the playing deck. |
 
-The last two read the decks; see [Rules that follow the decks](#rules-that-follow-the-decks).
+Both read the decks; see [Rules that follow the decks](#rules-that-follow-the-decks).
 
-A preset is a fixed document: once the list names one, its rules are read-only and the editor says so. Changing them means forking the preset, which is what **Add preset…**, the last entry in the same list, is for.
+A preset is a fixed document: once the list names one, its rules are read-only. Changing them means forking the preset, which is what **Add preset…**, the last entry in the same list, is for.
 
-**Choose a preset** is the empty document: picking it throws the current rules away and starts over. A playlist with no rules cannot be saved, so **Create** and **Save** stay disabled until you add one.
+**Choose a preset** is the empty document: picking it throws the current rules away and starts over, and with nothing picked there is no rule tree to show. A playlist with no rules cannot be saved, so **Create** and **Save** stay disabled until a preset is picked or saved.
 
 The drawer opens on the rules you have already built. Its **Start from** list copies any preset into the editor instead: that is a fork, and the name becomes `<preset> copy` until you change it, so saving never overwrites the preset it came from. Name the result and press **Save preset**; the name joins the list next to the presets Mixar ships, and the playlist now uses it. A preset with an existing name replaces that one. Saved presets are stored with your app settings, so they survive a restart.
 
@@ -63,7 +60,7 @@ What the values mean:
 - **Rating** rules only accept values from 1 to 5, and an unrated track never matches a rating window. Use **is empty** to find unrated tracks.
 - **Days since added** counts whole days since the track entered the library.
 
-**Add rule** appends a rule to a group. **Add group** appends a nested group with its own **Match** setting, so a playlist can read "peak-time *or* recent" inside a larger **All** group. Nesting stops three groups deep, and a playlist holds at most 64 rules. Removing a group's last rule removes the group.
+A document is written in the preset drawer: **Add preset…**, then **Add rule** appends a rule to a group and **Add group** appends a nested group with its own **Match** setting, so a playlist can read "peak-time *or* recent" inside a larger **All** group. Nesting stops three groups deep, and a playlist holds at most 64 rules. Removing a group's last rule removes the group. Name the result and the playlist editor shows it read-only.
 
 A rule whose field is missing on a track never matches: a track without a key is not in *Key is one of*, and a track without BPM is not in any BPM window. Analysis fills those fields; see [Analysis](/docs/users/library/analysis).
 
@@ -86,7 +83,7 @@ Delete works like any other collection: the playlist disappears from the sidebar
 
 ## What a smart playlist does not do
 
-- **No manual order or manual membership.** The list is ordered by title, unless a preset set an order such as **Recently added**.
+- **No manual order or manual membership.** The list is ordered by title, unless the preset it came from set an order of its own.
 - **No streamed tracks.** Rules run over the file tracks in your library, the ones analysis can work on.
 - **No loudness matches before analysis.** **Loudness (LUFS)** only has a value once a track has been analyzed.
 - **Exporting to a CDJ USB drive resolves the playlist at export time.** If its deck rules matched nothing because no deck was playing, the export warns `playlist {name}: matched no tracks (deck-relative rules need a playing deck)` and writes that playlist with no tracks, so the empty result is visible instead of silent. See [Export to a CDJ USB drive](/docs/users/library/export-to-cdj-usb).

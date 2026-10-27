@@ -690,54 +690,12 @@ class SmartPlaylistRulesPreset {
 }
 
 const smartRulePresets = <SmartPlaylistRulesPreset>[
-  SmartPlaylistRulesPreset(name: 'Peak time', build: _peakTimePreset),
-  SmartPlaylistRulesPreset(name: 'Recently added', build: _recentlyAddedPreset),
-  SmartPlaylistRulesPreset(name: 'Unrated', build: _unratedPreset),
   SmartPlaylistRulesPreset(
     name: 'Same as playing deck',
     build: _sameDeckPreset,
   ),
   SmartPlaylistRulesPreset(name: '±6% + harmonic key', build: _windowPreset),
 ];
-
-SmartPlaylistRules _peakTimePreset() => const SmartPlaylistRules(
-  root: SmartGroupRule(
-    rules: [
-      SmartConditionRule(
-        field: SmartField.bpm,
-        op: SmartOp.between,
-        min: 126,
-        max: 132,
-      ),
-      SmartConditionRule(
-        field: SmartField.rating,
-        op: SmartOp.between,
-        min: 4,
-        max: 5,
-      ),
-    ],
-  ),
-);
-
-SmartPlaylistRules _recentlyAddedPreset() => const SmartPlaylistRules(
-  sort: SmartSort(field: SmartSortField.addedDaysAgo, ascending: false),
-  root: SmartGroupRule(
-    rules: [
-      SmartConditionRule(
-        field: SmartField.addedDaysAgo,
-        op: SmartOp.between,
-        min: 0,
-        max: 30,
-      ),
-    ],
-  ),
-);
-
-SmartPlaylistRules _unratedPreset() => const SmartPlaylistRules(
-  root: SmartGroupRule(
-    rules: [SmartConditionRule(field: SmartField.rating, op: SmartOp.isEmpty)],
-  ),
-);
 
 SmartPlaylistRules _sameDeckPreset() => const SmartPlaylistRules(
   root: SmartGroupRule(

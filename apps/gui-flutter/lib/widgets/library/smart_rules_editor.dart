@@ -72,6 +72,9 @@ class _SmartRulesEditorState extends ConsumerState<SmartRulesEditor> {
   /// forks it, so a playlist cannot drift away from the preset it names.
   bool get _locked => _appliedPresetName != null;
 
+  /// True when the picker is shown for a document with no rules.
+  bool get _treeHidden => widget.showPresets && _rules.root.rules.isEmpty;
+
   void _update(SmartGroupRule root) {
     final next = SmartPlaylistRules(
       root: root,
@@ -203,30 +206,29 @@ class _SmartRulesEditorState extends ConsumerState<SmartRulesEditor> {
               );
             },
           ),
-        if (_locked)
-          Text(
-            'Fork this preset with “Add preset…” to change its rules.',
-            style: theme.typography.body.xs.copyWith(
-              color: theme.colors.mutedForeground,
+        // No document, no tree: with the picker in view, rules arrive from a
+        // preset, so an empty document draws nothing else. The preset drawer's
+        // editor (`showPresets: false`) always draws one, because that is where
+        // a document is written.
+        if (!_treeHidden) ...[
+          _MatchRow(
+            enabled: !_locked,
+            match: _rules.root.match,
+            onChanged: (match) =>
+                _update(SmartGroupRule(match: match, rules: _rules.root.rules)),
+          ),
+          KeyedSubtree(
+            key: ValueKey(_epoch),
+            child: _GroupRules(
+              group: _rules.root,
+              depth: 0,
+              locked: _locked,
+              numDecks: settings.numDecks,
+              keyDisplayMode: keyModeFromSettings(settings.keyDisplayMode),
+              onChanged: _update,
             ),
           ),
-        _MatchRow(
-          enabled: !_locked,
-          match: _rules.root.match,
-          onChanged: (match) =>
-              _update(SmartGroupRule(match: match, rules: _rules.root.rules)),
-        ),
-        KeyedSubtree(
-          key: ValueKey(_epoch),
-          child: _GroupRules(
-            group: _rules.root,
-            depth: 0,
-            locked: _locked,
-            numDecks: settings.numDecks,
-            keyDisplayMode: keyModeFromSettings(settings.keyDisplayMode),
-            onChanged: _update,
-          ),
-        ),
+        ],
       ],
     );
   }
