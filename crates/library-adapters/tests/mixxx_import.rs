@@ -1,6 +1,6 @@
 //! Mixxx adapter tests: read a synthetic `mixxxdb.sqlite`.
 #![cfg(feature = "mixxx")]
-
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::{Path, PathBuf};
 
 use library::{LibraryConfig, LibraryManager};

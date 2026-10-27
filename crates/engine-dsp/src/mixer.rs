@@ -327,7 +327,10 @@ impl Mixer {
                     Some(CrossfaderAssign::B) => gain_b,
                     Some(CrossfaderAssign::Thru) | None => 1.0,
                 };
-                let lane_data = self.graph.node_weight(lane_id).unwrap();
+                let lane_data = self
+                    .graph
+                    .node_weight(lane_id)
+                    .expect("lane ids are registered at construction and never removed");
                 if lane_data.buffers.len() < 2 {
                     continue;
                 }

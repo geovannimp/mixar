@@ -1,5 +1,6 @@
 //! CDJ USB export through the host `LibraryTransport` bridge.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::io::Write;
 use std::path::Path;
 

@@ -1,6 +1,7 @@
 //! Artwork is scaled once, at the source: the UI gets one thumbnail edge, the
 //! export another, and neither ever sees the user's full-resolution cover.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::io::Write;
 use std::path::Path;
 

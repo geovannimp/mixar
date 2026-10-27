@@ -1,5 +1,6 @@
 //! LibrarySession deck performance cmds → per-track change evts.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use library::{LibraryConfig, LibrarySession, NewCollection, WritableLibrary};
 use library_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use library_core::Library;

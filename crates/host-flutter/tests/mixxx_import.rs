@@ -1,5 +1,6 @@
 //! Mixxx import through the host `LibraryTransport` bridge.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::{Path, PathBuf};
 
 use host_flutter::api::library::LibraryTransport;

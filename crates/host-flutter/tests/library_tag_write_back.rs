@@ -1,5 +1,6 @@
 //! End-to-end: app setting → `LibraryTransport` → worker analysis → file tags (#451).
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 

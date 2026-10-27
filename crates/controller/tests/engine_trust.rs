@@ -1,5 +1,6 @@
 //! Trusted device auto-attach vs MappingOffer (no successful MIDI open required).
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;

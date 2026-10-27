@@ -250,7 +250,7 @@ pub(crate) fn producer_thread_loop(
         "liveness must pair 1:1 with device_producers"
     );
 
-    while *running.lock().unwrap() {
+    while *running.lock().expect("running flag mutex poisoned") {
         let buffer_duration = Duration::from_secs_f64(chunk_frames as f64 / sample_rate as f64);
 
         let now = Instant::now();
@@ -265,7 +265,7 @@ pub(crate) fn producer_thread_loop(
         let Some(pacing_i) = live.iter().position(|&l| l) else {
             let slice = DEVICE_STALL_TIMEOUT / 16;
             for _ in 0..4 {
-                if !*running.lock().unwrap() {
+                if !*running.lock().expect("running flag mutex poisoned") {
                     break;
                 }
                 thread::sleep(slice);
@@ -319,11 +319,13 @@ pub(crate) fn producer_thread_loop(
         }
 
         {
-            let mut dsp = dsp_engine.lock().unwrap();
+            let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
             process_chunk_or_silence(&mut dsp, chunk_frames as u32, &mut output_buses);
             let deck_events = dsp.drain_transport_events();
             if !deck_events.is_empty() {
-                let mut queue = transport_events.lock().unwrap();
+                let mut queue = transport_events
+                    .lock()
+                    .expect("transport event queue mutex poisoned");
                 queue.extend(
                     deck_events
                         .into_iter()
@@ -507,7 +509,7 @@ mod tests {
             thread::sleep(Duration::from_millis(1));
         }
 
-        *running.lock().unwrap() = false;
+        *running.lock().expect("running flag mutex poisoned") = false;
         handle.join().unwrap();
 
         let nonpacing_base = prefill - (2 * CHUNK_SAMPLES);
@@ -613,7 +615,7 @@ mod tests {
             max_slots = max_slots.max(consumer.slots());
         }
 
-        *running.lock().unwrap() = false;
+        *running.lock().expect("running flag mutex poisoned") = false;
         handle.join().unwrap();
 
         assert!(consumed > 0, "callbacks never received audio");
@@ -684,7 +686,7 @@ mod tests {
         while consumer.slots() < SAMPLES_PER_CALLBACK && Instant::now() < deadline {
             thread::sleep(Duration::from_millis(1));
         }
-        *running.lock().unwrap() = false;
+        *running.lock().expect("running flag mutex poisoned") = false;
         handle.join().unwrap();
 
         assert!(

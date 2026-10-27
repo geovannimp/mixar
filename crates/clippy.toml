@@ -1,0 +1,14 @@
+# Clippy settings apply to every workspace member: clippy reads the nearest
+# `clippy.toml` above the crate being linted.
+
+# `clippy::unwrap_used` is a workspace lint (Cargo.toml). `#[test]` fns and
+# `#[cfg(test)]` modules keep using `unwrap()`; production paths use
+# `expect("…")` with the invariant that makes the panic impossible. Module-level
+# helpers in an integration test file are not test code to clippy, so that file
+# carries its own `#![allow(clippy::unwrap_used)]`.
+allow-unwrap-in-tests = true
+
+# `clippy::wildcard_imports` normally exempts any `…::prelude::*` glob, which
+# would let a hand-rolled prelude module slip through the no-glob-imports rule.
+# Warn on all of them; the few intentional prelude globs carry a file-level allow.
+warn-on-all-wildcard-imports = true

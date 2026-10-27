@@ -1,5 +1,6 @@
 //! LibraryManager + LibraryBuses without LibrarySession.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use library::{spawn_library_worker, LibraryBuses, LibraryConfig, LibraryManager};
 use library_api::{encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use std::sync::{Arc, Mutex};

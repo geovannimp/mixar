@@ -273,7 +273,7 @@ fn with_engine_mut<F, R>(engine: &Arc<Mutex<Option<Engine>>>, f: F) -> Result<R>
 where
     F: FnOnce(&mut Engine) -> Result<R>,
 {
-    let mut guard = engine.lock().unwrap();
+    let mut guard = engine.lock().expect("engine handle mutex poisoned");
     let eng = guard
         .as_mut()
         .ok_or_else(|| anyhow!("engine not available"))?;
@@ -284,7 +284,7 @@ fn with_engine_ref<F, R>(engine: &Arc<Mutex<Option<Engine>>>, f: F) -> Result<R>
 where
     F: FnOnce(&Engine) -> Result<R>,
 {
-    let guard = engine.lock().unwrap();
+    let guard = engine.lock().expect("engine handle mutex poisoned");
     let eng = guard
         .as_ref()
         .ok_or_else(|| anyhow!("engine not available"))?;

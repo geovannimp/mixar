@@ -1,5 +1,6 @@
 //! Top-level Rhai `const` / `let` must be visible inside lifecycle hooks.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::collections::HashSet;
 
 use controller::script::{ScriptHost, ScriptRuntime};

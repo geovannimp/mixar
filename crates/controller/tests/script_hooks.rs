@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 use std::thread;
 use std::time::Duration;

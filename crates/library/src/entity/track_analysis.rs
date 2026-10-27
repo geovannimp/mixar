@@ -1,3 +1,5 @@
+#![allow(clippy::wildcard_imports)] // sea_orm entity prelude
+
 use sea_orm::entity::prelude::*;
 
 #[sea_orm::model]

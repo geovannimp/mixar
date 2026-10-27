@@ -1,5 +1,18 @@
 //! Collection sync/import and filesystem bookkeeping.
-use super::*;
+#[cfg(feature = "analysis")]
+use crate::compute_file_analysis;
+use crate::{collect_audio_files, is_audio_file, normalize_path, tags, unix_secs_string};
+use crate::{FileImportOutcome, LibraryManager};
+#[cfg(feature = "analysis")]
+use library_core::AnalyzeTrackOptions;
+use library_core::{
+    path_label, path_under_folder, AudioSource, Collection, CollectionConfig,
+    CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
+    FileAudioSource, ImportedTrack, Library, LibraryError, NewCollection, Result, ScanReport,
+    StreamAudioSource, StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
+};
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 impl LibraryManager {
     /// Sync collections without holding the library mutex across filesystem walks or tag reads.

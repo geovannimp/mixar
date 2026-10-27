@@ -1,5 +1,6 @@
 //! Integration: performance cmds (cue / loop / beat jump / unload) on the bus.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use common::{

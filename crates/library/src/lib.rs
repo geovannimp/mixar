@@ -38,9 +38,6 @@ mod worker;
 
 #[cfg(feature = "analysis")]
 use crate::analysis::{compute_file_analysis, ComputedFileAnalysis};
-#[cfg(feature = "analysis")]
-#[cfg(feature = "analysis")]
-use codec::decode_stem_file;
 use codec::is_loadable_audio_path;
 
 use decode_cache::DecodeCache;

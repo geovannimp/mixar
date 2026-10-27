@@ -34,7 +34,7 @@ impl Engine {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         {
-            let dsp = dsp_engine.lock().unwrap();
+            let dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
             if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
                 return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
             }
@@ -47,7 +47,7 @@ impl Engine {
         let bpm = metadata.bpm;
         let audio = Arc::new(source.load()?);
 
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         {
             let deck = dsp.deck_mut(deck_id).expect("validated above");
             deck.load(audio)?;
@@ -91,7 +91,7 @@ impl Engine {
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         // Phase A (locked, short): validate the deck and snapshot the params needed to build.
         let spec = {
-            let dsp = dsp_engine.lock().unwrap();
+            let dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
             if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
                 return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
             }
@@ -107,7 +107,7 @@ impl Engine {
         let deck_load = spec.prepare(prepared.audio)?;
 
         // Phase C (locked, short): swap in prepared resources only.
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         {
             let deck = dsp.deck_mut(deck_id).expect("validated above");
             deck.apply_prepared_load(deck_load);
@@ -154,7 +154,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer_mut().set_normalizer_target(target_lufs);
         Ok(())
     }
@@ -173,7 +173,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
 
         if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
             return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));

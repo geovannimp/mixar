@@ -1,5 +1,6 @@
 //! LibraryTransport parity: add folder, resolve paths, artwork metadata, bus cmds.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::io::Write;
 use std::path::Path;
 use std::time::Duration;

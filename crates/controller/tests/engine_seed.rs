@@ -1,5 +1,6 @@
 //! ControllerEngine seed / update filesystem behavior (no MIDI hardware).
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::fs;
 use std::path::PathBuf;
 

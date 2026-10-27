@@ -45,7 +45,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer_mut().set_crossfader_assign(deck_id, assignment)
     }
 
@@ -55,7 +55,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         if let Some(channel) = dsp.mixer_mut().channel_mut(deck_id) {
             channel.set_volume(volume)?;
             Ok(())
@@ -70,7 +70,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         let channel = dsp
             .mixer_mut()
             .channel_mut(deck_id)
@@ -85,7 +85,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         if let Some(channel) = dsp.mixer_mut().channel_mut(deck_id) {
             channel.set_eq_gains(gains)?;
             Ok(())
@@ -111,7 +111,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         if let Some(channel) = dsp.mixer_mut().channel_mut(deck_id) {
             channel.set_filter_db(filter_db)?;
             Ok(())
@@ -126,7 +126,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         if let Some(channel) = dsp.mixer_mut().channel_mut(deck_id) {
             channel.set_gain_trim_db(gain_db)?;
             Ok(())
@@ -172,7 +172,7 @@ impl Engine {
     /// is canonical (see [`Self::for_each_fx_slot`]).
     pub fn fx_unit_wet(&self, slot: u8) -> Option<f32> {
         let dsp_engine = self.dsp_engine.as_ref()?;
-        let dsp = dsp_engine.lock().unwrap();
+        let dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer()
             .channel(0)?
             .fx()
@@ -191,7 +191,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         let channel = dsp
             .mixer_mut()
             .channel_mut(deck_id)
@@ -211,7 +211,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         let num_decks = dsp.num_decks();
         for deck_id in 0..num_decks {
             let channel = dsp
@@ -252,7 +252,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer_mut().set_crossfader(position)
     }
 
@@ -268,7 +268,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer_mut().set_master_volume(volume)
     }
 
@@ -285,7 +285,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer_mut().set_cue_volume(volume)
     }
 
@@ -302,7 +302,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer_mut().set_cue_mix(mix)
     }
 
@@ -319,7 +319,7 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
         dsp.mixer_mut().set_master_cue(enabled);
         Ok(())
     }

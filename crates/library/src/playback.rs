@@ -1,10 +1,21 @@
 //! Track playback preparation and analysis gating.
-use super::*;
 #[cfg(feature = "analysis")]
 use crate::analysis::compute_file_analysis;
 #[cfg(feature = "analysis")]
+use crate::stems;
+#[cfg(feature = "analysis")]
 use crate::stems::{loaded_from_stem_bundle, prepare_native_stem_for_playback};
+use crate::{LibraryManager, PreparedTrackPlayback};
+#[cfg(feature = "analysis")]
+use codec::decode_stem_file;
 use codec::is_stem_path;
+#[cfg(feature = "analysis")]
+use library_core::AnalyzeTrackOptions;
+use library_core::{
+    AnalysisDurationMode, AudioSource, Library, LibraryError, LoadableAudio, Result, TrackId,
+};
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 impl LibraryManager {
     /// True when BPM, key, or loudness needed for playback is missing.

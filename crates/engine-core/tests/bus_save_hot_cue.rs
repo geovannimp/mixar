@@ -1,5 +1,6 @@
 //! SaveHotCue on engine bus snaps then persists via library evt.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
 use common::{recv_evt_where, wait_engine_hot_cue_count, write_two_second_wav};

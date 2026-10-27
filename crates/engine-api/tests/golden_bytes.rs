@@ -1,5 +1,6 @@
 //! Golden hex fixtures for TS wire codec parity.
 
+#![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use engine_api::{encode_cmd_body, encode_wire, CmdBody, Kind, Origin, WireMessage};
 use std::fs;
 use std::path::PathBuf;
