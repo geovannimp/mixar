@@ -46,8 +46,10 @@ pub(crate) struct DeviceRateConverter {
     channels: usize,
     /// Interleaved DSP-rate frames the resampler has not consumed yet.
     pending: Vec<Sample>,
-    /// Interleaved output scratch, one device chunk.
+    /// One device chunk of output scratch per resampler call.
     out: Vec<Sample>,
+    /// Device-rate frames produced but not yet written to the ring.
+    ready: Vec<Sample>,
 }
 
 impl DeviceRateConverter {
@@ -59,39 +61,65 @@ impl DeviceRateConverter {
         quality: &str,
     ) -> Result<Self> {
         let channels = usize::from(channels.max(1));
-        let out_frames = resampled_chunk_frames(chunk_frames, dsp_rate, device_rate) as usize;
+        // Fixed input: the DSP delivers whole chunks, so the output frame count
+        // carries the fractional ratio instead of rounding it away.
+        let resampler = resampler::create_device_resampler(
+            dsp_rate,
+            device_rate,
+            channels,
+            chunk_frames as usize,
+            Some(quality),
+        )?;
+        // A variable-output step emits whole internal blocks, so size for the maximum.
+        let out_frames = resampler.max_output_frames().max(1);
         Ok(Self {
-            resampler: resampler::create_resampler(
-                dsp_rate,
-                device_rate,
-                channels,
-                out_frames,
-                Some(quality),
-            )?,
+            resampler,
             channels,
             pending: Vec::with_capacity(channels * (chunk_frames as usize + out_frames)),
-            out: vec![0.0; channels * out_frames.max(1)],
+            out: vec![0.0; channels * out_frames],
+            ready: Vec::with_capacity(channels * out_frames),
         })
     }
 
-    /// Feed one DSP-rate chunk and return the device-rate samples produced, in whole
-    /// frames. Input the fixed output chunk does not consume yet waits for the next
-    /// chunk (at 48 kHz → 44.1 kHz the chunk needs one or two input chunks to fill).
-    pub(crate) fn convert(&mut self, chunk: &[Sample]) -> &[Sample] {
+    /// Feed one DSP-rate chunk and convert everything the resampler can take now.
+    ///
+    /// The resampler consumes the fixed input chunk and emits however many frames the
+    /// ratio requires (470 or 471 per 512-frame chunk at 48 kHz → 44.1 kHz), so the
+    /// stream carries the fractional ratio instead of running ~0.09% slow and
+    /// draining the ring until it underruns.
+    pub(crate) fn convert(&mut self, chunk: &[Sample]) {
         self.pending.extend_from_slice(chunk);
-        let need_in = self.resampler.input_frames_next().max(1);
-        if self.pending.len() / self.channels < need_in {
-            return &[];
+        loop {
+            let need_in = self.resampler.input_frames_next().max(1);
+            if self.pending.len() / self.channels < need_in {
+                break;
+            }
+            let (out_samples, consumed_frames) =
+                self.resampler
+                    .process(&self.pending, &mut self.out, self.channels);
+            if consumed_frames > 0 {
+                self.pending.drain(..consumed_frames * self.channels);
+            }
+            if out_samples == 0 {
+                break;
+            }
+            self.ready.extend_from_slice(&self.out[..out_samples]);
         }
-        // Output capacity is exactly one output chunk, which is what the fixed-output
-        // resampler produces per call.
-        let (out_samples, consumed_frames) =
-            self.resampler
-                .process(&self.pending, &mut self.out, self.channels);
-        if consumed_frames > 0 {
-            self.pending.drain(..consumed_frames * self.channels);
-        }
-        &self.out[..out_samples]
+    }
+
+    /// Device-rate frames waiting for ring space.
+    pub(crate) fn ready_frames(&self) -> usize {
+        self.ready.len() / self.channels
+    }
+
+    /// Device-rate samples waiting for ring space.
+    pub(crate) fn ready(&self) -> &[Sample] {
+        &self.ready
+    }
+
+    /// Drop the samples the ring accepted.
+    pub(crate) fn consume_ready(&mut self, samples: usize) {
+        self.ready.drain(..samples.min(self.ready.len()));
     }
 }
 
@@ -400,11 +428,18 @@ pub(crate) fn producer_thread_loop(
             continue;
         }
 
-        // Every live device must have room for a full chunk before DSP runs, so no ring is ever
-        // committed a partial chunk. Dead devices are excluded and skipped during the push.
+        // Every live device must have room for a full chunk (plus anything a
+        // converted stream has queued) before DSP runs, so no ring is ever committed
+        // a partial chunk. Dead devices are excluded and skipped during the push.
         let all_live_have_room = device_producers.iter().zip(&live).enumerate().all(
             |(i, ((plan, producer), &is_live))| {
-                !is_live || producer.slots() >= device_chunk_frames[i] * plan.channels as usize
+                !is_live
+                    || producer.slots()
+                        >= (device_chunk_frames[i]
+                            + converters[i]
+                                .as_ref()
+                                .map_or(0, DeviceRateConverter::ready_frames))
+                            * plan.channels as usize
             },
         );
         if !all_live_have_room {
@@ -446,11 +481,13 @@ pub(crate) fn producer_thread_loop(
             );
 
             // Devices on the DSP clock go straight to the ring; a device opened at
-            // another rate is converted first (the converter keeps its own history).
+            // another rate is converted first (the converter keeps its own history and
+            // queues output the ring could not take yet).
             match converters[i].as_mut() {
                 Some(converter) => {
-                    let converted = converter.convert(&device_scratch[i][..needed]);
-                    push_ring_samples(producer, converted);
+                    converter.convert(&device_scratch[i][..needed]);
+                    let pushed = push_ring_samples(producer, converter.ready());
+                    converter.consume_ready(pushed);
                 }
                 None => {
                     push_ring_samples(producer, &device_scratch[i][..needed]);
@@ -462,19 +499,20 @@ pub(crate) fn producer_thread_loop(
     tracing::info!("Producer thread stopped");
 }
 
-/// Bulk-write interleaved scratch into the ring. Returns `true` iff every sample was committed
-/// (same semantics as the former per-sample `push` loop: partial/full-ring → `false`).
-fn push_ring_samples(producer: &mut Producer<Sample>, samples: &[Sample]) -> bool {
+/// Bulk-write interleaved scratch into the ring. Returns how many samples the ring
+/// accepted: fewer than `samples.len()` when it is nearly full, so a converted
+/// stream can keep the rest queued instead of dropping it.
+fn push_ring_samples(producer: &mut Producer<Sample>, samples: &[Sample]) -> usize {
     if samples.is_empty() {
-        return true;
+        return 0;
     }
 
     let n = producer.slots().min(samples.len());
     if n == 0 {
-        return false;
+        return 0;
     }
     let Ok(mut chunk) = producer.write_chunk(n) else {
-        return false;
+        return 0;
     };
     let (first, second) = chunk.as_mut_slices();
     let first_take = first.len().min(n);
@@ -482,7 +520,7 @@ fn push_ring_samples(producer: &mut Producer<Sample>, samples: &[Sample]) -> boo
     first[..first_take].copy_from_slice(&samples[..first_take]);
     second[..second_take].copy_from_slice(&samples[first_take..n]);
     chunk.commit_all();
-    n == samples.len()
+    n
 }
 
 #[cfg(test)]
@@ -495,7 +533,7 @@ mod tests {
         let (mut producer, mut consumer) = RingBuffer::new(16);
         let samples = [0.1, 0.2, 0.3, 0.4];
 
-        assert!(push_ring_samples(&mut producer, &samples));
+        assert_eq!(push_ring_samples(&mut producer, &samples), 4);
         assert_eq!(consumer.slots(), 4);
 
         let chunk = consumer.read_chunk(4).unwrap();
@@ -510,10 +548,11 @@ mod tests {
     #[test]
     fn push_ring_samples_partial_when_ring_nearly_full() {
         let (mut producer, mut consumer) = RingBuffer::new(4);
-        assert!(push_ring_samples(&mut producer, &[1.0, 2.0, 3.0]));
+        assert_eq!(push_ring_samples(&mut producer, &[1.0, 2.0, 3.0]), 3);
 
         let samples = [4.0, 5.0, 6.0];
-        assert!(!push_ring_samples(&mut producer, &samples));
+        // Only one slot was free: the rest stays with the caller.
+        assert_eq!(push_ring_samples(&mut producer, &samples), 1);
         assert_eq!(producer.slots(), 0);
 
         let chunk = consumer.read_chunk(4).unwrap();
@@ -526,10 +565,10 @@ mod tests {
     }
 
     #[test]
-    fn push_ring_samples_returns_false_when_ring_full() {
+    fn push_ring_samples_returns_zero_when_ring_full() {
         let (mut producer, _consumer) = RingBuffer::new(2);
-        assert!(push_ring_samples(&mut producer, &[1.0, 2.0]));
-        assert!(!push_ring_samples(&mut producer, &[3.0, 4.0]));
+        assert_eq!(push_ring_samples(&mut producer, &[1.0, 2.0]), 2);
+        assert_eq!(push_ring_samples(&mut producer, &[3.0, 4.0]), 0);
     }
 
     #[test]
@@ -571,7 +610,10 @@ mod tests {
 
         // Starve the non-pacing ring: fewer free slots than one chunk.
         let prefill = RING_CAPACITY - (CHUNK_SAMPLES - 1);
-        assert!(push_ring_samples(&mut nonpacing_prod, &vec![0.0; prefill],));
+        assert_eq!(
+            push_ring_samples(&mut nonpacing_prod, &vec![0.0; prefill]),
+            prefill
+        );
 
         let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
             48_000,
@@ -901,9 +943,9 @@ mod tests {
         const DEVICE_RATE: u32 = 44_100;
         const CHANNELS: u16 = 2;
         const CHUNK: u32 = 512;
-        const CHUNKS: usize = 40;
-        // 512 frames @ 48 kHz is 10.67 ms -> 470 frames @ 44.1 kHz.
-        const OUT_CHUNK: usize = 470;
+        // ~3.5 min of audio: the old fixed-output behaviour drifted ~950 frames here,
+        // while the buffered tail of a correct stream stays under one block.
+        const CHUNKS: usize = 20_000;
 
         let mut converter =
             DeviceRateConverter::new(DSP_RATE, DEVICE_RATE, CHANNELS, CHUNK, "medium")
@@ -911,48 +953,49 @@ mod tests {
         // DC input: a correct resampler returns DC, so the level is easy to check.
         let chunk = vec![0.5f32; CHUNK as usize * CHANNELS as usize];
 
-        let mut produced_per_chunk = Vec::with_capacity(CHUNKS);
-        let mut last = Vec::new();
-        for _ in 0..CHUNKS {
-            last.clear();
-            last.extend_from_slice(converter.convert(&chunk));
+        let mut produced_frames = 0usize;
+        let mut max_backlog_frames = 0usize;
+        let mut last_mean = 0.0f32;
+        for index in 0..CHUNKS {
+            converter.convert(&chunk);
+            let ready_len = converter.ready().len();
             assert_eq!(
-                last.len() % CHANNELS as usize,
+                ready_len % CHANNELS as usize,
                 0,
                 "output must be whole interleaved frames"
             );
-            produced_per_chunk.push(last.len() / CHANNELS as usize);
+            produced_frames += ready_len / CHANNELS as usize;
+            if index + 1 == CHUNKS {
+                last_mean = converter.ready().iter().sum::<f32>() / ready_len as f32;
+            }
+            max_backlog_frames = max_backlog_frames
+                .max(converter.ready_frames() + converter.pending.len() / CHANNELS as usize);
+            converter.consume_ready(ready_len);
         }
 
-        // The resampler starts with up to one output chunk of latency, so the
-        // cumulative count trails the ideal by at most that chunk — never more.
-        let total: usize = produced_per_chunk.iter().sum();
-        let expected = CHUNKS * OUT_CHUNK;
+        // 512 frames @ 48 kHz is 10.667 ms, i.e. exactly 470.4 frames @ 44.1 kHz.
+        // The fixed output chunk is 470, so the extra call must land every so often;
+        // missing it runs the stream ~0.09% slow and drains the ring within minutes.
+        let expected = (CHUNKS as f64 * f64::from(CHUNK) * f64::from(DEVICE_RATE)
+            / f64::from(DSP_RATE))
+        .round() as usize;
+        // What the resampler has buffered internally at the end never exceeds one
+        // maximum block, and nothing errors out: the count tracks the exact ratio.
+        let drift = produced_frames as i64 - expected as i64;
         assert!(
-            (expected - total) <= OUT_CHUNK,
-            "{total} frames produced, expected about {expected}"
+            drift.abs() <= 400,
+            "{produced_frames} frames produced over {CHUNKS} chunks, expected {expected}"
+        );
+        // The backlog stays near one chunk: conversion keeps pace with the DSP.
+        let chunk_frames = CHUNK as usize;
+        assert!(
+            max_backlog_frames <= 3 * chunk_frames,
+            "backlog reached {max_backlog_frames} frames"
         );
 
-        // After warm-up every chunk is exactly one output chunk: the stream keeps
-        // pace with the DSP instead of drifting or starving.
         assert!(
-            produced_per_chunk[10..]
-                .iter()
-                .all(|&frames| frames == OUT_CHUNK),
-            "steady-state chunks: {:?}",
-            &produced_per_chunk[10..]
-        );
-        // Leftover input stays bounded by one chunk's worth of frames.
-        assert!(
-            converter.pending.len() / CHANNELS as usize <= CHUNK as usize,
-            "converter accumulated {} input frames",
-            converter.pending.len() / CHANNELS as usize
-        );
-
-        let mean = last.iter().sum::<f32>() / last.len() as f32;
-        assert!(
-            (mean - 0.5).abs() < 5e-3,
-            "steady-state level drifted to {mean}"
+            (last_mean - 0.5).abs() < 5e-3,
+            "steady-state level drifted to {last_mean}"
         );
     }
 

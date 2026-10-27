@@ -271,6 +271,20 @@ impl CpalBackend {
         preferred: &DeviceId,
         params: &StreamParams,
     ) -> Result<(cpal::Device, DeviceFormat)> {
+        // An explicitly selected device is terminal. Falling through to the default
+        // (or another enumerated device) after a format rejection would play the bus
+        // on hardware the user did not choose.
+        if let Ok(device) = self.find_device_by_id(preferred) {
+            let format = Self::select_stream_config(&device, params).map_err(|error| {
+                anyhow::anyhow!(
+                    "selected output device '{}' cannot open this stream: {error}",
+                    Self::device_name(&device)
+                )
+            })?;
+            return Ok((device, format));
+        }
+
+        // `default` (or an id that no longer resolves) starts at the system default.
         let mut last_error: Option<anyhow::Error> = None;
 
         for cpal_device in self.device_candidates(preferred) {
@@ -322,13 +336,6 @@ impl CpalBackend {
             .collect();
         tracing::info!("Device supported output configs: {}", ranges.join(", "));
 
-        if chosen.sample_rate != params.sample_rate {
-            tracing::warn!(
-                requested_hz = params.sample_rate,
-                device_hz = chosen.sample_rate,
-                "device cannot run the configured sample rate; the engine will follow the device"
-            );
-        }
         Self::log_device_buffer_limits_frames(chosen.range.buffer_size(), params.frames_per_buffer);
     }
 }
@@ -373,7 +380,8 @@ impl AudioBackend for CpalBackend {
                 continue;
             }
 
-            let mut sample_rates = vec![44100, 48000];
+            // Only rates a supported range covers: other rates must not be offered.
+            let mut sample_rates = Vec::new();
             for config in &supported_configs {
                 sample_rates.push(config.min_sample_rate());
                 sample_rates.push(config.max_sample_rate());

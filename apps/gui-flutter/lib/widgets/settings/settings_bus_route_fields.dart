@@ -33,7 +33,8 @@ class SettingsBusRouteFields extends StatelessWidget {
         name: l10n.settingsSystemDefault,
         isDefault: true,
         maxChannels: 2,
-        defaultSampleRates: Uint32List.fromList([48000]),
+        // Rates come from the resolved device, not this placeholder entry.
+        defaultSampleRates: Uint32List(0),
       ),
       ...devices.where((d) => d.id != 'default'),
     ];
@@ -80,9 +81,9 @@ class SettingsBusRouteFields extends StatelessWidget {
           hint: devicesLoading
               ? l10n.settingsAudioSampleRateLoading
               : l10n.settingsAudioSampleRateHint,
-          child: SettingsSelect<int?>(
+          child: SettingsSelect<int>(
             dialogTitle: l10n.settingsAudioSampleRate,
-            value: route.sampleRate,
+            value: route.sampleRate ?? 0,
             options: rateOptions,
             enabled: !devicesLoading && rateOptions.length > 1,
             labelBuilder: (rate) => _rateLabel(l10n, busDevice, rate),
@@ -92,7 +93,8 @@ class SettingsBusRouteFields extends StatelessWidget {
                 leftChannel: route.leftChannel,
                 rightChannel: route.rightChannel,
                 mode: route.mode,
-                sampleRate: rate,
+                // `0` is the "follow the device mix rate" token.
+                sampleRate: rate == 0 ? null : rate,
                 lowLatency: route.lowLatency,
               ),
             ),
@@ -222,24 +224,24 @@ BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
   );
 }
 
-/// Rate options for a bus: "device default" first, then the rates the device
-/// advertises. A rate the bus already has stays listed so an older value remains
-/// selectable (and visible) even when the device no longer advertises it.
-List<int?> _rateOptions(OutputDevice? device, int? current) {
-  final rates = <int?>[null, if (device != null) ...device.defaultSampleRates];
+/// Rate options for a bus: `0` is the "device default" token (no rate is ever 0),
+/// then the rates the device advertises. A rate the bus already has stays listed so
+/// an older value remains selectable even when the device no longer advertises it.
+///
+/// The token is not `null` because a select cannot distinguish a `null` option from
+/// dismissal: mobile pops `null` on cancel and desktop ignores it, which would make
+/// "back to device default" impossible after choosing a rate.
+List<int> _rateOptions(OutputDevice? device, int? current) {
+  final rates = <int>[0, if (device != null) ...device.defaultSampleRates];
   if (current != null && !rates.contains(current)) {
     rates.add(current);
   }
-  rates.sort((a, b) {
-    if (a == null) return -1;
-    if (b == null) return 1;
-    return a.compareTo(b);
-  });
+  rates.sort();
   return rates;
 }
 
-String _rateLabel(AppLocalizations l10n, OutputDevice? device, int? rate) {
-  if (rate != null) {
+String _rateLabel(AppLocalizations l10n, OutputDevice? device, int rate) {
+  if (rate != 0) {
     return l10n.settingsAudioSampleRateHz(rate);
   }
   final mix = device?.mixSampleRate;

@@ -6,7 +6,7 @@
 mod common;
 
 use anyhow::Result;
-use audio_core::BusId;
+use audio_core::{BusConfig, BusId, ChannelMapping, DeviceId};
 use common::short_tone_fixture;
 use engine_core::{AnalysisDurationMode, Engine, EngineConfig, EngineSession};
 use library::{LibraryConfig, LibraryManager};
@@ -201,23 +201,45 @@ fn test_engine_with_auto_backend_selects_a_usable_backend() -> Result<()> {
 
 #[test]
 fn test_config_serialization() -> Result<()> {
-    let config = EngineConfig::default();
+    // A bus carries the per-stream rate and latency hint; both must survive the trip.
+    let config = EngineConfig {
+        buses: vec![bus_with_rate(48_000)],
+        ..EngineConfig::default()
+    };
 
     // Test TOML serialization
     let toml_string = toml::to_string(&config)?;
     assert!(toml_string.contains("backend = \"auto\""));
+    assert!(toml_string.contains("sample_rate = 48000"));
+    assert!(toml_string.contains("low_latency = true"));
 
     // Test TOML deserialization
     let parsed_config: EngineConfig = toml::from_str(&toml_string)?;
     assert_eq!(parsed_config.buffer_size, config.buffer_size);
     assert_eq!(parsed_config.backend, config.backend);
+    assert_eq!(parsed_config.buses[0].sample_rate, Some(48_000));
+    assert!(parsed_config.buses[0].low_latency);
 
     Ok(())
 }
 
+fn bus_with_rate(sample_rate: u32) -> BusConfig {
+    BusConfig::new(
+        BusId::new("master"),
+        "Master".to_string(),
+        DeviceId::new("null-device"),
+        ChannelMapping::stereo(1, 2),
+    )
+    .with_sample_rate(Some(sample_rate))
+    .with_low_latency(true)
+}
+
 #[test]
 fn test_config_file_operations() -> Result<()> {
-    let config = EngineConfig::default();
+    let config = EngineConfig {
+        buses: vec![bus_with_rate(44_100)],
+        ..EngineConfig::default()
+    };
     let dir = tempfile::tempdir()?;
     let temp_path = dir.path().join("config.toml");
 
@@ -228,6 +250,8 @@ fn test_config_file_operations() -> Result<()> {
     let loaded_config = EngineConfig::from_toml_file(&temp_path)?;
     assert_eq!(loaded_config.buffer_size, config.buffer_size);
     assert_eq!(loaded_config.backend, config.backend);
+    assert_eq!(loaded_config.buses[0].sample_rate, Some(44_100));
+    assert!(loaded_config.buses[0].low_latency);
 
     // `tempdir` removes the file even if an assertion above panics.
     Ok(())

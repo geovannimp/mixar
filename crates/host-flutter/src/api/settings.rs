@@ -906,7 +906,19 @@ fn bind_persist_path(host: &mut SettingsHost, path: PathBuf) {
 
 fn read_settings_file(path: &Path) -> Option<AppSettings> {
     let bytes = std::fs::read(path).ok()?;
-    serde_json::from_slice(&bytes).ok()
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    // `low_latency` used to be a single app-wide flag. `true` was always an explicit
+    // choice, so fold it into both routes; `false` is what the bus defaults already
+    // carry. The key itself is dropped on the next save.
+    let legacy_low_latency = value
+        .get("low_latency")
+        .and_then(serde_json::Value::as_bool);
+    let mut settings: AppSettings = serde_json::from_value(value).ok()?;
+    if legacy_low_latency == Some(true) {
+        settings.master_bus.low_latency = true;
+        settings.preview_bus.low_latency = true;
+    }
+    Some(settings)
 }
 
 fn write_settings_file(path: &Path, settings: &AppSettings) -> Result<(), String> {
@@ -1636,6 +1648,30 @@ mod tests {
                 .master_bus
                 .sample_rate,
             baseline.master_bus.sample_rate
+        );
+    }
+
+    #[test]
+    fn legacy_global_low_latency_moves_to_both_buses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("low_latency".into(), serde_json::Value::Bool(true));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("legacy settings");
+        assert!(loaded.master_bus.low_latency);
+        assert!(loaded.preview_bus.low_latency);
+
+        write_settings_file(&path, &loaded).expect("save");
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("read")).expect("reload");
+        assert!(
+            saved.get("low_latency").is_none(),
+            "the legacy global flag must not be written back: {saved}"
         );
     }
 

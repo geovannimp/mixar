@@ -24,6 +24,8 @@ Each bus carries its own **Sample rate** and **Low latency**, because the two bu
 
 **Device default** follows the rate the device itself mixes at — the rate the system already uses for that output. That is the default on fresh installs, so Mixar asks for the rate the device can actually open. Picking an explicit rate makes Mixar open the stream at exactly that rate; if the device refuses it, the engine does not start and the toast names the rate and the rates the device offers.
 
+Not every backend can report a device's mix rate. When the selected device does not, the entry reads plain **Device default** and Mixar will not start on it until you pick an explicit rate; the error names the device so you know which one. The same applies to any device whose driver reports no usable rates at all.
+
 Buses that share one device share one stream, so they must share one rate. An explicit rate wins over **Device default** on that device; two different explicit rates for buses on the same device are rejected with *one stream runs at one rate*. **Low latency** never conflicts: it is a hint, so the shared stream uses it when either bus asks.
 
 ## Master bus

@@ -278,7 +278,7 @@ pub(crate) fn resolve_device_stream_plans(
                         .collect::<Vec<_>>()
                         .join("', '");
                     return Err(anyhow::anyhow!(
-                        "Buses '{shared}' and '{}' share device '{}' but ask for {planned} Hz and {requested} Hz; one stream runs at one rate",
+                        "Bus '{}' asks for {requested} Hz but device '{}' already runs at {planned} Hz for bus(es) '{shared}'; one stream runs at one rate",
                         bus.id.as_str(),
                         device.as_str()
                     ));
@@ -396,12 +396,19 @@ impl Engine {
     /// Update bus configuration
     pub fn update_bus_config(&mut self, bus_id: &BusId, new_config: BusConfig) -> Result<()> {
         let mapping = crate::routing::validate_channel_mapping(&new_config.channels)?;
+        if let Some(rate) = new_config.sample_rate {
+            if rate == 0 {
+                return Err(anyhow::anyhow!("Bus sample_rate must be > 0 (got 0)"));
+            }
+        }
         let resolved = self.validate_bus_device_mapping(bus_id, &new_config.device, &mapping)?;
 
         if let Some(bus) = self.config.buses.iter_mut().find(|bus| &bus.id == bus_id) {
             bus.name = new_config.name;
             bus.device = resolved;
             bus.channels = mapping;
+            bus.sample_rate = new_config.sample_rate;
+            bus.low_latency = new_config.low_latency;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Bus not found: {}", bus_id.as_str()))

@@ -334,8 +334,31 @@ fn test_engine_bus_operations() {
         "Updated Master".to_string(),
         DeviceId::new("default".to_string()),
         ChannelMapping::new(1, 2),
-    );
+    )
+    .with_sample_rate(Some(48_000))
+    .with_low_latency(true);
     assert!(engine.update_bus_config(&master_bus_id, new_config).is_ok());
+
+    let updated = engine.get_bus_config(&master_bus_id).expect("bus");
+    assert_eq!(updated.sample_rate, Some(48_000));
+    assert!(updated.low_latency);
+
+    // A zero rate cannot open a stream and must not be stored.
+    let zero_rate = BusConfig::new(
+        master_bus_id.clone(),
+        "Updated Master".to_string(),
+        DeviceId::new("default".to_string()),
+        ChannelMapping::new(1, 2),
+    )
+    .with_sample_rate(Some(0));
+    assert!(engine.update_bus_config(&master_bus_id, zero_rate).is_err());
+    assert_eq!(
+        engine
+            .get_bus_config(&master_bus_id)
+            .expect("bus")
+            .sample_rate,
+        Some(48_000)
+    );
 }
 
 #[test]

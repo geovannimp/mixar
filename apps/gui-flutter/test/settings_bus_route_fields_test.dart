@@ -135,4 +135,28 @@ void main() {
     expect(next?.lowLatency, isTrue);
     expect(next?.sampleRate, 96000);
   }, semanticsEnabled: false);
+
+  testWidgets('the bus can go back to the device default rate', (tester) async {
+    BusRouteSettings? next;
+    await pumpFields(
+      tester,
+      route: const BusRouteSettings(
+        deviceId: 'speakers',
+        leftChannel: 1,
+        rightChannel: 2,
+        mode: BusChannelMode.stereo,
+        sampleRate: 96000,
+        lowLatency: false,
+      ),
+      onChanged: (route) => next = route,
+    );
+
+    await tester.tap(find.text('96000 Hz'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Device default (48000 Hz)').last);
+    await tester.pumpAndSettle();
+
+    expect(next?.sampleRate, isNull);
+    expect(next?.deviceId, 'speakers');
+  }, semanticsEnabled: false);
 }
