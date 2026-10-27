@@ -23,6 +23,7 @@ use crate::api::library::LibraryTransport;
 use crate::api::settings::{
     settings_engine_config, settings_host_runtime, settings_realtime_stems_enabled, JogModeSetting,
 };
+use crate::bridge::BridgeResult;
 use crate::frb_generated::StreamSink;
 
 const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
@@ -70,8 +71,8 @@ impl From<CrossfaderAssign> for EngineCrossfaderAssign {
 /// `"auto"` resolves through the engine registry to the shipped device
 /// backend; it never falls back to the headless `null` backend.
 pub fn list_output_devices() -> Result<Vec<OutputDevice>, String> {
-    let backend = AudioBackend::new("auto").map_err(|e| e.to_string())?;
-    let devices = backend.list_output_devices().map_err(|e| e.to_string())?;
+    let backend = AudioBackend::new("auto").bridge()?;
+    let devices = backend.list_output_devices().bridge()?;
     Ok(devices.into_iter().map(output_device).collect())
 }
 
@@ -580,15 +581,11 @@ impl EngineTransport {
             Arc::clone(&library_arc),
             library_transport.cmd_bus(),
         )
-        .map_err(|e| e.to_string())?;
+        .bridge()?;
         let buses = EngineBuses::new();
         engine.set_buses(buses.clone());
-        // Log the reason before handing it to Dart: the notice on screen is not a log, and this
-        // is the failure users report with "no logs related to it".
-        if let Err(error) = engine.start() {
-            tracing::error!(error = %error, "engine start failed");
-            return Err(error.to_string());
-        }
+        // Failure reason reaches `mixar.log` through `BridgeResult`, like every other error.
+        engine.start().bridge()?;
         let engine = Arc::new(Mutex::new(Some(engine)));
         let engine_worker = match spawn_engine_worker(Arc::clone(&engine)) {
             Ok(worker) => worker,
@@ -653,7 +650,7 @@ impl EngineTransport {
             .lock()
             .map_err(|_| "engine lock poisoned".to_string())?;
         if let Some(engine) = guard.as_mut() {
-            engine.stop().map_err(|e| e.to_string())?;
+            engine.stop().bridge()?;
         }
         let previous_deck_count = self.deck_count.load(Ordering::Acquire);
         let deck_count = config.num_decks;
@@ -694,9 +691,9 @@ impl EngineTransport {
             Arc::clone(&self.library),
             self.library_cmd_bus.clone(),
         )
-        .map_err(|e| e.to_string())?;
+        .bridge()?;
         engine.set_buses(self.buses.clone());
-        engine.start().map_err(|e| e.to_string())?;
+        engine.start().bridge()?;
         Ok(engine)
     }
 
@@ -715,15 +712,13 @@ impl EngineTransport {
         let engine = guard
             .as_mut()
             .ok_or_else(|| "engine not available".to_string())?;
-        engine
-            .set_normalizer_target(normalizer_target)
-            .map_err(|e| e.to_string())?;
+        engine.set_normalizer_target(normalizer_target).bridge()?;
         // Read under the engine lock: restart updates the count while holding it.
         let deck_count = self.deck_count.load(Ordering::Acquire);
         for deck_id in 0..deck_count {
             engine
                 .set_deck_jog_mode(deck_id, top_jog, outer_jog)
-                .map_err(|e| e.to_string())?;
+                .bridge()?;
         }
         Ok(())
     }
@@ -749,7 +744,7 @@ impl EngineTransport {
         let Some(engine) = guard.as_mut() else {
             return Ok(());
         };
-        engine.stop().map_err(|e| e.to_string())
+        engine.stop().bridge()
     }
 
     /// Whether [`Engine::start`] has opened streams.
@@ -1276,7 +1271,7 @@ impl EngineTransport {
     pub fn assign_sampler(&self, deck_id: u16, slot: u8, path: String) -> Result<(), String> {
         let prepared =
             LibraryManager::prepare_file_path_for_playback(self.library.as_ref(), Path::new(&path))
-                .map_err(|e| e.to_string())?;
+                .bridge()?;
         self.assign_prepared(deck_id, slot, prepared)
     }
 
@@ -1290,7 +1285,7 @@ impl EngineTransport {
             self.library.as_ref(),
             &TrackId::new(track_id),
         )
-        .map_err(|e| e.to_string())?;
+        .bridge()?;
         self.assign_prepared(deck_id, slot, prepared)
     }
 
@@ -1308,9 +1303,7 @@ impl EngineTransport {
             let engine = guard
                 .as_mut()
                 .ok_or_else(|| "engine not available".to_string())?;
-            engine
-                .clear_sampler_slot(deck, slot_i)
-                .map_err(|e| e.to_string())?;
+            engine.clear_sampler_slot(deck, slot_i).bridge()?;
             // Hold the engine lock across the chrome write: `restart` takes the
             // engine lock before resizing the chrome, so this order keeps a
             // shrink from truncating the slot between the lookup and the write.
@@ -1341,15 +1334,10 @@ impl EngineTransport {
                 .library
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
-            if lib
-                .get_sampler_bank(&bank_id)
-                .map_err(|e| e.to_string())?
-                .is_none()
-            {
+            if lib.get_sampler_bank(&bank_id).bridge()?.is_none() {
                 return Err(format!("Sampler bank not found: {bank_id}"));
             }
-            lib.list_sampler_bank_slots(&bank_id)
-                .map_err(|e| e.to_string())?
+            lib.list_sampler_bank_slots(&bank_id).bridge()?
         };
         let mut prepared: Vec<(u8, PreparedTrackPlayback, SamplerSlotChrome)> = Vec::new();
         for record in slots {
@@ -1369,7 +1357,7 @@ impl EngineTransport {
             } else {
                 continue;
             }
-            .map_err(|e| e.to_string())?;
+            .bridge()?;
             let chrome = chrome_from_bank_slot(&record, &item);
             prepared.push((record.slot_index, item, chrome));
         }
@@ -1382,18 +1370,14 @@ impl EngineTransport {
             let engine = guard
                 .as_mut()
                 .ok_or_else(|| "engine not available".to_string())?;
-            engine
-                .clear_all_sampler_slots(deck)
-                .map_err(|e| e.to_string())?;
+            engine.clear_all_sampler_slots(deck).bridge()?;
             for (slot, item, chrome) in prepared {
                 engine
                     .assign_prepared_sampler(deck, usize::from(slot), item)
-                    .map_err(|e| e.to_string())?;
+                    .bridge()?;
                 deck_chrome[usize::from(slot)] = chrome;
             }
-            engine
-                .set_deck_sampler_bank(deck, Some(bank_id))
-                .map_err(|e| e.to_string())?;
+            engine.set_deck_sampler_bank(deck, Some(bank_id)).bridge()?;
             // Same lock order as `restart`: engine, then sampler chrome.
             let mut chrome = self
                 .sampler_slots
@@ -1431,8 +1415,7 @@ impl EngineTransport {
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        lib.update_sampler_bank(&bank_id, &name, play_mode)
-            .map_err(|e| e.to_string())
+        lib.update_sampler_bank(&bank_id, &name, play_mode).bridge()
     }
 
     /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.
@@ -1442,7 +1425,7 @@ impl EngineTransport {
             self.library.as_ref(),
             &TrackId::new(track_id),
         )
-        .map_err(|e| e.to_string())?;
+        .bridge()?;
         self.load_prepared(deck_id, prepared, generation)
     }
 
@@ -1451,7 +1434,7 @@ impl EngineTransport {
         let generation = self.begin_deck_load(deck_id)?;
         let prepared =
             LibraryManager::prepare_file_path_for_playback(self.library.as_ref(), Path::new(&path))
-                .map_err(|e| e.to_string())?;
+                .bridge()?;
         self.load_prepared(deck_id, prepared, generation)
     }
 
@@ -1611,11 +1594,9 @@ impl EngineTransport {
             }
             engine
                 .load_prepared_track(deck_id as usize, prepared)
-                .map_err(|e| e.to_string())?;
+                .bridge()?;
             if let Some(stems) = stems {
-                engine
-                    .attach_deck_stems(deck_id as usize, stems)
-                    .map_err(|e| e.to_string())?;
+                engine.attach_deck_stems(deck_id as usize, stems).bridge()?;
             } else if let Some(audio) = live_audio {
                 self.start_live_stems(deck_id as usize, audio, engine, generation);
             }
@@ -1648,7 +1629,7 @@ impl EngineTransport {
                 .ok_or_else(|| "engine not available".to_string())?;
             engine
                 .assign_prepared_sampler(deck, slot_i, prepared)
-                .map_err(|e| e.to_string())?;
+                .bridge()?;
             // Same lock order as `restart`: engine, then sampler chrome.
             let mut slots = self
                 .sampler_slots
@@ -1673,7 +1654,7 @@ impl EngineTransport {
                 Kind::Updated,
                 deck_snapshot_to_evt(snap),
             )
-            .map_err(|e| e.to_string())
+            .bridge()
     }
 
     /// Publish an empty, stopped snapshot for every deck the new profile dropped.
@@ -1718,10 +1699,8 @@ impl EngineTransport {
     }
 
     fn publish_body(&self, origin: Origin, kind: Kind, body: &CmdBody) -> Result<(), String> {
-        let bytes = encode_cmd_body(body).map_err(|e| e.to_string())?;
-        self.buses
-            .publish_cmd(origin, kind, bytes)
-            .map_err(|e| e.to_string())
+        let bytes = encode_cmd_body(body).bridge()?;
+        self.buses.publish_cmd(origin, kind, bytes).bridge()
     }
 
     fn publish_current_status(&self) {
@@ -1744,7 +1723,7 @@ impl EngineTransport {
     /// Coalesces Position/Levels/Updated/Status (latest wins) like Tauri.
     /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
     pub fn subscribe_events(&self, sink: StreamSink<EngineEvt>) -> Result<(), String> {
-        let rx = self.buses.subscribe_evt_all().map_err(|e| e.to_string())?;
+        let rx = self.buses.subscribe_evt_all().bridge()?;
         let chrome = Arc::clone(&self.sampler_slots);
         let shutdown = Arc::new(AtomicBool::new(false));
         let shutdown_flag = Arc::clone(&shutdown);
@@ -1781,7 +1760,7 @@ impl EngineTransport {
                     }
                 }
             })
-            .map_err(|e| e.to_string())?;
+            .bridge()?;
 
         let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(prev) = slot.take() {
@@ -1796,7 +1775,7 @@ impl EngineTransport {
     /// Raw evt subscription for host/tests. Prefer [`Self::subscribe_events`] for Dart.
     #[flutter_rust_bridge::frb(ignore)]
     pub fn subscribe_evt_all(&self) -> Result<engine_core::EvtReceiver, String> {
-        self.buses.subscribe_evt_all().map_err(|e| e.to_string())
+        self.buses.subscribe_evt_all().bridge()
     }
 
     /// Clone of the engine cmd/evt buses for [`crate::api::controller::ControllerTransport`].

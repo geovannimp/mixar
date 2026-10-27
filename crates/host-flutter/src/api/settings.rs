@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
+use crate::bridge::BridgeResult;
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use engine_api::JogMode;
 use engine_core::{
@@ -53,14 +54,14 @@ impl SettingsTransport {
 
     /// Current session settings (schema-validated).
     pub fn get_settings(&self) -> Result<AppSettings, String> {
-        let host = self.host.lock().map_err(|e| e.to_string())?;
+        let host = self.host.lock().bridge()?;
         parse_settings(settings_from_host(&host))
     }
 
     /// Apply settings. Does not restart the engine or update the library —
     /// callers apply those separately (mirrors Flutter `saveAppSettings`).
     pub fn save_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
-        let mut host = self.host.lock().map_err(|e| e.to_string())?;
+        let mut host = self.host.lock().bridge()?;
         let mut candidate = host.clone();
         apply_to_host(&mut candidate, settings)?;
         let saved = parse_settings(settings_from_host(&candidate))?;
@@ -835,7 +836,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         vinyl_brake_pause: Some(settings.vinyl_brake_pause),
         vinyl_brake_stop_secs: Some(settings.vinyl_brake_stop_secs),
     });
-    config.validate().map_err(|e| e.to_string())?;
+    config.validate().bridge()?;
     host.engine_config = config;
     host.library_row_density = settings.library_row_density;
     host.library_row_fields = settings.library_row_fields;
@@ -901,14 +902,14 @@ fn read_settings_file(path: &Path) -> Option<AppSettings> {
 
 fn write_settings_file(path: &Path, settings: &AppSettings) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(parent).bridge()?;
     }
-    let json = serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?;
+    let json = serde_json::to_vec_pretty(settings).bridge()?;
     let mut tmp = path.as_os_str().to_os_string();
     tmp.push(".tmp");
     let tmp = PathBuf::from(tmp);
-    std::fs::write(&tmp, json).map_err(|e| e.to_string())?;
-    std::fs::rename(&tmp, path).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp, json).bridge()?;
+    std::fs::rename(&tmp, path).bridge()?;
     Ok(())
 }
 
@@ -919,7 +920,7 @@ fn normalizer_target(enabled: bool, target_lufs: f32) -> Option<f32> {
 /// Engine config for [`EngineTransport::start`] / restart.
 pub(crate) fn settings_engine_config() -> Result<EngineConfig, String> {
     let host = shared_host();
-    let host = host.lock().map_err(|e| e.to_string())?;
+    let host = host.lock().bridge()?;
     Ok(host.engine_config.clone())
 }
 
@@ -936,7 +937,7 @@ pub(crate) fn settings_realtime_stems_enabled() -> bool {
 
 pub(crate) fn settings_host_runtime() -> Result<(Option<f32>, JogMode, JogMode), String> {
     let host = shared_host();
-    let host = host.lock().map_err(|e| e.to_string())?;
+    let host = host.lock().bridge()?;
     Ok((
         normalizer_target(host.volume_normalizer_enabled, host.target_lufs),
         host.default_top_jog_mode.into(),
