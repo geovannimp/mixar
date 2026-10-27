@@ -584,6 +584,7 @@ mod tests {
 
         let pacing_plan = DeviceStreamPlan {
             device: DeviceId::new("pacing"),
+            preferred: DeviceId::new("pacing"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
             low_latency: false,
@@ -595,6 +596,7 @@ mod tests {
         };
         let nonpacing_plan = DeviceStreamPlan {
             device: DeviceId::new("nonpacing"),
+            preferred: DeviceId::new("nonpacing"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
             low_latency: false,
@@ -708,6 +710,7 @@ mod tests {
 
         let plan = DeviceStreamPlan {
             device: DeviceId::new("wasapi-shared"),
+            preferred: DeviceId::new("wasapi-shared"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
             low_latency: false,
@@ -801,6 +804,7 @@ mod tests {
 
         let plan = DeviceStreamPlan {
             device: DeviceId::new("wasapi-small-buffer"),
+            preferred: DeviceId::new("wasapi-small-buffer"),
             channels: CHANNELS,
             sample_rate: Some(48_000),
             low_latency: false,
@@ -1013,6 +1017,7 @@ mod tests {
 
         let master_plan = DeviceStreamPlan {
             device: DeviceId::new("master-device"),
+            preferred: DeviceId::new("master-device"),
             channels: CHANNELS,
             sample_rate: Some(DSP_RATE),
             low_latency: false,
@@ -1024,6 +1029,7 @@ mod tests {
         };
         let cue_plan = DeviceStreamPlan {
             device: DeviceId::new("cue-device"),
+            preferred: DeviceId::new("cue-device"),
             channels: CHANNELS,
             sample_rate: Some(CUE_RATE),
             low_latency: false,

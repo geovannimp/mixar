@@ -362,6 +362,50 @@ fn test_engine_bus_operations() {
 }
 
 #[test]
+fn update_bus_config_rejects_a_rate_clash_on_a_shared_device() {
+    let mut config = EngineConfig {
+        backend: "null".into(),
+        ..Default::default()
+    };
+    config.buses.push(
+        BusConfig::new(
+            BusId::new("master".to_string()),
+            "Master".to_string(),
+            DeviceId::new("default".to_string()),
+            ChannelMapping::new(1, 2),
+        )
+        .with_sample_rate(Some(48_000)),
+    );
+    config.buses.push(BusConfig::new(
+        BusId::new("cue".to_string()),
+        "Cue".to_string(),
+        DeviceId::new("default".to_string()),
+        ChannelMapping::new(3, 4),
+    ));
+
+    let mut engine = Engine::new(config).unwrap();
+    let cue_bus_id = BusId::new("cue".to_string());
+    let clash = BusConfig::new(
+        cue_bus_id.clone(),
+        "Cue".to_string(),
+        DeviceId::new("default".to_string()),
+        ChannelMapping::new(3, 4),
+    )
+    .with_sample_rate(Some(44_100));
+
+    let error = engine.update_bus_config(&cue_bus_id, clash).unwrap_err();
+    assert!(
+        error.to_string().contains("one stream runs at one rate"),
+        "{error}"
+    );
+    // The rejected update is not stored.
+    assert_eq!(
+        engine.get_bus_config(&cue_bus_id).expect("bus").sample_rate,
+        None
+    );
+}
+
+#[test]
 fn set_bus_device_updates_master_config() {
     let config = EngineConfig {
         backend: "null".into(),

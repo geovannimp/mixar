@@ -264,9 +264,11 @@ impl Engine {
                 plan.low_latency,
             );
 
+            // `preferred` keeps the `default` alias so the backend may fall back when
+            // the current default device cannot run the stream.
             let stream = self
                 .backend
-                .open_output_stream(&plan.device, &params, callback)?;
+                .open_output_stream(&plan.preferred, &params, callback)?;
 
             let device_frames = stream
                 .actual_buffer_size()
