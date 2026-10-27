@@ -175,6 +175,50 @@ void main() {
     expect(loads, baseline + 1, reason: 'one reload for the debounced change');
   });
 
+  testWidgets('waits for loaded settings before seeding the library', (
+    tester,
+  ) async {
+    final transport = FakeLibraryTransport(collections: const [_smart]);
+    addTearDown(transport.dispose);
+    final engine = _FakeEngineUi(_snapshot());
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryTransportProvider.overrideWith((ref) async => transport),
+          // Settings arrive late; the fallback used meanwhile carries the
+          // default deck count, so pushing it would brief the library wrong.
+          appSettingsProvider.overrideWith((ref) async {
+            await Future<void>.delayed(const Duration(seconds: 1));
+            return defaultAppSettings();
+          }),
+          engineUiProvider.overrideWith(() => engine),
+          deckLibraryTrackProvider.overrideWith((ref, deckId) => _track),
+          activeCollectionIsSmartProvider.overrideWithValue(true),
+          collectionTracksProvider.overrideWith(
+            () => SeededCollectionTracks((ref) async => const []),
+          ),
+        ],
+        child: mixarTestMaterialApp(
+          theme: MixarThemeData.dark(),
+          home: const _BridgeProbe(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      transport.setDeckReferenceCalls,
+      isEmpty,
+      reason: 'the deck count comes from settings',
+    );
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(transport.setDeckReferenceCalls, hasLength(1));
+  });
+
   testWidgets('returning the fader cancels the pending push', (tester) async {
     final transport = FakeLibraryTransport(collections: const [_smart]);
     addTearDown(transport.dispose);

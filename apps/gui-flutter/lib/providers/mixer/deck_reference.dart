@@ -113,7 +113,9 @@ final deckReferenceBridgeProvider = Provider<void>((ref) {
         decks: [for (final deck in decks) deck.toFrb()],
       );
     } on Object catch (error) {
-      inFlight = null;
+      if (identical(inFlight, decks)) {
+        inFlight = null;
+      }
       if (!ref.mounted) {
         return;
       }
@@ -124,14 +126,26 @@ final deckReferenceBridgeProvider = Provider<void>((ref) {
     if (!ref.mounted) {
       return;
     }
-    applied = decks;
+    // Only the newest push owns the bridge: a slower earlier one must not
+    // record itself as the library's state, or the next identical reference
+    // would push a duplicate.
+    final owned = identical(inFlight, decks);
+    if (!owned) {
+      return;
+    }
     inFlight = null;
+    applied = decks;
     if (ref.read(activeCollectionIsSmartProvider)) {
       ref.invalidate(collectionTracksProvider);
     }
   }
 
   void schedule(List<DeckReferenceValue> decks) {
+    // The deck count comes from settings; the fallback used while they load
+    // would brief the library with the wrong reference.
+    if (ref.read(appSettingsProvider).isLoading) {
+      return;
+    }
     // Cancel first: a fader that returns to the applied value must not leave an
     // older intermediate push armed.
     pending?.cancel();

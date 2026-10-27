@@ -641,18 +641,15 @@ impl LibraryTransport {
         name: String,
         rules_json: String,
     ) -> Result<LibraryCollectionSummary, String> {
-        let collection = {
-            let mut lib = self
-                .library
-                .lock()
-                .map_err(|_| "library lock poisoned".to_string())?;
-            lib.add_collection(&NewCollection::smart_playlist(name.trim(), rules_json))
-                .bridge()?
-        };
-        let lib = self
+        // One lock for the write and the summary: nothing can remove the new
+        // collection between them.
+        let mut lib = self
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
+        let collection = lib
+            .add_collection(&NewCollection::smart_playlist(name.trim(), rules_json))
+            .bridge()?;
         collection_summary(&lib, collection)
     }
 
@@ -664,24 +661,20 @@ impl LibraryTransport {
         rules_json: String,
     ) -> Result<LibraryCollectionSummary, String> {
         let id = CollectionId::new(collection_id);
-        {
-            let mut lib = self
-                .library
-                .lock()
-                .map_err(|_| "library lock poisoned".to_string())?;
-            lib.update_collection(
-                &id,
-                &UpdateCollection {
-                    name: Some(name.trim().to_string()),
-                    config: Some(CollectionConfigUpdate::SmartPlaylist { rules_json }),
-                },
-            )
-            .bridge()?;
-        }
-        let lib = self
+        // One lock for the write and the re-read, so the summary describes the
+        // collection this call wrote.
+        let mut lib = self
             .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
+        lib.update_collection(
+            &id,
+            &UpdateCollection {
+                name: Some(name.trim().to_string()),
+                config: Some(CollectionConfigUpdate::SmartPlaylist { rules_json }),
+            },
+        )
+        .bridge()?;
         let collection = lib
             .get_collection(&id)
             .bridge()?

@@ -300,9 +300,12 @@ impl SmartPlaylistRules {
 
     /// Canonical storage form (compact JSON, fixed key order).
     ///
-    /// Only fails on a serialization bug: every field is a plain value.
+    /// Every field is a plain value and [Self::validate] already rejects
+    /// non-finite bounds, so a serialization failure is a defect, not a
+    /// runtime condition. Panic rather than store an empty document, which
+    /// would turn the playlist into one that matches nothing.
     pub fn to_json(&self) -> String {
-        serde_json::to_string(self).unwrap_or_else(|_| String::from("{}"))
+        serde_json::to_string(self).expect("smart playlist rules serialize")
     }
 
     /// Check the document against the field/operator matrix and struct limits.

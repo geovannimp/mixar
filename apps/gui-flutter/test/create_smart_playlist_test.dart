@@ -162,10 +162,7 @@ void main() {
 
     final panel = tester.getRect(find.byType(LibraryFormDrawerShell));
     expect(panel.width, createCollectionDrawerWidth);
-    expect(
-      panel.height,
-      tester.view.physicalSize.height / 1 - kAppHeaderHeight,
-    );
+    expect(panel.height, tester.view.physicalSize.height - kAppHeaderHeight);
     expect(panel.top, kAppHeaderHeight, reason: 'never covers the titlebar');
     expect(
       panel.right,
