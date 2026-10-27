@@ -1,4 +1,9 @@
-pub const APP_VERSION: &str = "0.1.6";
+/// Version reported with every event.
+///
+/// Read from the Flutter manifest by `build.rs`, which is the release version
+/// (`pubspec.yaml`); the workspace crates carry their own version, so a
+/// pubspec-only release bump would otherwise leave this behind.
+pub const APP_VERSION: &str = env!("MIXAR_APP_VERSION");
 pub const APP_LAUNCHED_EVENT: &str = "app launched";
 
 const DEFAULT_TOKEN: &str = "";
