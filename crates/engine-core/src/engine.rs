@@ -225,15 +225,17 @@ impl Engine {
 
     /// Resolve bus/device plans and open one output stream + ring per device.
     ///
-    /// The negotiated sample rate must match config (the DSP runs at one rate), but the device's
-    /// callback frame count need not: a backend may only be able to deliver its own period (WASAPI
-    /// shared mode fixes it at ~10 ms, 480 frames at 48 kHz), and the ring buffer decouples that
-    /// from the DSP chunk. See [`producer_thread_loop`].
+    /// The DSP runs at one rate: the pacing device's. A backend may open below the configured
+    /// rate (WASAPI shared mode is locked to the engine mix format, e.g. 44.1 kHz on a virtual
+    /// device) and the engine then follows it; a second device at another rate is rejected. The
+    /// callback frame count is free — a backend may only deliver its own period, and the ring
+    /// buffer decouples that from the DSP chunk. See [`producer_thread_loop`].
     fn open_device_streams(&mut self) -> Result<Vec<DeviceStreamSetup>> {
         let devices = self.backend.list_output_devices()?;
         let plans = crate::routing::resolve_device_stream_plans(&self.config.buses, &devices)?;
 
         let mut device_streams = Vec::with_capacity(plans.len());
+        let mut stream_rates: Vec<(String, u32)> = Vec::with_capacity(plans.len());
         for plan in plans {
             let (producer, consumer) =
                 create_device_ring_buffer(self.config.buffer_size, plan.channels);
@@ -276,14 +278,7 @@ impl Engine {
                     self.config.buffer_size
                 );
             }
-            if sample_rate != self.config.sample_rate {
-                return Err(anyhow::anyhow!(
-                    "Device '{}' sample rate {} Hz does not match configured {} Hz",
-                    plan.device.as_str(),
-                    sample_rate,
-                    self.config.sample_rate
-                ));
-            }
+            stream_rates.push((plan.device.as_str().to_string(), sample_rate));
 
             let callback_frames_atomic = stream.callback_frames_atomic();
 
@@ -299,6 +294,26 @@ impl Engine {
 
         if device_streams.is_empty() {
             return Err(anyhow::anyhow!("No output device stream plans resolved"));
+        }
+
+        // A backend may open at the device's own rate (WASAPI shared mode is locked to the
+        // engine mix format), and the DSP then renders at that rate. Every stream shares one
+        // DSP chunk, so they must agree; resampling between devices is not implemented.
+        if let Some((first_device, first_rate)) = stream_rates.first() {
+            if let Some((other_device, other_rate)) =
+                stream_rates.iter().find(|(_, rate)| rate != first_rate)
+            {
+                return Err(anyhow::anyhow!(
+                    "devices opened at different sample rates: '{first_device}' {first_rate} Hz vs '{other_device}' {other_rate} Hz; use one device or matching rates"
+                ));
+            }
+            if *first_rate != self.config.sample_rate {
+                tracing::warn!(
+                    configured_hz = self.config.sample_rate,
+                    engine_hz = first_rate,
+                    "device cannot run the configured sample rate; the engine runs at the device rate"
+                );
+            }
         }
 
         Ok(device_streams)
