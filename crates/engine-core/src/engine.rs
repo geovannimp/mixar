@@ -365,7 +365,6 @@ impl Engine {
 
         // One resampler per device opened off the DSP clock. Built here so a failure
         // to create one fails the start instead of silently dropping the device's audio.
-        let resampler_quality = self.config.resampler_quality();
         let converters = device_producers
             .iter()
             .map(|(plan, _)| {
@@ -378,7 +377,6 @@ impl Engine {
                         device_rate,
                         plan.channels,
                         dsp_chunk_frames as u32,
-                        &resampler_quality,
                     )
                     .map(Some)
                 }

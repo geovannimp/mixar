@@ -58,7 +58,6 @@ impl DeviceRateConverter {
         device_rate: u32,
         channels: u16,
         chunk_frames: u32,
-        quality: &str,
     ) -> Result<Self> {
         let channels = usize::from(channels.max(1));
         // Fixed input: the DSP delivers whole chunks, so the output frame count
@@ -68,7 +67,6 @@ impl DeviceRateConverter {
             device_rate,
             channels,
             chunk_frames as usize,
-            Some(quality),
         )?;
         // A variable-output step emits whole internal blocks, so size for the maximum.
         let out_frames = resampler.max_output_frames().max(1);
@@ -952,8 +950,7 @@ mod tests {
         const CHUNKS: usize = 20_000;
 
         let mut converter =
-            DeviceRateConverter::new(DSP_RATE, DEVICE_RATE, CHANNELS, CHUNK, "medium")
-                .expect("converter");
+            DeviceRateConverter::new(DSP_RATE, DEVICE_RATE, CHANNELS, CHUNK).expect("converter");
         // DC input: a correct resampler returns DC, so the level is easy to check.
         let chunk = vec![0.5f32; CHUNK as usize * CHANNELS as usize];
 
@@ -1057,9 +1054,8 @@ mod tests {
             "medium",
             SamplerStripRoute::BeforeStrip,
         )));
-        let converter =
-            DeviceRateConverter::new(DSP_RATE, CUE_RATE, CHANNELS, CHUNK_FRAMES, "medium")
-                .expect("converter");
+        let converter = DeviceRateConverter::new(DSP_RATE, CUE_RATE, CHANNELS, CHUNK_FRAMES)
+            .expect("converter");
         let running = Arc::new(Mutex::new(true));
         let running_thread = Arc::clone(&running);
         let handle = thread::spawn(move || {

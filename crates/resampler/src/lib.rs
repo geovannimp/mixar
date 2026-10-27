@@ -287,20 +287,21 @@ pub fn create_resampler(
 /// ratio (48 kHz → 44.1 kHz needs 470.4 frames per 512-frame chunk). Fixing the input
 /// lets the output alternate 470/471 so the stream keeps exact time instead of
 /// drifting ~0.09% slow.
+///
+/// Takes no quality preset: rubato's FFT resampler exposes none, and silently
+/// accepting one here would imply the Settings → Audio preset applies to device
+/// streams when it cannot.
 pub fn create_device_resampler(
     input_sr: u32,
     output_sr: u32,
     channels: usize,
     input_chunk_frames: usize,
-    quality: Option<&str>,
 ) -> Result<Box<dyn Resampler>> {
-    let quality = normalize_resampler_quality(quality);
     Ok(Box::new(FixedInputResampler::new(
         input_sr,
         output_sr,
         channels,
         input_chunk_frames,
-        quality,
     )?))
 }
 
@@ -320,10 +321,7 @@ impl FixedInputResampler {
         output_sr: u32,
         channels: usize,
         input_chunk_frames: usize,
-        quality: &str,
     ) -> Result<Self> {
-        // Presets are shared with `RubatoResampler`; rubato applies its own defaults.
-        let _ = quality;
         let mut resampler = Self {
             resampler: None,
             input_sample_rate: input_sr,
@@ -466,7 +464,7 @@ mod tests {
     fn fixed_input_resampler_carries_a_fractional_ratio() {
         // 512 frames @ 48 kHz is 10.667 ms, i.e. 470.4 frames @ 44.1 kHz. A fixed
         // output chunk of 470 would run 0.09% slow, so the output must alternate.
-        let mut resampler = FixedInputResampler::new(48_000, 44_100, 2, 512, "medium").unwrap();
+        let mut resampler = FixedInputResampler::new(48_000, 44_100, 2, 512).unwrap();
         let input = vec![0.5f32; 512 * 2];
         let mut out = vec![0.0f32; 600 * 2];
 
@@ -496,7 +494,7 @@ mod tests {
     #[test]
     fn fixed_input_resampler_carries_a_fractional_ratio_when_upsampling() {
         // The reverse direction: 512 frames @ 48 kHz is 940.8 frames @ 88.2 kHz.
-        let mut resampler = FixedInputResampler::new(48_000, 88_200, 2, 512, "medium").unwrap();
+        let mut resampler = FixedInputResampler::new(48_000, 88_200, 2, 512).unwrap();
         let input = vec![0.5f32; 512 * 2];
         let mut out = vec![0.0f32; 2_000 * 2];
 
