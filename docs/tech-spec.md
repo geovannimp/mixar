@@ -164,14 +164,15 @@ engine.load_prepared_track(0, prepared)?;
 
 #### Producer Thread (engine-controlled)
 
-- Runs `DspEngine::process` for each chunk (decks render/resample, mixer routes).
+- Runs `DspEngine::process` for each chunk (decks render/resample, mixer routes). The chunk is always `config.buffer_size`, a multiple of the mixer's 64-frame graph buffer.
 - Writes interleaved stereo frames to a lock-free ring buffer for the master bus.
-- Paced by the device callback count (does not run unbounded ahead of the consumer).
+- Paced by the pacing device ring's fill level: production stops once that ring holds about two DSP chunks, which ties it to consumption without running unbounded ahead.
 
 #### Consumer (audio callback)
 
 - Implemented by the backend (`cpal` / `null`). The backend’s real-time callback invokes `AudioCallback::render`.
 - `ConsumerCallback` pops samples from the ring buffer into the device output buffer. On underrun it writes silence.
+- The callback frame count is the backend's business, not the DSP's: WASAPI shared mode always delivers its device period (480 frames at 48 kHz), so the ring buffer is what reconciles that with the 512-frame DSP chunk. Backends request the nearest size the device accepts rather than refusing to open it.
 - **No heap allocations, no mutexes, no blocking** in the callback path.
 
 ### 3.2 Ring Buffer & Zero Allocations

@@ -1,6 +1,4 @@
-import 'dart:io' show Platform, exit;
+import 'dart:io' show Platform;
 
 bool get ioIsDesktop =>
     Platform.isLinux || Platform.isMacOS || Platform.isWindows;
-
-void fatalExit([int code = 1]) => exit(code);

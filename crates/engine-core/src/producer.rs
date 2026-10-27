@@ -19,7 +19,6 @@ pub(crate) struct DeviceStreamSetup {
     pub callback_count: Arc<AtomicU64>,
     pub callback_frames_atomic: Option<Arc<AtomicU32>>,
     pub sample_rate: u32,
-    pub buffer_size: usize,
 }
 
 /// Ring buffer: spec §5.2 — preallocate N × frames_per_buffer (N ≥ 8) to tolerate producer jitter.
@@ -51,11 +50,11 @@ pub(crate) fn create_device_ring_buffer(
     (producer, consumer)
 }
 
-/// Start every opened device stream, then wait for the pacing (first/master) device to report
-/// its callback frame count so the producer's chunk size assumption is confirmed before returning.
+/// Start every opened device stream, then wait for the pacing (first/master) device to run its
+/// first callback so startup reports a live device before returning.
 pub(crate) fn start_device_streams(
     streams: &mut [Box<dyn AudioStream>],
-    expected_buffer_size: u32,
+    dsp_chunk_frames: u32,
     pacing_callback_frames_atomic: Option<Arc<AtomicU32>>,
 ) -> Result<()> {
     for stream in streams.iter_mut() {
@@ -63,15 +62,22 @@ pub(crate) fn start_device_streams(
     }
 
     if let Some(frames_atomic) = pacing_callback_frames_atomic {
-        wait_for_callback_frames(frames_atomic, expected_buffer_size)?;
+        wait_for_callback_frames(frames_atomic, dsp_chunk_frames)?;
     }
 
     Ok(())
 }
-/// Wait for the audio device to report its callback frame count, then verify it matches config.
+
+/// Wait for the audio device to report its callback frame count.
+///
+/// The count only has to exist, not to match `dsp_chunk_frames`: the backend decides the callback
+/// period (WASAPI shared mode fixes it at the audio engine's ~10 ms, i.e. 480 frames at 48 kHz,
+/// which is not even a multiple of the DSP chunk) while the DSP keeps running in whole
+/// `dsp_chunk_frames` chunks fed through the ring buffer. Rejecting a differing count would make
+/// those devices unopenable.
 pub(crate) fn wait_for_callback_frames(
     frames_atomic: Arc<AtomicU32>,
-    expected_frames: u32,
+    dsp_chunk_frames: u32,
 ) -> Result<()> {
     const TIMEOUT: Duration = Duration::from_secs(2);
     let deadline = Instant::now() + TIMEOUT;
@@ -79,22 +85,23 @@ pub(crate) fn wait_for_callback_frames(
     while Instant::now() < deadline {
         let frames = frames_atomic.load(Ordering::Relaxed);
         if frames > 0 {
-            if frames != expected_frames {
-                return Err(anyhow::anyhow!(
-                    "Device callback size is {} frames but {} frames were configured",
+            if frames == dsp_chunk_frames {
+                tracing::info!("Device callback size verified: {} frames", frames);
+            } else {
+                tracing::info!(
+                    "Device callback period is {} frames, DSP chunk stays {} frames (ring buffer decouples them)",
                     frames,
-                    expected_frames
-                ));
+                    dsp_chunk_frames
+                );
             }
-            tracing::info!("Device callback size verified: {} frames", frames);
             return Ok(());
         }
         thread::sleep(Duration::from_millis(1));
     }
 
     Err(anyhow::anyhow!(
-        "Timed out waiting for audio device callback (expected {} frames)",
-        expected_frames
+        "Timed out waiting for audio device callback (DSP chunk {} frames)",
+        dsp_chunk_frames
     ))
 }
 
@@ -158,53 +165,54 @@ impl DeviceLiveness {
 
 /// Producer thread loop (spec §5.1: writes decoded/resampled audio into per-device ring buffers).
 ///
-/// Production is paced by the callback count of the first live device. Index 0 is the preferred
-/// pacing device (`resolve_device_stream_plans` sorts a master-hosting plan first), so it is the
-/// "master clock" whenever a master bus is configured. If it stalls or is unplugged, pacing falls
-/// over to the next live device. Dead devices are excluded from the room gate and from pushes, so
-/// only their own output stops; the remaining devices keep playing.
+/// The DSP always runs in whole `dsp_chunk_frames` chunks (a multiple of `dasp_graph`'s buffer
+/// length). Devices are free to call back in any frame count: the backend's period is not the DSP
+/// chunk, and the ring buffer between them absorbs the difference — a device that consumes 480
+/// frames per callback simply reads 480 frames out of rings the producer fills 512 frames at a
+/// time. Pacing is therefore the pacing ring's fill level, not the device's callback count:
+/// production stops once that ring holds two chunks, which ties production to consumption without
+/// needing the two sizes to agree.
+///
+/// Index 0 is the preferred pacing device (`resolve_device_stream_plans` sorts a master-hosting
+/// plan first), so it is the "master clock" whenever a master bus is configured. If it stalls or is
+/// unplugged, pacing falls over to the next live device. Dead devices are excluded from the room
+/// gate and from pushes, so only their own output stops; the remaining devices keep playing.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn producer_thread_loop(
     dsp_engine: Arc<Mutex<DspEngine>>,
     mut device_producers: Vec<(DeviceStreamPlan, Producer<Sample>)>,
     running: Arc<Mutex<bool>>,
     sample_rate: u32,
-    fallback_buffer_size: usize,
-    callback_frames_atomic: Option<Arc<AtomicU32>>,
+    dsp_chunk_frames: usize,
+    callback_frames: Vec<Option<Arc<AtomicU32>>>,
     callback_counts: Vec<Arc<AtomicU64>>,
     transport_events: Arc<Mutex<Vec<TransportEvent>>>,
 ) {
     tracing::info!(
-        "Producer thread started ({} device stream(s), fallback_buffer_size={}, sample_rate={})",
+        "Producer thread started ({} device stream(s), dsp_chunk_frames={}, sample_rate={})",
         device_producers.len(),
-        fallback_buffer_size,
+        dsp_chunk_frames,
         sample_rate
     );
 
-    // The engine already verified at stream open that every device's actual
-    // buffer size matches config.buffer_size, and start_device_streams waits for
-    // the pacing callback to report that same size. Treat fallback_buffer_size
-    // as the contractual upper bound for callback frames and pre-size all
-    // producer scratch/output buffers to it so the steady-state loop never allocates.
-    let max_expected_frames = fallback_buffer_size;
+    // Every scratch/output buffer is pre-sized to the DSP chunk so the steady-state loop never
+    // allocates. The chunk does not depend on any device, so it cannot be exceeded at runtime.
+    let chunk_frames = dsp_chunk_frames;
 
     let mut output_buses = HashMap::new();
-    output_buses.insert(BusId::new("master"), vec![0.0; max_expected_frames * 2]);
+    output_buses.insert(BusId::new("master"), vec![0.0; chunk_frames * 2]);
     if device_producers
         .iter()
         .any(|(plan, _)| plan.routes.iter().any(|r| r.bus_id.as_str() == "cue"))
     {
-        output_buses.insert(BusId::new("cue"), vec![0.0; max_expected_frames * 2]);
+        output_buses.insert(BusId::new("cue"), vec![0.0; chunk_frames * 2]);
     }
 
     let mut device_scratch: Vec<Vec<Sample>> = device_producers
         .iter()
-        .map(|(plan, _)| vec![0.0; max_expected_frames * plan.channels as usize])
+        .map(|(plan, _)| vec![0.0; chunk_frames * plan.channels as usize])
         .collect();
 
-    const MAX_AHEAD_CHUNKS: u64 = 2;
-    let mut produced_chunks: u64 = 0;
-    let mut oversized_warned = false;
     let mut pacing_index: Option<usize> = None;
     // Ring capacity is fixed at construction (rtrb rings are not resized), so snapshot it per
     // device up front instead of re-reading it from the pacing producer on every failover.
@@ -233,42 +241,16 @@ pub(crate) fn producer_thread_loop(
     );
     assert_eq!(
         liveness.len(),
+        callback_frames.len(),
+        "callback_frames must pair 1:1 with device_producers"
+    );
+    assert_eq!(
+        liveness.len(),
         device_producers.len(),
         "liveness must pair 1:1 with device_producers"
     );
 
     while *running.lock().unwrap() {
-        let chunk_frames = callback_frames_atomic
-            .as_ref()
-            .and_then(|a| {
-                let v = a.load(Ordering::Relaxed);
-                if v > 0 {
-                    Some(v as usize)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(fallback_buffer_size);
-
-        // Hard error: callback frames must never exceed the pre-sized bound. On
-        // violation, log once for this producer thread, skip the chunk, and let the
-        // ring underrun into silence rather than allocating or passing an oversized
-        // frame count into DSP. The flag is intentionally never re-armed.
-        if chunk_frames > max_expected_frames {
-            if !oversized_warned {
-                tracing::error!(
-                    "Producer callback size {} frames exceeds pre-sized max {} frames; skipping chunk. Driver buffer changed after stream open?",
-                    chunk_frames,
-                    max_expected_frames
-                );
-                oversized_warned = true;
-            }
-            thread::sleep(
-                Duration::from_secs_f64(max_expected_frames as f64 / sample_rate as f64) / 4,
-            );
-            continue;
-        }
-
         let buffer_duration = Duration::from_secs_f64(chunk_frames as f64 / sample_rate as f64);
 
         let now = Instant::now();
@@ -291,34 +273,32 @@ pub(crate) fn producer_thread_loop(
             continue;
         };
 
-        let device_callbacks = callback_counts[pacing_i].load(Ordering::Relaxed);
         if pacing_index != Some(pacing_i) {
-            // Failover (or recovery back to a lower-index device).
+            // Failover (or recovery back to a lower-index device). Production is bounded by the
+            // new pacing ring's fill level, so nothing else has to be re-based here.
             match pacing_index {
                 Some(prev_i) => {
                     tracing::info!("Pacing changed: device {} -> device {}", prev_i, pacing_i)
                 }
                 None => tracing::info!("Pacing started on device {}", pacing_i),
             }
-            // Move the pacing clock forward only. Lowering `produced_chunks` would make the
-            // MAX_AHEAD_CHUNKS gate pass trivially and let the producer burst ahead of the new
-            // pacing device's consumption; with a slower-count device the gate then holds
-            // production until it catches up, which is the correct pacing behavior.
-            produced_chunks = produced_chunks.max(device_callbacks);
             pacing_index = Some(pacing_i);
-        }
-
-        // Never run more than MAX_AHEAD_CHUNKS ahead of the pacing device's callback clock.
-        if produced_chunks > device_callbacks.saturating_add(MAX_AHEAD_CHUNKS) {
-            thread::sleep(buffer_duration / 4);
-            continue;
         }
 
         let (pacing_plan, pacing_producer) = &device_producers[pacing_i];
         let samples_per_chunk = chunk_frames * pacing_plan.channels as usize;
+        // The ring must hold at least one device callback on top of one DSP chunk: a device whose
+        // period exceeds the configured buffer size (WASAPI at small configured sizes) would
+        // otherwise underrun on every callback. Two chunks stays the floor at equal sizes.
+        let device_frames = callback_frames
+            .get(pacing_i)
+            .and_then(|frames| frames.as_ref())
+            .map(|frames| frames.load(Ordering::Relaxed) as usize)
+            .unwrap_or(0);
+        let target_frames = (chunk_frames * 2).max(device_frames + chunk_frames);
         let pacing_slots = pacing_producer.slots();
         let filled = ring_capacities[pacing_i].saturating_sub(pacing_slots);
-        let target_fill = samples_per_chunk * 2;
+        let target_fill = target_frames * pacing_plan.channels as usize;
         if filled >= target_fill || pacing_slots < samples_per_chunk {
             thread::sleep(buffer_duration / 8);
             continue;
@@ -352,7 +332,6 @@ pub(crate) fn producer_thread_loop(
             }
         }
 
-        let mut pushed_pacing_chunk = false;
         // `zip(&live)` keeps this loop panic-free even if `live` were ever shorter than
         // `device_producers` (the assertions above catch that in debug builds).
         for (i, ((plan, producer), &is_live)) in device_producers.iter_mut().zip(&live).enumerate()
@@ -370,14 +349,7 @@ pub(crate) fn producer_thread_loop(
                 &mut device_scratch[i][..needed],
             );
 
-            let pushed_all = push_ring_samples(producer, &device_scratch[i][..needed]);
-            if i == pacing_i {
-                pushed_pacing_chunk = pushed_all;
-            }
-        }
-
-        if pushed_pacing_chunk {
-            produced_chunks += 1;
+            push_ring_samples(producer, &device_scratch[i][..needed]);
         }
     }
 
@@ -508,7 +480,7 @@ mod tests {
                 running_thread,
                 48_000,
                 BUFFER_FRAMES as usize,
-                Some(Arc::new(AtomicU32::new(BUFFER_FRAMES))),
+                vec![None, None],
                 vec![
                     Arc::new(AtomicU64::new(200)),
                     Arc::new(AtomicU64::new(1000)),
@@ -563,18 +535,27 @@ mod tests {
     }
 
     #[test]
-    fn producer_skips_oversized_callback_without_resizing() {
+    fn wait_for_callback_frames_accepts_a_device_period_other_than_the_chunk() {
+        // WASAPI shared mode reports 480 frames per callback against a 512-frame DSP chunk;
+        // startup must not treat that as a misconfiguration (it used to fail the whole start).
+        let frames = Arc::new(AtomicU32::new(480));
+        wait_for_callback_frames(frames, 512).unwrap();
+    }
+
+    #[test]
+    fn producer_paces_ring_to_a_device_period_smaller_than_the_chunk() {
         use crate::routing::BusRoute;
         use audio_core::{BusId, DeviceId};
         use engine_dsp::SamplerStripRoute;
 
-        let fallback_buffer_size = 64;
-        let sample_rate = 48000;
-        let channels = 2;
+        // WASAPI shared mode at 48 kHz: 480 frames per callback, 512-frame DSP chunk.
+        const DEVICE_FRAMES: usize = 480;
+        const CHUNK_FRAMES: usize = 512;
+        const CHANNELS: u16 = 2;
 
         let plan = DeviceStreamPlan {
-            device: DeviceId::new("null-device"),
-            channels,
+            device: DeviceId::new("wasapi-shared"),
+            channels: CHANNELS,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -582,71 +563,136 @@ mod tests {
             }],
         };
 
-        let (producer, mut consumer) =
-            create_device_ring_buffer(fallback_buffer_size as u32, channels);
-        // Drain the pre-filled silence: otherwise the fill-level gate blocks production
-        // and the oversized assertion passes even without the guard.
+        let (producer, mut consumer) = create_device_ring_buffer(CHUNK_FRAMES as u32, CHANNELS);
+        // Start empty so every byte in the ring is produced by the loop under test.
         let prefill = consumer.slots();
         consumer.read_chunk(prefill).unwrap().commit_all();
 
         let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
-            sample_rate,
-            fallback_buffer_size as u32,
-            2,
+            48_000,
+            CHUNK_FRAMES as u32,
+            1,
             "medium",
             SamplerStripRoute::BeforeStrip,
         )));
-
         let running = Arc::new(Mutex::new(true));
-        let transport_events: Arc<Mutex<Vec<TransportEvent>>> = Arc::new(Mutex::new(Vec::new()));
-        // Large callback count so the pacing gate never blocks production.
-        let callback_count = Arc::new(AtomicU64::new(u64::MAX / 4));
-        let callback_frames = Arc::new(AtomicU32::new(fallback_buffer_size as u32));
+        let callback_count = Arc::new(AtomicU64::new(0));
 
         let running_clone = Arc::clone(&running);
-        let callback_frames_clone = Arc::clone(&callback_frames);
-        let thread_handle = thread::spawn(move || {
+        let callback_count_clone = Arc::clone(&callback_count);
+        let handle = thread::spawn(move || {
             producer_thread_loop(
                 dsp_engine,
                 vec![(plan, producer)],
                 running_clone,
-                sample_rate,
-                fallback_buffer_size,
-                Some(callback_frames_clone),
-                vec![callback_count],
-                transport_events,
+                48_000,
+                CHUNK_FRAMES,
+                vec![Some(Arc::new(AtomicU32::new(DEVICE_FRAMES as u32)))],
+                vec![callback_count_clone],
+                Arc::new(Mutex::new(Vec::new())),
             );
         });
 
-        // Precondition: the producer really runs at the normal size, otherwise the
-        // oversized assertion below could pass vacuously.
-        let deadline = std::time::Instant::now() + Duration::from_secs(2);
-        while consumer.slots() == 0 {
-            assert!(
-                std::time::Instant::now() < deadline,
-                "producer never produced a normal-size chunk"
-            );
-            thread::sleep(Duration::from_millis(1));
-        }
-
-        // Switch to an oversized callback, give the producer time to observe it and
-        // emit any chunk already in flight, then drain that chunk.
-        callback_frames.store(fallback_buffer_size as u32 * 2, Ordering::Relaxed);
-        thread::sleep(Duration::from_millis(100));
-        let pending = consumer.slots();
-        if pending > 0 {
-            consumer.read_chunk(pending).unwrap().commit_all();
+        // Drive device callbacks that consume less than one DSP chunk each and check the ring
+        // never falls behind consumption: production has to follow the ring drain, not the
+        // callback count, or a 480-frame device would accumulate the whole ring.
+        let want = DEVICE_FRAMES * CHANNELS as usize;
+        let mut consumed = 0usize;
+        let mut max_slots = 0usize;
+        for _ in 0..40 {
+            callback_count.fetch_add(1, Ordering::Relaxed);
+            let deadline = Instant::now() + Duration::from_millis(100);
+            while consumer.slots() < want && Instant::now() < deadline {
+                thread::sleep(Duration::from_millis(1));
+            }
+            let take = consumer.slots().min(want);
+            if take > 0 {
+                consumer.read_chunk(take).unwrap().commit_all();
+                consumed += take;
+            }
+            max_slots = max_slots.max(consumer.slots());
         }
 
         *running.lock().unwrap() = false;
-        // Without the guard an oversized frame count indexes past the pre-sized scratch
-        // slice and panics in the producer loop, which join() surfaces here.
-        thread_handle.join().unwrap();
+        handle.join().unwrap();
 
-        assert_eq!(
+        assert!(consumed > 0, "callbacks never received audio");
+        let bound = 3 * CHUNK_FRAMES * CHANNELS as usize;
+        assert!(
+            max_slots <= bound,
+            "ring filled to {max_slots} samples while consuming {consumed}; production must stay \
+             within ~2 DSP chunks of the device's consumption (bound {bound})"
+        );
+        assert!(
+            consumer.slots() <= bound,
+            "ring left {} samples queued, expected at most {bound}",
+            consumer.slots()
+        );
+    }
+
+    #[test]
+    fn producer_keeps_a_full_device_period_queued_when_it_exceeds_the_chunk() {
+        use crate::routing::BusRoute;
+        use audio_core::{BusId, DeviceId};
+        use engine_dsp::SamplerStripRoute;
+
+        // A 64-frame configured buffer on WASAPI: the device still calls back every 480 frames, so
+        // a two-chunk fill target (128 frames) would underrun on every single callback.
+        const DEVICE_FRAMES: usize = 480;
+        const CHUNK_FRAMES: usize = 64;
+        const CHANNELS: u16 = 2;
+        const SAMPLES_PER_CALLBACK: usize = DEVICE_FRAMES * CHANNELS as usize;
+
+        let plan = DeviceStreamPlan {
+            device: DeviceId::new("wasapi-small-buffer"),
+            channels: CHANNELS,
+            routes: vec![BusRoute {
+                bus_id: BusId::new("master"),
+                left: 0,
+                right: Some(1),
+            }],
+        };
+
+        let (producer, mut consumer) = create_device_ring_buffer(CHUNK_FRAMES as u32, CHANNELS);
+        // Drain the startup prefill so the fill target alone decides what stays queued.
+        let prefill = consumer.slots();
+        consumer.read_chunk(prefill).unwrap().commit_all();
+
+        let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
+            48_000,
+            CHUNK_FRAMES as u32,
+            1,
+            "medium",
+            SamplerStripRoute::BeforeStrip,
+        )));
+        let running = Arc::new(Mutex::new(true));
+        let running_clone = Arc::clone(&running);
+        let handle = thread::spawn(move || {
+            producer_thread_loop(
+                dsp_engine,
+                vec![(plan, producer)],
+                running_clone,
+                48_000,
+                CHUNK_FRAMES,
+                vec![Some(Arc::new(AtomicU32::new(DEVICE_FRAMES as u32)))],
+                vec![Arc::new(AtomicU64::new(1))],
+                Arc::new(Mutex::new(Vec::new())),
+            );
+        });
+
+        let deadline = Instant::now() + Duration::from_millis(300);
+        while consumer.slots() < SAMPLES_PER_CALLBACK && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(1));
+        }
+        *running.lock().unwrap() = false;
+        handle.join().unwrap();
+
+        assert!(
+            consumer.slots() >= SAMPLES_PER_CALLBACK,
+            "ring holds {} samples but one device callback needs {}; the fill target must cover \
+             the device period",
             consumer.slots(),
-            0,
-            "oversized callback should not produce any samples"
+            SAMPLES_PER_CALLBACK
         );
     }
 
