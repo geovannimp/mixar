@@ -583,7 +583,12 @@ impl EngineTransport {
         .map_err(|e| e.to_string())?;
         let buses = EngineBuses::new();
         engine.set_buses(buses.clone());
-        engine.start().map_err(|e| e.to_string())?;
+        // Log the reason before handing it to Dart: the notice on screen is not a log, and this
+        // is the failure users report with "no logs related to it".
+        if let Err(error) = engine.start() {
+            tracing::error!(error = %error, "engine start failed");
+            return Err(error.to_string());
+        }
         let engine = Arc::new(Mutex::new(Some(engine)));
         let engine_worker = match spawn_engine_worker(Arc::clone(&engine)) {
             Ok(worker) => worker,
