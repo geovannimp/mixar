@@ -24,15 +24,11 @@ pub fn validate_buffer_size(buffer_size: u32) -> Result<()> {
 /// Engine configuration
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EngineConfig {
-    /// Sample rate for the engine
-    pub sample_rate: u32,
     /// Buffer size in frames (must be a multiple of [`BUFFER_SIZE_MULTIPLE`])
     pub buffer_size: u32,
     /// Number of enabled deck lanes (2 or 4).
     #[serde(default = "default_num_decks")]
     pub num_decks: usize,
-    /// Low latency hint
-    pub low_latency: bool,
     /// Backend to use ("auto", "cpal", "null")
     pub backend: String,
     /// Bus configurations
@@ -117,10 +113,8 @@ impl SamplerStripRouteSetting {
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
-            sample_rate: 48000,
             buffer_size: 512,
             num_decks: default_num_decks(),
-            low_latency: false,
             backend: "auto".to_string(),
             buses: vec![],
             devices: None,
@@ -209,6 +203,37 @@ impl EngineConfig {
             self.num_decks
         );
         validate_buffer_size(self.buffer_size)?;
+        for bus in &self.buses {
+            if let Some(rate) = bus.sample_rate {
+                ensure!(
+                    rate > 0,
+                    "bus '{}' sample_rate must be > 0 (got {rate})",
+                    bus.id.as_str()
+                );
+            }
+        }
+        // Buses sharing a device share one stream, so their explicit rates must
+        // agree. Checked here as well as in stream planning, so saving settings
+        // fails with this message instead of the next engine start.
+        for (index, bus) in self.buses.iter().enumerate() {
+            let Some(rate) = bus.sample_rate else {
+                continue;
+            };
+            for other in &self.buses[index + 1..] {
+                if other.device != bus.device {
+                    continue;
+                }
+                if let Some(other_rate) = other.sample_rate {
+                    ensure!(
+                        other_rate == rate,
+                        "buses '{}' and '{}' share device '{}' but ask for {rate} Hz and {other_rate} Hz; one stream runs at one rate",
+                        bus.id.as_str(),
+                        other.id.as_str(),
+                        bus.device.as_str()
+                    );
+                }
+            }
+        }
         if let Some(secs) = self.audio.as_ref().and_then(|a| a.vinyl_brake_stop_secs) {
             ensure!(
                 (0.05..=3.0).contains(&secs),
@@ -285,9 +310,7 @@ mod tests {
     #[test]
     fn test_engine_config_default() {
         let config = EngineConfig::default();
-        assert_eq!(config.sample_rate, 48000);
         assert_eq!(config.buffer_size, 512);
-        assert!(!config.low_latency);
         assert_eq!(config.backend, "auto");
         assert_eq!(config.analysis_duration, AnalysisDurationMode::Precise);
         assert_eq!(config.default_tempo_range(), DEFAULT_TEMPO_RANGE);
@@ -318,6 +341,70 @@ mod tests {
     }
 
     #[test]
+    fn legacy_toml_without_per_bus_rates_still_validates() {
+        let toml = r#"
+buffer_size = 512
+backend = "null"
+buses = []
+analysis_duration = "precise"
+"#;
+        let config: EngineConfig = toml::from_str(toml).unwrap();
+        config.validate().unwrap();
+
+        // A populated legacy bus has no `sample_rate` field; it must load with the
+        // follow-the-device default, and the retired global key must be ignored
+        // rather than rejected.
+        let legacy = r#"
+sample_rate = 48000
+buffer_size = 512
+backend = "null"
+analysis_duration = "precise"
+
+[[buses]]
+id = "master"
+name = "Master"
+device = "null-device"
+channels = { mode = "stereo", left = 1, right = 2 }
+"#;
+        let config: EngineConfig = toml::from_str(legacy).unwrap();
+        config.validate().unwrap();
+        assert_eq!(config.buses.len(), 1);
+        assert_eq!(config.buses[0].sample_rate, None);
+        assert!(!config.buses[0].low_latency);
+    }
+
+    #[test]
+    fn validate_rejects_conflicting_rates_on_one_device() {
+        use audio_core::{BusId, ChannelMapping, DeviceId};
+
+        let mut config = EngineConfig::default();
+        config.buses.push(
+            BusConfig::new(
+                BusId::new("master"),
+                "Master".to_string(),
+                DeviceId::new("dev"),
+                ChannelMapping::stereo(1, 2),
+            )
+            .with_sample_rate(Some(48_000)),
+        );
+        config.buses.push(
+            BusConfig::new(
+                BusId::new("cue"),
+                "Cue".to_string(),
+                DeviceId::new("dev"),
+                ChannelMapping::stereo(3, 4),
+            )
+            .with_sample_rate(Some(44_100)),
+        );
+
+        let error = config.validate().unwrap_err();
+        assert!(
+            error.to_string().contains("one stream runs at one rate"),
+            "{error}"
+        );
+    }
+
+    #[test]
     fn validate_buffer_size_requires_multiple_of_chunk() {
         assert_eq!(BUFFER_SIZE_MULTIPLE, 64);
         assert!(validate_buffer_size(64).is_ok());
@@ -330,9 +417,7 @@ mod tests {
     #[test]
     fn from_toml_rejects_non_multiple_buffer_size() {
         let toml = r#"
-sample_rate = 48000
 buffer_size = 100
-low_latency = false
 backend = "null"
 buses = []
 analysis_duration = "precise"

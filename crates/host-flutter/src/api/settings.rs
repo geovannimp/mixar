@@ -17,6 +17,8 @@ const PREVIEW_BUS_ID: &str = "cue";
 const TARGET_LUFS_MIN: f32 = -24.0;
 const TARGET_LUFS_MAX: f32 = -9.0;
 const TARGET_LUFS_DEFAULT: f32 = -18.0;
+/// Sample rate `EngineConfig::default()` used before rates moved onto the buses.
+const LEGACY_DEFAULT_SAMPLE_RATE: u32 = 48_000;
 
 static SETTINGS: OnceLock<Arc<Mutex<SettingsHost>>> = OnceLock::new();
 
@@ -82,7 +84,7 @@ pub enum BusChannelMode {
     Mono,
 }
 
-/// Output bus route (device + channels).
+/// Output bus route (device + channels + rate).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BusRouteSettings {
     pub device_id: String,
@@ -90,6 +92,13 @@ pub struct BusRouteSettings {
     pub right_channel: u16,
     #[serde(default)]
     pub mode: BusChannelMode,
+    /// Rate this bus's device stream runs at. `None` follows the rate the system
+    /// mixes the device at (Settings → Audio shows it as "Device default").
+    #[serde(default)]
+    pub sample_rate: Option<u32>,
+    /// Ask the backend for a shorter path on this bus's device.
+    #[serde(default)]
+    pub low_latency: bool,
 }
 
 /// Jog platter policy (maps to [`JogMode`]).
@@ -339,9 +348,7 @@ fn default_num_decks() -> u8 {
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
-    pub sample_rate: u32,
     pub buffer_size: u32,
-    pub low_latency: bool,
     pub resampler_quality: String,
     pub master_bus: BusRouteSettings,
     pub preview_enabled: bool,
@@ -568,6 +575,8 @@ fn default_master_bus_route() -> BusRouteSettings {
         left_channel: 1,
         right_channel: 2,
         mode: BusChannelMode::Stereo,
+        sample_rate: None,
+        low_latency: false,
     }
 }
 
@@ -577,6 +586,8 @@ fn default_preview_bus_route() -> BusRouteSettings {
         left_channel: 3,
         right_channel: 4,
         mode: BusChannelMode::Stereo,
+        sample_rate: None,
+        low_latency: false,
     }
 }
 
@@ -609,9 +620,6 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         settings.num_decks = default_num_decks();
     }
 
-    if settings.sample_rate == 0 {
-        errors.push("sample_rate must be > 0".into());
-    }
     if let Err(e) = validate_buffer_size(settings.buffer_size) {
         errors.push(e.to_string());
     }
@@ -698,6 +706,9 @@ fn parse_bus(field: &str, route: &BusRouteSettings) -> Result<(), String> {
     if route.device_id.trim().is_empty() {
         return Err(format!("{field}.device_id must not be empty"));
     }
+    if route.sample_rate == Some(0) {
+        return Err(format!("{field}.sample_rate must be > 0"));
+    }
     match route.mode {
         BusChannelMode::Mono => {
             if route.left_channel == 0 {
@@ -725,6 +736,8 @@ fn bus_route_from_config(bus: &BusConfig) -> BusRouteSettings {
             ChannelMode::Mono => BusChannelMode::Mono,
             ChannelMode::Stereo => BusChannelMode::Stereo,
         },
+        sample_rate: bus.sample_rate,
+        low_latency: bus.low_latency,
     }
 }
 
@@ -742,6 +755,8 @@ fn bus_config(id: &str, name: &str, route: &BusRouteSettings) -> BusConfig {
         DeviceId::new(route.device_id.clone()),
         channel_mapping_from_route(route),
     )
+    .with_sample_rate(route.sample_rate)
+    .with_low_latency(route.low_latency)
 }
 
 fn buses_from_settings(settings: &AppSettings) -> Vec<BusConfig> {
@@ -766,9 +781,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         .iter()
         .find(|bus| bus.id.as_str() == PREVIEW_BUS_ID);
     AppSettings {
-        sample_rate: config.sample_rate,
         buffer_size: config.buffer_size,
-        low_latency: config.low_latency,
         resampler_quality: normalize_resampler_quality(
             audio.and_then(|a| a.resampler_quality.as_deref()),
         )
@@ -823,9 +836,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     let mut config = host.engine_config.clone();
     config.num_decks = usize::from(settings.num_decks);
     config.buses = buses_from_settings(&settings);
-    config.sample_rate = settings.sample_rate;
     config.buffer_size = settings.buffer_size;
-    config.low_latency = settings.low_latency;
     config.analysis_duration = settings.analysis_duration.into();
     config.audio = Some(AudioConfig {
         resampler_quality: Some(settings.resampler_quality.clone()),
@@ -897,7 +908,47 @@ fn bind_persist_path(host: &mut SettingsHost, path: PathBuf) {
 
 fn read_settings_file(path: &Path) -> Option<AppSettings> {
     let bytes = std::fs::read(path).ok()?;
-    serde_json::from_slice(&bytes).ok()
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+
+    // A file written before the move has no per-bus rate/flag keys at all; one
+    // written after it always has both (serialised, possibly null/false). Judging
+    // that per file keeps a retired global from overwriting a route the new format
+    // already stored, while still migrating genuinely old files.
+    let structured_buses = ["master_bus", "preview_bus"].iter().any(|bus| {
+        value.get(bus).is_some_and(|route| {
+            route.get("low_latency").is_some() || route.get("sample_rate").is_some()
+        })
+    });
+
+    let legacy_low_latency = value
+        .get("low_latency")
+        .and_then(serde_json::Value::as_bool);
+    let legacy_sample_rate = value
+        .get("sample_rate")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|rate| u32::try_from(rate).ok());
+
+    let mut settings: AppSettings = serde_json::from_value(value).ok()?;
+    if structured_buses {
+        return Some(settings);
+    }
+
+    // `low_latency` used to be app-wide, and `true` was always an explicit choice.
+    if legacy_low_latency == Some(true) {
+        settings.master_bus.low_latency = true;
+        settings.preview_bus.low_latency = true;
+    }
+    // `sample_rate` used to be app-wide. 48000 was the built-in default and was
+    // written even when never chosen, so migrating it would pin every existing
+    // install to 48 kHz — the behaviour this change removes. Any other value was a
+    // real choice, kept on the master bus only: the old global described the
+    // engine's stream, and the preview bus may sit on a device that cannot run it.
+    if let Some(rate) =
+        legacy_sample_rate.filter(|rate| *rate > 0 && *rate != LEGACY_DEFAULT_SAMPLE_RATE)
+    {
+        settings.master_bus.sample_rate = Some(rate);
+    }
+    Some(settings)
 }
 
 fn write_settings_file(path: &Path, settings: &AppSettings) -> Result<(), String> {
@@ -956,7 +1007,9 @@ mod tests {
     #[test]
     fn default_settings_round_trip() {
         let parsed = parse_settings(sample_settings()).expect("defaults parse");
-        assert_eq!(parsed.sample_rate, 48_000);
+        // Fresh installs follow the device's mix rate rather than pinning one.
+        assert_eq!(parsed.master_bus.sample_rate, None);
+        assert_eq!(parsed.preview_bus.sample_rate, None);
         assert!(parsed.volume_normalizer_enabled);
         assert_eq!(
             parsed.waveform_display_mode,
@@ -1020,7 +1073,7 @@ mod tests {
 
         let host = load_host(&path);
         assert!(host.configured);
-        assert_eq!(host.engine_config.sample_rate, 48_000);
+        assert_eq!(settings_from_host(&host).master_bus.sample_rate, None);
 
         write_settings_file(&path, &settings_from_host(&host)).expect("save");
         let text = std::fs::read_to_string(&path).expect("read");
@@ -1029,7 +1082,7 @@ mod tests {
             "saved settings must drop the retired backend key: {text}"
         );
         let reloaded: AppSettings = serde_json::from_str(&text).expect("reload");
-        assert_eq!(reloaded.sample_rate, 48_000);
+        assert_eq!(reloaded.master_bus.sample_rate, None);
     }
 
     #[test]
@@ -1589,10 +1642,10 @@ mod tests {
         let path = dir.path().join("settings.json");
         let mut settings = sample_settings();
         settings.waveform_display_mode = WaveformDisplayModeSetting::Filtered;
-        settings.sample_rate = 44_100;
+        settings.master_bus.sample_rate = Some(44_100);
         write_settings_file(&path, &settings).expect("write");
 
-        settings.sample_rate = 48_000;
+        settings.master_bus.sample_rate = Some(48_000);
         settings.waveform_display_mode = WaveformDisplayModeSetting::Rgb;
         write_settings_file(&path, &settings).expect("write again");
 
@@ -1602,7 +1655,7 @@ mod tests {
             restored.waveform_display_mode,
             WaveformDisplayModeSetting::Rgb
         );
-        assert_eq!(restored.sample_rate, 48_000);
+        assert_eq!(restored.master_bus.sample_rate, Some(48_000));
     }
 
     #[test]
@@ -1616,12 +1669,128 @@ mod tests {
         };
         let baseline = transport.get_settings().expect("baseline");
         let mut settings = sample_settings();
-        settings.sample_rate = 44_100;
+        settings.master_bus.sample_rate = Some(44_100);
         assert!(transport.save_settings(settings).is_err());
         assert_eq!(
-            transport.get_settings().expect("unchanged").sample_rate,
-            baseline.sample_rate
+            transport
+                .get_settings()
+                .expect("unchanged")
+                .master_bus
+                .sample_rate,
+            baseline.master_bus.sample_rate
         );
+    }
+
+    /// A settings file written before rates/latency moved onto the buses: the
+    /// route objects have neither key.
+    fn pre_move_settings_value() -> serde_json::Value {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        for bus in ["master_bus", "preview_bus"] {
+            if let Some(route) = object.get_mut(bus).and_then(|bus| bus.as_object_mut()) {
+                route.remove("sample_rate");
+                route.remove("low_latency");
+            }
+        }
+        value
+    }
+
+    #[test]
+    fn legacy_global_low_latency_moves_to_both_buses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = pre_move_settings_value();
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("low_latency".into(), serde_json::Value::Bool(true));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("legacy settings");
+        assert!(loaded.master_bus.low_latency);
+        assert!(loaded.preview_bus.low_latency);
+
+        write_settings_file(&path, &loaded).expect("save");
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("read")).expect("reload");
+        assert!(
+            saved.get("low_latency").is_none(),
+            "the legacy global flag must not be written back: {saved}"
+        );
+    }
+
+    #[test]
+    fn legacy_global_sample_rate_moves_to_the_master_bus() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = pre_move_settings_value();
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("sample_rate".into(), serde_json::json!(44_100));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("legacy settings");
+        assert_eq!(loaded.master_bus.sample_rate, Some(44_100));
+        // The old global described the engine stream; the preview bus may sit on a
+        // device that cannot run it, so it is not pinned.
+        assert_eq!(loaded.preview_bus.sample_rate, None);
+    }
+
+    #[test]
+    fn legacy_default_sample_rate_does_not_pin_the_buses() {
+        // 48 kHz was the built-in default and was written even when never chosen, so
+        // migrating it would re-pin every install to the rate this change removes.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = pre_move_settings_value();
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("sample_rate".into(), serde_json::json!(48_000));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("legacy settings");
+        assert_eq!(loaded.master_bus.sample_rate, None);
+        assert_eq!(loaded.preview_bus.sample_rate, None);
+    }
+
+    #[test]
+    fn legacy_zero_sample_rate_is_not_migrated() {
+        // A zero rate cannot open a stream, so it must not be carried onto the bus
+        // where `parse_bus` would reject the whole settings file.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = pre_move_settings_value();
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("sample_rate".into(), serde_json::json!(0));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("legacy settings");
+        assert_eq!(loaded.master_bus.sample_rate, None);
+    }
+
+    #[test]
+    fn per_bus_values_suppress_the_legacy_globals() {
+        // New-format files always carry both route keys, so the retired globals in a
+        // hand-edited file must not overwrite them.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        object.insert("low_latency".into(), serde_json::Value::Bool(true));
+        object.insert("sample_rate".into(), serde_json::json!(44_100));
+        object["master_bus"]["low_latency"] = serde_json::Value::Bool(false);
+        object["master_bus"]["sample_rate"] = serde_json::json!(96_000);
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("mixed settings");
+        assert!(!loaded.master_bus.low_latency);
+        assert_eq!(loaded.master_bus.sample_rate, Some(96_000));
+        assert!(!loaded.preview_bus.low_latency);
+        assert_eq!(loaded.preview_bus.sample_rate, None);
     }
 
     #[test]
@@ -1638,7 +1807,10 @@ mod tests {
         let mut host = SettingsHost::default();
         apply_to_host(&mut host, loaded).expect("apply");
         let restored = settings_from_host(&host);
-        assert_eq!(restored.sample_rate, sample_settings().sample_rate);
+        assert_eq!(
+            restored.master_bus.sample_rate,
+            sample_settings().master_bus.sample_rate
+        );
     }
 
     #[test]
@@ -1649,7 +1821,7 @@ mod tests {
         assert!(read_settings_file(&path).is_none());
         let host = load_host(&path);
         assert!(!host.configured);
-        assert_eq!(host.engine_config.sample_rate, 48_000);
+        assert_eq!(settings_from_host(&host).master_bus.sample_rate, None);
     }
     #[test]
     fn legacy_settings_default_analytics_opt_out() {

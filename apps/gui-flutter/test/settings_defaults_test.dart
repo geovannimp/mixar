@@ -18,15 +18,21 @@ void main() {
     expect(appSettingsDirty(baseline, restored), isFalse);
   });
 
-  test('low latency alone enables saving settings', () {
+  test('a bus low-latency flag alone enables saving settings', () {
     final baseline = defaultAppSettings();
-    expect(
-      appSettingsDirty(
-        copyAppSettings(baseline, lowLatency: !baseline.lowLatency),
-        baseline,
+    final bus = baseline.masterBus;
+    final toggled = copyAppSettings(
+      baseline,
+      masterBus: BusRouteSettings(
+        deviceId: bus.deviceId,
+        leftChannel: bus.leftChannel,
+        rightChannel: bus.rightChannel,
+        mode: bus.mode,
+        sampleRate: bus.sampleRate,
+        lowLatency: !bus.lowLatency,
       ),
-      isTrue,
     );
+    expect(appSettingsDirty(toggled, baseline), isTrue);
   });
 
   test('four-deck profile preserves four sampler assignments and is dirty', () {

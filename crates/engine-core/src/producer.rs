@@ -21,6 +21,106 @@ pub(crate) struct DeviceStreamSetup {
     pub sample_rate: u32,
 }
 
+/// Frames one DSP chunk becomes on a device running at `device_rate`.
+///
+/// The DSP renders whole chunks at its own rate; a device on another rate consumes a
+/// proportional frame count. Rounded to nearest so the per-chunk figure does not drift.
+pub(crate) fn resampled_chunk_frames(chunk_frames: u32, dsp_rate: u32, device_rate: u32) -> u32 {
+    if dsp_rate == 0 || device_rate == 0 {
+        return chunk_frames.max(1);
+    }
+    let numerator = u64::from(chunk_frames) * u64::from(device_rate) + u64::from(dsp_rate) / 2;
+    let frames = numerator / u64::from(dsp_rate);
+    frames.max(1) as u32
+}
+
+/// Converts one device's stream from the DSP rate to the rate that device opened at.
+///
+/// The DSP renders in whole chunks at one rate; a device on another rate needs a
+/// different frame count per chunk, so the resampler keeps its own history and
+/// `pending` holds the input it has not taken yet (the fixed output chunk consumes
+/// 511 or 512 input frames per chunk at 48 kHz → 44.1 kHz). Runs on the producer
+/// thread, never in the audio callback.
+pub(crate) struct DeviceRateConverter {
+    resampler: Box<dyn resampler::Resampler>,
+    channels: usize,
+    /// Interleaved DSP-rate frames the resampler has not consumed yet.
+    pending: Vec<Sample>,
+    /// One device chunk of output scratch per resampler call.
+    out: Vec<Sample>,
+    /// Device-rate frames produced but not yet written to the ring.
+    ready: Vec<Sample>,
+}
+
+impl DeviceRateConverter {
+    pub(crate) fn new(
+        dsp_rate: u32,
+        device_rate: u32,
+        channels: u16,
+        chunk_frames: u32,
+    ) -> Result<Self> {
+        let channels = usize::from(channels.max(1));
+        // Fixed input: the DSP delivers whole chunks, so the output frame count
+        // carries the fractional ratio instead of rounding it away.
+        let resampler = resampler::create_device_resampler(
+            dsp_rate,
+            device_rate,
+            channels,
+            chunk_frames as usize,
+        )?;
+        // A variable-output step emits whole internal blocks, so size for the maximum.
+        let out_frames = resampler.max_output_frames().max(1);
+        Ok(Self {
+            resampler,
+            channels,
+            pending: Vec::with_capacity(channels * (chunk_frames as usize + out_frames)),
+            out: vec![0.0; channels * out_frames],
+            ready: Vec::with_capacity(channels * out_frames),
+        })
+    }
+
+    /// Feed one DSP-rate chunk and convert everything the resampler can take now.
+    ///
+    /// The resampler consumes the fixed input chunk and emits however many frames the
+    /// ratio requires (470 or 471 per 512-frame chunk at 48 kHz → 44.1 kHz), so the
+    /// stream carries the fractional ratio instead of running ~0.09% slow and
+    /// draining the ring until it underruns.
+    pub(crate) fn convert(&mut self, chunk: &[Sample]) {
+        self.pending.extend_from_slice(chunk);
+        loop {
+            let need_in = self.resampler.input_frames_next().max(1);
+            if self.pending.len() / self.channels < need_in {
+                break;
+            }
+            let (out_samples, consumed_frames) =
+                self.resampler
+                    .process(&self.pending, &mut self.out, self.channels);
+            if consumed_frames > 0 {
+                self.pending.drain(..consumed_frames * self.channels);
+            }
+            if out_samples == 0 {
+                break;
+            }
+            self.ready.extend_from_slice(&self.out[..out_samples]);
+        }
+    }
+
+    /// Device-rate frames waiting for ring space.
+    pub(crate) fn ready_frames(&self) -> usize {
+        self.ready.len() / self.channels
+    }
+
+    /// Device-rate samples waiting for ring space.
+    pub(crate) fn ready(&self) -> &[Sample] {
+        &self.ready
+    }
+
+    /// Drop the samples the ring accepted.
+    pub(crate) fn consume_ready(&mut self, samples: usize) {
+        self.ready.drain(..samples.min(self.ready.len()));
+    }
+}
+
 /// Ring buffer: spec §5.2 — preallocate N × frames_per_buffer (N ≥ 8) to tolerate producer jitter.
 ///
 /// Sized in interleaved samples for `channels`, so multi-channel device plans (e.g. a master +
@@ -181,6 +281,7 @@ impl DeviceLiveness {
 pub(crate) fn producer_thread_loop(
     dsp_engine: Arc<Mutex<DspEngine>>,
     mut device_producers: Vec<(DeviceStreamPlan, Producer<Sample>)>,
+    mut converters: Vec<Option<DeviceRateConverter>>,
     running: Arc<Mutex<bool>>,
     sample_rate: u32,
     dsp_chunk_frames: usize,
@@ -212,6 +313,26 @@ pub(crate) fn producer_thread_loop(
         .iter()
         .map(|(plan, _)| vec![0.0; chunk_frames * plan.channels as usize])
         .collect();
+
+    // Frames each device takes per DSP chunk: equal to the chunk on the DSP clock,
+    // proportional to the device rate otherwise (the converter produces that many).
+    let device_chunk_frames: Vec<usize> = device_producers
+        .iter()
+        .map(|(plan, _)| {
+            let rate = plan.sample_rate.unwrap_or(sample_rate);
+            resampled_chunk_frames(chunk_frames as u32, sample_rate, rate) as usize
+        })
+        .collect();
+    assert_eq!(
+        device_chunk_frames.len(),
+        device_producers.len(),
+        "device_chunk_frames must pair 1:1 with device_producers"
+    );
+    assert_eq!(
+        converters.len(),
+        device_producers.len(),
+        "converters must pair 1:1 with device_producers"
+    );
 
     let mut pacing_index: Option<usize> = None;
     // Ring capacity is fixed at construction (rtrb rings are not resized), so snapshot it per
@@ -286,7 +407,8 @@ pub(crate) fn producer_thread_loop(
         }
 
         let (pacing_plan, pacing_producer) = &device_producers[pacing_i];
-        let samples_per_chunk = chunk_frames * pacing_plan.channels as usize;
+        let pacing_chunk_frames = device_chunk_frames[pacing_i];
+        let samples_per_chunk = pacing_chunk_frames * pacing_plan.channels as usize;
         // The ring must hold at least one device callback on top of one DSP chunk: a device whose
         // period exceeds the configured buffer size (WASAPI at small configured sizes) would
         // otherwise underrun on every callback. Two chunks stays the floor at equal sizes.
@@ -295,7 +417,7 @@ pub(crate) fn producer_thread_loop(
             .and_then(|frames| frames.as_ref())
             .map(|frames| frames.load(Ordering::Relaxed) as usize)
             .unwrap_or(0);
-        let target_frames = (chunk_frames * 2).max(device_frames + chunk_frames);
+        let target_frames = (pacing_chunk_frames * 2).max(device_frames + pacing_chunk_frames);
         let pacing_slots = pacing_producer.slots();
         let filled = ring_capacities[pacing_i].saturating_sub(pacing_slots);
         let target_fill = target_frames * pacing_plan.channels as usize;
@@ -304,15 +426,20 @@ pub(crate) fn producer_thread_loop(
             continue;
         }
 
-        // Every live device must have room for a full chunk before DSP runs, so no ring is ever
-        // committed a partial chunk. Dead devices are excluded and skipped during the push.
-        let all_live_have_room =
-            device_producers
-                .iter()
-                .zip(&live)
-                .all(|((plan, producer), &is_live)| {
-                    !is_live || producer.slots() >= chunk_frames * plan.channels as usize
-                });
+        // Every live device must have room for a full chunk (plus anything a
+        // converted stream has queued) before DSP runs, so no ring is ever committed
+        // a partial chunk. Dead devices are excluded and skipped during the push.
+        let all_live_have_room = device_producers.iter().zip(&live).enumerate().all(
+            |(i, ((plan, producer), &is_live))| {
+                !is_live
+                    || producer.slots()
+                        >= (device_chunk_frames[i]
+                            + converters[i]
+                                .as_ref()
+                                .map_or(0, DeviceRateConverter::ready_frames))
+                            * plan.channels as usize
+            },
+        );
         if !all_live_have_room {
             thread::sleep(buffer_duration / 8);
             continue;
@@ -351,26 +478,39 @@ pub(crate) fn producer_thread_loop(
                 &mut device_scratch[i][..needed],
             );
 
-            push_ring_samples(producer, &device_scratch[i][..needed]);
+            // Devices on the DSP clock go straight to the ring; a device opened at
+            // another rate is converted first (the converter keeps its own history and
+            // queues output the ring could not take yet).
+            match converters[i].as_mut() {
+                Some(converter) => {
+                    converter.convert(&device_scratch[i][..needed]);
+                    let pushed = push_ring_samples(producer, converter.ready());
+                    converter.consume_ready(pushed);
+                }
+                None => {
+                    push_ring_samples(producer, &device_scratch[i][..needed]);
+                }
+            }
         }
     }
 
     tracing::info!("Producer thread stopped");
 }
 
-/// Bulk-write interleaved scratch into the ring. Returns `true` iff every sample was committed
-/// (same semantics as the former per-sample `push` loop: partial/full-ring → `false`).
-fn push_ring_samples(producer: &mut Producer<Sample>, samples: &[Sample]) -> bool {
+/// Bulk-write interleaved scratch into the ring. Returns how many samples the ring
+/// accepted: fewer than `samples.len()` when it is nearly full, so a converted
+/// stream can keep the rest queued instead of dropping it.
+fn push_ring_samples(producer: &mut Producer<Sample>, samples: &[Sample]) -> usize {
     if samples.is_empty() {
-        return true;
+        return 0;
     }
 
     let n = producer.slots().min(samples.len());
     if n == 0 {
-        return false;
+        return 0;
     }
     let Ok(mut chunk) = producer.write_chunk(n) else {
-        return false;
+        return 0;
     };
     let (first, second) = chunk.as_mut_slices();
     let first_take = first.len().min(n);
@@ -378,7 +518,7 @@ fn push_ring_samples(producer: &mut Producer<Sample>, samples: &[Sample]) -> boo
     first[..first_take].copy_from_slice(&samples[..first_take]);
     second[..second_take].copy_from_slice(&samples[first_take..n]);
     chunk.commit_all();
-    n == samples.len()
+    n
 }
 
 #[cfg(test)]
@@ -391,7 +531,7 @@ mod tests {
         let (mut producer, mut consumer) = RingBuffer::new(16);
         let samples = [0.1, 0.2, 0.3, 0.4];
 
-        assert!(push_ring_samples(&mut producer, &samples));
+        assert_eq!(push_ring_samples(&mut producer, &samples), 4);
         assert_eq!(consumer.slots(), 4);
 
         let chunk = consumer.read_chunk(4).unwrap();
@@ -406,10 +546,11 @@ mod tests {
     #[test]
     fn push_ring_samples_partial_when_ring_nearly_full() {
         let (mut producer, mut consumer) = RingBuffer::new(4);
-        assert!(push_ring_samples(&mut producer, &[1.0, 2.0, 3.0]));
+        assert_eq!(push_ring_samples(&mut producer, &[1.0, 2.0, 3.0]), 3);
 
         let samples = [4.0, 5.0, 6.0];
-        assert!(!push_ring_samples(&mut producer, &samples));
+        // Only one slot was free: the rest stays with the caller.
+        assert_eq!(push_ring_samples(&mut producer, &samples), 1);
         assert_eq!(producer.slots(), 0);
 
         let chunk = consumer.read_chunk(4).unwrap();
@@ -422,10 +563,10 @@ mod tests {
     }
 
     #[test]
-    fn push_ring_samples_returns_false_when_ring_full() {
+    fn push_ring_samples_returns_zero_when_ring_full() {
         let (mut producer, _consumer) = RingBuffer::new(2);
-        assert!(push_ring_samples(&mut producer, &[1.0, 2.0]));
-        assert!(!push_ring_samples(&mut producer, &[3.0, 4.0]));
+        assert_eq!(push_ring_samples(&mut producer, &[1.0, 2.0]), 2);
+        assert_eq!(push_ring_samples(&mut producer, &[3.0, 4.0]), 0);
     }
 
     #[test]
@@ -441,7 +582,10 @@ mod tests {
 
         let pacing_plan = DeviceStreamPlan {
             device: DeviceId::new("pacing"),
+            preferred: DeviceId::new("pacing"),
             channels: CHANNELS,
+            sample_rate: Some(48_000),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -450,7 +594,10 @@ mod tests {
         };
         let nonpacing_plan = DeviceStreamPlan {
             device: DeviceId::new("nonpacing"),
+            preferred: DeviceId::new("nonpacing"),
             channels: CHANNELS,
+            sample_rate: Some(48_000),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("cue"),
                 left: 0,
@@ -463,7 +610,10 @@ mod tests {
 
         // Starve the non-pacing ring: fewer free slots than one chunk.
         let prefill = RING_CAPACITY - (CHUNK_SAMPLES - 1);
-        assert!(push_ring_samples(&mut nonpacing_prod, &vec![0.0; prefill],));
+        assert_eq!(
+            push_ring_samples(&mut nonpacing_prod, &vec![0.0; prefill]),
+            prefill
+        );
 
         let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
             48_000,
@@ -479,6 +629,7 @@ mod tests {
             producer_thread_loop(
                 dsp_engine,
                 vec![(pacing_plan, pacing_prod), (nonpacing_plan, nonpacing_prod)],
+                vec![None, None],
                 running_thread,
                 48_000,
                 BUFFER_FRAMES as usize,
@@ -557,7 +708,10 @@ mod tests {
 
         let plan = DeviceStreamPlan {
             device: DeviceId::new("wasapi-shared"),
+            preferred: DeviceId::new("wasapi-shared"),
             channels: CHANNELS,
+            sample_rate: Some(48_000),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -586,6 +740,7 @@ mod tests {
             producer_thread_loop(
                 dsp_engine,
                 vec![(plan, producer)],
+                vec![None],
                 running_clone,
                 48_000,
                 CHUNK_FRAMES,
@@ -647,7 +802,10 @@ mod tests {
 
         let plan = DeviceStreamPlan {
             device: DeviceId::new("wasapi-small-buffer"),
+            preferred: DeviceId::new("wasapi-small-buffer"),
             channels: CHANNELS,
+            sample_rate: Some(48_000),
+            low_latency: false,
             routes: vec![BusRoute {
                 bus_id: BusId::new("master"),
                 left: 0,
@@ -673,6 +831,7 @@ mod tests {
             producer_thread_loop(
                 dsp_engine,
                 vec![(plan, producer)],
+                vec![None],
                 running_clone,
                 48_000,
                 CHUNK_FRAMES,
@@ -764,5 +923,188 @@ mod tests {
         assert!(state.observe(7, t0 + Duration::from_millis(100)));
         // ...and a device that then stops advancing goes dead after the timeout.
         assert!(!state.observe(7, t0 + Duration::from_millis(100) + DEVICE_STALL_TIMEOUT));
+    }
+
+    #[test]
+    fn chunk_frames_scale_with_the_device_rate() {
+        // Same clock: unchanged.
+        assert_eq!(resampled_chunk_frames(512, 48_000, 48_000), 512);
+        // 512 frames @ 48 kHz is 10.67 ms -> 470 frames @ 44.1 kHz.
+        assert_eq!(resampled_chunk_frames(512, 48_000, 44_100), 470);
+        assert_eq!(resampled_chunk_frames(512, 48_000, 96_000), 1_024);
+        assert_eq!(resampled_chunk_frames(512, 48_000, 88_200), 941);
+        assert_eq!(resampled_chunk_frames(64, 48_000, 44_100), 59);
+        // A degenerate rate never yields a zero-frame chunk.
+        assert_eq!(resampled_chunk_frames(512, 0, 44_100), 512);
+        assert_eq!(resampled_chunk_frames(512, 48_000, 0), 512);
+    }
+
+    #[test]
+    fn converter_tracks_the_ratio_and_keeps_the_level() {
+        const DSP_RATE: u32 = 48_000;
+        const DEVICE_RATE: u32 = 44_100;
+        const CHANNELS: u16 = 2;
+        const CHUNK: u32 = 512;
+        // ~3.5 min of audio: the old fixed-output behaviour drifted ~950 frames here,
+        // while the buffered tail of a correct stream stays under one block.
+        const CHUNKS: usize = 20_000;
+
+        let mut converter =
+            DeviceRateConverter::new(DSP_RATE, DEVICE_RATE, CHANNELS, CHUNK).expect("converter");
+        // DC input: a correct resampler returns DC, so the level is easy to check.
+        let chunk = vec![0.5f32; CHUNK as usize * CHANNELS as usize];
+
+        let mut produced_frames = 0usize;
+        let mut max_backlog_frames = 0usize;
+        let mut last_mean = 0.0f32;
+        for index in 0..CHUNKS {
+            converter.convert(&chunk);
+            let ready_len = converter.ready().len();
+            assert_eq!(
+                ready_len % CHANNELS as usize,
+                0,
+                "output must be whole interleaved frames"
+            );
+            produced_frames += ready_len / CHANNELS as usize;
+            if index + 1 == CHUNKS {
+                last_mean = converter.ready().iter().sum::<f32>() / ready_len as f32;
+            }
+            max_backlog_frames = max_backlog_frames
+                .max(converter.ready_frames() + converter.pending.len() / CHANNELS as usize);
+            converter.consume_ready(ready_len);
+        }
+
+        // 512 frames @ 48 kHz is 10.667 ms, i.e. exactly 470.4 frames @ 44.1 kHz.
+        // The fixed output chunk is 470, so the extra call must land every so often;
+        // missing it runs the stream ~0.09% slow and drains the ring within minutes.
+        let expected = (CHUNKS as f64 * f64::from(CHUNK) * f64::from(DEVICE_RATE)
+            / f64::from(DSP_RATE))
+        .round() as usize;
+        // What the resampler has buffered internally at the end never exceeds one
+        // maximum block, and nothing errors out: the count tracks the exact ratio.
+        let drift = produced_frames as i64 - expected as i64;
+        assert!(
+            drift.abs() <= 400,
+            "{produced_frames} frames produced over {CHUNKS} chunks, expected {expected}"
+        );
+        // The backlog stays near one chunk: conversion keeps pace with the DSP.
+        let chunk_frames = CHUNK as usize;
+        assert!(
+            max_backlog_frames <= 3 * chunk_frames,
+            "backlog reached {max_backlog_frames} frames"
+        );
+
+        assert!(
+            (last_mean - 0.5).abs() < 5e-3,
+            "steady-state level drifted to {last_mean}"
+        );
+    }
+
+    #[test]
+    fn converted_device_is_fed_at_its_own_rate() {
+        use crate::routing::BusRoute;
+        use audio_core::DeviceId;
+        use engine_dsp::SamplerStripRoute;
+
+        const CHUNK_FRAMES: u32 = 64; // dasp_graph::Buffer::LEN
+        const CHANNELS: u16 = 2;
+        const DSP_RATE: u32 = 48_000;
+        const CUE_RATE: u32 = 44_100;
+        const TARGET_MASTER_FRAMES: usize = 200 * CHUNK_FRAMES as usize;
+
+        let master_plan = DeviceStreamPlan {
+            device: DeviceId::new("master-device"),
+            preferred: DeviceId::new("master-device"),
+            channels: CHANNELS,
+            sample_rate: Some(DSP_RATE),
+            low_latency: false,
+            routes: vec![BusRoute {
+                bus_id: BusId::new("master"),
+                left: 0,
+                right: Some(1),
+            }],
+        };
+        let cue_plan = DeviceStreamPlan {
+            device: DeviceId::new("cue-device"),
+            preferred: DeviceId::new("cue-device"),
+            channels: CHANNELS,
+            sample_rate: Some(CUE_RATE),
+            low_latency: false,
+            routes: vec![BusRoute {
+                bus_id: BusId::new("cue"),
+                left: 0,
+                right: Some(1),
+            }],
+        };
+
+        let cue_chunk = resampled_chunk_frames(CHUNK_FRAMES, DSP_RATE, CUE_RATE);
+        let (master_producer, mut master_consumer) =
+            create_device_ring_buffer(CHUNK_FRAMES, CHANNELS);
+        let (cue_producer, mut cue_consumer) = create_device_ring_buffer(cue_chunk, CHANNELS);
+        // Start empty so every sample counted came from the loop under test.
+        for consumer in [&mut master_consumer, &mut cue_consumer] {
+            let prefill = consumer.slots();
+            consumer.read_chunk(prefill).unwrap().commit_all();
+        }
+
+        let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
+            DSP_RATE,
+            CHUNK_FRAMES,
+            1,
+            "medium",
+            SamplerStripRoute::BeforeStrip,
+        )));
+        let converter = DeviceRateConverter::new(DSP_RATE, CUE_RATE, CHANNELS, CHUNK_FRAMES)
+            .expect("converter");
+        let running = Arc::new(Mutex::new(true));
+        let running_thread = Arc::clone(&running);
+        let handle = thread::spawn(move || {
+            producer_thread_loop(
+                dsp_engine,
+                vec![(master_plan, master_producer), (cue_plan, cue_producer)],
+                vec![None, Some(converter)],
+                running_thread,
+                DSP_RATE,
+                CHUNK_FRAMES as usize,
+                vec![
+                    Some(Arc::new(AtomicU32::new(CHUNK_FRAMES))),
+                    Some(Arc::new(AtomicU32::new(cue_chunk))),
+                ],
+                vec![Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0))],
+                Arc::new(Mutex::new(Vec::new())),
+            );
+        });
+
+        // Drain both rings so pacing keeps producing; the totals then show the
+        // cue stream running at its own rate instead of the DSP clock.
+        let mut master_frames = 0usize;
+        let mut cue_frames = 0usize;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while master_frames < TARGET_MASTER_FRAMES && Instant::now() < deadline {
+            let n = master_consumer.slots();
+            if n > 0 {
+                master_consumer.read_chunk(n).unwrap().commit_all();
+                master_frames += n / CHANNELS as usize;
+            }
+            let m = cue_consumer.slots();
+            if m > 0 {
+                cue_consumer.read_chunk(m).unwrap().commit_all();
+                cue_frames += m / CHANNELS as usize;
+            }
+            thread::sleep(Duration::from_millis(1));
+        }
+        *running.lock().unwrap() = false;
+        handle.join().expect("producer thread");
+
+        assert!(
+            master_frames >= TARGET_MASTER_FRAMES,
+            "producer stalled after {master_frames} master frames"
+        );
+        let ratio = cue_frames as f64 / master_frames as f64;
+        let expected = f64::from(CUE_RATE) / f64::from(DSP_RATE);
+        assert!(
+            (ratio - expected).abs() < 0.03,
+            "cue ran at {ratio:.3}x the DSP rate, expected {expected:.3}x"
+        );
     }
 }

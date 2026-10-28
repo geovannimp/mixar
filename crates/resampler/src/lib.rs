@@ -30,6 +30,17 @@ pub trait Resampler: Send {
     /// Output frames produced per resampling step.
     fn output_frames_next(&self) -> usize;
 
+    /// Largest output any single step can produce.
+    ///
+    /// Callers must size their output buffer with this, not [`Self::output_frames_next`]:
+    /// a variable-output resampler emits whole internal blocks, so a step can be
+    /// several times the average. The default is correct for fixed-output resamplers,
+    /// where the next step is exactly the maximum; variable-output implementations
+    /// must override it.
+    fn max_output_frames(&self) -> usize {
+        self.output_frames_next()
+    }
+
     /// Rebuild the resampler so each step produces `frames` output samples.
     fn set_output_chunk_frames(&mut self, frames: usize);
 
@@ -105,6 +116,14 @@ impl Resampler for RubatoResampler {
         out_buf: &mut [Sample],
         channels: usize,
     ) -> (usize, usize) {
+        // The caller supplies the channel count again; a zero would divide by it.
+        if channels == 0 {
+            return (0, 0);
+        }
+        debug_assert_eq!(
+            channels, self.channels,
+            "process channels must match the configured count"
+        );
         if self.input_sample_rate == self.output_sample_rate {
             let copy_len = in_buf.len().min(out_buf.len());
             out_buf[..copy_len].copy_from_slice(&in_buf[..copy_len]);
@@ -270,6 +289,201 @@ pub fn create_resampler(
     )?))
 }
 
+/// Create a resampler fed a fixed number of input frames per call.
+///
+/// [`create_resampler`] fixes the *output* chunk, which is what deck playback wants.
+/// A device stream fed from the DSP clock is the other way round: each chunk is a
+/// fixed number of input frames, and the output count has to carry the fractional
+/// ratio (48 kHz → 44.1 kHz needs 470.4 frames per 512-frame chunk). Fixing the input
+/// lets the output alternate 470/471 so the stream keeps exact time instead of
+/// drifting ~0.09% slow.
+///
+/// Takes no quality preset: rubato's FFT resampler exposes none, and silently
+/// accepting one here would imply the Settings → Audio preset applies to device
+/// streams when it cannot.
+pub fn create_device_resampler(
+    input_sr: u32,
+    output_sr: u32,
+    channels: usize,
+    input_chunk_frames: usize,
+) -> Result<Box<dyn Resampler>> {
+    Ok(Box::new(FixedInputResampler::new(
+        input_sr,
+        output_sr,
+        channels,
+        input_chunk_frames,
+    )?))
+}
+
+/// Rubato FFT resampler with a fixed **input** chunk and a ratio-exact output count.
+pub struct FixedInputResampler {
+    resampler: Option<Fft<f32>>,
+    input_sample_rate: u32,
+    output_sample_rate: u32,
+    channels: usize,
+    input_chunk_frames: usize,
+    /// A resampling error is reported once: the stream keeps returning no frames,
+    /// and logging it every callback would bury the log.
+    reported_error: bool,
+}
+
+impl FixedInputResampler {
+    /// Create a fixed-input resampler.
+    pub fn new(
+        input_sr: u32,
+        output_sr: u32,
+        channels: usize,
+        input_chunk_frames: usize,
+    ) -> Result<Self> {
+        if channels == 0 {
+            return Err(anyhow::anyhow!("resampler needs at least one channel"));
+        }
+        if input_sr == 0 || output_sr == 0 {
+            return Err(anyhow::anyhow!(
+                "resampler needs non-zero sample rates (input {input_sr}, output {output_sr})"
+            ));
+        }
+        let mut resampler = Self {
+            resampler: None,
+            input_sample_rate: input_sr,
+            output_sample_rate: output_sr,
+            channels,
+            input_chunk_frames: input_chunk_frames.max(1),
+            reported_error: false,
+        };
+        resampler.update_resampler()?;
+        Ok(resampler)
+    }
+
+    fn update_resampler(&mut self) -> Result<()> {
+        if self.input_sample_rate == self.output_sample_rate {
+            self.resampler = None;
+            return Ok(());
+        }
+
+        self.resampler = Some(Fft::<f32>::new(
+            self.input_sample_rate as usize,
+            self.output_sample_rate as usize,
+            self.input_chunk_frames,
+            2,
+            self.channels,
+            FixedSync::Input,
+        )?);
+        Ok(())
+    }
+}
+
+impl Resampler for FixedInputResampler {
+    fn process(
+        &mut self,
+        in_buf: &[Sample],
+        out_buf: &mut [Sample],
+        channels: usize,
+    ) -> (usize, usize) {
+        // The caller supplies the channel count again; a zero would divide by it.
+        if channels == 0 {
+            return (0, 0);
+        }
+        debug_assert_eq!(
+            channels, self.channels,
+            "process channels must match the configured count"
+        );
+        if self.input_sample_rate == self.output_sample_rate {
+            let copy_len = in_buf.len().min(out_buf.len());
+            out_buf[..copy_len].copy_from_slice(&in_buf[..copy_len]);
+            return (copy_len, copy_len / channels);
+        }
+
+        let Some(resampler) = &mut self.resampler else {
+            return (0, 0);
+        };
+
+        let need_in = resampler.input_frames_next();
+        let input_frames = in_buf.len() / channels;
+        if input_frames < need_in {
+            return (0, 0);
+        }
+
+        let output_frames_cap = out_buf.len() / channels;
+        let input = &in_buf[..need_in * channels];
+        let input_adapter = match InterleavedSlice::new(input, channels, need_in) {
+            Ok(adapter) => adapter,
+            Err(_) => return (0, 0),
+        };
+        let mut output_adapter =
+            match InterleavedSlice::new_mut(out_buf, channels, output_frames_cap) {
+                Ok(adapter) => adapter,
+                Err(_) => return (0, 0),
+            };
+
+        let indexing = Indexing {
+            input_offset: 0,
+            output_offset: 0,
+            active_channels_mask: None,
+            partial_len: None,
+        };
+        match resampler.process_into_buffer(&input_adapter, &mut output_adapter, Some(&indexing)) {
+            Ok((frames_in, frames_out)) => (frames_out * channels, frames_in),
+            Err(error) => {
+                if !self.reported_error {
+                    self.reported_error = true;
+                    tracing::error!(
+                        error = %error,
+                        "device resampler failed; the stream will stay silent"
+                    );
+                }
+                (0, 0)
+            }
+        }
+    }
+
+    fn set_rate(&mut self, input_sr: u32, output_sr: u32) {
+        self.input_sample_rate = input_sr;
+        self.output_sample_rate = output_sr;
+        if let Err(e) = self.update_resampler() {
+            eprintln!("Failed to update resampler: {}", e);
+        }
+    }
+
+    fn input_frames_next(&self) -> usize {
+        self.resampler
+            .as_ref()
+            .map(|r| r.input_frames_next())
+            .unwrap_or(self.input_chunk_frames)
+    }
+
+    fn output_frames_next(&self) -> usize {
+        self.resampler
+            .as_ref()
+            .map(|r| r.output_frames_next())
+            .unwrap_or(self.input_chunk_frames)
+    }
+
+    fn max_output_frames(&self) -> usize {
+        self.resampler
+            .as_ref()
+            .map(|r| r.output_frames_max())
+            .unwrap_or(self.input_chunk_frames)
+    }
+
+    fn set_output_chunk_frames(&mut self, _frames: usize) {
+        // The step is the fixed input chunk; how many frames that yields is the ratio.
+    }
+
+    fn reset(&mut self) {
+        if let Err(e) = self.update_resampler() {
+            eprintln!("Failed to reset resampler: {}", e);
+        }
+    }
+
+    fn output_delay(&self) -> usize {
+        self.resampler
+            .as_ref()
+            .map(|r| r.output_delay())
+            .unwrap_or(0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,6 +497,67 @@ mod tests {
         assert!(resampler.is_ok());
         let factory = create_resampler(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, None);
         assert!(factory.is_ok());
+    }
+
+    #[test]
+    fn process_rejects_zero_channels_without_panicking() {
+        let mut resampler = FixedInputResampler::new(48_000, 44_100, 2, 512).unwrap();
+        let input = vec![0.0f32; 1_024];
+        let mut out = vec![0.0f32; 1_200];
+        assert_eq!(resampler.process(&input, &mut out, 0), (0, 0));
+    }
+
+    #[test]
+    fn fixed_input_resampler_carries_a_fractional_ratio() {
+        // 512 frames @ 48 kHz is 10.667 ms, i.e. 470.4 frames @ 44.1 kHz. A fixed
+        // output chunk of 470 would run 0.09% slow, so the output must alternate.
+        let mut resampler = FixedInputResampler::new(48_000, 44_100, 2, 512).unwrap();
+        let input = vec![0.5f32; 512 * 2];
+        let mut out = vec![0.0f32; 600 * 2];
+
+        let mut frames = 0usize;
+        let mut sizes = std::collections::HashSet::new();
+        for _ in 0..4_000 {
+            let (written, consumed) = resampler.process(&input, &mut out, 2);
+            assert_eq!(consumed, 512, "a fixed input call must consume the chunk");
+            assert_eq!(written % 2, 0, "output must be whole frames");
+            sizes.insert(written / 2);
+            frames += written / 2;
+        }
+
+        // Warm-up holds back the filter delay, not a rate deficit: the long-run count
+        // tracks the exact ratio, which a 470-per-call stream cannot do.
+        let expected = 4_000.0 * 512.0 * 44_100.0 / 48_000.0;
+        assert!(
+            (frames as f64 - expected).abs() < 512.0,
+            "{frames} frames, expected about {expected}"
+        );
+        assert!(
+            sizes.len() > 1,
+            "the ratio must be carried by varying frame counts, got {sizes:?}"
+        );
+    }
+
+    #[test]
+    fn fixed_input_resampler_carries_a_fractional_ratio_when_upsampling() {
+        // The reverse direction: 512 frames @ 48 kHz is 940.8 frames @ 88.2 kHz.
+        let mut resampler = FixedInputResampler::new(48_000, 88_200, 2, 512).unwrap();
+        let input = vec![0.5f32; 512 * 2];
+        let mut out = vec![0.0f32; 2_000 * 2];
+
+        let mut frames = 0usize;
+        for _ in 0..400 {
+            let (written, consumed) = resampler.process(&input, &mut out, 2);
+            assert_eq!(consumed, 512);
+            frames += written / 2;
+        }
+
+        let expected = 400.0 * 512.0 * 88_200.0 / 48_000.0;
+        let max_block = resampler.max_output_frames() as f64;
+        assert!(
+            (frames as f64 - expected).abs() <= max_block,
+            "{frames} frames, expected about {expected}"
+        );
     }
 
     #[test]

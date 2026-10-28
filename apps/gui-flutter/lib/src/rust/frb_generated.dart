@@ -7030,53 +7030,51 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 44)
-      throw Exception('unexpected arr length: expect 44 but see ${arr.length}');
+    if (arr.length != 42)
+      throw Exception('unexpected arr length: expect 42 but see ${arr.length}');
     return AppSettings(
-      sampleRate: dco_decode_u_32(arr[0]),
-      bufferSize: dco_decode_u_32(arr[1]),
-      lowLatency: dco_decode_bool(arr[2]),
-      resamplerQuality: dco_decode_String(arr[3]),
-      masterBus: dco_decode_bus_route_settings(arr[4]),
-      previewEnabled: dco_decode_bool(arr[5]),
-      previewBus: dco_decode_bus_route_settings(arr[6]),
-      analysisDuration: dco_decode_analysis_duration_setting(arr[7]),
-      libraryRowDensity: dco_decode_library_row_density_setting(arr[8]),
-      libraryRowFields: dco_decode_list_library_row_field_setting(arr[9]),
-      tagWriteBack: dco_decode_bool(arr[10]),
-      volumeNormalizerEnabled: dco_decode_bool(arr[11]),
-      targetLufs: dco_decode_f_32(arr[12]),
-      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[13]),
-      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[14]),
-      numDecks: dco_decode_u_8(arr[15]),
-      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[16]),
-      defaultTopJogMode: dco_decode_jog_mode_setting(arr[17]),
-      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[18]),
-      defaultTempoRange: dco_decode_f_32(arr[19]),
-      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[20]),
-      defaultKeyLock: dco_decode_bool(arr[21]),
-      vinylBrakePause: dco_decode_bool(arr[22]),
-      vinylBrakeStopSecs: dco_decode_f_32(arr[23]),
-      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[24]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[25]),
-      keyColorMode: dco_decode_key_color_mode_setting(arr[26]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[27]),
-      historyEnabled: dco_decode_bool(arr[28]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[29]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[30]),
-      historyMinDeckVolume: dco_decode_f_32(arr[31]),
-      showTooltips: dco_decode_bool(arr[32]),
-      showMixerMeters: dco_decode_bool(arr[33]),
-      mixerMetersMono: dco_decode_bool(arr[34]),
-      selectStyle: dco_decode_select_style_setting(arr[35]),
-      dimPlayedTracks: dco_decode_bool(arr[36]),
-      stemsFormat: dco_decode_String(arr[37]),
-      stemsModel: dco_decode_String(arr[38]),
-      realtimeStems: dco_decode_bool(arr[39]),
-      uiLanguage: dco_decode_ui_language_setting(arr[40]),
-      libraryDrawerEnabled: dco_decode_bool(arr[41]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[42]),
-      analyticsEnabled: dco_decode_bool(arr[43]),
+      bufferSize: dco_decode_u_32(arr[0]),
+      resamplerQuality: dco_decode_String(arr[1]),
+      masterBus: dco_decode_bus_route_settings(arr[2]),
+      previewEnabled: dco_decode_bool(arr[3]),
+      previewBus: dco_decode_bus_route_settings(arr[4]),
+      analysisDuration: dco_decode_analysis_duration_setting(arr[5]),
+      libraryRowDensity: dco_decode_library_row_density_setting(arr[6]),
+      libraryRowFields: dco_decode_list_library_row_field_setting(arr[7]),
+      tagWriteBack: dco_decode_bool(arr[8]),
+      volumeNormalizerEnabled: dco_decode_bool(arr[9]),
+      targetLufs: dco_decode_f_32(arr[10]),
+      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[11]),
+      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[12]),
+      numDecks: dco_decode_u_8(arr[13]),
+      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[14]),
+      defaultTopJogMode: dco_decode_jog_mode_setting(arr[15]),
+      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[16]),
+      defaultTempoRange: dco_decode_f_32(arr[17]),
+      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
+      defaultKeyLock: dco_decode_bool(arr[19]),
+      vinylBrakePause: dco_decode_bool(arr[20]),
+      vinylBrakeStopSecs: dco_decode_f_32(arr[21]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[22]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[23]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[24]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[25]),
+      historyEnabled: dco_decode_bool(arr[26]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[27]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[28]),
+      historyMinDeckVolume: dco_decode_f_32(arr[29]),
+      showTooltips: dco_decode_bool(arr[30]),
+      showMixerMeters: dco_decode_bool(arr[31]),
+      mixerMetersMono: dco_decode_bool(arr[32]),
+      selectStyle: dco_decode_select_style_setting(arr[33]),
+      dimPlayedTracks: dco_decode_bool(arr[34]),
+      stemsFormat: dco_decode_String(arr[35]),
+      stemsModel: dco_decode_String(arr[36]),
+      realtimeStems: dco_decode_bool(arr[37]),
+      uiLanguage: dco_decode_ui_language_setting(arr[38]),
+      libraryDrawerEnabled: dco_decode_bool(arr[39]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[40]),
+      analyticsEnabled: dco_decode_bool(arr[41]),
     );
   }
 
@@ -7200,6 +7198,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_8(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -7221,13 +7225,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BusRouteSettings dco_decode_bus_route_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return BusRouteSettings(
       deviceId: dco_decode_String(arr[0]),
       leftChannel: dco_decode_u_16(arr[1]),
       rightChannel: dco_decode_u_16(arr[2]),
       mode: dco_decode_bus_channel_mode(arr[3]),
+      sampleRate: dco_decode_opt_box_autoadd_u_32(arr[4]),
+      lowLatency: dco_decode_bool(arr[5]),
     );
   }
 
@@ -7819,6 +7825,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SampleRateRange> dco_decode_list_sample_rate_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_sample_rate_range).toList();
+  }
+
+  @protected
   List<SamplerBankInfo> dco_decode_list_sampler_bank_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_sampler_bank_info).toList();
@@ -7977,6 +7989,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_8(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_8(raw);
@@ -8030,14 +8048,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   OutputDevice dco_decode_output_device(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return OutputDevice(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
       isDefault: dco_decode_bool(arr[2]),
       maxChannels: dco_decode_u_16(arr[3]),
       defaultSampleRates: dco_decode_list_prim_u_32_strict(arr[4]),
+      mixSampleRate: dco_decode_opt_box_autoadd_u_32(arr[5]),
+      sampleRateRanges: dco_decode_list_sample_rate_range(arr[6]),
     );
   }
 
@@ -8056,6 +8076,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return ResolvedLibraryTrack(
       requestPath: dco_decode_String(arr[0]),
       track: dco_decode_library_track_summary(arr[1]),
+    );
+  }
+
+  @protected
+  SampleRateRange dco_decode_sample_rate_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SampleRateRange(
+      min: dco_decode_u_32(arr[0]),
+      max: dco_decode_u_32(arr[1]),
     );
   }
 
@@ -8554,9 +8586,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   AppSettings sse_decode_app_settings(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_sampleRate = sse_decode_u_32(deserializer);
     var var_bufferSize = sse_decode_u_32(deserializer);
-    var var_lowLatency = sse_decode_bool(deserializer);
     var var_resamplerQuality = sse_decode_String(deserializer);
     var var_masterBus = sse_decode_bus_route_settings(deserializer);
     var var_previewEnabled = sse_decode_bool(deserializer);
@@ -8613,9 +8643,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
     var var_analyticsEnabled = sse_decode_bool(deserializer);
     return AppSettings(
-      sampleRate: var_sampleRate,
       bufferSize: var_bufferSize,
-      lowLatency: var_lowLatency,
       resamplerQuality: var_resamplerQuality,
       masterBus: var_masterBus,
       previewEnabled: var_previewEnabled,
@@ -8792,6 +8820,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_32(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_8(deserializer));
@@ -8819,11 +8853,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_leftChannel = sse_decode_u_16(deserializer);
     var var_rightChannel = sse_decode_u_16(deserializer);
     var var_mode = sse_decode_bus_channel_mode(deserializer);
+    var var_sampleRate = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_lowLatency = sse_decode_bool(deserializer);
     return BusRouteSettings(
       deviceId: var_deviceId,
       leftChannel: var_leftChannel,
       rightChannel: var_rightChannel,
       mode: var_mode,
+      sampleRate: var_sampleRate,
+      lowLatency: var_lowLatency,
     );
   }
 
@@ -9678,6 +9716,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SampleRateRange> sse_decode_list_sample_rate_range(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SampleRateRange>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sample_rate_range(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SamplerBankInfo> sse_decode_list_sampler_bank_info(
     SseDeserializer deserializer,
   ) {
@@ -9959,6 +10011,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -10064,12 +10127,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_isDefault = sse_decode_bool(deserializer);
     var var_maxChannels = sse_decode_u_16(deserializer);
     var var_defaultSampleRates = sse_decode_list_prim_u_32_strict(deserializer);
+    var var_mixSampleRate = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_sampleRateRanges = sse_decode_list_sample_rate_range(deserializer);
     return OutputDevice(
       id: var_id,
       name: var_name,
       isDefault: var_isDefault,
       maxChannels: var_maxChannels,
       defaultSampleRates: var_defaultSampleRates,
+      mixSampleRate: var_mixSampleRate,
+      sampleRateRanges: var_sampleRateRanges,
     );
   }
 
@@ -10088,6 +10155,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_requestPath = sse_decode_String(deserializer);
     var var_track = sse_decode_library_track_summary(deserializer);
     return ResolvedLibraryTrack(requestPath: var_requestPath, track: var_track);
+  }
+
+  @protected
+  SampleRateRange sse_decode_sample_rate_range(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_min = sse_decode_u_32(deserializer);
+    var var_max = sse_decode_u_32(deserializer);
+    return SampleRateRange(min: var_min, max: var_max);
   }
 
   @protected
@@ -10648,9 +10723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_app_settings(AppSettings self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_32(self.sampleRate, serializer);
     sse_encode_u_32(self.bufferSize, serializer);
-    sse_encode_bool(self.lowLatency, serializer);
     sse_encode_String(self.resamplerQuality, serializer);
     sse_encode_bus_route_settings(self.masterBus, serializer);
     sse_encode_bool(self.previewEnabled, serializer);
@@ -10844,6 +10917,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8(self, serializer);
@@ -10877,6 +10956,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_16(self.leftChannel, serializer);
     sse_encode_u_16(self.rightChannel, serializer);
     sse_encode_bus_channel_mode(self.mode, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.sampleRate, serializer);
+    sse_encode_bool(self.lowLatency, serializer);
   }
 
   @protected
@@ -11532,6 +11613,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_sample_rate_range(
+    List<SampleRateRange> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sample_rate_range(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_sampler_bank_info(
     List<SamplerBankInfo> self,
     SseSerializer serializer,
@@ -11789,6 +11882,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -11894,6 +11997,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.isDefault, serializer);
     sse_encode_u_16(self.maxChannels, serializer);
     sse_encode_list_prim_u_32_strict(self.defaultSampleRates, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.mixSampleRate, serializer);
+    sse_encode_list_sample_rate_range(self.sampleRateRanges, serializer);
   }
 
   @protected
@@ -11910,6 +12015,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.requestPath, serializer);
     sse_encode_library_track_summary(self.track, serializer);
+  }
+
+  @protected
+  void sse_encode_sample_rate_range(
+    SampleRateRange self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.min, serializer);
+    sse_encode_u_32(self.max, serializer);
   }
 
   @protected

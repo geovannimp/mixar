@@ -195,9 +195,7 @@ Config is loaded via `EngineConfig::from_toml_file` / `to_toml_file`. Fields map
 **Conventional paths:** local `config.toml`, or the desktop app data directory for identifier `top.mixar.app`.
 
 ```toml
-sample_rate = 48000
 buffer_size = 512
-low_latency = false
 backend = "auto"            # headless/test only: "auto", "cpal", or "null"
 
 [[devices]]
@@ -205,8 +203,17 @@ name = "Focusrite USB"
 id = "hw:1,0"
 
 [[buses]]
-# BusConfig fields: id, name, device, channels (see audio-core)
+# BusConfig fields: id, name, device, channels, sample_rate, low_latency (see audio-core)
+# sample_rate is optional per bus: omit it to follow the device's mix rate.
+# low_latency is a per-bus backend hint: where the driver reports a buffer-size
+# range, CPAL asks for the device's minimum callback period (floored at 16 frames
+# unless the whole range is smaller); an unknown range keeps the configured size.
+# A device stream uses it when any bus asks.
 ```
+
+Each bus carries its own optional `sample_rate` and its own `low_latency` hint. The engine runs its DSP graph at the master bus's rate; a device opened at another rate gets a resampler in the producer so its stream stays time-aligned. Buses sharing one device share one stream, so they must agree on the rate (an explicit rate wins over an unset one, and the stream then runs at that rate for every bus on it), while `low_latency` is the union of what they ask for.
+
+`buffer_size` stays global: it is the mixer chunk the DSP renders in one go, and it doubles as the stream-buffer size requested from each backend (`frames_per_buffer`), which a backend may clamp to the device's supported range. It is not per-device, because the device callback period belongs to the driver and the per-device ring absorbs the difference.
 
 - `backend` is a headless/test selector only: the desktop app always boots the compiled-in real backend (CPAL) and never persists or shows a backend choice.
 - `backend = "auto"` resolves to CPAL when it is compiled in; it never falls back to `null`.

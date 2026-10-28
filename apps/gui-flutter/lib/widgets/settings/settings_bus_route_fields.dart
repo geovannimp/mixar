@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -15,12 +16,17 @@ class SettingsBusRouteFields extends StatelessWidget {
     required this.devices,
     required this.devicesLoading,
     required this.onChanged,
+    this.siblingBus,
   });
 
   final BusRouteSettings route;
   final List<OutputDevice> devices;
   final bool devicesLoading;
   final ValueChanged<BusRouteSettings> onChanged;
+
+  /// The other live bus, when it exists. Buses on one device share one stream, so
+  /// an explicit rate there decides the rate a "Device default" bus actually runs at.
+  final BusRouteSettings? siblingBus;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +38,9 @@ class SettingsBusRouteFields extends StatelessWidget {
         name: l10n.settingsSystemDefault,
         isDefault: true,
         maxChannels: 2,
-        defaultSampleRates: Uint32List.fromList([48000]),
+        // Rates come from the resolved device, not this placeholder entry.
+        defaultSampleRates: Uint32List(0),
+        sampleRateRanges: const [],
       ),
       ...devices.where((d) => d.id != 'default'),
     ];
@@ -40,6 +48,21 @@ class SettingsBusRouteFields extends StatelessWidget {
         ? route.deviceId
         : 'default';
     final maxChannels = _maxChannelsFor(devices, selectedId);
+    final busDevice = resolveAudioOutputDevice(devices, selectedId);
+    final rateOptions = _rateOptions(busDevice, route.sampleRate);
+    // A sibling on the same device with an explicit rate pins the shared stream.
+    final sibling = siblingBus;
+    final siblingDevice = sibling == null
+        ? null
+        : resolveAudioOutputDevice(devices, sibling.deviceId)?.id ??
+              sibling.deviceId;
+    final busDeviceId = busDevice?.id ?? selectedId;
+    final inheritedRate =
+        sibling != null &&
+            sibling.sampleRate != null &&
+            siblingDevice == busDeviceId
+        ? sibling.sampleRate
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,9 +86,55 @@ class SettingsBusRouteFields extends StatelessWidget {
                   leftChannel: route.leftChannel,
                   rightChannel: route.rightChannel,
                   mode: route.mode,
+                  sampleRate: _retainedRate(
+                    route.sampleRate,
+                    resolveAudioOutputDevice(devices, deviceId),
+                  ),
+                  lowLatency: route.lowLatency,
                 ),
                 _maxChannelsFor(devices, deviceId),
               ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SettingsField(
+          label: l10n.settingsAudioSampleRate,
+          hint: devicesLoading
+              ? l10n.settingsAudioSampleRateLoading
+              : l10n.settingsAudioSampleRateHint,
+          child: SettingsSelect<int>(
+            dialogTitle: l10n.settingsAudioSampleRate,
+            value: route.sampleRate ?? 0,
+            options: rateOptions,
+            enabled: !devicesLoading && rateOptions.length > 1,
+            labelBuilder: (rate) =>
+                _rateLabel(l10n, busDevice, rate, inheritedRate),
+            onChanged: (rate) => onChanged(
+              BusRouteSettings(
+                deviceId: route.deviceId,
+                leftChannel: route.leftChannel,
+                rightChannel: route.rightChannel,
+                mode: route.mode,
+                // `0` is the "follow the device mix rate" token.
+                sampleRate: rate == 0 ? null : rate,
+                lowLatency: route.lowLatency,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SettingsCheckbox(
+          label: l10n.settingsAudioLowLatency,
+          value: route.lowLatency,
+          onChanged: (lowLatency) => onChanged(
+            BusRouteSettings(
+              deviceId: route.deviceId,
+              leftChannel: route.leftChannel,
+              rightChannel: route.rightChannel,
+              mode: route.mode,
+              sampleRate: route.sampleRate,
+              lowLatency: lowLatency,
             ),
           ),
         ),
@@ -85,6 +154,8 @@ class SettingsBusRouteFields extends StatelessWidget {
                 leftChannel: route.leftChannel,
                 rightChannel: route.rightChannel,
                 mode: mode,
+                sampleRate: route.sampleRate,
+                lowLatency: route.lowLatency,
               ),
             ),
           ),
@@ -104,6 +175,8 @@ class SettingsBusRouteFields extends StatelessWidget {
                       leftChannel: v,
                       rightChannel: route.rightChannel,
                       mode: route.mode,
+                      sampleRate: route.sampleRate,
+                      lowLatency: route.lowLatency,
                     ),
                   ),
                 ),
@@ -123,6 +196,8 @@ class SettingsBusRouteFields extends StatelessWidget {
                       leftChannel: route.leftChannel,
                       rightChannel: v,
                       mode: route.mode,
+                      sampleRate: route.sampleRate,
+                      lowLatency: route.lowLatency,
                     ),
                   ),
                 ),
@@ -167,7 +242,61 @@ BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
     leftChannel: left,
     rightChannel: right,
     mode: mode,
+    sampleRate: route.sampleRate,
+    lowLatency: route.lowLatency,
   );
+}
+
+/// Keep an explicit rate only when the newly selected device can open it: a rate
+/// the device cannot open would save cleanly and then refuse to start the engine.
+/// Checked against the device's supported spans, because the advertised list is
+/// only their endpoints — a rate may sit inside a range without being listed.
+int? _retainedRate(int? rate, OutputDevice? device) {
+  if (rate == null || device == null) {
+    return rate;
+  }
+  if (device.sampleRateRanges.isEmpty) {
+    return device.defaultSampleRates.contains(rate) ? rate : null;
+  }
+  return device.sampleRateRanges.any(
+        (range) => rate >= range.min && rate <= range.max,
+      )
+      ? rate
+      : null;
+}
+
+/// Rate options for a bus: `0` is the "device default" token (no rate is ever 0),
+/// then the rates the device advertises. A rate the bus already has stays listed so
+/// an older value remains selectable even when the device no longer advertises it.
+///
+/// The token is not `null` because a select cannot distinguish a `null` option from
+/// dismissal: mobile pops `null` on cancel and desktop ignores it, which would make
+/// "back to device default" impossible after choosing a rate.
+List<int> _rateOptions(OutputDevice? device, int? current) {
+  final rates = <int>[0, if (device != null) ...device.defaultSampleRates];
+  if (current != null && !rates.contains(current)) {
+    rates.add(current);
+  }
+  rates.sort();
+  return rates;
+}
+
+/// Label for a rate option. With the default token selected, report the rate the
+/// stream will actually run at: a sibling bus on the same device with an explicit
+/// rate decides it, otherwise the device's mix rate does.
+String _rateLabel(
+  AppLocalizations l10n,
+  OutputDevice? device,
+  int rate,
+  int? inheritedRate,
+) {
+  if (rate != 0) {
+    return l10n.settingsAudioSampleRateHz(rate);
+  }
+  final effective = inheritedRate ?? device?.mixSampleRate;
+  return effective == null
+      ? l10n.settingsAudioSampleRateDeviceDefault
+      : l10n.settingsAudioSampleRateDeviceDefaultWithRate(effective);
 }
 
 class _ChannelStepper extends StatelessWidget {

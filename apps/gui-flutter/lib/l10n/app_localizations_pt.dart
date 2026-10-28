@@ -211,8 +211,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioEngineTitle => 'Engine';
 
   @override
-  String get settingsAudioEngineDescription =>
-      'Taxa de amostragem, resampler e tamanho do buffer.';
+  String get settingsAudioEngineDescription => 'Resampler e tamanho do buffer.';
 
   @override
   String get settingsAudioLowLatency => 'Baixa latência';
@@ -221,8 +220,25 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioSampleRate => 'Taxa de amostragem';
 
   @override
+  String get settingsAudioSampleRateHint =>
+      'O padrão do dispositivo segue a taxa em que o dispositivo de saída mixa.';
+
+  @override
+  String settingsAudioSampleRateHz(int rate) {
+    return '$rate Hz';
+  }
+
+  @override
+  String get settingsAudioSampleRateDeviceDefault => 'Padrão do dispositivo';
+
+  @override
+  String settingsAudioSampleRateDeviceDefaultWithRate(int rate) {
+    return 'Padrão do dispositivo ($rate Hz)';
+  }
+
+  @override
   String get settingsAudioSampleRateLoading =>
-      'Carregando taxas do dispositivo de saída master…';
+      'Carregando taxas deste dispositivo…';
 
   @override
   String get settingsAudioResamplerQuality => 'Qualidade do resampler';

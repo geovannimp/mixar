@@ -6,7 +6,6 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_bus_route_fields.dart';
-import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
@@ -37,11 +36,6 @@ class SettingsAudioPanel extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final devicesAsync = ref.watch(audioDevicesProvider);
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
-    final sampleRates = _masterBusSampleRates(
-      devices: deviceList,
-      masterDeviceId: draft.masterBus.deviceId,
-      current: draft.sampleRate,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,27 +52,6 @@ class SettingsAudioPanel extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
-              SettingsCheckbox(
-                label: l10n.settingsAudioLowLatency,
-                value: draft.lowLatency,
-                onChanged: (v) =>
-                    onChanged(copyAppSettings(draft, lowLatency: v)),
-              ),
-              SettingsField(
-                label: l10n.settingsAudioSampleRate,
-                hint: devicesAsync.isLoading
-                    ? l10n.settingsAudioSampleRateLoading
-                    : null,
-                child: SettingsSelect(
-                  dialogTitle: l10n.settingsAudioSampleRate,
-                  value: draft.sampleRate,
-                  options: sampleRates,
-                  enabled: !devicesAsync.isLoading && sampleRates.isNotEmpty,
-                  labelBuilder: (v) => '$v Hz',
-                  onChanged: (sr) =>
-                      onChanged(copyAppSettings(draft, sampleRate: sr)),
-                ),
-              ),
               SettingsField(
                 label: l10n.settingsAudioResamplerQuality,
                 child: SettingsSelect(
@@ -113,6 +86,8 @@ class SettingsAudioPanel extends ConsumerWidget {
             route: draft.masterBus,
             devices: deviceList,
             devicesLoading: devicesAsync.isLoading,
+            // Only a live preview bus shares the master's stream.
+            siblingBus: draft.previewEnabled ? draft.previewBus : null,
             onChanged: (bus) =>
                 onChanged(copyAppSettings(draft, masterBus: bus)),
           ),
@@ -134,6 +109,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                     route: draft.previewBus,
                     devices: deviceList,
                     devicesLoading: devicesAsync.isLoading,
+                    siblingBus: draft.masterBus,
                     onChanged: (bus) =>
                         onChanged(copyAppSettings(draft, previewBus: bus)),
                   )
@@ -143,20 +119,6 @@ class SettingsAudioPanel extends ConsumerWidget {
       ],
     );
   }
-}
-
-List<int> _masterBusSampleRates({
-  required List<OutputDevice> devices,
-  required String masterDeviceId,
-  required int current,
-}) {
-  final device = resolveAudioOutputDevice(devices, masterDeviceId);
-  final rates = <int>[if (device != null) ...device.defaultSampleRates];
-  if (!rates.contains(current)) {
-    rates.add(current);
-  }
-  rates.sort();
-  return rates;
 }
 
 class _BufferSizeSlider extends StatelessWidget {

@@ -210,8 +210,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAudioEngineTitle => 'Engine';
 
   @override
-  String get settingsAudioEngineDescription =>
-      'Sample rate, resampler, and buffer size.';
+  String get settingsAudioEngineDescription => 'Resampler and buffer size.';
 
   @override
   String get settingsAudioLowLatency => 'Low latency';
@@ -220,8 +219,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAudioSampleRate => 'Sample rate';
 
   @override
-  String get settingsAudioSampleRateLoading =>
-      'Loading rates for the master output device…';
+  String get settingsAudioSampleRateHint =>
+      'Device default follows the rate the output device mixes at.';
+
+  @override
+  String settingsAudioSampleRateHz(int rate) {
+    return '$rate Hz';
+  }
+
+  @override
+  String get settingsAudioSampleRateDeviceDefault => 'Device default';
+
+  @override
+  String settingsAudioSampleRateDeviceDefaultWithRate(int rate) {
+    return 'Device default ($rate Hz)';
+  }
+
+  @override
+  String get settingsAudioSampleRateLoading => 'Loading rates for this device…';
 
   @override
   String get settingsAudioResamplerQuality => 'Resampler quality';

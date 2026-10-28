@@ -127,7 +127,7 @@ Not implemented. `engine-dsp` stays I/O-free so a future WASM build remains feas
 
 ## Performance targets
 
-Default config: `buffer_size = 512`, `sample_rate = 48000` (buffer duration ≈ 10.67 ms at 48 kHz).
+Default config: `buffer_size = 512`; each bus follows its device's mix rate unless it sets an explicit rate, and a bus sharing a device with an explicitly configured bus inherits that rate (one stream runs at one rate). Buffer duration ≈ 10.67 ms at 48 kHz.
 
 Under a typical Linux x86_64 machine with two decks playing stereo files:
 

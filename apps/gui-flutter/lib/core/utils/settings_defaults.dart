@@ -71,7 +71,6 @@ LibraryRowDensity libraryRowDensityFromSettings(
   LibraryRowDensitySetting.comfortable => LibraryRowDensity.comfortable,
 };
 
-const kDefaultSampleRate = 48000;
 const kDefaultBufferSize = 512;
 const kDefaultTargetLufs = -18.0;
 const kMinTargetLufs = -24.0;
@@ -86,6 +85,7 @@ const kDefaultMasterBus = BusRouteSettings(
   leftChannel: 1,
   rightChannel: 2,
   mode: BusChannelMode.stereo,
+  lowLatency: false,
 );
 
 const kDefaultPreviewBus = BusRouteSettings(
@@ -93,6 +93,7 @@ const kDefaultPreviewBus = BusRouteSettings(
   leftChannel: 3,
   rightChannel: 4,
   mode: BusChannelMode.stereo,
+  lowLatency: false,
 );
 
 /// Row fields a fresh install shows — today's layout: album/genre/length pills
@@ -110,9 +111,7 @@ const kDefaultLibraryRowFields = <LibraryRowFieldSetting>[
 
 AppSettings defaultAppSettings() {
   return AppSettings(
-    sampleRate: kDefaultSampleRate,
     bufferSize: kDefaultBufferSize,
-    lowLatency: false,
     resamplerQuality: 'medium',
     masterBus: kDefaultMasterBus,
     previewEnabled: false,
@@ -198,6 +197,7 @@ List<LibraryRowFieldSetting> _dedupeFields(
 }
 
 BusRouteSettings _normalizeBus(BusRouteSettings route) {
+  final rate = route.sampleRate;
   return BusRouteSettings(
     deviceId: route.deviceId,
     leftChannel: route.leftChannel,
@@ -205,14 +205,16 @@ BusRouteSettings _normalizeBus(BusRouteSettings route) {
     mode: route.mode == BusChannelMode.mono
         ? BusChannelMode.mono
         : BusChannelMode.stereo,
+    // `null` means "follow the device's mix rate"; a non-positive rate cannot
+    // open a stream, so it falls back to that too.
+    sampleRate: rate == null || rate <= 0 ? null : rate,
+    lowLatency: route.lowLatency,
   );
 }
 
 AppSettings copyAppSettings(
   AppSettings base, {
-  int? sampleRate,
   int? bufferSize,
-  bool? lowLatency,
   String? resamplerQuality,
   BusRouteSettings? masterBus,
   bool? previewEnabled,
@@ -257,9 +259,7 @@ AppSettings copyAppSettings(
 }) {
   return AppSettings(
     numDecks: numDecks ?? base.numDecks,
-    sampleRate: sampleRate ?? base.sampleRate,
     bufferSize: bufferSize ?? base.bufferSize,
-    lowLatency: lowLatency ?? base.lowLatency,
     resamplerQuality: resamplerQuality ?? base.resamplerQuality,
     masterBus: masterBus ?? base.masterBus,
     previewEnabled: previewEnabled ?? base.previewEnabled,
@@ -314,9 +314,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
     return false;
   }
   return draft.numDecks != baseline.numDecks ||
-      draft.sampleRate != baseline.sampleRate ||
       draft.bufferSize != baseline.bufferSize ||
-      draft.lowLatency != baseline.lowLatency ||
       draft.resamplerQuality != baseline.resamplerQuality ||
       draft.masterBus != baseline.masterBus ||
       draft.previewEnabled != baseline.previewEnabled ||

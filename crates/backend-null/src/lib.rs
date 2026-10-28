@@ -59,7 +59,8 @@ impl AudioBackend for NullBackend {
             8,                                // Support up to 8 channels
             vec![44100, 48000, 88200, 96000], // Common sample rates
             true,                             // only device, so default
-        )])
+        )
+        .with_mix_sample_rate(Some(48000))])
     }
 
     fn open_output_stream(

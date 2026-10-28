@@ -59,9 +59,21 @@ impl BusRoute {
 /// Plan for one output device stream and the buses written into it.
 #[derive(Clone, Debug)]
 pub(crate) struct DeviceStreamPlan {
+    /// Device the streams is opened on after resolution. Used for validation,
+    /// diagnostics, and device info; it is what `device` refers to everywhere.
     pub device: DeviceId,
+    /// Device handed to the backend. Keeps the `default` alias, so a
+    /// default-routed bus may still fall back to another output when the current
+    /// default device cannot run the stream; an explicitly named device stays
+    /// terminal.
+    pub preferred: DeviceId,
     /// Minimum channel count required (max mapped index + 1).
     pub channels: u16,
+    /// Rate the stream is opened at. The first bus on this device with an
+    /// explicit rate decides it; `None` follows the device's mix rate.
+    pub sample_rate: Option<u32>,
+    /// Low-latency hint for this device: set when any bus on it asks for one.
+    pub low_latency: bool,
     pub routes: Vec<BusRoute>,
 }
 
@@ -123,11 +135,27 @@ pub(crate) fn resolve_device_id(device_id: &DeviceId, devices: &[DeviceInfo]) ->
         .ok_or_else(|| anyhow::anyhow!("No output device available"))
 }
 
-fn device_info<'a>(devices: &'a [DeviceInfo], id: &DeviceId) -> Result<&'a DeviceInfo> {
+pub(crate) fn device_info<'a>(devices: &'a [DeviceInfo], id: &DeviceId) -> Result<&'a DeviceInfo> {
     devices
         .iter()
         .find(|d| d.id == *id)
         .ok_or_else(|| anyhow::anyhow!("Output device not found: {}", id.as_str()))
+}
+
+/// Rate a device stream opens at: the buses' explicit rate when one is set,
+/// otherwise the rate the system mixes this device at.
+pub(crate) fn resolve_plan_rate(plan: &DeviceStreamPlan, devices: &[DeviceInfo]) -> Result<u32> {
+    if let Some(rate) = plan.sample_rate {
+        return Ok(rate);
+    }
+    device_info(devices, &plan.device)?
+        .mix_sample_rate
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Device '{}' does not report the rate it mixes at; set an explicit rate for its bus in Settings → Audio",
+                plan.device.as_str()
+            )
+        })
 }
 
 /// Build default master bus on the given device (channels 1–2).
@@ -245,12 +273,43 @@ pub(crate) fn resolve_device_stream_plans(
                     bus.id.as_str()
                 ));
             }
+            // Buses on one device share one stream, so they share one rate. An
+            // explicit rate wins over a bus that follows the device; two
+            // explicit, different rates cannot both be honoured.
+            match (plan.sample_rate, bus.sample_rate) {
+                (Some(planned), Some(requested)) if planned != requested => {
+                    let shared = plan
+                        .routes
+                        .iter()
+                        .map(|r| r.bus_id.as_str())
+                        .collect::<Vec<_>>()
+                        .join("', '");
+                    return Err(anyhow::anyhow!(
+                        "Bus '{}' asks for {requested} Hz but device '{}' already runs at {planned} Hz for bus(es) '{shared}'; one stream runs at one rate",
+                        bus.id.as_str(),
+                        device.as_str()
+                    ));
+                }
+                (None, Some(requested)) => plan.sample_rate = Some(requested),
+                _ => {}
+            }
+            // A hint rather than a setting: any bus on the stream asking for low
+            // latency is enough, and it never turns off what another bus asked for.
+            plan.low_latency |= bus.low_latency;
+            // A bus on the same device that asked for `default` keeps the backend
+            // fallback available for the shared stream.
+            if bus.device.as_str() == DEFAULT_DEVICE_ID {
+                plan.preferred = bus.device.clone();
+            }
             plan.channels = plan.channels.max(needed);
             plan.routes.push(route);
         } else {
             plans.push(DeviceStreamPlan {
                 device,
+                preferred: bus.device.clone(),
                 channels: needed,
+                sample_rate: bus.sample_rate,
+                low_latency: bus.low_latency,
                 routes: vec![route],
             });
         }
@@ -350,16 +409,31 @@ impl Engine {
     /// Update bus configuration
     pub fn update_bus_config(&mut self, bus_id: &BusId, new_config: BusConfig) -> Result<()> {
         let mapping = crate::routing::validate_channel_mapping(&new_config.channels)?;
+        if let Some(rate) = new_config.sample_rate {
+            if rate == 0 {
+                return Err(anyhow::anyhow!("Bus sample_rate must be > 0 (got 0)"));
+            }
+        }
         let resolved = self.validate_bus_device_mapping(bus_id, &new_config.device, &mapping)?;
 
-        if let Some(bus) = self.config.buses.iter_mut().find(|bus| &bus.id == bus_id) {
-            bus.name = new_config.name;
-            bus.device = resolved;
-            bus.channels = mapping;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Bus not found: {}", bus_id.as_str()))
-        }
+        // Validate the whole candidate set, not just this bus: a rate that clashes
+        // with another bus on the same device must fail here instead of being
+        // stored and rejected by the next `Engine::start`.
+        let mut candidate = self.config.buses.clone();
+        let Some(bus) = candidate.iter_mut().find(|bus| &bus.id == bus_id) else {
+            return Err(anyhow::anyhow!("Bus not found: {}", bus_id.as_str()));
+        };
+        bus.name = new_config.name;
+        bus.device = resolved;
+        bus.channels = mapping;
+        bus.sample_rate = new_config.sample_rate;
+        bus.low_latency = new_config.low_latency;
+
+        let devices = self.backend.list_output_devices()?;
+        resolve_device_stream_plans(&candidate, &devices)?;
+
+        self.config.buses = candidate;
+        Ok(())
     }
 
     /// Get device configuration
@@ -641,5 +715,145 @@ mod tests {
     fn validate_mono_mapping() {
         assert!(validate_channel_mapping(&ChannelMapping::mono(0)).is_err());
         assert!(validate_channel_mapping(&ChannelMapping::mono(1)).is_ok());
+    }
+
+    /// Two devices mixing at different rates: the case per-bus rates exist for.
+    fn two_devices() -> Vec<DeviceInfo> {
+        vec![
+            DeviceInfo::new(
+                DeviceId::new("speakers"),
+                "Speakers".to_string(),
+                4,
+                vec![44_100, 48_000],
+                true,
+            )
+            .with_mix_sample_rate(Some(48_000)),
+            DeviceInfo::new(
+                DeviceId::new("headphones"),
+                "Headphones".to_string(),
+                2,
+                vec![44_100, 48_000],
+                false,
+            )
+            .with_mix_sample_rate(Some(44_100)),
+        ]
+    }
+
+    fn bus_on(id: &str, name: &str, device: &str) -> BusConfig {
+        BusConfig::new(
+            BusId::new(id),
+            name.to_string(),
+            DeviceId::new(device),
+            ChannelMapping::stereo(1, 2),
+        )
+    }
+
+    #[test]
+    fn unset_bus_rate_follows_each_device_mix_rate() {
+        let devices = two_devices();
+        let buses = vec![
+            bus_on("master", "Master", "speakers"),
+            bus_on("cue", "Cue", "headphones"),
+        ];
+        let plans = resolve_device_stream_plans(&buses, &devices).unwrap();
+
+        let master = plans
+            .iter()
+            .find(|plan| plan.device.as_str() == "speakers")
+            .expect("master plan");
+        let cue = plans
+            .iter()
+            .find(|plan| plan.device.as_str() == "headphones")
+            .expect("cue plan");
+
+        assert_eq!(master.sample_rate, None);
+        assert_eq!(resolve_plan_rate(master, &devices).unwrap(), 48_000);
+        assert_eq!(resolve_plan_rate(cue, &devices).unwrap(), 44_100);
+    }
+
+    #[test]
+    fn explicit_bus_rate_overrides_the_device_mix_rate() {
+        let devices = two_devices();
+        let buses = vec![bus_on("master", "Master", "headphones").with_sample_rate(Some(96_000))];
+        let plans = resolve_device_stream_plans(&buses, &devices).unwrap();
+
+        assert_eq!(plans[0].sample_rate, Some(96_000));
+        assert_eq!(resolve_plan_rate(&plans[0], &devices).unwrap(), 96_000);
+    }
+
+    #[test]
+    fn buses_sharing_a_device_must_agree_on_rate() {
+        let devices = two_devices();
+        let mut buses = vec![
+            bus_on("master", "Master", "speakers").with_sample_rate(Some(48_000)),
+            bus_on("cue", "Cue", "speakers").with_sample_rate(Some(44_100)),
+        ];
+        // Distinct channel pairs so the rate check, not the overlap check, decides.
+        buses[1].channels = ChannelMapping::stereo(3, 4);
+        let err = resolve_device_stream_plans(&buses, &devices).unwrap_err();
+        assert!(
+            err.to_string().contains("one stream runs at one rate"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn default_routed_bus_keeps_the_alias_for_the_backend() {
+        let devices = two_devices();
+        // The default device here is `speakers`; a bus that asked for `default` must
+        // still hand the alias to the backend, so a rejected format can fall back.
+        let plans =
+            resolve_device_stream_plans(&[bus_on("master", "Master", DEFAULT_DEVICE_ID)], &devices)
+                .unwrap();
+        assert_eq!(plans[0].device.as_str(), "speakers");
+        assert_eq!(plans[0].preferred.as_str(), DEFAULT_DEVICE_ID);
+
+        // An explicitly named device stays terminal.
+        let explicit =
+            resolve_device_stream_plans(&[bus_on("master", "Master", "speakers")], &devices)
+                .unwrap();
+        assert_eq!(explicit[0].preferred.as_str(), "speakers");
+    }
+
+    #[test]
+    fn low_latency_is_a_hint_shared_by_the_device_stream() {
+        let devices = two_devices();
+        let mut buses = vec![
+            bus_on("master", "Master", "speakers"),
+            bus_on("cue", "Cue", "speakers").with_low_latency(true),
+        ];
+        // Distinct channel pairs so both buses can share the device.
+        buses[1].channels = ChannelMapping::stereo(3, 4);
+
+        let plans = resolve_device_stream_plans(&buses, &devices).unwrap();
+        assert_eq!(plans.len(), 1);
+        assert!(
+            plans[0].low_latency,
+            "one bus asking must enable the hint for the shared stream"
+        );
+
+        // Nothing asked for it: the hint stays off.
+        let quiet = resolve_device_stream_plans(&buses[..1], &devices).unwrap();
+        assert!(!quiet[0].low_latency);
+    }
+
+    #[test]
+    fn unset_rate_without_a_reported_mix_rate_is_an_error() {
+        let devices = vec![DeviceInfo::new(
+            DeviceId::new("mute"),
+            "Mute".to_string(),
+            2,
+            vec![48_000],
+            true,
+        )];
+        let buses = vec![bus_on("master", "Master", "mute")];
+        let plans = resolve_device_stream_plans(&buses, &devices).unwrap();
+
+        let err = resolve_plan_rate(&plans[0], &devices).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("does not report the rate it mixes at"),
+            "unexpected error: {err}"
+        );
     }
 }

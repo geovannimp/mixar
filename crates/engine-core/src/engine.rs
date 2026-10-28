@@ -3,9 +3,10 @@ use crate::bus::{EngineBuses, EvtReceiver};
 use crate::callback::ConsumerCallback;
 use crate::config::EngineConfig;
 use crate::producer::{
-    create_device_ring_buffer, producer_thread_loop, start_device_streams, DeviceStreamSetup,
+    create_device_ring_buffer, producer_thread_loop, start_device_streams, DeviceRateConverter,
+    DeviceStreamSetup,
 };
-use crate::routing::DeviceStreamPlan;
+use crate::routing::{resolve_plan_rate, DeviceStreamPlan};
 use crate::sync::DeckControlState;
 use crate::transport::TransportEvent;
 use anyhow::Result;
@@ -225,49 +226,64 @@ impl Engine {
 
     /// Resolve bus/device plans and open one output stream + ring per device.
     ///
-    /// The DSP runs at one rate: the pacing device's. A backend may open below the configured
-    /// rate (WASAPI shared mode is locked to the engine mix format, e.g. 44.1 kHz on a virtual
-    /// device) and the engine then follows it; a second device at another rate is rejected. The
-    /// callback frame count is free — a backend may only deliver its own period, and the ring
-    /// buffer decouples that from the DSP chunk. See [`producer_thread_loop`].
+    /// Each stream opens at its own resolved rate: the bus's configured rate when it
+    /// has one, otherwise the rate the system mixes that device at. The DSP runs at
+    /// the master bus's rate; a device on another rate is fed through a resampler in
+    /// the producer. A rate the device cannot honour is a start-up error, never a
+    /// silent downgrade (WASAPI shared mode is locked to the device mix format unless
+    /// the platform resampler is engaged — the user picks the rate in Settings →
+    /// Audio). The callback frame count need not match: a backend may only deliver its
+    /// own period, and the ring buffer decouples that from the DSP chunk. See
+    /// [`producer_thread_loop`].
     fn open_device_streams(&mut self) -> Result<Vec<DeviceStreamSetup>> {
         let devices = self.backend.list_output_devices()?;
         let plans = crate::routing::resolve_device_stream_plans(&self.config.buses, &devices)?;
+        let Some(first_plan) = plans.first() else {
+            return Err(anyhow::anyhow!("No output device stream plans resolved"));
+        };
+
+        // Plans are sorted master-first, so the first device sets the DSP clock.
+        let dsp_rate = resolve_plan_rate(first_plan, &devices)?;
+        let dsp_chunk_frames = self.config.buffer_size;
 
         let mut device_streams = Vec::with_capacity(plans.len());
-        let mut stream_rates: Vec<(String, u32)> = Vec::with_capacity(plans.len());
-        for plan in plans {
+        for mut plan in plans {
+            let requested_rate = resolve_plan_rate(&plan, &devices)?;
+            let device_chunk_frames =
+                crate::producer::resampled_chunk_frames(dsp_chunk_frames, dsp_rate, requested_rate);
+
             let (producer, consumer) =
-                create_device_ring_buffer(self.config.buffer_size, plan.channels);
+                create_device_ring_buffer(device_chunk_frames, plan.channels);
 
             let callback_count = Arc::new(AtomicU64::new(0));
             let callback = Box::new(ConsumerCallback::new(consumer, Arc::clone(&callback_count)));
             let params = StreamParams::new(
-                self.config.sample_rate,
+                requested_rate,
                 plan.channels,
                 self.config.buffer_size,
-                self.config.low_latency,
+                plan.low_latency,
             );
 
+            // `preferred` keeps the `default` alias so the backend may fall back when
+            // the current default device cannot run the stream.
             let stream = self
                 .backend
-                .open_output_stream(&plan.device, &params, callback)?;
+                .open_output_stream(&plan.preferred, &params, callback)?;
 
             let device_frames = stream
                 .actual_buffer_size()
                 .unwrap_or(self.config.buffer_size);
-            let sample_rate = stream
-                .actual_sample_rate()
-                .unwrap_or(self.config.sample_rate);
+            let sample_rate = stream.actual_sample_rate().unwrap_or(requested_rate);
 
             tracing::info!(
-                "Audio stream opened on device '{}': {} Hz, {} frames/callback, {} channel(s) (config: {} Hz, {} frame DSP chunk)",
+                "Audio stream opened on device '{}': {} Hz, {} frames/callback, {} channel(s) (requested: {} Hz, {} frame DSP chunk at {} Hz)",
                 plan.device.as_str(),
                 sample_rate,
                 device_frames,
                 plan.channels,
-                self.config.sample_rate,
-                self.config.buffer_size
+                requested_rate,
+                self.config.buffer_size,
+                dsp_rate
             );
 
             if device_frames != self.config.buffer_size {
@@ -278,9 +294,41 @@ impl Engine {
                     self.config.buffer_size
                 );
             }
-            stream_rates.push((plan.device.as_str().to_string(), sample_rate));
+            if sample_rate != requested_rate {
+                return Err(anyhow::anyhow!(
+                    "Device '{}' opened at {} Hz but {} Hz is configured for bus '{}'; the device offers {:?} — choose a rate the device supports in Settings → Audio",
+                    plan.device.as_str(),
+                    sample_rate,
+                    requested_rate,
+                    plan.routes
+                        .iter()
+                        .map(|route| route.bus_id.as_str())
+                        .collect::<Vec<_>>()
+                        .join("', '"),
+                    crate::routing::device_info(&devices, &plan.device)?
+                        .default_sample_rates
+                ));
+            }
+
+            // The backend may have fallen back to another device than the planned one
+            // (only for `default`); the rate stays what this bus asked for, so such a
+            // device converts internally. Say so instead of hiding it.
+            if let Some(opened) = stream.device_id() {
+                if opened != &plan.device {
+                    tracing::warn!(
+                        planned = plan.device.as_str(),
+                        opened = opened.as_str(),
+                        rate_hz = sample_rate,
+                        "requested device unavailable; opened another device at the bus's rate"
+                    );
+                }
+            }
 
             let callback_frames_atomic = stream.callback_frames_atomic();
+
+            // Record the resolved rate so the producer knows whether this device
+            // needs a resample stage.
+            plan.sample_rate = Some(sample_rate);
 
             device_streams.push(DeviceStreamSetup {
                 plan,
@@ -290,30 +338,6 @@ impl Engine {
                 callback_frames_atomic,
                 sample_rate,
             });
-        }
-
-        if device_streams.is_empty() {
-            return Err(anyhow::anyhow!("No output device stream plans resolved"));
-        }
-
-        // A backend may open at the device's own rate (WASAPI shared mode is locked to the
-        // engine mix format), and the DSP then renders at that rate. Every stream shares one
-        // DSP chunk, so they must agree; resampling between devices is not implemented.
-        if let Some((first_device, first_rate)) = stream_rates.first() {
-            if let Some((other_device, other_rate)) =
-                stream_rates.iter().find(|(_, rate)| rate != first_rate)
-            {
-                return Err(anyhow::anyhow!(
-                    "devices opened at different sample rates: '{first_device}' {first_rate} Hz vs '{other_device}' {other_rate} Hz; use one device or matching rates"
-                ));
-            }
-            if *first_rate != self.config.sample_rate {
-                tracing::warn!(
-                    configured_hz = self.config.sample_rate,
-                    engine_hz = first_rate,
-                    "device cannot run the configured sample rate; the engine runs at the device rate"
-                );
-            }
         }
 
         Ok(device_streams)
@@ -353,12 +377,33 @@ impl Engine {
         }
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
+        // One resampler per device opened off the DSP clock. Built here so a failure
+        // to create one fails the start instead of silently dropping the device's audio.
+        let converters = device_producers
+            .iter()
+            .map(|(plan, _)| {
+                let device_rate = plan.sample_rate.unwrap_or(sample_rate);
+                if device_rate == sample_rate {
+                    Ok(None)
+                } else {
+                    DeviceRateConverter::new(
+                        sample_rate,
+                        device_rate,
+                        plan.channels,
+                        dsp_chunk_frames as u32,
+                    )
+                    .map(Some)
+                }
+            })
+            .collect::<Result<Vec<_>>>()?;
+
         let running = self.running.clone();
         let transport_events = Arc::clone(&self.transport_events);
         let producer_thread = thread::spawn(move || {
             producer_thread_loop(
                 dsp_engine,
                 device_producers,
+                converters,
                 running,
                 sample_rate,
                 dsp_chunk_frames,

@@ -12,7 +12,7 @@ import 'settings.dart';
 
 // These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `output_device`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `publish_retired_decks`, `source_label`, `source_path`, `start_live_stems`, `start_with`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
 /// Output devices of the compiled-in real backend (Settings → Audio).
@@ -628,12 +628,22 @@ class OutputDevice {
   final int maxChannels;
   final Uint32List defaultSampleRates;
 
+  /// Rate the system mixes this device at; `None` when the backend cannot report
+  /// it. Settings → Audio shows it as the "Device default" rate.
+  final int? mixSampleRate;
+
+  /// Spans of rates the device can open, so the UI can tell whether a rate it
+  /// remembers from another device is still valid here.
+  final List<SampleRateRange> sampleRateRanges;
+
   const OutputDevice({
     required this.id,
     required this.name,
     required this.isDefault,
     required this.maxChannels,
     required this.defaultSampleRates,
+    this.mixSampleRate,
+    required this.sampleRateRanges,
   });
 
   @override
@@ -642,7 +652,9 @@ class OutputDevice {
       name.hashCode ^
       isDefault.hashCode ^
       maxChannels.hashCode ^
-      defaultSampleRates.hashCode;
+      defaultSampleRates.hashCode ^
+      mixSampleRate.hashCode ^
+      sampleRateRanges.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -653,11 +665,32 @@ class OutputDevice {
           name == other.name &&
           isDefault == other.isDefault &&
           maxChannels == other.maxChannels &&
-          defaultSampleRates == other.defaultSampleRates;
+          defaultSampleRates == other.defaultSampleRates &&
+          mixSampleRate == other.mixSampleRate &&
+          sampleRateRanges == other.sampleRateRanges;
 }
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
 enum PadMode { hotCue, loopRoll, beatJump, sampler, stems, keyboard, keyShift }
+
+/// Inclusive sample-rate span a device can open.
+class SampleRateRange {
+  final int min;
+  final int max;
+
+  const SampleRateRange({required this.min, required this.max});
+
+  @override
+  int get hashCode => min.hashCode ^ max.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SampleRateRange &&
+          runtimeType == other.runtimeType &&
+          min == other.min &&
+          max == other.max;
+}
 
 /// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
 class SamplerSlotChrome {

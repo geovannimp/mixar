@@ -480,7 +480,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsAudioEngineDescription.
   ///
   /// In en, this message translates to:
-  /// **'Sample rate, resampler, and buffer size.'**
+  /// **'Resampler and buffer size.'**
   String get settingsAudioEngineDescription;
 
   /// No description provided for @settingsAudioLowLatency.
@@ -495,10 +495,34 @@ abstract class AppLocalizations {
   /// **'Sample rate'**
   String get settingsAudioSampleRate;
 
+  /// No description provided for @settingsAudioSampleRateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Device default follows the rate the output device mixes at.'**
+  String get settingsAudioSampleRateHint;
+
+  /// No description provided for @settingsAudioSampleRateHz.
+  ///
+  /// In en, this message translates to:
+  /// **'{rate} Hz'**
+  String settingsAudioSampleRateHz(int rate);
+
+  /// No description provided for @settingsAudioSampleRateDeviceDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Device default'**
+  String get settingsAudioSampleRateDeviceDefault;
+
+  /// No description provided for @settingsAudioSampleRateDeviceDefaultWithRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Device default ({rate} Hz)'**
+  String settingsAudioSampleRateDeviceDefaultWithRate(int rate);
+
   /// No description provided for @settingsAudioSampleRateLoading.
   ///
   /// In en, this message translates to:
-  /// **'Loading rates for the master output device…'**
+  /// **'Loading rates for this device…'**
   String get settingsAudioSampleRateLoading;
 
   /// No description provided for @settingsAudioResamplerQuality.

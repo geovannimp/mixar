@@ -79,6 +79,29 @@ impl From<&str> for DeviceId {
     }
 }
 
+/// Inclusive span of sample rates a device can open.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SampleRateRange {
+    pub min: u32,
+    pub max: u32,
+}
+
+impl SampleRateRange {
+    /// Create a range.
+    ///
+    /// `min <= max` is the invariant `contains` relies on; a reversed span would
+    /// simply match nothing, which is worth catching in tests and debug builds.
+    pub fn new(min: u32, max: u32) -> Self {
+        debug_assert!(min <= max, "sample-rate range is reversed: {min}..={max}");
+        Self { min, max }
+    }
+
+    /// Whether `rate` falls inside the span.
+    pub fn contains(&self, rate: u32) -> bool {
+        (self.min..=self.max).contains(&rate)
+    }
+}
+
 /// Information about an audio device
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeviceInfo {
@@ -90,6 +113,16 @@ pub struct DeviceInfo {
     pub max_channels: u16,
     /// Default sample rates supported by this device
     pub default_sample_rates: Vec<u32>,
+    /// Rate the device mixes at when the system owns the format (WASAPI shared
+    /// mode mix rate, PipeWire graph rate). `None` when the backend cannot report
+    /// it; a bus without an explicit rate then has no automatic choice.
+    #[serde(default)]
+    pub mix_sample_rate: Option<u32>,
+    /// Spans of rates the device can open. `default_sample_rates` lists their
+    /// endpoints; a rate inside a span is still valid, which a UI needs to avoid
+    /// discarding a rate the device accepts.
+    #[serde(default)]
+    pub sample_rate_ranges: Vec<SampleRateRange>,
     /// Whether this device is the system default output device
     pub is_default: bool,
 }
@@ -108,8 +141,22 @@ impl DeviceInfo {
             name,
             max_channels,
             default_sample_rates: sample_rates,
+            mix_sample_rate: None,
+            sample_rate_ranges: Vec::new(),
             is_default,
         }
+    }
+
+    /// Record the rate the system mixes this device at (see [`Self::mix_sample_rate`]).
+    pub fn with_mix_sample_rate(mut self, rate: Option<u32>) -> Self {
+        self.mix_sample_rate = rate;
+        self
+    }
+
+    /// Record the spans of rates the device can open (see [`Self::sample_rate_ranges`]).
+    pub fn with_sample_rate_ranges(mut self, ranges: Vec<SampleRateRange>) -> Self {
+        self.sample_rate_ranges = ranges;
+        self
     }
 }
 
@@ -122,7 +169,11 @@ pub struct StreamParams {
     pub channels: u16,
     /// Requested frames per buffer (e.g., 512)
     pub frames_per_buffer: u32,
-    /// Hint for low-latency operation
+    /// Hint for low-latency operation: a backend may request its smallest safe
+    /// device period instead of the configured one. CPAL uses the device's
+    /// minimum supported buffer when the driver reports a range (floored at 16
+    /// frames unless the whole range is smaller); a device that reports no range
+    /// keeps the configured size. Never changes the sample rate.
     pub low_latency: bool,
 }
 
@@ -188,6 +239,15 @@ pub trait AudioStream: Send {
     /// Get the actual latency of the stream
     /// Returns None if not available or not started
     fn actual_latency(&self) -> Option<Duration>;
+
+    /// Device the stream actually opened on, when the backend can report it.
+    ///
+    /// Backends that search for a usable device may open a different one than
+    /// requested; callers use this to notice that instead of assuming the request
+    /// was honoured.
+    fn device_id(&self) -> Option<&DeviceId> {
+        None
+    }
 }
 
 /// Audio backend trait for different audio systems
@@ -340,6 +400,16 @@ pub struct BusConfig {
     pub device: DeviceId,
     /// Channel mapping for this bus
     pub channels: ChannelMapping,
+    /// Output rate for this bus's device stream. `None` follows the device's
+    /// mix rate ([`DeviceInfo::mix_sample_rate`]). Buses sharing a device must
+    /// agree, since they share one stream.
+    #[serde(default)]
+    pub sample_rate: Option<u32>,
+    /// Ask the backend for a shorter stream path on this bus's device. A hint:
+    /// the backend may ignore it, and a device stream shared by several buses
+    /// runs with low latency when any of them asks for it.
+    #[serde(default)]
+    pub low_latency: bool,
 }
 
 impl BusConfig {
@@ -350,7 +420,21 @@ impl BusConfig {
             name,
             device,
             channels,
+            sample_rate: None,
+            low_latency: false,
         }
+    }
+
+    /// Set the output rate for this bus (`None` follows the device mix rate).
+    pub fn with_sample_rate(mut self, sample_rate: Option<u32>) -> Self {
+        self.sample_rate = sample_rate;
+        self
+    }
+
+    /// Ask the backend for a shorter path on this bus's device.
+    pub fn with_low_latency(mut self, low_latency: bool) -> Self {
+        self.low_latency = low_latency;
+        self
     }
 }
 
