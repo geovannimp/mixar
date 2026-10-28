@@ -278,6 +278,25 @@ void main() {
     );
   });
 
+  test('theme defaults system and is dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.theme, ThemeSetting.system);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, theme: ThemeSetting.light),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, theme: ThemeSetting.system),
+        baseline,
+      ),
+      isFalse,
+    );
+  });
+
   test(
     'library drawer defaults off at the bottom and is dirty when changed',
     () {

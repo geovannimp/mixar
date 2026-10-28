@@ -150,6 +150,7 @@ AppSettings defaultAppSettings() {
     stemsModel: kDefaultStemModel,
     realtimeStems: false,
     uiLanguage: UiLanguageSetting.system,
+    theme: ThemeSetting.system,
     libraryDrawerEnabled: false,
     libraryDrawerSide: LibraryDrawerSideSetting.bottom,
     analyticsEnabled: false,
@@ -253,6 +254,7 @@ AppSettings copyAppSettings(
   String? stemsModel,
   bool? realtimeStems,
   UiLanguageSetting? uiLanguage,
+  ThemeSetting? theme,
   bool? libraryDrawerEnabled,
   LibraryDrawerSideSetting? libraryDrawerSide,
   bool? analyticsEnabled,
@@ -301,6 +303,7 @@ AppSettings copyAppSettings(
     stemsModel: stemsModel ?? base.stemsModel,
     realtimeStems: realtimeStems ?? base.realtimeStems,
     uiLanguage: uiLanguage ?? base.uiLanguage,
+    theme: theme ?? base.theme,
     libraryDrawerEnabled: libraryDrawerEnabled ?? base.libraryDrawerEnabled,
     libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
     analyticsEnabled: analyticsEnabled ?? base.analyticsEnabled,
@@ -346,6 +349,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.stemsModel != baseline.stemsModel ||
       draft.realtimeStems != baseline.realtimeStems ||
       draft.uiLanguage != baseline.uiLanguage ||
+      draft.theme != baseline.theme ||
       draft.libraryDrawerEnabled != baseline.libraryDrawerEnabled ||
       draft.libraryDrawerSide != baseline.libraryDrawerSide ||
       draft.analyticsEnabled != baseline.analyticsEnabled ||

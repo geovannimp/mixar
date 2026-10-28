@@ -97,14 +97,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiDescription =>
-      'Idioma, dicas ao passar o mouse, apresentação dos controles e aparência da lista da biblioteca.';
+      'Tema, idioma, dicas ao passar o mouse, apresentação dos controles e aparência da lista da biblioteca.';
 
   @override
   String get settingsUiChromeTitle => 'Chrome e controles';
 
   @override
   String get settingsUiChromeDescription =>
-      'Idioma, dicas ao passar o mouse e como os seletores abrem.';
+      'Tema, idioma, dicas ao passar o mouse e como os seletores abrem.';
 
   @override
   String get settingsUiLibraryListTitle => 'Lista da biblioteca';
@@ -112,6 +112,15 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get settingsUiLibraryListDescription =>
       'Como as faixas aparecem na tabela da biblioteca.';
+
+  @override
+  String get settingsUiTheme => 'Tema';
+
+  @override
+  String get settingsUiThemeLight => 'Claro';
+
+  @override
+  String get settingsUiThemeDark => 'Escuro';
 
   @override
   String get settingsUiLanguageLabel => 'Idioma';

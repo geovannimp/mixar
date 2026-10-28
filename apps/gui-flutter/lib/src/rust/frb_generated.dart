@@ -75,7 +75,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 2095471438;
+  int get rustContentHash => 481503030;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -862,6 +862,8 @@ abstract class RustLibApi extends BaseApi {
   Future<SamplerSlotChrome> crateApiEngineSamplerSlotChromeDefault();
 
   Future<SelectStyleSetting> crateApiSettingsSelectStyleSettingDefault();
+
+  Future<ThemeSetting> crateApiSettingsThemeSettingDefault();
 
   Future<UiLanguageSetting> crateApiSettingsUiLanguageSettingDefault();
 
@@ -6670,7 +6672,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<UiLanguageSetting> crateApiSettingsUiLanguageSettingDefault() {
+  Future<ThemeSetting> crateApiSettingsThemeSettingDefault() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -6679,6 +6681,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 148,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_theme_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsThemeSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsThemeSettingDefaultConstMeta =>
+      const TaskConstMeta(debugName: "theme_setting_default", argNames: []);
+
+  @override
+  Future<UiLanguageSetting> crateApiSettingsUiLanguageSettingDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 149,
             port: port_,
           );
         },
@@ -7030,8 +7059,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 42)
-      throw Exception('unexpected arr length: expect 42 but see ${arr.length}');
+    if (arr.length != 43)
+      throw Exception('unexpected arr length: expect 43 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7072,9 +7101,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       stemsModel: dco_decode_String(arr[36]),
       realtimeStems: dco_decode_bool(arr[37]),
       uiLanguage: dco_decode_ui_language_setting(arr[38]),
-      libraryDrawerEnabled: dco_decode_bool(arr[39]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[40]),
-      analyticsEnabled: dco_decode_bool(arr[41]),
+      theme: dco_decode_theme_setting(arr[39]),
+      libraryDrawerEnabled: dco_decode_bool(arr[40]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[41]),
+      analyticsEnabled: dco_decode_bool(arr[42]),
     );
   }
 
@@ -8180,6 +8210,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ThemeSetting dco_decode_theme_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ThemeSetting.values[raw as int];
+  }
+
+  @protected
   int dco_decode_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -8637,6 +8673,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_stemsModel = sse_decode_String(deserializer);
     var var_realtimeStems = sse_decode_bool(deserializer);
     var var_uiLanguage = sse_decode_ui_language_setting(deserializer);
+    var var_theme = sse_decode_theme_setting(deserializer);
     var var_libraryDrawerEnabled = sse_decode_bool(deserializer);
     var var_libraryDrawerSide = sse_decode_library_drawer_side_setting(
       deserializer,
@@ -8682,6 +8719,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       stemsModel: var_stemsModel,
       realtimeStems: var_realtimeStems,
       uiLanguage: var_uiLanguage,
+      theme: var_theme,
       libraryDrawerEnabled: var_libraryDrawerEnabled,
       libraryDrawerSide: var_libraryDrawerSide,
       analyticsEnabled: var_analyticsEnabled,
@@ -10271,6 +10309,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ThemeSetting sse_decode_theme_setting(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ThemeSetting.values[inner];
+  }
+
+  @protected
   int sse_decode_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint16();
@@ -10771,6 +10816,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.stemsModel, serializer);
     sse_encode_bool(self.realtimeStems, serializer);
     sse_encode_ui_language_setting(self.uiLanguage, serializer);
+    sse_encode_theme_setting(self.theme, serializer);
     sse_encode_bool(self.libraryDrawerEnabled, serializer);
     sse_encode_library_drawer_side_setting(self.libraryDrawerSide, serializer);
     sse_encode_bool(self.analyticsEnabled, serializer);
@@ -12110,6 +12156,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_sync_mode(SyncMode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_theme_setting(ThemeSetting self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
   }

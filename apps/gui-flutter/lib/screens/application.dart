@@ -6,6 +6,7 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/l10n/kit_localizations.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/app_shell.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/shell/desktop_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -32,12 +33,21 @@ class Application extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final locale = ref
-        .watch(appSettingsProvider)
-        .maybeWhen(
-          data: (settings) => localeFromUiLanguage(settings.uiLanguage),
-          orElse: () => null,
-        );
+    final settings = ref.watch(appSettingsProvider);
+    final locale = settings.maybeWhen(
+      data: (settings) => localeFromUiLanguage(settings.uiLanguage),
+      orElse: () => null,
+    );
+    // `system` stays the default so an install without a saved theme keeps
+    // following the OS light/dark preference.
+    final themeMode = switch (settings.maybeWhen(
+      data: (settings) => settings.theme,
+      orElse: () => ThemeSetting.system,
+    )) {
+      ThemeSetting.system => ThemeMode.system,
+      ThemeSetting.light => ThemeMode.light,
+      ThemeSetting.dark => ThemeMode.dark,
+    };
 
     return MaterialApp(
       title: appTitle,
@@ -47,6 +57,7 @@ class Application extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       theme: _materialLight,
       darkTheme: _materialDark,
+      themeMode: themeMode,
       builder: (context, child) {
         final dark = Theme.brightnessOf(context) == Brightness.dark;
         final data = dark ? MixarThemeData.dark() : MixarThemeData.light();

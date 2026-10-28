@@ -203,14 +203,16 @@ Future<SaveAppSettingsResult> saveAppSettings(
   final settings = await ref.read(settingsTransportProvider.future);
   final previous = await ref.read(appSettingsProvider.future);
   final normalized = normalizeAppSettings(draft);
-  // A save that only changes how the list paints — the consent toggle, the
-  // visible row fields — must not restart the engine: audio would glitch for a
-  // cosmetic edit. Everything else goes through the apply path below.
+  // A save that only changes how the list paints — the theme, the consent
+  // toggle, the visible row fields — must not restart the engine: audio would
+  // glitch for a cosmetic edit. Everything else goes through the apply path
+  // below.
   final viewOnly = !appSettingsDirty(
     copyAppSettings(
       normalized,
       analyticsEnabled: previous.analyticsEnabled,
       libraryRowFields: previous.libraryRowFields,
+      theme: previous.theme,
     ),
     previous,
   );

@@ -44,7 +44,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2095471438;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 481503030;
 
 // Section: executor
 
@@ -7642,6 +7642,38 @@ fn wire__crate__api__settings__select_style_setting_default_impl(
         },
     )
 }
+fn wire__crate__api__settings__theme_setting_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "theme_setting_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Ok::<_, ()>(crate::api::settings::ThemeSetting::default())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__settings__ui_language_setting_default_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -8003,6 +8035,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_realtimeStems = <bool>::sse_decode(deserializer);
         let mut var_uiLanguage =
             <crate::api::settings::UiLanguageSetting>::sse_decode(deserializer);
+        let mut var_theme = <crate::api::settings::ThemeSetting>::sse_decode(deserializer);
         let mut var_libraryDrawerEnabled = <bool>::sse_decode(deserializer);
         let mut var_libraryDrawerSide =
             <crate::api::settings::LibraryDrawerSideSetting>::sse_decode(deserializer);
@@ -8047,6 +8080,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             stems_model: var_stemsModel,
             realtime_stems: var_realtimeStems,
             ui_language: var_uiLanguage,
+            theme: var_theme,
             library_drawer_enabled: var_libraryDrawerEnabled,
             library_drawer_side: var_libraryDrawerSide,
             analytics_enabled: var_analyticsEnabled,
@@ -9671,6 +9705,19 @@ impl SseDecode for crate::api::engine::SyncMode {
     }
 }
 
+impl SseDecode for crate::api::settings::ThemeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::ThemeSetting::System,
+            1 => crate::api::settings::ThemeSetting::Light,
+            2 => crate::api::settings::ThemeSetting::Dark,
+            _ => unreachable!("Invalid variant for ThemeSetting: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for u16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10599,7 +10646,13 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        148 => wire__crate__api__settings__ui_language_setting_default_impl(
+        148 => wire__crate__api__settings__theme_setting_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        149 => wire__crate__api__settings__ui_language_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -10873,6 +10926,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.stems_model.into_into_dart().into_dart(),
             self.realtime_stems.into_into_dart().into_dart(),
             self.ui_language.into_into_dart().into_dart(),
+            self.theme.into_into_dart().into_dart(),
             self.library_drawer_enabled.into_into_dart().into_dart(),
             self.library_drawer_side.into_into_dart().into_dart(),
             self.analytics_enabled.into_into_dart().into_dart(),
@@ -12129,6 +12183,28 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::engine::SyncMode>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::ThemeSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::System => 0.into_dart(),
+            Self::Light => 1.into_dart(),
+            Self::Dark => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::ThemeSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::ThemeSetting>
+    for crate::api::settings::ThemeSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::ThemeSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::UiLanguageSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -12473,6 +12549,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <String>::sse_encode(self.stems_model, serializer);
         <bool>::sse_encode(self.realtime_stems, serializer);
         <crate::api::settings::UiLanguageSetting>::sse_encode(self.ui_language, serializer);
+        <crate::api::settings::ThemeSetting>::sse_encode(self.theme, serializer);
         <bool>::sse_encode(self.library_drawer_enabled, serializer);
         <crate::api::settings::LibraryDrawerSideSetting>::sse_encode(
             self.library_drawer_side,
@@ -13789,6 +13866,23 @@ impl SseEncode for crate::api::engine::SyncMode {
                 crate::api::engine::SyncMode::Off => 0,
                 crate::api::engine::SyncMode::Tempo => 1,
                 crate::api::engine::SyncMode::Beat => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::settings::ThemeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::ThemeSetting::System => 0,
+                crate::api::settings::ThemeSetting::Light => 1,
+                crate::api::settings::ThemeSetting::Dark => 2,
                 _ => {
                     unimplemented!("");
                 }

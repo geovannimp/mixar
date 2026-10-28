@@ -96,14 +96,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUiDescription =>
-      'Language, hover tips, control presentation, and library list appearance.';
+      'Theme, language, hover tips, control presentation, and library list appearance.';
 
   @override
   String get settingsUiChromeTitle => 'Chrome and controls';
 
   @override
   String get settingsUiChromeDescription =>
-      'Language, hover tips, and how selects open.';
+      'Theme, language, hover tips, and how selects open.';
 
   @override
   String get settingsUiLibraryListTitle => 'Library list';
@@ -111,6 +111,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsUiLibraryListDescription =>
       'How tracks look in the library table.';
+
+  @override
+  String get settingsUiTheme => 'Theme';
+
+  @override
+  String get settingsUiThemeLight => 'Light';
+
+  @override
+  String get settingsUiThemeDark => 'Dark';
 
   @override
   String get settingsUiLanguageLabel => 'Language';
