@@ -874,23 +874,45 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('waveform pane is capped by full-width hairlines', (
-    tester,
-  ) async {
+  testWidgets('header foot hairline caps the waveform pane', (tester) async {
     await pumpShell(tester);
 
-    final hairline = MixarThemeData.light().style.borderWidth;
+    final theme = MixarThemeData.light();
+    final hairline = theme.style.borderWidth;
+    final expected = BorderSide(color: theme.colors.border, width: hairline);
+    BorderSide headerHairline() {
+      final box = tester.widget<DecoratedBox>(
+        find
+            .descendant(
+              of: find.byType(AppHeader),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      return ((box.decoration as BoxDecoration).border! as Border).bottom;
+    }
+
     final wave = find.byType(WaveformSection);
-    final head = tester.getRect(find.byKey(const ValueKey('waveform-head')));
+    final header = tester.getRect(find.byType(AppHeader));
     final foot = tester.getRect(find.byKey(const ValueKey('waveform-foot')));
 
-    expect(head.width, tester.getSize(wave).width);
-    expect(head.height, hairline);
-    expect(head.top, tester.getTopLeft(wave).dy);
+    // The top hairline belongs to the header so Settings gets it too; the
+    // waveform pane starts flush against it.
+    expect(header.height, kAppHeaderHeight);
+    expect(headerHairline(), expected);
+    expect(tester.getTopLeft(wave).dy, header.bottom);
 
     expect(foot.width, tester.getSize(wave).width);
     expect(foot.height, hairline);
     expect(foot.bottom, tester.getBottomLeft(wave).dy);
+
+    // The reported gap: Settings had no line under the tab bar because the
+    // hairline lived on the mixer's waveform pane.
+    await tester.tap(find.byIcon(LucideIcons.settings));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsPage), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(SettingsPage)).dy, header.bottom);
+    expect(headerHairline(), expected);
     expect(tester.takeException(), isNull);
   });
 

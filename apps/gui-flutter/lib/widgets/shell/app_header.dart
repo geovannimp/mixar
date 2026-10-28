@@ -42,64 +42,81 @@ class AppHeader extends ConsumerWidget {
 
     // Card, not the app canvas: the header sits directly on the decks/mixer
     // panel, so both read as one piece of chrome in every theme.
-    return ColoredBox(
-      color: theme.colors.card,
-      child: SizedBox(
-        height: kAppHeaderHeight,
-        child: Row(
-          children: [
-            _maybeDrag(
-              desktop: desktop,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Center(
-                  child: ColorFiltered(
-                    colorFilter: ColorFilter.mode(
-                      theme.colors.foreground,
-                      BlendMode.srcIn,
-                    ),
-                    child: Image.asset(
-                      'assets/mixar-logo.png',
-                      height: 12,
-                      semanticLabel: appTitle,
+    //
+    // The bottom hairline is painted in the foreground so it lands on top of
+    // the card fill. It lives here, not on the waveform pane, so Settings gets
+    // the same separation under the tab bar.
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colors.border,
+            width: theme.style.borderWidth,
+          ),
+        ),
+      ),
+      child: ColoredBox(
+        color: theme.colors.card,
+        child: SizedBox(
+          height: kAppHeaderHeight,
+          child: Row(
+            children: [
+              _maybeDrag(
+                desktop: desktop,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Center(
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        theme.colors.foreground,
+                        BlendMode.srcIn,
+                      ),
+                      child: Image.asset(
+                        'assets/mixar-logo.png',
+                        height: 12,
+                        semanticLabel: appTitle,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: _maybeDrag(
-                desktop: desktop,
-                child: const SizedBox.expand(),
+              Expanded(
+                child: _maybeDrag(
+                  desktop: desktop,
+                  child: const SizedBox.expand(),
+                ),
               ),
-            ),
-            // Only in drawer mode, and only on the mixer: the docked library
-            // mode has nothing to toggle. Hidden while settings load, since
-            // `defaultAppSettings` has the drawer off.
-            if (settings.libraryDrawerEnabled && tab == ShellTab.mixer)
+              // Only in drawer mode, and only on the mixer: the docked library
+              // mode has nothing to toggle. Hidden while settings load, since
+              // `defaultAppSettings` has the drawer off.
+              if (settings.libraryDrawerEnabled && tab == ShellTab.mixer)
+                AppTooltip(
+                  tip: drawerOpen ? 'Close library' : 'Open library',
+                  child: AppButton.icon(
+                    variant: .ghost,
+                    size: .sm,
+                    semanticsLabel: drawerOpen
+                        ? 'Close library'
+                        : 'Open library',
+                    onPress: () =>
+                        ref.read(libraryDrawerOpenProvider.notifier).toggle(),
+                    child: const Icon(LucideIcons.libraryBig),
+                  ),
+                ),
               AppTooltip(
-                tip: drawerOpen ? 'Close library' : 'Open library',
+                tip: 'Settings',
                 child: AppButton.icon(
                   variant: .ghost,
                   size: .sm,
-                  semanticsLabel: drawerOpen ? 'Close library' : 'Open library',
-                  onPress: () =>
-                      ref.read(libraryDrawerOpenProvider.notifier).toggle(),
-                  child: const Icon(LucideIcons.libraryBig),
+                  semanticsLabel: 'Settings',
+                  onPress: () => onTabChanged(ShellTab.settings),
+                  child: const Icon(LucideIcons.settings),
                 ),
               ),
-            AppTooltip(
-              tip: 'Settings',
-              child: AppButton.icon(
-                variant: .ghost,
-                size: .sm,
-                semanticsLabel: 'Settings',
-                onPress: () => onTabChanged(ShellTab.settings),
-                child: const Icon(LucideIcons.settings),
-              ),
-            ),
-            if (desktop) const WindowTitleBarControls(),
-          ],
+              if (desktop) const WindowTitleBarControls(),
+            ],
+          ),
         ),
       ),
     );
