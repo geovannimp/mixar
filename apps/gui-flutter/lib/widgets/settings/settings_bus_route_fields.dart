@@ -16,12 +16,17 @@ class SettingsBusRouteFields extends StatelessWidget {
     required this.devices,
     required this.devicesLoading,
     required this.onChanged,
+    this.siblingBus,
   });
 
   final BusRouteSettings route;
   final List<OutputDevice> devices;
   final bool devicesLoading;
   final ValueChanged<BusRouteSettings> onChanged;
+
+  /// The other live bus, when it exists. Buses on one device share one stream, so
+  /// an explicit rate there decides the rate a "Device default" bus actually runs at.
+  final BusRouteSettings? siblingBus;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +50,19 @@ class SettingsBusRouteFields extends StatelessWidget {
     final maxChannels = _maxChannelsFor(devices, selectedId);
     final busDevice = resolveAudioOutputDevice(devices, selectedId);
     final rateOptions = _rateOptions(busDevice, route.sampleRate);
+    // A sibling on the same device with an explicit rate pins the shared stream.
+    final sibling = siblingBus;
+    final siblingDevice = sibling == null
+        ? null
+        : resolveAudioOutputDevice(devices, sibling.deviceId)?.id ??
+              sibling.deviceId;
+    final busDeviceId = busDevice?.id ?? selectedId;
+    final inheritedRate =
+        sibling != null &&
+            sibling.sampleRate != null &&
+            siblingDevice == busDeviceId
+        ? sibling.sampleRate
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,7 +108,8 @@ class SettingsBusRouteFields extends StatelessWidget {
             value: route.sampleRate ?? 0,
             options: rateOptions,
             enabled: !devicesLoading && rateOptions.length > 1,
-            labelBuilder: (rate) => _rateLabel(l10n, busDevice, rate),
+            labelBuilder: (rate) =>
+                _rateLabel(l10n, busDevice, rate, inheritedRate),
             onChanged: (rate) => onChanged(
               BusRouteSettings(
                 deviceId: route.deviceId,
@@ -262,14 +281,22 @@ List<int> _rateOptions(OutputDevice? device, int? current) {
   return rates;
 }
 
-String _rateLabel(AppLocalizations l10n, OutputDevice? device, int rate) {
+/// Label for a rate option. With the default token selected, report the rate the
+/// stream will actually run at: a sibling bus on the same device with an explicit
+/// rate decides it, otherwise the device's mix rate does.
+String _rateLabel(
+  AppLocalizations l10n,
+  OutputDevice? device,
+  int rate,
+  int? inheritedRate,
+) {
   if (rate != 0) {
     return l10n.settingsAudioSampleRateHz(rate);
   }
-  final mix = device?.mixSampleRate;
-  return mix == null
+  final effective = inheritedRate ?? device?.mixSampleRate;
+  return effective == null
       ? l10n.settingsAudioSampleRateDeviceDefault
-      : l10n.settingsAudioSampleRateDeviceDefaultWithRate(mix);
+      : l10n.settingsAudioSampleRateDeviceDefaultWithRate(effective);
 }
 
 class _ChannelStepper extends StatelessWidget {

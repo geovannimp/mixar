@@ -116,6 +116,14 @@ impl Resampler for RubatoResampler {
         out_buf: &mut [Sample],
         channels: usize,
     ) -> (usize, usize) {
+        // The caller supplies the channel count again; a zero would divide by it.
+        if channels == 0 {
+            return (0, 0);
+        }
+        debug_assert_eq!(
+            channels, self.channels,
+            "process channels must match the configured count"
+        );
         if self.input_sample_rate == self.output_sample_rate {
             let copy_len = in_buf.len().min(out_buf.len());
             out_buf[..copy_len].copy_from_slice(&in_buf[..copy_len]);
@@ -372,6 +380,14 @@ impl Resampler for FixedInputResampler {
         out_buf: &mut [Sample],
         channels: usize,
     ) -> (usize, usize) {
+        // The caller supplies the channel count again; a zero would divide by it.
+        if channels == 0 {
+            return (0, 0);
+        }
+        debug_assert_eq!(
+            channels, self.channels,
+            "process channels must match the configured count"
+        );
         if self.input_sample_rate == self.output_sample_rate {
             let copy_len = in_buf.len().min(out_buf.len());
             out_buf[..copy_len].copy_from_slice(&in_buf[..copy_len]);
@@ -481,6 +497,14 @@ mod tests {
         assert!(resampler.is_ok());
         let factory = create_resampler(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, None);
         assert!(factory.is_ok());
+    }
+
+    #[test]
+    fn process_rejects_zero_channels_without_panicking() {
+        let mut resampler = FixedInputResampler::new(48_000, 44_100, 2, 512).unwrap();
+        let input = vec![0.0f32; 1_024];
+        let mut out = vec![0.0f32; 1_200];
+        assert_eq!(resampler.process(&input, &mut out, 0), (0, 0));
     }
 
     #[test]

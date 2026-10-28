@@ -69,6 +69,7 @@ void main() {
     required ValueChanged<BusRouteSettings> onChanged,
     BusRouteSettings route = baseRoute,
     bool devicesLoading = false,
+    BusRouteSettings? siblingBus,
   }) {
     return tester.pumpWidget(
       ProviderScope(
@@ -84,6 +85,7 @@ void main() {
                 route: route,
                 devices: devices,
                 devicesLoading: devicesLoading,
+                siblingBus: siblingBus,
                 onChanged: onChanged,
               ),
             ),
@@ -231,6 +233,35 @@ void main() {
     expect(next?.deviceId, 'interface');
     expect(next?.sampleRate, 96000);
   }, semanticsEnabled: false);
+
+  testWidgets(
+    'the default label follows the sibling bus that pins the stream',
+    (tester) async {
+      await pumpFields(
+        tester,
+        route: const BusRouteSettings(
+          deviceId: 'speakers',
+          leftChannel: 3,
+          rightChannel: 4,
+          mode: BusChannelMode.stereo,
+          lowLatency: false,
+        ),
+        // Master on the same device pins 44.1 kHz, so the shared stream runs there
+        // even though this bus follows the device default.
+        siblingBus: const BusRouteSettings(
+          deviceId: 'speakers',
+          leftChannel: 1,
+          rightChannel: 2,
+          mode: BusChannelMode.stereo,
+          sampleRate: 44100,
+          lowLatency: false,
+        ),
+        onChanged: (_) {},
+      );
+      expect(find.text('Device default (44100 Hz)'), findsOneWidget);
+    },
+    semanticsEnabled: false,
+  );
 
   testWidgets('the default label shows the device mix rate', (tester) async {
     await pumpFields(

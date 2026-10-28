@@ -86,6 +86,8 @@ class SettingsAudioPanel extends ConsumerWidget {
             route: draft.masterBus,
             devices: deviceList,
             devicesLoading: devicesAsync.isLoading,
+            // Only a live preview bus shares the master's stream.
+            siblingBus: draft.previewEnabled ? draft.previewBus : null,
             onChanged: (bus) =>
                 onChanged(copyAppSettings(draft, masterBus: bus)),
           ),
@@ -107,6 +109,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                     route: draft.previewBus,
                     devices: deviceList,
                     devicesLoading: devicesAsync.isLoading,
+                    siblingBus: draft.masterBus,
                     onChanged: (bus) =>
                         onChanged(copyAppSettings(draft, previewBus: bus)),
                   )

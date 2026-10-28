@@ -351,18 +351,26 @@ analysis_duration = "precise"
         let config: EngineConfig = toml::from_str(toml).unwrap();
         config.validate().unwrap();
 
-        // The retired global key is ignored rather than rejected, and the buses
-        // simply have no explicit rate.
+        // A populated legacy bus has no `sample_rate` field; it must load with the
+        // follow-the-device default, and the retired global key must be ignored
+        // rather than rejected.
         let legacy = r#"
 sample_rate = 48000
 buffer_size = 512
 backend = "null"
-buses = []
 analysis_duration = "precise"
+
+[[buses]]
+id = "master"
+name = "Master"
+device = "null-device"
+channels = { mode = "stereo", left = 1, right = 2 }
 "#;
         let config: EngineConfig = toml::from_str(legacy).unwrap();
         config.validate().unwrap();
-        assert!(config.buses.is_empty());
+        assert_eq!(config.buses.len(), 1);
+        assert_eq!(config.buses[0].sample_rate, None);
+        assert!(!config.buses[0].low_latency);
     }
 
     #[test]

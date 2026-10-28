@@ -909,9 +909,17 @@ fn bind_persist_path(host: &mut SettingsHost, path: PathBuf) {
 fn read_settings_file(path: &Path) -> Option<AppSettings> {
     let bytes = std::fs::read(path).ok()?;
     let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
-    // `low_latency` used to be a single app-wide flag. `true` was always an explicit
-    // choice, so fold it into both routes; `false` is what the bus defaults already
-    // carry. The key itself is dropped on the next save.
+
+    // A file written before the move has no per-bus rate/flag keys at all; one
+    // written after it always has both (serialised, possibly null/false). Judging
+    // that per file keeps a retired global from overwriting a route the new format
+    // already stored, while still migrating genuinely old files.
+    let structured_buses = ["master_bus", "preview_bus"].iter().any(|bus| {
+        value.get(bus).is_some_and(|route| {
+            route.get("low_latency").is_some() || route.get("sample_rate").is_some()
+        })
+    });
+
     let legacy_low_latency = value
         .get("low_latency")
         .and_then(serde_json::Value::as_bool);
@@ -919,21 +927,24 @@ fn read_settings_file(path: &Path) -> Option<AppSettings> {
         .get("sample_rate")
         .and_then(serde_json::Value::as_u64)
         .and_then(|rate| u32::try_from(rate).ok());
+
     let mut settings: AppSettings = serde_json::from_value(value).ok()?;
+    if structured_buses {
+        return Some(settings);
+    }
+
+    // `low_latency` used to be app-wide, and `true` was always an explicit choice.
     if legacy_low_latency == Some(true) {
         settings.master_bus.low_latency = true;
         settings.preview_bus.low_latency = true;
     }
     // `sample_rate` used to be app-wide. 48000 was the built-in default and was
     // written even when never chosen, so migrating it would pin every existing
-    // install to 48 kHz — the behaviour this change removes. Any other value was
-    // a real choice, so keep it on the routes that had none.
+    // install to 48 kHz — the behaviour this change removes. Any other value was a
+    // real choice, kept on the master bus only: the old global described the
+    // engine's stream, and the preview bus may sit on a device that cannot run it.
     if let Some(rate) = legacy_sample_rate.filter(|rate| *rate != LEGACY_DEFAULT_SAMPLE_RATE) {
-        // Only the master bus inherits it: the old global described the engine's
-        // stream, and the preview bus may sit on a device that cannot run it.
-        if settings.master_bus.sample_rate.is_none() {
-            settings.master_bus.sample_rate = Some(rate);
-        }
+        settings.master_bus.sample_rate = Some(rate);
     }
     Some(settings)
 }
@@ -1668,11 +1679,25 @@ mod tests {
         );
     }
 
+    /// A settings file written before rates/latency moved onto the buses: the
+    /// route objects have neither key.
+    fn pre_move_settings_value() -> serde_json::Value {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        for bus in ["master_bus", "preview_bus"] {
+            if let Some(route) = object.get_mut(bus).and_then(|bus| bus.as_object_mut()) {
+                route.remove("sample_rate");
+                route.remove("low_latency");
+            }
+        }
+        value
+    }
+
     #[test]
     fn legacy_global_low_latency_moves_to_both_buses() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
-        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let mut value = pre_move_settings_value();
         value
             .as_object_mut()
             .expect("object")
@@ -1696,7 +1721,7 @@ mod tests {
     fn legacy_global_sample_rate_moves_to_the_master_bus() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
-        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let mut value = pre_move_settings_value();
         value
             .as_object_mut()
             .expect("object")
@@ -1716,7 +1741,7 @@ mod tests {
         // migrating it would re-pin every install to the rate this change removes.
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
-        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let mut value = pre_move_settings_value();
         value
             .as_object_mut()
             .expect("object")
@@ -1725,6 +1750,27 @@ mod tests {
 
         let loaded = read_settings_file(&path).expect("legacy settings");
         assert_eq!(loaded.master_bus.sample_rate, None);
+        assert_eq!(loaded.preview_bus.sample_rate, None);
+    }
+
+    #[test]
+    fn per_bus_values_suppress_the_legacy_globals() {
+        // New-format files always carry both route keys, so the retired globals in a
+        // hand-edited file must not overwrite them.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        object.insert("low_latency".into(), serde_json::Value::Bool(true));
+        object.insert("sample_rate".into(), serde_json::json!(44_100));
+        object["master_bus"]["low_latency"] = serde_json::Value::Bool(false);
+        object["master_bus"]["sample_rate"] = serde_json::json!(96_000);
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("mixed settings");
+        assert!(!loaded.master_bus.low_latency);
+        assert_eq!(loaded.master_bus.sample_rate, Some(96_000));
+        assert!(!loaded.preview_bus.low_latency);
         assert_eq!(loaded.preview_bus.sample_rate, None);
     }
 
