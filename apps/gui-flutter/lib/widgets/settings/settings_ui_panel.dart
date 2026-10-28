@@ -39,6 +39,13 @@ class SettingsUiPanel extends StatelessWidget {
     SelectStyleSetting.mobile => l10n.settingsUiSelectStyleMobile,
   };
 
+  static String _themeLabel(AppLocalizations l10n, ThemeSetting value) =>
+      switch (value) {
+        ThemeSetting.system => l10n.settingsSystemDefault,
+        ThemeSetting.light => l10n.settingsUiThemeLight,
+        ThemeSetting.dark => l10n.settingsUiThemeDark,
+      };
+
   static String _selectStyleSubtitle(
     AppLocalizations l10n,
     SelectStyleSetting value,
@@ -76,6 +83,17 @@ class SettingsUiPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
             children: [
+              SettingsField(
+                label: l10n.settingsUiTheme,
+                child: SettingsSelect<ThemeSetting>(
+                  dialogTitle: l10n.settingsUiTheme,
+                  value: draft.theme,
+                  options: ThemeSetting.values,
+                  labelBuilder: (theme) => _themeLabel(l10n, theme),
+                  onChanged: (theme) =>
+                      onChanged(copyAppSettings(draft, theme: theme)),
+                ),
+              ),
               SettingsField(
                 label: l10n.settingsUiLanguageLabel,
                 child: SettingsSelect<UiLanguageSetting>(

@@ -327,6 +327,16 @@ pub enum UiLanguageSetting {
     PtBr,
 }
 
+/// App colour theme preference (Settings → UI). `System` follows the host.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemeSetting {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
 /// Edge the library drawer opens from (Settings → UI).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -424,6 +434,9 @@ pub struct AppSettings {
     pub realtime_stems: bool,
     #[serde(default)]
     pub ui_language: UiLanguageSetting,
+    /// App colour theme. `system` follows the host's light/dark preference.
+    #[serde(default)]
+    pub theme: ThemeSetting,
     /// Open the library as an overlay drawer instead of the docked panel.
     #[serde(default)]
     pub library_drawer_enabled: bool,
@@ -467,6 +480,7 @@ struct SettingsHost {
     stems_model: String,
     realtime_stems: bool,
     ui_language: UiLanguageSetting,
+    theme: ThemeSetting,
     library_drawer_enabled: bool,
     library_drawer_side: LibraryDrawerSideSetting,
     analytics_enabled: bool,
@@ -505,6 +519,7 @@ impl Default for SettingsHost {
             stems_model: default_stems_model(),
             realtime_stems: false,
             ui_language: UiLanguageSetting::default(),
+            theme: ThemeSetting::default(),
             library_drawer_enabled: false,
             library_drawer_side: LibraryDrawerSideSetting::Bottom,
             analytics_enabled: false,
@@ -825,6 +840,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         stems_model: host.stems_model.clone(),
         realtime_stems: host.realtime_stems,
         ui_language: host.ui_language,
+        theme: host.theme,
         library_drawer_enabled: host.library_drawer_enabled,
         library_drawer_side: host.library_drawer_side,
         analytics_enabled: host.analytics_enabled,
@@ -876,6 +892,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.stems_model = settings.stems_model;
     host.realtime_stems = settings.realtime_stems;
     host.ui_language = settings.ui_language;
+    host.theme = settings.theme;
     host.library_drawer_enabled = settings.library_drawer_enabled;
     host.analytics_enabled = settings.analytics_enabled;
     host.library_drawer_side = settings.library_drawer_side;
@@ -1537,6 +1554,34 @@ mod tests {
         write_settings_file(&path, &settings).expect("write");
         let host = load_host(&path);
         assert_eq!(settings_from_host(&host).ui_language, UiLanguageSetting::En);
+    }
+
+    #[test]
+    fn missing_theme_defaults_system() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value.as_object_mut().expect("object").remove("theme");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(settings.theme, ThemeSetting::System);
+    }
+
+    #[test]
+    fn theme_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.theme = ThemeSetting::Light;
+        write_settings_file(&path, &settings).expect("write");
+        assert_eq!(
+            settings_from_host(&load_host(&path)).theme,
+            ThemeSetting::Light
+        );
+
+        settings.theme = ThemeSetting::Dark;
+        write_settings_file(&path, &settings).expect("write");
+        assert_eq!(
+            settings_from_host(&load_host(&path)).theme,
+            ThemeSetting::Dark
+        );
     }
 
     #[test]

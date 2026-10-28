@@ -270,7 +270,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiDescription.
   ///
   /// In en, this message translates to:
-  /// **'Language, hover tips, control presentation, and library list appearance.'**
+  /// **'Theme, language, hover tips, control presentation, and library list appearance.'**
   String get settingsUiDescription;
 
   /// No description provided for @settingsUiChromeTitle.
@@ -282,7 +282,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiChromeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Language, hover tips, and how selects open.'**
+  /// **'Theme, language, hover tips, and how selects open.'**
   String get settingsUiChromeDescription;
 
   /// No description provided for @settingsUiLibraryListTitle.
@@ -296,6 +296,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How tracks look in the library table.'**
   String get settingsUiLibraryListDescription;
+
+  /// No description provided for @settingsUiTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get settingsUiTheme;
+
+  /// No description provided for @settingsUiThemeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settingsUiThemeLight;
+
+  /// No description provided for @settingsUiThemeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settingsUiThemeDark;
 
   /// No description provided for @settingsUiLanguageLabel.
   ///

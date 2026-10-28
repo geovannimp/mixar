@@ -1,11 +1,11 @@
 ---
 title: "Interface"
-description: "Waveform mode, language, tooltips, select style, meters, library list, drawer, and analytics."
+description: "Waveform mode, theme, language, tooltips, select style, meters, library list, drawer, and analytics."
 section: "Settings"
 order: 605
 ---
 
-**Waveform** is a single card. **UI** holds the language, control presentation, meter, list, drawer, and analytics cards.
+**Waveform** is a single card. **UI** holds the theme, language, control presentation, meter, list, drawer, and analytics cards.
 
 ## Waveform → Display
 
@@ -19,13 +19,16 @@ RGB blends the low, mid and high bands into one colour; Filtered stacks them as 
 
 ## UI → Chrome and controls
 
-Card subtitle: "Language, hover tips, and how selects open."
+Card subtitle: "Theme, language, hover tips, and how selects open."
 
 | Control | Type | Values | Default |
 | --- | --- | --- | --- |
+| **Theme** | select | **System default** / **Light** / **Dark** | System default |
 | **Language** | select | **System default** / **English** / **Português (Brasil)** | System default |
 | **Show tooltips** | checkbox | on / off | on |
 | **Select style** | select | **Auto**: "Platform default — desktop OS uses popovers, phones use dialogs." / **Desktop**: "Anchored popovers for selects and ⋯ menus." / **Mobile**: "Open selects and ⋯ menus in a dialog." | Auto |
+
+**System default** follows the host's light/dark preference. **Light** and **Dark** pin the app theme regardless of the host.
 
 **Auto** resolves against the host: on desktop it behaves as **Desktop**, on a phone as **Mobile**.
 
@@ -77,4 +80,4 @@ The last card is **Analytics**, subtitle "Share anonymous app data."
 | --- | --- | --- | --- |
 | **Send anonymous usage data** | header switch | on / off | off |
 
-There is no prompt at any point, and this switch is one of the two that save without restarting the engine.
+There is no prompt at any point, and this switch, the theme select, and the **Visible fields** checkboxes are the settings that save without restarting the engine.
