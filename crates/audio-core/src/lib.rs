@@ -88,7 +88,11 @@ pub struct SampleRateRange {
 
 impl SampleRateRange {
     /// Create a range.
+    ///
+    /// `min <= max` is the invariant `contains` relies on; a reversed span would
+    /// simply match nothing, which is worth catching in tests and debug builds.
     pub fn new(min: u32, max: u32) -> Self {
+        debug_assert!(min <= max, "sample-rate range is reversed: {min}..={max}");
         Self { min, max }
     }
 

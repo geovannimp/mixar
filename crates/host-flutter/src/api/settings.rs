@@ -943,7 +943,9 @@ fn read_settings_file(path: &Path) -> Option<AppSettings> {
     // install to 48 kHz — the behaviour this change removes. Any other value was a
     // real choice, kept on the master bus only: the old global described the
     // engine's stream, and the preview bus may sit on a device that cannot run it.
-    if let Some(rate) = legacy_sample_rate.filter(|rate| *rate != LEGACY_DEFAULT_SAMPLE_RATE) {
+    if let Some(rate) =
+        legacy_sample_rate.filter(|rate| *rate > 0 && *rate != LEGACY_DEFAULT_SAMPLE_RATE)
+    {
         settings.master_bus.sample_rate = Some(rate);
     }
     Some(settings)
@@ -1751,6 +1753,23 @@ mod tests {
         let loaded = read_settings_file(&path).expect("legacy settings");
         assert_eq!(loaded.master_bus.sample_rate, None);
         assert_eq!(loaded.preview_bus.sample_rate, None);
+    }
+
+    #[test]
+    fn legacy_zero_sample_rate_is_not_migrated() {
+        // A zero rate cannot open a stream, so it must not be carried onto the bus
+        // where `parse_bus` would reject the whole settings file.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = pre_move_settings_value();
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("sample_rate".into(), serde_json::json!(0));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("legacy settings");
+        assert_eq!(loaded.master_bus.sample_rate, None);
     }
 
     #[test]

@@ -29,7 +29,7 @@ use crate::frb_generated::StreamSink;
 const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
 
 /// Inclusive sample-rate span a device can open.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SampleRateRange {
     pub min: u32,
     pub max: u32,
