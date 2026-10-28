@@ -448,7 +448,8 @@ impl AudioBackend for CpalBackend {
 
             let device_info =
                 DeviceInfo::new(id, device_name, max_channels, sample_rates, is_default)
-                    .with_mix_sample_rate(mix_sample_rate);
+                    .with_mix_sample_rate(mix_sample_rate)
+                    .with_sample_rate_ranges(Self::advertised_rate_ranges(&supported_configs));
             devices.push(device_info);
         }
 
@@ -668,6 +669,10 @@ mod tests {
         assert_eq!(
             CpalBackend::advertised_rates(&configs),
             vec![44_100, 48_000]
+        );
+        assert_eq!(
+            CpalBackend::advertised_rate_ranges(&configs),
+            vec![SampleRateRange::new(44_100, 48_000)]
         );
         assert_eq!(CpalBackend::max_output_channels(&configs), 2);
         assert!(
