@@ -20,6 +20,10 @@ void main() {
       isDefault: true,
       maxChannels: 2,
       defaultSampleRates: Uint32List.fromList([44100, 48000, 96000]),
+      sampleRateRanges: const [
+        SampleRateRange(min: 44100, max: 48000),
+        SampleRateRange(min: 96000, max: 96000),
+      ],
       mixSampleRate: 48000,
     ),
     OutputDevice(
@@ -28,7 +32,28 @@ void main() {
       isDefault: false,
       maxChannels: 2,
       defaultSampleRates: Uint32List.fromList([44100]),
+      sampleRateRanges: const [SampleRateRange(min: 44100, max: 44100)],
       mixSampleRate: 44100,
+    ),
+    // Advertises only its span endpoints; 96 kHz is inside the span.
+    OutputDevice(
+      id: 'interface',
+      name: 'Interface',
+      isDefault: false,
+      maxChannels: 2,
+      defaultSampleRates: Uint32List.fromList([44100, 192000]),
+      sampleRateRanges: const [SampleRateRange(min: 44100, max: 192000)],
+      mixSampleRate: 48000,
+    ),
+    // Mixes at a rate it does not list as a supported endpoint.
+    OutputDevice(
+      id: 'dac',
+      name: 'DAC',
+      isDefault: false,
+      maxChannels: 2,
+      defaultSampleRates: Uint32List.fromList([44100, 48000]),
+      sampleRateRanges: const [SampleRateRange(min: 44100, max: 48000)],
+      mixSampleRate: 96000,
     ),
   ];
   const baseRoute = BusRouteSettings(
@@ -43,6 +68,7 @@ void main() {
     WidgetTester tester, {
     required ValueChanged<BusRouteSettings> onChanged,
     BusRouteSettings route = baseRoute,
+    bool devicesLoading = false,
   }) {
     return tester.pumpWidget(
       ProviderScope(
@@ -57,7 +83,7 @@ void main() {
               child: SettingsBusRouteFields(
                 route: route,
                 devices: devices,
-                devicesLoading: false,
+                devicesLoading: devicesLoading,
                 onChanged: onChanged,
               ),
             ),
@@ -169,6 +195,56 @@ void main() {
     expect(next?.deviceId, 'headphones');
     // Headphones only advertise 44.1 kHz; keeping 96 kHz would fail the start.
     expect(next?.sampleRate, isNull);
+  }, semanticsEnabled: false);
+
+  testWidgets('the rate select hints while devices are loading', (
+    tester,
+  ) async {
+    await pumpFields(tester, onChanged: (_) {}, devicesLoading: true);
+    expect(find.text('Loading rates for this device…'), findsOneWidget);
+  }, semanticsEnabled: false);
+
+  testWidgets('an explicit rate inside the new device span survives', (
+    tester,
+  ) async {
+    BusRouteSettings? next;
+    await pumpFields(
+      tester,
+      route: const BusRouteSettings(
+        deviceId: 'speakers',
+        leftChannel: 1,
+        rightChannel: 2,
+        mode: BusChannelMode.stereo,
+        sampleRate: 96000,
+        lowLatency: false,
+      ),
+      onChanged: (route) => next = route,
+    );
+
+    await tester.tap(find.text('System default'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Interface').last);
+    await tester.pumpAndSettle();
+
+    // 96 kHz is inside the interface's 44.1–192 kHz span even though it is not
+    // one of the advertised endpoints.
+    expect(next?.deviceId, 'interface');
+    expect(next?.sampleRate, 96000);
+  }, semanticsEnabled: false);
+
+  testWidgets('the default label shows the device mix rate', (tester) async {
+    await pumpFields(
+      tester,
+      route: const BusRouteSettings(
+        deviceId: 'dac',
+        leftChannel: 1,
+        rightChannel: 2,
+        mode: BusChannelMode.stereo,
+        lowLatency: false,
+      ),
+      onChanged: (_) {},
+    );
+    expect(find.text('Device default (96000 Hz)'), findsOneWidget);
   }, semanticsEnabled: false);
 
   testWidgets('the bus can go back to the device default rate', (tester) async {

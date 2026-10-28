@@ -327,6 +327,14 @@ impl FixedInputResampler {
         channels: usize,
         input_chunk_frames: usize,
     ) -> Result<Self> {
+        if channels == 0 {
+            return Err(anyhow::anyhow!("resampler needs at least one channel"));
+        }
+        if input_sr == 0 || output_sr == 0 {
+            return Err(anyhow::anyhow!(
+                "resampler needs non-zero sample rates (input {input_sr}, output {output_sr})"
+            ));
+        }
         let mut resampler = Self {
             resampler: None,
             input_sample_rate: input_sr,
@@ -403,7 +411,10 @@ impl Resampler for FixedInputResampler {
             Err(error) => {
                 if !self.reported_error {
                     self.reported_error = true;
-                    eprintln!("device resampler failed, stream will produce silence: {error}");
+                    tracing::error!(
+                        error = %error,
+                        "device resampler failed; the stream will stay silent"
+                    );
                 }
                 (0, 0)
             }

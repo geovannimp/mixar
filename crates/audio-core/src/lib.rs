@@ -79,6 +79,25 @@ impl From<&str> for DeviceId {
     }
 }
 
+/// Inclusive span of sample rates a device can open.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SampleRateRange {
+    pub min: u32,
+    pub max: u32,
+}
+
+impl SampleRateRange {
+    /// Create a range.
+    pub fn new(min: u32, max: u32) -> Self {
+        Self { min, max }
+    }
+
+    /// Whether `rate` falls inside the span.
+    pub fn contains(&self, rate: u32) -> bool {
+        (self.min..=self.max).contains(&rate)
+    }
+}
+
 /// Information about an audio device
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeviceInfo {
@@ -95,6 +114,11 @@ pub struct DeviceInfo {
     /// it; a bus without an explicit rate then has no automatic choice.
     #[serde(default)]
     pub mix_sample_rate: Option<u32>,
+    /// Spans of rates the device can open. `default_sample_rates` lists their
+    /// endpoints; a rate inside a span is still valid, which a UI needs to avoid
+    /// discarding a rate the device accepts.
+    #[serde(default)]
+    pub sample_rate_ranges: Vec<SampleRateRange>,
     /// Whether this device is the system default output device
     pub is_default: bool,
 }
@@ -114,6 +138,7 @@ impl DeviceInfo {
             max_channels,
             default_sample_rates: sample_rates,
             mix_sample_rate: None,
+            sample_rate_ranges: Vec::new(),
             is_default,
         }
     }
@@ -121,6 +146,12 @@ impl DeviceInfo {
     /// Record the rate the system mixes this device at (see [`Self::mix_sample_rate`]).
     pub fn with_mix_sample_rate(mut self, rate: Option<u32>) -> Self {
         self.mix_sample_rate = rate;
+        self
+    }
+
+    /// Record the spans of rates the device can open (see [`Self::sample_rate_ranges`]).
+    pub fn with_sample_rate_ranges(mut self, ranges: Vec<SampleRateRange>) -> Self {
+        self.sample_rate_ranges = ranges;
         self
     }
 }

@@ -28,6 +28,13 @@ use crate::frb_generated::StreamSink;
 
 const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
 
+/// Inclusive sample-rate span a device can open.
+#[derive(Clone, Copy, Debug)]
+pub struct SampleRateRange {
+    pub min: u32,
+    pub max: u32,
+}
+
 /// Output device summary for the Flutter settings / smoke UI.
 #[derive(Clone, Debug)]
 pub struct OutputDevice {
@@ -39,6 +46,9 @@ pub struct OutputDevice {
     /// Rate the system mixes this device at; `None` when the backend cannot report
     /// it. Settings → Audio shows it as the "Device default" rate.
     pub mix_sample_rate: Option<u32>,
+    /// Spans of rates the device can open, so the UI can tell whether a rate it
+    /// remembers from another device is still valid here.
+    pub sample_rate_ranges: Vec<SampleRateRange>,
 }
 
 /// How a deck lane is affected by the main crossfader (Dart mirror).
@@ -87,6 +97,14 @@ fn output_device(device: audio_core::DeviceInfo) -> OutputDevice {
         max_channels: device.max_channels,
         default_sample_rates: device.default_sample_rates,
         mix_sample_rate: device.mix_sample_rate,
+        sample_rate_ranges: device
+            .sample_rate_ranges
+            .into_iter()
+            .map(|range| SampleRateRange {
+                min: range.min,
+                max: range.max,
+            })
+            .collect(),
     }
 }
 

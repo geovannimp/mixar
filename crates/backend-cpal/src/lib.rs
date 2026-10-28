@@ -4,7 +4,9 @@
 //! On Linux and BSD, the native PipeWire host is preferred when available.
 
 use anyhow::Result;
-use audio_core::{AudioBackend, AudioCallback, AudioStream, DeviceId, DeviceInfo, StreamParams};
+use audio_core::{
+    AudioBackend, AudioCallback, AudioStream, DeviceId, DeviceInfo, SampleRateRange, StreamParams,
+};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     BufferSize, Host, SampleFormat, Stream, StreamConfig, SupportedBufferSize,
@@ -207,6 +209,18 @@ impl CpalBackend {
 
     /// Rates a stream could be opened at: only `f32` ranges count, because the
     /// callback is `f32` and the opener refuses any other format.
+    /// Spans of rates a stream could be opened at (f32 ranges only).
+    fn advertised_rate_ranges(configs: &[SupportedStreamConfigRange]) -> Vec<SampleRateRange> {
+        let mut ranges: Vec<SampleRateRange> = configs
+            .iter()
+            .filter(|config| config.sample_format() == SampleFormat::F32)
+            .map(|config| SampleRateRange::new(config.min_sample_rate(), config.max_sample_rate()))
+            .collect();
+        ranges.sort_by_key(|range| (range.min, range.max));
+        ranges.dedup();
+        ranges
+    }
+
     fn advertised_rates(configs: &[SupportedStreamConfigRange]) -> Vec<u32> {
         let mut rates = Vec::new();
         for config in configs

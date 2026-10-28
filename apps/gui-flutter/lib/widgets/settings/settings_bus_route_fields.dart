@@ -35,6 +35,7 @@ class SettingsBusRouteFields extends StatelessWidget {
         maxChannels: 2,
         // Rates come from the resolved device, not this placeholder entry.
         defaultSampleRates: Uint32List(0),
+        sampleRateRanges: const [],
       ),
       ...devices.where((d) => d.id != 'default'),
     ];
@@ -227,13 +228,22 @@ BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
   );
 }
 
-/// Keep an explicit rate only when the newly selected device advertises it: a rate
+/// Keep an explicit rate only when the newly selected device can open it: a rate
 /// the device cannot open would save cleanly and then refuse to start the engine.
+/// Checked against the device's supported spans, because the advertised list is
+/// only their endpoints — a rate may sit inside a range without being listed.
 int? _retainedRate(int? rate, OutputDevice? device) {
   if (rate == null || device == null) {
     return rate;
   }
-  return device.defaultSampleRates.contains(rate) ? rate : null;
+  if (device.sampleRateRanges.isEmpty) {
+    return device.defaultSampleRates.contains(rate) ? rate : null;
+  }
+  return device.sampleRateRanges.any(
+        (range) => rate >= range.min && rate <= range.max,
+      )
+      ? rate
+      : null;
 }
 
 /// Rate options for a bus: `0` is the "device default" token (no rate is ever 0),

@@ -473,6 +473,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SampleRateRange> dco_decode_list_sample_rate_range(dynamic raw);
+
+  @protected
   List<SamplerBankInfo> dco_decode_list_sampler_bank_info(dynamic raw);
 
   @protected
@@ -575,6 +578,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ResolvedLibraryTrack dco_decode_resolved_library_track(dynamic raw);
+
+  @protected
+  SampleRateRange dco_decode_sample_rate_range(dynamic raw);
 
   @protected
   SamplerBankInfo dco_decode_sampler_bank_info(dynamic raw);
@@ -1114,6 +1120,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SampleRateRange> sse_decode_list_sample_rate_range(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SamplerBankInfo> sse_decode_list_sampler_bank_info(
     SseDeserializer deserializer,
   );
@@ -1248,6 +1259,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ResolvedLibraryTrack sse_decode_resolved_library_track(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SampleRateRange sse_decode_sample_rate_range(SseDeserializer deserializer);
 
   @protected
   SamplerBankInfo sse_decode_sampler_bank_info(SseDeserializer deserializer);
@@ -1907,6 +1921,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sample_rate_range(
+    List<SampleRateRange> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_sampler_bank_info(
     List<SamplerBankInfo> self,
     SseSerializer serializer,
@@ -2068,6 +2088,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_resolved_library_track(
     ResolvedLibraryTrack self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sample_rate_range(
+    SampleRateRange self,
     SseSerializer serializer,
   );
 

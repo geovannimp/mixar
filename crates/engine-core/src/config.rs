@@ -341,6 +341,31 @@ mod tests {
     }
 
     #[test]
+    fn legacy_toml_without_per_bus_rates_still_validates() {
+        let toml = r#"
+buffer_size = 512
+backend = "null"
+buses = []
+analysis_duration = "precise"
+"#;
+        let config: EngineConfig = toml::from_str(toml).unwrap();
+        config.validate().unwrap();
+
+        // The retired global key is ignored rather than rejected, and the buses
+        // simply have no explicit rate.
+        let legacy = r#"
+sample_rate = 48000
+buffer_size = 512
+backend = "null"
+buses = []
+analysis_duration = "precise"
+"#;
+        let config: EngineConfig = toml::from_str(legacy).unwrap();
+        config.validate().unwrap();
+        assert!(config.buses.is_empty());
+    }
+
+    #[test]
     fn validate_rejects_conflicting_rates_on_one_device() {
         use audio_core::{BusId, ChannelMapping, DeviceId};
 

@@ -9077,6 +9077,20 @@ impl SseDecode for Vec<crate::api::library::ResolvedLibraryTrack> {
     }
 }
 
+impl SseDecode for Vec<crate::api::engine::SampleRateRange> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::engine::SampleRateRange>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::library::SamplerBankInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9473,6 +9487,8 @@ impl SseDecode for crate::api::engine::OutputDevice {
         let mut var_maxChannels = <u16>::sse_decode(deserializer);
         let mut var_defaultSampleRates = <Vec<u32>>::sse_decode(deserializer);
         let mut var_mixSampleRate = <Option<u32>>::sse_decode(deserializer);
+        let mut var_sampleRateRanges =
+            <Vec<crate::api::engine::SampleRateRange>>::sse_decode(deserializer);
         return crate::api::engine::OutputDevice {
             id: var_id,
             name: var_name,
@@ -9480,6 +9496,7 @@ impl SseDecode for crate::api::engine::OutputDevice {
             max_channels: var_maxChannels,
             default_sample_rates: var_defaultSampleRates,
             mix_sample_rate: var_mixSampleRate,
+            sample_rate_ranges: var_sampleRateRanges,
         };
     }
 }
@@ -9509,6 +9526,18 @@ impl SseDecode for crate::api::library::ResolvedLibraryTrack {
         return crate::api::library::ResolvedLibraryTrack {
             request_path: var_requestPath,
             track: var_track,
+        };
+    }
+}
+
+impl SseDecode for crate::api::engine::SampleRateRange {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_min = <u32>::sse_decode(deserializer);
+        let mut var_max = <u32>::sse_decode(deserializer);
+        return crate::api::engine::SampleRateRange {
+            min: var_min,
+            max: var_max,
         };
     }
 }
@@ -11817,6 +11846,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::OutputDevice {
             self.max_channels.into_into_dart().into_dart(),
             self.default_sample_rates.into_into_dart().into_dart(),
             self.mix_sample_rate.into_into_dart().into_dart(),
+            self.sample_rate_ranges.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -11873,6 +11903,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::ResolvedLibraryTrack
     for crate::api::library::ResolvedLibraryTrack
 {
     fn into_into_dart(self) -> crate::api::library::ResolvedLibraryTrack {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::engine::SampleRateRange {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.min.into_into_dart().into_dart(),
+            self.max.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::engine::SampleRateRange
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::SampleRateRange>
+    for crate::api::engine::SampleRateRange
+{
+    fn into_into_dart(self) -> crate::api::engine::SampleRateRange {
         self
     }
 }
@@ -13256,6 +13307,16 @@ impl SseEncode for Vec<crate::api::library::ResolvedLibraryTrack> {
     }
 }
 
+impl SseEncode for Vec<crate::api::engine::SampleRateRange> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::engine::SampleRateRange>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::library::SamplerBankInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -13572,6 +13633,7 @@ impl SseEncode for crate::api::engine::OutputDevice {
         <u16>::sse_encode(self.max_channels, serializer);
         <Vec<u32>>::sse_encode(self.default_sample_rates, serializer);
         <Option<u32>>::sse_encode(self.mix_sample_rate, serializer);
+        <Vec<crate::api::engine::SampleRateRange>>::sse_encode(self.sample_rate_ranges, serializer);
     }
 }
 
@@ -13601,6 +13663,14 @@ impl SseEncode for crate::api::library::ResolvedLibraryTrack {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.request_path, serializer);
         <crate::api::library::LibraryTrackSummary>::sse_encode(self.track, serializer);
+    }
+}
+
+impl SseEncode for crate::api::engine::SampleRateRange {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.min, serializer);
+        <u32>::sse_encode(self.max, serializer);
     }
 }
 

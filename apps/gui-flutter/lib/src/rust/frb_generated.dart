@@ -7825,6 +7825,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SampleRateRange> dco_decode_list_sample_rate_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_sample_rate_range).toList();
+  }
+
+  @protected
   List<SamplerBankInfo> dco_decode_list_sampler_bank_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_sampler_bank_info).toList();
@@ -8042,8 +8048,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   OutputDevice dco_decode_output_device(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return OutputDevice(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
@@ -8051,6 +8057,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       maxChannels: dco_decode_u_16(arr[3]),
       defaultSampleRates: dco_decode_list_prim_u_32_strict(arr[4]),
       mixSampleRate: dco_decode_opt_box_autoadd_u_32(arr[5]),
+      sampleRateRanges: dco_decode_list_sample_rate_range(arr[6]),
     );
   }
 
@@ -8069,6 +8076,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return ResolvedLibraryTrack(
       requestPath: dco_decode_String(arr[0]),
       track: dco_decode_library_track_summary(arr[1]),
+    );
+  }
+
+  @protected
+  SampleRateRange dco_decode_sample_rate_range(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SampleRateRange(
+      min: dco_decode_u_32(arr[0]),
+      max: dco_decode_u_32(arr[1]),
     );
   }
 
@@ -9697,6 +9716,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SampleRateRange> sse_decode_list_sample_rate_range(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SampleRateRange>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sample_rate_range(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SamplerBankInfo> sse_decode_list_sampler_bank_info(
     SseDeserializer deserializer,
   ) {
@@ -10095,6 +10128,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_maxChannels = sse_decode_u_16(deserializer);
     var var_defaultSampleRates = sse_decode_list_prim_u_32_strict(deserializer);
     var var_mixSampleRate = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_sampleRateRanges = sse_decode_list_sample_rate_range(deserializer);
     return OutputDevice(
       id: var_id,
       name: var_name,
@@ -10102,6 +10136,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       maxChannels: var_maxChannels,
       defaultSampleRates: var_defaultSampleRates,
       mixSampleRate: var_mixSampleRate,
+      sampleRateRanges: var_sampleRateRanges,
     );
   }
 
@@ -10120,6 +10155,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_requestPath = sse_decode_String(deserializer);
     var var_track = sse_decode_library_track_summary(deserializer);
     return ResolvedLibraryTrack(requestPath: var_requestPath, track: var_track);
+  }
+
+  @protected
+  SampleRateRange sse_decode_sample_rate_range(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_min = sse_decode_u_32(deserializer);
+    var var_max = sse_decode_u_32(deserializer);
+    return SampleRateRange(min: var_min, max: var_max);
   }
 
   @protected
@@ -11570,6 +11613,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_sample_rate_range(
+    List<SampleRateRange> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sample_rate_range(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_sampler_bank_info(
     List<SamplerBankInfo> self,
     SseSerializer serializer,
@@ -11943,6 +11998,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_16(self.maxChannels, serializer);
     sse_encode_list_prim_u_32_strict(self.defaultSampleRates, serializer);
     sse_encode_opt_box_autoadd_u_32(self.mixSampleRate, serializer);
+    sse_encode_list_sample_rate_range(self.sampleRateRanges, serializer);
   }
 
   @protected
@@ -11959,6 +12015,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.requestPath, serializer);
     sse_encode_library_track_summary(self.track, serializer);
+  }
+
+  @protected
+  void sse_encode_sample_rate_range(
+    SampleRateRange self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.min, serializer);
+    sse_encode_u_32(self.max, serializer);
   }
 
   @protected
