@@ -22,6 +22,14 @@ void main() {
       defaultSampleRates: Uint32List.fromList([44100, 48000, 96000]),
       mixSampleRate: 48000,
     ),
+    OutputDevice(
+      id: 'headphones',
+      name: 'Headphones',
+      isDefault: false,
+      maxChannels: 2,
+      defaultSampleRates: Uint32List.fromList([44100]),
+      mixSampleRate: 44100,
+    ),
   ];
   const baseRoute = BusRouteSettings(
     deviceId: 'speakers',
@@ -134,6 +142,33 @@ void main() {
 
     expect(next?.lowLatency, isTrue);
     expect(next?.sampleRate, 96000);
+  }, semanticsEnabled: false);
+
+  testWidgets('switching device drops a rate the new device lacks', (
+    tester,
+  ) async {
+    BusRouteSettings? next;
+    await pumpFields(
+      tester,
+      route: const BusRouteSettings(
+        deviceId: 'speakers',
+        leftChannel: 1,
+        rightChannel: 2,
+        mode: BusChannelMode.stereo,
+        sampleRate: 96000,
+        lowLatency: false,
+      ),
+      onChanged: (route) => next = route,
+    );
+
+    await tester.tap(find.text('System default'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Headphones').last);
+    await tester.pumpAndSettle();
+
+    expect(next?.deviceId, 'headphones');
+    // Headphones only advertise 44.1 kHz; keeping 96 kHz would fail the start.
+    expect(next?.sampleRate, isNull);
   }, semanticsEnabled: false);
 
   testWidgets('the bus can go back to the device default rate', (tester) async {

@@ -67,7 +67,10 @@ class SettingsBusRouteFields extends StatelessWidget {
                   leftChannel: route.leftChannel,
                   rightChannel: route.rightChannel,
                   mode: route.mode,
-                  sampleRate: route.sampleRate,
+                  sampleRate: _retainedRate(
+                    route.sampleRate,
+                    resolveAudioOutputDevice(devices, deviceId),
+                  ),
                   lowLatency: route.lowLatency,
                 ),
                 _maxChannelsFor(devices, deviceId),
@@ -222,6 +225,15 @@ BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
     sampleRate: route.sampleRate,
     lowLatency: route.lowLatency,
   );
+}
+
+/// Keep an explicit rate only when the newly selected device advertises it: a rate
+/// the device cannot open would save cleanly and then refuse to start the engine.
+int? _retainedRate(int? rate, OutputDevice? device) {
+  if (rate == null || device == null) {
+    return rate;
+  }
+  return device.defaultSampleRates.contains(rate) ? rate : null;
 }
 
 /// Rate options for a bus: `0` is the "device default" token (no rate is ever 0),

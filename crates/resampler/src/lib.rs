@@ -34,7 +34,9 @@ pub trait Resampler: Send {
     ///
     /// Callers must size their output buffer with this, not [`Self::output_frames_next`]:
     /// a variable-output resampler emits whole internal blocks, so a step can be
-    /// several times the average.
+    /// several times the average. The default is correct for fixed-output resamplers,
+    /// where the next step is exactly the maximum; variable-output implementations
+    /// must override it.
     fn max_output_frames(&self) -> usize {
         self.output_frames_next()
     }
@@ -312,6 +314,9 @@ pub struct FixedInputResampler {
     output_sample_rate: u32,
     channels: usize,
     input_chunk_frames: usize,
+    /// A resampling error is reported once: the stream keeps returning no frames,
+    /// and logging it every callback would bury the log.
+    reported_error: bool,
 }
 
 impl FixedInputResampler {
@@ -328,6 +333,7 @@ impl FixedInputResampler {
             output_sample_rate: output_sr,
             channels,
             input_chunk_frames: input_chunk_frames.max(1),
+            reported_error: false,
         };
         resampler.update_resampler()?;
         Ok(resampler)
@@ -394,7 +400,13 @@ impl Resampler for FixedInputResampler {
         };
         match resampler.process_into_buffer(&input_adapter, &mut output_adapter, Some(&indexing)) {
             Ok((frames_in, frames_out)) => (frames_out * channels, frames_in),
-            Err(_) => (0, 0),
+            Err(error) => {
+                if !self.reported_error {
+                    self.reported_error = true;
+                    eprintln!("device resampler failed, stream will produce silence: {error}");
+                }
+                (0, 0)
+            }
         }
     }
 

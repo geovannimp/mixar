@@ -212,6 +212,28 @@ impl EngineConfig {
                 );
             }
         }
+        // Buses sharing a device share one stream, so their explicit rates must
+        // agree. Checked here as well as in stream planning, so saving settings
+        // fails with this message instead of the next engine start.
+        for (index, bus) in self.buses.iter().enumerate() {
+            let Some(rate) = bus.sample_rate else {
+                continue;
+            };
+            for other in &self.buses[index + 1..] {
+                if other.device != bus.device {
+                    continue;
+                }
+                if let Some(other_rate) = other.sample_rate {
+                    ensure!(
+                        other_rate == rate,
+                        "buses '{}' and '{}' share device '{}' but ask for {rate} Hz and {other_rate} Hz; one stream runs at one rate",
+                        bus.id.as_str(),
+                        other.id.as_str(),
+                        bus.device.as_str()
+                    );
+                }
+            }
+        }
         if let Some(secs) = self.audio.as_ref().and_then(|a| a.vinyl_brake_stop_secs) {
             ensure!(
                 (0.05..=3.0).contains(&secs),
@@ -316,6 +338,37 @@ mod tests {
         assert!((config.default_tempo_range() - 0.16).abs() < 1e-6);
         assert_eq!(config.tempo_range_steps(), vec![0.08, 0.16]);
         config.validate().unwrap();
+    }
+
+    #[test]
+    fn validate_rejects_conflicting_rates_on_one_device() {
+        use audio_core::{BusId, ChannelMapping, DeviceId};
+
+        let mut config = EngineConfig::default();
+        config.buses.push(
+            BusConfig::new(
+                BusId::new("master"),
+                "Master".to_string(),
+                DeviceId::new("dev"),
+                ChannelMapping::stereo(1, 2),
+            )
+            .with_sample_rate(Some(48_000)),
+        );
+        config.buses.push(
+            BusConfig::new(
+                BusId::new("cue"),
+                "Cue".to_string(),
+                DeviceId::new("dev"),
+                ChannelMapping::stereo(3, 4),
+            )
+            .with_sample_rate(Some(44_100)),
+        );
+
+        let error = config.validate().unwrap_err();
+        assert!(
+            error.to_string().contains("one stream runs at one rate"),
+            "{error}"
+        );
     }
 
     #[test]

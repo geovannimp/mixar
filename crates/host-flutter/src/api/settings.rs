@@ -929,11 +929,10 @@ fn read_settings_file(path: &Path) -> Option<AppSettings> {
     // install to 48 kHz — the behaviour this change removes. Any other value was
     // a real choice, so keep it on the routes that had none.
     if let Some(rate) = legacy_sample_rate.filter(|rate| *rate != LEGACY_DEFAULT_SAMPLE_RATE) {
+        // Only the master bus inherits it: the old global described the engine's
+        // stream, and the preview bus may sit on a device that cannot run it.
         if settings.master_bus.sample_rate.is_none() {
             settings.master_bus.sample_rate = Some(rate);
-        }
-        if settings.preview_bus.sample_rate.is_none() {
-            settings.preview_bus.sample_rate = Some(rate);
         }
     }
     Some(settings)
@@ -1694,7 +1693,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_global_sample_rate_moves_to_both_buses() {
+    fn legacy_global_sample_rate_moves_to_the_master_bus() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
         let mut value = serde_json::to_value(sample_settings()).expect("json");
@@ -1706,7 +1705,9 @@ mod tests {
 
         let loaded = read_settings_file(&path).expect("legacy settings");
         assert_eq!(loaded.master_bus.sample_rate, Some(44_100));
-        assert_eq!(loaded.preview_bus.sample_rate, Some(44_100));
+        // The old global described the engine stream; the preview bus may sit on a
+        // device that cannot run it, so it is not pinned.
+        assert_eq!(loaded.preview_bus.sample_rate, None);
     }
 
     #[test]
