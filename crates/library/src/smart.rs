@@ -1,6 +1,11 @@
 //! Smart-playlist evaluation over the library pool.
 
-use super::*;
+use crate::unix_secs_string;
+use crate::LibraryManager;
+use library_core::{
+    AudioSource, CollectionConfig, CollectionId, CollectionType, DeckReference, LibraryError,
+    Result, SmartPlaylistRules, TrackId,
+};
 
 impl LibraryManager {
     /// Host-reported deck references; the last set stays in effect until replaced.
@@ -54,10 +59,15 @@ pub(crate) fn smart_rules_error(message: String) -> LibraryError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        CollectionConfigUpdate, Library, LibraryConfig, NewCollection, TrackMetadata,
+        TrackMetadataEdit, UpdateCollection, WritableLibrary,
+    };
     use library_core::{
         SmartCondition, SmartField, SmartMatch, SmartOp, SmartRule, SmartRuleGroup, SmartSort,
         SmartSortField,
     };
+    use std::path::PathBuf;
 
     fn condition(field: SmartField, op: SmartOp) -> SmartCondition {
         SmartCondition {
