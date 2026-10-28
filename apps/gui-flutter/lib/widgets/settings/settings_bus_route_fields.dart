@@ -98,6 +98,21 @@ class SettingsBusRouteFields extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        SettingsCheckbox(
+          label: l10n.settingsAudioLowLatency,
+          value: route.lowLatency,
+          onChanged: (lowLatency) => onChanged(
+            BusRouteSettings(
+              deviceId: route.deviceId,
+              leftChannel: route.leftChannel,
+              rightChannel: route.rightChannel,
+              mode: route.mode,
+              sampleRate: route.sampleRate,
+              lowLatency: lowLatency,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
         SettingsField(
           label: l10n.settingsAudioSampleRate,
           hint: devicesLoading
@@ -120,21 +135,6 @@ class SettingsBusRouteFields extends StatelessWidget {
                 sampleRate: rate == 0 ? null : rate,
                 lowLatency: route.lowLatency,
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SettingsCheckbox(
-          label: l10n.settingsAudioLowLatency,
-          value: route.lowLatency,
-          onChanged: (lowLatency) => onChanged(
-            BusRouteSettings(
-              deviceId: route.deviceId,
-              leftChannel: route.leftChannel,
-              rightChannel: route.rightChannel,
-              mode: route.mode,
-              sampleRate: route.sampleRate,
-              lowLatency: lowLatency,
             ),
           ),
         ),

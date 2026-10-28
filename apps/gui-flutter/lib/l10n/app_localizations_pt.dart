@@ -96,8 +96,15 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsSectionControllers => 'Controladores';
 
   @override
+  String get settingsSectionPrivacy => 'Privacidade';
+
+  @override
+  String get settingsPrivacyDescription =>
+      'Dados anónimos de utilização da aplicação.';
+
+  @override
   String get settingsUiDescription =>
-      'Tema, idioma, dicas ao passar o mouse, apresentação dos controles e aparência da lista da biblioteca.';
+      'Tema, idioma, dicas ao passar o mouse, apresentação dos controles, medidores do mixer e a gaveta da biblioteca.';
 
   @override
   String get settingsUiChromeTitle => 'Chrome e controles';
@@ -105,13 +112,6 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get settingsUiChromeDescription =>
       'Tema, idioma, dicas ao passar o mouse e como os seletores abrem.';
-
-  @override
-  String get settingsUiLibraryListTitle => 'Lista da biblioteca';
-
-  @override
-  String get settingsUiLibraryListDescription =>
-      'Como as faixas aparecem na tabela da biblioteca.';
 
   @override
   String get settingsUiTheme => 'Tema';
@@ -313,7 +313,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsMixerDescription =>
-      'Mantém faixas analisadas com volume percebido consistente.';
+      'Nivelamento de volume, roteamento do sampler e fallback de stems em tempo real.';
 
   @override
   String get settingsMixerNormalizerTitle => 'Normalizador de volume';
@@ -327,6 +327,22 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsMixerTargetLufs => 'LUFS alvo';
+
+  @override
+  String get settingsMixerSamplerRoutingTitle => 'Roteamento do sampler';
+
+  @override
+  String get settingsMixerSamplerRoutingDescription =>
+      'Onde os hits do sampler entram no caminho de sinal, em relação ao channel strip.';
+
+  @override
+  String get settingsMixerSamplerStripRoute => 'Rota do sampler no strip';
+
+  @override
+  String get settingsMixerSamplerStripBefore => 'Antes do channel strip';
+
+  @override
+  String get settingsMixerSamplerStripAfter => 'Depois do channel strip';
 
   @override
   String get settingsMixerRealtimeStemsTitle => 'Stems em tempo real';
@@ -364,10 +380,17 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsDeckDescription =>
-      'Comportamento padrão de jog, tempo e sampler para novos decks.';
+      'Layout dos decks e comportamento padrão de jog, tempo e sampler para novos decks.';
 
   @override
   String get settingsDeckCount => 'Layout dos decks';
+
+  @override
+  String get settingsDeckLayoutDescription =>
+      'Quantos decks o mixer mostra. Alterar isso reinicia o mecanismo de áudio e recarrega as faixas.';
+
+  @override
+  String get settingsDeckLayoutDecks => 'Decks';
 
   @override
   String get settingsDeckCountTwo => '2 decks';
@@ -464,15 +487,6 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsDeckSamplerPlayLoop => 'Loop';
 
   @override
-  String get settingsDeckSamplerStripRoute => 'Rota do sampler no strip';
-
-  @override
-  String get settingsDeckSamplerStripBefore => 'Antes do channel strip';
-
-  @override
-  String get settingsDeckSamplerStripAfter => 'Depois do channel strip';
-
-  @override
   String get settingsDeckDefaultSamplerBankA =>
       'Banco padrão do sampler no deck A';
 
@@ -497,6 +511,13 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsDeckCountRestartConfirm => 'Reiniciar e aplicar';
+
+  @override
+  String get settingsLibraryListTitle => 'Lista da biblioteca';
+
+  @override
+  String get settingsLibraryListDescription =>
+      'Como as faixas aparecem na tabela da biblioteca.';
 
   @override
   String get settingsLibraryDescription =>
@@ -1111,6 +1132,10 @@ class AppLocalizationsPt extends AppLocalizations {
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).
 class AppLocalizationsPtBr extends AppLocalizationsPt {
   AppLocalizationsPtBr() : super('pt_BR');
+
+  @override
+  String get settingsPrivacyDescription =>
+      'Dados anônimos de uso do aplicativo.';
 
   @override
   String get settingsDeckVinylBrakePause => 'Freio de vinil no pause';

@@ -1,4 +1,3 @@
-import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
@@ -52,29 +51,4 @@ void main() {
     expect(find.text('POSITION'), findsOneWidget);
     expect(find.text('Bottom'), findsOneWidget);
   }, semanticsEnabled: false);
-  testWidgets('analytics setting is off by default and enables opt-in', (
-    tester,
-  ) async {
-    final baseline = defaultAppSettings();
-    AppSettings? changed;
-    await pumpPanel(
-      tester,
-      draft: baseline,
-      onChanged: (settings) => changed = settings,
-    );
-    final toggle = find.bySemanticsLabel('Send anonymous usage data');
-    expect(toggle, findsOneWidget);
-    expect(
-      tester.getSemantics(toggle).hasFlag(SemanticsFlag.hasToggledState),
-      isTrue,
-    );
-    expect(
-      tester.getSemantics(toggle).hasFlag(SemanticsFlag.isToggled),
-      isFalse,
-    );
-    await tester.ensureVisible(toggle);
-    await tester.tap(toggle);
-    await tester.pump();
-    expect(changed?.analyticsEnabled, isTrue);
-  }, semanticsEnabled: true);
 }

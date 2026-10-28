@@ -36,64 +36,86 @@ class SettingsDeckPanel extends ConsumerWidget {
           description: l10n.settingsDeckDescription,
         ),
         SettingsSectionCard(
+          title: l10n.settingsDeckCount,
+          subtitle: l10n.settingsDeckLayoutDescription,
+          child: SettingsField(
+            label: l10n.settingsDeckLayoutDecks,
+            child: SettingsSelect<int>(
+              dialogTitle: l10n.settingsDeckLayoutDecks,
+              value: draft.numDecks,
+              options: const [2, 4],
+              labelBuilder: (count) => count == 2
+                  ? l10n.settingsDeckCountTwo
+                  : l10n.settingsDeckCountFour,
+              onChanged: (count) => onChanged(
+                normalizeAppSettings(copyAppSettings(draft, numDecks: count)),
+              ),
+            ),
+          ),
+        ),
+        SettingsSectionCard(
           title: l10n.settingsDeckJogTitle,
           subtitle: l10n.settingsDeckJogDescription,
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 16,
+            spacing: 12,
             children: [
-              SettingsField(
-                label: l10n.settingsDeckCount,
-                child: SettingsSelect<int>(
-                  dialogTitle: l10n.settingsDeckCount,
-                  value: draft.numDecks,
-                  options: const [2, 4],
-                  labelBuilder: (count) => count == 2
-                      ? l10n.settingsDeckCountTwo
-                      : l10n.settingsDeckCountFour,
-                  onChanged: (count) => onChanged(
-                    normalizeAppSettings(
-                      copyAppSettings(draft, numDecks: count),
+              Expanded(
+                child: SettingsField(
+                  label: l10n.settingsDeckTopJogMode,
+                  child: SettingsSelect(
+                    dialogTitle: l10n.settingsDeckTopJogMode,
+                    value: draft.defaultTopJogMode,
+                    options: _jogModes,
+                    labelBuilder: (m) => _jogLabel(l10n, m),
+                    onChanged: (m) =>
+                        onChanged(copyAppSettings(draft, defaultTopJogMode: m)),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: SettingsField(
+                  label: l10n.settingsDeckOuterJogMode,
+                  child: SettingsSelect(
+                    dialogTitle: l10n.settingsDeckOuterJogMode,
+                    value: draft.defaultOuterJogMode,
+                    options: _jogModes,
+                    labelBuilder: (m) => _jogLabel(l10n, m),
+                    onChanged: (m) => onChanged(
+                      copyAppSettings(draft, defaultOuterJogMode: m),
                     ),
                   ),
                 ),
               ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 12,
-                children: [
-                  Expanded(
-                    child: SettingsField(
-                      label: l10n.settingsDeckTopJogMode,
-                      child: SettingsSelect(
-                        dialogTitle: l10n.settingsDeckTopJogMode,
-                        value: draft.defaultTopJogMode,
-                        options: _jogModes,
-                        labelBuilder: (m) => _jogLabel(l10n, m),
-                        onChanged: (m) => onChanged(
-                          copyAppSettings(draft, defaultTopJogMode: m),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: SettingsField(
-                      label: l10n.settingsDeckOuterJogMode,
-                      child: SettingsSelect(
-                        dialogTitle: l10n.settingsDeckOuterJogMode,
-                        value: draft.defaultOuterJogMode,
-                        options: _jogModes,
-                        labelBuilder: (m) => _jogLabel(l10n, m),
-                        onChanged: (m) => onChanged(
-                          copyAppSettings(draft, defaultOuterJogMode: m),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsDeckVinylBrakePause,
+          subtitle: l10n.settingsDeckVinylBrakePauseHint,
+          trailing: SettingsHeaderSwitch(
+            value: draft.vinylBrakePause,
+            semanticsLabel: l10n.settingsDeckVinylBrakePauseToggle,
+            onChanged: (v) =>
+                onChanged(copyAppSettings(draft, vinylBrakePause: v)),
+          ),
+          child: draft.vinylBrakePause
+              ? SettingsField(
+                  label: l10n.settingsDeckVinylBrakeStopTime,
+                  hint: l10n.settingsDeckVinylBrakeStopTimeHint,
+                  child: SettingsNumericStepper(
+                    value: draft.vinylBrakeStopSecs,
+                    min: kMinVinylBrakeStopSecs,
+                    max: kMaxVinylBrakeStopSecs,
+                    step: kVinylBrakeStopSecsStep,
+                    format: (v) => '${v.toStringAsFixed(2)} s',
+                    fieldLabel: l10n.settingsDeckVinylBrakeStopTime,
+                    onChanged: (v) => onChanged(
+                      copyAppSettings(draft, vinylBrakeStopSecs: v),
+                    ),
+                  ),
+                )
+              : null,
         ),
         SettingsSectionCard(
           title: l10n.settingsDeckTempoKeyTitle,
@@ -128,33 +150,6 @@ class SettingsDeckPanel extends ConsumerWidget {
           ),
         ),
         SettingsSectionCard(
-          title: l10n.settingsDeckVinylBrakePause,
-          subtitle: l10n.settingsDeckVinylBrakePauseHint,
-          trailing: SettingsHeaderSwitch(
-            value: draft.vinylBrakePause,
-            semanticsLabel: l10n.settingsDeckVinylBrakePauseToggle,
-            onChanged: (v) =>
-                onChanged(copyAppSettings(draft, vinylBrakePause: v)),
-          ),
-          child: draft.vinylBrakePause
-              ? SettingsField(
-                  label: l10n.settingsDeckVinylBrakeStopTime,
-                  hint: l10n.settingsDeckVinylBrakeStopTimeHint,
-                  child: SettingsNumericStepper(
-                    value: draft.vinylBrakeStopSecs,
-                    min: kMinVinylBrakeStopSecs,
-                    max: kMaxVinylBrakeStopSecs,
-                    step: kVinylBrakeStopSecsStep,
-                    format: (v) => '${v.toStringAsFixed(2)} s',
-                    fieldLabel: l10n.settingsDeckVinylBrakeStopTime,
-                    onChanged: (v) => onChanged(
-                      copyAppSettings(draft, vinylBrakeStopSecs: v),
-                    ),
-                  ),
-                )
-              : null,
-        ),
-        SettingsSectionCard(
           title: l10n.settingsDeckSamplerTitle,
           subtitle: l10n.settingsDeckSamplerDescription,
           child: Column(
@@ -179,26 +174,12 @@ class SettingsDeckPanel extends ConsumerWidget {
                       onChanged(copyAppSettings(draft, samplerPlayMode: m)),
                 ),
               ),
-              SettingsField(
-                label: l10n.settingsDeckSamplerStripRoute,
-                child: SettingsSelect(
-                  dialogTitle: l10n.settingsDeckSamplerStripRoute,
-                  value: draft.samplerStripRoute,
-                  options: SamplerStripRouteSettingFrb.values,
-                  labelBuilder: (m) => m == SamplerStripRouteSettingFrb.before
-                      ? l10n.settingsDeckSamplerStripBefore
-                      : l10n.settingsDeckSamplerStripAfter,
-                  onChanged: (m) =>
-                      onChanged(copyAppSettings(draft, samplerStripRoute: m)),
-                ),
-              ),
-              Wrap(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 12,
-                runSpacing: 12,
                 children: [
                   for (var deck = 0; deck < draft.numDecks; deck++)
-                    SizedBox(
-                      width: 260,
+                    Expanded(
                       child: SettingsField(
                         label: _deckBankLabel(l10n, deck),
                         child: SettingsSelect<String?>(

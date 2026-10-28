@@ -1,11 +1,11 @@
 ---
 title: "Library"
-description: "Analysis quality, file-tag write-back, key display, visible fields, and stem model/format."
+description: "Analysis quality, file-tag write-back, key display, list appearance, visible fields, and stem model/format."
 section: "Settings"
 order: 604
 ---
 
-**Settings → Library** ("Track import, offline analysis, and list display.") holds the preferences that shape how tracks are analyzed, how their metadata reads in the table and on a deck, and what a generated stem cache looks like.
+**Settings → Library** ("Track import, offline analysis, and list display.") holds the preferences that shape how tracks are analyzed, how their metadata reads in the table and on a deck, how the table itself is drawn, and what a generated stem cache looks like.
 
 ## Analysis
 
@@ -33,6 +33,17 @@ Card subtitle: "How keys are labeled and color-coded in deck chrome and the libr
 | **Key color mode** | select | **Off**: "Key labels use the default text color everywhere." / **Absolute (circle of fifths)**: "Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer)." / **Harmonic (playing deck)**: "Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow." | Off |
 
 Display mode changes the label only; the stored key is the same either way.
+
+## Library list
+
+Card subtitle: "How tracks look in the library table."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Dim played tracks** | checkbox | on / off | on |
+| **Track row layout** | select | **Comfortable**: "Two lines per track: title above artist, BPM, key and length." / **Compact**: "One dense line per track — fits the most rows on screen." | Comfortable |
+
+This is the saved default. The library toolbar has its own **Compact rows** / **Comfortable rows** toggle that overrides it for the current session only, without touching the setting. See [Browsing](/docs/users/library/browsing).
 
 ## Visible fields
 

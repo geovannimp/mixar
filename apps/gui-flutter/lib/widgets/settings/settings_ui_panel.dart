@@ -159,44 +159,6 @@ class SettingsUiPanel extends StatelessWidget {
               : null,
         ),
         SettingsSectionCard(
-          title: l10n.settingsUiLibraryListTitle,
-          subtitle: l10n.settingsUiLibraryListDescription,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 16,
-            children: [
-              SettingsCheckbox(
-                label: l10n.settingsLibraryDimPlayedTracks,
-                value: draft.dimPlayedTracks,
-                onChanged: (enabled) =>
-                    onChanged(copyAppSettings(draft, dimPlayedTracks: enabled)),
-              ),
-              SettingsField(
-                label: l10n.settingsLibraryTrackRowLayout,
-                child: SettingsSelect<LibraryRowDensitySetting>(
-                  dialogTitle: l10n.settingsLibraryTrackRowLayout,
-                  value: draft.libraryRowDensity,
-                  options: const [
-                    LibraryRowDensitySetting.comfortable,
-                    LibraryRowDensitySetting.compact,
-                  ],
-                  labelBuilder: (mode) =>
-                      mode == LibraryRowDensitySetting.compact
-                      ? l10n.settingsLibraryRowCompact
-                      : l10n.settingsLibraryRowComfortable,
-                  subtitleBuilder: (mode) =>
-                      mode == LibraryRowDensitySetting.compact
-                      ? l10n.settingsLibraryRowCompactSubtitle
-                      : l10n.settingsLibraryRowComfortableSubtitle,
-                  onChanged: (mode) => onChanged(
-                    copyAppSettings(draft, libraryRowDensity: mode),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SettingsSectionCard(
           title: l10n.settingsUiLibraryDrawerTitle,
           subtitle: l10n.settingsUiLibraryDrawerDescription,
           trailing: SettingsHeaderSwitch(
@@ -219,16 +181,6 @@ class SettingsUiPanel extends StatelessWidget {
                   ),
                 )
               : null,
-        ),
-        SettingsSectionCard(
-          title: l10n.settingsAnalyticsTitle,
-          subtitle: l10n.settingsAnalyticsSubtitle,
-          trailing: SettingsHeaderSwitch(
-            value: draft.analyticsEnabled,
-            semanticsLabel: l10n.settingsAnalyticsToggle,
-            onChanged: (enabled) =>
-                onChanged(copyAppSettings(draft, analyticsEnabled: enabled)),
-          ),
         ),
       ],
     );

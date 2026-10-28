@@ -35,8 +35,8 @@ Card subtitle: "Primary output device and channel routing."
 | Control | Type | Values | Default | Effect |
 | --- | --- | --- | --- | --- |
 | **Device** | select | **System default** first, then every detected output device | System default | Which device the master bus opens on. |
-| **Sample rate** | select | **Device default**, then every rate the device reports; the current value stays listed | Device default | Output rate for this device stream. See [Sample rate and low latency](#sample-rate-and-low-latency). |
 | **Low latency** | checkbox | on / off | off | Requests the device's smallest supported callback period for this bus's stream when the driver reports a buffer-size range (floored at 16 frames unless the whole range is smaller). A driver that reports no range keeps the configured size, and a device with a single fixed period ignores the hint. A device shared with another bus uses it when either bus asks. |
+| **Sample rate** | select | **Device default**, then every rate the device reports; the current value stays listed | Device default | Output rate for this device stream. See [Sample rate and low latency](#sample-rate-and-low-latency). |
 | **Channel mode** | select | **Stereo pair** / **Mono (fold L+R)** | Stereo pair | One channel on both sides, or a distinct left and right. |
 | **Left channel** | stepper | 1 up to the device's channel count | 1 | First channel of the route. 1-based. |
 | **Right channel** | stepper | 1 up to the device's channel count | 2 | Second channel. Disabled in **Mono (fold L+R)**. |
@@ -51,8 +51,8 @@ Card subtitle: "Headphones / cue output when preview is enabled." The card's hea
 | --- | --- | --- | --- | --- |
 | **Enable preview bus** | switch | on / off | off | Opens a second output for cueing. Without it, headphone cue is silent. |
 | **Device** | select | **System default** first, then every detected output device | System default | Device for the headphone bus. |
-| **Sample rate** | select | **Device default**, then every rate the device reports; the current value stays listed | Device default | Output rate for the preview device stream. Differs from the master rate whenever the devices do; the engine resamples. |
 | **Low latency** | checkbox | on / off | off | Same hint as the master bus, for this bus's device. |
+| **Sample rate** | select | **Device default**, then every rate the device reports; the current value stays listed | Device default | Output rate for the preview device stream. Differs from the master rate whenever the devices do; the engine resamples. |
 | **Channel mode** | select | **Stereo pair** / **Mono (fold L+R)** | Stereo pair | Same rules as the master bus. |
 | **Left channel** | stepper | 1 up to the device's channel count | 3 | First channel of the preview route. |
 | **Right channel** | stepper | 1 up to the device's channel count | 4 | Second channel of the preview route. |

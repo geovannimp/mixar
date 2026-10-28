@@ -187,6 +187,44 @@ class SettingsLibraryPanel extends StatelessWidget {
             ],
           ),
         ),
+        SettingsSectionCard(
+          title: l10n.settingsLibraryListTitle,
+          subtitle: l10n.settingsLibraryListDescription,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 16,
+            children: [
+              SettingsCheckbox(
+                label: l10n.settingsLibraryDimPlayedTracks,
+                value: draft.dimPlayedTracks,
+                onChanged: (enabled) =>
+                    onChanged(copyAppSettings(draft, dimPlayedTracks: enabled)),
+              ),
+              SettingsField(
+                label: l10n.settingsLibraryTrackRowLayout,
+                child: SettingsSelect<LibraryRowDensitySetting>(
+                  dialogTitle: l10n.settingsLibraryTrackRowLayout,
+                  value: draft.libraryRowDensity,
+                  options: const [
+                    LibraryRowDensitySetting.comfortable,
+                    LibraryRowDensitySetting.compact,
+                  ],
+                  labelBuilder: (mode) =>
+                      mode == LibraryRowDensitySetting.compact
+                      ? l10n.settingsLibraryRowCompact
+                      : l10n.settingsLibraryRowComfortable,
+                  subtitleBuilder: (mode) =>
+                      mode == LibraryRowDensitySetting.compact
+                      ? l10n.settingsLibraryRowCompactSubtitle
+                      : l10n.settingsLibraryRowComfortableSubtitle,
+                  onChanged: (mode) => onChanged(
+                    copyAppSettings(draft, libraryRowDensity: mode),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         // Chips under each list title, in the order they were turned on. Its
         // own card so twelve toggles do not bury the analysis and key controls.
         SettingsSectionCard(
