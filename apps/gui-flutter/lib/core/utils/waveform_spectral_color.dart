@@ -10,8 +10,6 @@ const kLowColor = Color.fromARGB(255, 255, 72, 48);
 const kMidColor = Color.fromARGB(255, 118, 228, 88);
 const kHighColor = Color.fromARGB(255, 72, 188, 255);
 
-const kWaveformBg = Color.fromARGB(255, 5, 5, 8);
-
 enum WaveformDisplayMode { rgb, filtered }
 
 class FilteredBar {
@@ -49,7 +47,11 @@ List<FilteredBar> waveformBars(
       return [
         FilteredBar(
           height: amp * maxAmp,
-          color: barFill(spectralRgb(peak.low, peak.mid, peak.high), amp),
+          color: spectralRgb(
+            peak.low,
+            peak.mid,
+            peak.high,
+          ).withValues(alpha: barAlpha(amp)),
         ),
       ];
   }
@@ -69,15 +71,3 @@ Color spectralRgb(double low, double mid, double high) {
 }
 
 double barAlpha(double amp) => 0.65 + amp * 0.35;
-
-/// Premultiply [barAlpha] onto the waveform background so 1px bars stay opaque.
-Color barFill(Color rgb, double amp) {
-  final a = barAlpha(amp).clamp(0.0, 1.0);
-  final ia = 1 - a;
-  return Color.fromARGB(
-    255,
-    (rgb.r * 255.0 * a + 5.0 * ia).round().clamp(0, 255),
-    (rgb.g * 255.0 * a + 5.0 * ia).round().clamp(0, 255),
-    (rgb.b * 255.0 * a + 8.0 * ia).round().clamp(0, 255),
-  );
-}

@@ -8,8 +8,13 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 
-const _savedLoopFill = Color.fromRGBO(255, 255, 255, 0.08);
-const _savedLoopBorder = Color.fromRGBO(255, 255, 255, 0.20);
+// Lane chrome neutrals are mid greys rather than light-on-dark white washes,
+// so saved loops and the beat grid read on both the near-black dark lane and
+// the light one.
+const _savedLoopFill = Color.fromRGBO(120, 124, 134, 0.10);
+const _savedLoopBorder = Color.fromRGBO(120, 124, 134, 0.45);
+const _beatGridBar = Color.fromRGBO(150, 155, 165, 0.42);
+const _beatGridBeat = Color.fromRGBO(150, 155, 165, 0.26);
 const _activeLoopFill = Color.fromRGBO(52, 211, 153, 0.18);
 const _activeLoopBorder = Color.fromRGBO(52, 211, 153, 0.70);
 const _pendingLoopIn = Color.fromRGBO(251, 191, 36, 0.95);
@@ -21,11 +26,11 @@ Picture recordBeatGridPicture({
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder, Offset.zero & size);
   final bar = Paint()
-    ..color = const Color.fromARGB(80, 200, 205, 215)
+    ..color = _beatGridBar
     ..strokeWidth = 1
     ..isAntiAlias = false;
   final beat = Paint()
-    ..color = const Color.fromARGB(55, 170, 175, 185)
+    ..color = _beatGridBeat
     ..strokeWidth = 1
     ..isAntiAlias = false;
   for (final mark in marks) {

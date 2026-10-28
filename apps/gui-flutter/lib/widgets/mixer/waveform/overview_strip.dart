@@ -5,9 +5,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
+import 'package:gui_flutter/core/theme/mixar_colors.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
-import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -16,9 +16,9 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-const _waveformSkeletonEffect = ShimmerEffect(
-  baseColor: kWaveformBg,
-  highlightColor: Color.fromARGB(255, 32, 34, 42),
+ShimmerEffect _skeletonEffect(MixarColors colors) => ShimmerEffect(
+  baseColor: colors.waveformBackground,
+  highlightColor: colors.border,
 );
 
 class OverviewStrip extends ConsumerWidget {
@@ -43,11 +43,13 @@ class OverviewStrip extends ConsumerWidget {
 
     return Skeletonizer(
       enabled: skeleton,
-      effect: _waveformSkeletonEffect,
+      effect: _skeletonEffect(theme.colors),
       child: Skeleton.replace(
         width: double.infinity,
         height: height,
-        replacement: const Skeleton.leaf(child: ColoredBox(color: kWaveformBg)),
+        replacement: Skeleton.leaf(
+          child: ColoredBox(color: theme.colors.waveformBackground),
+        ),
         child: SizedBox(
           height: height,
           width: double.infinity,
@@ -75,6 +77,7 @@ class OverviewStrip extends ConsumerWidget {
                           durationMs: durationMs,
                           originMs: 0,
                           spanMs: durationMs.toDouble(),
+                          background: theme.colors.waveformBackground,
                           mode: mode,
                         ),
                       ),
@@ -97,6 +100,7 @@ class OverviewStrip extends ConsumerWidget {
                             lineColor: theme.colors.foreground.withValues(
                               alpha: 0.85,
                             ),
+                            shadeColor: _playedShade(theme.colors),
                           ),
                         ),
                     ],
@@ -111,6 +115,15 @@ class OverviewStrip extends ConsumerWidget {
   }
 }
 
+/// Veil over the played part of the overview.
+///
+/// A black scrim reads as "already played" on the dark lane; on the light lane
+/// the same scrim would swallow the bars, so the wash comes from the
+/// foreground colour at low alpha instead.
+Color _playedShade(MixarColors colors) => colors.brightness == Brightness.dark
+    ? const Color.fromRGBO(0, 0, 0, 0.6)
+    : colors.foreground.withValues(alpha: 0.10);
+
 /// Playhead shade + needle — watches position without rebuilding the waveform.
 class _OverviewPlayhead extends ConsumerWidget {
   const new({
@@ -118,12 +131,14 @@ class _OverviewPlayhead extends ConsumerWidget {
     required this.durationMs,
     required this.width,
     required this.lineColor,
+    required this.shadeColor,
   });
 
   final int deckId;
   final int durationMs;
   final double width;
   final Color lineColor;
+  final Color shadeColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -139,7 +154,7 @@ class _OverviewPlayhead extends ConsumerWidget {
           width: playheadX,
           top: 0,
           bottom: 0,
-          child: const ColoredBox(color: Color.fromRGBO(0, 0, 0, 0.6)),
+          child: ColoredBox(color: shadeColor),
         ),
         Positioned(
           left: playheadX,

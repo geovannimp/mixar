@@ -5,7 +5,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
-import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
@@ -123,7 +122,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final slipShadowMs = ref.watch(deckSlipShadowMsProvider(widget.deckId));
     final strip = trackId == null || durationMs <= 0
         ? null
-        : ref.watch(waveformStripProvider((trackId, durationMs)));
+        : ref.watch(
+            waveformStripProvider((
+              trackId,
+              durationMs,
+              theme.colors.waveformBackground,
+            )),
+          );
     final beatGrid = trackId == null || durationMs <= 0
         ? null
         : ref.watch(stripBeatGridPictureProvider((trackId, durationMs)));
@@ -303,7 +308,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  const ColoredBox(color: kWaveformBg),
+                  ColoredBox(color: theme.colors.waveformBackground),
                   if (strip != null)
                     AnimatedBuilder(
                       animation: _playhead,
