@@ -25,6 +25,13 @@ class WaveformSection extends ConsumerWidget {
       color: theme.colors.background,
       child: Column(
         children: [
+          // Hairline against the header above, mirroring the foot divider
+          // against the deck row.
+          MDivider(
+            key: const ValueKey('waveform-head'),
+            padding: .zero,
+            color: theme.colors.border,
+          ),
           Expanded(
             child: Stack(
               children: [

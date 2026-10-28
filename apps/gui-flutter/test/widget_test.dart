@@ -20,6 +20,7 @@ import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/mixer/deck_grid.dart';
 import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
@@ -152,11 +153,12 @@ void main() {
     Size size = const Size(1400, 900),
     double devicePixelRatio = 1,
     AppSettings? settings,
+    MixarThemeData? theme,
   }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
 
-    final theme = MixarThemeData.light();
+    final activeTheme = theme ?? MixarThemeData.light();
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = devicePixelRatio;
     addTearDown(tester.view.resetPhysicalSize);
@@ -176,7 +178,7 @@ void main() {
           ...extraOverrides,
         ],
         child: mixarTestMaterialApp(
-          theme: theme,
+          theme: activeTheme,
           home: const AppShell(appTitle: 'Mixar'),
         ),
       ),
@@ -872,17 +874,57 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('waveform pane ends on a full-width hairline', (tester) async {
+  testWidgets('waveform pane is capped by full-width hairlines', (
+    tester,
+  ) async {
     await pumpShell(tester);
 
     final hairline = MixarThemeData.light().style.borderWidth;
     final wave = find.byType(WaveformSection);
+    final head = tester.getRect(find.byKey(const ValueKey('waveform-head')));
     final foot = tester.getRect(find.byKey(const ValueKey('waveform-foot')));
+
+    expect(head.width, tester.getSize(wave).width);
+    expect(head.height, hairline);
+    expect(head.top, tester.getTopLeft(wave).dy);
 
     expect(foot.width, tester.getSize(wave).width);
     expect(foot.height, hairline);
     expect(foot.bottom, tester.getBottomLeft(wave).dy);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('header shares the deck row surface in both themes', (
+    tester,
+  ) async {
+    for (final theme in [MixarThemeData.dark(), MixarThemeData.light()]) {
+      await pumpShell(tester, theme: theme);
+
+      final headerSurface = tester
+          .widget<ColoredBox>(
+            find
+                .descendant(
+                  of: find.byType(AppHeader),
+                  matching: find.byType(ColoredBox),
+                )
+                .first,
+          )
+          .color;
+      final deckRowSurface = tester
+          .widget<ColoredBox>(
+            find
+                .ancestor(
+                  of: find.byType(DeckGrid),
+                  matching: find.byType(ColoredBox),
+                )
+                .first,
+          )
+          .color;
+
+      // The top bar reads as part of the decks/mixer panel, not the canvas.
+      expect(headerSurface, theme.colors.card);
+      expect(headerSurface, deckRowSurface);
+    }
   });
 
   testWidgets('stacked decks are split by a hairline across the column', (

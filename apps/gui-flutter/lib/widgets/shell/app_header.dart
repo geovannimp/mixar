@@ -40,8 +40,10 @@ class AppHeader extends ConsumerWidget {
         .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
     final drawerOpen = ref.watch(libraryDrawerOpenProvider);
 
+    // Card, not the app canvas: the header sits directly on the decks/mixer
+    // panel, so both read as one piece of chrome in every theme.
     return ColoredBox(
-      color: theme.colors.background,
+      color: theme.colors.card,
       child: SizedBox(
         height: kAppHeaderHeight,
         child: Row(
@@ -52,8 +54,8 @@ class AppHeader extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Center(
                   child: ColorFiltered(
-                    colorFilter: const ColorFilter.mode(
-                      Color(0xFFFFFFFF),
+                    colorFilter: ColorFilter.mode(
+                      theme.colors.foreground,
                       BlendMode.srcIn,
                     ),
                     child: Image.asset(

@@ -52,15 +52,6 @@ void main() {
     },
   );
 
-  test('barFill is opaque and leans toward the background as amp drops', () {
-    final full = barFill(const Color.fromARGB(255, 255, 72, 48), 1);
-    expect(full.a, 1);
-    expect(full.r, closeTo(1, 1e-3));
-    final dim = barFill(const Color.fromARGB(255, 255, 72, 48), 0);
-    expect(dim.a, 1);
-    expect(dim.r, lessThan(full.r));
-  });
-
   test('peakAtTime prefers L1 inside the detail window', () {
     const overview = [
       SpectralPeak(low: 1, mid: 0, high: 0),

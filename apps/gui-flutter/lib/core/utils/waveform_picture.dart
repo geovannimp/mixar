@@ -11,8 +11,8 @@ class WaveformBarPainter extends CustomPainter {
     required this.durationMs,
     required this.originMs,
     required this.spanMs,
+    required this.background,
     this.fallbackToOverview = true,
-    this.fillBackground = true,
     this.mode = WaveformDisplayMode.rgb,
   });
 
@@ -21,15 +21,20 @@ class WaveformBarPainter extends CustomPainter {
   final int durationMs;
   final double originMs;
   final double spanMs;
+
+  /// Lane fill behind the bars (theme `MixarColors.waveformBackground`).
+  ///
+  /// Filled here rather than by the parent so recorded strip pictures stay
+  /// opaque: a tile picture replaces the low-res overview under it instead of
+  /// letting it show through the gaps between bars.
+  final Color background;
+
   final bool fallbackToOverview;
-  final bool fillBackground;
   final WaveformDisplayMode mode;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (fillBackground) {
-      canvas.drawRect(Offset.zero & size, Paint()..color = kWaveformBg);
-    }
+    canvas.drawRect(Offset.zero & size, Paint()..color = background);
     if (overview.isEmpty || durationMs <= 0 || spanMs <= 0 || size.width <= 0) {
       return;
     }
@@ -74,8 +79,8 @@ class WaveformBarPainter extends CustomPainter {
       durationMs != oldDelegate.durationMs ||
       originMs != oldDelegate.originMs ||
       spanMs != oldDelegate.spanMs ||
+      background != oldDelegate.background ||
       fallbackToOverview != oldDelegate.fallbackToOverview ||
-      fillBackground != oldDelegate.fillBackground ||
       mode != oldDelegate.mode;
 }
 
@@ -85,9 +90,9 @@ Picture recordWaveformPicture({
   required double originMs,
   required double spanMs,
   required Size size,
+  required Color background,
   DetailWindow? detail,
   bool fallbackToOverview = true,
-  bool fillBackground = true,
   WaveformDisplayMode mode = WaveformDisplayMode.rgb,
 }) {
   final recorder = PictureRecorder();
@@ -98,8 +103,8 @@ Picture recordWaveformPicture({
     durationMs: durationMs,
     originMs: originMs,
     spanMs: spanMs,
+    background: background,
     fallbackToOverview: fallbackToOverview,
-    fillBackground: fillBackground,
     mode: mode,
   ).paint(canvas, size);
   return recorder.endRecording();

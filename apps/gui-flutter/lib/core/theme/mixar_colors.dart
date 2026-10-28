@@ -21,6 +21,7 @@ class MixarColors {
     required this.destructive,
     required this.destructiveForeground,
     required this.card,
+    required this.waveformBackground,
     required this.border,
     required this.selection,
     required this.selectionForeground,
@@ -58,6 +59,7 @@ class MixarColors {
     destructive: Color(0xFFE7000B),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFFFFFFFF),
+    waveformBackground: MixarZinc.s100,
     border: MixarZinc.s200,
   );
 
@@ -86,6 +88,7 @@ class MixarColors {
     destructive: Color(0xFFFF6467),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFF18181C),
+    waveformBackground: Color(0xFF050508),
     border: MixarZinc.s800,
   );
 
@@ -102,6 +105,13 @@ class MixarColors {
   final Color destructive;
   final Color destructiveForeground;
   final Color card;
+
+  /// Waveform lane fill the spectral bars are drawn over.
+  ///
+  /// Near-black in dark (bars read as glowing on it), a recessed neutral in
+  /// light. Baked into recorded strip pictures, so it travels with the strip
+  /// cache key and re-records when the theme flips.
+  final Color waveformBackground;
 
   /// Hairline colour — a solid palette step, never an alpha wash.
   ///

@@ -60,13 +60,13 @@ class WaveformStrip {
 class WaveformStripNotifier extends Notifier<WaveformStrip?> {
   new(this.arg);
 
-  final (String, int) arg;
+  final (String, int, Color) arg;
   var _gen = 0;
   WaveformStrip? _owned;
 
   @override
   WaveformStrip? build() {
-    final (trackId, durationMs) = arg;
+    final (trackId, durationMs, background) = arg;
     final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
     final mode = ref.watch(waveformDisplayModeProvider);
     ref.onDispose(() {
@@ -87,6 +87,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       originMs: 0,
       spanMs: durationMs.toDouble(),
       size: Size(width.toDouble(), height),
+      background: background,
       mode: mode,
     );
     final strip = WaveformStrip(
@@ -98,7 +99,9 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     final prev = _owned;
     _owned = strip;
     _dropAfterFrame(prev);
-    unawaited(_fillL1(trackId, peaks, durationMs, width, gen, mode));
+    unawaited(
+      _fillL1(trackId, peaks, durationMs, width, gen, mode, background),
+    );
     return strip;
   }
 
@@ -109,6 +112,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     int width,
     int gen,
     WaveformDisplayMode mode,
+    Color background,
   ) async {
     final lib = await ref.read(libraryTransportProvider.future);
     if (!ref.mounted || gen != _gen) {
@@ -160,6 +164,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
           originMs: startMs.toDouble(),
           spanMs: (endMs - startMs).toDouble(),
           size: Size(w.toDouble(), kWaveformStripHeight),
+          background: background,
           fallbackToOverview: false,
           mode: mode,
         );
@@ -203,12 +208,15 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
 
 // autoDispose so unloading a deck releases the strip and its
 // waveformOverviewProvider watch (otherwise every loaded track pins peaks).
+/// Strip pictures bake the lane background, so the theme colour is part of the
+/// key: flipping the theme records a fresh strip instead of showing dark
+/// pictures on a light lane.
 final NotifierProviderFamily<
   WaveformStripNotifier,
   WaveformStrip?,
-  (String, int)
+  (String, int, Color)
 >
 waveformStripProvider = NotifierProvider.autoDispose
-    .family<WaveformStripNotifier, WaveformStrip?, (String, int)>(
+    .family<WaveformStripNotifier, WaveformStrip?, (String, int, Color)>(
       WaveformStripNotifier.new,
     );
