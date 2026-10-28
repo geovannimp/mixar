@@ -120,6 +120,7 @@ IconData _iconFor(SettingsSection section) {
     SettingsSection.library => LucideIcons.library,
     SettingsSection.storage => LucideIcons.hardDrive,
     SettingsSection.session => LucideIcons.history,
+    SettingsSection.privacy => LucideIcons.shield,
     SettingsSection.controllers => LucideIcons.gamepad2,
   };
 }

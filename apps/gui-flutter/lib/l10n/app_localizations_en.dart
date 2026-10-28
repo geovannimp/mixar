@@ -95,8 +95,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSectionControllers => 'Controllers';
 
   @override
+  String get settingsSectionPrivacy => 'Privacy';
+
+  @override
+  String get settingsPrivacyDescription => 'Anonymous app usage data.';
+
+  @override
   String get settingsUiDescription =>
-      'Theme, language, hover tips, control presentation, and library list appearance.';
+      'Theme, language, hover tips, control presentation, mixer meters, and the library drawer.';
 
   @override
   String get settingsUiChromeTitle => 'Chrome and controls';
@@ -104,13 +110,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsUiChromeDescription =>
       'Theme, language, hover tips, and how selects open.';
-
-  @override
-  String get settingsUiLibraryListTitle => 'Library list';
-
-  @override
-  String get settingsUiLibraryListDescription =>
-      'How tracks look in the library table.';
 
   @override
   String get settingsUiTheme => 'Theme';
@@ -311,7 +310,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMixerDescription =>
-      'Keep analyzed tracks near a consistent perceived loudness.';
+      'Loudness matching, sampler routing, and realtime stem fallback.';
 
   @override
   String get settingsMixerNormalizerTitle => 'Volume normalizer';
@@ -325,6 +324,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsMixerTargetLufs => 'Target LUFS';
+
+  @override
+  String get settingsMixerSamplerRoutingTitle => 'Sampler routing';
+
+  @override
+  String get settingsMixerSamplerRoutingDescription =>
+      'Where sampler hits enter the signal path, relative to the channel strip.';
+
+  @override
+  String get settingsMixerSamplerStripRoute => 'Sampler strip route';
+
+  @override
+  String get settingsMixerSamplerStripBefore => 'Before channel strip';
+
+  @override
+  String get settingsMixerSamplerStripAfter => 'After channel strip';
 
   @override
   String get settingsMixerRealtimeStemsTitle => 'Realtime Stems';
@@ -362,10 +377,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDeckDescription =>
-      'Default jog, tempo, and sampler behavior for new decks.';
+      'Deck layout, plus default jog, tempo, and sampler behavior for new decks.';
 
   @override
   String get settingsDeckCount => 'Deck layout';
+
+  @override
+  String get settingsDeckLayoutDescription =>
+      'How many decks the mixer shows. Changing it restarts the audio engine and reloads tracks.';
+
+  @override
+  String get settingsDeckLayoutDecks => 'Decks';
 
   @override
   String get settingsDeckCountTwo => '2 decks';
@@ -462,15 +484,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDeckSamplerPlayLoop => 'Loop';
 
   @override
-  String get settingsDeckSamplerStripRoute => 'Sampler strip route';
-
-  @override
-  String get settingsDeckSamplerStripBefore => 'Before channel strip';
-
-  @override
-  String get settingsDeckSamplerStripAfter => 'After channel strip';
-
-  @override
   String get settingsDeckDefaultSamplerBankA => 'Deck A default sampler bank';
 
   @override
@@ -491,6 +504,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDeckCountRestartConfirm => 'Restart and apply';
+
+  @override
+  String get settingsLibraryListTitle => 'Library list';
+
+  @override
+  String get settingsLibraryListDescription =>
+      'How tracks look in the library table.';
 
   @override
   String get settingsLibraryDescription =>

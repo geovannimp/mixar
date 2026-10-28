@@ -12,6 +12,7 @@ import 'package:gui_flutter/widgets/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_deck_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_privacy_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_session_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_storage_panel.dart';
@@ -385,6 +386,10 @@ class _SettingsSectionPanel extends StatelessWidget {
       ),
       SettingsSection.storage => const SettingsStoragePanel(),
       SettingsSection.session => SettingsSessionPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
+      SettingsSection.privacy => SettingsPrivacyPanel(
         draft: draft,
         onChanged: onChanged,
       ),

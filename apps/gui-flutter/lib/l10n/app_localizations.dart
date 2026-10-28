@@ -267,10 +267,22 @@ abstract class AppLocalizations {
   /// **'Controllers'**
   String get settingsSectionControllers;
 
+  /// No description provided for @settingsSectionPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get settingsSectionPrivacy;
+
+  /// No description provided for @settingsPrivacyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonymous app usage data.'**
+  String get settingsPrivacyDescription;
+
   /// No description provided for @settingsUiDescription.
   ///
   /// In en, this message translates to:
-  /// **'Theme, language, hover tips, control presentation, and library list appearance.'**
+  /// **'Theme, language, hover tips, control presentation, mixer meters, and the library drawer.'**
   String get settingsUiDescription;
 
   /// No description provided for @settingsUiChromeTitle.
@@ -284,18 +296,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Theme, language, hover tips, and how selects open.'**
   String get settingsUiChromeDescription;
-
-  /// No description provided for @settingsUiLibraryListTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Library list'**
-  String get settingsUiLibraryListTitle;
-
-  /// No description provided for @settingsUiLibraryListDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'How tracks look in the library table.'**
-  String get settingsUiLibraryListDescription;
 
   /// No description provided for @settingsUiTheme.
   ///
@@ -660,7 +660,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsMixerDescription.
   ///
   /// In en, this message translates to:
-  /// **'Keep analyzed tracks near a consistent perceived loudness.'**
+  /// **'Loudness matching, sampler routing, and realtime stem fallback.'**
   String get settingsMixerDescription;
 
   /// No description provided for @settingsMixerNormalizerTitle.
@@ -686,6 +686,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Target LUFS'**
   String get settingsMixerTargetLufs;
+
+  /// No description provided for @settingsMixerSamplerRoutingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sampler routing'**
+  String get settingsMixerSamplerRoutingTitle;
+
+  /// No description provided for @settingsMixerSamplerRoutingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Where sampler hits enter the signal path, relative to the channel strip.'**
+  String get settingsMixerSamplerRoutingDescription;
+
+  /// No description provided for @settingsMixerSamplerStripRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Sampler strip route'**
+  String get settingsMixerSamplerStripRoute;
+
+  /// No description provided for @settingsMixerSamplerStripBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Before channel strip'**
+  String get settingsMixerSamplerStripBefore;
+
+  /// No description provided for @settingsMixerSamplerStripAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'After channel strip'**
+  String get settingsMixerSamplerStripAfter;
 
   /// No description provided for @settingsMixerRealtimeStemsTitle.
   ///
@@ -750,7 +780,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDeckDescription.
   ///
   /// In en, this message translates to:
-  /// **'Default jog, tempo, and sampler behavior for new decks.'**
+  /// **'Deck layout, plus default jog, tempo, and sampler behavior for new decks.'**
   String get settingsDeckDescription;
 
   /// No description provided for @settingsDeckCount.
@@ -758,6 +788,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deck layout'**
   String get settingsDeckCount;
+
+  /// No description provided for @settingsDeckLayoutDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'How many decks the mixer shows. Changing it restarts the audio engine and reloads tracks.'**
+  String get settingsDeckLayoutDescription;
+
+  /// No description provided for @settingsDeckLayoutDecks.
+  ///
+  /// In en, this message translates to:
+  /// **'Decks'**
+  String get settingsDeckLayoutDecks;
 
   /// No description provided for @settingsDeckCountTwo.
   ///
@@ -927,24 +969,6 @@ abstract class AppLocalizations {
   /// **'Loop'**
   String get settingsDeckSamplerPlayLoop;
 
-  /// No description provided for @settingsDeckSamplerStripRoute.
-  ///
-  /// In en, this message translates to:
-  /// **'Sampler strip route'**
-  String get settingsDeckSamplerStripRoute;
-
-  /// No description provided for @settingsDeckSamplerStripBefore.
-  ///
-  /// In en, this message translates to:
-  /// **'Before channel strip'**
-  String get settingsDeckSamplerStripBefore;
-
-  /// No description provided for @settingsDeckSamplerStripAfter.
-  ///
-  /// In en, this message translates to:
-  /// **'After channel strip'**
-  String get settingsDeckSamplerStripAfter;
-
   /// No description provided for @settingsDeckDefaultSamplerBankA.
   ///
   /// In en, this message translates to:
@@ -986,6 +1010,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restart and apply'**
   String get settingsDeckCountRestartConfirm;
+
+  /// No description provided for @settingsLibraryListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library list'**
+  String get settingsLibraryListTitle;
+
+  /// No description provided for @settingsLibraryListDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'How tracks look in the library table.'**
+  String get settingsLibraryListDescription;
 
   /// No description provided for @settingsLibraryDescription.
   ///

@@ -191,7 +191,10 @@ void main() {
     );
     await pumpDeckPanel(tester, draft: draft, onChanged: (_) {});
 
-    expect(find.text(l10n.settingsDeckCount.toUpperCase()), findsOneWidget);
+    expect(
+      find.text(l10n.settingsDeckLayoutDecks.toUpperCase()),
+      findsOneWidget,
+    );
     expect(
       find.text(l10n.settingsDeckDefaultSamplerBankC.toUpperCase()),
       findsOneWidget,

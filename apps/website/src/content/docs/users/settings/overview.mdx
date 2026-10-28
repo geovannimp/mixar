@@ -5,21 +5,22 @@ section: "Settings"
 order: 601
 ---
 
-The **Settings** screen holds every preference that shapes the engine, the mixer, the decks, and the library. Its sidebar has nine sections in this order: **Audio**, **Mixer**, **Waveform**, **Deck**, **UI**, **Library**, **Storage**, **Session**, **Controllers**.
+The **Settings** screen holds every preference that shapes the engine, the mixer, the decks, and the library. Its sidebar has ten sections in this order: **UI**, **Audio**, **Mixer**, **Waveform**, **Deck**, **Library**, **Storage**, **Session**, **Controllers**, **Privacy**.
 
 ## Which page covers which section
 
 | Section | Page |
 | --- | --- |
+| **UI** | [Interface](/docs/users/settings/interface): theme, language, controls, meters, library drawer |
 | **Audio** | [Audio](/docs/users/settings/audio): engine, master bus, preview bus |
-| **Mixer** | [Mixer and deck](/docs/users/settings/mixer-and-deck): volume normalizer, realtime stems |
+| **Mixer** | [Mixer and deck](/docs/users/settings/mixer-and-deck): volume normalizer, sampler routing, realtime stems |
 | **Waveform** | [Interface](/docs/users/settings/interface): waveform display mode |
 | **Deck** | [Mixer and deck](/docs/users/settings/mixer-and-deck): deck layout, jog, tempo, brake, sampler |
-| **UI** | [Interface](/docs/users/settings/interface): language, controls, meters, library list, drawer, analytics |
-| **Library** | [Library](/docs/users/settings/library): analysis, file tags, keys, visible fields, stems, Mixxx import |
+| **Library** | [Library](/docs/users/settings/library): analysis, file tags, keys, list appearance, visible fields, stems, Mixxx import |
 | **Storage** | [Storage](/docs/users/settings/storage): cache sizes, sync and clear |
 | **Session** | [Session](/docs/users/settings/session): performance history |
 | **Controllers** | [Controllers](/docs/users/settings/controllers): mappings and MIDI ports |
+| **Privacy** | [Privacy](/docs/users/settings/privacy): anonymous analytics consent |
 
 ## Saving
 
@@ -27,7 +28,7 @@ The **Settings** screen holds every preference that shapes the engine, the mixer
 
 Closing with unsaved edits asks **Unsaved settings** / "Save changes before closing?" with **Cancel**, **Discard**, and **Save**. Discard throws the draft away; Save saves and only closes if the save applied.
 
-A normal save restarts the engine when it is running, then reloads the tracks that were on the decks that still exist. Three kinds of edit skip that restart because they only change how the app paints: the **Theme** select, the **Analytics** switch, and the **Visible fields** checkboxes. Every other preference (including UI-only ones such as **Show tooltips**) takes the restart path.
+A normal save restarts the engine when it is running, then reloads the tracks that were on the decks that still exist. Three kinds of edit skip that restart because they only change how the app paints: the **Theme** select under **UI**, the **Analytics** switch under **Privacy**, and the **Visible fields** checkboxes under **Library**. Every other preference (including UI-only ones such as **Show tooltips**) takes the restart path.
 
 If the settings were written but the engine refused them, the toast reads "Settings saved, but not applied" with the error under it. If the write itself fails, the toast reads "Save failed" with the error.
 

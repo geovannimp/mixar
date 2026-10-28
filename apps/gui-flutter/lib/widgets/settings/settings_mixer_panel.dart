@@ -7,6 +7,7 @@ import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
+import 'package:gui_flutter/widgets/settings/settings_select.dart';
 
 class SettingsMixerPanel extends StatelessWidget {
   const new({required this.draft, required this.onChanged, super.key});
@@ -48,6 +49,23 @@ class SettingsMixerPanel extends StatelessWidget {
                   ),
                 )
               : null,
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsMixerSamplerRoutingTitle,
+          subtitle: l10n.settingsMixerSamplerRoutingDescription,
+          child: SettingsField(
+            label: l10n.settingsMixerSamplerStripRoute,
+            child: SettingsSelect(
+              dialogTitle: l10n.settingsMixerSamplerStripRoute,
+              value: draft.samplerStripRoute,
+              options: SamplerStripRouteSettingFrb.values,
+              labelBuilder: (m) => m == SamplerStripRouteSettingFrb.before
+                  ? l10n.settingsMixerSamplerStripBefore
+                  : l10n.settingsMixerSamplerStripAfter,
+              onChanged: (m) =>
+                  onChanged(copyAppSettings(draft, samplerStripRoute: m)),
+            ),
+          ),
         ),
         SettingsSectionCard(
           title: l10n.settingsMixerRealtimeStemsTitle,
