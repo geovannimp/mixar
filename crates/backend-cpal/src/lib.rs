@@ -199,9 +199,26 @@ impl CpalBackend {
     fn max_output_channels(configs: &[SupportedStreamConfigRange]) -> u16 {
         configs
             .iter()
+            .filter(|config| config.sample_format() == SampleFormat::F32)
             .map(|config| config.channels())
             .max()
             .unwrap_or(0)
+    }
+
+    /// Rates a stream could be opened at: only `f32` ranges count, because the
+    /// callback is `f32` and the opener refuses any other format.
+    fn advertised_rates(configs: &[SupportedStreamConfigRange]) -> Vec<u32> {
+        let mut rates = Vec::new();
+        for config in configs
+            .iter()
+            .filter(|config| config.sample_format() == SampleFormat::F32)
+        {
+            rates.push(config.min_sample_rate());
+            rates.push(config.max_sample_rate());
+        }
+        rates.sort();
+        rates.dedup();
+        rates
     }
 
     /// Pick the stream format for `params` from a device's supported ranges.
@@ -395,19 +412,17 @@ impl AudioBackend for CpalBackend {
                 continue;
             }
 
+            // The engine renders f32, so a rate or channel count the device only
+            // offers in another format cannot be opened. Advertise only what
+            // `pick_device_format` could accept.
             let max_channels = Self::max_output_channels(&supported_configs);
             if max_channels == 0 {
                 continue;
             }
-
-            // Only rates a supported range covers: other rates must not be offered.
-            let mut sample_rates = Vec::new();
-            for config in &supported_configs {
-                sample_rates.push(config.min_sample_rate());
-                sample_rates.push(config.max_sample_rate());
+            let sample_rates = Self::advertised_rates(&supported_configs);
+            if sample_rates.is_empty() {
+                continue;
             }
-            sample_rates.sort();
-            sample_rates.dedup();
 
             // The rate the system mixes this device at when it owns the format.
             // On WASAPI that is shared mode's mix format; a stream opened at any
@@ -627,6 +642,24 @@ mod tests {
             SupportedBufferSize::Range { min: 256, max: 512 },
             format,
         )
+    }
+
+    #[test]
+    fn advertised_rates_cover_only_openable_f32_ranges() {
+        let configs = [
+            range(2, 44_100, 48_000, SampleFormat::F32),
+            // i16-only support at 96 kHz cannot be opened by the f32 callback.
+            range(2, 96_000, 96_000, SampleFormat::I16),
+        ];
+        assert_eq!(
+            CpalBackend::advertised_rates(&configs),
+            vec![44_100, 48_000]
+        );
+        assert_eq!(CpalBackend::max_output_channels(&configs), 2);
+        assert!(
+            CpalBackend::advertised_rates(&[range(2, 48_000, 48_000, SampleFormat::I16)])
+                .is_empty()
+        );
     }
 
     #[test]

@@ -17,6 +17,8 @@ const PREVIEW_BUS_ID: &str = "cue";
 const TARGET_LUFS_MIN: f32 = -24.0;
 const TARGET_LUFS_MAX: f32 = -9.0;
 const TARGET_LUFS_DEFAULT: f32 = -18.0;
+/// Sample rate `EngineConfig::default()` used before rates moved onto the buses.
+const LEGACY_DEFAULT_SAMPLE_RATE: u32 = 48_000;
 
 static SETTINGS: OnceLock<Arc<Mutex<SettingsHost>>> = OnceLock::new();
 
@@ -913,10 +915,26 @@ fn read_settings_file(path: &Path) -> Option<AppSettings> {
     let legacy_low_latency = value
         .get("low_latency")
         .and_then(serde_json::Value::as_bool);
+    let legacy_sample_rate = value
+        .get("sample_rate")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|rate| u32::try_from(rate).ok());
     let mut settings: AppSettings = serde_json::from_value(value).ok()?;
     if legacy_low_latency == Some(true) {
         settings.master_bus.low_latency = true;
         settings.preview_bus.low_latency = true;
+    }
+    // `sample_rate` used to be app-wide. 48000 was the built-in default and was
+    // written even when never chosen, so migrating it would pin every existing
+    // install to 48 kHz — the behaviour this change removes. Any other value was
+    // a real choice, so keep it on the routes that had none.
+    if let Some(rate) = legacy_sample_rate.filter(|rate| *rate != LEGACY_DEFAULT_SAMPLE_RATE) {
+        if settings.master_bus.sample_rate.is_none() {
+            settings.master_bus.sample_rate = Some(rate);
+        }
+        if settings.preview_bus.sample_rate.is_none() {
+            settings.preview_bus.sample_rate = Some(rate);
+        }
     }
     Some(settings)
 }
@@ -1673,6 +1691,40 @@ mod tests {
             saved.get("low_latency").is_none(),
             "the legacy global flag must not be written back: {saved}"
         );
+    }
+
+    #[test]
+    fn legacy_global_sample_rate_moves_to_both_buses() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("sample_rate".into(), serde_json::json!(44_100));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("legacy settings");
+        assert_eq!(loaded.master_bus.sample_rate, Some(44_100));
+        assert_eq!(loaded.preview_bus.sample_rate, Some(44_100));
+    }
+
+    #[test]
+    fn legacy_default_sample_rate_does_not_pin_the_buses() {
+        // 48 kHz was the built-in default and was written even when never chosen, so
+        // migrating it would re-pin every install to the rate this change removes.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("sample_rate".into(), serde_json::json!(48_000));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("encode")).expect("write");
+
+        let loaded = read_settings_file(&path).expect("legacy settings");
+        assert_eq!(loaded.master_bus.sample_rate, None);
+        assert_eq!(loaded.preview_bus.sample_rate, None);
     }
 
     #[test]
