@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/core/utils/mixer_live_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -491,7 +490,7 @@ class _MixerCueFooter extends StatelessWidget {
             child: Icon(
               LucideIcons.headphones,
               size: 14,
-              color: cue ? kMixerLiveOn : theme.colors.mutedForeground,
+              color: cue ? theme.colors.primary : theme.colors.mutedForeground,
             ),
           ),
         ),

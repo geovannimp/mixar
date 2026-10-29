@@ -297,6 +297,25 @@ void main() {
     );
   });
 
+  test('accent palette defaults teal and is dirty only when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.accentPalette, AccentPaletteSetting.teal);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, accentPalette: AccentPaletteSetting.violet),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, accentPalette: AccentPaletteSetting.teal),
+        baseline,
+      ),
+      isFalse,
+    );
+  });
+
   test(
     'library drawer defaults off at the bottom and is dirty when changed',
     () {

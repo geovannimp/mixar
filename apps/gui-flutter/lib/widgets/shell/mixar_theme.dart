@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/theme/mixar_colors.dart';
 import 'package:gui_flutter/core/theme/mixar_style.dart';
 import 'package:shadcn_ui/shadcn_ui.dart' show ShadTheme;
@@ -21,6 +22,25 @@ class MixarThemeData {
 
   factory forBrightness(Brightness brightness) =>
       brightness == Brightness.dark ? _dark : _light;
+
+  /// Palette-seeded theme. The teal palette returns the stock singleton, so
+  /// existing `light()`/`dark()` call sites are unchanged.
+  factory MixarThemeData.of(MixarAccentPalette palette, Brightness brightness) {
+    final base = MixarThemeData.forBrightness(brightness);
+    return palette == MixarAccentPalette.teal
+        ? base
+        : _accented.putIfAbsent(
+            (palette, brightness),
+            () => MixarThemeData(
+              colors: base.colors.withAccentScale(palette.scale),
+              // Neutrals and text colour are unchanged, so reuse the graph.
+              typography: base.typography,
+              style: base.style,
+            ),
+          );
+  }
+
+  static final _accented = <(MixarAccentPalette, Brightness), MixarThemeData>{};
 
   static final _light = MixarThemeData(
     colors: MixarColors.light,

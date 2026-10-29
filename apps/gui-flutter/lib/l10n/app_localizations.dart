@@ -294,8 +294,20 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiChromeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Theme, language, hover tips, and how selects open.'**
+  /// **'Language, hover tips, and how selects open.'**
   String get settingsUiChromeDescription;
+
+  /// No description provided for @settingsUiThemeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get settingsUiThemeTitle;
+
+  /// No description provided for @settingsUiThemeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Brightness and the accent color used by brand chrome.'**
+  String get settingsUiThemeDescription;
 
   /// No description provided for @settingsUiTheme.
   ///
@@ -314,6 +326,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dark'**
   String get settingsUiThemeDark;
+
+  /// No description provided for @settingsUiAccentColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent color'**
+  String get settingsUiAccentColor;
+
+  /// No description provided for @settingsUiAccentTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get settingsUiAccentTeal;
+
+  /// No description provided for @settingsUiAccentBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get settingsUiAccentBlue;
+
+  /// No description provided for @settingsUiAccentViolet.
+  ///
+  /// In en, this message translates to:
+  /// **'Violet'**
+  String get settingsUiAccentViolet;
+
+  /// No description provided for @settingsUiAccentOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get settingsUiAccentOrange;
+
+  /// No description provided for @settingsUiAccentPink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get settingsUiAccentPink;
 
   /// No description provided for @settingsUiLanguageLabel.
   ///

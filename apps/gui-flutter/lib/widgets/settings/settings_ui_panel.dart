@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
@@ -73,8 +74,8 @@ class SettingsUiPanel extends StatelessWidget {
       description: l10n.settingsUiDescription,
       cards: [
         SettingsSectionCard(
-          title: l10n.settingsUiChromeTitle,
-          subtitle: l10n.settingsUiChromeDescription,
+          title: l10n.settingsUiThemeTitle,
+          subtitle: l10n.settingsUiThemeDescription,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
@@ -90,6 +91,24 @@ class SettingsUiPanel extends StatelessWidget {
                       onChanged(copyAppSettings(draft, theme: theme)),
                 ),
               ),
+              SettingsField(
+                label: l10n.settingsUiAccentColor,
+                child: SettingsAccentPicker(
+                  value: draft.accentPalette,
+                  onChanged: (palette) =>
+                      onChanged(copyAppSettings(draft, accentPalette: palette)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsUiChromeTitle,
+          subtitle: l10n.settingsUiChromeDescription,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 16,
+            children: [
               SettingsField(
                 label: l10n.settingsUiLanguageLabel,
                 child: SettingsSelect<UiLanguageSetting>(

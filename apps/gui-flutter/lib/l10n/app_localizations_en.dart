@@ -109,7 +109,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUiChromeDescription =>
-      'Theme, language, hover tips, and how selects open.';
+      'Language, hover tips, and how selects open.';
+
+  @override
+  String get settingsUiThemeTitle => 'Theme';
+
+  @override
+  String get settingsUiThemeDescription =>
+      'Brightness and the accent color used by brand chrome.';
 
   @override
   String get settingsUiTheme => 'Theme';
@@ -119,6 +126,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUiThemeDark => 'Dark';
+
+  @override
+  String get settingsUiAccentColor => 'Accent color';
+
+  @override
+  String get settingsUiAccentTeal => 'Teal';
+
+  @override
+  String get settingsUiAccentBlue => 'Blue';
+
+  @override
+  String get settingsUiAccentViolet => 'Violet';
+
+  @override
+  String get settingsUiAccentOrange => 'Orange';
+
+  @override
+  String get settingsUiAccentPink => 'Pink';
 
   @override
   String get settingsUiLanguageLabel => 'Language';

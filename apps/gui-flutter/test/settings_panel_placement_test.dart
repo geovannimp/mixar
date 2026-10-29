@@ -208,4 +208,38 @@ void main() {
       16,
     );
   }, semanticsEnabled: false);
+
+  testWidgets('UI panel keeps theme and accent in their own card', (
+    tester,
+  ) async {
+    await pumpUi(tester);
+
+    final themeCard = find.widgetWithText(SettingsSectionCard, 'Theme');
+    expect(themeCard, findsOne);
+    expect(
+      find.descendant(of: themeCard, matching: find.text('THEME')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: themeCard, matching: find.text('ACCENT COLOR')),
+      findsOneWidget,
+    );
+
+    final chromeCard = find.widgetWithText(
+      SettingsSectionCard,
+      'Chrome and controls',
+    );
+    expect(
+      find.descendant(of: chromeCard, matching: find.text('LANGUAGE')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: chromeCard, matching: find.text('THEME')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: chromeCard, matching: find.text('ACCENT COLOR')),
+      findsNothing,
+    );
+  }, semanticsEnabled: false);
 }

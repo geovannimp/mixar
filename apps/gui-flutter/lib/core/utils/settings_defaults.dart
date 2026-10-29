@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
@@ -31,6 +32,17 @@ KeyColorMode keyColorModeFromSettings(KeyColorModeSetting mode) {
     KeyColorModeSetting.harmonic => KeyColorMode.harmonic,
   };
 }
+
+/// Settings palette → theme palette. Every shipped value maps 1:1; the teal
+/// default is the website `--accent` hue.
+MixarAccentPalette accentPaletteFromSettings(AccentPaletteSetting value) =>
+    switch (value) {
+      AccentPaletteSetting.teal => MixarAccentPalette.teal,
+      AccentPaletteSetting.blue => MixarAccentPalette.blue,
+      AccentPaletteSetting.violet => MixarAccentPalette.violet,
+      AccentPaletteSetting.orange => MixarAccentPalette.orange,
+      AccentPaletteSetting.pink => MixarAccentPalette.pink,
+    };
 
 /// Library list rows: one dense line, or the two-line default.
 ///
@@ -151,6 +163,7 @@ AppSettings defaultAppSettings() {
     realtimeStems: false,
     uiLanguage: UiLanguageSetting.system,
     theme: ThemeSetting.system,
+    accentPalette: AccentPaletteSetting.teal,
     libraryDrawerEnabled: false,
     libraryDrawerSide: LibraryDrawerSideSetting.bottom,
     analyticsEnabled: false,
@@ -255,6 +268,7 @@ AppSettings copyAppSettings(
   bool? realtimeStems,
   UiLanguageSetting? uiLanguage,
   ThemeSetting? theme,
+  AccentPaletteSetting? accentPalette,
   bool? libraryDrawerEnabled,
   LibraryDrawerSideSetting? libraryDrawerSide,
   bool? analyticsEnabled,
@@ -304,6 +318,7 @@ AppSettings copyAppSettings(
     realtimeStems: realtimeStems ?? base.realtimeStems,
     uiLanguage: uiLanguage ?? base.uiLanguage,
     theme: theme ?? base.theme,
+    accentPalette: accentPalette ?? base.accentPalette,
     libraryDrawerEnabled: libraryDrawerEnabled ?? base.libraryDrawerEnabled,
     libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
     analyticsEnabled: analyticsEnabled ?? base.analyticsEnabled,
@@ -350,6 +365,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.realtimeStems != baseline.realtimeStems ||
       draft.uiLanguage != baseline.uiLanguage ||
       draft.theme != baseline.theme ||
+      draft.accentPalette != baseline.accentPalette ||
       draft.libraryDrawerEnabled != baseline.libraryDrawerEnabled ||
       draft.libraryDrawerSide != baseline.libraryDrawerSide ||
       draft.analyticsEnabled != baseline.analyticsEnabled ||

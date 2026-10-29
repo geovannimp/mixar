@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/theme/mixar_colors.dart';
+import 'package:gui_flutter/core/theme/mixar_palette.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -64,5 +66,36 @@ void main() {
     final shell = tester.element(find.byType(AppShell));
     expect(Theme.brightnessOf(shell), Brightness.light);
     expect(MixarTheme.of(shell).colors.brightness, Brightness.light);
+  });
+
+  testWidgets('default boot keeps the teal accent', (tester) async {
+    await pumpApp(tester, defaultAppSettings());
+
+    final shell = tester.element(find.byType(AppShell));
+    final colors = MixarTheme.of(shell).colors;
+    expect(colors.brightness, Brightness.light);
+    expect(colors.primary, MixarTeal.s600);
+  });
+
+  testWidgets('saved violet palette re-tints the shell in dark mode', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      copyAppSettings(
+        defaultAppSettings(),
+        theme: ThemeSetting.dark,
+        accentPalette: AccentPaletteSetting.violet,
+      ),
+    );
+    // Themed root animates the ThemeData swap; let it settle before reading.
+    await tester.pumpAndSettle();
+
+    final shell = tester.element(find.byType(AppShell));
+    expect(Theme.brightnessOf(shell), Brightness.dark);
+    final colors = MixarTheme.of(shell).colors;
+    expect(colors.primary, MixarViolet.s400);
+    expect(colors.selection, MixarViolet.s950);
+    expect(colors.border, MixarColors.dark.border);
   });
 }

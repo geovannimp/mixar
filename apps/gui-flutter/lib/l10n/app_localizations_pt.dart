@@ -111,7 +111,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiChromeDescription =>
-      'Tema, idioma, dicas ao passar o mouse e como os seletores abrem.';
+      'Idioma, dicas ao passar o mouse e como os seletores abrem.';
+
+  @override
+  String get settingsUiThemeTitle => 'Tema';
+
+  @override
+  String get settingsUiThemeDescription =>
+      'Brilho e a cor de destaque usada pelo chrome da marca.';
 
   @override
   String get settingsUiTheme => 'Tema';
@@ -121,6 +128,24 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiThemeDark => 'Escuro';
+
+  @override
+  String get settingsUiAccentColor => 'Cor de destaque';
+
+  @override
+  String get settingsUiAccentTeal => 'Turquesa';
+
+  @override
+  String get settingsUiAccentBlue => 'Azul';
+
+  @override
+  String get settingsUiAccentViolet => 'Violeta';
+
+  @override
+  String get settingsUiAccentOrange => 'Laranja';
+
+  @override
+  String get settingsUiAccentPink => 'Rosa';
 
   @override
   String get settingsUiLanguageLabel => 'Idioma';

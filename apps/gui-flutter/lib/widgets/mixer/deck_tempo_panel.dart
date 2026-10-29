@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
-import 'package:gui_flutter/core/utils/mixer_live_color.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
@@ -94,7 +93,9 @@ class DeckTempoPanel extends StatelessWidget {
     final statusIcon = isMaster
         ? LucideIcons.crown
         : (syncOn ? LucideIcons.lock : LucideIcons.lockOpen);
-    final statusColor = syncOn ? kMixerLiveOn : theme.colors.mutedForeground;
+    final statusColor = syncOn
+        ? theme.colors.primary
+        : theme.colors.mutedForeground;
 
     return SizedBox(
       width: 84,
