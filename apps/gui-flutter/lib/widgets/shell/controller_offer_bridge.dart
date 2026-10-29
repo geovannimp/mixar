@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/controller_providers.dart';
+import 'package:gui_flutter/providers/shell/bus_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_checkbox.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -21,7 +23,7 @@ class ControllerOfferBridge extends ConsumerStatefulWidget {
 
 class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   ProviderSubscription<AsyncValue<ControllerTransport?>>? _listen;
-  StreamSubscription<ControllerEvt>? _events;
+  StreamSubscription<Event>? _events;
   Timer? _retry;
   final _shownPorts = <String>{};
 
@@ -39,19 +41,17 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     if (transport == null) {
       return;
     }
-    _events = transport.subscribeEvents().listen(
-      _onEvent,
-      onError: (Object e, StackTrace _) {
-        if (!mounted) {
-          return;
-        }
-        showMixarToast(
-          context: context,
-          variant: MixarToastVariant.destructive,
-          title: Text('$e'),
-        );
-      },
-    );
+    // Mapping events ride the one bus stream, like every other host event.
+    _events = listenBusEvents(ref, _onEvent, (e, _) {
+      if (!mounted) {
+        return;
+      }
+      showMixarToast(
+        context: context,
+        variant: MixarToastVariant.destructive,
+        title: Text('$e'),
+      );
+    });
     _hydrate(transport);
   }
 
@@ -98,33 +98,32 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     });
   }
 
-  void _onEvent(ControllerEvt evt) {
+  void _onEvent(Event event) {
     if (!mounted) {
       return;
     }
-    switch (evt.kind) {
-      case ControllerEvtKind.mappingOffer:
-        _showOffer(evt);
-      case ControllerEvtKind.mappingAttached:
+    switch (event) {
+      case Event_MappingOffer(:final field0):
+        _showOffer(field0);
+      case Event_MappingAttached():
         unawaited(syncAttachedMappingIds(ref));
         ref.invalidate(controllerDevicesProvider);
-      case ControllerEvtKind.mappingDetached:
-        final port = evt.portName;
-        if (port != null) {
-          _shownPorts.remove(port);
-          dismissMixarToast(context, id: _offerToastId(port));
-        }
+      case Event_MappingDetached(:final field0):
+        _shownPorts.remove(field0.portName);
+        dismissMixarToast(context, id: _offerToastId(field0.portName));
         unawaited(syncAttachedMappingIds(ref));
         ref.invalidate(controllerDevicesProvider);
+      default:
+        break;
     }
   }
 
   static String _offerToastId(String port) => 'controller-offer:$port';
 
-  void _showOffer(ControllerEvt evt) {
-    final port = evt.portName;
-    final mappingId = evt.mappingId;
-    if (port == null || mappingId == null || _shownPorts.contains(port)) {
+  void _showOffer(MappingOffer offer) {
+    final port = offer.portName;
+    final mappingId = offer.mappingId;
+    if (_shownPorts.contains(port)) {
       return;
     }
     if (!mounted) {
@@ -150,7 +149,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
           _shownPorts.remove(port);
         }
       },
-      title: Text('${evt.deviceName ?? mappingId} connected'),
+      title: Text('${offer.deviceName} connected'),
       description: StatefulBuilder(
         builder: (context, setLocal) {
           return Column(
@@ -193,7 +192,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
                   transport: transport,
                   mappingId: mappingId,
                   portName: port,
-                  deviceId: evt.deviceId,
+                  deviceId: offer.deviceId,
                   alwaysAllow: alwaysAllow,
                 ),
               );

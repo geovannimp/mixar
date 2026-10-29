@@ -5,12 +5,13 @@
 
 import '../frb_generated.dart';
 import 'bus.dart';
+import 'event_mirrors.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_deck_feedback`, `apply_deck_vu`, `apply_engine_mirror`, `apply_fx_slots`, `apply_hot_cues`, `apply_key_shift_page`, `apply_key_shift`, `apply_keyboard_page`, `apply_keyboard_root`, `apply_library_mirror`, `apply_master_feedback`, `apply_position`, `device_info`, `emit_events`, `hot_cue_slots_deck`, `hot_cue_slots_lib`, `loop_slots`, `map_evt`, `mapping_info`, `mirror_engine_library_to_controller`, `resolve_shipped_mappings`, `spawn_named`, `start_at`, `stop_and_join`
+// These functions are ignored because they are not marked as `pub`: `apply_deck_feedback`, `apply_deck_vu`, `apply_engine_mirror`, `apply_fx_slots`, `apply_hot_cues`, `apply_key_shift_page`, `apply_key_shift`, `apply_keyboard_page`, `apply_keyboard_root`, `apply_library_mirror`, `apply_master_feedback`, `apply_position`, `device_info`, `hot_cue_slots_deck`, `hot_cue_slots_lib`, `loop_slots`, `mapping_info`, `mirror_engine_library_to_controller`, `publish_events`, `resolve_shipped_mappings`, `spawn_named`, `start_at`, `stop_and_join`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `HostPublish`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `publish_cmd`, `publish_evt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `publish_cmd`, `publish_evt`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ControllerTransport>>
 abstract class ControllerTransport implements RustOpaqueInterface {
@@ -22,7 +23,7 @@ abstract class ControllerTransport implements RustOpaqueInterface {
 
   Future<List<ControllerMappingInfo>> listMappings();
 
-  Future<List<ControllerEvt>> pendingOffers();
+  Future<List<Event>> pendingOffers();
 
   /// Open `ControllerEngine`, seed app-data mappings, start poll/pump threads.
   ///
@@ -35,11 +36,6 @@ abstract class ControllerTransport implements RustOpaqueInterface {
     bus: bus,
     trustedDeviceIds: trustedDeviceIds,
   );
-
-  /// Forward mapping offer/attach/detach events to Dart via FRB `StreamSink`.
-  ///
-  /// Replaces any previous sink so repeated subscribe calls do not leak.
-  Stream<ControllerEvt> subscribeEvents();
 
   Future<void> updateAllMappings();
 
@@ -73,45 +69,6 @@ class ControllerDeviceInfo {
           direction == other.direction &&
           matchedMappingId == other.matchedMappingId;
 }
-
-/// Thin typed controller egress for Dart (no MessagePack on the Flutter side).
-class ControllerEvt {
-  final ControllerEvtKind kind;
-  final String? mappingId;
-  final String? deviceId;
-  final String? deviceName;
-  final String? portName;
-
-  const ControllerEvt({
-    required this.kind,
-    this.mappingId,
-    this.deviceId,
-    this.deviceName,
-    this.portName,
-  });
-
-  @override
-  int get hashCode =>
-      kind.hashCode ^
-      mappingId.hashCode ^
-      deviceId.hashCode ^
-      deviceName.hashCode ^
-      portName.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ControllerEvt &&
-          runtimeType == other.runtimeType &&
-          kind == other.kind &&
-          mappingId == other.mappingId &&
-          deviceId == other.deviceId &&
-          deviceName == other.deviceName &&
-          portName == other.portName;
-}
-
-/// Discriminator for controller host events (unit enum — no freezed on Dart).
-enum ControllerEvtKind { mappingOffer, mappingAttached, mappingDetached }
 
 /// Mapping row for Flutter settings (mirrors Tauri `ControllerMappingInfo`).
 class ControllerMappingInfo {

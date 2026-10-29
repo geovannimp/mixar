@@ -60,17 +60,13 @@ void dispatchBusEvent(Ref ref, Event event) {
 /// Subscribe to the bus for a widget-level listener that needs raw events.
 ///
 /// Most code should watch derived providers; this is for UI that reacts to an
-/// edge (a controller offer, a one-off notice).
-StreamSubscription<Event> listenBusEvents(
-  Ref ref,
+/// edge (a controller offer, a one-off notice). The caller owns the returned
+/// subscription.
+StreamSubscription<Event>? listenBusEvents(
+  WidgetRef ref,
   void Function(Event event) onEvent,
-  void Function(Object error)? onError,
+  void Function(Object error, StackTrace stack)? onError,
 ) {
   final bus = ref.read(busTransportProvider).asData?.value;
-  if (bus == null) {
-    return const Stream<Event>.empty().listen((_) {});
-  }
-  final sub = bus.subscribeEvents().listen(onEvent, onError: onError);
-  ref.onDispose(sub.cancel);
-  return sub;
+  return bus?.subscribeEvents().listen(onEvent, onError: onError);
 }

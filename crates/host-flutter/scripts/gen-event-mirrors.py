@@ -108,10 +108,13 @@ def main() -> None:
     # Data types first: the event mirror refers to them.
     for name, fields in payloads:
         lines.append(f"#[flutter_rust_bridge::frb(mirror({name}))]")
-        lines.append(f"pub struct _{name} {{")
-        for ident, ty in fields:
-            lines.append(f"    pub {ident}: {ty},")
-        lines.append("}")
+        if fields:
+            lines.append(f"pub struct _{name} {{")
+            for ident, ty in fields:
+                lines.append(f"    pub {ident}: {ty},")
+            lines.append("}")
+        else:
+            lines.append(f"pub struct _{name} {{}}")
         lines.append("")
 
     for enum_name in ["EqBand", "FxKind", "JogMode", "PadMode", "SyncMode"]:
@@ -132,10 +135,13 @@ def main() -> None:
 
     for name, fields in rows:
         lines.append(f"#[flutter_rust_bridge::frb(mirror({name}))]")
-        lines.append(f"pub struct _{name} {{")
-        for ident, ty in fields:
-            lines.append(f"    pub {ident}: {ty},")
-        lines.append("}")
+        if fields:
+            lines.append(f"pub struct _{name} {{")
+            for ident, ty in fields:
+                lines.append(f"    pub {ident}: {ty},")
+            lines.append("}")
+        else:
+            lines.append(f"pub struct _{name} {{}}")
         lines.append("")
 
     lines.append("#[flutter_rust_bridge::frb(mirror(Event))]")

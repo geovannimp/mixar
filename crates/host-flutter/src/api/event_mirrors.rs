@@ -840,6 +840,26 @@ pub struct _Load {
     pub deck: u16,
 }
 
+#[flutter_rust_bridge::frb(mirror(MappingOffer))]
+pub struct _MappingOffer {
+    pub mapping_id: String,
+    pub device_id: String,
+    pub device_name: String,
+    pub port_name: String,
+}
+
+#[flutter_rust_bridge::frb(mirror(MappingAttached))]
+pub struct _MappingAttached {
+    pub mapping_id: String,
+    pub port_name: String,
+}
+
+#[flutter_rust_bridge::frb(mirror(MappingDetached))]
+pub struct _MappingDetached {
+    pub mapping_id: String,
+    pub port_name: String,
+}
+
 #[flutter_rust_bridge::frb(mirror(Event))]
 pub enum _Event {
     Play(Play),
@@ -938,6 +958,9 @@ pub enum _Event {
     Navigate(Navigate),
     Focus(Focus),
     Load(Load),
+    MappingOffer(MappingOffer),
+    MappingAttached(MappingAttached),
+    MappingDetached(MappingDetached),
 }
 
 #[flutter_rust_bridge::frb(mirror(Topic))]
@@ -1038,4 +1061,7 @@ pub enum _Topic {
     Navigate,
     Focus,
     Load,
+    MappingOffer,
+    MappingAttached,
+    MappingDetached,
 }

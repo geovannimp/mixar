@@ -1097,6 +1097,11 @@ sealed class Event with _$Event {
   const factory Event.navigate(Navigate field0) = Event_Navigate;
   const factory Event.focus(Focus field0) = Event_Focus;
   const factory Event.load(Load field0) = Event_Load;
+  const factory Event.mappingOffer(MappingOffer field0) = Event_MappingOffer;
+  const factory Event.mappingAttached(MappingAttached field0) =
+      Event_MappingAttached;
+  const factory Event.mappingDetached(MappingDetached field0) =
+      Event_MappingDetached;
 }
 
 class ExitLoop {
@@ -1536,6 +1541,73 @@ class LoopsChanged {
           runtimeType == other.runtimeType &&
           trackId == other.trackId &&
           loops == other.loops;
+}
+
+class MappingAttached {
+  final String mappingId;
+  final String portName;
+
+  const MappingAttached({required this.mappingId, required this.portName});
+
+  @override
+  int get hashCode => mappingId.hashCode ^ portName.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MappingAttached &&
+          runtimeType == other.runtimeType &&
+          mappingId == other.mappingId &&
+          portName == other.portName;
+}
+
+class MappingDetached {
+  final String mappingId;
+  final String portName;
+
+  const MappingDetached({required this.mappingId, required this.portName});
+
+  @override
+  int get hashCode => mappingId.hashCode ^ portName.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MappingDetached &&
+          runtimeType == other.runtimeType &&
+          mappingId == other.mappingId &&
+          portName == other.portName;
+}
+
+class MappingOffer {
+  final String mappingId;
+  final String deviceId;
+  final String deviceName;
+  final String portName;
+
+  const MappingOffer({
+    required this.mappingId,
+    required this.deviceId,
+    required this.deviceName,
+    required this.portName,
+  });
+
+  @override
+  int get hashCode =>
+      mappingId.hashCode ^
+      deviceId.hashCode ^
+      deviceName.hashCode ^
+      portName.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MappingOffer &&
+          runtimeType == other.runtimeType &&
+          mappingId == other.mappingId &&
+          deviceId == other.deviceId &&
+          deviceName == other.deviceName &&
+          portName == other.portName;
 }
 
 class Navigate {

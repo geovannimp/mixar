@@ -974,6 +974,9 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
 
         // ── egress-only events never arrive as commands ───────────────────────
+        Event::MappingOffer(_) | Event::MappingAttached(_) | Event::MappingDetached(_) => {
+            Err(anyhow!("controller event is not a command"))
+        }
         Event::DeckUpdated(_)
         | Event::DeckPosition(_)
         | Event::DeckLevels(_)

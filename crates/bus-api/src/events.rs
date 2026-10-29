@@ -286,6 +286,16 @@ bus_events! {
     /// UI-only: load the focused library row onto `deck` (0-based).
     Load: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16 };
+
+    // ── controller events ────────────────────────────────────────────────────
+    /// A mapped controller is plugged in but not trusted yet: offer it once.
+    MappingOffer: Create, Entity::ControllerPort(port_name.clone()), Part::Whole,
+        { mapping_id: String, device_id: String, device_name: String,
+          port_name: String };
+    MappingAttached: Update, Entity::ControllerPort(port_name.clone()), Part::Whole,
+        { mapping_id: String, port_name: String };
+    MappingDetached: Update, Entity::ControllerPort(port_name.clone()), Part::Whole,
+        { mapping_id: String, port_name: String };
 }
 
 impl From<DeckSnapshot> for DeckUpdated {

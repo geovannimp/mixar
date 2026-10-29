@@ -13,14 +13,13 @@ use bus_api::FxSlotState;
 use bus_api::HotCue as LibraryHotCue;
 use bus_api::SyncMode;
 use controller::{
-    ActionPublish, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, MappingInfo,
-    HOT_CUE_SLOT_COUNT, LOOP_SLOT_COUNT,
+    ActionPublish, ControllerEngine, DeviceDirection, DeviceInfo, MappingInfo, HOT_CUE_SLOT_COUNT,
+    LOOP_SLOT_COUNT,
 };
 use event_bus::EventBus;
 
 use crate::api::bus::BusTransport;
 use crate::bridge::BridgeResult;
-use crate::frb_generated::StreamSink;
 
 /// MIDI pump cadence — never blocks on ALSA port enumeration.
 const PUMP_INTERVAL: Duration = Duration::from_millis(5);
@@ -55,26 +54,8 @@ pub enum ControllerDeviceDirection {
     Output,
 }
 
-/// Discriminator for controller host events (unit enum — no freezed on Dart).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ControllerEvtKind {
-    MappingOffer,
-    MappingAttached,
-    MappingDetached,
-}
-
-/// Thin typed controller egress for Dart (no MessagePack on the Flutter side).
-#[derive(Clone, Debug)]
-pub struct ControllerEvt {
-    pub kind: ControllerEvtKind,
-    pub mapping_id: Option<String>,
-    pub device_id: Option<String>,
-    pub device_name: Option<String>,
-    pub port_name: Option<String>,
-}
-
-/// One bus handle for both directions: commands go to the cmd side, UI-originated
-/// library events (navigate/focus/load) to the egress side Flutter reads.
+/// Publishes what the mapping engine resolves: commands to the cmd side, the
+/// UI-originated library events to the egress side Flutter reads.
 struct HostPublish {
     bus: EventBus<Event>,
 }
@@ -95,15 +76,11 @@ pub struct ControllerTransport {
     engine: Arc<Mutex<ControllerEngine>>,
     stop: Arc<AtomicBool>,
     threads: Mutex<Vec<JoinHandle<()>>>,
-    sink: Arc<Mutex<Option<StreamSink<ControllerEvt>>>>,
 }
 
 impl Drop for ControllerTransport {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
-        if let Ok(mut slot) = self.sink.lock() {
-            *slot = None;
-        }
         let mut threads = self.threads.lock().unwrap_or_else(|e| e.into_inner());
         for handle in threads.drain(..) {
             let _ = handle.join();
@@ -138,14 +115,13 @@ impl ControllerTransport {
         engine.set_trusted_device_ids(trusted_device_ids);
         let engine = Arc::new(Mutex::new(engine));
         let stop = Arc::new(AtomicBool::new(false));
-        let sink: Arc<Mutex<Option<StreamSink<ControllerEvt>>>> = Arc::new(Mutex::new(None));
         let engine_buses = bus.bus();
 
         let mut threads = Vec::with_capacity(3);
         {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
-            let sink = Arc::clone(&sink);
+            let engine_buses = engine_buses.clone();
             spawn_named("controller-poll", &stop, &mut threads, move || loop {
                 let events = if let Ok(mut eng) = controller_engine.lock() {
                     let _ = eng.poll_devices();
@@ -153,7 +129,7 @@ impl ControllerTransport {
                 } else {
                     Vec::new()
                 };
-                emit_events(&sink, events);
+                publish_events(&engine_buses, events);
                 let mut waited = Duration::ZERO;
                 while waited < DEVICE_POLL_INTERVAL {
                     if stop_flag.load(Ordering::Relaxed) {
@@ -167,7 +143,6 @@ impl ControllerTransport {
         {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
-            let sink = Arc::clone(&sink);
             let engine_buses = engine_buses.clone();
             spawn_named("controller-pump", &stop, &mut threads, move || {
                 while !stop_flag.load(Ordering::Relaxed) {
@@ -180,7 +155,7 @@ impl ControllerTransport {
                     } else {
                         Vec::new()
                     };
-                    emit_events(&sink, events);
+                    publish_events(&engine_buses, events);
                     std::thread::sleep(PUMP_INTERVAL);
                 }
             })?;
@@ -198,7 +173,6 @@ impl ControllerTransport {
             engine,
             stop,
             threads: Mutex::new(threads),
-            sink,
         })
     }
 
@@ -222,12 +196,12 @@ impl ControllerTransport {
             .bridge()
     }
 
-    pub fn pending_offers(&self) -> Result<Vec<ControllerEvt>, String> {
+    pub fn pending_offers(&self) -> Result<Vec<Event>, String> {
         let eng = self
             .engine
             .lock()
             .map_err(|_| "controller lock poisoned".to_string())?;
-        Ok(eng.pending_offers().into_iter().map(map_evt).collect())
+        Ok(eng.pending_offers())
     }
 
     pub fn enable_mapping(
@@ -266,35 +240,12 @@ impl ControllerTransport {
             .map_err(|_| "controller lock poisoned".to_string())?;
         eng.update_all_mappings().bridge()
     }
-
-    /// Forward mapping offer/attach/detach events to Dart via FRB `StreamSink`.
-    ///
-    /// Replaces any previous sink so repeated subscribe calls do not leak.
-    pub fn subscribe_events(&self, sink: StreamSink<ControllerEvt>) -> Result<(), String> {
-        let mut slot = self
-            .sink
-            .lock()
-            .map_err(|_| "controller sink poisoned".to_string())?;
-        *slot = Some(sink);
-        Ok(())
-    }
 }
 
-fn emit_events(sink: &Mutex<Option<StreamSink<ControllerEvt>>>, events: Vec<ControllerEvent>) {
-    if events.is_empty() {
-        return;
-    }
-    let Ok(mut guard) = sink.lock() else {
-        return;
-    };
-    let failed = {
-        let Some(slot) = guard.as_ref() else {
-            return;
-        };
-        events.into_iter().any(|ev| slot.add(map_evt(ev)).is_err())
-    };
-    if failed {
-        *guard = None;
+/// Controller events are ordinary bus events; Flutter reads them on the one stream.
+fn publish_events(bus: &EventBus<Event>, events: Vec<Event>) {
+    for event in events {
+        let _ = bus.publish_evt(event);
     }
 }
 
@@ -320,43 +271,6 @@ fn device_info(info: DeviceInfo) -> ControllerDeviceInfo {
             DeviceDirection::Output => ControllerDeviceDirection::Output,
         },
         matched_mapping_id: info.matched_mapping_id,
-    }
-}
-
-fn map_evt(ev: ControllerEvent) -> ControllerEvt {
-    match ev {
-        ControllerEvent::MappingOffer {
-            mapping_id,
-            device_id,
-            device_name,
-            port_name,
-        } => ControllerEvt {
-            kind: ControllerEvtKind::MappingOffer,
-            mapping_id: Some(mapping_id),
-            device_id: Some(device_id),
-            device_name: Some(device_name),
-            port_name: Some(port_name),
-        },
-        ControllerEvent::MappingAttached {
-            mapping_id,
-            port_name,
-        } => ControllerEvt {
-            kind: ControllerEvtKind::MappingAttached,
-            mapping_id: Some(mapping_id),
-            device_id: None,
-            device_name: None,
-            port_name: Some(port_name),
-        },
-        ControllerEvent::MappingDetached {
-            mapping_id,
-            port_name,
-        } => ControllerEvt {
-            kind: ControllerEvtKind::MappingDetached,
-            mapping_id: Some(mapping_id),
-            device_id: None,
-            device_name: None,
-            port_name: Some(port_name),
-        },
     }
 }
 

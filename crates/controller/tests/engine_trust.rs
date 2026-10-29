@@ -5,7 +5,8 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
-use controller::{ControllerEngine, ControllerEvent};
+use bus_api::Event;
+use controller::ControllerEngine;
 use tempfile::TempDir;
 
 fn write_minimal_bundle(dir: &PathBuf, id: &str, product_name: &str, midi_needle: &str) {
@@ -88,12 +89,12 @@ fn untrusted_new_port_emits_offer_with_device_id() {
     assert!(
         matches!(
             &ev[..],
-            [ControllerEvent::MappingOffer {
+            [Event::MappingOffer(bus_api::MappingOffer {
                 mapping_id,
                 device_id,
                 port_name,
                 ..
-            }] if mapping_id == "test-map"
+            })] if mapping_id == "test-map"
                 && device_id == "test.map"
                 && port_name == "TestDev Port"
         ),
@@ -115,7 +116,7 @@ fn trusted_new_port_does_not_emit_offer() {
     // path does not fail the test.
     let offers = ev
         .iter()
-        .filter(|e| matches!(e, ControllerEvent::MappingOffer { .. }))
+        .filter(|e| matches!(e, Event::MappingOffer { .. }))
         .count();
     assert_eq!(offers, 0, "trusted port must not offer: {ev:?}");
 }
@@ -136,11 +137,9 @@ fn trusted_id_skips_offer_while_untrusted_offers() {
     let offered: Vec<(&str, &str)> = ev
         .iter()
         .filter_map(|e| match e {
-            ControllerEvent::MappingOffer {
-                mapping_id,
-                port_name,
-                ..
-            } => Some((mapping_id.as_str(), port_name.as_str())),
+            Event::MappingOffer(offer) => {
+                Some((offer.mapping_id.as_str(), offer.port_name.as_str()))
+            }
             _ => None,
         })
         .collect();
@@ -167,7 +166,7 @@ fn suppressed_trusted_port_skips_auto_attach() {
         .filter(|e| {
             matches!(
                 e,
-                ControllerEvent::MappingAttached { .. } | ControllerEvent::MappingOffer { .. }
+                Event::MappingAttached { .. } | Event::MappingOffer { .. }
             )
         })
         .count();
@@ -199,10 +198,10 @@ fn disconnecting_offered_port_emits_detached_with_port_name() {
     assert!(
         matches!(
             &ev[..],
-            [ControllerEvent::MappingDetached {
+            [Event::MappingDetached(bus_api::MappingDetached {
                 mapping_id,
                 port_name,
-            }] if mapping_id == "test-map" && port_name == "TestDev Port"
+            })] if mapping_id == "test-map" && port_name == "TestDev Port"
         ),
         "offer toast needs a detach event keyed by port: {ev:?}"
     );

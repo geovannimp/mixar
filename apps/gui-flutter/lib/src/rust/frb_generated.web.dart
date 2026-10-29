@@ -167,11 +167,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RustStreamSink<ControllerEvt> dco_decode_StreamSink_controller_evt_Sse(
-    dynamic raw,
-  );
-
-  @protected
   RustStreamSink<Event> dco_decode_StreamSink_event_Sse(dynamic raw);
 
   @protected
@@ -382,6 +377,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LoopsChanged dco_decode_box_autoadd_loops_changed(dynamic raw);
 
   @protected
+  MappingAttached dco_decode_box_autoadd_mapping_attached(dynamic raw);
+
+  @protected
+  MappingDetached dco_decode_box_autoadd_mapping_detached(dynamic raw);
+
+  @protected
+  MappingOffer dco_decode_box_autoadd_mapping_offer(dynamic raw);
+
+  @protected
   Navigate dco_decode_box_autoadd_navigate(dynamic raw);
 
   @protected
@@ -588,12 +592,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ControllerDeviceInfo dco_decode_controller_device_info(dynamic raw);
 
   @protected
-  ControllerEvt dco_decode_controller_evt(dynamic raw);
-
-  @protected
-  ControllerEvtKind dco_decode_controller_evt_kind(dynamic raw);
-
-  @protected
   ControllerMappingInfo dco_decode_controller_mapping_info(dynamic raw);
 
   @protected
@@ -780,9 +778,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<ControllerEvt> dco_decode_list_controller_evt(dynamic raw);
-
-  @protected
   List<ControllerMappingInfo> dco_decode_list_controller_mapping_info(
     dynamic raw,
   );
@@ -795,6 +790,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeckSnapshot> dco_decode_list_deck_snapshot(dynamic raw);
+
+  @protected
+  List<Event> dco_decode_list_event(dynamic raw);
 
   @protected
   List<FsEntry> dco_decode_list_fs_entry(dynamic raw);
@@ -881,6 +879,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LoopsChanged dco_decode_loops_changed(dynamic raw);
+
+  @protected
+  MappingAttached dco_decode_mapping_attached(dynamic raw);
+
+  @protected
+  MappingDetached dco_decode_mapping_detached(dynamic raw);
+
+  @protected
+  MappingOffer dco_decode_mapping_offer(dynamic raw);
 
   @protected
   MixxxImportPreview dco_decode_mixxx_import_preview(dynamic raw);
@@ -1300,11 +1307,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RustStreamSink<ControllerEvt> sse_decode_StreamSink_controller_evt_Sse(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   RustStreamSink<Event> sse_decode_StreamSink_event_Sse(
     SseDeserializer deserializer,
   );
@@ -1579,6 +1581,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LoopsChanged sse_decode_box_autoadd_loops_changed(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MappingAttached sse_decode_box_autoadd_mapping_attached(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MappingDetached sse_decode_box_autoadd_mapping_detached(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MappingOffer sse_decode_box_autoadd_mapping_offer(
     SseDeserializer deserializer,
   );
 
@@ -1865,14 +1882,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ControllerEvt sse_decode_controller_evt(SseDeserializer deserializer);
-
-  @protected
-  ControllerEvtKind sse_decode_controller_evt_kind(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   ControllerMappingInfo sse_decode_controller_mapping_info(
     SseDeserializer deserializer,
   );
@@ -2091,11 +2100,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<ControllerEvt> sse_decode_list_controller_evt(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   List<ControllerMappingInfo> sse_decode_list_controller_mapping_info(
     SseDeserializer deserializer,
   );
@@ -2112,6 +2116,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DeckSnapshot> sse_decode_list_deck_snapshot(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<Event> sse_decode_list_event(SseDeserializer deserializer);
 
   @protected
   List<FsEntry> sse_decode_list_fs_entry(SseDeserializer deserializer);
@@ -2214,6 +2221,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LoopsChanged sse_decode_loops_changed(SseDeserializer deserializer);
+
+  @protected
+  MappingAttached sse_decode_mapping_attached(SseDeserializer deserializer);
+
+  @protected
+  MappingDetached sse_decode_mapping_detached(SseDeserializer deserializer);
+
+  @protected
+  MappingOffer sse_decode_mapping_offer(SseDeserializer deserializer);
 
   @protected
   MixxxImportPreview sse_decode_mixxx_import_preview(
@@ -2684,12 +2700,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_StreamSink_controller_evt_Sse(
-    RustStreamSink<ControllerEvt> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_StreamSink_event_Sse(
     RustStreamSink<Event> self,
     SseSerializer serializer,
@@ -3034,6 +3044,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_loops_changed(
     LoopsChanged self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_mapping_attached(
+    MappingAttached self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_mapping_detached(
+    MappingDetached self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_mapping_offer(
+    MappingOffer self,
     SseSerializer serializer,
   );
 
@@ -3410,15 +3438,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_controller_evt(ControllerEvt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_controller_evt_kind(
-    ControllerEvtKind self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_controller_mapping_info(
     ControllerMappingInfo self,
     SseSerializer serializer,
@@ -3689,12 +3708,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_controller_evt(
-    List<ControllerEvt> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_list_controller_mapping_info(
     List<ControllerMappingInfo> self,
     SseSerializer serializer,
@@ -3717,6 +3730,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<DeckSnapshot> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_event(List<Event> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_fs_entry(List<FsEntry> self, SseSerializer serializer);
@@ -3849,6 +3865,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_loops_changed(LoopsChanged self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_mapping_attached(
+    MappingAttached self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mapping_detached(
+    MappingDetached self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mapping_offer(MappingOffer self, SseSerializer serializer);
 
   @protected
   void sse_encode_mixxx_import_preview(
