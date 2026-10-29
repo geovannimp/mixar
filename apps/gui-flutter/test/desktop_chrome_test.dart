@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/widgets/shell/desktop_chrome.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+
+import 'support/mixar_material_app.dart';
 
 /// Runs [body] with [platform] as the target platform, restoring the debug
 /// overrides before the framework's end-of-test invariant check.
@@ -15,6 +19,50 @@ Future<void> withPlatform(
     await body();
   } finally {
     debugDefaultTargetPlatformOverride = null;
+  }
+}
+
+const _windowManagerChannel = MethodChannel('window_manager');
+
+/// The window frame's stroke, if the chrome painted one.
+Finder get _windowFrame => find.byWidgetPredicate(
+  (widget) =>
+      widget is DecoratedBox &&
+      widget.position == DecorationPosition.foreground &&
+      widget.decoration is BoxDecoration &&
+      (widget.decoration as BoxDecoration).border != null,
+);
+
+/// Runs [body] as a desktop Linux host whose window reports [maximized].
+///
+/// [DesktopChrome] queries window_manager, which has no host in widget tests.
+Future<void> withDesktopChrome(
+  WidgetTester tester, {
+  required bool maximized,
+  required MixarThemeData theme,
+  Future<void> Function()? body,
+}) async {
+  debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+  debugOverrideDesktopWindow = true;
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        ..setMockMethodCallHandler(
+          _windowManagerChannel,
+          (call) async => call.method == 'isMaximized' ? maximized : null,
+        );
+  try {
+    await tester.pumpWidget(
+      mixarTestMaterialApp(
+        theme: theme,
+        home: const DesktopChrome(child: ColoredBox(color: Color(0xFF102030))),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await body?.call();
+  } finally {
+    messenger.setMockMethodCallHandler(_windowManagerChannel, null);
+    debugDefaultTargetPlatformOverride = null;
+    debugOverrideDesktopWindow = null;
   }
 }
 
@@ -43,9 +91,53 @@ void main() {
         const DesktopChrome(child: ColoredBox(color: Color(0xFF102030))),
       );
       expect(find.byType(ClipRRect), findsNothing);
+      expect(_windowFrame, findsNothing);
     } finally {
       debugDefaultTargetPlatformOverride = null;
       debugOverrideDesktopWindow = null;
     }
+  });
+
+  for (final theme in [MixarThemeData.dark(), MixarThemeData.light()]) {
+    testWidgets('the window frame is the section hairline '
+        '(${theme.colors.brightness.name})', (tester) async {
+      await withDesktopChrome(
+        tester,
+        maximized: false,
+        theme: theme,
+        body: () async {
+          // Same colour and width as MCard, MDivider and every pane split,
+          // so the window edge reads as one more section border.
+          final frame = tester.widget<DecoratedBox>(_windowFrame);
+          final decoration = frame.decoration as BoxDecoration;
+          expect(
+            decoration.border,
+            Border.all(
+              color: theme.colors.border,
+              width: theme.style.borderWidth,
+            ),
+          );
+          // The stroke follows the rounded top corners.
+          expect(
+            decoration.borderRadius,
+            const BorderRadius.only(
+              topLeft: Radius.circular(kDesktopWindowRadius),
+              topRight: Radius.circular(kDesktopWindowRadius),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  testWidgets('a maximized window drops the frame', (tester) async {
+    await withDesktopChrome(
+      tester,
+      maximized: true,
+      theme: MixarThemeData.dark(),
+      body: () async {
+        expect(_windowFrame, findsNothing);
+      },
+    );
   });
 }
