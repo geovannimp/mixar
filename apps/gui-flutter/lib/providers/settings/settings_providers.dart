@@ -212,6 +212,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
       normalized,
       analyticsEnabled: previous.analyticsEnabled,
       libraryRowFields: previous.libraryRowFields,
+      smartPlaylistPresetsJson: previous.smartPlaylistPresetsJson,
       theme: previous.theme,
     ),
     previous,

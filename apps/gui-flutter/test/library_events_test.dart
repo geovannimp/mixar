@@ -26,12 +26,13 @@ LibraryTrackSummary _track({
 LibraryCollectionSummary _collection({
   String id = 'col-1',
   int trackCount = 1,
+  String kind = 'playlist',
 }) {
   return LibraryCollectionSummary(
     id: id,
     name: 'Collection',
-    kind: 'playlist',
-    trackCount: trackCount,
+    kind: kind,
+    trackCount: kind == 'smart_playlist' ? null : trackCount,
   );
 }
 
@@ -603,5 +604,83 @@ void main() {
         await pumpEventQueue();
       },
     );
+  });
+
+  group('smart playlists', () {
+    test('a row event reloads the list without recounting the sidebar', () async {
+      var trackLoads = 0;
+      var collectionLoads = 0;
+      final container = ProviderContainer(
+        overrides: [
+          collectionsProvider.overrideWith((ref) async {
+            collectionLoads++;
+            return [_collection(kind: 'smart_playlist')];
+          }),
+          overrideCollectionTracks((ref) async {
+            trackLoads++;
+            return [_track(id: 'a')];
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(collectionTracksProvider, (_, _) {});
+      addTearDown(sub.close);
+      await container.read(collectionsProvider.future);
+      expect(
+        await container.read(collectionTracksProvider.future),
+        hasLength(1),
+      );
+      // The seeded list loads once for the null active id and once when the
+      // collections resolve; both are startup noise, not event work.
+      final trackLoadsBefore = trackLoads;
+      final collectionLoadsBefore = collectionLoads;
+
+      container
+          .read(collectionTracksProvider.notifier)
+          .scheduleTrackRowEvent(_track(id: 'a'));
+      await pumpEventQueue();
+
+      // Rules decide membership, so the row cannot be patched in place...
+      expect(trackLoads, trackLoadsBefore + 1);
+      // ...but a smart playlist stores no count, so the sidebar cannot change.
+      expect(collectionLoads, collectionLoadsBefore);
+    });
+
+    test('a row event during a load does not restart the query', () async {
+      var trackLoads = 0;
+      final gate = Completer<List<LibraryTrackSummary>>();
+      final container = ProviderContainer(
+        overrides: [
+          collectionsProvider.overrideWith(
+            (ref) async => [_collection(kind: 'smart_playlist')],
+          ),
+          overrideCollectionTracks((ref) {
+            trackLoads++;
+            return gate.future;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(collectionTracksProvider, (_, _) {});
+      addTearDown(sub.close);
+      await container.read(collectionsProvider.future);
+      await pumpEventQueue();
+      final loadsBefore = trackLoads;
+
+      // The load is still in flight; a chatty analysis burst must not queue
+      // another one behind it.
+      container
+          .read(collectionTracksProvider.notifier)
+          .scheduleTrackRowEvent(_track(id: 'a'));
+      container
+          .read(collectionTracksProvider.notifier)
+          .scheduleTrackRowEvent(null);
+      await pumpEventQueue();
+      expect(trackLoads, loadsBefore, reason: 'no restart while loading');
+
+      gate.complete([_track(id: 'a')]);
+      await container.read(collectionTracksProvider.future);
+      expect(trackLoads, loadsBefore);
+    });
   });
 }

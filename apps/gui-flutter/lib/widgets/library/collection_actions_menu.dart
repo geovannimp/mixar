@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/models/smart_playlist_rules.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
@@ -95,6 +96,16 @@ class CollectionActionsMenu extends ConsumerWidget {
                     ref
                         .read(librarySourceTabProvider.notifier)
                         .set(LibrarySourceTab.drive);
+                  },
+                ),
+              if (collection.kind == kSmartPlaylistKind)
+                MixarMenuItem(
+                  title: const Text('Edit rules…'),
+                  onPress: () {
+                    controller.hide();
+                    unawaited(
+                      editSmartPlaylistRulesAction(context, ref, collection),
+                    );
                   },
                 ),
               MixarMenuItem(

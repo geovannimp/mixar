@@ -44,6 +44,18 @@ typedef ExportCdjUsbHandler = Future<CdjExportReport> Function(
   CdjExportRequest request,
 );
 
+/// Resolves the stored rule document of a smart playlist.
+typedef SmartPlaylistRulesHandler = Future<String> Function(
+  String collectionId,
+);
+
+/// One recorded `createSmartPlaylist` / `updateSmartPlaylist` request.
+typedef SmartPlaylistCall = ({
+  String name,
+  String rulesJson,
+  String? collectionId,
+});
+
 /// Minimal [LibraryTransport] fake: override getTrack / list / events as needed.
 class FakeLibraryTransport implements LibraryTransport {
   FakeLibraryTransport({
@@ -96,6 +108,80 @@ class FakeLibraryTransport implements LibraryTransport {
   }
 
   final List<SamplerBankInfo> _createdBanks = [];
+
+  final List<SmartPlaylistCall> createSmartPlaylistCalls = [];
+  final List<SmartPlaylistCall> updateSmartPlaylistCalls = [];
+  final List<String> smartPlaylistRulesCalls = [];
+  final List<List<LibraryDeckReference>> setDeckReferenceCalls = [];
+
+  /// Optional hook so a test can supply the stored document an edit starts from.
+  SmartPlaylistRulesHandler? smartPlaylistRulesHandler;
+
+  @override
+  Future<LibraryCollectionSummary> createSmartPlaylist({
+    required String name,
+    required String rulesJson,
+  }) async {
+    createSmartPlaylistCalls.add((
+      name: name,
+      rulesJson: rulesJson,
+      collectionId: null,
+    ));
+    // A pre-seeded collection may already own the next id in the sequence.
+    var index = createSmartPlaylistCalls.length;
+    var id = 'smart-$index';
+    while (collections.any((collection) => collection.id == id)) {
+      index += 1;
+      id = 'smart-$index';
+    }
+    final summary = LibraryCollectionSummary(
+      id: id,
+      name: name,
+      kind: 'smart_playlist',
+    );
+    collections = [...collections, summary];
+    return summary;
+  }
+
+  @override
+  Future<LibraryCollectionSummary> updateSmartPlaylist({
+    required String collectionId,
+    required String name,
+    required String rulesJson,
+  }) async {
+    updateSmartPlaylistCalls.add((
+      name: name,
+      rulesJson: rulesJson,
+      collectionId: collectionId,
+    ));
+    final summary = LibraryCollectionSummary(
+      id: collectionId,
+      name: name,
+      kind: 'smart_playlist',
+    );
+    collections = [
+      for (final collection in collections)
+        if (collection.id == collectionId) summary else collection,
+    ];
+    return summary;
+  }
+
+  @override
+  Future<String> smartPlaylistRules({required String collectionId}) async {
+    smartPlaylistRulesCalls.add(collectionId);
+    final handler = smartPlaylistRulesHandler;
+    if (handler != null) {
+      return handler(collectionId);
+    }
+    throw UnimplementedError('smartPlaylistRules');
+  }
+
+  @override
+  Future<void> setDeckReference({
+    required List<LibraryDeckReference> decks,
+  }) async {
+    setDeckReferenceCalls.add(decks);
+  }
 
   @override
   void dispose() {

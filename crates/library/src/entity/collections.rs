@@ -16,6 +16,9 @@ pub struct Model {
     pub scan_folder_tree: i32,
     #[sea_orm(unique)]
     pub fs_path: Option<String>,
+    /// Persisted smart-playlist rule document (JSON); `NULL` for folders and
+    /// manual playlists.
+    pub rules_json: Option<String>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

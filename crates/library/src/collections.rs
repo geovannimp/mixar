@@ -1,6 +1,7 @@
 //! Collection sync/import and filesystem bookkeeping.
 #[cfg(feature = "analysis")]
 use crate::compute_file_analysis;
+use crate::smart_rules_error;
 use crate::{collect_audio_files, is_audio_file, normalize_path, tags, unix_secs_string};
 use crate::{FileImportOutcome, LibraryManager};
 #[cfg(feature = "analysis")]
@@ -9,7 +10,8 @@ use library_core::{
     path_label, path_under_folder, AudioSource, Collection, CollectionConfig,
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
     FileAudioSource, ImportedTrack, Library, LibraryError, NewCollection, Result, ScanReport,
-    StreamAudioSource, StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
+    SmartPlaylistRules, StreamAudioSource, StreamProvider, TrackId, TrackMetadata,
+    UpdateCollection, WritableLibrary,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -53,6 +55,8 @@ impl LibraryManager {
         match collection.collection_type() {
             CollectionType::Folder => Self::sync_folder_off_mutex(library, collection),
             CollectionType::Playlist => Self::sync_playlist_off_mutex(library, collection),
+            // Computed membership has nothing to refresh from disk.
+            CollectionType::SmartPlaylist => Ok(ScanReport::default()),
         }
     }
 
@@ -254,6 +258,17 @@ impl LibraryManager {
         Ok(c)
     }
 
+    pub(crate) fn require_smart_playlist(&self, id: &CollectionId) -> Result<Collection> {
+        let c = self.require_collection(id)?;
+        if c.collection_type() != CollectionType::SmartPlaylist {
+            return Err(LibraryError::WrongCollectionType {
+                expected: CollectionType::SmartPlaylist.as_str(),
+                got: c.collection_type().as_str(),
+            });
+        }
+        Ok(c)
+    }
+
     /// Collection entry rows in order with resolved sources (`None` when the track row is missing).
     pub fn collection_entries_with_sources(
         &self,
@@ -315,6 +330,7 @@ impl LibraryManager {
         match collection.collection_type() {
             CollectionType::Folder => self.sync_folder(collection),
             CollectionType::Playlist => self.sync_playlist(collection),
+            CollectionType::SmartPlaylist => Ok(ScanReport::default()),
         }
     }
 
@@ -463,6 +479,38 @@ impl LibraryManager {
             id,
             name: name.to_string(),
             config: CollectionConfig::Playlist { sortable },
+        })
+    }
+
+    pub(crate) fn add_smart_playlist_collection(
+        &mut self,
+        collection: &NewCollection,
+    ) -> Result<Collection> {
+        let CollectionConfig::SmartPlaylist { rules_json } = &collection.config else {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: "smart playlist collection requires SmartPlaylist config".into(),
+            });
+        };
+        let name = collection
+            .name
+            .as_deref()
+            .ok_or_else(|| LibraryError::Backend {
+                backend: "library",
+                message: "smart playlist collection requires a name".into(),
+            })?;
+        let rules = SmartPlaylistRules::from_json(rules_json).map_err(smart_rules_error)?;
+        // Store the canonical document, never the caller's bytes.
+        let rules_json = rules.to_json();
+
+        let id = Self::new_playlist_id();
+        self.store()
+            .insert_smart_playlist_collection(&id, name, &rules_json)?;
+
+        Ok(Collection {
+            id,
+            name: name.to_string(),
+            config: CollectionConfig::SmartPlaylist { rules_json },
         })
     }
 
@@ -676,6 +724,7 @@ impl WritableLibrary for LibraryManager {
         match collection.config.collection_type() {
             CollectionType::Folder => self.add_folder_collection(collection),
             CollectionType::Playlist => self.add_playlist_collection(collection),
+            CollectionType::SmartPlaylist => self.add_smart_playlist_collection(collection),
         }
     }
 
@@ -721,28 +770,51 @@ impl WritableLibrary for LibraryManager {
             return Ok(());
         }
 
+        // Validate a new rule document before touching any column, so a
+        // rejected update leaves the collection exactly as it was.
+        let smart_rules = match &update.config {
+            Some(CollectionConfigUpdate::SmartPlaylist { rules_json }) => {
+                self.require_smart_playlist(id)?;
+                Some(
+                    SmartPlaylistRules::from_json(rules_json)
+                        .map_err(smart_rules_error)?
+                        .to_json(),
+                )
+            }
+            _ => None,
+        };
+
         if let Some(name) = &update.name {
             if !self.store().update_collection_name(id, name)? {
                 return Err(LibraryError::NotFound(id.to_string()));
             }
         }
 
-        if let Some(CollectionConfigUpdate::Playlist { sortable }) = update.config {
-            let playlist = self.require_playlist(id)?;
-            if playlist.sortable() != sortable {
-                self.store().update_collection_sortable(id, sortable)?;
+        match &update.config {
+            Some(CollectionConfigUpdate::Playlist { sortable }) => {
+                let sortable = *sortable;
+                let playlist = self.require_playlist(id)?;
+                if playlist.sortable() != sortable {
+                    self.store().update_collection_sortable(id, sortable)?;
 
-                if sortable {
-                    let rows = self.store().list_collection_entries(id)?;
-                    for (pos, row) in rows.iter().enumerate() {
-                        self.store()
-                            .set_collection_entry_position_by_id(id, &row.id, pos as i32)?;
+                    if sortable {
+                        let rows = self.store().list_collection_entries(id)?;
+                        for (pos, row) in rows.iter().enumerate() {
+                            self.store()
+                                .set_collection_entry_position_by_id(id, &row.id, pos as i32)?;
+                        }
+                    } else {
+                        self.store().dedupe_playlist_entries(id)?;
+                        self.store().clear_playlist_positions(id)?;
                     }
-                } else {
-                    self.store().dedupe_playlist_entries(id)?;
-                    self.store().clear_playlist_positions(id)?;
                 }
             }
+            Some(CollectionConfigUpdate::SmartPlaylist { .. }) => {
+                if let Some(rules_json) = smart_rules {
+                    self.store().update_collection_rules_json(id, &rules_json)?;
+                }
+            }
+            None => {}
         }
 
         Ok(())
@@ -761,6 +833,15 @@ impl WritableLibrary for LibraryManager {
                         .collect();
                     let sources = self.store().get_tracks_by_ids(&track_ids)?;
                     (track_ids, sources)
+                }
+                // Nothing is stored for a smart playlist, so nothing is orphaned
+                // by deleting it. Without this arm the generic path would treat
+                // the *computed* members as owned tracks and delete every one of
+                // them that no other collection references.
+                Some(collection)
+                    if collection.collection_type() == CollectionType::SmartPlaylist =>
+                {
+                    (Vec::new(), std::collections::HashMap::new())
                 }
                 Some(_) => {
                     let members = self.list_collection_tracks(id)?;

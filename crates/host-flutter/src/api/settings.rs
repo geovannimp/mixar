@@ -445,6 +445,13 @@ pub struct AppSettings {
     pub library_drawer_side: LibraryDrawerSideSetting,
     #[serde(default)]
     pub analytics_enabled: bool,
+    /// User-defined smart-playlist presets, as a JSON array of
+    /// `{"name": …, "rules": {…}}`. The host never reads the blob: the Flutter
+    /// app owns the schema (`core/models/smart_playlist_presets.dart`,
+    /// `parseSmartPresets`) and drops entries it cannot parse. Storing it here
+    /// keeps presets across restarts.
+    #[serde(default)]
+    pub smart_playlist_presets_json: String,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -484,6 +491,7 @@ struct SettingsHost {
     library_drawer_enabled: bool,
     library_drawer_side: LibraryDrawerSideSetting,
     analytics_enabled: bool,
+    smart_playlist_presets_json: String,
 }
 
 impl Default for SettingsHost {
@@ -523,6 +531,7 @@ impl Default for SettingsHost {
             library_drawer_enabled: false,
             library_drawer_side: LibraryDrawerSideSetting::Bottom,
             analytics_enabled: false,
+            smart_playlist_presets_json: String::new(),
         }
     }
 }
@@ -844,6 +853,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         library_drawer_enabled: host.library_drawer_enabled,
         library_drawer_side: host.library_drawer_side,
         analytics_enabled: host.analytics_enabled,
+        smart_playlist_presets_json: host.smart_playlist_presets_json.clone(),
     }
 }
 
@@ -895,6 +905,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.theme = settings.theme;
     host.library_drawer_enabled = settings.library_drawer_enabled;
     host.analytics_enabled = settings.analytics_enabled;
+    host.smart_playlist_presets_json = settings.smart_playlist_presets_json;
     host.library_drawer_side = settings.library_drawer_side;
     host.configured = true;
     Ok(())
@@ -1059,6 +1070,31 @@ mod tests {
             restored.deck_default_sampler_bank_id,
             [Some("a".into()), None, Some("c".into()), Some("d".into())]
         );
+    }
+
+    #[test]
+    fn smart_playlist_presets_default_to_empty_and_round_trip() {
+        // A settings.json written before the field existed still loads.
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("smart_playlist_presets_json");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(settings.smart_playlist_presets_json, "");
+
+        // The blob is opaque here: the app owns the preset schema.
+        let blob = r#"[{"name":"Peak","rules":{"version":1,"root":{"match":"all","rules":[]}}}]"#;
+        let mut host = SettingsHost::default();
+        apply_to_host(
+            &mut host,
+            AppSettings {
+                smart_playlist_presets_json: blob.into(),
+                ..sample_settings()
+            },
+        )
+        .expect("apply");
+        assert_eq!(settings_from_host(&host).smart_playlist_presets_json, blob);
     }
 
     #[test]

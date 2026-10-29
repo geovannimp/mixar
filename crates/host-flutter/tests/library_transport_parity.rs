@@ -112,11 +112,11 @@ fn add_folder_resolve_and_track_artwork_metadata() {
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
         .unwrap();
     assert_eq!(added.added, 2);
-    assert_eq!(added.collection.track_count, 2);
+    assert_eq!(added.collection.track_count, Some(2));
 
     let collections = transport.list_collections().unwrap();
     assert_eq!(collections.len(), 1);
-    assert_eq!(collections[0].track_count, 2);
+    assert_eq!(collections[0].track_count, Some(2));
 
     let tracks = transport
         .list_collection_entries(collections[0].id.clone())

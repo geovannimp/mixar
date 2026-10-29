@@ -13,7 +13,7 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
-import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
+import 'package:gui_flutter/widgets/library/create_collection_drawer.dart';
 import 'package:gui_flutter/widgets/library/history_comfortable_entry_row.dart';
 import 'package:gui_flutter/widgets/library/history_session_actions_menu.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
@@ -243,7 +243,7 @@ class HistoryDetailPane extends ConsumerWidget {
     String sessionId,
     String? sessionTitle,
   ) async {
-    final result = await showCreateCollectionDialog(
+    final result = await showCreateCollectionDrawer(
       context,
       input: CreateCollectionInput(
         initialName: sessionTitle ?? 'History session',

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/models/smart_playlist_rules.dart';
 import 'package:gui_flutter/core/utils/color_labels.dart';
 import 'package:gui_flutter/core/utils/folder_path.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
@@ -72,6 +73,19 @@ final activeCollectionIdProvider = Provider<String?>((ref) {
   return collections.first.id;
 });
 
+/// True when the active collection computes its membership from stored rules.
+///
+/// Such a list has no rows in `collection_entries`: any metadata or analysis
+/// change can add *and* remove tracks, so it must be re-evaluated instead of
+/// patched in place.
+final activeCollectionIsSmartProvider = Provider<bool>((ref) {
+  final id = ref.watch(activeCollectionIdProvider);
+  final collections =
+      ref.watch(collectionsProvider).asData?.value ??
+      const <LibraryCollectionSummary>[];
+  return collections.any((c) => c.id == id && c.kind == kSmartPlaylistKind);
+});
+
 /// Collection track rows: SQLite load plus in-memory patch on trackUpdated.
 ///
 /// Metadata events patch the loaded list when the row is already present.
@@ -118,7 +132,17 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
   /// Apply a [LibraryEvtKind.trackUpdated] / [LibraryEvtKind.trackAnalyzed] row.
   void scheduleTrackRowEvent(LibraryTrackSummary? track) {
     var queued = false;
-    if (track == null) {
+    if (ref.read(activeCollectionIsSmartProvider)) {
+      // Rules decide membership, so a row update is never a pure patch: the
+      // edited field may pull the track in or push it out. A list still loading
+      // reads the persisted row anyway, so skip the event instead of restarting
+      // the query once per row of an analysis burst.
+      if (state.asData?.value == null) {
+        return;
+      }
+      _pendingStructuralInvalidate = true;
+      queued = true;
+    } else if (track == null) {
       // Membership/structural signal with no row payload.
       _pendingStructuralInvalidate = true;
       queued = true;
@@ -168,9 +192,12 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     }
 
     if (structural) {
-      ref
-        ..invalidateSelf()
-        ..invalidate(collectionsProvider);
+      ref.invalidateSelf();
+      // A smart playlist stores no member count, so the sidebar cannot change
+      // and re-reading it would only churn.
+      if (!ref.read(activeCollectionIsSmartProvider)) {
+        ref.invalidate(collectionsProvider);
+      }
       return;
     }
     if (patches.isEmpty) {

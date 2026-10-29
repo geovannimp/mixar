@@ -48,6 +48,7 @@ import 'helpers/collection_tracks_override.dart';
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 
 import 'support/fake_engine_transport.dart';
+import 'support/fake_library_transport.dart';
 import 'support/mixar_material_app.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
@@ -167,6 +168,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          // The shell's startup bridges push to the library; without a
+          // transport the real `LibraryTransport.open` fails inside the test
+          // VM and the error toast leaves a timer pending.
+          libraryTransportProvider.overrideWith(
+            (ref) async => FakeLibraryTransport(),
+          ),
           collectionsProvider.overrideWith((ref) async => [collection]),
           overrideCollectionTracks((ref) async {
             final id = ref.watch(activeCollectionIdProvider);

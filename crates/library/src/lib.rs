@@ -30,6 +30,7 @@ mod model;
 mod playback;
 mod sampler_data;
 mod session;
+mod smart;
 mod stems;
 mod store;
 mod tags;
@@ -49,10 +50,10 @@ use std::sync::{Arc, Mutex};
 pub use library_core::{
     path_label, path_under_folder, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
-    FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio,
-    LoadedAudio, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, ScanReport,
-    StreamAudioSource, StreamProvider, TagWriteBack, TrackId, TrackMetadata, UpdateCollection,
-    WritableLibrary,
+    DeckReference, FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError,
+    LoadableAudio, LoadedAudio, Migratable, MigrateOptions, MigrateReport, NewCollection, Result,
+    ScanReport, SmartPlaylistRules, SmartTrackFacts, StreamAudioSource, StreamProvider,
+    TagWriteBack, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
 pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
@@ -73,6 +74,7 @@ pub use sampler_data::{
     SamplerSlotRecord, BANK_SIZE as SAMPLER_BANK_SIZE,
 };
 pub use session::LibrarySession;
+pub(crate) use smart::smart_rules_error;
 pub use stems::{
     clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems,
     ensure_track_stems_with_progress, sqlite_db_bytes, stem_io_message, sync_stem_cache_with_db,
@@ -111,6 +113,8 @@ pub struct LibraryManager {
     tag_write_gate: Arc<Mutex<()>>,
     /// Host-injected omnibus buses (None until [`Self::set_buses`]).
     buses: Option<LibraryBuses>,
+    /// Last deck references reported by the host; drives deck-relative rules.
+    deck_references: Vec<DeckReference>,
 }
 
 impl LibraryManager {
@@ -127,6 +131,7 @@ impl LibraryManager {
             decode_cache: Mutex::new(DecodeCache::new()),
             tag_write_gate: Arc::new(Mutex::new(())),
             buses: None,
+            deck_references: Vec::new(),
         })
     }
 
@@ -143,6 +148,7 @@ impl LibraryManager {
             decode_cache: Mutex::new(DecodeCache::new()),
             tag_write_gate: Arc::new(Mutex::new(())),
             buses: None,
+            deck_references: Vec::new(),
         })
     }
 
@@ -349,6 +355,16 @@ impl Library for LibraryManager {
                     .into_iter()
                     .filter_map(|row| by_id.get(row.track_id.as_str()).cloned())
                     .collect())
+            }
+            CollectionType::SmartPlaylist => {
+                let CollectionConfig::SmartPlaylist { rules_json } = &collection.config else {
+                    return Err(LibraryError::Backend {
+                        backend: "library",
+                        message: format!("smart playlist {collection_id} has non-smart config"),
+                    });
+                };
+                let rules = SmartPlaylistRules::from_json(rules_json).map_err(smart_rules_error)?;
+                self.smart_playlist_tracks(&rules)
             }
         }
     }

@@ -192,12 +192,15 @@ class _ExportCdjUsbDialogBodyState
                     style: theme.typography.body.sm,
                   ),
                 ),
-                Text(
-                  '· ${l10n.cdjCountTracks(collection.trackCount)}',
-                  style: theme.typography.body.xs.copyWith(
-                    color: theme.colors.mutedForeground,
+                // Smart playlists resolve their membership at export time, so
+                // there is no count to show here.
+                if (collection.trackCount case final count?)
+                  Text(
+                    '· ${l10n.cdjCountTracks(count)}',
+                    style: theme.typography.body.xs.copyWith(
+                      color: theme.colors.mutedForeground,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

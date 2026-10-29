@@ -381,6 +381,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryColorLabel dco_decode_library_color_label(dynamic raw);
 
   @protected
+  LibraryDeckReference dco_decode_library_deck_reference(dynamic raw);
+
+  @protected
   LibraryDrawerSideSetting dco_decode_library_drawer_side_setting(dynamic raw);
 
   @protected
@@ -439,6 +442,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<LibraryCollectionSummary> dco_decode_list_library_collection_summary(
+    dynamic raw,
+  );
+
+  @protected
+  List<LibraryDeckReference> dco_decode_list_library_deck_reference(
     dynamic raw,
   );
 
@@ -1011,6 +1019,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  LibraryDeckReference sse_decode_library_deck_reference(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LibraryDrawerSideSetting sse_decode_library_drawer_side_setting(
     SseDeserializer deserializer,
   );
@@ -1085,6 +1098,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<LibraryCollectionSummary> sse_decode_list_library_collection_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<LibraryDeckReference> sse_decode_list_library_deck_reference(
     SseDeserializer deserializer,
   );
 
@@ -1784,6 +1802,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_library_deck_reference(
+    LibraryDeckReference self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_library_drawer_side_setting(
     LibraryDrawerSideSetting self,
     SseSerializer serializer,
@@ -1876,6 +1900,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_library_collection_summary(
     List<LibraryCollectionSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_library_deck_reference(
+    List<LibraryDeckReference> self,
     SseSerializer serializer,
   );
 

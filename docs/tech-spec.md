@@ -255,19 +255,20 @@ User
 
 ```text
 CollectionType =
-    | Folder      // real disk directory; fs_path is required
-    | Playlist    // user-defined track list; order controlled by `sortable`
+    | Folder         // real disk directory; fs_path is required
+    | Playlist       // user-defined track list; order controlled by `sortable`
+    | SmartPlaylist  // membership computed from stored rules (collections.rules_json)
     // reserved for later:
-    | SmartPlaylist
     | History
 ```
 
-**Shipped types:** `Folder` and `Playlist` only. **No playlist folders** (virtual folders that only nest playlists).
+**Shipped types:** `Folder`, `Playlist` and `SmartPlaylist`. **No playlist folders** (virtual folders that only nest playlists).
 
 | Type | Meaning | How tracks are associated |
 |------|---------|---------------------------|
 | `Folder` | Points at a **real directory** on disk (`fs_path` required). Used as a scan root and to browse music under that path. | **By path:** tracks whose `path` is under `fs_path`. **Not** via `collection_entries`. |
 | `Playlist` | Named list of tracks (ordered or not). | **Many-to-many** via `collection_entries`. |
+| `SmartPlaylist` | Named set whose membership is **computed** from a stored rule document (`collections.rules_json`, schema in `library_core::SmartPlaylistRules`). | **Nothing stored:** evaluated on read against `tracks` + `track_analysis` (plus host-supplied deck references for deck-relative rules). `collection_entries` writes are rejected. |
 
 **`sortable` on playlist collections only:**
 
@@ -275,6 +276,8 @@ CollectionType =
 - `sortable == false`: membership is a set (“crate”-style); `position` is null.
 
 Toggling `sortable` from `false` → `true` assigns positions; `true` → `false` drops positions.
+
+**Smart playlist rules:** a versioned JSON document of nested rule groups (`match`: `all`/`any`) over track metadata, analysis values (BPM, key, loudness, …) and deck-relative fields (`deck_bpm_delta` as a percent of the deck's sounding BPM, `deck_key` for equal/harmonic keys). The document is validated on write and on read; `collection_entries` never holds its members, and deleting the collection deletes no tracks.
 
 **Browsing a disk folder:** when `respect_folder_tree` is enabled, the UI may show **real subdirectories** under `fs_path` by reading the filesystem (or grouping tracks by path prefix). Those subdirs are **not** stored as separate Collection rows unless the user explicitly adds them as Folder collections. Playlists are never children of folders in the database.
 
@@ -290,12 +293,13 @@ Tracks and collections are **separate entities**.
 
 - **Folder → tracks:** association by **filesystem path** (`track.path` under `collection.fs_path`). No join table.
 - **Playlist → tracks:** **many-to-many** via `collection_entries`. One track can be in many playlists; one playlist has many tracks.
+- **SmartPlaylist → tracks:** association **computed** from `collections.rules_json`, evaluated on read. No join table and no membership rows.
 
 ```text
 Library
 ├── tracks: Map<TrackId, Track>              // own table
-├── collections: Map<CollectionId, Collection>  // folders + playlists (flat)
-├── collection_entries: Set<CollectionEntry>  // M2M for playlists only
+├── collections: Map<CollectionId, Collection>  // folders + playlists + smart playlists (flat)
+├── collection_entries: Set<CollectionEntry>  // M2M for manual playlists only
 └── config: LibraryConfig
 ```
 

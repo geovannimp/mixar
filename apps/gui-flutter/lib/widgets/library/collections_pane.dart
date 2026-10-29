@@ -1,8 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/models/smart_playlist_rules.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
-import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
+import 'package:gui_flutter/widgets/library/create_collection_drawer.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/widgets/library/library_pane_label.dart';
@@ -25,7 +26,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
   var _adding = false;
 
   Future<void> _addCollection() async {
-    final result = await showCreateCollectionDialog(context);
+    final result = await showCreateCollectionDrawer(context);
     if (result == null || !mounted) {
       return;
     }
@@ -112,8 +113,12 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                   for (final c in items)
                     LibraryNavRow(
                       title: c.name,
-                      subtitle: '${c.trackCount} tracks',
-                      icon: LucideIcons.folder,
+                      subtitle: c.kind == kSmartPlaylistKind
+                          ? 'Smart playlist'
+                          : '${c.trackCount ?? 0} tracks',
+                      icon: c.kind == kSmartPlaylistKind
+                          ? LucideIcons.sparkles
+                          : LucideIcons.folder,
                       selected: c.id == selectedId,
                       focused: sidebarFocused && c.id == selectedId,
                       onPress: () {

@@ -22,7 +22,7 @@ class AnalyzeCollectionOptions {
 Future<AnalyzeCollectionOptions?> showAnalyzeCollectionDialog(
   BuildContext context, {
   required String collectionName,
-  required int trackCount,
+  required int? trackCount,
 }) {
   return showMixarDialog<AnalyzeCollectionOptions?>(
     context: context,
@@ -37,7 +37,10 @@ class _AnalyzeCollectionDialogBody extends StatefulWidget {
   const new({required this.collectionName, required this.trackCount});
 
   final String collectionName;
-  final int trackCount;
+
+  /// Member count; null when membership is computed (smart playlist), so the
+  /// dialog describes the selection instead of counting it.
+  final int? trackCount;
 
   @override
   State<_AnalyzeCollectionDialogBody> createState() =>
@@ -48,6 +51,9 @@ class _AnalyzeCollectionDialogBodyState
     extends State<_AnalyzeCollectionDialogBody> {
   var _force = false;
   var _generateStems = false;
+
+  static String _countLabel(int? trackCount) =>
+      trackCount == null ? 'Matching tracks.' : '$trackCount tracks.';
 
   @override
   Widget build(BuildContext context) {
@@ -66,8 +72,8 @@ class _AnalyzeCollectionDialogBodyState
           ),
           const SizedBox(height: 8),
           Text(
-            '${widget.trackCount} tracks. Tracks that already have BPM/key '
-            'or were analyzed before are skipped.',
+            '${_countLabel(widget.trackCount)} Tracks that already have '
+            'BPM/key or were analyzed before are skipped.',
             style: theme.typography.body.sm.copyWith(
               color: theme.colors.mutedForeground,
             ),

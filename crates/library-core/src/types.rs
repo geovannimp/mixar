@@ -292,14 +292,17 @@ pub enum CollectionType {
     Folder,
     /// User-defined track list (`sortable` controls order).
     Playlist,
+    /// Stored rules decide membership; evaluated on read, never stored as rows.
+    SmartPlaylist,
 }
 
 impl CollectionType {
-    /// Wire format used in storage (`folder` / `playlist`).
+    /// Wire format used in storage (`folder` / `playlist` / `smart_playlist`).
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Folder => "folder",
             Self::Playlist => "playlist",
+            Self::SmartPlaylist => "smart_playlist",
         }
     }
 }
@@ -311,6 +314,7 @@ impl std::str::FromStr for CollectionType {
         match s {
             "folder" => Ok(Self::Folder),
             "playlist" => Ok(Self::Playlist),
+            "smart_playlist" => Ok(Self::SmartPlaylist),
             _ => Err(()),
         }
     }
@@ -333,6 +337,14 @@ pub enum CollectionConfig {
         /// Ordered vs set (crate-like).
         sortable: bool,
     },
+    /// Rules-computed collection.
+    SmartPlaylist {
+        /// Persisted rule document (JSON, see [`crate::SmartPlaylistRules`]).
+        ///
+        /// Kept as raw text so listing collections never fails on a bad
+        /// document; only evaluation surfaces the parse error.
+        rules_json: String,
+    },
 }
 
 fn default_scan_folder_tree() -> bool {
@@ -340,11 +352,12 @@ fn default_scan_folder_tree() -> bool {
 }
 
 impl CollectionConfig {
-    /// Folder or playlist.
+    /// Folder, playlist or smart playlist.
     pub fn collection_type(&self) -> CollectionType {
         match self {
             Self::Folder { .. } => CollectionType::Folder,
             Self::Playlist { .. } => CollectionType::Playlist,
+            Self::SmartPlaylist { .. } => CollectionType::SmartPlaylist,
         }
     }
 }
@@ -361,7 +374,7 @@ pub struct Collection {
 }
 
 impl Collection {
-    /// Folder or playlist.
+    /// Folder, playlist or smart playlist.
     pub fn collection_type(&self) -> CollectionType {
         self.config.collection_type()
     }
@@ -370,15 +383,23 @@ impl Collection {
     pub fn fs_path(&self) -> Option<&std::path::Path> {
         match &self.config {
             CollectionConfig::Folder { fs_path, .. } => Some(fs_path),
-            CollectionConfig::Playlist { .. } => None,
+            CollectionConfig::Playlist { .. } | CollectionConfig::SmartPlaylist { .. } => None,
         }
     }
 
     /// Playlist only: whether track order is meaningful.
     pub fn sortable(&self) -> bool {
         match &self.config {
-            CollectionConfig::Folder { .. } => false,
+            CollectionConfig::Folder { .. } | CollectionConfig::SmartPlaylist { .. } => false,
             CollectionConfig::Playlist { sortable } => *sortable,
+        }
+    }
+
+    /// Smart playlist only: the stored rule document, unparsed.
+    pub fn smart_rules_json(&self) -> Option<&str> {
+        match &self.config {
+            CollectionConfig::SmartPlaylist { rules_json } => Some(rules_json),
+            CollectionConfig::Folder { .. } | CollectionConfig::Playlist { .. } => None,
         }
     }
 }
@@ -470,6 +491,16 @@ impl NewCollection {
             config: CollectionConfig::Playlist { sortable },
         }
     }
+
+    /// Create a smart playlist from a rule document (validated by the manager).
+    pub fn smart_playlist(name: impl Into<String>, rules_json: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            config: CollectionConfig::SmartPlaylist {
+                rules_json: rules_json.into(),
+            },
+        }
+    }
 }
 
 /// Partial update for collection configuration.
@@ -478,6 +509,8 @@ impl NewCollection {
 pub enum CollectionConfigUpdate {
     /// Playlist only: ordered vs set.
     Playlist { sortable: bool },
+    /// Smart playlist only: replace the rule document.
+    SmartPlaylist { rules_json: String },
 }
 
 /// Partial update for an existing collection.
@@ -503,6 +536,16 @@ impl UpdateCollection {
         Self {
             name: None,
             config: Some(CollectionConfigUpdate::Playlist { sortable }),
+        }
+    }
+
+    /// Replace a smart playlist's rule document.
+    pub fn smart_rules(rules_json: impl Into<String>) -> Self {
+        Self {
+            name: None,
+            config: Some(CollectionConfigUpdate::SmartPlaylist {
+                rules_json: rules_json.into(),
+            }),
         }
     }
 }

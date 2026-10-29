@@ -101,6 +101,13 @@ class AppSettings {
   final LibraryDrawerSideSetting libraryDrawerSide;
   final bool analyticsEnabled;
 
+  /// User-defined smart-playlist presets, as a JSON array of
+  /// `{"name": …, "rules": {…}}`. The host never reads the blob: the Flutter
+  /// app owns the schema (`core/models/smart_playlist_presets.dart`,
+  /// `parseSmartPresets`) and drops entries it cannot parse. Storing it here
+  /// keeps presets across restarts.
+  final String smartPlaylistPresetsJson;
+
   const AppSettings({
     required this.bufferSize,
     required this.resamplerQuality,
@@ -145,6 +152,7 @@ class AppSettings {
     required this.libraryDrawerEnabled,
     required this.libraryDrawerSide,
     required this.analyticsEnabled,
+    required this.smartPlaylistPresetsJson,
   });
 
   @override
@@ -191,7 +199,8 @@ class AppSettings {
       theme.hashCode ^
       libraryDrawerEnabled.hashCode ^
       libraryDrawerSide.hashCode ^
-      analyticsEnabled.hashCode;
+      analyticsEnabled.hashCode ^
+      smartPlaylistPresetsJson.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -240,7 +249,8 @@ class AppSettings {
           theme == other.theme &&
           libraryDrawerEnabled == other.libraryDrawerEnabled &&
           libraryDrawerSide == other.libraryDrawerSide &&
-          analyticsEnabled == other.analyticsEnabled;
+          analyticsEnabled == other.analyticsEnabled &&
+          smartPlaylistPresetsJson == other.smartPlaylistPresetsJson;
 }
 
 /// Bus channel routing mode.

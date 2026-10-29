@@ -1,0 +1,89 @@
+---
+title: "Smart playlists"
+description: "Collections whose tracks are chosen by rules: presets, rule groups, and rules that follow what the decks are playing."
+section: "Library"
+order: 204
+---
+
+A **smart playlist** is the third collection kind. Instead of holding a track list, it holds **rules**, and Mixar works out the tracks every time you open it. Add a track that fits and it appears; change a track's BPM and it can drop out. You never edit its contents by hand.
+
+In the Collections sidebar it shows a sparkles icon and the words **Smart playlist** instead of a track count, because there is no fixed count to show.
+
+## Create one
+
+Press **+** in the Collections sidebar, set **Type** to **Smart playlist** (*Rules that pick tracks automatically.*), then fill in:
+
+| Field | Meaning |
+| --- | --- |
+| **Name** | What the sidebar shows. Pressing a preset with the name still empty fills it in from the preset. |
+| **Rules** | The rule tree. **Create** stays disabled until there is a name and at least one rule. |
+
+## Start from a preset
+
+The **Preset** list above the rule tree replaces the whole document in one press:
+
+| Preset | What it sets |
+| --- | --- |
+| **Same as playing deck** | Deck BPM (±%) is between -0.5 and 0.5, and Deck key is the key of the playing deck. |
+| **±6% + harmonic key** | Deck BPM (±%) is between -6 and 6, and Deck key is harmonically compatible with the playing deck. |
+
+Both read the decks; see [Rules that follow the decks](#rules-that-follow-the-decks).
+
+A preset is a fixed document: once the list names one, its rules are read-only. Changing them means forking the preset, which is what **Add preset…**, the last entry in the same list, is for.
+
+**Choose a preset** is the empty document: picking it throws the current rules away and starts over, and with nothing picked there is no rule tree to show. A playlist with no rules cannot be saved, so **Create** and **Save** stay disabled until a preset is picked or saved.
+
+The drawer opens on an empty document. Its **Start from** list offers **None**, which starts from scratch, and every preset: picking one copies it in, which is a fork, and the name becomes `<preset> copy` until you change it, so saving never overwrites the preset it came from. Name the result and press **Save preset**; the name joins the list next to the presets Mixar ships, and the playlist now uses it. A preset with an existing name replaces that one. Saved presets are stored with your app settings, so they survive a restart.
+
+## Rules
+
+Every playlist has one root group. A group combines its rules with **Match** set to **All** or **Any**: *Match all of the following rules* requires every rule, *any* requires one.
+
+Each rule is a **field**, an **operator**, and the values that operator needs:
+
+| Field | Available operators |
+| --- | --- |
+| **Title**, **Artist**, **Album** | contains, is, is empty, is not empty |
+| **Genre**, **Comment** | contains, is, is one of, is empty, is not empty |
+| **BPM**, **Rating**, **Year**, **Duration**, **Loudness (LUFS)**, **Days since added** | is between, is empty, is not empty |
+| **Key**, **Colour label** | is one of, is empty, is not empty |
+| **Deck BPM (±%)** | is between |
+| **Deck key** | is, is harmonically compatible |
+
+What the values mean:
+
+- **is between** takes a **Min** and a **Max**, both inclusive. Either one can be left empty for an open-ended window, and editing one keeps the other.
+- **contains** and **is** take free text, matched without regard to case. **is** compares the whole value, trimmed.
+- **is one of** on **Genre** or **Comment** takes a comma-separated list and matches if any entry appears in the tag.
+- **is one of** on **Key** shows the 24 keys as toggles, labelled `1A` to `12B`. Camelot codes and flat spellings are understood, so `8A` and `Am` are the same key. **Add compatible** appends the four Camelot-compatible keys of the selected key: the key itself, its two neighbours on the wheel, and its relative major or minor.
+- **is one of** on **Colour label** shows the eight labels.
+- **Rating** rules only accept values from 1 to 5, and an unrated track never matches a rating window. Use **is empty** to find unrated tracks.
+- **Days since added** counts whole days since the track entered the library.
+
+A document is written in the preset drawer: **Add preset…**, then **Add rule** appends a rule to a group and **Add group** appends a nested group with its own **Match** setting, so a playlist can read "peak-time *or* recent" inside a larger **All** group. Nesting stops three groups deep, and a playlist holds at most 64 rules. Removing a group's last rule removes the group. Name the result and the playlist editor shows it read-only.
+
+A rule whose field is missing on a track never matches: a track without a key is not in *Key is one of*, and a track without BPM is not in any BPM window. Analysis fills those fields; see [Analysis](/docs/users/library/analysis).
+
+## Rules that follow the decks
+
+**Deck BPM (±%)** and **Deck key** compare a track against what a deck is *sounding*, not what the track file says. Mixar applies the tempo fader and Key Shift to the deck's own values first, so the comparison follows what you hear.
+
+- **Deck BPM (±%)** is a percentage of the deck's sounding BPM. With a deck playing at 128, a window of -6 to 6 covers tracks from roughly 120.3 to 135.7 BPM. The window moves with the fader.
+- **Deck key is** matches the deck's sounding key exactly. **is harmonically compatible** accepts the key itself plus the three Camelot-compatible neighbours described above.
+- The deck picker reads **Any playing deck** by default, which tests every deck that is playing. Pin a deck (**Deck A**, **Deck B**, …) to compare against that one even while it is paused.
+- With Key Lock off, the tempo fader also transposes the deck's key, and the rule follows that transposed key.
+
+A rule left on **Any playing deck** matches nothing while no deck is playing, so the playlist comes up empty rather than showing an error. A pinned deck is read whether it is playing or not, so pinning deck A keeps the rules working from a paused deck. The list trails the fader by about half a second instead of re-filtering on every pixel, so move the fader and give it a moment.
+
+## Editing and deleting
+
+**Edit rules…** in the collection's three-dot menu reopens the same editor and lets you rename the playlist at the same time. Saving shows **Rules saved.** and the list re-evaluates immediately, as it also does when analysis or a metadata edit changes a track that the rules look at.
+
+Delete works like any other collection: the playlist disappears from the sidebar, and **no tracks are removed**. A smart playlist owns nothing, so nothing is cleaned up behind it.
+
+## What a smart playlist does not do
+
+- **No manual order or manual membership.** The list is ordered by title, unless the preset it came from set an order of its own.
+- **No streamed tracks.** Rules run over the file tracks in your library, the ones analysis can work on.
+- **No loudness matches before analysis.** **Loudness (LUFS)** only has a value once a track has been analyzed.
+- **Exporting to a CDJ USB drive resolves the playlist at export time.** If its deck rules matched nothing because no deck was playing, the export warns `playlist {name}: matched no tracks (deck-relative rules need a playing deck)` and writes that playlist with no tracks, so the empty result is visible instead of silent. See [Export to a CDJ USB drive](/docs/users/library/export-to-cdj-usb).

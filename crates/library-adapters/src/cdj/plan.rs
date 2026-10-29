@@ -18,7 +18,7 @@ use std::path::Path;
 
 use library_core::{
     AudioSource, Collection, CollectionId, CollectionType, ExportOptions, ExportSource,
-    FileAudioSource, Result, TrackId, TrackMetadata,
+    FileAudioSource, Result, SmartPlaylistRules, TrackId, TrackMetadata,
 };
 
 use super::layout::DevicePaths;
@@ -87,7 +87,7 @@ pub fn build(
     for folder in select(
         &collections,
         &options.folders,
-        CollectionType::Folder,
+        &[CollectionType::Folder],
         "folder",
         &mut plan.warnings,
     ) {
@@ -100,7 +100,7 @@ pub fn build(
     for playlist in select(
         &collections,
         &options.playlists,
-        CollectionType::Playlist,
+        &[CollectionType::Playlist, CollectionType::SmartPlaylist],
         "playlist",
         &mut plan.warnings,
     ) {
@@ -157,6 +157,20 @@ pub fn build(
     }
 
     for (playlist, tracks) in &playlists {
+        // A smart playlist resolves its membership at export time; when its
+        // rules need a playing deck and nothing matches, say so instead of
+        // silently writing an empty list.
+        if tracks.is_empty()
+            && playlist
+                .smart_rules_json()
+                .and_then(|json| SmartPlaylistRules::from_json(json).ok())
+                .is_some_and(|rules| rules.uses_deck_reference())
+        {
+            plan.warnings.push(format!(
+                "playlist {}: matched no tracks (deck-relative rules need a playing deck)",
+                playlist.name
+            ));
+        }
         let mut entries = Vec::new();
         for track in tracks {
             let Some(file) = track.file() else {
@@ -240,14 +254,16 @@ fn file_name(file: &FileAudioSource) -> std::path::PathBuf {
 fn select<'a>(
     collections: &'a [Collection],
     ids: &[CollectionId],
-    kind: CollectionType,
+    kinds: &[CollectionType],
     label: &str,
     warnings: &mut Vec<String>,
 ) -> Vec<&'a Collection> {
     ids.iter()
         .filter_map(
             |id| match collections.iter().find(|collection| &collection.id == id) {
-                Some(collection) if collection.collection_type() == kind => Some(collection),
+                Some(collection) if kinds.contains(&collection.collection_type()) => {
+                    Some(collection)
+                }
                 Some(_) => {
                     warnings.push(format!("{id} is not a {label} collection"));
                     None

@@ -101,6 +101,13 @@ pub fn collection(model: collections::Model) -> Result<Collection> {
         CollectionType::Playlist => CollectionConfig::Playlist {
             sortable: model.sortable != 0,
         },
+        CollectionType::SmartPlaylist => CollectionConfig::SmartPlaylist {
+            // A NULL document can only come from a hand-edited database; an
+            // empty document is the honest reading of "no rules stored".
+            rules_json: model
+                .rules_json
+                .unwrap_or_else(|| library_core::SmartPlaylistRules::default().to_json()),
+        },
     };
 
     Ok(Collection {
@@ -163,5 +170,38 @@ mod tests {
         assert_eq!(metadata.track_number, Some(3));
         assert_eq!(metadata.disc_number, Some(2));
         assert_eq!(metadata.color_label, Some(library_core::ColorLabel::Aqua));
+    }
+
+    #[test]
+    fn smart_playlist_rows_read_their_rules_and_default_a_null_document() {
+        let stored = r#"{"version":1,"root":{"match":"all","rules":[]}}"#;
+        let with_rules = collections::Model {
+            id: "smart:1".into(),
+            name: "Peak".into(),
+            collection_type: "smart_playlist".into(),
+            sortable: 0,
+            scan_folder_tree: 1,
+            fs_path: None,
+            rules_json: Some(stored.into()),
+        };
+        let parsed = collection(with_rules.clone()).expect("smart playlist");
+        assert_eq!(parsed.collection_type(), CollectionType::SmartPlaylist);
+        assert_eq!(parsed.smart_rules_json(), Some(stored));
+
+        // A NULL document can only come from a hand-edited database; it reads
+        // as the canonical empty document, never as the whole library.
+        let null_document = collections::Model {
+            rules_json: None,
+            ..with_rules
+        };
+        let parsed = collection(null_document).expect("smart playlist");
+        assert_eq!(
+            parsed.smart_rules_json(),
+            Some(
+                library_core::SmartPlaylistRules::default()
+                    .to_json()
+                    .as_str()
+            )
+        );
     }
 }

@@ -42,7 +42,7 @@ fn export_cdj_usb_through_transport() {
             Some("Sets".to_string()),
         )
         .unwrap();
-    assert_eq!(folder.collection.track_count, 1);
+    assert_eq!(folder.collection.track_count, Some(1));
     let playlist = transport
         .add_playlist_collection("Warmup".to_string(), true)
         .unwrap();

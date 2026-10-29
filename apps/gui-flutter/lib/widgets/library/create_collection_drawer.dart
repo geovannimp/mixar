@@ -1,17 +1,20 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/models/smart_playlist_rules.dart';
+import 'package:gui_flutter/widgets/library/library_form_drawer.dart';
+import 'package:gui_flutter/widgets/library/smart_rules_editor.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
-import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
-enum CreateCollectionType { folder, playlist }
+enum CreateCollectionType { folder, playlist, smartPlaylist }
 
 const _typeFolder = 'folder';
 const _typePlaylist = 'playlist';
+const String _typeSmart = kSmartPlaylistKind;
 
 class CreateCollectionInput {
   const new({
@@ -40,6 +43,7 @@ class CreateCollectionResult {
     required this.folderPath,
     required this.scanSubfolders,
     required this.sortable,
+    this.rules,
   });
 
   final String name;
@@ -47,30 +51,41 @@ class CreateCollectionResult {
   final String? folderPath;
   final bool scanSubfolders;
   final bool sortable;
+
+  /// Smart playlists only: the rule document to create with.
+  final SmartPlaylistRules? rules;
 }
 
-Future<CreateCollectionResult?> showCreateCollectionDialog(
+/// Drawer width; clamped to the viewport on narrow windows.
+const createCollectionDrawerWidth = 480.0;
+
+/// Create a collection in a right-edge drawer, like the track editor.
+///
+/// Returns `null` when the drawer is dismissed without creating anything.
+Future<CreateCollectionResult?> showCreateCollectionDrawer(
   BuildContext context, {
   CreateCollectionInput input = const CreateCollectionInput(),
 }) {
-  return showMixarDialog<CreateCollectionResult?>(
-    context: context,
-    builder: (context) => _CreateCollectionDialogBody(input: input),
+  return showLibraryFormDrawer<CreateCollectionResult>(
+    context,
+    barrierLabel: 'Create collection',
+    width: createCollectionDrawerWidth,
+    builder: (context) => _CreateCollectionDrawerBody(input: input),
   );
 }
 
-class _CreateCollectionDialogBody extends StatefulWidget {
+class _CreateCollectionDrawerBody extends StatefulWidget {
   const new({required this.input});
 
   final CreateCollectionInput input;
 
   @override
-  State<_CreateCollectionDialogBody> createState() =>
-      _CreateCollectionDialogBodyState();
+  State<_CreateCollectionDrawerBody> createState() =>
+      _CreateCollectionDrawerBodyState();
 }
 
-class _CreateCollectionDialogBodyState
-    extends State<_CreateCollectionDialogBody> {
+class _CreateCollectionDrawerBodyState
+    extends State<_CreateCollectionDrawerBody> {
   late final TextEditingController _nameController;
   late final TextEditingController _folderPathController;
   late String _typeKey = widget.input.historySessionId == null
@@ -78,6 +93,12 @@ class _CreateCollectionDialogBodyState
       : _typePlaylist;
   late bool _scanSubfolders = widget.input.initialScanSubfolders;
   late bool _sortable = widget.input.initialSortable;
+  SmartPlaylistRules _rules = const SmartPlaylistRules.empty();
+
+  /// Last name this drawer derived from a preset. A newer preset replaces a
+  /// derived name, never one the user typed, mirroring how browsing a folder
+  /// keeps a name the user chose.
+  String? _derivedName;
 
   @override
   void initState() {
@@ -99,8 +120,20 @@ class _CreateCollectionDialogBodyState
 
   bool get _fromHistory => widget.input.historySessionId != null;
 
-  CreateCollectionType get _type =>
-      _typeKey == _typeFolder ? CreateCollectionType.folder : .playlist;
+  CreateCollectionType get _type => switch (_typeKey) {
+    _typeFolder => CreateCollectionType.folder,
+    _typeSmart => CreateCollectionType.smartPlaylist,
+    _ => CreateCollectionType.playlist,
+  };
+
+  /// Name an unnamed smart playlist after the preset it starts from.
+  void _applyPresetName(SmartPlaylistRulesPreset preset) {
+    final current = _nameController.text;
+    if (current.trim().isEmpty || current == _derivedName) {
+      _nameController.text = preset.name;
+      _derivedName = preset.name;
+    }
+  }
 
   bool get _canCreate {
     if (_nameController.text.trim().isEmpty) {
@@ -110,6 +143,10 @@ class _CreateCollectionDialogBodyState
       CreateCollectionType.folder =>
         _folderPathController.text.trim().isNotEmpty,
       CreateCollectionType.playlist => true,
+      // The library rejects an invalid document after the drawer closes, which
+      // would throw the rule tree away: block it before that can happen.
+      CreateCollectionType.smartPlaylist =>
+        _rules.root.rules.isNotEmpty && _rules.validate() == null,
     };
   }
 
@@ -117,6 +154,7 @@ class _CreateCollectionDialogBodyState
     return switch (type) {
       CreateCollectionType.folder => _typeFolder,
       CreateCollectionType.playlist => _typePlaylist,
+      CreateCollectionType.smartPlaylist => _typeSmart,
     };
   }
 
@@ -155,19 +193,15 @@ class _CreateCollectionDialogBodyState
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return LibraryFormDrawerShell(
+      title: 'Create collection',
+      action: AppButton(
+        onPress: _canCreate ? _submit : null,
+        child: const Text('Create'),
+      ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Create collection',
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 16),
           SettingsField(
             label: 'Name',
             child: MixarInput(
@@ -182,13 +216,15 @@ class _CreateCollectionDialogBodyState
               child: MixarSelect<String>(
                 dialogTitle: 'Type',
                 value: _typeKey,
-                options: const [_typeFolder, _typePlaylist],
+                options: const [_typeFolder, _typePlaylist, _typeSmart],
                 labelBuilder: (value) => switch (value) {
                   _typeFolder => 'Folder',
+                  _typeSmart => 'Smart playlist',
                   _ => 'Playlist',
                 },
                 subtitleBuilder: (value) => switch (value) {
                   _typeFolder => 'Import audio files from a directory on disk.',
+                  _typeSmart => 'Rules that pick tracks automatically.',
                   _ => 'A manual track list in your library collections.',
                 },
                 onChanged: (value) => setState(() => _typeKey = value),
@@ -236,6 +272,16 @@ class _CreateCollectionDialogBodyState
                       onChanged: (value) =>
                           setState(() => _scanSubfolders = value),
                     ),
+                  ] else if (_type == CreateCollectionType.smartPlaylist) ...[
+                    SettingsField(
+                      label: 'Rules',
+                      hint: _rules.validate(),
+                      child: SmartRulesEditor(
+                        initial: _rules,
+                        onPresetApplied: _applyPresetName,
+                        onChanged: (next) => setState(() => _rules = next),
+                      ),
+                    ),
                   ] else ...[
                     SettingsCheckbox(
                       label: 'Sortable',
@@ -247,36 +293,23 @@ class _CreateCollectionDialogBodyState
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: .outline,
-                onPress: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              AppButton(
-                onPress: _canCreate
-                    ? () {
-                        Navigator.of(context).pop(
-                          CreateCollectionResult(
-                            name: _nameController.text.trim(),
-                            type: _type,
-                            folderPath: _type == CreateCollectionType.folder
-                                ? _folderPathController.text.trim()
-                                : null,
-                            scanSubfolders: _scanSubfolders,
-                            sortable: _sortable,
-                          ),
-                        );
-                      }
-                    : null,
-                child: const Text('Create'),
-              ),
-            ],
-          ),
         ],
+      ),
+    );
+  }
+
+  /// Close the drawer with the collection to create.
+  void _submit() {
+    Navigator.of(context).pop(
+      CreateCollectionResult(
+        name: _nameController.text.trim(),
+        type: _type,
+        folderPath: _type == CreateCollectionType.folder
+            ? _folderPathController.text.trim()
+            : null,
+        scanSubfolders: _scanSubfolders,
+        sortable: _sortable,
+        rules: _type == CreateCollectionType.smartPlaylist ? _rules : null,
       ),
     );
   }

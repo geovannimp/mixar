@@ -1,0 +1,143 @@
+---
+title: "Smart playlist rules"
+description: "The versioned rule document stored in collections.rules_json: its schema, validation matrix, evaluation semantics, and the deck reference contract."
+section: "Library"
+order: 3
+---
+
+A smart playlist stores one JSON document instead of `collection_entries` rows. The type is `library_core::CollectionType::SmartPlaylist` (`"smart_playlist"` on the wire), the document lives in `collections.rules_json`, and membership is computed on read. Collection semantics for folders and manual playlists are in `docs/tech-spec.md` §5.1.
+
+```json
+{
+  "version": 1,
+  "sort": { "field": "bpm", "ascending": true },
+  "root": {
+    "match": "all",
+    "rules": [
+      { "kind": "condition", "field": "bpm", "op": "between", "min": 124.0, "max": 130.0 },
+      { "kind": "condition", "field": "deck_bpm_delta", "op": "between", "min": -6.0, "max": 6.0 },
+      { "kind": "condition", "field": "deck_key", "op": "harmonically_compatible" },
+      { "kind": "condition", "field": "deck_key", "op": "equals", "deck": 0 },
+      {
+        "kind": "group",
+        "match": "any",
+        "rules": [
+          { "kind": "condition", "field": "rating", "op": "between", "min": 4.0 },
+          { "kind": "condition", "field": "loudness_lufs", "op": "between", "min": -9.0 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`SmartPlaylistRules::to_json` writes this compact, in that key order (`version`, `sort`, `root`; group `match`, `rules`; condition `kind`, `field`, `op`, `min`, `max`, `values`, `deck`), and unset `min`/`max`/`values`/`deck` are omitted. Writes go through the canonical form, so the same rules always store the same bytes. `crates/library-core/tests/fixtures/smart_playlist_rules_v1.json` is the pinned literal, and both serializers are tested against it: Rust in `rules_json_round_trip`, Dart in `smart_playlist_rules_test.dart`.
+
+Reads are forward-compatible: unknown keys are ignored, and only a different `version` is rejected (`SMART_PLAYLIST_RULES_VERSION` is `1`). The Dart model in `apps/gui-flutter/lib/core/models/smart_playlist_rules.dart` carries the same wire names (`inList` → `in`, `durationMs` → `duration_ms`) and validates with the same matrix, so the editor refuses what the library would reject.
+
+## Fields and operators
+
+`validate` enforces this matrix; a condition outside it fails validation:
+
+| Field | Wire name | Operators |
+|---|---|---|
+| Title, Artist, Album | `title`, `artist`, `album` | `contains`, `equals` |
+| Genre, Comment | `genre`, `comment` | `contains`, `equals`, `in` |
+| BPM, Year, Duration, Loudness, Days since added | `bpm`, `year`, `duration_ms`, `loudness_lufs`, `added_days_ago` | `between` |
+| Rating | `rating` | `between`, bounds within 1..=5 |
+| Key | `key` | `in` (1..=24 tokens) |
+| Colour label | `color_label` | `in` (1..=8 canonical names) |
+| Deck BPM (±%) | `deck_bpm_delta` | `between`, percent bounds |
+| Deck key | `deck_key` | `equals`, `harmonically_compatible` |
+
+Every field except the two deck fields also takes `is_empty` and `is_not_empty`. `deck` is only legal on deck fields, and `harmonically_compatible` only on `deck_key`.
+
+Limits: nesting depth 4 (the root counts as one), 64 conditions in total, a nested group must hold at least one rule, up to 64 values in an `in` list. The root may be empty; it validates and matches nothing.
+
+Validation returns a message fragment. The manager wraps it as `smart playlist rules: {msg}`, so a caller sees, for example, `library: smart playlist rules: op between is not allowed on title`:
+
+| Problem | Message |
+|---|---|
+| Version | `unsupported rules version {v}` |
+| Missing bounds | `between needs min or max on {field}` |
+| Non-finite bound | `bounds must be finite on {field}` |
+| Inverted window | `min must not exceed max on {field}` |
+| Rating window | `rating bounds must be within 1-5` |
+| Wrong value count | `values must contain exactly one entry for {op} on {field}` |
+| Blank value | `values must not be empty for {op} on {field}` |
+| Oversized list | `values must contain at most 64 entries for {op} on {field}` |
+| Unknown key | `unknown key {v} in key rule` |
+| Unknown colour | `unknown color {v} in colour rule` |
+| Nesting | `group nesting too deep (max 4)` |
+| Count | `too many rules (max 64)` |
+| Empty group | `groups must contain at least one rule` |
+| Deck on a track field | `deck only applies to deck rules` |
+| Harmonic op elsewhere | `harmonically_compatible applies to deck_key only` |
+| Operator not on the field | `op {op} is not allowed on {field}` |
+
+## Evaluation
+
+`SmartPlaylistRules::matches(facts, now_unix, decks)` decides one track:
+
+- A **group with no rules** is false in either match mode. An empty document is an empty playlist, never the whole library.
+- A **missing value** fails every operator; `is_empty` is the only one that selects NULL or blank. `rating = NULL` is unrated, so a rating window never matches an unrated track.
+- **`between`** is inclusive on both ends.
+- **Text** comparison is ASCII case-insensitive; `contains` is a substring test, `equals` compares trimmed values, and `in` on `genre`/`comment` matches a substring of any listed value.
+- **`in` on `key`** compares canonical spellings, so `8A`, `Am` and the musical spelling all agree. `key_format::canonical_key` folds the five common flat spellings (`Bb` → `A#`, …) onto the sharp names the key tables use.
+- **`in` on `color_label`** compares parsed `ColorLabel` values.
+- **`added_days_ago`** is `(now - added_at) / 86400`, floored, from the stored `added_at` string. An unparseable or absent timestamp counts as missing.
+- **`deck_bpm_delta`** is `100 × (track_bpm / deck_bpm - 1)`, requiring a positive deck BPM and a track BPM.
+- **`deck_key` + `equals`** compares canonical spellings; **`harmonically_compatible`** accepts the four keys `key_format::harmonic_family` returns: the deck key, its two Camelot neighbours with the same letter, then its relative major or minor. `harmonic_family("8A")` is `["Am", "Dm", "Em", "C"]`.
+- **Deck resolution**: a condition with `deck: null` tests every deck where `playing` is true; with `deck: Some(id)` it tests exactly that deck, playing or not. The condition matches if any qualifying deck satisfies it, and a missing deck BPM or key fails it.
+
+`sort_facts` then orders the result: `sort` as written (`field`, `ascending`), title ascending when absent, missing values last in either direction, ties by ascending track id. `added_days_ago` sorts by when the track entered the library, so `ascending: false` puts the newest first.
+
+## Deck reference contract
+
+Deck rules read what the decks are *sounding*, which only the host knows. The library takes the values as data:
+
+```rust
+pub struct DeckReference {
+    pub deck_id: u16,      // 0-based: deck A is 0
+    pub playing: bool,
+    pub bpm: Option<f64>,  // sounding BPM (tempo fader applied)
+    pub key: Option<String>, // sounding key (Key Shift, and the fader when Key Lock is off)
+}
+
+LibraryManager::set_deck_references(decks);          // last set stays in effect
+LibraryManager::smart_playlist_tracks(&rules)?;      // evaluates with them
+```
+
+The percent and harmonic math is all `library` does: `library` has no engine dependency by design, so a second host (headless, CLI) must compute the same sounding values itself. `apps/gui-flutter/lib/providers/mixer/deck_reference.dart` is the reference implementation. It takes the ratio from `normToSpeedRatio` and the BPM from `effectiveBpm` (`apps/gui-flutter/lib/core/utils/tempo_format.dart`), never a hand-rolled `speed - 0.5`, and adds `keyShift + 12·log2(ratio)` semitones when Key Lock is off, rounded to the nearest semitone.
+
+The Dart bridge pushes that list through `set_deck_reference` on mount and then trails the last change by 500 ms (`kDeckReferenceDebounce`), skipping pushes whose values are unchanged, and re-evaluates the open playlist only when the reference actually moved. The debounce exists to keep the pool scan off the frame path; do not drop it to per-event invalidation.
+
+## Read path and storage costs
+
+`LibraryManager::smart_playlist_tracks` validates the document, reads every `source_type = "file"` track plus every `track_analysis` row, builds one `SmartTrackFacts` per track by moving fields out of the owned rows (no extra copies), retains the matches, sorts, and finally fetches the surviving sources in order. Stream tracks are excluded: they carry no analysis.
+
+`LibraryCollectionSummary.track_count` is `None` for a smart playlist, so a sidebar refresh never runs a pool scan per row. If the UI needs counts, compute all smart counts from one shared fact snapshot inside `list_collections`, not inside `collection_summary`.
+
+Deleting a smart playlist deletes no tracks: `delete_collection` has an explicit arm that forces empty membership, because the generic orphan sweep would otherwise treat computed members as owned and remove every one of them (`smart_playlist_delete_keeps_tracks`).
+
+CDJ export selects smart playlists alongside manual ones and resolves each to a snapshot at export time; when its deck rules matched nothing it reports `playlist {name}: matched no tracks (deck-relative rules need a playing deck)`. The Mixxx importer ignores the kind, so imported foreign smart playlists stay snapshots.
+
+## Where it lives
+
+| Piece | File |
+|---|---|
+| Rule tree, validation, evaluation, sort | `crates/library-core/src/smart.rs` |
+| `canonical_key`, `harmonic_family` | `crates/library-core/src/key_format.rs` |
+| Manager API, delete arm | `crates/library/src/smart.rs`, `crates/library/src/collections.rs` |
+| Persistence, fact query | `crates/library/src/entity/collections.rs`, `crates/library/src/store.rs` |
+| FRB surface | `crates/host-flutter/src/api/library.rs` |
+| Dart model and UI | `apps/gui-flutter/lib/core/models/smart_playlist_rules.dart`, `apps/gui-flutter/lib/widgets/library/smart_rules_editor.dart` |
+| Deck reference bridge | `apps/gui-flutter/lib/providers/mixer/deck_reference.dart` |
+| Tests | `crates/library/src/smart.rs`, `crates/host-flutter/tests/smart_playlists.rs`, `apps/gui-flutter/test/smart_playlist_rules_test.dart`, `apps/gui-flutter/test/smart_rules_editor_test.dart`, `apps/gui-flutter/test/deck_reference_test.dart` |
+
+## Related
+
+- [Collections](/docs/users/library/collections): what the three collection kinds are and what each action does.
+- [Smart playlists](/docs/users/library/smart-playlists): the same feature from the user's side.
+- [Analysis](/docs/users/library/analysis): what fills BPM, key, and loudness before rules can use them.
+- [CDJ USB export](/docs/developers/library/cdj-usb-export): how a resolved playlist becomes device rows.
