@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "engine-api",
+    "event-bus",
     "audio-core",
     "backend-null",
     "backend-cpal",

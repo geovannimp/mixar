@@ -1,0 +1,13 @@
+[package]
+name = "event-bus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Typed event bus with per-subscriber merge policies for Mixar"
+
+[dependencies]
+omnibus = "0.1"
+
+[lints]
+workspace = true
