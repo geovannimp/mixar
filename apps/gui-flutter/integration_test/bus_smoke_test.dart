@@ -3,8 +3,10 @@
 // This is the one test that proves the whole path — engine publishes a typed
 // `Event` on the process-wide bus, FRB hands it to Dart as a sealed class, and
 // Dart reads the payload — without a window interaction. Widget tests cover the
-// UI mapping; this covers the bridge.
+// UI mapping; this covers the bridge and the command→event round trip for the
+// paths a deck uses (load, transport, levels, jog, pads).
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/bus_event_payload.dart';
@@ -14,7 +16,7 @@ import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
 
-/// Next event matching [predicate], or a failure after [timeout].
+/// Next event matching [pick]/[where], or a failure after [timeout].
 Future<T> nextEvent<T extends Object>(
   Stream<Event> events,
   T? Function(Event) pick, {
@@ -41,6 +43,10 @@ Future<T> nextEvent<T extends Object>(
     },
   );
 }
+
+/// Repo fixture used by the Rust tests; loading it exercises the real decoder.
+String shortToneFixture() =>
+    File('../../samples/fixtures/short-tone.wav').absolute.path;
 
 void main() {
   setUpAll(() async {
@@ -75,12 +81,63 @@ void main() {
           update.deck == 0 && (update.volume - 0.25).abs() < 1e-4,
     );
     await engine.setVolume(deckId: 0, volume: 0.25);
-    final update = await volumeFuture;
-    expect(update.deck, 0);
-    expect(update.volume, closeTo(0.25, 1e-4));
-    // The snapshot form is authoritative: authored fields are always present.
-    expect(update.eq.low, isA<double>());
-    expect(update.fx, isNotEmpty);
+    final volumeUpdate = await volumeFuture;
+    expect(volumeUpdate.deck, 0);
+    expect(volumeUpdate.volume, closeTo(0.25, 1e-4));
+    expect(volumeUpdate.eq.low, isA<double>());
+    expect(volumeUpdate.fx, isNotEmpty);
+
+    // Load a real file: the header/waveform need track id and duration, which
+    // only a full snapshot carries.
+    final loadedFuture = nextEvent(
+      events,
+      (event) => event.deckUpdated,
+      where: (update) => update.deck == 0 && update.durationMs != null,
+    );
+    await engine.loadPath(deckId: 0, path: shortToneFixture());
+    final loaded = await loadedFuture;
+    expect(loaded.trackId, isNotNull);
+    expect(loaded.durationMs, greaterThan(0));
+
+    // Play: position and meter events follow on the same stream.
+    final playingFuture = nextEvent(
+      events,
+      (event) => event.deckUpdated,
+      where: (update) => update.deck == 0 && update.playing,
+    );
+    final levelsFuture = nextEvent(
+      events,
+      (event) => event.deckLevels,
+      where: (levels) => levels.deck == 0,
+    );
+    await engine.play(deckId: 0);
+    expect((await playingFuture).playing, isTrue);
+    final levels = await levelsFuture;
+    expect(levels.deck, 0);
+
+    // Jog while playing: the playhead keeps moving through DeckPosition.
+    final beforeJog = await nextEvent(
+      events,
+      (event) => event.deckPosition,
+      where: (position) => position.deck == 0,
+    );
+    await engine.jogTurn(deckId: 0, delta: 240);
+    final afterJog = await nextEvent(
+      events,
+      (event) => event.deckPosition,
+      where: (position) =>
+          position.deck == 0 && position.positionMs != beforeJog.positionMs,
+    );
+    expect(afterJog.positionMs, isNot(beforeJog.positionMs));
+
+    // A pad press is a Signal: one press produces one event, never folded away.
+    final padFuture = nextEvent(
+      events,
+      (event) => event.deckUpdated,
+      where: (update) => update.deck == 0,
+    );
+    await engine.padPress(deckId: 0, slot: 0, shift: true);
+    expect((await padFuture).deck, 0);
 
     // Failures ride the same stream as typed Errors with the deck attached.
     final errorFuture = nextEvent(
@@ -88,8 +145,7 @@ void main() {
       (event) => event.busError,
       where: (error) => error.message.contains('No track loaded'),
     );
-    await engine.play(deckId: 0);
-    final error = await errorFuture;
-    expect(error.deck, 0);
+    await engine.play(deckId: 1);
+    expect((await errorFuture).deck, 1);
   });
 }
