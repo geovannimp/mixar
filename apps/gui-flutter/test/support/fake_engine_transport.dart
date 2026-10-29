@@ -23,6 +23,7 @@ class FakeEngineTransport implements EngineTransport {
   final List<(int deckId, bool routed)> deckFxRouted = [];
   final List<(int deckId, PadMode mode)> padModes = [];
   final List<(int deckId, int slot)> loopRollPresses = [];
+  final List<int> unloads = [];
 
   @override
   void dispose() {
@@ -376,7 +377,9 @@ class FakeEngineTransport implements EngineTransport {
   }) async {}
 
   @override
-  Future<void> unload({required int deckId}) async {}
+  Future<void> unload({required int deckId}) async {
+    unloads.add(deckId);
+  }
 
   @override
   Future<void> updateSamplerBank({

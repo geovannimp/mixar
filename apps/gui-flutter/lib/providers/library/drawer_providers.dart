@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart' show AppSettings;
 
 /// Smallest drawer edge in px; the rendered size also clamps to the mixer
 /// extent, so a window narrower than this still shows a usable drawer.
@@ -52,10 +53,42 @@ final libraryDrawerOpenProvider = NotifierProvider<LibraryDrawerOpen, bool>(
   LibraryDrawerOpen.new,
 );
 
+/// Asks the docked mixer layout to bring the library pane into view.
+///
+/// Docked mode always renders the library, but a short window leaves it below
+/// the fold; a deck action that wants the library bumps this and the mixer page
+/// scrolls to it. Drawer mode opens the drawer route instead.
+class LibraryReveal extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void reveal() => state = state + 1;
+}
+
+final libraryRevealProvider = NotifierProvider<LibraryReveal, int>(
+  LibraryReveal.new,
+);
+
+/// Brings the library into view for a deck action such as a cover click.
+///
+/// Whichever layout is on: the drawer opens, or the docked pane scrolls to the
+/// library. Loading itself still happens in the library (drag or double-click
+/// onto the deck).
+void openLibrary(WidgetRef ref) {
+  if (_drawerMode(ref.read(appSettingsProvider).asData?.value)) {
+    ref.read(libraryDrawerOpenProvider.notifier).set(true);
+    return;
+  }
+  ref.read(libraryRevealProvider.notifier).reveal();
+}
+
 /// Whether the library lives in a drawer (Settings → UI). Docked mode has
 /// nothing to open or dismiss.
+bool _drawerMode(AppSettings? settings) =>
+    settings?.libraryDrawerEnabled ?? false;
+
 bool _libraryLivesInDrawer(Ref ref) =>
-    ref.read(appSettingsProvider).asData?.value.libraryDrawerEnabled ?? false;
+    _drawerMode(ref.read(appSettingsProvider).asData?.value);
 
 /// Brings the drawer up for a forward controller focus step — the DDJ-400's
 /// library knob press — so its rotary then moves a cursor the user can see.

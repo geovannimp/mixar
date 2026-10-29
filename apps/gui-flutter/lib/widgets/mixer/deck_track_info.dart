@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,13 +11,13 @@ import 'package:gui_flutter/providers/library/artwork_cache.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_drop_hover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_key_lock_button.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/shell/m_card.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 /// Square cover thumbnail size in the deck track-info card.
@@ -108,13 +107,14 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
             child: Row(
               crossAxisAlignment: .stretch,
               children: [
-                // Square cover. Fixed size so a large decoded image's
-                // intrinsic size cannot expand the row.
+                // Square cover — the deck's load surface. Fixed size so a
+                // large decoded image's intrinsic size cannot expand the row.
                 SizedBox.square(
                   dimension: _artworkThumbSize,
-                  child: _ArtworkThumb(
-                    bytes: artwork,
+                  child: DeckCover(
+                    deckId: widget.deckId,
                     hasTrack: widget.hasTrack,
+                    artwork: artwork,
                   ),
                 ),
                 MDivider(
@@ -217,7 +217,7 @@ class _DeckTitleArtist extends StatelessWidget {
         Text(
           hasTrack
               ? (artistName == null || artistName.isEmpty ? '—' : artistName)
-              : 'Drop or load a track',
+              : 'Drop a track or click the cover',
           maxLines: 1,
           overflow: .ellipsis,
           style: theme.typography.body.xs.copyWith(
@@ -263,44 +263,6 @@ class _DeckTimeRow extends ConsumerWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _ArtworkThumb extends StatelessWidget {
-  const new({required this.bytes, required this.hasTrack});
-
-  final Uint8List? bytes;
-  final bool hasTrack;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final borderRadius = theme.style.borderRadius.md.copyWith(
-      topRight: const Radius.circular(0),
-      bottomRight: const Radius.circular(0),
-      bottomLeft: const Radius.circular(0),
-    );
-    final disc = Icon(
-      LucideIcons.disc3,
-      size: 20,
-      color: hasTrack ? theme.colors.mutedForeground : theme.colors.border,
-    );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        color: theme.colors.background,
-      ),
-      child: ClipRRect(
-        borderRadius: borderRadius,
-        child: bytes != null && bytes!.isNotEmpty
-            ? Image.memory(
-                bytes!,
-                fit: .cover,
-                errorBuilder: (_, _, _) => Center(child: disc),
-              )
-            : disc,
-      ),
     );
   }
 }

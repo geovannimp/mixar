@@ -364,7 +364,7 @@ Keyboard and Key Shift pad modes are shipped ([#298](https://github.com/geovanni
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
 | D1 | **Load from library** | Drag track or double-click | P0 |
-| D2 | **Load from file picker** | Current behavior | P0 |
+| D2 | **Cover loads and unloads** | Empty cover opens the library; loaded cover grows an eject button that confirms while playing (file picker removed) | P0 |
 | D3 | **Instant double** | Load same track on other deck | P2 |
 | D4 | **Load to play from cue** | Start at hot cue 1 or first memory cue | P2 |
 | D5 | **Analyze on first load** | BPM/key/grid if missing | P0 (partial) |
