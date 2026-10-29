@@ -1,6 +1,10 @@
 use crate::sync::snap_ms;
 use anyhow::Result;
-use std::sync::Arc;
+use bus_api::BeatGrid;
+use bus_api::DeleteTrackHotCue;
+use bus_api::Event;
+use bus_api::HotCue;
+use bus_api::SaveTrackHotCue;
 
 use crate::engine::Engine;
 
@@ -22,17 +26,14 @@ impl Engine {
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let position_ms = snap_ms(position_ms, bpm, first_beat_ms, quantize);
         // Memory/UI commit on library `HotCuesChanged` (control thread), not here.
-        self.publish_library_cmd(
-            library_api::Kind::SaveHotCue,
-            library_api::CmdBody::SaveHotCue {
-                track_id: track_id.as_str().to_string(),
-                slot,
-                position_ms,
-                loop_length_beats: None,
-                color: None,
-                label: None,
-            },
-        )?;
+        self.publish_library_cmd(Event::SaveTrackHotCue(SaveTrackHotCue {
+            track_id: track_id.as_str().to_string(),
+            slot,
+            position_ms,
+            loop_length_beats: None,
+            color: None,
+            label: None,
+        }))?;
         Ok(())
     }
 
@@ -50,24 +51,17 @@ impl Engine {
             .and_then(|c| c.track_id.clone())
             .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
         // Memory/UI commit on library `HotCuesChanged` (control thread), not here.
-        self.publish_library_cmd(
-            library_api::Kind::DeleteHotCue,
-            library_api::CmdBody::DeleteHotCue {
-                track_id: track_id.as_str().to_string(),
-                slot,
-            },
-        )?;
+        self.publish_library_cmd(Event::DeleteTrackHotCue(DeleteTrackHotCue {
+            track_id: track_id.as_str().to_string(),
+            slot,
+        }))?;
         Ok(())
     }
 
     /// Apply library-acked hot cues to every deck currently loaded with `track_id`.
     ///
     /// Returns deck ids whose slot map changed (caller publishes `DeckUpdated`).
-    pub fn apply_track_hot_cues(
-        &mut self,
-        track_id: &str,
-        hot_cues: &[library_api::HotCue],
-    ) -> Vec<usize> {
+    pub fn apply_track_hot_cues(&mut self, track_id: &str, hot_cues: &[HotCue]) -> Vec<usize> {
         let mut slots = [None; crate::pads::HOT_CUE_SLOT_COUNT];
         for cue in hot_cues {
             let idx = usize::from(cue.slot);
@@ -94,11 +88,7 @@ impl Engine {
     /// Apply a live beat-grid edit to every deck currently loaded with `track_id`.
     ///
     /// Returns deck ids whose BPM or first-beat phase changed (caller publishes `DeckUpdated`).
-    pub fn apply_track_beat_grid(
-        &mut self,
-        track_id: &str,
-        beat_grid: &library_api::BeatGrid,
-    ) -> Vec<usize> {
+    pub fn apply_track_beat_grid(&mut self, track_id: &str, beat_grid: &BeatGrid) -> Vec<usize> {
         let first_beat_ms = beat_grid
             .beats
             .first()
@@ -170,22 +160,12 @@ impl Engine {
         changed
     }
 
-    fn publish_library_cmd(
-        &self,
-        kind: library_api::Kind,
-        body: library_api::CmdBody,
-    ) -> Result<()> {
+    fn publish_library_cmd(&self, event: Event) -> Result<()> {
         let bus = self.library_cmd.as_ref().ok_or_else(|| {
             anyhow::anyhow!("Engine has no library cmd bus for deck performance persistence")
         })?;
-        let bytes = library_api::encode_cmd_body(&body)
-            .map_err(|e| anyhow::anyhow!("encode library cmd: {e}"))?;
-        bus.publish(omnibus::Event::new(
-            library_api::Origin::Library,
-            kind,
-            Arc::from(bytes),
-        ))
-        .map_err(|e| anyhow::anyhow!("library cmd publish: {e}"))?;
+        bus.publish_cmd(event)
+            .map_err(|e| anyhow::anyhow!("library cmd publish: {e}"))?;
         Ok(())
     }
 }

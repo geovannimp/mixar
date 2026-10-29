@@ -3,15 +3,15 @@
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use engine_api::Error;
-use engine_api::Event;
-use engine_api::Notice;
-use engine_api::Pause;
-use engine_api::Play;
-use engine_api::SetVolume;
+use bus_api::Error;
+use bus_api::Event;
+use bus_api::Notice;
+use bus_api::Pause;
+use bus_api::Play;
+use bus_api::SetVolume;
 use rhai::{CallFnOptions, Dynamic, Engine, Module, Scope, AST};
 
-use crate::action::EngineScope;
+use crate::action::{EngineScope, RoutedAction};
 use crate::error::{LoadError, RuntimeError};
 use crate::session::{ActionPublish, MidiOut};
 
@@ -21,6 +21,8 @@ const MAX_MIDI_OUT_BYTES: usize = 256;
 
 /// Shared bridge used by registered Rhai functions.
 pub struct ScriptBridge {
+    /// Commands published so far. Egress events (`notice`/`error`) are not
+    /// recorded here; they never reach the engine.
     pub published: Vec<Event>,
     pub midi: Vec<Vec<u8>>,
 }
@@ -165,10 +167,18 @@ impl ScriptRuntime {
             // Scripts pass flat strings (`engine`, `deck1`); the bus carries the
             // deck inside each payload, so the host resolves the scope here.
             let scope = parse_scope(&origin_s).unwrap_or(EngineScope::Engine);
-            let Some(event) = resolve_publish(scope, &kind_s, &payload) else {
+            let Some(routed) = resolve_publish(scope, &kind_s, &payload) else {
                 continue;
             };
-            host.bus.publish_engine(event);
+            match routed {
+                RoutedAction::Cmd(event) => host.bus.publish_cmd(event),
+                RoutedAction::Cmds(events) => {
+                    for event in events {
+                        host.bus.publish_cmd(event);
+                    }
+                }
+                RoutedAction::Evt(event) => host.bus.publish_evt(event),
+            }
         }
         for m in midis {
             host.midi.send(&m);
@@ -227,18 +237,18 @@ struct SetVolumePayload {
     soft_takeover: bool,
 }
 
-/// Resolve one script `publish(origin, kind, payload)` call into a typed event.
+/// Resolve one script `publish(origin, kind, payload)` call into a typed route.
 ///
 /// `None` drops the call (`kind` outside the script surface, or a payload that
 /// does not parse) after a warning, matching the previous wire behaviour.
-fn resolve_publish(scope: EngineScope, kind: &str, payload: &str) -> Option<Event> {
+fn resolve_publish(scope: EngineScope, kind: &str, payload: &str) -> Option<RoutedAction> {
     match kind {
-        "play" => Some(Event::Play(Play {
+        "play" => Some(RoutedAction::Cmd(Event::Play(Play {
             deck: scope.deck_or_default(),
-        })),
-        "pause" => Some(Event::Pause(Pause {
+        }))),
+        "pause" => Some(RoutedAction::Cmd(Event::Pause(Pause {
             deck: scope.deck_or_default(),
-        })),
+        }))),
         "set_volume" => {
             let parsed: SetVolumePayload = match serde_json::from_str(payload) {
                 Ok(parsed) => parsed,
@@ -247,20 +257,20 @@ fn resolve_publish(scope: EngineScope, kind: &str, payload: &str) -> Option<Even
                     return None;
                 }
             };
-            Some(Event::SetVolume(SetVolume {
+            Some(RoutedAction::Cmd(Event::SetVolume(SetVolume {
                 deck: scope.deck_or_default(),
                 volume: parsed.volume,
                 soft_takeover: parsed.soft_takeover,
-            }))
+            })))
         }
-        "notice" => Some(Event::Notice(Notice {
+        "notice" => Some(RoutedAction::Evt(Event::Notice(Notice {
             message: payload.to_string(),
-        })),
-        "error" => Some(Event::Error(Error {
+        }))),
+        "error" => Some(RoutedAction::Evt(Event::Error(Error {
             message: payload.to_string(),
             track_id: None,
             deck: Some(scope.deck_or_default()),
-        })),
+        }))),
         _ => None,
     }
 }

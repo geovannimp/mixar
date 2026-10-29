@@ -4,12 +4,13 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'bus.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `open_at`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `library_buses`, `subscribe_evt_all`
+// These functions are ignored because they are not marked as `pub`: `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `library_arc`, `missing_track_summary`, `open_at`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `bus`, `library_buses`
 
 /// Default Mixxx database path for the current OS, when it exists.
 Future<String?> mixxxDefaultDatabasePath() =>
@@ -18,9 +19,6 @@ Future<String?> mixxxDefaultDatabasePath() =>
 /// Read-only summary of a Mixxx database, used to confirm an import.
 Future<MixxxImportPreview> mixxxImportPreview({required String dbPath}) =>
     RustLib.instance.api.crateApiLibraryMixxxImportPreview(dbPath: dbPath);
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
-abstract class LibraryBusHandle implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>>
 abstract class LibraryTransport implements RustOpaqueInterface {
@@ -41,10 +39,10 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   ///
   /// Resolves the target set server-side with the non-force skip rule (tracks
   /// that already carry BPM/key or have an analysis row are skipped), then
-  /// publishes one [`CmdBody::AnalyzeTrack`] per target — the same MessagePack
-  /// bus path as single-track analyze, so per-track `TrackProgress` /
-  /// `TrackAnalyzed` events flow unchanged. With `generate_stems`, a
-  /// [`CmdBody::GenerateStems`] is queued for every file track (stem cache
+  /// publishes one [`Event::AnalyzeTrack`] per target — the same bus path as
+  /// single-track analyze, so per-track `TrackProgress` / `TrackAnalyzed`
+  /// events flow unchanged. With `generate_stems`, an
+  /// [`Event::GenerateStems`] is queued for every file track (stem cache
   /// state is independent of BPM/tags; the serial stem queue no-ops on valid
   /// caches, including native `.stem.mp4` files). Returns the queued analysis
   /// ids so the UI can mark them analyzing up front.
@@ -73,9 +71,6 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required bool tagWriteBack,
   });
 
-  /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
-  Future<LibraryBusHandle> buses();
-
   /// Wipe the Mixar-owned ONNX model cache directory.
   Future<void> clearModelCache();
 
@@ -97,7 +92,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   Future<void> deleteHistorySession({required String sessionId});
 
-  /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
+  /// Delete a saved loop slot (worker emits `LoopsChanged`).
   Future<void> deleteLoop({required String trackId, required int slot});
 
   /// Export the selected playlists (and folder collections) into `destination`
@@ -180,10 +175,10 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Open (or create) the app-support library (`{app-support}/library.db`).
   ///
   /// Stem and model caches live next to the DB, so they follow the same directory.
-  static Future<LibraryTransport> open() =>
-      RustLib.instance.api.crateApiLibraryLibraryTransportOpen();
+  static Future<LibraryTransport> open({required BusTransport bus}) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportOpen(bus: bus);
 
-  /// In-memory library for tests.
+  /// In-memory library on its own bus (tests and offline tools).
   static Future<LibraryTransport> openInMemory() =>
       RustLib.instance.api.crateApiLibraryLibraryTransportOpenInMemory();
 
@@ -202,7 +197,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   Future<void> revealHistoryFolder();
 
-  /// Persist a manually edited beat grid (worker emits [`LibraryEvtKind::BeatGridChanged`]).
+  /// Persist a manually edited beat grid (worker emits `BeatGridChanged`).
   Future<void> saveBeatGrid({
     required String trackId,
     required double bpm,
@@ -215,7 +210,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required bool sortable,
   });
 
-  /// Persist an active loop region for a track (worker emits [`LibraryEvtKind::LoopsChanged`]).
+  /// Persist an active loop region for a track (worker emits `LoopsChanged`).
   Future<void> saveLoop({
     required String trackId,
     required int slot,
@@ -225,11 +220,6 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   /// Mixar-managed cache sizes (stems/models dirs + waveform/metadata in library.db).
   Future<StorageUsage> storageUsage();
-
-  /// Forward thin typed library events to Dart via FRB `StreamSink`.
-  ///
-  /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
-  Stream<LibraryEvt> subscribeEvents();
 
   /// Remove orphan stem cache files (and rows whose files are gone).
   ///
@@ -526,27 +516,6 @@ class HistorySessionSummary {
           entryCount == other.entryCount;
 }
 
-/// Persisted hot cue row for Dart (`library_api::HotCue`).
-class HotCueInfo {
-  final int slot;
-  final int positionMs;
-  final String? label;
-
-  const HotCueInfo({required this.slot, required this.positionMs, this.label});
-
-  @override
-  int get hashCode => slot.hashCode ^ positionMs.hashCode ^ label.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is HotCueInfo &&
-          runtimeType == other.runtimeType &&
-          slot == other.slot &&
-          positionMs == other.positionMs &&
-          label == other.label;
-}
-
 /// Offline analysis depth for library worker configuration.
 enum LibraryAnalysisDurationSetting { fast, precise, complete }
 
@@ -592,89 +561,7 @@ class LibraryCollectionSummary {
 /// of handling free-form strings.
 enum LibraryColorLabel { pink, red, orange, yellow, green, aqua, blue, purple }
 
-/// Thin typed library egress for Dart (no MessagePack on the Flutter side).
-///
-/// Struct + unit kind avoids FRB's freezed dependency for fielded enums.
-class LibraryEvt {
-  final LibraryEvtKind kind;
-  final LibraryTrackSummary? track;
-  final String? message;
-  final String? trackId;
-  final List<HotCueInfo>? hotCues;
-  final int? delta;
-  final int? deck;
-  final List<SavedLoopInfo>? loops;
-  final BeatGridData? beatGrid;
-
-  /// Progress phase token when [`LibraryEvtKind::TrackProgress`].
-  final String? phase;
-
-  /// Optional `0.0..=1.0` progress fraction.
-  final double? fraction;
-
-  const LibraryEvt({
-    required this.kind,
-    this.track,
-    this.message,
-    this.trackId,
-    this.hotCues,
-    this.delta,
-    this.deck,
-    this.loops,
-    this.beatGrid,
-    this.phase,
-    this.fraction,
-  });
-
-  @override
-  int get hashCode =>
-      kind.hashCode ^
-      track.hashCode ^
-      message.hashCode ^
-      trackId.hashCode ^
-      hotCues.hashCode ^
-      delta.hashCode ^
-      deck.hashCode ^
-      loops.hashCode ^
-      beatGrid.hashCode ^
-      phase.hashCode ^
-      fraction.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is LibraryEvt &&
-          runtimeType == other.runtimeType &&
-          kind == other.kind &&
-          track == other.track &&
-          message == other.message &&
-          trackId == other.trackId &&
-          hotCues == other.hotCues &&
-          delta == other.delta &&
-          deck == other.deck &&
-          loops == other.loops &&
-          beatGrid == other.beatGrid &&
-          phase == other.phase &&
-          fraction == other.fraction;
-}
-
-/// Discriminator for thin library egress (unit enum — no freezed on Dart).
-enum LibraryEvtKind {
-  trackAnalyzed,
-  trackUpdated,
-  error,
-  notice,
-  hotCuesChanged,
-  navigate,
-  focus,
-  load,
-  loopsChanged,
-  beatGridChanged,
-  historySessionUpdated,
-  trackProgress,
-}
-
-/// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
+/// Track row for the Flutter track table (mirrors Tauri / `bus_api::TrackSummary`).
 class LibraryTrackSummary {
   /// Playlist entry row id; unset for folder path-prefix tracks.
   final String? entryId;
@@ -919,35 +806,6 @@ class SamplerBankInfo {
 }
 
 enum SamplerPlayMode { oneshot, hold, loop }
-
-/// Persisted saved-loop row for Dart (`library_api::SavedLoop`).
-class SavedLoopInfo {
-  final int slot;
-  final int inMs;
-  final int outMs;
-  final String? label;
-
-  const SavedLoopInfo({
-    required this.slot,
-    required this.inMs,
-    required this.outMs,
-    this.label,
-  });
-
-  @override
-  int get hashCode =>
-      slot.hashCode ^ inMs.hashCode ^ outMs.hashCode ^ label.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SavedLoopInfo &&
-          runtimeType == other.runtimeType &&
-          slot == other.slot &&
-          inMs == other.inMs &&
-          outMs == other.outMs &&
-          label == other.label;
-}
 
 /// Disk usage for Mixar-managed caches under app support / library.db.
 class StorageUsage {

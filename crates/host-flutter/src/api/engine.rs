@@ -4,72 +4,72 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use engine_api::BeatJumpPadPress;
-use engine_api::BeatJumpPadRelease;
-use engine_api::BeginCueHold;
-pub use engine_api::CrossfaderAssign;
-use engine_api::DeckSnapshot;
-use engine_api::DeckUpdated;
-use engine_api::EndCueHold;
-use engine_api::EngineSnapshot;
-pub use engine_api::EqBand;
-use engine_api::Event;
-use engine_api::ExitLoop;
-pub use engine_api::FxKind;
-use engine_api::HotCuePadPress;
-use engine_api::HotCuePadRelease;
-use engine_api::JogTouch;
-use engine_api::JogTurn;
-use engine_api::KeyShiftPadPress;
-use engine_api::KeyShiftPadRelease;
-use engine_api::KeyboardPadPress;
-use engine_api::KeyboardPadRelease;
-use engine_api::LoopIn;
-use engine_api::LoopOut;
-use engine_api::LoopRollPadPress;
-use engine_api::LoopRollPadRelease;
-pub use engine_api::PadMode;
-use engine_api::PadPress;
-use engine_api::PadRelease;
-use engine_api::Pause;
-use engine_api::Play;
-use engine_api::RecallSavedLoop;
-use engine_api::SamplerPadPress;
-use engine_api::SamplerPadRelease;
-use engine_api::SamplerSlotInfo;
-use engine_api::Seek;
-use engine_api::SetAutoLoop;
-use engine_api::SetCrossfader;
-use engine_api::SetCrossfaderAssign;
-use engine_api::SetCueMix;
-use engine_api::SetCuePoint;
-use engine_api::SetCueVolume;
-use engine_api::SetDeckFxRouted;
-use engine_api::SetEqBand;
-use engine_api::SetFilter;
-use engine_api::SetFxUnitParam;
-use engine_api::SetFxUnitSlot;
-use engine_api::SetFxUnitSlotEnabled;
-use engine_api::SetFxUnitWet;
-use engine_api::SetGainTrim;
-use engine_api::SetHeadphoneCue;
-use engine_api::SetJogMode;
-use engine_api::SetKeyLock;
-use engine_api::SetKeyShift;
-use engine_api::SetKeyShiftPage;
-use engine_api::SetKeyboardPage;
-use engine_api::SetKeyboardRoot;
-use engine_api::SetMasterCue;
-use engine_api::SetMasterDeck;
-use engine_api::SetMasterVolume;
-use engine_api::SetPadMode;
-use engine_api::SetQuantize;
-use engine_api::SetSlip;
-use engine_api::SetSpeed;
-use engine_api::SetTempoRange;
-use engine_api::SetVolume;
-use engine_api::ToggleSync;
-use engine_api::Unload;
+use bus_api::BeatJumpPadPress;
+use bus_api::BeatJumpPadRelease;
+use bus_api::BeginCueHold;
+pub use bus_api::CrossfaderAssign;
+use bus_api::DeckSnapshot;
+use bus_api::DeckUpdated;
+use bus_api::EndCueHold;
+use bus_api::EngineSnapshot;
+pub use bus_api::EqBand;
+use bus_api::Event;
+use bus_api::ExitLoop;
+pub use bus_api::FxKind;
+use bus_api::HotCuePadPress;
+use bus_api::HotCuePadRelease;
+use bus_api::JogTouch;
+use bus_api::JogTurn;
+use bus_api::KeyShiftPadPress;
+use bus_api::KeyShiftPadRelease;
+use bus_api::KeyboardPadPress;
+use bus_api::KeyboardPadRelease;
+use bus_api::LoopIn;
+use bus_api::LoopOut;
+use bus_api::LoopRollPadPress;
+use bus_api::LoopRollPadRelease;
+pub use bus_api::PadMode;
+use bus_api::PadPress;
+use bus_api::PadRelease;
+use bus_api::Pause;
+use bus_api::Play;
+use bus_api::RecallSavedLoop;
+use bus_api::SamplerPadPress;
+use bus_api::SamplerPadRelease;
+use bus_api::SamplerSlotInfo;
+use bus_api::Seek;
+use bus_api::SetAutoLoop;
+use bus_api::SetCrossfader;
+use bus_api::SetCrossfaderAssign;
+use bus_api::SetCueMix;
+use bus_api::SetCuePoint;
+use bus_api::SetCueVolume;
+use bus_api::SetDeckFxRouted;
+use bus_api::SetEqBand;
+use bus_api::SetFilter;
+use bus_api::SetFxUnitParam;
+use bus_api::SetFxUnitSlot;
+use bus_api::SetFxUnitSlotEnabled;
+use bus_api::SetFxUnitWet;
+use bus_api::SetGainTrim;
+use bus_api::SetHeadphoneCue;
+use bus_api::SetJogMode;
+use bus_api::SetKeyLock;
+use bus_api::SetKeyShift;
+use bus_api::SetKeyShiftPage;
+use bus_api::SetKeyboardPage;
+use bus_api::SetKeyboardRoot;
+use bus_api::SetMasterCue;
+use bus_api::SetMasterDeck;
+use bus_api::SetMasterVolume;
+use bus_api::SetPadMode;
+use bus_api::SetQuantize;
+use bus_api::SetSlip;
+use bus_api::SetSpeed;
+use bus_api::SetTempoRange;
+use bus_api::SetVolume;
+use bus_api::ToggleSync;
+use bus_api::Unload;
 use engine_core::{
     spawn_engine_worker, AudioBackend, Engine, EngineConfig, EngineWorker, MAX_DECKS,
 };
@@ -273,12 +273,9 @@ impl EngineTransport {
         let library_arc = library_transport.library_arc();
         let live_stems_enabled = config.backend != "null";
         let deck_count = config.num_decks;
-        let mut engine = Engine::new_with_library_bus(
-            config,
-            Arc::clone(&library_arc),
-            library_transport.cmd_bus(),
-        )
-        .bridge()?;
+        let mut engine =
+            Engine::new_with_library_bus(config, Arc::clone(&library_arc), library_transport.bus())
+                .bridge()?;
         engine.set_buses(bus.clone());
         // Failure reason reaches `mixar.log` through `BridgeResult`, like every other error.
         engine.start().bridge()?;
@@ -312,7 +309,7 @@ impl EngineTransport {
             engine,
             bus,
             library: library_arc,
-            library_cmd_bus: library_transport.cmd_bus(),
+            library_cmd_bus: library_transport.bus(),
             sampler_slots: chrome,
             history_worker: Mutex::new(Some(history_worker)),
             deck_load_generation: Arc::new((0..MAX_DECKS).map(|_| AtomicU64::new(0)).collect()),
@@ -397,8 +394,8 @@ impl EngineTransport {
     pub fn apply_host_settings(
         &self,
         normalizer_target: Option<f32>,
-        top_jog: engine_api::JogMode,
-        outer_jog: engine_api::JogMode,
+        top_jog: bus_api::JogMode,
+        outer_jog: bus_api::JogMode,
     ) -> Result<(), String> {
         let mut guard = self
             .engine
@@ -1324,7 +1321,7 @@ impl EngineTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_api::JogMode;
+    use bus_api::JogMode;
     use std::time::Duration;
 
     /// The bus the engine publishes on, plus the library it loads from.
@@ -1353,7 +1350,7 @@ mod tests {
         bus.bus().subscribe_evt().unwrap()
     }
 
-    fn recv_status(rx: &mut event_bus::Subscriber<Event>) -> engine_api::EngineStatus {
+    fn recv_status(rx: &mut event_bus::Subscriber<Event>) -> bus_api::EngineStatus {
         loop {
             let event = rx
                 .recv_timeout(Duration::from_secs(5))

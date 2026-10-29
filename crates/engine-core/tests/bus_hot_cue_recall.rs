@@ -3,11 +3,11 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Event;
+use bus_api::RecallSavedLoop;
+use bus_api::TriggerHotCue;
 use common::recv_updated;
 use common::source_with_bpm;
-use engine_api::Event;
-use engine_api::RecallSavedLoop;
-use engine_api::TriggerHotCue;
 use engine_core::EngineConfig;
 use engine_core::EngineSession;
 

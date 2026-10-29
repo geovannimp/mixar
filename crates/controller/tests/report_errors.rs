@@ -46,14 +46,8 @@ fn with_capture(f: impl FnOnce()) -> String {
 
 struct CaptureBus;
 impl controller::ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, _event: engine_api::Event) {}
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_cmd(&mut self, _event: bus_api::Event) {}
+    fn publish_evt(&mut self, _event: bus_api::Event) {}
 }
 
 struct NullMidi;

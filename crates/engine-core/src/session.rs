@@ -9,7 +9,7 @@ use crate::config::EngineConfig;
 use crate::control::{spawn_engine_worker, EngineWorker};
 use crate::engine::Engine;
 use anyhow::Result;
-use engine_api::Event;
+use bus_api::Event;
 use event_bus::EventBus;
 use event_bus::Subscriber;
 use library::{LibraryBus, LibraryManager};

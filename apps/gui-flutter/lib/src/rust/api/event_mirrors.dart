@@ -11,6 +11,24 @@ part 'event_mirrors.freezed.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Topic`
 
+class AnalyzeTrack {
+  final String trackId;
+  final bool force;
+
+  const AnalyzeTrack({required this.trackId, required this.force});
+
+  @override
+  int get hashCode => trackId.hashCode ^ force.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AnalyzeTrack &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          force == other.force;
+}
+
 class AssignSampler {
   final int deck;
   final int slot;
@@ -57,6 +75,48 @@ class AssignSamplerTrack {
           deck == other.deck &&
           slot == other.slot &&
           trackId == other.trackId;
+}
+
+class BeatGrid {
+  final Float32List beats;
+  final Float32List downbeats;
+  final double bpm;
+
+  const BeatGrid({
+    required this.beats,
+    required this.downbeats,
+    required this.bpm,
+  });
+
+  @override
+  int get hashCode => beats.hashCode ^ downbeats.hashCode ^ bpm.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BeatGrid &&
+          runtimeType == other.runtimeType &&
+          beats == other.beats &&
+          downbeats == other.downbeats &&
+          bpm == other.bpm;
+}
+
+class BeatGridChanged {
+  final String trackId;
+  final BeatGrid beatGrid;
+
+  const BeatGridChanged({required this.trackId, required this.beatGrid});
+
+  @override
+  int get hashCode => trackId.hashCode ^ beatGrid.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BeatGridChanged &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          beatGrid == other.beatGrid;
 }
 
 class BeatJump {
@@ -745,6 +805,42 @@ class DeleteDeckHotCue {
           slot == other.slot;
 }
 
+class DeleteTrackHotCue {
+  final String trackId;
+  final int slot;
+
+  const DeleteTrackHotCue({required this.trackId, required this.slot});
+
+  @override
+  int get hashCode => trackId.hashCode ^ slot.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeleteTrackHotCue &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          slot == other.slot;
+}
+
+class DeleteTrackLoop {
+  final String trackId;
+  final int slot;
+
+  const DeleteTrackLoop({required this.trackId, required this.slot});
+
+  @override
+  int get hashCode => trackId.hashCode ^ slot.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeleteTrackLoop &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          slot == other.slot;
+}
+
 class EndCueHold {
   final int deck;
 
@@ -977,6 +1073,30 @@ sealed class Event with _$Event {
       Event_EngineSnapshot;
   const factory Event.error(Error field0) = Event_Error;
   const factory Event.notice(Notice field0) = Event_Notice;
+  const factory Event.analyzeTrack(AnalyzeTrack field0) = Event_AnalyzeTrack;
+  const factory Event.generateStems(GenerateStems field0) = Event_GenerateStems;
+  const factory Event.refreshTrack(RefreshTrack field0) = Event_RefreshTrack;
+  const factory Event.saveBeatGrid(SaveBeatGrid field0) = Event_SaveBeatGrid;
+  const factory Event.saveTrackHotCue(SaveTrackHotCue field0) =
+      Event_SaveTrackHotCue;
+  const factory Event.deleteTrackHotCue(DeleteTrackHotCue field0) =
+      Event_DeleteTrackHotCue;
+  const factory Event.saveTrackLoop(SaveTrackLoop field0) = Event_SaveTrackLoop;
+  const factory Event.deleteTrackLoop(DeleteTrackLoop field0) =
+      Event_DeleteTrackLoop;
+  const factory Event.trackAnalyzed(TrackAnalyzed field0) = Event_TrackAnalyzed;
+  const factory Event.trackUpdated(TrackUpdated field0) = Event_TrackUpdated;
+  const factory Event.trackProgress(TrackProgress field0) = Event_TrackProgress;
+  const factory Event.hotCuesChanged(HotCuesChanged field0) =
+      Event_HotCuesChanged;
+  const factory Event.loopsChanged(LoopsChanged field0) = Event_LoopsChanged;
+  const factory Event.beatGridChanged(BeatGridChanged field0) =
+      Event_BeatGridChanged;
+  const factory Event.historySessionUpdated(HistorySessionUpdated field0) =
+      Event_HistorySessionUpdated;
+  const factory Event.navigate(Navigate field0) = Event_Navigate;
+  const factory Event.focus(Focus field0) = Event_Focus;
+  const factory Event.load(Load field0) = Event_Load;
 }
 
 class ExitLoop {
@@ -993,6 +1113,22 @@ class ExitLoop {
       other is ExitLoop &&
           runtimeType == other.runtimeType &&
           deck == other.deck;
+}
+
+class Focus {
+  final int delta;
+
+  const Focus({required this.delta});
+
+  @override
+  int get hashCode => delta.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Focus &&
+          runtimeType == other.runtimeType &&
+          delta == other.delta;
 }
 
 enum FxKind { off, echo, reverb }
@@ -1023,6 +1159,73 @@ class FxSlotState {
           enabled == other.enabled &&
           wet == other.wet &&
           params == other.params;
+}
+
+class GenerateStems {
+  final String trackId;
+
+  const GenerateStems({required this.trackId});
+
+  @override
+  int get hashCode => trackId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GenerateStems &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId;
+}
+
+class HistorySessionUpdated {
+  final String? sessionId;
+
+  const HistorySessionUpdated({this.sessionId});
+
+  @override
+  int get hashCode => sessionId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistorySessionUpdated &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId;
+}
+
+class HotCue {
+  final int slot;
+  final int positionMs;
+  final int? loopLengthBeats;
+  final String? color;
+  final String? label;
+
+  const HotCue({
+    required this.slot,
+    required this.positionMs,
+    this.loopLengthBeats,
+    this.color,
+    this.label,
+  });
+
+  @override
+  int get hashCode =>
+      slot.hashCode ^
+      positionMs.hashCode ^
+      loopLengthBeats.hashCode ^
+      color.hashCode ^
+      label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HotCue &&
+          runtimeType == other.runtimeType &&
+          slot == other.slot &&
+          positionMs == other.positionMs &&
+          loopLengthBeats == other.loopLengthBeats &&
+          color == other.color &&
+          label == other.label;
 }
 
 class HotCuePadPress {
@@ -1065,6 +1268,24 @@ class HotCuePadRelease {
           runtimeType == other.runtimeType &&
           deck == other.deck &&
           slot == other.slot;
+}
+
+class HotCuesChanged {
+  final String trackId;
+  final List<HotCue> hotCues;
+
+  const HotCuesChanged({required this.trackId, required this.hotCues});
+
+  @override
+  int get hashCode => trackId.hashCode ^ hotCues.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HotCuesChanged &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          hotCues == other.hotCues;
 }
 
 enum JogMode { vinyl, pitchBend, ignore }
@@ -1189,6 +1410,20 @@ class KeyboardPadRelease {
           slot == other.slot;
 }
 
+class Load {
+  final int deck;
+
+  const Load({required this.deck});
+
+  @override
+  int get hashCode => deck.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Load && runtimeType == other.runtimeType && deck == other.deck;
+}
+
 class LoopIn {
   final int deck;
   final int positionMs;
@@ -1283,6 +1518,40 @@ class LoopRollPadRelease {
           runtimeType == other.runtimeType &&
           deck == other.deck &&
           slot == other.slot;
+}
+
+class LoopsChanged {
+  final String trackId;
+  final List<SavedLoop> loops;
+
+  const LoopsChanged({required this.trackId, required this.loops});
+
+  @override
+  int get hashCode => trackId.hashCode ^ loops.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LoopsChanged &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          loops == other.loops;
+}
+
+class Navigate {
+  final int delta;
+
+  const Navigate({required this.delta});
+
+  @override
+  int get hashCode => delta.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Navigate &&
+          runtimeType == other.runtimeType &&
+          delta == other.delta;
 }
 
 class Notice {
@@ -1393,6 +1662,22 @@ class RecallSavedLoop {
           outMs == other.outMs;
 }
 
+class RefreshTrack {
+  final String trackId;
+
+  const RefreshTrack({required this.trackId});
+
+  @override
+  int get hashCode => trackId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RefreshTrack &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId;
+}
+
 class SamplerPadPress {
   final int deck;
   final int slot;
@@ -1458,6 +1743,30 @@ class SamplerSlotInfo {
           durationMs == other.durationMs;
 }
 
+class SaveBeatGrid {
+  final String trackId;
+  final double bpm;
+  final double firstBeatSecs;
+
+  const SaveBeatGrid({
+    required this.trackId,
+    required this.bpm,
+    required this.firstBeatSecs,
+  });
+
+  @override
+  int get hashCode => trackId.hashCode ^ bpm.hashCode ^ firstBeatSecs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SaveBeatGrid &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          bpm == other.bpm &&
+          firstBeatSecs == other.firstBeatSecs;
+}
+
 class SaveDeckHotCue {
   final int deck;
   final int slot;
@@ -1474,6 +1783,119 @@ class SaveDeckHotCue {
           runtimeType == other.runtimeType &&
           deck == other.deck &&
           slot == other.slot;
+}
+
+class SaveTrackHotCue {
+  final String trackId;
+  final int slot;
+  final int positionMs;
+  final int? loopLengthBeats;
+  final String? color;
+  final String? label;
+
+  const SaveTrackHotCue({
+    required this.trackId,
+    required this.slot,
+    required this.positionMs,
+    this.loopLengthBeats,
+    this.color,
+    this.label,
+  });
+
+  @override
+  int get hashCode =>
+      trackId.hashCode ^
+      slot.hashCode ^
+      positionMs.hashCode ^
+      loopLengthBeats.hashCode ^
+      color.hashCode ^
+      label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SaveTrackHotCue &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          slot == other.slot &&
+          positionMs == other.positionMs &&
+          loopLengthBeats == other.loopLengthBeats &&
+          color == other.color &&
+          label == other.label;
+}
+
+class SaveTrackLoop {
+  final String trackId;
+  final int slot;
+  final int inMs;
+  final int outMs;
+  final String? label;
+  final String? color;
+
+  const SaveTrackLoop({
+    required this.trackId,
+    required this.slot,
+    required this.inMs,
+    required this.outMs,
+    this.label,
+    this.color,
+  });
+
+  @override
+  int get hashCode =>
+      trackId.hashCode ^
+      slot.hashCode ^
+      inMs.hashCode ^
+      outMs.hashCode ^
+      label.hashCode ^
+      color.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SaveTrackLoop &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          slot == other.slot &&
+          inMs == other.inMs &&
+          outMs == other.outMs &&
+          label == other.label &&
+          color == other.color;
+}
+
+class SavedLoop {
+  final int slot;
+  final int inMs;
+  final int outMs;
+  final String? label;
+  final String? color;
+
+  const SavedLoop({
+    required this.slot,
+    required this.inMs,
+    required this.outMs,
+    this.label,
+    this.color,
+  });
+
+  @override
+  int get hashCode =>
+      slot.hashCode ^
+      inMs.hashCode ^
+      outMs.hashCode ^
+      label.hashCode ^
+      color.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SavedLoop &&
+          runtimeType == other.runtimeType &&
+          slot == other.slot &&
+          inMs == other.inMs &&
+          outMs == other.outMs &&
+          label == other.label &&
+          color == other.color;
 }
 
 class Seek {
@@ -2202,6 +2624,145 @@ class ToggleSync {
           runtimeType == other.runtimeType &&
           deck == other.deck &&
           beatSync == other.beatSync;
+}
+
+class TrackAnalyzed {
+  final TrackSummary track;
+
+  const TrackAnalyzed({required this.track});
+
+  @override
+  int get hashCode => track.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TrackAnalyzed &&
+          runtimeType == other.runtimeType &&
+          track == other.track;
+}
+
+class TrackProgress {
+  final String trackId;
+  final String phase;
+  final double? fraction;
+
+  const TrackProgress({
+    required this.trackId,
+    required this.phase,
+    this.fraction,
+  });
+
+  @override
+  int get hashCode => trackId.hashCode ^ phase.hashCode ^ fraction.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TrackProgress &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          phase == other.phase &&
+          fraction == other.fraction;
+}
+
+class TrackSummary {
+  final String id;
+  final String displayName;
+  final String? artist;
+  final String? title;
+  final String? album;
+  final String? genre;
+  final double? bpm;
+  final String? key;
+  final int? durationMs;
+  final String path;
+  final String? isrc;
+  final int? rating;
+  final String? comment;
+  final int? year;
+  final int? trackNumber;
+  final int? discNumber;
+  final String? colorLabel;
+
+  const TrackSummary({
+    required this.id,
+    required this.displayName,
+    this.artist,
+    this.title,
+    this.album,
+    this.genre,
+    this.bpm,
+    this.key,
+    this.durationMs,
+    required this.path,
+    this.isrc,
+    this.rating,
+    this.comment,
+    this.year,
+    this.trackNumber,
+    this.discNumber,
+    this.colorLabel,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      displayName.hashCode ^
+      artist.hashCode ^
+      title.hashCode ^
+      album.hashCode ^
+      genre.hashCode ^
+      bpm.hashCode ^
+      key.hashCode ^
+      durationMs.hashCode ^
+      path.hashCode ^
+      isrc.hashCode ^
+      rating.hashCode ^
+      comment.hashCode ^
+      year.hashCode ^
+      trackNumber.hashCode ^
+      discNumber.hashCode ^
+      colorLabel.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TrackSummary &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          displayName == other.displayName &&
+          artist == other.artist &&
+          title == other.title &&
+          album == other.album &&
+          genre == other.genre &&
+          bpm == other.bpm &&
+          key == other.key &&
+          durationMs == other.durationMs &&
+          path == other.path &&
+          isrc == other.isrc &&
+          rating == other.rating &&
+          comment == other.comment &&
+          year == other.year &&
+          trackNumber == other.trackNumber &&
+          discNumber == other.discNumber &&
+          colorLabel == other.colorLabel;
+}
+
+class TrackUpdated {
+  final TrackSummary track;
+
+  const TrackUpdated({required this.track});
+
+  @override
+  int get hashCode => track.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TrackUpdated &&
+          runtimeType == other.runtimeType &&
+          track == other.track;
 }
 
 class TriggerHotCue {

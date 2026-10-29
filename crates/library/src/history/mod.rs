@@ -10,7 +10,6 @@ pub use recorder::{
 pub use store::{history_dir_for_db, HistorySessionRow};
 pub use xspf::{HistoryDocument, HistoryEntry};
 
-use library_api::{EvtBody, Kind, Origin};
 use library_core::{LibraryError, Result};
 use std::path::Path;
 
@@ -96,11 +95,9 @@ impl LibraryManager {
             return Ok(());
         }
         let session_id = self.history.active_session_id().map(|id| id.to_string());
-        match self.publish_evt(
-            Origin::Library,
-            Kind::HistorySessionUpdated,
-            EvtBody::HistorySessionUpdated { session_id },
-        ) {
+        match self.publish_evt(bus_api::Event::HistorySessionUpdated(
+            bus_api::HistorySessionUpdated { session_id },
+        )) {
             Ok(()) => Ok(()),
             Err(err) => {
                 self.history.mark_session_updated();

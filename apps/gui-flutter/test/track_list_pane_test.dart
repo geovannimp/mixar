@@ -141,7 +141,6 @@ void main() {
         overrides: [
           collectionsProvider.overrideWith((ref) async => [collection]),
           overrideCollectionTracksValue(tracks),
-          libraryEventsBootstrapProvider.overrideWith((ref) {}),
           appSettingsProvider.overrideWith(
             (ref) async => rowFields == null
                 ? defaultAppSettings()
@@ -1704,7 +1703,6 @@ void main() {
         overrides: [
           collectionsProvider.overrideWith((ref) async => [collection]),
           overrideCollectionTracksValue([keyedTrack]),
-          libraryEventsBootstrapProvider.overrideWith((ref) {}),
           appSettingsProvider.overrideWith(
             (ref) async => copyAppSettings(
               defaultAppSettings(),

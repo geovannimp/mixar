@@ -10,6 +10,10 @@
 //! amounts fold (`Delta`), booleans flip (`Toggle`), absolute targets replace
 //! (`Update`), press/release edges never merge (`Signal`).
 
+use crate::library::BeatGrid;
+use crate::library::HotCue;
+use crate::library::SavedLoop;
+use crate::library::TrackSummary;
 use crate::payload::DeckEq;
 use crate::payload::DeckHotCue;
 use crate::payload::DeckSavedLoop;
@@ -232,6 +236,56 @@ bus_events! {
         { message: String, track_id: Option<String>, deck: Option<u16> };
     Notice: Signal, Entity::Ui, Part::Whole,
         { message: String };
+
+    // ── library commands ─────────────────────────────────────────────────────
+    AnalyzeTrack: Update, Entity::Track(track_id.clone()), Part::Whole,
+        { track_id: String, force: bool };
+    GenerateStems: Update, Entity::Track(track_id.clone()), Part::Whole,
+        { track_id: String };
+    RefreshTrack: Update, Entity::Track(track_id.clone()), Part::Whole,
+        { track_id: String };
+    SaveBeatGrid: Update, Entity::Track(track_id.clone()), Part::Whole,
+        { track_id: String, bpm: f64, first_beat_secs: f32 };
+    SaveTrackHotCue: Update, Entity::Track(track_id.clone()), Part::Index(*slot),
+        { track_id: String, slot: u8, position_ms: i32,
+          loop_length_beats: Option<i32>, color: Option<String>,
+          label: Option<String> };
+    DeleteTrackHotCue: Update, Entity::Track(track_id.clone()), Part::Index(*slot),
+        { track_id: String, slot: u8 };
+    SaveTrackLoop: Update, Entity::Track(track_id.clone()), Part::Index(*slot),
+        { track_id: String, slot: u8, in_ms: i32, out_ms: i32,
+          label: Option<String>, color: Option<String> };
+    DeleteTrackLoop: Update, Entity::Track(track_id.clone()), Part::Index(*slot),
+        { track_id: String, slot: u8 };
+
+    // ── library events ───────────────────────────────────────────────────────
+    TrackAnalyzed: Update, Entity::Track(track.id.clone()), Part::Whole,
+        { track: TrackSummary };
+    TrackUpdated: Update, Entity::Track(track.id.clone()), Part::Whole,
+        { track: TrackSummary };
+    /// Coarse progress for analysis / stem jobs (`phase` is a stable snake_case token).
+    TrackProgress: Update, Entity::Track(track_id.clone()), Part::Whole,
+        { track_id: String, phase: String, fraction: Option<f32> };
+    HotCuesChanged: Update, Entity::Track(track_id.clone()), Part::Whole,
+        { track_id: String, hot_cues: Vec<HotCue> };
+    LoopsChanged: Update, Entity::Track(track_id.clone()), Part::Whole,
+        { track_id: String, loops: Vec<SavedLoop> };
+    BeatGridChanged: Update, Entity::Track(track_id.clone()), Part::Whole,
+        { track_id: String, beat_grid: BeatGrid };
+    /// Open history session entries or boundaries changed (thin signal).
+    HistorySessionUpdated: Update,
+        match *session_id { Some(ref id) => Entity::Session(id.clone()), None => Entity::Library },
+        Part::Whole,
+        { session_id: Option<String> };
+    /// UI-only: move library table focus by `delta` (signed row steps).
+    Navigate: Delta, Entity::Ui, Part::Whole,
+        { delta: i32 }, fold: delta;
+    /// UI-only: step browser focus to another pane (`+1` next, `-1` previous).
+    Focus: Delta, Entity::Ui, Part::Whole,
+        { delta: i32 }, fold: delta;
+    /// UI-only: load the focused library row onto `deck` (0-based).
+    Load: Update, Entity::Deck(*deck), Part::Whole,
+        { deck: u16 };
 }
 
 impl From<DeckSnapshot> for DeckUpdated {

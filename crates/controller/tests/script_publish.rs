@@ -1,26 +1,20 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::collections::HashSet;
 
+use bus_api::{Event, SetVolume};
 use controller::script::{ScriptHost, ScriptRuntime};
 use controller::{ActionPublish, MidiOut};
-use engine_api::{Event, SetVolume};
 
 struct CaptureBus {
     cmds: Vec<Event>,
 }
 
 impl ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, event: Event) {
+    fn publish_cmd(&mut self, event: Event) {
         self.cmds.push(event);
     }
 
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_evt(&mut self, _event: Event) {}
 }
 
 struct NoMidi;

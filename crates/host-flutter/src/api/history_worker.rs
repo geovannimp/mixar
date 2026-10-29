@@ -6,9 +6,9 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use crate::bridge::BridgeResult;
-use engine_api::DeckSnapshot;
-use engine_api::DeckUpdated;
-use engine_api::Event;
+use bus_api::DeckSnapshot;
+use bus_api::DeckUpdated;
+use bus_api::Event;
 use event_bus::EventBus;
 use event_bus::Subscriber;
 use library::{DeckPlaySnapshot, LibraryManager};
@@ -75,6 +75,9 @@ fn run_loop(
     }
 }
 
+/// History reads two event families (`DeckUpdated` for play state, `EngineSnapshot`
+/// for crossfader and profile changes), so it subscribes unfiltered and matches
+/// instead of taking a single-topic subscription.
 fn apply_evt(library: &Arc<Mutex<LibraryManager>>, event: &Event) {
     let Ok(mut lib) = library.lock() else {
         eprintln!("history worker: library lock poisoned");
@@ -149,22 +152,20 @@ mod tests {
     fn non_deck_events_do_not_drive_history() {
         // Sampler / PFL are commands or DeckUpdated.headphone_cue — never history inputs.
         assert!(!drives_history(&Event::DeckPosition(
-            engine_api::DeckPosition {
+            bus_api::DeckPosition {
                 deck: 0,
                 position_ms: 0,
                 slip_shadow_position_ms: None,
             }
         )));
-        assert!(!drives_history(&Event::DeckLevels(
-            engine_api::DeckLevels {
-                deck: None,
-                peak_l: 0.0,
-                peak_r: 0.0,
-                peak_hold_l: 0.0,
-                peak_hold_r: 0.0,
-            }
-        )));
-        assert!(!drives_history(&Event::Notice(engine_api::Notice {
+        assert!(!drives_history(&Event::DeckLevels(bus_api::DeckLevels {
+            deck: None,
+            peak_l: 0.0,
+            peak_r: 0.0,
+            peak_hold_l: 0.0,
+            peak_hold_r: 0.0,
+        })));
+        assert!(!drives_history(&Event::Notice(bus_api::Notice {
             message: "hi".into(),
         })));
     }

@@ -9,14 +9,15 @@ import 'package:gui_flutter/widgets/library/drive_pane.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' as bus;
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 import 'helpers/collection_tracks_override.dart';
 import 'support/fake_library_transport.dart';
 import 'support/mixar_material_app.dart';
 
-/// Emits library evts the way the controller session does, so the tests run the
-/// real transport → handler path instead of calling the dispatch directly.
+/// Emits library events through [libraryEvtDispatchProvider], the same handler
+/// the bus bootstrap calls, so the tests exercise the real dispatch path.
 void main() {
   const collectionA = LibraryCollectionSummary(
     id: 'c1',
@@ -76,7 +77,7 @@ void main() {
   ///
   /// [loadListing] replaces the drive listing source, for a test that mutates
   /// the tree under an open browse cursor (it re-reads on refresh).
-  Future<(ProviderContainer, void Function(LibraryEvt))> pumpBrowser(
+  Future<(ProviderContainer, void Function(bus.Event))> pumpBrowser(
     WidgetTester tester, {
     Future<FsDirectoryListing> Function(Ref ref)? loadListing,
   }) async {
@@ -104,7 +105,6 @@ void main() {
               ref.watch(historySessionsProvider);
               ref.watch(driveListingProvider);
               ref.watch(driveVolumesProvider);
-              ref.watch(libraryEventsBootstrapProvider);
               return const Text('browser');
             },
           ),
@@ -112,13 +112,16 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    return (container, (LibraryEvt evt) => transport.events.add(evt));
+    return (
+      container,
+      (bus.Event evt) => container.read(libraryEvtDispatchProvider)(evt),
+    );
   }
 
-  const focusNext = LibraryEvt(kind: LibraryEvtKind.focus, delta: 1);
-  const focusPrev = LibraryEvt(kind: LibraryEvtKind.focus, delta: -1);
-  const browseNext = LibraryEvt(kind: LibraryEvtKind.navigate, delta: 1);
-  const browsePrev = LibraryEvt(kind: LibraryEvtKind.navigate, delta: -1);
+  const focusNext = bus.Event.focus(bus.Focus(delta: 1));
+  const focusPrev = bus.Event.focus(bus.Focus(delta: -1));
+  const browseNext = bus.Event.navigate(bus.Navigate(delta: 1));
+  const browsePrev = bus.Event.navigate(bus.Navigate(delta: -1));
 
   test('a focus step flips panes either way', () {
     final container = ProviderContainer();

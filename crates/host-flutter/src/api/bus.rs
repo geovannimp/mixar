@@ -6,9 +6,9 @@
 //! subscription and forwards each event to every live sink, dropping a sink on
 //! the first send error (the Dart end went away).
 
-use engine_api::DeckUpdated;
-use engine_api::Event;
-use engine_api::SamplerSlotInfo;
+use bus_api::DeckUpdated;
+use bus_api::Event;
+use bus_api::SamplerSlotInfo;
 use event_bus::EventBus;
 use flutter_rust_bridge::frb;
 use std::collections::HashMap;

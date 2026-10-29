@@ -4,11 +4,11 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use engine_api::DeckUpdated;
-use engine_api::EngineSnapshot;
-use engine_api::EngineStatus;
-use engine_api::Event;
-use engine_api::FxKind;
+use bus_api::DeckUpdated;
+use bus_api::EngineSnapshot;
+use bus_api::EngineStatus;
+use bus_api::Event;
+use bus_api::FxKind;
 use event_bus::Subscriber;
 use host_flutter::api::bus::BusTransport;
 use host_flutter::api::engine::EngineTransport;
@@ -78,7 +78,7 @@ fn recv_engine_status(rx: &mut EvtRx, timeout: Duration) -> EngineStatus {
 }
 
 /// Receive the next engine error, skipping other events.
-fn recv_error(rx: &mut EvtRx, timeout: Duration) -> engine_api::Error {
+fn recv_error(rx: &mut EvtRx, timeout: Duration) -> bus_api::Error {
     recv_matching(rx, "Error", timeout, |event| match event {
         Event::Error(error) => Some(error),
         _ => None,
@@ -101,7 +101,7 @@ fn load_beat_fixture(transport: &EngineTransport, rx: &mut EvtRx, deck_id: u16) 
 }
 
 /// FX slots carried by the next `DeckUpdated` for `deck_id`.
-fn expect_deck_fx(rx: &mut EvtRx, deck_id: u16, timeout: Duration) -> Vec<engine_api::FxSlotState> {
+fn expect_deck_fx(rx: &mut EvtRx, deck_id: u16, timeout: Duration) -> Vec<bus_api::FxSlotState> {
     recv_deck_updated(rx, deck_id, timeout).fx
 }
 
@@ -325,11 +325,7 @@ fn set_master_deck_publishes_status() {
 fn set_sampler_bank_publishes_active_bank_id() {
     let bus = BusTransport::open().unwrap();
     let library = LibraryTransport::open_in_memory().unwrap();
-    let bank_id = {
-        let lib = library.library_arc();
-        let guard = lib.lock().unwrap();
-        guard.create_sampler_bank("pads", None).unwrap().id
-    };
+    let bank_id = library.create_sampler_bank("pads".into(), None).unwrap().id;
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport.set_sampler_bank(0, bank_id.clone()).unwrap();
@@ -351,26 +347,26 @@ fn fx_unit_and_deck_routing_publish_updated() {
     transport.set_fx_unit_slot(0, FxKind::Echo).unwrap();
     // Shared unit: every deck republishes, so drain both before the next command.
     let fx = expect_deck_fx(&mut rx, 0, Duration::from_secs(2));
-    assert_eq!(fx.len(), engine_api::FX_SLOT_COUNT);
-    assert_eq!(fx[0].kind, engine_api::FxKind::Echo);
+    assert_eq!(fx.len(), bus_api::FX_SLOT_COUNT);
+    assert_eq!(fx[0].kind, bus_api::FxKind::Echo);
     assert!(!fx[0].enabled, "selecting an effect leaves the slot off");
     let _ = recv_deck_updated(&mut rx, 1, Duration::from_secs(2));
 
     transport.set_fx_unit_slot_enabled(0, true).unwrap();
     let fx = expect_deck_fx(&mut rx, 0, Duration::from_secs(2));
-    assert_eq!(fx.len(), engine_api::FX_SLOT_COUNT);
+    assert_eq!(fx.len(), bus_api::FX_SLOT_COUNT);
     assert!(fx[0].enabled, "the ON button must enable the slot");
     let _ = recv_deck_updated(&mut rx, 1, Duration::from_secs(2));
 
     transport.set_fx_unit_wet(0, 0.8).unwrap();
     let fx = expect_deck_fx(&mut rx, 0, Duration::from_secs(2));
-    assert_eq!(fx.len(), engine_api::FX_SLOT_COUNT);
+    assert_eq!(fx.len(), bus_api::FX_SLOT_COUNT);
     assert!((fx[0].wet - 0.8).abs() < 1e-6, "wet {}", fx[0].wet);
     let _ = recv_deck_updated(&mut rx, 1, Duration::from_secs(2));
 
     transport.set_fx_unit_param(0, 0, 1.0).unwrap();
     let fx = expect_deck_fx(&mut rx, 0, Duration::from_secs(2));
-    assert_eq!(fx.len(), engine_api::FX_SLOT_COUNT);
+    assert_eq!(fx.len(), bus_api::FX_SLOT_COUNT);
     // Echo TIME norm 1.0 = the longest table division (2/1 beats).
     assert!((fx[0].params[0] - 1.0).abs() < 1e-6, "{}", fx[0].params[0]);
     let _ = recv_deck_updated(&mut rx, 1, Duration::from_secs(2));

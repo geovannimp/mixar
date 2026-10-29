@@ -14,7 +14,7 @@ use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
-use engine_api::{FxSlotState, PadMode};
+use bus_api::{FxSlotState, PadMode};
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -1099,14 +1099,8 @@ impl ControllerEngine {
 struct NullPublish;
 
 impl ActionPublish for NullPublish {
-    fn publish_engine(&mut self, _event: engine_api::Event) {}
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_cmd(&mut self, _event: bus_api::Event) {}
+    fn publish_evt(&mut self, _event: bus_api::Event) {}
 }
 
 fn open_matching_output(

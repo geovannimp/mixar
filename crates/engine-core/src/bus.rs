@@ -4,7 +4,7 @@
 //! produces travel the same paths and Flutter subscribes once. Capacities are
 //! per subscriber: overflow drops the newest event for that subscriber.
 
-use engine_api::Event;
+use bus_api::Event;
 use event_bus::EventBus;
 
 /// Discrete commands: drained every control tick, so a shallow queue is enough.

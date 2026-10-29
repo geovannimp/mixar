@@ -10,7 +10,7 @@ import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -181,7 +181,7 @@ class _OverviewOverlayLayer extends StatefulWidget {
   final double width;
   final double height;
   final List<DeckHotCue> hotCues;
-  final List<SavedLoopInfo> savedLoops;
+  final List<SavedLoop> savedLoops;
 
   @override
   State<_OverviewOverlayLayer> createState() => _OverviewOverlayLayerState();

@@ -1,6 +1,6 @@
 use crate::sync::DeckControlState;
 use audio_core::secs_to_ms;
-use engine_api::{DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, LoopRegion};
+use bus_api::{DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, LoopRegion};
 use engine_dsp::{DeckState, DspEngine};
 
 use crate::engine::{DeckTransportState, Engine};
@@ -167,7 +167,7 @@ fn deck_snapshot_from_dsp(
         filter: crate::control_norm::strip_db_to_norm(channel.filter_db()),
         gain_trim: crate::control_norm::strip_db_to_norm(channel.gain_trim_db()),
         fx_routed: channel.fx_routed(),
-        fx: (0..engine_api::FX_SLOT_COUNT)
+        fx: (0..bus_api::FX_SLOT_COUNT)
             .map(|slot| fx_slot_state(channel.fx(), slot))
             .collect(),
         headphone_cue: channel.headphone_cue(),
@@ -213,17 +213,17 @@ fn control_hot_cues(control: &DeckControlState) -> Vec<DeckHotCue> {
         .collect()
 }
 
-pub(crate) fn map_jog_mode(mode: engine_api::JogMode) -> engine_dsp::JogMode {
+pub(crate) fn map_jog_mode(mode: bus_api::JogMode) -> engine_dsp::JogMode {
     match mode {
-        engine_api::JogMode::Vinyl => engine_dsp::JogMode::Vinyl,
-        engine_api::JogMode::PitchBend => engine_dsp::JogMode::PitchBend,
-        engine_api::JogMode::Ignore => engine_dsp::JogMode::Ignore,
+        bus_api::JogMode::Vinyl => engine_dsp::JogMode::Vinyl,
+        bus_api::JogMode::PitchBend => engine_dsp::JogMode::PitchBend,
+        bus_api::JogMode::Ignore => engine_dsp::JogMode::Ignore,
     }
 }
 
-fn fx_slot_state(fx: &engine_dsp::FxChain, slot: usize) -> engine_api::FxSlotState {
+fn fx_slot_state(fx: &engine_dsp::FxChain, slot: usize) -> bus_api::FxSlotState {
     let fx_slot = fx.slot(slot).expect("FX slot index is in range");
-    engine_api::FxSlotState {
+    bus_api::FxSlotState {
         kind: map_fx_kind_to_api(fx_slot.kind()),
         enabled: fx_slot.enabled(),
         wet: fx_slot.wet(),
@@ -231,26 +231,26 @@ fn fx_slot_state(fx: &engine_dsp::FxChain, slot: usize) -> engine_api::FxSlotSta
     }
 }
 
-pub(crate) fn map_fx_kind(kind: engine_api::FxKind) -> engine_dsp::FxKind {
+pub(crate) fn map_fx_kind(kind: bus_api::FxKind) -> engine_dsp::FxKind {
     match kind {
-        engine_api::FxKind::Off => engine_dsp::FxKind::Off,
-        engine_api::FxKind::Echo => engine_dsp::FxKind::Echo,
-        engine_api::FxKind::Reverb => engine_dsp::FxKind::Reverb,
+        bus_api::FxKind::Off => engine_dsp::FxKind::Off,
+        bus_api::FxKind::Echo => engine_dsp::FxKind::Echo,
+        bus_api::FxKind::Reverb => engine_dsp::FxKind::Reverb,
     }
 }
 
-fn map_fx_kind_to_api(kind: engine_dsp::FxKind) -> engine_api::FxKind {
+fn map_fx_kind_to_api(kind: engine_dsp::FxKind) -> bus_api::FxKind {
     match kind {
-        engine_dsp::FxKind::Off => engine_api::FxKind::Off,
-        engine_dsp::FxKind::Echo => engine_api::FxKind::Echo,
-        engine_dsp::FxKind::Reverb => engine_api::FxKind::Reverb,
+        engine_dsp::FxKind::Off => bus_api::FxKind::Off,
+        engine_dsp::FxKind::Echo => bus_api::FxKind::Echo,
+        engine_dsp::FxKind::Reverb => bus_api::FxKind::Reverb,
     }
 }
 
-fn map_jog_mode_to_api(mode: engine_dsp::JogMode) -> engine_api::JogMode {
+fn map_jog_mode_to_api(mode: engine_dsp::JogMode) -> bus_api::JogMode {
     match mode {
-        engine_dsp::JogMode::Vinyl => engine_api::JogMode::Vinyl,
-        engine_dsp::JogMode::PitchBend => engine_api::JogMode::PitchBend,
-        engine_dsp::JogMode::Ignore => engine_api::JogMode::Ignore,
+        engine_dsp::JogMode::Vinyl => bus_api::JogMode::Vinyl,
+        engine_dsp::JogMode::PitchBend => bus_api::JogMode::PitchBend,
+        engine_dsp::JogMode::Ignore => bus_api::JogMode::Ignore,
     }
 }

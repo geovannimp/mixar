@@ -45,7 +45,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 448342500;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1485015102;
 
 // Section: executor
 
@@ -616,41 +616,26 @@ fn wire__crate__api__controller__ControllerTransport_start_impl(
             let api_bus = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BusTransport>,
             >>::sse_decode(&mut deserializer);
-            let api_library_buses = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>,
-            >>::sse_decode(&mut deserializer);
             let api_trusted_device_ids = <Vec<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let mut api_bus_guard = None;
-                    let mut api_library_buses_guard = None;
                     let decode_indices_ =
                         flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
                             flutter_rust_bridge::for_generated::LockableOrderInfo::new(
                                 &api_bus, 0, false,
                             ),
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_library_buses,
-                                1,
-                                false,
-                            ),
                         ]);
                     for i in decode_indices_ {
                         match i {
                             0 => api_bus_guard = Some(api_bus.lockable_decode_sync_ref()),
-                            1 => {
-                                api_library_buses_guard =
-                                    Some(api_library_buses.lockable_decode_sync_ref())
-                            }
                             _ => unreachable!(),
                         }
                     }
                     let api_bus_guard = api_bus_guard.unwrap();
-                    let api_library_buses_guard = api_library_buses_guard.unwrap();
                     let output_ok = crate::api::controller::ControllerTransport::start(
                         &*api_bus_guard,
-                        &*api_library_buses_guard,
                         api_trusted_device_ids,
                     )?;
                     std::result::Result::Ok(output_ok)
@@ -4896,57 +4881,6 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
         },
     )
 }
-fn wire__crate__api__library__LibraryTransport_buses_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "LibraryTransport_buses",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = Ok::<_, ()>(crate::api::library::LibraryTransport::buses(
-                        &*api_that_guard,
-                    ))?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__library__LibraryTransport_clear_model_cache_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -6394,10 +6328,27 @@ fn wire__crate__api__library__LibraryTransport_open_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_bus = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BusTransport>,
+            >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::library::LibraryTransport::open()?;
+                    let mut api_bus_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_bus, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_bus_guard = Some(api_bus.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_bus_guard = api_bus_guard.unwrap();
+                    let output_ok = crate::api::library::LibraryTransport::open(&*api_bus_guard)?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -6867,62 +6818,6 @@ fn wire__crate__api__library__LibraryTransport_storage_usage_impl(
                     let api_that_guard = api_that_guard.unwrap();
                     let output_ok =
                         crate::api::library::LibraryTransport::storage_usage(&*api_that_guard)?;
-                    std::result::Result::Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__library__LibraryTransport_subscribe_events_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "LibraryTransport_subscribe_events",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
-            >>::sse_decode(&mut deserializer);
-            let api_sink = <StreamSink<
-                crate::api::library::LibraryEvt,
-                flutter_rust_bridge::for_generated::SseCodec,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::library::LibraryTransport::subscribe_events(
-                        &*api_that_guard,
-                        api_sink,
-                    )?;
                     std::result::Result::Ok(output_ok)
                 })())
             }
@@ -7721,6 +7616,11 @@ fn wire__crate__api__settings__ui_language_setting_default_impl(
 #[allow(clippy::unnecessary_literal_unwrap)]
 const _: fn() = || {
     {
+        let AnalyzeTrack = None::<crate::api::event_mirrors::AnalyzeTrack>.unwrap();
+        let _: String = AnalyzeTrack.track_id;
+        let _: bool = AnalyzeTrack.force;
+    }
+    {
         let AssignSampler = None::<crate::api::event_mirrors::AssignSampler>.unwrap();
         let _: u16 = AssignSampler.deck;
         let _: u8 = AssignSampler.slot;
@@ -7731,6 +7631,17 @@ const _: fn() = || {
         let _: u16 = AssignSamplerTrack.deck;
         let _: u8 = AssignSamplerTrack.slot;
         let _: String = AssignSamplerTrack.track_id;
+    }
+    {
+        let BeatGrid = None::<crate::api::event_mirrors::BeatGrid>.unwrap();
+        let _: Vec<f32> = BeatGrid.beats;
+        let _: Vec<f32> = BeatGrid.downbeats;
+        let _: f64 = BeatGrid.bpm;
+    }
+    {
+        let BeatGridChanged = None::<crate::api::event_mirrors::BeatGridChanged>.unwrap();
+        let _: String = BeatGridChanged.track_id;
+        let _: crate::api::event_mirrors::BeatGrid = BeatGridChanged.beat_grid;
     }
     {
         let BeatJump = None::<crate::api::event_mirrors::BeatJump>.unwrap();
@@ -7902,6 +7813,16 @@ const _: fn() = || {
         let DeleteDeckHotCue = None::<crate::api::event_mirrors::DeleteDeckHotCue>.unwrap();
         let _: u16 = DeleteDeckHotCue.deck;
         let _: u8 = DeleteDeckHotCue.slot;
+    }
+    {
+        let DeleteTrackHotCue = None::<crate::api::event_mirrors::DeleteTrackHotCue>.unwrap();
+        let _: String = DeleteTrackHotCue.track_id;
+        let _: u8 = DeleteTrackHotCue.slot;
+    }
+    {
+        let DeleteTrackLoop = None::<crate::api::event_mirrors::DeleteTrackLoop>.unwrap();
+        let _: String = DeleteTrackLoop.track_id;
+        let _: u8 = DeleteTrackLoop.slot;
     }
     {
         let EndCueHold = None::<crate::api::event_mirrors::EndCueHold>.unwrap();
@@ -8168,10 +8089,68 @@ const _: fn() = || {
         crate::api::event_mirrors::Event::Notice(field0) => {
             let _: crate::api::event_mirrors::Notice = field0;
         }
+        crate::api::event_mirrors::Event::AnalyzeTrack(field0) => {
+            let _: crate::api::event_mirrors::AnalyzeTrack = field0;
+        }
+        crate::api::event_mirrors::Event::GenerateStems(field0) => {
+            let _: crate::api::event_mirrors::GenerateStems = field0;
+        }
+        crate::api::event_mirrors::Event::RefreshTrack(field0) => {
+            let _: crate::api::event_mirrors::RefreshTrack = field0;
+        }
+        crate::api::event_mirrors::Event::SaveBeatGrid(field0) => {
+            let _: crate::api::event_mirrors::SaveBeatGrid = field0;
+        }
+        crate::api::event_mirrors::Event::SaveTrackHotCue(field0) => {
+            let _: crate::api::event_mirrors::SaveTrackHotCue = field0;
+        }
+        crate::api::event_mirrors::Event::DeleteTrackHotCue(field0) => {
+            let _: crate::api::event_mirrors::DeleteTrackHotCue = field0;
+        }
+        crate::api::event_mirrors::Event::SaveTrackLoop(field0) => {
+            let _: crate::api::event_mirrors::SaveTrackLoop = field0;
+        }
+        crate::api::event_mirrors::Event::DeleteTrackLoop(field0) => {
+            let _: crate::api::event_mirrors::DeleteTrackLoop = field0;
+        }
+        crate::api::event_mirrors::Event::TrackAnalyzed(field0) => {
+            let _: crate::api::event_mirrors::TrackAnalyzed = field0;
+        }
+        crate::api::event_mirrors::Event::TrackUpdated(field0) => {
+            let _: crate::api::event_mirrors::TrackUpdated = field0;
+        }
+        crate::api::event_mirrors::Event::TrackProgress(field0) => {
+            let _: crate::api::event_mirrors::TrackProgress = field0;
+        }
+        crate::api::event_mirrors::Event::HotCuesChanged(field0) => {
+            let _: crate::api::event_mirrors::HotCuesChanged = field0;
+        }
+        crate::api::event_mirrors::Event::LoopsChanged(field0) => {
+            let _: crate::api::event_mirrors::LoopsChanged = field0;
+        }
+        crate::api::event_mirrors::Event::BeatGridChanged(field0) => {
+            let _: crate::api::event_mirrors::BeatGridChanged = field0;
+        }
+        crate::api::event_mirrors::Event::HistorySessionUpdated(field0) => {
+            let _: crate::api::event_mirrors::HistorySessionUpdated = field0;
+        }
+        crate::api::event_mirrors::Event::Navigate(field0) => {
+            let _: crate::api::event_mirrors::Navigate = field0;
+        }
+        crate::api::event_mirrors::Event::Focus(field0) => {
+            let _: crate::api::event_mirrors::Focus = field0;
+        }
+        crate::api::event_mirrors::Event::Load(field0) => {
+            let _: crate::api::event_mirrors::Load = field0;
+        }
     }
     {
         let ExitLoop = None::<crate::api::event_mirrors::ExitLoop>.unwrap();
         let _: u16 = ExitLoop.deck;
+    }
+    {
+        let Focus = None::<crate::api::event_mirrors::Focus>.unwrap();
+        let _: i32 = Focus.delta;
     }
     {
         let FxSlotState = None::<crate::api::event_mirrors::FxSlotState>.unwrap();
@@ -8179,6 +8158,23 @@ const _: fn() = || {
         let _: bool = FxSlotState.enabled;
         let _: f32 = FxSlotState.wet;
         let _: Vec<f32> = FxSlotState.params;
+    }
+    {
+        let GenerateStems = None::<crate::api::event_mirrors::GenerateStems>.unwrap();
+        let _: String = GenerateStems.track_id;
+    }
+    {
+        let HistorySessionUpdated =
+            None::<crate::api::event_mirrors::HistorySessionUpdated>.unwrap();
+        let _: Option<String> = HistorySessionUpdated.session_id;
+    }
+    {
+        let HotCue = None::<crate::api::event_mirrors::HotCue>.unwrap();
+        let _: u8 = HotCue.slot;
+        let _: i32 = HotCue.position_ms;
+        let _: Option<i32> = HotCue.loop_length_beats;
+        let _: Option<String> = HotCue.color;
+        let _: Option<String> = HotCue.label;
     }
     {
         let HotCuePadPress = None::<crate::api::event_mirrors::HotCuePadPress>.unwrap();
@@ -8190,6 +8186,11 @@ const _: fn() = || {
         let HotCuePadRelease = None::<crate::api::event_mirrors::HotCuePadRelease>.unwrap();
         let _: u16 = HotCuePadRelease.deck;
         let _: u8 = HotCuePadRelease.slot;
+    }
+    {
+        let HotCuesChanged = None::<crate::api::event_mirrors::HotCuesChanged>.unwrap();
+        let _: String = HotCuesChanged.track_id;
+        let _: Vec<crate::api::event_mirrors::HotCue> = HotCuesChanged.hot_cues;
     }
     {
         let JogTouch = None::<crate::api::event_mirrors::JogTouch>.unwrap();
@@ -8224,6 +8225,10 @@ const _: fn() = || {
         let _: u8 = KeyboardPadRelease.slot;
     }
     {
+        let Load = None::<crate::api::event_mirrors::Load>.unwrap();
+        let _: u16 = Load.deck;
+    }
+    {
         let LoopIn = None::<crate::api::event_mirrors::LoopIn>.unwrap();
         let _: u16 = LoopIn.deck;
         let _: i32 = LoopIn.position_ms;
@@ -8248,6 +8253,15 @@ const _: fn() = || {
         let LoopRollPadRelease = None::<crate::api::event_mirrors::LoopRollPadRelease>.unwrap();
         let _: u16 = LoopRollPadRelease.deck;
         let _: u8 = LoopRollPadRelease.slot;
+    }
+    {
+        let LoopsChanged = None::<crate::api::event_mirrors::LoopsChanged>.unwrap();
+        let _: String = LoopsChanged.track_id;
+        let _: Vec<crate::api::event_mirrors::SavedLoop> = LoopsChanged.loops;
+    }
+    {
+        let Navigate = None::<crate::api::event_mirrors::Navigate>.unwrap();
+        let _: i32 = Navigate.delta;
     }
     {
         let Notice = None::<crate::api::event_mirrors::Notice>.unwrap();
@@ -8279,6 +8293,10 @@ const _: fn() = || {
         let _: i32 = RecallSavedLoop.out_ms;
     }
     {
+        let RefreshTrack = None::<crate::api::event_mirrors::RefreshTrack>.unwrap();
+        let _: String = RefreshTrack.track_id;
+    }
+    {
         let SamplerPadPress = None::<crate::api::event_mirrors::SamplerPadPress>.unwrap();
         let _: u16 = SamplerPadPress.deck;
         let _: u8 = SamplerPadPress.slot;
@@ -8297,9 +8315,41 @@ const _: fn() = || {
         let _: Option<i32> = SamplerSlotInfo.duration_ms;
     }
     {
+        let SaveBeatGrid = None::<crate::api::event_mirrors::SaveBeatGrid>.unwrap();
+        let _: String = SaveBeatGrid.track_id;
+        let _: f64 = SaveBeatGrid.bpm;
+        let _: f32 = SaveBeatGrid.first_beat_secs;
+    }
+    {
         let SaveDeckHotCue = None::<crate::api::event_mirrors::SaveDeckHotCue>.unwrap();
         let _: u16 = SaveDeckHotCue.deck;
         let _: u8 = SaveDeckHotCue.slot;
+    }
+    {
+        let SaveTrackHotCue = None::<crate::api::event_mirrors::SaveTrackHotCue>.unwrap();
+        let _: String = SaveTrackHotCue.track_id;
+        let _: u8 = SaveTrackHotCue.slot;
+        let _: i32 = SaveTrackHotCue.position_ms;
+        let _: Option<i32> = SaveTrackHotCue.loop_length_beats;
+        let _: Option<String> = SaveTrackHotCue.color;
+        let _: Option<String> = SaveTrackHotCue.label;
+    }
+    {
+        let SaveTrackLoop = None::<crate::api::event_mirrors::SaveTrackLoop>.unwrap();
+        let _: String = SaveTrackLoop.track_id;
+        let _: u8 = SaveTrackLoop.slot;
+        let _: i32 = SaveTrackLoop.in_ms;
+        let _: i32 = SaveTrackLoop.out_ms;
+        let _: Option<String> = SaveTrackLoop.label;
+        let _: Option<String> = SaveTrackLoop.color;
+    }
+    {
+        let SavedLoop = None::<crate::api::event_mirrors::SavedLoop>.unwrap();
+        let _: u8 = SavedLoop.slot;
+        let _: i32 = SavedLoop.in_ms;
+        let _: i32 = SavedLoop.out_ms;
+        let _: Option<String> = SavedLoop.label;
+        let _: Option<String> = SavedLoop.color;
     }
     {
         let Seek = None::<crate::api::event_mirrors::Seek>.unwrap();
@@ -8494,6 +8544,40 @@ const _: fn() = || {
         let _: bool = ToggleSync.beat_sync;
     }
     {
+        let TrackAnalyzed = None::<crate::api::event_mirrors::TrackAnalyzed>.unwrap();
+        let _: crate::api::event_mirrors::TrackSummary = TrackAnalyzed.track;
+    }
+    {
+        let TrackProgress = None::<crate::api::event_mirrors::TrackProgress>.unwrap();
+        let _: String = TrackProgress.track_id;
+        let _: String = TrackProgress.phase;
+        let _: Option<f32> = TrackProgress.fraction;
+    }
+    {
+        let TrackSummary = None::<crate::api::event_mirrors::TrackSummary>.unwrap();
+        let _: String = TrackSummary.id;
+        let _: String = TrackSummary.display_name;
+        let _: Option<String> = TrackSummary.artist;
+        let _: Option<String> = TrackSummary.title;
+        let _: Option<String> = TrackSummary.album;
+        let _: Option<String> = TrackSummary.genre;
+        let _: Option<f64> = TrackSummary.bpm;
+        let _: Option<String> = TrackSummary.key;
+        let _: Option<i32> = TrackSummary.duration_ms;
+        let _: String = TrackSummary.path;
+        let _: Option<String> = TrackSummary.isrc;
+        let _: Option<u8> = TrackSummary.rating;
+        let _: Option<String> = TrackSummary.comment;
+        let _: Option<u16> = TrackSummary.year;
+        let _: Option<u16> = TrackSummary.track_number;
+        let _: Option<u16> = TrackSummary.disc_number;
+        let _: Option<String> = TrackSummary.color_label;
+    }
+    {
+        let TrackUpdated = None::<crate::api::event_mirrors::TrackUpdated>.unwrap();
+        let _: crate::api::event_mirrors::TrackSummary = TrackUpdated.track;
+    }
+    {
         let TriggerHotCue = None::<crate::api::event_mirrors::TriggerHotCue>.unwrap();
         let _: u16 = TriggerHotCue.deck;
         let _: i32 = TriggerHotCue.position_ms;
@@ -8517,9 +8601,6 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>
-);
-flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
-    flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>
 );
 flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
     flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>
@@ -8573,16 +8654,6 @@ impl SseDecode for EngineTransport {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <RustOpaqueMoi<
             flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>,
-        >>::sse_decode(deserializer);
-        return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
-    }
-}
-
-impl SseDecode for LibraryBusHandle {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <RustOpaqueMoi<
-            flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>,
         >>::sse_decode(deserializer);
         return flutter_rust_bridge::for_generated::rust_auto_opaque_decode_owned(inner);
     }
@@ -8649,16 +8720,6 @@ impl SseDecode
 }
 
 impl SseDecode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <usize>::sse_decode(deserializer);
-        return decode_rust_opaque_moi(inner);
-    }
-}
-
-impl SseDecode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -8693,16 +8754,6 @@ impl SseDecode
 
 impl SseDecode
     for StreamSink<crate::api::event_mirrors::Event, flutter_rust_bridge::for_generated::SseCodec>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <String>::sse_decode(deserializer);
-        return StreamSink::deserialize(inner);
-    }
-}
-
-impl SseDecode
-    for StreamSink<crate::api::library::LibraryEvt, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -8759,6 +8810,18 @@ impl SseDecode for crate::api::library::AnalyzeCollectionResult {
         return crate::api::library::AnalyzeCollectionResult {
             queued_track_ids: var_queuedTrackIds,
             stem_track_ids: var_stemTrackIds,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::AnalyzeTrack {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_force = <bool>::sse_decode(deserializer);
+        return crate::api::event_mirrors::AnalyzeTrack {
+            track_id: var_trackId,
+            force: var_force,
         };
     }
 }
@@ -8894,6 +8957,32 @@ impl SseDecode for crate::api::event_mirrors::AssignSamplerTrack {
             deck: var_deck,
             slot: var_slot,
             track_id: var_trackId,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::BeatGrid {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_beats = <Vec<f32>>::sse_decode(deserializer);
+        let mut var_downbeats = <Vec<f32>>::sse_decode(deserializer);
+        let mut var_bpm = <f64>::sse_decode(deserializer);
+        return crate::api::event_mirrors::BeatGrid {
+            beats: var_beats,
+            downbeats: var_downbeats,
+            bpm: var_bpm,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::BeatGridChanged {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_beatGrid = <crate::api::event_mirrors::BeatGrid>::sse_decode(deserializer);
+        return crate::api::event_mirrors::BeatGridChanged {
+            track_id: var_trackId,
+            beat_grid: var_beatGrid,
         };
     }
 }
@@ -9447,6 +9536,30 @@ impl SseDecode for crate::api::event_mirrors::DeleteDeckHotCue {
     }
 }
 
+impl SseDecode for crate::api::event_mirrors::DeleteTrackHotCue {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_slot = <u8>::sse_decode(deserializer);
+        return crate::api::event_mirrors::DeleteTrackHotCue {
+            track_id: var_trackId,
+            slot: var_slot,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::DeleteTrackLoop {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_slot = <u8>::sse_decode(deserializer);
+        return crate::api::event_mirrors::DeleteTrackLoop {
+            track_id: var_trackId,
+            slot: var_slot,
+        };
+    }
+}
+
 impl SseDecode for crate::api::event_mirrors::EndCueHold {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9909,6 +10022,94 @@ impl SseDecode for crate::api::event_mirrors::Event {
                 let mut var_field0 = <crate::api::event_mirrors::Notice>::sse_decode(deserializer);
                 return crate::api::event_mirrors::Event::Notice(var_field0);
             }
+            78 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::AnalyzeTrack>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::AnalyzeTrack(var_field0);
+            }
+            79 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::GenerateStems>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::GenerateStems(var_field0);
+            }
+            80 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::RefreshTrack>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::RefreshTrack(var_field0);
+            }
+            81 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::SaveBeatGrid>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::SaveBeatGrid(var_field0);
+            }
+            82 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::SaveTrackHotCue>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::SaveTrackHotCue(var_field0);
+            }
+            83 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::DeleteTrackHotCue>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::DeleteTrackHotCue(var_field0);
+            }
+            84 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::SaveTrackLoop>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::SaveTrackLoop(var_field0);
+            }
+            85 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::DeleteTrackLoop>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::DeleteTrackLoop(var_field0);
+            }
+            86 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::TrackAnalyzed>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::TrackAnalyzed(var_field0);
+            }
+            87 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::TrackUpdated>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::TrackUpdated(var_field0);
+            }
+            88 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::TrackProgress>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::TrackProgress(var_field0);
+            }
+            89 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::HotCuesChanged>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::HotCuesChanged(var_field0);
+            }
+            90 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::LoopsChanged>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::LoopsChanged(var_field0);
+            }
+            91 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::BeatGridChanged>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::BeatGridChanged(var_field0);
+            }
+            92 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::HistorySessionUpdated>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::HistorySessionUpdated(var_field0);
+            }
+            93 => {
+                let mut var_field0 =
+                    <crate::api::event_mirrors::Navigate>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::Navigate(var_field0);
+            }
+            94 => {
+                let mut var_field0 = <crate::api::event_mirrors::Focus>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::Focus(var_field0);
+            }
+            95 => {
+                let mut var_field0 = <crate::api::event_mirrors::Load>::sse_decode(deserializer);
+                return crate::api::event_mirrors::Event::Load(var_field0);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -9935,6 +10136,14 @@ impl SseDecode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_f64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::Focus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_delta = <i32>::sse_decode(deserializer);
+        return crate::api::event_mirrors::Focus { delta: var_delta };
     }
 }
 
@@ -10005,6 +10214,16 @@ impl SseDecode for crate::api::event_mirrors::FxSlotState {
             enabled: var_enabled,
             wet: var_wet,
             params: var_params,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::GenerateStems {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        return crate::api::event_mirrors::GenerateStems {
+            track_id: var_trackId,
         };
     }
 }
@@ -10092,15 +10311,29 @@ impl SseDecode for crate::api::library::HistorySessionSummary {
     }
 }
 
-impl SseDecode for crate::api::library::HotCueInfo {
+impl SseDecode for crate::api::event_mirrors::HistorySessionUpdated {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sessionId = <Option<String>>::sse_decode(deserializer);
+        return crate::api::event_mirrors::HistorySessionUpdated {
+            session_id: var_sessionId,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::HotCue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_slot = <u8>::sse_decode(deserializer);
         let mut var_positionMs = <i32>::sse_decode(deserializer);
+        let mut var_loopLengthBeats = <Option<i32>>::sse_decode(deserializer);
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
-        return crate::api::library::HotCueInfo {
+        return crate::api::event_mirrors::HotCue {
             slot: var_slot,
             position_ms: var_positionMs,
+            loop_length_beats: var_loopLengthBeats,
+            color: var_color,
             label: var_label,
         };
     }
@@ -10128,6 +10361,18 @@ impl SseDecode for crate::api::event_mirrors::HotCuePadRelease {
         return crate::api::event_mirrors::HotCuePadRelease {
             deck: var_deck,
             slot: var_slot,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::HotCuesChanged {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_hotCues = <Vec<crate::api::event_mirrors::HotCue>>::sse_decode(deserializer);
+        return crate::api::event_mirrors::HotCuesChanged {
+            track_id: var_trackId,
+            hot_cues: var_hotCues,
         };
     }
 }
@@ -10335,62 +10580,6 @@ impl SseDecode for crate::api::settings::LibraryDrawerSideSetting {
             2 => crate::api::settings::LibraryDrawerSideSetting::Top,
             3 => crate::api::settings::LibraryDrawerSideSetting::Bottom,
             _ => unreachable!("Invalid variant for LibraryDrawerSideSetting: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::library::LibraryEvt {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_kind = <crate::api::library::LibraryEvtKind>::sse_decode(deserializer);
-        let mut var_track =
-            <Option<crate::api::library::LibraryTrackSummary>>::sse_decode(deserializer);
-        let mut var_message = <Option<String>>::sse_decode(deserializer);
-        let mut var_trackId = <Option<String>>::sse_decode(deserializer);
-        let mut var_hotCues =
-            <Option<Vec<crate::api::library::HotCueInfo>>>::sse_decode(deserializer);
-        let mut var_delta = <Option<i32>>::sse_decode(deserializer);
-        let mut var_deck = <Option<u16>>::sse_decode(deserializer);
-        let mut var_loops =
-            <Option<Vec<crate::api::library::SavedLoopInfo>>>::sse_decode(deserializer);
-        let mut var_beatGrid =
-            <Option<crate::api::library::BeatGridData>>::sse_decode(deserializer);
-        let mut var_phase = <Option<String>>::sse_decode(deserializer);
-        let mut var_fraction = <Option<f32>>::sse_decode(deserializer);
-        return crate::api::library::LibraryEvt {
-            kind: var_kind,
-            track: var_track,
-            message: var_message,
-            track_id: var_trackId,
-            hot_cues: var_hotCues,
-            delta: var_delta,
-            deck: var_deck,
-            loops: var_loops,
-            beat_grid: var_beatGrid,
-            phase: var_phase,
-            fraction: var_fraction,
-        };
-    }
-}
-
-impl SseDecode for crate::api::library::LibraryEvtKind {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::library::LibraryEvtKind::TrackAnalyzed,
-            1 => crate::api::library::LibraryEvtKind::TrackUpdated,
-            2 => crate::api::library::LibraryEvtKind::Error,
-            3 => crate::api::library::LibraryEvtKind::Notice,
-            4 => crate::api::library::LibraryEvtKind::HotCuesChanged,
-            5 => crate::api::library::LibraryEvtKind::Navigate,
-            6 => crate::api::library::LibraryEvtKind::Focus,
-            7 => crate::api::library::LibraryEvtKind::Load,
-            8 => crate::api::library::LibraryEvtKind::LoopsChanged,
-            9 => crate::api::library::LibraryEvtKind::BeatGridChanged,
-            10 => crate::api::library::LibraryEvtKind::HistorySessionUpdated,
-            11 => crate::api::library::LibraryEvtKind::TrackProgress,
-            _ => unreachable!("Invalid variant for LibraryEvtKind: {}", inner),
         };
     }
 }
@@ -10652,13 +10841,15 @@ impl SseDecode for Vec<crate::api::library::HistorySessionSummary> {
     }
 }
 
-impl SseDecode for Vec<crate::api::library::HotCueInfo> {
+impl SseDecode for Vec<crate::api::event_mirrors::HotCue> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::library::HotCueInfo>::sse_decode(deserializer));
+            ans_.push(<crate::api::event_mirrors::HotCue>::sse_decode(
+                deserializer,
+            ));
         }
         return ans_;
     }
@@ -10822,17 +11013,25 @@ impl SseDecode for Vec<crate::api::event_mirrors::SamplerSlotInfo> {
     }
 }
 
-impl SseDecode for Vec<crate::api::library::SavedLoopInfo> {
+impl SseDecode for Vec<crate::api::event_mirrors::SavedLoop> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::library::SavedLoopInfo>::sse_decode(
+            ans_.push(<crate::api::event_mirrors::SavedLoop>::sse_decode(
                 deserializer,
             ));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::Load {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deck = <u16>::sse_decode(deserializer);
+        return crate::api::event_mirrors::Load { deck: var_deck };
     }
 }
 
@@ -10898,6 +11097,18 @@ impl SseDecode for crate::api::event_mirrors::LoopRollPadRelease {
     }
 }
 
+impl SseDecode for crate::api::event_mirrors::LoopsChanged {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_loops = <Vec<crate::api::event_mirrors::SavedLoop>>::sse_decode(deserializer);
+        return crate::api::event_mirrors::LoopsChanged {
+            track_id: var_trackId,
+            loops: var_loops,
+        };
+    }
+}
+
 impl SseDecode for crate::api::library::MixxxImportPreview {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10941,6 +11152,14 @@ impl SseDecode for crate::api::library::MixxxImportReport {
             failed: var_failed,
             errors: var_errors,
         };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::Navigate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_delta = <i32>::sse_decode(deserializer);
+        return crate::api::event_mirrors::Navigate { delta: var_delta };
     }
 }
 
@@ -11133,37 +11352,11 @@ impl SseDecode for Option<crate::api::library::WaveformPeaks> {
     }
 }
 
-impl SseDecode for Option<Vec<crate::api::library::HotCueInfo>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<Vec<crate::api::library::HotCueInfo>>::sse_decode(
-                deserializer,
-            ));
-        } else {
-            return None;
-        }
-    }
-}
-
 impl SseDecode for Option<Vec<u8>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<Vec<u8>>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<Vec<crate::api::library::SavedLoopInfo>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<Vec<crate::api::library::SavedLoopInfo>>::sse_decode(
-                deserializer,
-            ));
         } else {
             return None;
         }
@@ -11262,6 +11455,16 @@ impl SseDecode for crate::api::event_mirrors::RecallSavedLoop {
             deck: var_deck,
             in_ms: var_inMs,
             out_ms: var_outMs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::RefreshTrack {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        return crate::api::event_mirrors::RefreshTrack {
+            track_id: var_trackId,
         };
     }
 }
@@ -11387,6 +11590,20 @@ impl SseDecode for crate::api::settings::SamplerStripRouteSettingFrb {
     }
 }
 
+impl SseDecode for crate::api::event_mirrors::SaveBeatGrid {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_bpm = <f64>::sse_decode(deserializer);
+        let mut var_firstBeatSecs = <f32>::sse_decode(deserializer);
+        return crate::api::event_mirrors::SaveBeatGrid {
+            track_id: var_trackId,
+            bpm: var_bpm,
+            first_beat_secs: var_firstBeatSecs,
+        };
+    }
+}
+
 impl SseDecode for crate::api::event_mirrors::SaveDeckHotCue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11399,18 +11616,60 @@ impl SseDecode for crate::api::event_mirrors::SaveDeckHotCue {
     }
 }
 
-impl SseDecode for crate::api::library::SavedLoopInfo {
+impl SseDecode for crate::api::event_mirrors::SaveTrackHotCue {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_slot = <u8>::sse_decode(deserializer);
+        let mut var_positionMs = <i32>::sse_decode(deserializer);
+        let mut var_loopLengthBeats = <Option<i32>>::sse_decode(deserializer);
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
+        let mut var_label = <Option<String>>::sse_decode(deserializer);
+        return crate::api::event_mirrors::SaveTrackHotCue {
+            track_id: var_trackId,
+            slot: var_slot,
+            position_ms: var_positionMs,
+            loop_length_beats: var_loopLengthBeats,
+            color: var_color,
+            label: var_label,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::SaveTrackLoop {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_slot = <u8>::sse_decode(deserializer);
+        let mut var_inMs = <i32>::sse_decode(deserializer);
+        let mut var_outMs = <i32>::sse_decode(deserializer);
+        let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
+        return crate::api::event_mirrors::SaveTrackLoop {
+            track_id: var_trackId,
+            slot: var_slot,
+            in_ms: var_inMs,
+            out_ms: var_outMs,
+            label: var_label,
+            color: var_color,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::SavedLoop {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_slot = <u8>::sse_decode(deserializer);
         let mut var_inMs = <i32>::sse_decode(deserializer);
         let mut var_outMs = <i32>::sse_decode(deserializer);
         let mut var_label = <Option<String>>::sse_decode(deserializer);
-        return crate::api::library::SavedLoopInfo {
+        let mut var_color = <Option<String>>::sse_decode(deserializer);
+        return crate::api::event_mirrors::SavedLoop {
             slot: var_slot,
             in_ms: var_inMs,
             out_ms: var_outMs,
             label: var_label,
+            color: var_color,
         };
     }
 }
@@ -11915,6 +12174,78 @@ impl SseDecode for crate::api::event_mirrors::ToggleSync {
             deck: var_deck,
             beat_sync: var_beatSync,
         };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::TrackAnalyzed {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_track = <crate::api::event_mirrors::TrackSummary>::sse_decode(deserializer);
+        return crate::api::event_mirrors::TrackAnalyzed { track: var_track };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::TrackProgress {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_trackId = <String>::sse_decode(deserializer);
+        let mut var_phase = <String>::sse_decode(deserializer);
+        let mut var_fraction = <Option<f32>>::sse_decode(deserializer);
+        return crate::api::event_mirrors::TrackProgress {
+            track_id: var_trackId,
+            phase: var_phase,
+            fraction: var_fraction,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::TrackSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_displayName = <String>::sse_decode(deserializer);
+        let mut var_artist = <Option<String>>::sse_decode(deserializer);
+        let mut var_title = <Option<String>>::sse_decode(deserializer);
+        let mut var_album = <Option<String>>::sse_decode(deserializer);
+        let mut var_genre = <Option<String>>::sse_decode(deserializer);
+        let mut var_bpm = <Option<f64>>::sse_decode(deserializer);
+        let mut var_key = <Option<String>>::sse_decode(deserializer);
+        let mut var_durationMs = <Option<i32>>::sse_decode(deserializer);
+        let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_isrc = <Option<String>>::sse_decode(deserializer);
+        let mut var_rating = <Option<u8>>::sse_decode(deserializer);
+        let mut var_comment = <Option<String>>::sse_decode(deserializer);
+        let mut var_year = <Option<u16>>::sse_decode(deserializer);
+        let mut var_trackNumber = <Option<u16>>::sse_decode(deserializer);
+        let mut var_discNumber = <Option<u16>>::sse_decode(deserializer);
+        let mut var_colorLabel = <Option<String>>::sse_decode(deserializer);
+        return crate::api::event_mirrors::TrackSummary {
+            id: var_id,
+            display_name: var_displayName,
+            artist: var_artist,
+            title: var_title,
+            album: var_album,
+            genre: var_genre,
+            bpm: var_bpm,
+            key: var_key,
+            duration_ms: var_durationMs,
+            path: var_path,
+            isrc: var_isrc,
+            rating: var_rating,
+            comment: var_comment,
+            year: var_year,
+            track_number: var_trackNumber,
+            disc_number: var_discNumber,
+            color_label: var_colorLabel,
+        };
+    }
+}
+
+impl SseDecode for crate::api::event_mirrors::TrackUpdated {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_track = <crate::api::event_mirrors::TrackSummary>::sse_decode(deserializer);
+        return crate::api::event_mirrors::TrackUpdated { track: var_track };
     }
 }
 
@@ -12536,338 +12867,326 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__library__LibraryTransport_buses_impl(
+        90 => wire__crate__api__library__LibraryTransport_clear_model_cache_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__library__LibraryTransport_clear_model_cache_impl(
+        91 => wire__crate__api__library__LibraryTransport_clear_stem_cache_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__library__LibraryTransport_clear_stem_cache_impl(
+        92 => wire__crate__api__library__LibraryTransport_clear_waveform_cache_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        93 => wire__crate__api__library__LibraryTransport_clear_waveform_cache_impl(
+        93 => wire__crate__api__library__LibraryTransport_create_sampler_bank_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__library__LibraryTransport_create_sampler_bank_impl(
+        94 => wire__crate__api__library__LibraryTransport_delete_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__library__LibraryTransport_delete_collection_impl(
+        95 => wire__crate__api__library__LibraryTransport_delete_history_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__library__LibraryTransport_delete_history_session_impl(
+        96 => wire__crate__api__library__LibraryTransport_delete_loop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__library__LibraryTransport_delete_loop_impl(
+        97 => wire__crate__api__library__LibraryTransport_export_cdj_usb_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__library__LibraryTransport_export_cdj_usb_impl(
+        98 => wire__crate__api__library__LibraryTransport_export_history_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__library__LibraryTransport_export_history_session_impl(
+        99 => wire__crate__api__library__LibraryTransport_generate_stems_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => wire__crate__api__library__LibraryTransport_generate_stems_impl(
+        100 => wire__crate__api__library__LibraryTransport_get_beat_grid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__library__LibraryTransport_get_beat_grid_impl(
+        101 => wire__crate__api__library__LibraryTransport_get_track_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__library__LibraryTransport_get_track_impl(
+        102 => wire__crate__api__library__LibraryTransport_get_waveform_overview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__library__LibraryTransport_get_waveform_overview_impl(
+        103 => wire__crate__api__library__LibraryTransport_get_waveform_window_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__library__LibraryTransport_get_waveform_window_impl(
+        104 => wire__crate__api__library__LibraryTransport_history_can_resume_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        105 => wire__crate__api__library__LibraryTransport_history_can_resume_impl(
+        105 => wire__crate__api__library__LibraryTransport_history_decline_restore_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__library__LibraryTransport_history_decline_restore_impl(
+        106 => wire__crate__api__library__LibraryTransport_history_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__library__LibraryTransport_history_dir_impl(
+        107 => wire__crate__api__library__LibraryTransport_history_new_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => wire__crate__api__library__LibraryTransport_history_new_session_impl(
+        108 => wire__crate__api__library__LibraryTransport_history_restore_prompt_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        109 => wire__crate__api__library__LibraryTransport_history_restore_prompt_impl(
+        109 => wire__crate__api__library__LibraryTransport_history_restore_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        110 => wire__crate__api__library__LibraryTransport_history_restore_session_impl(
+        110 => wire__crate__api__library__LibraryTransport_history_resume_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        111 => wire__crate__api__library__LibraryTransport_history_resume_session_impl(
+        111 => wire__crate__api__library__LibraryTransport_history_session_entries_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        112 => wire__crate__api__library__LibraryTransport_history_session_entries_impl(
+        112 => wire__crate__api__library__LibraryTransport_import_mixxx_library_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        113 => wire__crate__api__library__LibraryTransport_import_mixxx_library_impl(
+        113 => wire__crate__api__library__LibraryTransport_list_collection_entries_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        114 => wire__crate__api__library__LibraryTransport_list_collection_entries_impl(
+        114 => wire__crate__api__library__LibraryTransport_list_collections_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        115 => wire__crate__api__library__LibraryTransport_list_collections_impl(
+        115 => wire__crate__api__library__LibraryTransport_list_history_sessions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        116 => wire__crate__api__library__LibraryTransport_list_history_sessions_impl(
+        116 => wire__crate__api__library__LibraryTransport_list_sampler_banks_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => wire__crate__api__library__LibraryTransport_list_sampler_banks_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        118 => {
+        117 => {
             wire__crate__api__library__LibraryTransport_open_impl(port, ptr, rust_vec_len, data_len)
         }
-        119 => wire__crate__api__library__LibraryTransport_open_in_memory_impl(
+        118 => wire__crate__api__library__LibraryTransport_open_in_memory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        120 => wire__crate__api__library__LibraryTransport_refresh_track_impl(
+        119 => wire__crate__api__library__LibraryTransport_refresh_track_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        121 => wire__crate__api__library__LibraryTransport_rename_history_session_impl(
+        120 => wire__crate__api__library__LibraryTransport_rename_history_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        122 => wire__crate__api__library__LibraryTransport_resolve_tracks_for_paths_impl(
+        121 => wire__crate__api__library__LibraryTransport_resolve_tracks_for_paths_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        123 => wire__crate__api__library__LibraryTransport_reveal_history_folder_impl(
+        122 => wire__crate__api__library__LibraryTransport_reveal_history_folder_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        124 => wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
+        123 => wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        125 => wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
+        124 => wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        126 => wire__crate__api__library__LibraryTransport_save_loop_impl(
+        125 => wire__crate__api__library__LibraryTransport_save_loop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        127 => wire__crate__api__library__LibraryTransport_storage_usage_impl(
+        126 => wire__crate__api__library__LibraryTransport_storage_usage_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        128 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
+        127 => wire__crate__api__library__LibraryTransport_sync_stem_cache_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        129 => wire__crate__api__library__LibraryTransport_sync_stem_cache_impl(
+        128 => wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        130 => wire__crate__api__library__LibraryTransport_update_track_metadata_impl(
+        129 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        131 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
+        130 => wire__crate__api__settings__SettingsTransport_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        132 => wire__crate__api__settings__SettingsTransport_open_impl(
+        131 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        133 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
+        133 => wire__crate__api__fs_browser__browse_fs_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        135 => wire__crate__api__fs_browser__browse_fs_directory_impl(
+        134 => wire__crate__api__settings__bus_channel_mode_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        136 => wire__crate__api__settings__bus_channel_mode_default_impl(
+        135 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
+        136 => wire__crate__api__settings__key_color_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        137 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        138 => wire__crate__api__settings__key_color_mode_setting_default_impl(
+        137 => wire__crate__api__settings__key_display_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        139 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+        138 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        140 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
+        139 => wire__crate__api__settings__library_row_density_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        141 => wire__crate__api__settings__library_row_density_setting_default_impl(
+        140 => wire__crate__api__library__library_track_summary_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        142 => wire__crate__api__library__library_track_summary_default_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        143 => {
+        141 => {
             wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
         }
-        144 => {
+        142 => {
             wire__crate__api__engine__list_output_devices_impl(port, ptr, rust_vec_len, data_len)
         }
-        145 => wire__crate__api__library__mixxx_default_database_path_impl(
+        143 => wire__crate__api__library__mixxx_default_database_path_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        146 => {
+        144 => {
             wire__crate__api__library__mixxx_import_preview_impl(port, ptr, rust_vec_len, data_len)
         }
-        147 => wire__crate__api__settings__select_style_setting_default_impl(
+        145 => wire__crate__api__settings__select_style_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        148 => wire__crate__api__settings__theme_setting_default_impl(
+        146 => wire__crate__api__settings__theme_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        149 => wire__crate__api__settings__ui_language_setting_default_impl(
+        147 => wire__crate__api__settings__ui_language_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -12885,7 +13204,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        134 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
+        132 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -12954,21 +13273,6 @@ impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<
 
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<EngineTransport>> for EngineTransport {
     fn into_into_dart(self) -> FrbWrapper<EngineTransport> {
-        self.into()
-    }
-}
-
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for FrbWrapper<LibraryBusHandle> {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self.0)
-            .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<LibraryBusHandle> {}
-
-impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<LibraryBusHandle>> for LibraryBusHandle {
-    fn into_into_dart(self) -> FrbWrapper<LibraryBusHandle> {
         self.into()
     }
 }
@@ -13068,6 +13372,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::AnalyzeCollectionRes
 {
     fn into_into_dart(self) -> crate::api::library::AnalyzeCollectionResult {
         self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::AnalyzeTrack> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.force.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::AnalyzeTrack>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::AnalyzeTrack>>
+    for crate::api::event_mirrors::AnalyzeTrack
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::AnalyzeTrack> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -13179,6 +13504,49 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Ass
     for crate::api::event_mirrors::AssignSamplerTrack
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::AssignSamplerTrack> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeatGrid> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.beats.into_into_dart().into_dart(),
+            self.0.downbeats.into_into_dart().into_dart(),
+            self.0.bpm.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::BeatGrid>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::BeatGrid>>
+    for crate::api::event_mirrors::BeatGrid
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeatGrid> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::BeatGridChanged> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.beat_grid.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::BeatGridChanged>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::BeatGridChanged>>
+    for crate::api::event_mirrors::BeatGridChanged
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::BeatGridChanged> {
         self.into()
     }
 }
@@ -13808,6 +14176,48 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Del
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::DeleteTrackHotCue> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.slot.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::DeleteTrackHotCue>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::DeleteTrackHotCue>>
+    for crate::api::event_mirrors::DeleteTrackHotCue
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::DeleteTrackHotCue> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.slot.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop>>
+    for crate::api::event_mirrors::DeleteTrackLoop
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::EndCueHold> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [self.0.deck.into_into_dart().into_dart()].into_dart()
@@ -14168,6 +14578,60 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Eve
             crate::api::event_mirrors::Event::Notice(field0) => {
                 [77.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
+            crate::api::event_mirrors::Event::AnalyzeTrack(field0) => {
+                [78.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::GenerateStems(field0) => {
+                [79.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::RefreshTrack(field0) => {
+                [80.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::SaveBeatGrid(field0) => {
+                [81.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::SaveTrackHotCue(field0) => {
+                [82.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::DeleteTrackHotCue(field0) => {
+                [83.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::SaveTrackLoop(field0) => {
+                [84.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::DeleteTrackLoop(field0) => {
+                [85.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::TrackAnalyzed(field0) => {
+                [86.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::TrackUpdated(field0) => {
+                [87.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::TrackProgress(field0) => {
+                [88.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::HotCuesChanged(field0) => {
+                [89.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::LoopsChanged(field0) => {
+                [90.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::BeatGridChanged(field0) => {
+                [91.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::HistorySessionUpdated(field0) => {
+                [92.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::Navigate(field0) => {
+                [93.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::Focus(field0) => {
+                [94.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::event_mirrors::Event::Load(field0) => {
+                [95.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
             _ => {
                 unimplemented!("");
             }
@@ -14199,6 +14663,23 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Exi
     for crate::api::event_mirrors::ExitLoop
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::ExitLoop> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Focus> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.delta.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::Focus>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Focus>>
+    for crate::api::event_mirrors::Focus
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::Focus> {
         self.into()
     }
 }
@@ -14314,6 +14795,23 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::FxS
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::GenerateStems> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.track_id.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::GenerateStems>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::GenerateStems>>
+    for crate::api::event_mirrors::GenerateStems
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::GenerateStems> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::library::HistoryEntryInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -14416,25 +14914,46 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::HistorySessionSummar
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::library::HotCueInfo {
+impl flutter_rust_bridge::IntoDart
+    for FrbWrapper<crate::api::event_mirrors::HistorySessionUpdated>
+{
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.session_id.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::HistorySessionUpdated>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::HistorySessionUpdated>>
+    for crate::api::event_mirrors::HistorySessionUpdated
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::HistorySessionUpdated> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::HotCue> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.slot.into_into_dart().into_dart(),
-            self.position_ms.into_into_dart().into_dart(),
-            self.label.into_into_dart().into_dart(),
+            self.0.slot.into_into_dart().into_dart(),
+            self.0.position_ms.into_into_dart().into_dart(),
+            self.0.loop_length_beats.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+            self.0.label.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::library::HotCueInfo
+    for FrbWrapper<crate::api::event_mirrors::HotCue>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::library::HotCueInfo>
-    for crate::api::library::HotCueInfo
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::HotCue>>
+    for crate::api::event_mirrors::HotCue
 {
-    fn into_into_dart(self) -> crate::api::library::HotCueInfo {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::HotCue> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -14477,6 +14996,27 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Hot
     for crate::api::event_mirrors::HotCuePadRelease
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::HotCuePadRelease> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::HotCuesChanged> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.hot_cues.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::HotCuesChanged>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::HotCuesChanged>>
+    for crate::api::event_mirrors::HotCuesChanged
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::HotCuesChanged> {
         self.into()
     }
 }
@@ -14792,67 +15332,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::LibraryDrawerSideSe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryEvt {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.kind.into_into_dart().into_dart(),
-            self.track.into_into_dart().into_dart(),
-            self.message.into_into_dart().into_dart(),
-            self.track_id.into_into_dart().into_dart(),
-            self.hot_cues.into_into_dart().into_dart(),
-            self.delta.into_into_dart().into_dart(),
-            self.deck.into_into_dart().into_dart(),
-            self.loops.into_into_dart().into_dart(),
-            self.beat_grid.into_into_dart().into_dart(),
-            self.phase.into_into_dart().into_dart(),
-            self.fraction.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::library::LibraryEvt
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::library::LibraryEvt>
-    for crate::api::library::LibraryEvt
-{
-    fn into_into_dart(self) -> crate::api::library::LibraryEvt {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryEvtKind {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::TrackAnalyzed => 0.into_dart(),
-            Self::TrackUpdated => 1.into_dart(),
-            Self::Error => 2.into_dart(),
-            Self::Notice => 3.into_dart(),
-            Self::HotCuesChanged => 4.into_dart(),
-            Self::Navigate => 5.into_dart(),
-            Self::Focus => 6.into_dart(),
-            Self::Load => 7.into_dart(),
-            Self::LoopsChanged => 8.into_dart(),
-            Self::BeatGridChanged => 9.into_dart(),
-            Self::HistorySessionUpdated => 10.into_dart(),
-            Self::TrackProgress => 11.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::library::LibraryEvtKind
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::library::LibraryEvtKind>
-    for crate::api::library::LibraryEvtKind
-{
-    fn into_into_dart(self) -> crate::api::library::LibraryEvtKind {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::LibraryRowDensitySetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -14940,6 +15419,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::LibraryTrackSummary>
 {
     fn into_into_dart(self) -> crate::api::library::LibraryTrackSummary {
         self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Load> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.deck.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::Load>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Load>>
+    for crate::api::event_mirrors::Load
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::Load> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -15049,6 +15545,27 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Loo
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::LoopsChanged> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.loops.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::LoopsChanged>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::LoopsChanged>>
+    for crate::api::event_mirrors::LoopsChanged
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::LoopsChanged> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::library::MixxxImportPreview {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -15099,6 +15616,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::MixxxImportReport>
 {
     fn into_into_dart(self) -> crate::api::library::MixxxImportReport {
         self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Navigate> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.delta.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::Navigate>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Navigate>>
+    for crate::api::event_mirrors::Navigate
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::Navigate> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -15266,6 +15800,23 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Rec
     for crate::api::event_mirrors::RecallSavedLoop
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::RecallSavedLoop> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::RefreshTrack> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.track_id.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::RefreshTrack>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::RefreshTrack>>
+    for crate::api::event_mirrors::RefreshTrack
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::RefreshTrack> {
         self.into()
     }
 }
@@ -15466,6 +16017,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::SamplerStripRouteSe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveBeatGrid> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.bpm.into_into_dart().into_dart(),
+            self.0.first_beat_secs.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::SaveBeatGrid>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SaveBeatGrid>>
+    for crate::api::event_mirrors::SaveBeatGrid
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SaveBeatGrid> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveDeckHotCue> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -15487,26 +16060,77 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Sav
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::library::SavedLoopInfo {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveTrackHotCue> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.slot.into_into_dart().into_dart(),
-            self.in_ms.into_into_dart().into_dart(),
-            self.out_ms.into_into_dart().into_dart(),
-            self.label.into_into_dart().into_dart(),
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.slot.into_into_dart().into_dart(),
+            self.0.position_ms.into_into_dart().into_dart(),
+            self.0.loop_length_beats.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+            self.0.label.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::library::SavedLoopInfo
+    for FrbWrapper<crate::api::event_mirrors::SaveTrackHotCue>
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::library::SavedLoopInfo>
-    for crate::api::library::SavedLoopInfo
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SaveTrackHotCue>>
+    for crate::api::event_mirrors::SaveTrackHotCue
 {
-    fn into_into_dart(self) -> crate::api::library::SavedLoopInfo {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SaveTrackHotCue> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SaveTrackLoop> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.slot.into_into_dart().into_dart(),
+            self.0.in_ms.into_into_dart().into_dart(),
+            self.0.out_ms.into_into_dart().into_dart(),
+            self.0.label.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::SaveTrackLoop>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SaveTrackLoop>>
+    for crate::api::event_mirrors::SaveTrackLoop
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SaveTrackLoop> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::SavedLoop> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.slot.into_into_dart().into_dart(),
+            self.0.in_ms.into_into_dart().into_dart(),
+            self.0.out_ms.into_into_dart().into_dart(),
+            self.0.label.into_into_dart().into_dart(),
+            self.0.color.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::SavedLoop>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::SavedLoop>>
+    for crate::api::event_mirrors::SavedLoop
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::SavedLoop> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -16376,6 +17000,98 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Tog
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::TrackAnalyzed> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.track.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::TrackAnalyzed>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::TrackAnalyzed>>
+    for crate::api::event_mirrors::TrackAnalyzed
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::TrackAnalyzed> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::TrackProgress> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.track_id.into_into_dart().into_dart(),
+            self.0.phase.into_into_dart().into_dart(),
+            self.0.fraction.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::TrackProgress>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::TrackProgress>>
+    for crate::api::event_mirrors::TrackProgress
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::TrackProgress> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::TrackSummary> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.display_name.into_into_dart().into_dart(),
+            self.0.artist.into_into_dart().into_dart(),
+            self.0.title.into_into_dart().into_dart(),
+            self.0.album.into_into_dart().into_dart(),
+            self.0.genre.into_into_dart().into_dart(),
+            self.0.bpm.into_into_dart().into_dart(),
+            self.0.key.into_into_dart().into_dart(),
+            self.0.duration_ms.into_into_dart().into_dart(),
+            self.0.path.into_into_dart().into_dart(),
+            self.0.isrc.into_into_dart().into_dart(),
+            self.0.rating.into_into_dart().into_dart(),
+            self.0.comment.into_into_dart().into_dart(),
+            self.0.year.into_into_dart().into_dart(),
+            self.0.track_number.into_into_dart().into_dart(),
+            self.0.disc_number.into_into_dart().into_dart(),
+            self.0.color_label.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::TrackSummary>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::TrackSummary>>
+    for crate::api::event_mirrors::TrackSummary
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::TrackSummary> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::TrackUpdated> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.0.track.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::event_mirrors::TrackUpdated>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::TrackUpdated>>
+    for crate::api::event_mirrors::TrackUpdated
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::TrackUpdated> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::TriggerHotCue> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -16515,13 +17231,6 @@ impl SseEncode for EngineTransport {
     }
 }
 
-impl SseEncode for LibraryBusHandle {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>>::sse_encode(flutter_rust_bridge::for_generated::rust_auto_opaque_encode::<_, MoiArc<_>>(self), serializer);
-    }
-}
-
 impl SseEncode for LibraryTransport {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -16581,17 +17290,6 @@ impl SseEncode
 }
 
 impl SseEncode
-    for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        let (ptr, size) = self.sse_encode_raw();
-        <usize>::sse_encode(ptr, serializer);
-        <i32>::sse_encode(size, serializer);
-    }
-}
-
-impl SseEncode
     for RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -16627,15 +17325,6 @@ impl SseEncode
 
 impl SseEncode
     for StreamSink<crate::api::event_mirrors::Event, flutter_rust_bridge::for_generated::SseCodec>
-{
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        unimplemented!("")
-    }
-}
-
-impl SseEncode
-    for StreamSink<crate::api::library::LibraryEvt, flutter_rust_bridge::for_generated::SseCodec>
 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -16683,6 +17372,14 @@ impl SseEncode for crate::api::library::AnalyzeCollectionResult {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<String>>::sse_encode(self.queued_track_ids, serializer);
         <Vec<String>>::sse_encode(self.stem_track_ids, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::AnalyzeTrack {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <bool>::sse_encode(self.force, serializer);
     }
 }
 
@@ -16774,6 +17471,23 @@ impl SseEncode for crate::api::event_mirrors::AssignSamplerTrack {
         <u16>::sse_encode(self.deck, serializer);
         <u8>::sse_encode(self.slot, serializer);
         <String>::sse_encode(self.track_id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::BeatGrid {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<f32>>::sse_encode(self.beats, serializer);
+        <Vec<f32>>::sse_encode(self.downbeats, serializer);
+        <f64>::sse_encode(self.bpm, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::BeatGridChanged {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <crate::api::event_mirrors::BeatGrid>::sse_encode(self.beat_grid, serializer);
     }
 }
 
@@ -17137,6 +17851,22 @@ impl SseEncode for crate::api::event_mirrors::DeleteDeckHotCue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u16>::sse_encode(self.deck, serializer);
+        <u8>::sse_encode(self.slot, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::DeleteTrackHotCue {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <u8>::sse_encode(self.slot, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::DeleteTrackLoop {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
         <u8>::sse_encode(self.slot, serializer);
     }
 }
@@ -17519,6 +18249,78 @@ impl SseEncode for crate::api::event_mirrors::Event {
                 <i32>::sse_encode(77, serializer);
                 <crate::api::event_mirrors::Notice>::sse_encode(field0, serializer);
             }
+            crate::api::event_mirrors::Event::AnalyzeTrack(field0) => {
+                <i32>::sse_encode(78, serializer);
+                <crate::api::event_mirrors::AnalyzeTrack>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::GenerateStems(field0) => {
+                <i32>::sse_encode(79, serializer);
+                <crate::api::event_mirrors::GenerateStems>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::RefreshTrack(field0) => {
+                <i32>::sse_encode(80, serializer);
+                <crate::api::event_mirrors::RefreshTrack>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::SaveBeatGrid(field0) => {
+                <i32>::sse_encode(81, serializer);
+                <crate::api::event_mirrors::SaveBeatGrid>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::SaveTrackHotCue(field0) => {
+                <i32>::sse_encode(82, serializer);
+                <crate::api::event_mirrors::SaveTrackHotCue>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::DeleteTrackHotCue(field0) => {
+                <i32>::sse_encode(83, serializer);
+                <crate::api::event_mirrors::DeleteTrackHotCue>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::SaveTrackLoop(field0) => {
+                <i32>::sse_encode(84, serializer);
+                <crate::api::event_mirrors::SaveTrackLoop>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::DeleteTrackLoop(field0) => {
+                <i32>::sse_encode(85, serializer);
+                <crate::api::event_mirrors::DeleteTrackLoop>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::TrackAnalyzed(field0) => {
+                <i32>::sse_encode(86, serializer);
+                <crate::api::event_mirrors::TrackAnalyzed>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::TrackUpdated(field0) => {
+                <i32>::sse_encode(87, serializer);
+                <crate::api::event_mirrors::TrackUpdated>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::TrackProgress(field0) => {
+                <i32>::sse_encode(88, serializer);
+                <crate::api::event_mirrors::TrackProgress>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::HotCuesChanged(field0) => {
+                <i32>::sse_encode(89, serializer);
+                <crate::api::event_mirrors::HotCuesChanged>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::LoopsChanged(field0) => {
+                <i32>::sse_encode(90, serializer);
+                <crate::api::event_mirrors::LoopsChanged>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::BeatGridChanged(field0) => {
+                <i32>::sse_encode(91, serializer);
+                <crate::api::event_mirrors::BeatGridChanged>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::HistorySessionUpdated(field0) => {
+                <i32>::sse_encode(92, serializer);
+                <crate::api::event_mirrors::HistorySessionUpdated>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::Navigate(field0) => {
+                <i32>::sse_encode(93, serializer);
+                <crate::api::event_mirrors::Navigate>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::Focus(field0) => {
+                <i32>::sse_encode(94, serializer);
+                <crate::api::event_mirrors::Focus>::sse_encode(field0, serializer);
+            }
+            crate::api::event_mirrors::Event::Load(field0) => {
+                <i32>::sse_encode(95, serializer);
+                <crate::api::event_mirrors::Load>::sse_encode(field0, serializer);
+            }
             _ => {
                 unimplemented!("");
             }
@@ -17544,6 +18346,13 @@ impl SseEncode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::Focus {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.delta, serializer);
     }
 }
 
@@ -17598,6 +18407,13 @@ impl SseEncode for crate::api::event_mirrors::FxSlotState {
         <bool>::sse_encode(self.enabled, serializer);
         <f32>::sse_encode(self.wet, serializer);
         <Vec<f32>>::sse_encode(self.params, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::GenerateStems {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
     }
 }
 
@@ -17659,11 +18475,20 @@ impl SseEncode for crate::api::library::HistorySessionSummary {
     }
 }
 
-impl SseEncode for crate::api::library::HotCueInfo {
+impl SseEncode for crate::api::event_mirrors::HistorySessionUpdated {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.session_id, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::HotCue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u8>::sse_encode(self.slot, serializer);
         <i32>::sse_encode(self.position_ms, serializer);
+        <Option<i32>>::sse_encode(self.loop_length_beats, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
     }
 }
@@ -17682,6 +18507,14 @@ impl SseEncode for crate::api::event_mirrors::HotCuePadRelease {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u16>::sse_encode(self.deck, serializer);
         <u8>::sse_encode(self.slot, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::HotCuesChanged {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <Vec<crate::api::event_mirrors::HotCue>>::sse_encode(self.hot_cues, serializer);
     }
 }
 
@@ -17875,49 +18708,6 @@ impl SseEncode for crate::api::settings::LibraryDrawerSideSetting {
                 crate::api::settings::LibraryDrawerSideSetting::Right => 1,
                 crate::api::settings::LibraryDrawerSideSetting::Top => 2,
                 crate::api::settings::LibraryDrawerSideSetting::Bottom => 3,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::api::library::LibraryEvt {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::library::LibraryEvtKind>::sse_encode(self.kind, serializer);
-        <Option<crate::api::library::LibraryTrackSummary>>::sse_encode(self.track, serializer);
-        <Option<String>>::sse_encode(self.message, serializer);
-        <Option<String>>::sse_encode(self.track_id, serializer);
-        <Option<Vec<crate::api::library::HotCueInfo>>>::sse_encode(self.hot_cues, serializer);
-        <Option<i32>>::sse_encode(self.delta, serializer);
-        <Option<u16>>::sse_encode(self.deck, serializer);
-        <Option<Vec<crate::api::library::SavedLoopInfo>>>::sse_encode(self.loops, serializer);
-        <Option<crate::api::library::BeatGridData>>::sse_encode(self.beat_grid, serializer);
-        <Option<String>>::sse_encode(self.phase, serializer);
-        <Option<f32>>::sse_encode(self.fraction, serializer);
-    }
-}
-
-impl SseEncode for crate::api::library::LibraryEvtKind {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::library::LibraryEvtKind::TrackAnalyzed => 0,
-                crate::api::library::LibraryEvtKind::TrackUpdated => 1,
-                crate::api::library::LibraryEvtKind::Error => 2,
-                crate::api::library::LibraryEvtKind::Notice => 3,
-                crate::api::library::LibraryEvtKind::HotCuesChanged => 4,
-                crate::api::library::LibraryEvtKind::Navigate => 5,
-                crate::api::library::LibraryEvtKind::Focus => 6,
-                crate::api::library::LibraryEvtKind::Load => 7,
-                crate::api::library::LibraryEvtKind::LoopsChanged => 8,
-                crate::api::library::LibraryEvtKind::BeatGridChanged => 9,
-                crate::api::library::LibraryEvtKind::HistorySessionUpdated => 10,
-                crate::api::library::LibraryEvtKind::TrackProgress => 11,
                 _ => {
                     unimplemented!("");
                 }
@@ -18124,12 +18914,12 @@ impl SseEncode for Vec<crate::api::library::HistorySessionSummary> {
     }
 }
 
-impl SseEncode for Vec<crate::api::library::HotCueInfo> {
+impl SseEncode for Vec<crate::api::event_mirrors::HotCue> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::library::HotCueInfo>::sse_encode(item, serializer);
+            <crate::api::event_mirrors::HotCue>::sse_encode(item, serializer);
         }
     }
 }
@@ -18254,13 +19044,20 @@ impl SseEncode for Vec<crate::api::event_mirrors::SamplerSlotInfo> {
     }
 }
 
-impl SseEncode for Vec<crate::api::library::SavedLoopInfo> {
+impl SseEncode for Vec<crate::api::event_mirrors::SavedLoop> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::library::SavedLoopInfo>::sse_encode(item, serializer);
+            <crate::api::event_mirrors::SavedLoop>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::Load {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u16>::sse_encode(self.deck, serializer);
     }
 }
 
@@ -18305,6 +19102,14 @@ impl SseEncode for crate::api::event_mirrors::LoopRollPadRelease {
     }
 }
 
+impl SseEncode for crate::api::event_mirrors::LoopsChanged {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <Vec<crate::api::event_mirrors::SavedLoop>>::sse_encode(self.loops, serializer);
+    }
+}
+
 impl SseEncode for crate::api::library::MixxxImportPreview {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -18329,6 +19134,13 @@ impl SseEncode for crate::api::library::MixxxImportReport {
         <u32>::sse_encode(self.collections_skipped, serializer);
         <u32>::sse_encode(self.failed, serializer);
         <Vec<String>>::sse_encode(self.errors, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::Navigate {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.delta, serializer);
     }
 }
 
@@ -18489,32 +19301,12 @@ impl SseEncode for Option<crate::api::library::WaveformPeaks> {
     }
 }
 
-impl SseEncode for Option<Vec<crate::api::library::HotCueInfo>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <Vec<crate::api::library::HotCueInfo>>::sse_encode(value, serializer);
-        }
-    }
-}
-
 impl SseEncode for Option<Vec<u8>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <Vec<u8>>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<Vec<crate::api::library::SavedLoopInfo>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <Vec<crate::api::library::SavedLoopInfo>>::sse_encode(value, serializer);
         }
     }
 }
@@ -18590,6 +19382,13 @@ impl SseEncode for crate::api::event_mirrors::RecallSavedLoop {
         <u16>::sse_encode(self.deck, serializer);
         <i32>::sse_encode(self.in_ms, serializer);
         <i32>::sse_encode(self.out_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::RefreshTrack {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
     }
 }
 
@@ -18696,6 +19495,15 @@ impl SseEncode for crate::api::settings::SamplerStripRouteSettingFrb {
     }
 }
 
+impl SseEncode for crate::api::event_mirrors::SaveBeatGrid {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <f64>::sse_encode(self.bpm, serializer);
+        <f32>::sse_encode(self.first_beat_secs, serializer);
+    }
+}
+
 impl SseEncode for crate::api::event_mirrors::SaveDeckHotCue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -18704,13 +19512,38 @@ impl SseEncode for crate::api::event_mirrors::SaveDeckHotCue {
     }
 }
 
-impl SseEncode for crate::api::library::SavedLoopInfo {
+impl SseEncode for crate::api::event_mirrors::SaveTrackHotCue {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <u8>::sse_encode(self.slot, serializer);
+        <i32>::sse_encode(self.position_ms, serializer);
+        <Option<i32>>::sse_encode(self.loop_length_beats, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
+        <Option<String>>::sse_encode(self.label, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::SaveTrackLoop {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <u8>::sse_encode(self.slot, serializer);
+        <i32>::sse_encode(self.in_ms, serializer);
+        <i32>::sse_encode(self.out_ms, serializer);
+        <Option<String>>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::SavedLoop {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u8>::sse_encode(self.slot, serializer);
         <i32>::sse_encode(self.in_ms, serializer);
         <i32>::sse_encode(self.out_ms, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.color, serializer);
     }
 }
 
@@ -19080,6 +19913,52 @@ impl SseEncode for crate::api::event_mirrors::ToggleSync {
     }
 }
 
+impl SseEncode for crate::api::event_mirrors::TrackAnalyzed {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::event_mirrors::TrackSummary>::sse_encode(self.track, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::TrackProgress {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.track_id, serializer);
+        <String>::sse_encode(self.phase, serializer);
+        <Option<f32>>::sse_encode(self.fraction, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::TrackSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.display_name, serializer);
+        <Option<String>>::sse_encode(self.artist, serializer);
+        <Option<String>>::sse_encode(self.title, serializer);
+        <Option<String>>::sse_encode(self.album, serializer);
+        <Option<String>>::sse_encode(self.genre, serializer);
+        <Option<f64>>::sse_encode(self.bpm, serializer);
+        <Option<String>>::sse_encode(self.key, serializer);
+        <Option<i32>>::sse_encode(self.duration_ms, serializer);
+        <String>::sse_encode(self.path, serializer);
+        <Option<String>>::sse_encode(self.isrc, serializer);
+        <Option<u8>>::sse_encode(self.rating, serializer);
+        <Option<String>>::sse_encode(self.comment, serializer);
+        <Option<u16>>::sse_encode(self.year, serializer);
+        <Option<u16>>::sse_encode(self.track_number, serializer);
+        <Option<u16>>::sse_encode(self.disc_number, serializer);
+        <Option<String>>::sse_encode(self.color_label, serializer);
+    }
+}
+
+impl SseEncode for crate::api::event_mirrors::TrackUpdated {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::event_mirrors::TrackSummary>::sse_encode(self.track, serializer);
+    }
+}
+
 impl SseEncode for crate::api::event_mirrors::TriggerHotCue {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -19262,20 +20141,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_gui_flutter_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>::increment_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_gui_flutter_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>::decrement_strong_count(ptr as _);
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_gui_flutter_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
         ptr: *const std::ffi::c_void,
     ) {
@@ -19387,20 +20252,6 @@ mod web {
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>>::decrement_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>::increment_strong_count(ptr as _);
-    }
-
-    #[wasm_bindgen]
-    pub fn rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-        ptr: *const std::ffi::c_void,
-    ) {
-        MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>::decrement_strong_count(ptr as _);
     }
 
     #[wasm_bindgen]

@@ -10,7 +10,7 @@ use crate::sync::DeckControlState;
 use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::{AudioStream, Sample, StreamParams};
-use engine_api::Event;
+use bus_api::Event;
 use engine_dsp::DspEngine;
 use event_bus::EventBus;
 use event_bus::Subscriber;

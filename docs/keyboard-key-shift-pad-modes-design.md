@@ -106,7 +106,7 @@ pentatonic) were removed in favour of the chromatic page model above.
 
 ## Engine surface
 
-### `crates/engine-api`
+### `crates/bus-api`
 
 - `PadMode::{Keyboard, KeyShift}`.
 - `CmdBody`:

@@ -1,66 +1,68 @@
 //! Action string → [`RoutedAction`].
 
-use engine_api::BeatJump;
-use engine_api::BeatJumpPadPress;
-use engine_api::BeatJumpPadRelease;
-use engine_api::BeginCueHold;
-use engine_api::CrossfaderAssign;
-use engine_api::DeleteDeckHotCue;
-use engine_api::EndCueHold;
-use engine_api::EqBand;
-use engine_api::Event;
-use engine_api::ExitLoop;
-use engine_api::FxKind;
-use engine_api::FxSlotState;
-use engine_api::HotCuePadPress;
-use engine_api::HotCuePadRelease;
-use engine_api::JogMode;
-use engine_api::JogTouch;
-use engine_api::JogTurn;
-use engine_api::KeyShiftPadPress;
-use engine_api::KeyShiftPadRelease;
-use engine_api::KeyboardPadPress;
-use engine_api::KeyboardPadRelease;
-use engine_api::LoopIn;
-use engine_api::LoopOut;
-use engine_api::LoopRollPadPress;
-use engine_api::LoopRollPadRelease;
-use engine_api::PadMode;
-use engine_api::PadPress;
-use engine_api::PadRelease;
-use engine_api::Pause;
-use engine_api::Play;
-use engine_api::SamplerPadPress;
-use engine_api::SamplerPadRelease;
-use engine_api::SaveDeckHotCue;
-use engine_api::SetAutoLoop;
-use engine_api::SetCrossfader;
-use engine_api::SetCrossfaderAssign;
-use engine_api::SetCueMix;
-use engine_api::SetCuePoint;
-use engine_api::SetCueVolume;
-use engine_api::SetDeckFxRouted;
-use engine_api::SetEqBand;
-use engine_api::SetFilter;
-use engine_api::SetFxUnitParam;
-use engine_api::SetFxUnitSlot;
-use engine_api::SetFxUnitSlotEnabled;
-use engine_api::SetFxUnitWet;
-use engine_api::SetGainTrim;
-use engine_api::SetMasterVolume;
-use engine_api::SetPadMode;
-use engine_api::SetSpeed;
-use engine_api::SetTempoRange;
-use engine_api::SetVolume;
-use engine_api::ToggleHeadphoneCue;
-use engine_api::ToggleMasterCue;
-use engine_api::TogglePlay;
-use engine_api::ToggleQuantize;
-use engine_api::ToggleSync;
-use engine_api::TriggerHotCue;
-use engine_api::DEFAULT_PITCH_PAGE;
-use engine_api::FX_DIVISION_COUNT;
-use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
+use bus_api::BeatJump;
+use bus_api::BeatJumpPadPress;
+use bus_api::BeatJumpPadRelease;
+use bus_api::BeginCueHold;
+use bus_api::CrossfaderAssign;
+use bus_api::DeleteDeckHotCue;
+use bus_api::EndCueHold;
+use bus_api::EqBand;
+use bus_api::Event;
+use bus_api::ExitLoop;
+use bus_api::Focus;
+use bus_api::FxKind;
+use bus_api::FxSlotState;
+use bus_api::HotCuePadPress;
+use bus_api::HotCuePadRelease;
+use bus_api::JogMode;
+use bus_api::JogTouch;
+use bus_api::JogTurn;
+use bus_api::KeyShiftPadPress;
+use bus_api::KeyShiftPadRelease;
+use bus_api::KeyboardPadPress;
+use bus_api::KeyboardPadRelease;
+use bus_api::Load;
+use bus_api::LoopIn;
+use bus_api::LoopOut;
+use bus_api::LoopRollPadPress;
+use bus_api::LoopRollPadRelease;
+use bus_api::Navigate;
+use bus_api::PadMode;
+use bus_api::PadPress;
+use bus_api::PadRelease;
+use bus_api::Pause;
+use bus_api::Play;
+use bus_api::SamplerPadPress;
+use bus_api::SamplerPadRelease;
+use bus_api::SaveDeckHotCue;
+use bus_api::SetAutoLoop;
+use bus_api::SetCrossfader;
+use bus_api::SetCrossfaderAssign;
+use bus_api::SetCueMix;
+use bus_api::SetCuePoint;
+use bus_api::SetCueVolume;
+use bus_api::SetDeckFxRouted;
+use bus_api::SetEqBand;
+use bus_api::SetFilter;
+use bus_api::SetFxUnitParam;
+use bus_api::SetFxUnitSlot;
+use bus_api::SetFxUnitSlotEnabled;
+use bus_api::SetFxUnitWet;
+use bus_api::SetGainTrim;
+use bus_api::SetMasterVolume;
+use bus_api::SetPadMode;
+use bus_api::SetSpeed;
+use bus_api::SetTempoRange;
+use bus_api::SetVolume;
+use bus_api::ToggleHeadphoneCue;
+use bus_api::ToggleMasterCue;
+use bus_api::TogglePlay;
+use bus_api::ToggleQuantize;
+use bus_api::ToggleSync;
+use bus_api::TriggerHotCue;
+use bus_api::DEFAULT_PITCH_PAGE;
+use bus_api::FX_DIVISION_COUNT;
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
 
@@ -356,20 +358,18 @@ fn next_tempo_range(current: f32) -> f32 {
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum RoutedAction {
-    EngineCmd(Event),
+    /// One command for the engine or library worker.
+    Cmd(Event),
     /// One physical control publishing several cmds (exclusive routing groups).
-    EngineCmds(Vec<Event>),
-    LibraryEvt {
-        origin: LibraryOrigin,
-        kind: LibraryKind,
-        body: LibraryEvtBody,
-    },
+    Cmds(Vec<Event>),
+    /// Egress event the host re-broadcasts (library navigate/focus/load).
+    Evt(Event),
 }
 
 /// Deck-scoped command: `None` when the bound section addresses no deck.
 fn deck_cmd(scope: EngineScope, build: impl FnOnce(u16) -> Event) -> Option<RoutedAction> {
     match scope {
-        EngineScope::Deck(deck) => Some(RoutedAction::EngineCmd(build(deck))),
+        EngineScope::Deck(deck) => Some(RoutedAction::Cmd(build(deck))),
         EngineScope::Mixer | EngineScope::Engine => None,
     }
 }
@@ -389,7 +389,7 @@ fn deck_press(
 
 /// Mixer-scoped command (no deck to fill in).
 fn mixer_cmd(event: impl FnOnce() -> Event) -> Option<RoutedAction> {
-    Some(RoutedAction::EngineCmd(event()))
+    Some(RoutedAction::Cmd(event()))
 }
 
 /// Mixer-scoped command gated on a press edge.
@@ -452,21 +452,13 @@ pub fn resolve_action(
                 if !active {
                     return None;
                 }
-                return Some(RoutedAction::LibraryEvt {
-                    origin: LibraryOrigin::LibraryNavigation,
-                    kind: LibraryKind::Navigate,
-                    body: LibraryEvtBody::Navigate { delta: 1 },
-                });
+                return Some(RoutedAction::Evt(Event::Navigate(Navigate { delta: 1 })));
             }
             "navigate_prev" => {
                 if !active {
                     return None;
                 }
-                return Some(RoutedAction::LibraryEvt {
-                    origin: LibraryOrigin::LibraryNavigation,
-                    kind: LibraryKind::Navigate,
-                    body: LibraryEvtBody::Navigate { delta: -1 },
-                });
+                return Some(RoutedAction::Evt(Event::Navigate(Navigate { delta: -1 })));
             }
             // Relative select-knob: delta already decoded from device `relative` mode.
             "navigate" => {
@@ -474,33 +466,21 @@ pub fn resolve_action(
                 if delta == 0 {
                     return None;
                 }
-                return Some(RoutedAction::LibraryEvt {
-                    origin: LibraryOrigin::LibraryNavigation,
-                    kind: LibraryKind::Navigate,
-                    body: LibraryEvtBody::Navigate { delta },
-                });
+                return Some(RoutedAction::Evt(Event::Navigate(Navigate { delta })));
             }
             // Rotary-selector press: step browser focus to the next pane.
             "focus_next" => {
                 if !active {
                     return None;
                 }
-                return Some(RoutedAction::LibraryEvt {
-                    origin: LibraryOrigin::LibraryNavigation,
-                    kind: LibraryKind::Focus,
-                    body: LibraryEvtBody::Focus { delta: 1 },
-                });
+                return Some(RoutedAction::Evt(Event::Focus(Focus { delta: 1 })));
             }
             // SHIFT + rotary-selector press: step browser focus back.
             "focus_prev" => {
                 if !active {
                     return None;
                 }
-                return Some(RoutedAction::LibraryEvt {
-                    origin: LibraryOrigin::LibraryNavigation,
-                    kind: LibraryKind::Focus,
-                    body: LibraryEvtBody::Focus { delta: -1 },
-                });
+                return Some(RoutedAction::Evt(Event::Focus(Focus { delta: -1 })));
             }
             "load_to_deck" => {
                 if !active {
@@ -511,11 +491,7 @@ pub fn resolve_action(
                     return None;
                 }
                 let deck = (deck_1based - 1) as u16;
-                return Some(RoutedAction::LibraryEvt {
-                    origin: LibraryOrigin::LibraryNavigation,
-                    kind: LibraryKind::Load,
-                    body: LibraryEvtBody::Load { deck },
-                });
+                return Some(RoutedAction::Evt(Event::Load(Load { deck })));
             }
             _ => return None,
         }
@@ -727,7 +703,7 @@ pub fn resolve_action(
                 "master" => vec![routed(0, true), routed(1, true)],
                 _ => return None,
             };
-            Some(RoutedAction::EngineCmds(cmds))
+            Some(RoutedAction::Cmds(cmds))
         }
         "set_headphone_cue" => deck_press(active, scope, |deck| {
             Event::ToggleHeadphoneCue(ToggleHeadphoneCue { deck })
@@ -1012,7 +988,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SetEqBand(SetEqBand {
+            RoutedAction::Cmd(Event::SetEqBand(SetEqBand {
                 deck: 0,
                 band: EqBand::Low,
                 gain,
@@ -1035,7 +1011,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SetEqBand(SetEqBand {
+            RoutedAction::Cmd(Event::SetEqBand(SetEqBand {
                 deck: 0,
                 band: EqBand::Mid,
                 gain,
@@ -1058,7 +1034,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SetFilter(SetFilter {
+            RoutedAction::Cmd(Event::SetFilter(SetFilter {
                 deck: 0,
                 filter,
                 soft_takeover: false,
@@ -1080,7 +1056,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SetGainTrim(SetGainTrim {
+            RoutedAction::Cmd(Event::SetGainTrim(SetGainTrim {
                 deck: 0,
                 gain_trim,
                 soft_takeover: false,
@@ -1102,7 +1078,7 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::EngineCmd(Event::PadPress(PadPress {
+            RoutedAction::Cmd(Event::PadPress(PadPress {
                 deck: 0,
                 slot,
                 shift,
@@ -1123,7 +1099,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::EngineCmd(Event::PadRelease(PadRelease { deck: 0, slot: 0 }))
+            RoutedAction::Cmd(Event::PadRelease(PadRelease { deck: 0, slot: 0 }))
         ));
 
         snap.pad_mode[0] = PadMode::BeatJump;
@@ -1140,7 +1116,7 @@ mod tests {
         assert!(
             matches!(
                 still_generic,
-                RoutedAction::EngineCmd(Event::PadPress(PadPress {
+                RoutedAction::Cmd(Event::PadPress(PadPress {
                     deck: 0,
                     slot: 0,
                     shift: false
@@ -1163,7 +1139,7 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::EngineCmd(Event::HotCuePadPress(HotCuePadPress {
+            RoutedAction::Cmd(Event::HotCuePadPress(HotCuePadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1181,7 +1157,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::EngineCmd(Event::HotCuePadRelease(HotCuePadRelease {
+            RoutedAction::Cmd(Event::HotCuePadRelease(HotCuePadRelease {
                 deck: 0,
                 slot: 0
             }))
@@ -1197,10 +1173,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::BeatJumpPadPress(BeatJumpPadPress {
-                deck: 0,
-                slot,
-            })) => {
+            RoutedAction::Cmd(Event::BeatJumpPadPress(BeatJumpPadPress { deck: 0, slot })) => {
                 assert_eq!(slot, 0)
             }
             other => panic!("expected BeatJumpPadPress, got {other:?}"),
@@ -1216,10 +1189,9 @@ mod tests {
         )
         .unwrap();
         match begin {
-            RoutedAction::EngineCmd(Event::LoopRollPadPress(LoopRollPadPress {
-                deck: 0,
-                slot,
-            })) => assert_eq!(slot, 2),
+            RoutedAction::Cmd(Event::LoopRollPadPress(LoopRollPadPress { deck: 0, slot })) => {
+                assert_eq!(slot, 2)
+            }
             other => panic!("expected LoopRollPadPress slot 2, got {other:?}"),
         }
         let end = resolve_action(
@@ -1233,7 +1205,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             end,
-            RoutedAction::EngineCmd(Event::LoopRollPadRelease(LoopRollPadRelease {
+            RoutedAction::Cmd(Event::LoopRollPadRelease(LoopRollPadRelease {
                 deck: 0,
                 slot: 2
             }))
@@ -1249,7 +1221,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SamplerPadPress(SamplerPadPress {
+            RoutedAction::Cmd(Event::SamplerPadPress(SamplerPadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1267,7 +1239,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             end,
-            RoutedAction::EngineCmd(Event::SamplerPadRelease(SamplerPadRelease {
+            RoutedAction::Cmd(Event::SamplerPadRelease(SamplerPadRelease {
                 deck: 0,
                 slot: 1
             }))
@@ -1287,7 +1259,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::PadPress(PadPress {
+            RoutedAction::Cmd(Event::PadPress(PadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1313,7 +1285,7 @@ mod tests {
         )
         .unwrap();
         match named {
-            RoutedAction::EngineCmd(Event::HotCuePadPress(HotCuePadPress {
+            RoutedAction::Cmd(Event::HotCuePadPress(HotCuePadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1335,7 +1307,7 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::EngineCmd(Event::SamplerPadPress(SamplerPadPress {
+            RoutedAction::Cmd(Event::SamplerPadPress(SamplerPadPress {
                 deck: 0,
                 slot,
                 shift: false,
@@ -1353,7 +1325,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::EngineCmd(Event::SamplerPadRelease(SamplerPadRelease {
+            RoutedAction::Cmd(Event::SamplerPadRelease(SamplerPadRelease {
                 deck: 0,
                 slot: 1
             }))
@@ -1373,7 +1345,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SetPadMode(SetPadMode { deck: 0, mode })) => {
+            RoutedAction::Cmd(Event::SetPadMode(SetPadMode { deck: 0, mode })) => {
                 assert_eq!(mode, PadMode::LoopRoll)
             }
             other => panic!("unexpected {other:?}"),
@@ -1394,7 +1366,7 @@ mod tests {
         )
         .unwrap();
         match inn {
-            RoutedAction::EngineCmd(Event::LoopIn(LoopIn {
+            RoutedAction::Cmd(Event::LoopIn(LoopIn {
                 deck: 0,
                 position_ms,
             })) => assert_eq!(position_ms, 12_345),
@@ -1410,7 +1382,7 @@ mod tests {
         )
         .unwrap();
         match out {
-            RoutedAction::EngineCmd(Event::LoopOut(LoopOut {
+            RoutedAction::Cmd(Event::LoopOut(LoopOut {
                 deck: 0,
                 position_ms,
             })) => assert_eq!(position_ms, 12_345),
@@ -1431,7 +1403,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SetAutoLoop(SetAutoLoop { deck: 0, beats })) => {
+            RoutedAction::Cmd(Event::SetAutoLoop(SetAutoLoop { deck: 0, beats })) => {
                 assert!((beats - 0.25).abs() < 1e-6)
             }
             other => panic!("expected SetAutoLoop 0.25, got {other:?}"),
@@ -1451,11 +1423,7 @@ mod tests {
         )
         .unwrap();
         match next {
-            RoutedAction::LibraryEvt {
-                kind: LibraryKind::Navigate,
-                body: LibraryEvtBody::Navigate { delta },
-                ..
-            } => assert_eq!(delta, 1),
+            RoutedAction::Evt(Event::Navigate(Navigate { delta })) => assert_eq!(delta, 1),
             other => panic!("expected Navigate +1, got {other:?}"),
         }
         let prev = resolve_action(
@@ -1468,11 +1436,7 @@ mod tests {
         )
         .unwrap();
         match prev {
-            RoutedAction::LibraryEvt {
-                kind: LibraryKind::Navigate,
-                body: LibraryEvtBody::Navigate { delta },
-                ..
-            } => assert_eq!(delta, -1),
+            RoutedAction::Evt(Event::Navigate(Navigate { delta })) => assert_eq!(delta, -1),
             other => panic!("expected Navigate -1, got {other:?}"),
         }
         assert!(
@@ -1502,7 +1466,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::JogTurn(JogTurn { deck: 0, delta })) => {
+            RoutedAction::Cmd(Event::JogTurn(JogTurn { deck: 0, delta })) => {
                 assert_eq!(delta, 3)
             }
             other => panic!("expected JogTurn, got {other:?}"),
@@ -1557,7 +1521,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SetTempoRange(SetTempoRange {
+            RoutedAction::Cmd(Event::SetTempoRange(SetTempoRange {
                 deck: 0,
                 tempo_range,
             })) => assert!((tempo_range - 0.10).abs() < 1e-5),
@@ -1574,7 +1538,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd(Event::SetTempoRange(SetTempoRange {
+            RoutedAction::Cmd(Event::SetTempoRange(SetTempoRange {
                 deck: 0,
                 tempo_range,
             })) => assert!((tempo_range - 0.06).abs() < 1e-5),
@@ -1595,11 +1559,7 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::LibraryEvt {
-                kind: LibraryKind::Load,
-                body: LibraryEvtBody::Load { deck },
-                ..
-            } => assert_eq!(deck, 1),
+            RoutedAction::Evt(Event::Load(Load { deck })) => assert_eq!(deck, 1),
             other => panic!("expected Load deck 1, got {other:?}"),
         }
         assert!(resolve_action(
@@ -1627,7 +1587,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             a,
-            RoutedAction::EngineCmd(Event::KeyShiftPadPress(KeyShiftPadPress { deck: 0, .. }))
+            RoutedAction::Cmd(Event::KeyShiftPadPress(KeyShiftPadPress { deck: 0, .. }))
         ));
     }
 
@@ -1645,7 +1605,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             keyboard,
-            RoutedAction::EngineCmd(Event::KeyboardPadPress(KeyboardPadPress {
+            RoutedAction::Cmd(Event::KeyboardPadPress(KeyboardPadPress {
                 shift: true,
                 ..
             }))
@@ -1661,7 +1621,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             key_shift,
-            RoutedAction::EngineCmd(Event::KeyShiftPadPress(KeyShiftPadPress {
+            RoutedAction::Cmd(Event::KeyShiftPadPress(KeyShiftPadPress {
                 shift: true,
                 ..
             }))
@@ -1678,7 +1638,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             plain,
-            RoutedAction::EngineCmd(Event::KeyboardPadPress(KeyboardPadPress {
+            RoutedAction::Cmd(Event::KeyboardPadPress(KeyboardPadPress {
                 shift: false,
                 ..
             }))
@@ -1698,12 +1658,7 @@ mod tests {
         )
         .unwrap();
         match next {
-            RoutedAction::LibraryEvt {
-                origin: LibraryOrigin::LibraryNavigation,
-                kind: LibraryKind::Focus,
-                body: LibraryEvtBody::Focus { delta },
-                ..
-            } => assert_eq!(delta, 1),
+            RoutedAction::Evt(Event::Focus(Focus { delta })) => assert_eq!(delta, 1),
             other => panic!("expected Focus +1, got {other:?}"),
         }
         let prev = resolve_action(
@@ -1716,11 +1671,7 @@ mod tests {
         )
         .unwrap();
         match prev {
-            RoutedAction::LibraryEvt {
-                kind: LibraryKind::Focus,
-                body: LibraryEvtBody::Focus { delta },
-                ..
-            } => assert_eq!(delta, -1),
+            RoutedAction::Evt(Event::Focus(Focus { delta })) => assert_eq!(delta, -1),
             other => panic!("expected Focus -1, got {other:?}"),
         }
         // Release edge is not a focus step.
@@ -1790,7 +1741,7 @@ mod tests {
         )
         .unwrap()
         {
-            RoutedAction::EngineCmd(Event::SetFxUnitSlot(SetFxUnitSlot { slot: 0, kind })) => kind,
+            RoutedAction::Cmd(Event::SetFxUnitSlot(SetFxUnitSlot { slot: 0, kind })) => kind,
             other => panic!("unexpected {other:?}"),
         };
 
@@ -1820,7 +1771,7 @@ mod tests {
 
         // Boot division is index 3 of 7 → 4/6 after one up-step.
         match step(&snap, "step_fx_division_up").unwrap() {
-            RoutedAction::EngineCmd(Event::SetFxUnitParam(SetFxUnitParam {
+            RoutedAction::Cmd(Event::SetFxUnitParam(SetFxUnitParam {
                 slot: 0,
                 param: 0,
                 value,
@@ -1857,7 +1808,7 @@ mod tests {
         )
         .unwrap()
         {
-            RoutedAction::EngineCmd(Event::SetFxUnitWet(SetFxUnitWet {
+            RoutedAction::Cmd(Event::SetFxUnitWet(SetFxUnitWet {
                 slot: 0,
                 wet,
                 soft_takeover: true,
@@ -1884,15 +1835,15 @@ mod tests {
 
         assert_eq!(
             route("ch1").unwrap(),
-            RoutedAction::EngineCmds(vec![routed(0, true), routed(1, false)])
+            RoutedAction::Cmds(vec![routed(0, true), routed(1, false)])
         );
         assert_eq!(
             route("ch2").unwrap(),
-            RoutedAction::EngineCmds(vec![routed(0, false), routed(1, true)])
+            RoutedAction::Cmds(vec![routed(0, false), routed(1, true)])
         );
         assert_eq!(
             route("master").unwrap(),
-            RoutedAction::EngineCmds(vec![routed(0, true), routed(1, true)])
+            RoutedAction::Cmds(vec![routed(0, true), routed(1, true)])
         );
 
         // Unknown targets, releases and missing args resolve to nothing.
@@ -1939,7 +1890,7 @@ mod tests {
         ] {
             assert_eq!(
                 map(value),
-                Some(RoutedAction::EngineCmd(Event::SetCrossfaderAssign(
+                Some(RoutedAction::Cmd(Event::SetCrossfaderAssign(
                     SetCrossfaderAssign {
                         deck: 3,
                         assignment: expected

@@ -3,32 +3,26 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
-use engine_api::Event;
-use engine_api::KeyShiftPadPress;
-use engine_api::KeyboardPadPress;
-use engine_api::KeyboardPadRelease;
-use engine_api::PadMode;
-use engine_api::SetCueMix;
-use engine_api::SetCueVolume;
-use engine_api::SetMasterVolume;
-use engine_api::SetPadMode;
-use engine_api::ToggleMasterCue;
+use bus_api::Event;
+use bus_api::KeyShiftPadPress;
+use bus_api::KeyboardPadPress;
+use bus_api::KeyboardPadRelease;
+use bus_api::PadMode;
+use bus_api::SetCueMix;
+use bus_api::SetCueVolume;
+use bus_api::SetMasterVolume;
+use bus_api::SetPadMode;
+use bus_api::ToggleMasterCue;
 
 struct CaptureBus {
     cmds: Vec<Event>,
 }
 
 impl controller::ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, event: Event) {
+    fn publish_cmd(&mut self, event: Event) {
         self.cmds.push(event);
     }
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_evt(&mut self, _event: Event) {}
 }
 
 struct CaptureMidi {

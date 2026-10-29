@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' as bus;
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 import 'helpers/collection_tracks_override.dart';
@@ -23,6 +24,43 @@ LibraryTrackSummary _track({
   );
 }
 
+/// The bus record the library publishes for the same row.
+bus.TrackSummary _busTrack({
+  required String id,
+  String displayName = 'Track',
+  double? bpm,
+  String? key,
+}) => bus.TrackSummary(
+  id: id,
+  displayName: displayName,
+  bpm: bpm,
+  key: key,
+  durationMs: 180000,
+  path: '/tmp/$id.flac',
+);
+
+bus.Event _trackUpdated({
+  required String id,
+  String displayName = 'Track',
+  double? bpm,
+  String? key,
+}) => bus.Event.trackUpdated(
+  bus.TrackUpdated(
+    track: _busTrack(id: id, displayName: displayName, bpm: bpm, key: key),
+  ),
+);
+
+bus.Event _trackAnalyzed({
+  required String id,
+  String displayName = 'Track',
+  double? bpm,
+  String? key,
+}) => bus.Event.trackAnalyzed(
+  bus.TrackAnalyzed(
+    track: _busTrack(id: id, displayName: displayName, bpm: bpm, key: key),
+  ),
+);
+
 LibraryCollectionSummary _collection({
   String id = 'col-1',
   int trackCount = 1,
@@ -42,7 +80,6 @@ void main() {
       var trackLoads = 0;
       var collectionLoads = 0;
       final seed = _track(id: 'a', bpm: 120);
-      final updated = _track(id: 'a', bpm: 128);
       final container = ProviderContainer(
         overrides: [
           collectionsProvider.overrideWith((ref) async {
@@ -65,7 +102,7 @@ void main() {
       expect(collectionLoads, 1);
 
       container.read(libraryEvtDispatchProvider)(
-        LibraryEvt(kind: LibraryEvtKind.trackUpdated, track: updated),
+        _trackUpdated(id: 'a', bpm: 128),
       );
       await pumpEventQueue();
 
@@ -82,7 +119,6 @@ void main() {
       () async {
         var trackLoads = 0;
         final seed = _track(id: 'a', bpm: 120);
-        final analyzed = _track(id: 'a', bpm: 128, key: '8A');
         final container = ProviderContainer(
           overrides: [
             collectionsProvider.overrideWith((ref) async => [_collection()]),
@@ -99,7 +135,7 @@ void main() {
         container.read(analyzingTrackIdsProvider.notifier).add('a');
 
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(kind: LibraryEvtKind.trackAnalyzed, track: analyzed),
+          _trackAnalyzed(id: 'a', bpm: 128, key: '8A'),
         );
         await pumpEventQueue();
 
@@ -120,7 +156,6 @@ void main() {
         var trackLoads = 0;
         var collectionLoads = 0;
         final seed = _track(id: 'a', bpm: 120, key: '1A');
-        final updated = _track(id: 'a', bpm: 128, key: '8A');
         final container = ProviderContainer(
           overrides: [
             collectionsProvider.overrideWith((ref) async {
@@ -141,7 +176,7 @@ void main() {
         expect(collectionLoads, 1);
 
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(kind: LibraryEvtKind.trackUpdated, track: updated),
+          _trackUpdated(id: 'a', bpm: 128, key: '8A'),
         );
         await pumpEventQueue();
 
@@ -161,7 +196,6 @@ void main() {
       () async {
         var trackLoads = 0;
         final seed = _track(id: 'a', bpm: 120);
-        final analyzed = _track(id: 'a', bpm: 140, key: '9B');
         final container = ProviderContainer(
           overrides: [
             collectionsProvider.overrideWith((ref) async => [_collection()]),
@@ -178,7 +212,7 @@ void main() {
         container.read(analyzingTrackIdsProvider.notifier).add('a');
 
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(kind: LibraryEvtKind.trackAnalyzed, track: analyzed),
+          _trackAnalyzed(id: 'a', bpm: 140, key: '9B'),
         );
         await pumpEventQueue();
 
@@ -191,39 +225,44 @@ void main() {
       },
     );
 
-    test('full invalidate when evt.track is absent', () async {
-      var trackLoads = 0;
-      var collectionLoads = 0;
-      final seed = _track(id: 'a', bpm: 120);
-      final container = ProviderContainer(
-        overrides: [
-          collectionsProvider.overrideWith((ref) async {
-            collectionLoads++;
-            return [_collection()];
-          }),
-          overrideCollectionTracks((ref) async {
-            trackLoads++;
-            return [seed];
-          }),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'full invalidate on a structural signal with no row payload',
+      () async {
+        var trackLoads = 0;
+        var collectionLoads = 0;
+        final seed = _track(id: 'a', bpm: 120);
+        final container = ProviderContainer(
+          overrides: [
+            collectionsProvider.overrideWith((ref) async {
+              collectionLoads++;
+              return [_collection()];
+            }),
+            overrideCollectionTracks((ref) async {
+              trackLoads++;
+              return [seed];
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await container.read(collectionsProvider.future);
-      await container.read(collectionTracksProvider.future);
-      expect(trackLoads, 1);
-      expect(collectionLoads, 1);
+        await container.read(collectionsProvider.future);
+        await container.read(collectionTracksProvider.future);
+        expect(trackLoads, 1);
+        expect(collectionLoads, 1);
 
-      container.read(libraryEvtDispatchProvider)(
-        const LibraryEvt(kind: LibraryEvtKind.trackUpdated, trackId: 'a'),
-      );
-      await pumpEventQueue();
+        // Every bus `TrackUpdated` now carries a full row, so the "no payload"
+        // membership signal is only reachable at the notifier seam.
+        container
+            .read(collectionTracksProvider.notifier)
+            .scheduleTrackRowEvent(null);
+        await pumpEventQueue();
 
-      await container.read(collectionTracksProvider.future);
-      await container.read(collectionsProvider.future);
-      expect(trackLoads, 2);
-      expect(collectionLoads, 2);
-    });
+        await container.read(collectionTracksProvider.future);
+        await container.read(collectionsProvider.future);
+        expect(trackLoads, 2);
+        expect(collectionLoads, 2);
+      },
+    );
 
     test(
       'full invalidate when track is not in the current collection list',
@@ -231,7 +270,6 @@ void main() {
         var trackLoads = 0;
         var collectionLoads = 0;
         final seed = _track(id: 'a', bpm: 120);
-        final other = _track(id: 'b', bpm: 100);
         final container = ProviderContainer(
           overrides: [
             collectionsProvider.overrideWith((ref) async {
@@ -252,7 +290,7 @@ void main() {
         expect(collectionLoads, 1);
 
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(kind: LibraryEvtKind.trackUpdated, track: other),
+          _trackUpdated(id: 'b', bpm: 100),
         );
         await pumpEventQueue();
 
@@ -280,24 +318,9 @@ void main() {
       await container.read(collectionsProvider.future);
       await container.read(collectionTracksProvider.future);
       final dispatch = container.read(libraryEvtDispatchProvider);
-      dispatch(
-        LibraryEvt(
-          kind: LibraryEvtKind.trackUpdated,
-          track: _track(id: 'a', bpm: 121),
-        ),
-      );
-      dispatch(
-        LibraryEvt(
-          kind: LibraryEvtKind.trackUpdated,
-          track: _track(id: 'a', bpm: 122),
-        ),
-      );
-      dispatch(
-        LibraryEvt(
-          kind: LibraryEvtKind.trackUpdated,
-          track: _track(id: 'a', bpm: 123),
-        ),
-      );
+      dispatch(_trackUpdated(id: 'a', bpm: 121));
+      dispatch(_trackUpdated(id: 'a', bpm: 122));
+      dispatch(_trackUpdated(id: 'a', bpm: 123));
       await pumpEventQueue();
 
       expect(trackLoads, 1);
@@ -331,10 +354,7 @@ void main() {
         expect(container.read(collectionTracksProvider).hasError, isTrue);
 
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(
-            kind: LibraryEvtKind.trackUpdated,
-            track: _track(id: 'a', bpm: 128),
-          ),
+          _trackUpdated(id: 'a', bpm: 128),
         );
         await pumpEventQueue();
 
@@ -367,10 +387,7 @@ void main() {
         expect(container.read(collectionTracksProvider).isLoading, isTrue);
 
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(
-            kind: LibraryEvtKind.trackUpdated,
-            track: _track(id: 'a', bpm: 128),
-          ),
+          _trackUpdated(id: 'a', bpm: 128),
         );
         await pumpEventQueue();
 
@@ -422,10 +439,7 @@ void main() {
         );
 
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(
-            kind: LibraryEvtKind.trackUpdated,
-            track: _track(id: 'c', bpm: 90),
-          ),
+          _trackUpdated(id: 'c', bpm: 90),
         );
         await pumpEventQueue();
 
@@ -514,10 +528,7 @@ void main() {
         expect(trackLoads, 1);
 
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(
-            kind: LibraryEvtKind.trackUpdated,
-            track: _track(id: 'a', bpm: 128),
-          ),
+          _trackUpdated(id: 'a', bpm: 128),
         );
         // Switch before the coalesced microtask flush runs.
         container.read(selectedCollectionIdProvider.notifier).set('col-2');
@@ -555,10 +566,7 @@ void main() {
       expect(trackLoads, 1);
 
       container.read(libraryEvtDispatchProvider)(
-        LibraryEvt(
-          kind: LibraryEvtKind.trackUpdated,
-          track: _track(id: 'a', bpm: 128),
-        ),
+        _trackUpdated(id: 'a', bpm: 128),
       );
       // Same-collection invalidate before the coalesced flush (e.g. detail
       // dialog save). Pending burst must not overwrite the reloaded row.
@@ -593,10 +601,7 @@ void main() {
         await container.read(collectionsProvider.future);
         await container.read(collectionTracksProvider.future);
         container.read(libraryEvtDispatchProvider)(
-          LibraryEvt(
-            kind: LibraryEvtKind.trackUpdated,
-            track: _track(id: 'a', bpm: 128),
-          ),
+          _trackUpdated(id: 'a', bpm: 128),
         );
         disposed = true;
         container.dispose();

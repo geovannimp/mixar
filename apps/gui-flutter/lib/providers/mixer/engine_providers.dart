@@ -19,9 +19,8 @@ import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' as bus;
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
-    show SamplerSlotInfo;
-import 'package:gui_flutter/src/rust/api/library.dart'
-    show LibraryTrackSummary, SavedLoopInfo;
+    show SamplerSlotInfo, SavedLoop;
+import 'package:gui_flutter/src/rust/api/library.dart' show LibraryTrackSummary;
 import 'package:gui_flutter/widgets/mixer/level_meter.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
@@ -873,8 +872,8 @@ final ProviderFamily<int?, int> deckPendingLoopInMsProvider =
       ),
     );
 
-final ProviderFamily<List<SavedLoopInfo>, int> deckSavedLoopsProvider =
-    Provider.family<List<SavedLoopInfo>, int>((ref, deckId) {
+final ProviderFamily<List<SavedLoop>, int> deckSavedLoopsProvider =
+    Provider.family<List<SavedLoop>, int>((ref, deckId) {
       final trackId = ref.watch(deckTrackIdProvider(deckId));
       if (trackId == null) {
         return const [];

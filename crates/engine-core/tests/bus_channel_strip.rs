@@ -3,11 +3,11 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Event;
+use bus_api::SetFilter;
+use bus_api::SetGainTrim;
+use bus_api::SetHeadphoneCue;
 use common::recv_updated;
-use engine_api::Event;
-use engine_api::SetFilter;
-use engine_api::SetGainTrim;
-use engine_api::SetHeadphoneCue;
 use engine_core::EngineConfig;
 use engine_core::EngineSession;
 

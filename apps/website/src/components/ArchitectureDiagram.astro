@@ -1,7 +1,7 @@
 ---
 /**
  * Static architecture diagram — Flutter UI and MIDI hardware reach three FFI
- * transports, which exchange cmd/evt over a MessagePack bus with the Engine and
+ * transports, which exchange typed commands/events over one bus with the Engine and
  * Library Rust domains.
  *
  * Redrawn from the Mermaid source with the Diagram Design skill; the inline SVG
@@ -20,7 +20,7 @@
     <title id="mixar-architecture-title">Mixar architecture</title>
     <desc id="mixar-architecture-desc"
       >The Flutter UI and MIDI hardware reach three FFI transports over FRB; the
-      transports exchange commands and events over a MessagePack bus with the
+      transports exchange typed commands and events over one bus with the
       Engine and Library Rust domains.</desc
     >
     <defs>
@@ -250,7 +250,7 @@
     <text x="720" y="202" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">ControllerTransport</text>
     <text x="720" y="218" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">controller</text>
 
-    <!-- Node: MessagePack bus (focal) -->
+    <!-- Node: event bus (focal) -->
     <rect x="300" y="316" width="360" height="80" rx="6" fill="var(--paper)"></rect>
     <rect
       x="300"
@@ -271,8 +271,8 @@
       stroke="var(--tagstroke-accent)"
       stroke-width="0.8"></rect>
     <text x="323" y="331" fill="var(--accent)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">BUS</text>
-    <text x="480" y="352" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">MessagePack bus</text>
-    <text x="480" y="370" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">engine-api · library-api</text>
+    <text x="480" y="352" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">Event bus</text>
+    <text x="480" y="370" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">event-bus · bus-api</text>
 
     <!-- Node: Engine -->
     <rect x="240" y="452" width="280" height="72" rx="6" fill="var(--paper)"></rect>

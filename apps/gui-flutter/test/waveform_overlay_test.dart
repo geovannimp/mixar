@@ -3,8 +3,8 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
-import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show LoopRegion;
-import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
+    show LoopRegion, SavedLoop;
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
 void main() {
@@ -118,7 +118,7 @@ void main() {
       size: const Size(200, 40),
     );
     final loops = recordLoopPicture(
-      loops: const [SavedLoopInfo(slot: 0, inMs: 2000, outMs: 4000)],
+      loops: const [SavedLoop(slot: 0, inMs: 2000, outMs: 4000)],
       durationMs: 10_000,
       size: const Size(200, 40),
     );

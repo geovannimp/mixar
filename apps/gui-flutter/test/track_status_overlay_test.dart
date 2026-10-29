@@ -86,7 +86,6 @@ void main() {
         overrides: [
           collectionsProvider.overrideWith((ref) async => [collection]),
           overrideCollectionTracksValue([track, trackB]),
-          libraryEventsBootstrapProvider.overrideWith((ref) {}),
           appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
         ],
         child: MaterialApp(
@@ -523,8 +522,8 @@ void main() {
     container
         .read(trackProgressProvider.notifier)
         .set(track.id, 'stems_failed', null);
-    // The real LibraryEvt path clears stemGenerating alongside the lane
-    // (_handleLibraryEvt). Mirror that: leaving it set is a state the overlay
+    // The real library evt path clears stemGenerating alongside the lane
+    // (handleLibraryEvt). Mirror that: leaving it set is a state the overlay
     // never sees, and it would correctly re-synthesise a "Queuing stems" pill.
     container
         .read(stemGeneratingTrackIdsProvider.notifier)

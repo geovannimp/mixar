@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
+import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/bus.dart';
@@ -37,9 +38,12 @@ final busEventsBootstrapProvider = Provider<void>((ref) {
 
 /// Route one bus event to the state it drives.
 ///
+/// Every handler sees every event and ignores what is not its own, so adding a
+/// domain means adding a handler here, not another subscription.
 /// Exposed for tests, which feed events without a live transport.
 @visibleForTesting
 void dispatchBusEvent(Ref ref, Event event) {
+  ref.read(libraryEvtDispatchProvider)(event);
   final ui = ref.read(engineUiProvider.notifier);
   if (event case Event_Error(:final field0)) {
     ui.apply(event);

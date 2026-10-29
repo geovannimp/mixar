@@ -1,23 +1,18 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
-use engine_api::Event;
+use bus_api::Event;
 use std::path::Path;
 
 struct CaptureBus {
     cmds: Vec<Event>,
-    library: Vec<(library_api::Origin, library_api::Kind, library_api::EvtBody)>,
+    evts: Vec<Event>,
 }
 
 impl controller::ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, event: Event) {
+    fn publish_cmd(&mut self, event: Event) {
         self.cmds.push(event);
     }
-    fn publish_library(
-        &mut self,
-        origin: library_api::Origin,
-        kind: library_api::Kind,
-        body: library_api::EvtBody,
-    ) {
-        self.library.push((origin, kind, body));
+    fn publish_evt(&mut self, event: Event) {
+        self.evts.push(event);
     }
 }
 
@@ -46,7 +41,7 @@ fn note_toggle_play_publishes_toggle_play() {
     let mut s = session();
     let mut bus = CaptureBus {
         cmds: vec![],
-        library: vec![],
+        evts: vec![],
     };
     let mut midi = NullMidi;
     // note on play_pause ch1 note 0x0B
@@ -54,7 +49,7 @@ fn note_toggle_play_publishes_toggle_play() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::TogglePlay(engine_api::TogglePlay { deck: 0 })
+        Event::TogglePlay(bus_api::TogglePlay { deck: 0 })
     );
 }
 
@@ -63,7 +58,7 @@ fn modifier_shift_selects_set_filter() {
     let mut s = session();
     let mut bus = CaptureBus {
         cmds: vec![],
-        library: vec![],
+        evts: vec![],
     };
     let mut midi = NullMidi;
     // hold shift
@@ -74,7 +69,7 @@ fn modifier_shift_selects_set_filter() {
     assert_eq!(bus.cmds.len(), 1);
     assert!(matches!(
         bus.cmds[0],
-        Event::SetFilter(engine_api::SetFilter { deck: 0, .. })
+        Event::SetFilter(bus_api::SetFilter { deck: 0, .. })
     ));
 }
 
@@ -83,13 +78,13 @@ fn soft_takeover_flag_passed_on_absolute_volume() {
     let mut s = session();
     let mut bus = CaptureBus {
         cmds: vec![],
-        library: vec![],
+        evts: vec![],
     };
     let mut midi = NullMidi;
     s.handle_midi(&[0xB0, 0x13, 13], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
     match &bus.cmds[0] {
-        Event::SetVolume(engine_api::SetVolume {
+        Event::SetVolume(bus_api::SetVolume {
             deck: 0,
             soft_takeover: true,
             ..
@@ -103,7 +98,7 @@ fn headphone_cue_toggles_and_lights_led() {
     let mut s = session();
     let mut bus = CaptureBus {
         cmds: vec![],
-        library: vec![],
+        evts: vec![],
     };
     let mut midi = CaptureMidi { frames: vec![] };
 
@@ -111,7 +106,7 @@ fn headphone_cue_toggles_and_lights_led() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::ToggleHeadphoneCue(engine_api::ToggleHeadphoneCue { deck: 0 })
+        Event::ToggleHeadphoneCue(bus_api::ToggleHeadphoneCue { deck: 0 })
     );
     assert_eq!(midi.frames.len(), 1, "PFL LED should turn on");
     assert_eq!(midi.frames[0], vec![0x90, 0x54, 0x7F]);
@@ -121,7 +116,7 @@ fn headphone_cue_toggles_and_lights_led() {
     assert_eq!(bus.cmds.len(), 2);
     assert_eq!(
         bus.cmds[1],
-        Event::ToggleHeadphoneCue(engine_api::ToggleHeadphoneCue { deck: 0 })
+        Event::ToggleHeadphoneCue(bus_api::ToggleHeadphoneCue { deck: 0 })
     );
     assert_eq!(midi.frames.len(), 2, "PFL LED should turn off");
     assert_eq!(midi.frames[1], vec![0x90, 0x54, 0x00]);
@@ -134,7 +129,7 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     cues[0] = Some(1_000);
     let mut bus = CaptureBus {
         cmds: vec![],
-        library: vec![],
+        evts: vec![],
     };
     let mut midi = CaptureMidi { frames: vec![] };
     s.set_deck_hot_cues(0, cues, &mut midi);
@@ -147,7 +142,7 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::HotCuePadPress(engine_api::HotCuePadPress {
+        Event::HotCuePadPress(bus_api::HotCuePadPress {
             deck: 0,
             slot: 0,
             shift: false
@@ -160,7 +155,7 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::HotCuePadRelease(engine_api::HotCuePadRelease { deck: 0, slot: 0 })
+        Event::HotCuePadRelease(bus_api::HotCuePadRelease { deck: 0, slot: 0 })
     );
 
     bus.cmds.clear();
@@ -169,7 +164,7 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(
         bus.cmds[0],
-        Event::TogglePlay(engine_api::TogglePlay { deck: 0 })
+        Event::TogglePlay(bus_api::TogglePlay { deck: 0 })
     );
 }
 
@@ -192,27 +187,25 @@ fn browse_relative_cc_publishes_library_navigation() {
     let mut s = session();
     let mut bus = CaptureBus {
         cmds: vec![],
-        library: vec![],
+        evts: vec![],
     };
     let mut midi = NullMidi;
     // DDJ browse: ch7 CC 0x40, +1 (TWOS_COMPLEMENT)
     s.handle_midi(&[0xB6, 0x40, 0x01], &mut bus, &mut midi);
-    assert_eq!(bus.library.len(), 1);
-    assert_eq!(bus.library[0].0, library_api::Origin::LibraryNavigation);
-    assert_eq!(bus.library[0].1, library_api::Kind::Navigate);
+    assert!(bus.cmds.is_empty(), "navigation is egress-only");
+    assert_eq!(bus.evts.len(), 1);
     assert!(matches!(
-        bus.library[0].2,
-        library_api::EvtBody::Navigate { delta: 1 }
+        bus.evts[0],
+        Event::Navigate(bus_api::Navigate { delta: 1 })
     ));
     // Age the ≤60 Hz coalesce window so the next tick publishes alone.
     s.age_cc_coalesce_for_test("master.browse");
     // −1
     s.handle_midi(&[0xB6, 0x40, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.library.len(), 2);
-    assert_eq!(bus.library[1].1, library_api::Kind::Navigate);
+    assert_eq!(bus.evts.len(), 2);
     assert!(matches!(
-        bus.library[1].2,
-        library_api::EvtBody::Navigate { delta: -1 }
+        bus.evts[1],
+        Event::Navigate(bus_api::Navigate { delta: -1 })
     ));
 }
 
@@ -221,27 +214,25 @@ fn rotary_press_publishes_pane_focus_evt() {
     let mut s = session();
     let mut bus = CaptureBus {
         cmds: vec![],
-        library: vec![],
+        evts: vec![],
     };
     let mut midi = NullMidi;
     // DDJ rotary-selector press: ch7 note 0x41.
     s.handle_midi(&[0x96, 0x41, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.library.len(), 1);
-    assert_eq!(bus.library[0].0, library_api::Origin::LibraryNavigation);
-    assert_eq!(bus.library[0].1, library_api::Kind::Focus);
+    assert!(bus.cmds.is_empty(), "focus is egress-only");
+    assert_eq!(bus.evts.len(), 1);
     assert!(matches!(
-        bus.library[0].2,
-        library_api::EvtBody::Focus { delta: 1 }
+        bus.evts[0],
+        Event::Focus(bus_api::Focus { delta: 1 })
     ));
     // SHIFT + rotary-selector press: ch7 note 0x42.
     s.handle_midi(&[0x96, 0x42, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.library.len(), 2);
-    assert_eq!(bus.library[1].1, library_api::Kind::Focus);
+    assert_eq!(bus.evts.len(), 2);
     assert!(matches!(
-        bus.library[1].2,
-        library_api::EvtBody::Focus { delta: -1 }
+        bus.evts[1],
+        Event::Focus(bus_api::Focus { delta: -1 })
     ));
     // Release is not a focus step.
     s.handle_midi(&[0x86, 0x41, 0x00], &mut bus, &mut midi);
-    assert_eq!(bus.library.len(), 2);
+    assert_eq!(bus.evts.len(), 2);
 }

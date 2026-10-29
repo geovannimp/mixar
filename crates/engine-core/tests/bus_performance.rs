@@ -3,28 +3,28 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::BeatGrid;
+use bus_api::BeatJump;
+use bus_api::Event;
+use bus_api::ExitLoop;
+use bus_api::LoopIn;
+use bus_api::LoopOut;
+use bus_api::Seek;
+use bus_api::SetAutoLoop;
+use bus_api::SetCuePoint;
+use bus_api::SetQuantize;
+use bus_api::Unload;
 use common::recv_error;
 use common::recv_updated;
 use common::short_tone_fixture;
 use common::source_with_bpm;
 use common::write_two_second_wav;
 use common::SHORT_TONE_LEN_MS;
-use engine_api::BeatJump;
-use engine_api::Event;
-use engine_api::ExitLoop;
-use engine_api::LoopIn;
-use engine_api::LoopOut;
-use engine_api::Seek;
-use engine_api::SetAutoLoop;
-use engine_api::SetCuePoint;
-use engine_api::SetQuantize;
-use engine_api::Unload;
 use engine_core::EngineConfig;
 use engine_core::EngineSession;
 use library::LibraryConfig;
 use library::NewCollection;
 use library::WritableLibrary;
-use library_api::BeatGrid;
 use library_core::AudioSource;
 use library_core::FileAudioSource;
 use library_core::Library;
@@ -218,8 +218,8 @@ fn loop_in_snaps_to_first_beat_phase_when_quantize_on() {
         backend: "null".to_string(),
         ..Default::default()
     };
-    let session = EngineSession::new_with_library_bus(config, library, buses.cmd_bus())
-        .expect("engine session");
+    let session =
+        EngineSession::new_with_library_bus(config, library, buses.bus()).expect("engine session");
     session.with_engine(|engine| engine.start()).expect("start");
     session
         .with_engine(|engine| {

@@ -3,8 +3,9 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 #![cfg(feature = "analysis")]
 
+use bus_api::AnalyzeTrack;
+use bus_api::Event;
 use library::{LibraryConfig, LibrarySession, NewCollection, WritableLibrary};
-use library_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use library_core::Library;
 use std::io::Write;
 use std::path::Path;
@@ -60,39 +61,27 @@ fn analyze_track_cmd_emits_track_analyzed_evt() {
         tracks[0].id().as_str().to_string()
     };
 
-    let rx = session.subscribe_evt_all().unwrap();
-    let body = encode_cmd_body(&CmdBody::AnalyzeTrack {
-        track_id: track_id.clone(),
-        force: false,
-    })
-    .unwrap();
+    let mut rx = session.subscribe_evt().unwrap();
     session
-        .publish_cmd(Origin::Library, Kind::AnalyzeTrack, body)
+        .publish_cmd(Event::AnalyzeTrack(AnalyzeTrack {
+            track_id: track_id.clone(),
+            force: false,
+        }))
         .unwrap();
 
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
-    let event = loop {
+    let analyzed = loop {
         let remaining = deadline.saturating_duration_since(std::time::Instant::now());
         let event = rx
             .recv_timeout(remaining)
             .expect("evt bus alive")
             .expect("TrackAnalyzed evt");
-        if event.kind() == &Kind::TrackAnalyzed {
-            break event;
+        match event {
+            Event::TrackAnalyzed(analyzed) => break analyzed,
+            Event::TrackProgress(_) => {}
+            other => panic!("unexpected evt before TrackAnalyzed: {other:?}"),
         }
-        assert_eq!(
-            event.kind(),
-            &Kind::TrackProgress,
-            "unexpected evt before TrackAnalyzed: {:?}",
-            event.kind()
-        );
     };
-    assert_eq!(event.origin(), &Origin::Track(track_id.clone()));
-    match decode_evt_body(event.payload()).unwrap() {
-        EvtBody::TrackAnalyzed { track } => {
-            assert_eq!(track.id, track_id);
-            assert!(!track.path.is_empty());
-        }
-        other => panic!("unexpected evt body: {other:?}"),
-    }
+    assert_eq!(analyzed.track.id, track_id);
+    assert!(!analyzed.track.path.is_empty());
 }

@@ -3,19 +3,19 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::DeckUpdated;
+use bus_api::Event;
+use bus_api::KeyShiftPadPress;
+use bus_api::KeyboardPadPress;
+use bus_api::KeyboardPadRelease;
+use bus_api::PadMode;
+use bus_api::SetKeyShift;
+use bus_api::SetKeyShiftPage;
+use bus_api::SetKeyboardPage;
+use bus_api::SetPadMode;
 use common::recv_updated;
 use common::short_tone_fixture;
 use common::wait_engine_hot_cue_count;
-use engine_api::DeckUpdated;
-use engine_api::Event;
-use engine_api::KeyShiftPadPress;
-use engine_api::KeyboardPadPress;
-use engine_api::KeyboardPadRelease;
-use engine_api::PadMode;
-use engine_api::SetKeyShift;
-use engine_api::SetKeyShiftPage;
-use engine_api::SetKeyboardPage;
-use engine_api::SetPadMode;
 use engine_core::key_shift_page_action;
 use engine_core::key_shift_page_next;
 use engine_core::key_shift_page_prev;
@@ -117,7 +117,7 @@ fn library_session_with_root_hot_cue() -> (EngineSession, LibrarySession, tempfi
     let session = EngineSession::new_with_library_bus(
         config,
         library_session.library(),
-        library_session.cmd_bus(),
+        library_session.bus(),
     )
     .expect("engine session");
     session.with_engine(|engine| engine.start()).expect("start");

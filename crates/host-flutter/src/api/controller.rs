@@ -6,20 +6,19 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use bus_api::DeckHotCue;
+use bus_api::DeckSavedLoop;
+use bus_api::Event;
+use bus_api::FxSlotState;
+use bus_api::HotCue as LibraryHotCue;
+use bus_api::SyncMode;
 use controller::{
     ActionPublish, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, MappingInfo,
     HOT_CUE_SLOT_COUNT, LOOP_SLOT_COUNT,
 };
-use engine_api::{DeckHotCue, DeckSavedLoop, Event, FxSlotState, SyncMode};
 use event_bus::EventBus;
-use library::LibraryBuses;
-use library_api::{
-    decode_evt_body as decode_library_evt, EvtBody as LibraryEvtBody, HotCue as LibraryHotCue,
-    Kind as LibraryKind, Origin as LibraryOrigin,
-};
 
 use crate::api::bus::BusTransport;
-use crate::api::library::LibraryBusHandle;
 use crate::bridge::BridgeResult;
 use crate::frb_generated::StreamSink;
 
@@ -74,18 +73,19 @@ pub struct ControllerEvt {
     pub port_name: Option<String>,
 }
 
+/// One bus handle for both directions: commands go to the cmd side, UI-originated
+/// library events (navigate/focus/load) to the egress side Flutter reads.
 struct HostPublish {
-    engine: EventBus<Event>,
-    library: LibraryBuses,
+    bus: EventBus<Event>,
 }
 
 impl ActionPublish for HostPublish {
-    fn publish_engine(&mut self, event: Event) {
-        let _ = self.engine.publish_cmd(event);
+    fn publish_cmd(&mut self, event: Event) {
+        let _ = self.bus.publish_cmd(event);
     }
 
-    fn publish_library(&mut self, origin: LibraryOrigin, kind: LibraryKind, body: LibraryEvtBody) {
-        let _ = self.library.publish_evt(origin, kind, body);
+    fn publish_evt(&mut self, event: Event) {
+        let _ = self.bus.publish_evt(event);
     }
 }
 
@@ -116,14 +116,9 @@ impl ControllerTransport {
     ///
     /// Mappings live in `{app-support}/mappings`; the shipped bundles are resolved
     /// from the executable.
-    pub fn start(
-        bus: &BusTransport,
-        library_buses: &LibraryBusHandle,
-        trusted_device_ids: Vec<String>,
-    ) -> Result<Self, String> {
+    pub fn start(bus: &BusTransport, trusted_device_ids: Vec<String>) -> Result<Self, String> {
         Self::start_at(
             bus,
-            library_buses,
             crate::app_paths::mappings_dir(),
             None,
             trusted_device_ids,
@@ -133,20 +128,18 @@ impl ControllerTransport {
     /// Start against explicit mapping directories (tests: temp directories).
     pub(crate) fn start_at(
         bus: &BusTransport,
-        library_buses: &LibraryBusHandle,
         mappings_dir: PathBuf,
         shipped_mappings_dir: Option<PathBuf>,
         trusted_device_ids: Vec<String>,
     ) -> Result<Self, String> {
         let shipped = shipped_mappings_dir.unwrap_or_else(resolve_shipped_mappings);
         let mut engine =
-            ControllerEngine::open(engine_api::APP_DISPLAY_NAME, mappings_dir, shipped).bridge()?;
+            ControllerEngine::open(bus_api::APP_DISPLAY_NAME, mappings_dir, shipped).bridge()?;
         engine.set_trusted_device_ids(trusted_device_ids);
         let engine = Arc::new(Mutex::new(engine));
         let stop = Arc::new(AtomicBool::new(false));
         let sink: Arc<Mutex<Option<StreamSink<ControllerEvt>>>> = Arc::new(Mutex::new(None));
         let engine_buses = bus.bus();
-        let library_buses = library_buses.buses();
 
         let mut threads = Vec::with_capacity(3);
         {
@@ -176,12 +169,10 @@ impl ControllerTransport {
             let controller_engine = Arc::clone(&engine);
             let sink = Arc::clone(&sink);
             let engine_buses = engine_buses.clone();
-            let library_buses = library_buses.clone();
             spawn_named("controller-pump", &stop, &mut threads, move || {
                 while !stop_flag.load(Ordering::Relaxed) {
                     let mut bus = HostPublish {
-                        engine: engine_buses.clone(),
-                        library: library_buses.clone(),
+                        bus: engine_buses.clone(),
                     };
                     let events = if let Ok(mut eng) = controller_engine.lock() {
                         eng.pump(&mut bus);
@@ -198,14 +189,8 @@ impl ControllerTransport {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
             let engine_buses = engine_buses.clone();
-            let library_buses = library_buses.clone();
             spawn_named("controller-mirror", &stop, &mut threads, move || {
-                mirror_engine_library_to_controller(
-                    stop_flag,
-                    controller_engine,
-                    engine_buses,
-                    library_buses,
-                );
+                mirror_engine_library_to_controller(stop_flag, controller_engine, engine_buses);
             })?;
         }
 
@@ -523,12 +508,9 @@ fn mirror_engine_library_to_controller(
     stop: Arc<AtomicBool>,
     controller: Arc<Mutex<ControllerEngine>>,
     engine_buses: EventBus<Event>,
-    library_buses: LibraryBuses,
 ) {
+    // One bus carries engine and library egress; a single subscription sees both.
     let Ok(mut engine_rx) = engine_buses.subscribe_evt() else {
-        return;
-    };
-    let Ok(library_rx) = library_buses.subscribe_evt_all() else {
         return;
     };
     let mut deck_tracks: [Option<String>; 4] = Default::default();
@@ -537,13 +519,9 @@ fn mirror_engine_library_to_controller(
     while !stop.load(Ordering::Relaxed) {
         match engine_rx.recv_timeout(Duration::from_millis(5)) {
             Ok(Some(event)) => {
-                apply_engine_mirror(&controller, &mut deck_tracks, &mut master_deck, &event)
+                apply_engine_mirror(&controller, &mut deck_tracks, &mut master_deck, &event);
+                apply_library_mirror(&controller, &deck_tracks, &event);
             }
-            Ok(None) => {}
-            Err(_) => return,
-        }
-        match library_rx.recv_timeout(Duration::from_millis(5)) {
-            Ok(Some(ev)) => apply_library_mirror(&controller, &deck_tracks, ev.as_ref()),
             Ok(None) => {}
             Err(_) => return,
         }
@@ -643,17 +621,14 @@ fn apply_engine_mirror(
 fn apply_library_mirror(
     controller: &Arc<Mutex<ControllerEngine>>,
     deck_tracks: &[Option<String>; 4],
-    ev: &library::Evt,
+    event: &Event,
 ) {
-    let Ok(body) = decode_library_evt(ev.payload()) else {
+    let Event::HotCuesChanged(changed) = event else {
         return;
     };
-    let LibraryEvtBody::HotCuesChanged { track_id, hot_cues } = body else {
-        return;
-    };
-    let slots = hot_cue_slots_lib(&hot_cues);
+    let slots = hot_cue_slots_lib(&changed.hot_cues);
     for (i, loaded) in deck_tracks.iter().enumerate() {
-        if loaded.as_deref() == Some(track_id.as_str()) {
+        if loaded.as_deref() == Some(changed.track_id.as_str()) {
             apply_hot_cues(controller, i as u16, slots);
         }
     }

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
-import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show LoopRegion;
-import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
+    show LoopRegion, SavedLoop;
 import 'package:gui_flutter/widgets/mixer/deck_loop_panel.dart';
 
 import 'support/bus_events.dart';
@@ -25,9 +25,9 @@ void main() {
 
   test('savedLoopAtPosition prefers tightest then lowest slot', () {
     const loops = [
-      SavedLoopInfo(slot: 2, inMs: 0, outMs: 8000),
-      SavedLoopInfo(slot: 0, inMs: 1000, outMs: 3000),
-      SavedLoopInfo(slot: 1, inMs: 1000, outMs: 3000),
+      SavedLoop(slot: 2, inMs: 0, outMs: 8000),
+      SavedLoop(slot: 0, inMs: 1000, outMs: 3000),
+      SavedLoop(slot: 1, inMs: 1000, outMs: 3000),
     ];
     final hit = savedLoopAtPosition(loops, 2000);
     expect(hit?.slot, 0);

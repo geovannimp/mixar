@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -28,8 +28,8 @@ int autoLoopSlotForBeats(int beats) => autoLoopBeatIndex(beats).clamp(0, 7);
 
 /// Saved loop under [positionMs]: playhead inside `[in, out]`, tightest span,
 /// then lowest slot.
-SavedLoopInfo? savedLoopAtPosition(List<SavedLoopInfo> loops, int positionMs) {
-  SavedLoopInfo? best;
+SavedLoop? savedLoopAtPosition(List<SavedLoop> loops, int positionMs) {
+  SavedLoop? best;
   var bestSpan = 1 << 30;
   for (final loop in loops) {
     if (positionMs < loop.inMs || positionMs > loop.outMs) {

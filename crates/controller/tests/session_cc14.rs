@@ -1,8 +1,8 @@
 //! Session tests for cc14 pairing.
 
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
+use bus_api::{Event, SetVolume};
 use controller::{load_bundle, ActionPublish, MappingSession};
-use engine_api::{Event, SetVolume};
 use std::path::PathBuf;
 
 struct Capture {
@@ -10,16 +10,10 @@ struct Capture {
 }
 
 impl ActionPublish for Capture {
-    fn publish_engine(&mut self, event: Event) {
+    fn publish_cmd(&mut self, event: Event) {
         self.cmds.push(event);
     }
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_evt(&mut self, _event: Event) {}
 }
 
 fn fixture(name: &str) -> PathBuf {

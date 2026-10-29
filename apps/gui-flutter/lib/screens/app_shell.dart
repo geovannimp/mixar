@@ -5,7 +5,6 @@ import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
-import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/shell/bus_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -43,7 +42,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     ref.watch(busEventsBootstrapProvider);
     ref.watch(analyticsBootstrapProvider);
-    ref.watch(libraryEventsBootstrapProvider);
     ref.watch(focusedDeckLoadBootstrapProvider);
     ref.watch(historySettingsBootstrapProvider);
     ref.watch(librarySettingsBootstrapProvider);

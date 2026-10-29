@@ -5,17 +5,15 @@ use crate::soft_takeover;
 use crate::transport::TransportEvent;
 use anyhow::anyhow;
 use anyhow::Result;
-use engine_api::DeckLevels;
-use engine_api::DeckPosition;
-use engine_api::DeckUpdated;
-use engine_api::EngineSnapshot;
-use engine_api::EqBand;
-use engine_api::Event;
+use bus_api::DeckLevels;
+use bus_api::DeckPosition;
+use bus_api::DeckUpdated;
+use bus_api::EngineSnapshot;
+use bus_api::EqBand;
+use bus_api::Event;
 use event_bus::EventBus;
+use event_bus::Subscriber;
 use library::{LibraryManager, PreparedTrackPlayback};
-use library_api::decode_evt_body as decode_library_evt_body;
-use library_api::EvtBody as LibraryEvtBody;
-use library_api::Kind as LibraryKind;
 use library_core::TrackId;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -156,7 +154,7 @@ fn control_thread_loop(
     // Best-effort at control-thread start: subscribe to library HotCuesChanged so
     // deck_control.hot_cues commits only after DB ack. Hosts attach buses before
     // spawn; no retry if subscribe fails or library has no buses.
-    let library_evt_rx = library_evt_receiver(&engine);
+    let mut library_evt_rx = library_evt_receiver(&engine);
     let _ = ready.send(Ok(()));
     let mut peak_hold = PeakHoldState::new();
 
@@ -166,14 +164,14 @@ fn control_thread_loop(
             Ok(None) => {}
             Err(_) => break,
         }
-        if let Some(lib_rx) = library_evt_rx.as_ref() {
+        if let Some(lib_rx) = library_evt_rx.as_mut() {
             drain_library_evt(lib_rx, &engine, &bus);
         }
         tick(&engine, &bus, &mut peak_hold);
     }
 }
 
-fn library_evt_receiver(engine: &EngineHandle) -> Option<library::EvtReceiver> {
+fn library_evt_receiver(engine: &EngineHandle) -> Option<Subscriber<Event>> {
     let guard = engine.lock().ok()?;
     let eng = guard.as_ref()?;
     let library = eng.library_manager()?;
@@ -188,7 +186,7 @@ fn library_evt_receiver(engine: &EngineHandle) -> Option<library::EvtReceiver> {
         // No buses → engine has no performance-persist path; stay quiet.
         lib.buses()?
     };
-    match buses.subscribe_evt_all() {
+    match buses.subscribe_evt() {
         Ok(rx) => Some(rx),
         Err(err) => {
             tracing::warn!(
@@ -200,31 +198,18 @@ fn library_evt_receiver(engine: &EngineHandle) -> Option<library::EvtReceiver> {
     }
 }
 
-fn drain_library_evt(rx: &library::EvtReceiver, engine: &EngineHandle, bus: &EventBus<Event>) {
-    // omnibus `recv` is non-blocking (`try_recv`); drains only queued events.
-    while let Ok(Some(event)) = rx.recv() {
-        handle_library_evt(event.as_ref(), engine, bus);
+fn drain_library_evt(rx: &mut Subscriber<Event>, engine: &EngineHandle, bus: &EventBus<Event>) {
+    // `try_recv` is non-blocking and folds the pending queue; drains only queued events.
+    while let Some(event) = rx.try_recv() {
+        handle_library_evt(&event, engine, bus);
     }
 }
 
-fn handle_library_evt(
-    event: &omnibus::Event<library_api::Origin, LibraryKind, Arc<[u8]>>,
-    engine: &EngineHandle,
-    bus: &EventBus<Event>,
-) {
-    match *event.kind() {
-        LibraryKind::HotCuesChanged => {
-            let (track_id, hot_cues) = match decode_library_evt_body(event.payload()) {
-                Ok(LibraryEvtBody::HotCuesChanged { track_id, hot_cues }) => (track_id, hot_cues),
-                Ok(_) => {
-                    tracing::warn!("HotCuesChanged kind with mismatched library evt body");
-                    return;
-                }
-                Err(err) => {
-                    tracing::warn!(error = %err, "failed to decode library HotCuesChanged");
-                    return;
-                }
-            };
+fn handle_library_evt(event: &Event, engine: &EngineHandle, bus: &EventBus<Event>) {
+    match event {
+        Event::HotCuesChanged(changed) => {
+            let track_id = changed.track_id.clone();
+            let hot_cues = changed.hot_cues.clone();
             if let Err(err) = with_engine_mut(engine, |eng| {
                 let changed = eng.apply_track_hot_cues(&track_id, &hot_cues);
                 for deck_id in changed {
@@ -235,21 +220,9 @@ fn handle_library_evt(
                 tracing::warn!(error = %err, "failed to apply HotCuesChanged / publish DeckUpdated");
             }
         }
-        LibraryKind::BeatGridChanged => {
-            let (track_id, beat_grid) = match decode_library_evt_body(event.payload()) {
-                Ok(LibraryEvtBody::BeatGridChanged {
-                    track_id,
-                    beat_grid,
-                }) => (track_id, beat_grid),
-                Ok(_) => {
-                    tracing::warn!("BeatGridChanged kind with mismatched library evt body");
-                    return;
-                }
-                Err(err) => {
-                    tracing::warn!(error = %err, "failed to decode library BeatGridChanged");
-                    return;
-                }
-            };
+        Event::BeatGridChanged(changed) => {
+            let track_id = changed.track_id.clone();
+            let beat_grid = changed.beat_grid.clone();
             if let Err(err) = with_engine_mut(engine, |eng| {
                 let changed = eng.apply_track_beat_grid(&track_id, &beat_grid);
                 for deck_id in changed {
@@ -295,7 +268,7 @@ fn publish(bus: &EventBus<Event>, event: Event) {
 fn publish_error(bus: &EventBus<Event>, deck: Option<u16>, message: impl Into<String>) {
     publish(
         bus,
-        Event::Error(engine_api::Error {
+        Event::Error(bus_api::Error {
             message: message.into(),
             track_id: None,
             deck,
@@ -447,18 +420,18 @@ fn deck_cmd(
 fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
     match event {
         // ── deck transport ───────────────────────────────────────────────────
-        Event::Play(engine_api::Play { deck }) => deck_cmd(*deck, engine, |eng, id| {
+        Event::Play(bus_api::Play { deck }) => deck_cmd(*deck, engine, |eng, id| {
             if !eng.deck_has_audio_loaded(id).unwrap_or(false) {
                 return Err(anyhow!("No track loaded"));
             }
             eng.play(id)?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::Pause(engine_api::Pause { deck }) => deck_cmd(*deck, engine, |eng, id| {
+        Event::Pause(bus_api::Pause { deck }) => deck_cmd(*deck, engine, |eng, id| {
             eng.pause(id)?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::TogglePlay(engine_api::TogglePlay { deck }) => deck_cmd(*deck, engine, |eng, id| {
+        Event::TogglePlay(bus_api::TogglePlay { deck }) => deck_cmd(*deck, engine, |eng, id| {
             if eng.deck_is_playing(id).unwrap_or(false) {
                 eng.pause(id)?;
             } else {
@@ -469,19 +442,17 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             }
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::Seek(engine_api::Seek { deck, position_ms }) => {
-            deck_cmd(*deck, engine, |eng, id| {
-                eng.seek_deck(id, *position_ms)?;
-                Ok(CmdOutcome::DeckUpdated(id))
-            })
-        }
-        Event::Unload(engine_api::Unload { deck }) => deck_cmd(*deck, engine, |eng, id| {
+        Event::Seek(bus_api::Seek { deck, position_ms }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.seek_deck(id, *position_ms)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::Unload(bus_api::Unload { deck }) => deck_cmd(*deck, engine, |eng, id| {
             eng.unload_deck(id)?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
 
         // ── levels and mixer strip ───────────────────────────────────────────
-        Event::SetVolume(engine_api::SetVolume {
+        Event::SetVolume(bus_api::SetVolume {
             deck,
             volume,
             soft_takeover,
@@ -494,7 +465,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             eng.set_deck_volume(id, *volume)?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::SetEq(engine_api::SetEq {
+        Event::SetEq(bus_api::SetEq {
             deck,
             low,
             mid,
@@ -508,7 +479,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             )?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::SetEqBand(engine_api::SetEqBand {
+        Event::SetEqBand(bus_api::SetEqBand {
             deck,
             band,
             gain,
@@ -538,7 +509,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             )?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::SetFilter(engine_api::SetFilter {
+        Event::SetFilter(bus_api::SetFilter {
             deck,
             filter,
             soft_takeover,
@@ -554,7 +525,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             eng.set_deck_filter_db(id, crate::control_norm::norm_to_strip_db(*filter))?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::SetGainTrim(engine_api::SetGainTrim {
+        Event::SetGainTrim(bus_api::SetGainTrim {
             deck,
             gain_trim,
             soft_takeover,
@@ -570,13 +541,13 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             eng.set_deck_gain_trim_db(id, crate::control_norm::norm_to_strip_db(*gain_trim))?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::SetHeadphoneCue(engine_api::SetHeadphoneCue { deck, enabled }) => {
+        Event::SetHeadphoneCue(bus_api::SetHeadphoneCue { deck, enabled }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_headphone_cue(id, *enabled)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::ToggleHeadphoneCue(engine_api::ToggleHeadphoneCue { deck }) => {
+        Event::ToggleHeadphoneCue(bus_api::ToggleHeadphoneCue { deck }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 let enabled = !eng
                     .deck_strip_norms(id)
@@ -586,7 +557,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::SetCrossfaderAssign(engine_api::SetCrossfaderAssign { deck, assignment }) => {
+        Event::SetCrossfaderAssign(bus_api::SetCrossfaderAssign { deck, assignment }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_crossfader_assign(id, *assignment)?;
                 Ok(CmdOutcome::DeckUpdated(id))
@@ -594,7 +565,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
 
         // ── tempo / pitch ────────────────────────────────────────────────────
-        Event::SetSpeed(engine_api::SetSpeed {
+        Event::SetSpeed(bus_api::SetSpeed {
             deck,
             speed,
             soft_takeover,
@@ -610,49 +581,49 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             let updated = eng.set_deck_speed(id, speed.clamp(0.0, 1.0))?;
             Ok(CmdOutcome::DecksUpdated(updated))
         }),
-        Event::SetTempoRange(engine_api::SetTempoRange { deck, tempo_range }) => {
+        Event::SetTempoRange(bus_api::SetTempoRange { deck, tempo_range }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 let updated = eng.set_deck_tempo_range(id, *tempo_range)?;
                 Ok(CmdOutcome::DecksUpdated(updated))
             })
         }
-        Event::SetKeyLock(engine_api::SetKeyLock { deck, enabled }) => {
+        Event::SetKeyLock(bus_api::SetKeyLock { deck, enabled }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_key_lock(id, *enabled)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::SetKeyShift(engine_api::SetKeyShift { deck, semitones }) => {
+        Event::SetKeyShift(bus_api::SetKeyShift { deck, semitones }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_key_shift(id, *semitones)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::SetKeyboardRoot(engine_api::SetKeyboardRoot { deck, slot }) => {
+        Event::SetKeyboardRoot(bus_api::SetKeyboardRoot { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_keyboard_root(id, *slot)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::SetKeyboardPage(engine_api::SetKeyboardPage { deck, page }) => {
+        Event::SetKeyboardPage(bus_api::SetKeyboardPage { deck, page }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_keyboard_page(id, *page)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::SetKeyShiftPage(engine_api::SetKeyShiftPage { deck, page }) => {
+        Event::SetKeyShiftPage(bus_api::SetKeyShiftPage { deck, page }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_key_shift_page(id, *page)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::ToggleSync(engine_api::ToggleSync { deck, beat_sync }) => {
+        Event::ToggleSync(bus_api::ToggleSync { deck, beat_sync }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 let updated = eng.toggle_deck_sync(id, *beat_sync)?;
                 Ok(CmdOutcome::DecksUpdated(updated))
             })
         }
-        Event::SetMasterDeck(engine_api::SetMasterDeck { deck }) => {
+        Event::SetMasterDeck(bus_api::SetMasterDeck { deck }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 let _updated = eng.set_master_deck(id)?;
                 // master_deck + slave speeds/sync live on the engine snapshot decks.
@@ -661,69 +632,65 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
 
         // ── cue / loop ───────────────────────────────────────────────────────
-        Event::SetCuePoint(engine_api::SetCuePoint { deck }) => {
-            deck_cmd(*deck, engine, |eng, id| {
-                eng.set_deck_cue_point_at_playhead(id)?;
-                Ok(CmdOutcome::DeckUpdated(id))
-            })
-        }
-        Event::BeginCueHold(engine_api::BeginCueHold { deck }) => {
+        Event::SetCuePoint(bus_api::SetCuePoint { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.set_deck_cue_point_at_playhead(id)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::BeginCueHold(bus_api::BeginCueHold { deck }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.begin_deck_cue_hold(id)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::EndCueHold(engine_api::EndCueHold { deck }) => deck_cmd(*deck, engine, |eng, id| {
+        Event::EndCueHold(bus_api::EndCueHold { deck }) => deck_cmd(*deck, engine, |eng, id| {
             eng.end_deck_cue_hold(id)?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::SetQuantize(engine_api::SetQuantize { deck, enabled }) => {
+        Event::SetQuantize(bus_api::SetQuantize { deck, enabled }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_quantize(id, *enabled)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::ToggleQuantize(engine_api::ToggleQuantize { deck }) => {
+        Event::ToggleQuantize(bus_api::ToggleQuantize { deck }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 let enabled = !eng.deck_quantize(id).unwrap_or(true);
                 eng.set_deck_quantize(id, enabled)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::SetSlip(engine_api::SetSlip { deck, enabled }) => {
-            deck_cmd(*deck, engine, |eng, id| {
-                eng.set_deck_slip(id, *enabled)?;
-                Ok(CmdOutcome::DeckUpdated(id))
-            })
-        }
-        Event::ToggleSlip(engine_api::ToggleSlip { deck }) => deck_cmd(*deck, engine, |eng, id| {
+        Event::SetSlip(bus_api::SetSlip { deck, enabled }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.set_deck_slip(id, *enabled)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::ToggleSlip(bus_api::ToggleSlip { deck }) => deck_cmd(*deck, engine, |eng, id| {
             let enabled = !eng.deck_slip_enabled(id).unwrap_or(false);
             eng.set_deck_slip(id, enabled)?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::SetAutoLoop(engine_api::SetAutoLoop { deck, beats }) => {
+        Event::SetAutoLoop(bus_api::SetAutoLoop { deck, beats }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_auto_loop(id, *beats)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::LoopIn(engine_api::LoopIn { deck, position_ms }) => {
+        Event::LoopIn(bus_api::LoopIn { deck, position_ms }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_loop_in(id, *position_ms)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::LoopOut(engine_api::LoopOut { deck, position_ms }) => {
+        Event::LoopOut(bus_api::LoopOut { deck, position_ms }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_loop_out(id, *position_ms)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::ExitLoop(engine_api::ExitLoop { deck }) => deck_cmd(*deck, engine, |eng, id| {
+        Event::ExitLoop(bus_api::ExitLoop { deck }) => deck_cmd(*deck, engine, |eng, id| {
             eng.clear_deck_loop(id)?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::RecallSavedLoop(engine_api::RecallSavedLoop {
+        Event::RecallSavedLoop(bus_api::RecallSavedLoop {
             deck,
             in_ms,
             out_ms,
@@ -731,117 +698,113 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             eng.recall_deck_saved_loop(id, *in_ms, *out_ms)?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
-        Event::BeginLoopRoll(engine_api::BeginLoopRoll { deck, beats }) => {
+        Event::BeginLoopRoll(bus_api::BeginLoopRoll { deck, beats }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.begin_deck_loop_roll(id, *beats)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::EndLoopRoll(engine_api::EndLoopRoll { deck }) => {
-            deck_cmd(*deck, engine, |eng, id| {
-                eng.end_deck_loop_roll(id)?;
-                Ok(CmdOutcome::DeckUpdated(id))
-            })
-        }
-        Event::BeatJump(engine_api::BeatJump { deck, beats }) => {
-            deck_cmd(*deck, engine, |eng, id| {
-                eng.beat_jump_deck(id, *beats)?;
-                Ok(CmdOutcome::DeckUpdated(id))
-            })
-        }
+        Event::EndLoopRoll(bus_api::EndLoopRoll { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.end_deck_loop_roll(id)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::BeatJump(bus_api::BeatJump { deck, beats }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.beat_jump_deck(id, *beats)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
 
         // ── pads ─────────────────────────────────────────────────────────────
-        Event::SetPadMode(engine_api::SetPadMode { deck, mode }) => {
+        Event::SetPadMode(bus_api::SetPadMode { deck, mode }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_pad_mode(id, *mode)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::PadPress(engine_api::PadPress { deck, slot, shift }) => {
+        Event::PadPress(bus_api::PadPress { deck, slot, shift }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.pad_press(id, *slot, *shift)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::PadRelease(engine_api::PadRelease { deck, slot }) => {
+        Event::PadRelease(bus_api::PadRelease { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.pad_release(id, *slot)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::HotCuePadPress(engine_api::HotCuePadPress { deck, slot, shift }) => {
+        Event::HotCuePadPress(bus_api::HotCuePadPress { deck, slot, shift }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.hot_cue_pad_press(id, *slot, *shift)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::HotCuePadRelease(engine_api::HotCuePadRelease { deck, slot }) => {
+        Event::HotCuePadRelease(bus_api::HotCuePadRelease { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.hot_cue_pad_release(id, *slot)?;
                 Ok(CmdOutcome::Silent)
             })
         }
-        Event::LoopRollPadPress(engine_api::LoopRollPadPress { deck, slot }) => {
+        Event::LoopRollPadPress(bus_api::LoopRollPadPress { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.loop_roll_pad_press(id, *slot)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::LoopRollPadRelease(engine_api::LoopRollPadRelease { deck, slot }) => {
+        Event::LoopRollPadRelease(bus_api::LoopRollPadRelease { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.loop_roll_pad_release(id, *slot)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::BeatJumpPadPress(engine_api::BeatJumpPadPress { deck, slot }) => {
+        Event::BeatJumpPadPress(bus_api::BeatJumpPadPress { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.beat_jump_pad_press(id, *slot)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::BeatJumpPadRelease(engine_api::BeatJumpPadRelease { deck, slot }) => {
+        Event::BeatJumpPadRelease(bus_api::BeatJumpPadRelease { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.beat_jump_pad_release(id, *slot)?;
                 Ok(CmdOutcome::Silent)
             })
         }
-        Event::SamplerPadPress(engine_api::SamplerPadPress { deck, slot, shift }) => {
+        Event::SamplerPadPress(bus_api::SamplerPadPress { deck, slot, shift }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.sampler_pad_press(id, *slot, *shift)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::SamplerPadRelease(engine_api::SamplerPadRelease { deck, slot }) => {
+        Event::SamplerPadRelease(bus_api::SamplerPadRelease { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.sampler_pad_release(id, *slot)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::KeyboardPadPress(engine_api::KeyboardPadPress { deck, slot, shift }) => {
+        Event::KeyboardPadPress(bus_api::KeyboardPadPress { deck, slot, shift }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.keyboard_pad_press(id, *slot, *shift)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::KeyboardPadRelease(engine_api::KeyboardPadRelease { deck, slot }) => {
+        Event::KeyboardPadRelease(bus_api::KeyboardPadRelease { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.keyboard_pad_release(id, *slot)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::KeyShiftPadPress(engine_api::KeyShiftPadPress { deck, slot, shift }) => {
+        Event::KeyShiftPadPress(bus_api::KeyShiftPadPress { deck, slot, shift }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.key_shift_pad_press(id, *slot, *shift)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::KeyShiftPadRelease(engine_api::KeyShiftPadRelease { deck, slot }) => {
+        Event::KeyShiftPadRelease(bus_api::KeyShiftPadRelease { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.key_shift_pad_release(id, *slot)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::TriggerHotCue(engine_api::TriggerHotCue { deck, position_ms }) => {
+        Event::TriggerHotCue(bus_api::TriggerHotCue { deck, position_ms }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.trigger_deck_hot_cue(id, *position_ms)?;
                 Ok(CmdOutcome::DeckUpdated(id))
@@ -849,13 +812,13 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
 
         // ── hot cues / loops on the deck ─────────────────────────────────────
-        Event::SaveDeckHotCue(engine_api::SaveDeckHotCue { deck, slot }) => {
+        Event::SaveDeckHotCue(bus_api::SaveDeckHotCue { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.save_deck_hot_cue(id, *slot)?;
                 Ok(CmdOutcome::Silent)
             })
         }
-        Event::DeleteDeckHotCue(engine_api::DeleteDeckHotCue { deck, slot }) => {
+        Event::DeleteDeckHotCue(bus_api::DeleteDeckHotCue { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.delete_deck_hot_cue(id, *slot)?;
                 Ok(CmdOutcome::Silent)
@@ -863,15 +826,15 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
 
         // ── sampler slots ────────────────────────────────────────────────────
-        Event::AssignSampler(engine_api::AssignSampler { deck, slot, path }) => {
+        Event::AssignSampler(bus_api::AssignSampler { deck, slot, path }) => {
             dispatch_assign_sampler(*deck, *slot, path, engine)
         }
-        Event::AssignSamplerTrack(engine_api::AssignSamplerTrack {
+        Event::AssignSamplerTrack(bus_api::AssignSamplerTrack {
             deck,
             slot,
             track_id,
         }) => dispatch_assign_sampler_track(*deck, *slot, track_id, engine),
-        Event::ClearSampler(engine_api::ClearSampler { deck, slot }) => {
+        Event::ClearSampler(bus_api::ClearSampler { deck, slot }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.clear_sampler_slot(id, usize::from(*slot))?;
                 Ok(CmdOutcome::DeckUpdated(id))
@@ -879,13 +842,13 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
 
         // ── jog ──────────────────────────────────────────────────────────────
-        Event::JogTouch(engine_api::JogTouch { deck, touching }) => {
+        Event::JogTouch(bus_api::JogTouch { deck, touching }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_jog_touch(id, *touching)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::JogTurn(engine_api::JogTurn { deck, delta }) => {
+        Event::JogTurn(bus_api::JogTurn { deck, delta }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.deck_jog_turn(id, *delta)?;
                 // So paused vinyl scrub updates UI playhead/time without waiting for
@@ -893,13 +856,13 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 Ok(CmdOutcome::Position(id))
             })
         }
-        Event::SetJogMode(engine_api::SetJogMode { deck, top, outer }) => {
+        Event::SetJogMode(bus_api::SetJogMode { deck, top, outer }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_jog_mode(id, *top, *outer)?;
                 Ok(CmdOutcome::DeckUpdated(id))
             })
         }
-        Event::SetDeckFxRouted(engine_api::SetDeckFxRouted { deck, routed }) => {
+        Event::SetDeckFxRouted(bus_api::SetDeckFxRouted { deck, routed }) => {
             deck_cmd(*deck, engine, |eng, id| {
                 eng.set_deck_fx_routed(id, *routed)?;
                 Ok(CmdOutcome::DeckUpdated(id))
@@ -907,7 +870,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
 
         // ── mixer ────────────────────────────────────────────────────────────
-        Event::SetCrossfader(engine_api::SetCrossfader {
+        Event::SetCrossfader(bus_api::SetCrossfader {
             position,
             soft_takeover,
         }) => with_engine_mut(engine, |eng| {
@@ -919,7 +882,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             eng.set_crossfader(*position)?;
             Ok(CmdOutcome::EngineStatus)
         }),
-        Event::SetMasterVolume(engine_api::SetMasterVolume {
+        Event::SetMasterVolume(bus_api::SetMasterVolume {
             volume,
             soft_takeover,
         }) => with_engine_mut(engine, |eng| {
@@ -931,7 +894,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             eng.set_master_volume(*volume)?;
             Ok(CmdOutcome::EngineStatus)
         }),
-        Event::SetCueVolume(engine_api::SetCueVolume {
+        Event::SetCueVolume(bus_api::SetCueVolume {
             volume,
             soft_takeover,
         }) => with_engine_mut(engine, |eng| {
@@ -943,7 +906,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             eng.set_cue_volume(*volume)?;
             Ok(CmdOutcome::EngineStatus)
         }),
-        Event::SetCueMix(engine_api::SetCueMix { mix, soft_takeover }) => {
+        Event::SetCueMix(bus_api::SetCueMix { mix, soft_takeover }) => {
             with_engine_mut(engine, |eng| {
                 let key = soft_takeover::key_mixer("cue_mix");
                 let current = eng.cue_mix().unwrap_or(0.5);
@@ -954,12 +917,10 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 Ok(CmdOutcome::EngineStatus)
             })
         }
-        Event::SetMasterCue(engine_api::SetMasterCue { enabled }) => {
-            with_engine_mut(engine, |eng| {
-                eng.set_master_cue(*enabled)?;
-                Ok(CmdOutcome::EngineStatus)
-            })
-        }
+        Event::SetMasterCue(bus_api::SetMasterCue { enabled }) => with_engine_mut(engine, |eng| {
+            eng.set_master_cue(*enabled)?;
+            Ok(CmdOutcome::EngineStatus)
+        }),
         Event::ToggleMasterCue(first) => {
             // `ToggleMasterCue` folds in the subscriber, so a folded pair never
             // reaches the engine and `flipped` is always false here.
@@ -972,7 +933,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         }
 
         // ── shared FX unit ───────────────────────────────────────────────────
-        Event::SetFxUnitSlot(engine_api::SetFxUnitSlot { slot, kind }) => {
+        Event::SetFxUnitSlot(bus_api::SetFxUnitSlot { slot, kind }) => {
             with_engine_mut(engine, |eng| {
                 eng.set_fx_unit_slot(*slot, crate::status::map_fx_kind(*kind))?;
                 Ok(CmdOutcome::DecksUpdated(
@@ -980,7 +941,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 ))
             })
         }
-        Event::SetFxUnitSlotEnabled(engine_api::SetFxUnitSlotEnabled { slot, enabled }) => {
+        Event::SetFxUnitSlotEnabled(bus_api::SetFxUnitSlotEnabled { slot, enabled }) => {
             with_engine_mut(engine, |eng| {
                 eng.set_fx_unit_slot_enabled(*slot, *enabled)?;
                 Ok(CmdOutcome::DecksUpdated(
@@ -988,7 +949,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 ))
             })
         }
-        Event::SetFxUnitWet(engine_api::SetFxUnitWet {
+        Event::SetFxUnitWet(bus_api::SetFxUnitWet {
             slot,
             wet,
             soft_takeover,
@@ -1003,7 +964,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 (0..eng.config.num_decks).collect(),
             ))
         }),
-        Event::SetFxUnitParam(engine_api::SetFxUnitParam { slot, param, value }) => {
+        Event::SetFxUnitParam(bus_api::SetFxUnitParam { slot, param, value }) => {
             with_engine_mut(engine, |eng| {
                 eng.set_fx_unit_param(*slot, *param, *value)?;
                 Ok(CmdOutcome::DecksUpdated(
@@ -1019,6 +980,26 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         | Event::EngineSnapshot(_)
         | Event::Error(_)
         | Event::Notice(_) => Err(anyhow!("egress event is not a command")),
+
+        // ── library and UI commands are not the engine's to execute ────────────
+        Event::AnalyzeTrack(_)
+        | Event::GenerateStems(_)
+        | Event::RefreshTrack(_)
+        | Event::SaveBeatGrid(_)
+        | Event::SaveTrackHotCue(_)
+        | Event::DeleteTrackHotCue(_)
+        | Event::SaveTrackLoop(_)
+        | Event::DeleteTrackLoop(_)
+        | Event::TrackAnalyzed(_)
+        | Event::TrackUpdated(_)
+        | Event::TrackProgress(_)
+        | Event::HotCuesChanged(_)
+        | Event::LoopsChanged(_)
+        | Event::BeatGridChanged(_)
+        | Event::HistorySessionUpdated(_)
+        | Event::Navigate(_)
+        | Event::Focus(_)
+        | Event::Load(_) => Err(anyhow!("library event is not an engine command")),
     }
 }
 

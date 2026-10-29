@@ -8,8 +8,8 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
+use bus_api::{Event, FxKind, FxSlotState, PadMode};
 use controller::{DeckFeedback, MappingSession, MidiOut, BLINK_HALF_PERIOD};
-use engine_api::{Event, FxKind, FxSlotState, PadMode};
 
 /// Deck 1 button channel, pad channels, master channel, beat-FX channel.
 const D1: u8 = 0x90;
@@ -34,14 +34,8 @@ impl MidiOut for CaptureMidi {
 struct NullBus;
 
 impl controller::ActionPublish for NullBus {
-    fn publish_engine(&mut self, _event: Event) {}
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_cmd(&mut self, _event: Event) {}
+    fn publish_evt(&mut self, _event: Event) {}
 }
 
 /// Session as the host leaves it right after attach: `on_init` has already run,

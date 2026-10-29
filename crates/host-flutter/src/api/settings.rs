@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::bridge::BridgeResult;
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
-use engine_api::JogMode;
+use bus_api::JogMode;
 use engine_core::{
     validate_buffer_size, AnalysisDurationMode, AudioConfig, EngineConfig,
     SamplerStripRouteSetting, DEFAULT_TEMPO_RANGE, DEFAULT_TEMPO_RANGE_STEPS,

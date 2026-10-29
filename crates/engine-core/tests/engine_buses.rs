@@ -3,9 +3,9 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
+use bus_api::Event;
+use bus_api::Play;
 use common::recv_error;
-use engine_api::Event;
-use engine_api::Play;
 use engine_core::new_event_bus;
 use engine_core::spawn_engine_worker;
 use engine_core::Engine;
@@ -26,7 +26,7 @@ fn engine_publish_evt_without_session() {
     engine.set_buses(bus.clone());
     let mut rx = engine.subscribe_evt_all().unwrap();
     engine
-        .publish_evt(Event::Error(engine_api::Error {
+        .publish_evt(Event::Error(bus_api::Error {
             message: "missing".into(),
             track_id: None,
             deck: None,

@@ -43,7 +43,7 @@ After Rust API changes (requires `flutter_rust_bridge_codegen` 2.13.0):
 moon run gui-flutter:generate
 ```
 
-The main window wraps **MixarTheme** + **ShadTheme** (intentional dual bridge from `main.dart`): header, waveforms, decks/mixer, library. Prefer Mixar shell widgets and `context.theme` tokens; toast errors with `showMixarToast`. Engine, library, and MIDI controller transports are wired over FRB. Display name comes from Rust (`engine_api::APP_DISPLAY_NAME` / `appDisplayName()`). Typography: Outfit / Space Grotesk / Noto Sans Mono via `MixarFonts` (`lib/shell/app_typography.dart`).
+The main window wraps **MixarTheme** + **ShadTheme** (intentional dual bridge from `main.dart`): header, waveforms, decks/mixer, library. Prefer Mixar shell widgets and `context.theme` tokens; toast errors with `showMixarToast`. Engine, library, and MIDI controller transports are wired over FRB. Display name comes from Rust (`bus_api::APP_DISPLAY_NAME` / `appDisplayName()`). Typography: Outfit / Space Grotesk / Noto Sans Mono via `MixarFonts` (`lib/shell/app_typography.dart`).
 
 ## Rust tests
 

@@ -61,7 +61,7 @@ extension EventPatterns on Event {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( Event_Play value)?  play,TResult Function( Event_Pause value)?  pause,TResult Function( Event_TogglePlay value)?  togglePlay,TResult Function( Event_Seek value)?  seek,TResult Function( Event_Unload value)?  unload,TResult Function( Event_SetVolume value)?  setVolume,TResult Function( Event_SetEq value)?  setEq,TResult Function( Event_SetEqBand value)?  setEqBand,TResult Function( Event_SetFilter value)?  setFilter,TResult Function( Event_SetGainTrim value)?  setGainTrim,TResult Function( Event_SetHeadphoneCue value)?  setHeadphoneCue,TResult Function( Event_ToggleHeadphoneCue value)?  toggleHeadphoneCue,TResult Function( Event_SetCrossfaderAssign value)?  setCrossfaderAssign,TResult Function( Event_SetSpeed value)?  setSpeed,TResult Function( Event_SetTempoRange value)?  setTempoRange,TResult Function( Event_SetKeyLock value)?  setKeyLock,TResult Function( Event_SetKeyShift value)?  setKeyShift,TResult Function( Event_SetKeyboardRoot value)?  setKeyboardRoot,TResult Function( Event_SetKeyboardPage value)?  setKeyboardPage,TResult Function( Event_SetKeyShiftPage value)?  setKeyShiftPage,TResult Function( Event_ToggleSync value)?  toggleSync,TResult Function( Event_SetMasterDeck value)?  setMasterDeck,TResult Function( Event_SetCuePoint value)?  setCuePoint,TResult Function( Event_BeginCueHold value)?  beginCueHold,TResult Function( Event_EndCueHold value)?  endCueHold,TResult Function( Event_SetQuantize value)?  setQuantize,TResult Function( Event_ToggleQuantize value)?  toggleQuantize,TResult Function( Event_SetSlip value)?  setSlip,TResult Function( Event_ToggleSlip value)?  toggleSlip,TResult Function( Event_SetAutoLoop value)?  setAutoLoop,TResult Function( Event_LoopIn value)?  loopIn,TResult Function( Event_LoopOut value)?  loopOut,TResult Function( Event_ExitLoop value)?  exitLoop,TResult Function( Event_RecallSavedLoop value)?  recallSavedLoop,TResult Function( Event_BeginLoopRoll value)?  beginLoopRoll,TResult Function( Event_EndLoopRoll value)?  endLoopRoll,TResult Function( Event_BeatJump value)?  beatJump,TResult Function( Event_SetPadMode value)?  setPadMode,TResult Function( Event_PadPress value)?  padPress,TResult Function( Event_PadRelease value)?  padRelease,TResult Function( Event_HotCuePadPress value)?  hotCuePadPress,TResult Function( Event_HotCuePadRelease value)?  hotCuePadRelease,TResult Function( Event_LoopRollPadPress value)?  loopRollPadPress,TResult Function( Event_LoopRollPadRelease value)?  loopRollPadRelease,TResult Function( Event_BeatJumpPadPress value)?  beatJumpPadPress,TResult Function( Event_BeatJumpPadRelease value)?  beatJumpPadRelease,TResult Function( Event_SamplerPadPress value)?  samplerPadPress,TResult Function( Event_SamplerPadRelease value)?  samplerPadRelease,TResult Function( Event_KeyboardPadPress value)?  keyboardPadPress,TResult Function( Event_KeyboardPadRelease value)?  keyboardPadRelease,TResult Function( Event_KeyShiftPadPress value)?  keyShiftPadPress,TResult Function( Event_KeyShiftPadRelease value)?  keyShiftPadRelease,TResult Function( Event_TriggerHotCue value)?  triggerHotCue,TResult Function( Event_SaveDeckHotCue value)?  saveDeckHotCue,TResult Function( Event_DeleteDeckHotCue value)?  deleteDeckHotCue,TResult Function( Event_AssignSampler value)?  assignSampler,TResult Function( Event_AssignSamplerTrack value)?  assignSamplerTrack,TResult Function( Event_ClearSampler value)?  clearSampler,TResult Function( Event_JogTouch value)?  jogTouch,TResult Function( Event_JogTurn value)?  jogTurn,TResult Function( Event_SetJogMode value)?  setJogMode,TResult Function( Event_SetCrossfader value)?  setCrossfader,TResult Function( Event_SetMasterVolume value)?  setMasterVolume,TResult Function( Event_SetCueVolume value)?  setCueVolume,TResult Function( Event_SetCueMix value)?  setCueMix,TResult Function( Event_SetMasterCue value)?  setMasterCue,TResult Function( Event_ToggleMasterCue value)?  toggleMasterCue,TResult Function( Event_SetFxUnitSlot value)?  setFxUnitSlot,TResult Function( Event_SetFxUnitSlotEnabled value)?  setFxUnitSlotEnabled,TResult Function( Event_SetFxUnitWet value)?  setFxUnitWet,TResult Function( Event_SetFxUnitParam value)?  setFxUnitParam,TResult Function( Event_SetDeckFxRouted value)?  setDeckFxRouted,TResult Function( Event_DeckUpdated value)?  deckUpdated,TResult Function( Event_DeckPosition value)?  deckPosition,TResult Function( Event_DeckLevels value)?  deckLevels,TResult Function( Event_EngineSnapshot value)?  engineSnapshot,TResult Function( Event_Error value)?  error,TResult Function( Event_Notice value)?  notice,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( Event_Play value)?  play,TResult Function( Event_Pause value)?  pause,TResult Function( Event_TogglePlay value)?  togglePlay,TResult Function( Event_Seek value)?  seek,TResult Function( Event_Unload value)?  unload,TResult Function( Event_SetVolume value)?  setVolume,TResult Function( Event_SetEq value)?  setEq,TResult Function( Event_SetEqBand value)?  setEqBand,TResult Function( Event_SetFilter value)?  setFilter,TResult Function( Event_SetGainTrim value)?  setGainTrim,TResult Function( Event_SetHeadphoneCue value)?  setHeadphoneCue,TResult Function( Event_ToggleHeadphoneCue value)?  toggleHeadphoneCue,TResult Function( Event_SetCrossfaderAssign value)?  setCrossfaderAssign,TResult Function( Event_SetSpeed value)?  setSpeed,TResult Function( Event_SetTempoRange value)?  setTempoRange,TResult Function( Event_SetKeyLock value)?  setKeyLock,TResult Function( Event_SetKeyShift value)?  setKeyShift,TResult Function( Event_SetKeyboardRoot value)?  setKeyboardRoot,TResult Function( Event_SetKeyboardPage value)?  setKeyboardPage,TResult Function( Event_SetKeyShiftPage value)?  setKeyShiftPage,TResult Function( Event_ToggleSync value)?  toggleSync,TResult Function( Event_SetMasterDeck value)?  setMasterDeck,TResult Function( Event_SetCuePoint value)?  setCuePoint,TResult Function( Event_BeginCueHold value)?  beginCueHold,TResult Function( Event_EndCueHold value)?  endCueHold,TResult Function( Event_SetQuantize value)?  setQuantize,TResult Function( Event_ToggleQuantize value)?  toggleQuantize,TResult Function( Event_SetSlip value)?  setSlip,TResult Function( Event_ToggleSlip value)?  toggleSlip,TResult Function( Event_SetAutoLoop value)?  setAutoLoop,TResult Function( Event_LoopIn value)?  loopIn,TResult Function( Event_LoopOut value)?  loopOut,TResult Function( Event_ExitLoop value)?  exitLoop,TResult Function( Event_RecallSavedLoop value)?  recallSavedLoop,TResult Function( Event_BeginLoopRoll value)?  beginLoopRoll,TResult Function( Event_EndLoopRoll value)?  endLoopRoll,TResult Function( Event_BeatJump value)?  beatJump,TResult Function( Event_SetPadMode value)?  setPadMode,TResult Function( Event_PadPress value)?  padPress,TResult Function( Event_PadRelease value)?  padRelease,TResult Function( Event_HotCuePadPress value)?  hotCuePadPress,TResult Function( Event_HotCuePadRelease value)?  hotCuePadRelease,TResult Function( Event_LoopRollPadPress value)?  loopRollPadPress,TResult Function( Event_LoopRollPadRelease value)?  loopRollPadRelease,TResult Function( Event_BeatJumpPadPress value)?  beatJumpPadPress,TResult Function( Event_BeatJumpPadRelease value)?  beatJumpPadRelease,TResult Function( Event_SamplerPadPress value)?  samplerPadPress,TResult Function( Event_SamplerPadRelease value)?  samplerPadRelease,TResult Function( Event_KeyboardPadPress value)?  keyboardPadPress,TResult Function( Event_KeyboardPadRelease value)?  keyboardPadRelease,TResult Function( Event_KeyShiftPadPress value)?  keyShiftPadPress,TResult Function( Event_KeyShiftPadRelease value)?  keyShiftPadRelease,TResult Function( Event_TriggerHotCue value)?  triggerHotCue,TResult Function( Event_SaveDeckHotCue value)?  saveDeckHotCue,TResult Function( Event_DeleteDeckHotCue value)?  deleteDeckHotCue,TResult Function( Event_AssignSampler value)?  assignSampler,TResult Function( Event_AssignSamplerTrack value)?  assignSamplerTrack,TResult Function( Event_ClearSampler value)?  clearSampler,TResult Function( Event_JogTouch value)?  jogTouch,TResult Function( Event_JogTurn value)?  jogTurn,TResult Function( Event_SetJogMode value)?  setJogMode,TResult Function( Event_SetCrossfader value)?  setCrossfader,TResult Function( Event_SetMasterVolume value)?  setMasterVolume,TResult Function( Event_SetCueVolume value)?  setCueVolume,TResult Function( Event_SetCueMix value)?  setCueMix,TResult Function( Event_SetMasterCue value)?  setMasterCue,TResult Function( Event_ToggleMasterCue value)?  toggleMasterCue,TResult Function( Event_SetFxUnitSlot value)?  setFxUnitSlot,TResult Function( Event_SetFxUnitSlotEnabled value)?  setFxUnitSlotEnabled,TResult Function( Event_SetFxUnitWet value)?  setFxUnitWet,TResult Function( Event_SetFxUnitParam value)?  setFxUnitParam,TResult Function( Event_SetDeckFxRouted value)?  setDeckFxRouted,TResult Function( Event_DeckUpdated value)?  deckUpdated,TResult Function( Event_DeckPosition value)?  deckPosition,TResult Function( Event_DeckLevels value)?  deckLevels,TResult Function( Event_EngineSnapshot value)?  engineSnapshot,TResult Function( Event_Error value)?  error,TResult Function( Event_Notice value)?  notice,TResult Function( Event_AnalyzeTrack value)?  analyzeTrack,TResult Function( Event_GenerateStems value)?  generateStems,TResult Function( Event_RefreshTrack value)?  refreshTrack,TResult Function( Event_SaveBeatGrid value)?  saveBeatGrid,TResult Function( Event_SaveTrackHotCue value)?  saveTrackHotCue,TResult Function( Event_DeleteTrackHotCue value)?  deleteTrackHotCue,TResult Function( Event_SaveTrackLoop value)?  saveTrackLoop,TResult Function( Event_DeleteTrackLoop value)?  deleteTrackLoop,TResult Function( Event_TrackAnalyzed value)?  trackAnalyzed,TResult Function( Event_TrackUpdated value)?  trackUpdated,TResult Function( Event_TrackProgress value)?  trackProgress,TResult Function( Event_HotCuesChanged value)?  hotCuesChanged,TResult Function( Event_LoopsChanged value)?  loopsChanged,TResult Function( Event_BeatGridChanged value)?  beatGridChanged,TResult Function( Event_HistorySessionUpdated value)?  historySessionUpdated,TResult Function( Event_Navigate value)?  navigate,TResult Function( Event_Focus value)?  focus,TResult Function( Event_Load value)?  load,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case Event_Play() when play != null:
@@ -142,7 +142,25 @@ return deckPosition(_that);case Event_DeckLevels() when deckLevels != null:
 return deckLevels(_that);case Event_EngineSnapshot() when engineSnapshot != null:
 return engineSnapshot(_that);case Event_Error() when error != null:
 return error(_that);case Event_Notice() when notice != null:
-return notice(_that);case _:
+return notice(_that);case Event_AnalyzeTrack() when analyzeTrack != null:
+return analyzeTrack(_that);case Event_GenerateStems() when generateStems != null:
+return generateStems(_that);case Event_RefreshTrack() when refreshTrack != null:
+return refreshTrack(_that);case Event_SaveBeatGrid() when saveBeatGrid != null:
+return saveBeatGrid(_that);case Event_SaveTrackHotCue() when saveTrackHotCue != null:
+return saveTrackHotCue(_that);case Event_DeleteTrackHotCue() when deleteTrackHotCue != null:
+return deleteTrackHotCue(_that);case Event_SaveTrackLoop() when saveTrackLoop != null:
+return saveTrackLoop(_that);case Event_DeleteTrackLoop() when deleteTrackLoop != null:
+return deleteTrackLoop(_that);case Event_TrackAnalyzed() when trackAnalyzed != null:
+return trackAnalyzed(_that);case Event_TrackUpdated() when trackUpdated != null:
+return trackUpdated(_that);case Event_TrackProgress() when trackProgress != null:
+return trackProgress(_that);case Event_HotCuesChanged() when hotCuesChanged != null:
+return hotCuesChanged(_that);case Event_LoopsChanged() when loopsChanged != null:
+return loopsChanged(_that);case Event_BeatGridChanged() when beatGridChanged != null:
+return beatGridChanged(_that);case Event_HistorySessionUpdated() when historySessionUpdated != null:
+return historySessionUpdated(_that);case Event_Navigate() when navigate != null:
+return navigate(_that);case Event_Focus() when focus != null:
+return focus(_that);case Event_Load() when load != null:
+return load(_that);case _:
   return orElse();
 
 }
@@ -160,7 +178,7 @@ return notice(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( Event_Play value)  play,required TResult Function( Event_Pause value)  pause,required TResult Function( Event_TogglePlay value)  togglePlay,required TResult Function( Event_Seek value)  seek,required TResult Function( Event_Unload value)  unload,required TResult Function( Event_SetVolume value)  setVolume,required TResult Function( Event_SetEq value)  setEq,required TResult Function( Event_SetEqBand value)  setEqBand,required TResult Function( Event_SetFilter value)  setFilter,required TResult Function( Event_SetGainTrim value)  setGainTrim,required TResult Function( Event_SetHeadphoneCue value)  setHeadphoneCue,required TResult Function( Event_ToggleHeadphoneCue value)  toggleHeadphoneCue,required TResult Function( Event_SetCrossfaderAssign value)  setCrossfaderAssign,required TResult Function( Event_SetSpeed value)  setSpeed,required TResult Function( Event_SetTempoRange value)  setTempoRange,required TResult Function( Event_SetKeyLock value)  setKeyLock,required TResult Function( Event_SetKeyShift value)  setKeyShift,required TResult Function( Event_SetKeyboardRoot value)  setKeyboardRoot,required TResult Function( Event_SetKeyboardPage value)  setKeyboardPage,required TResult Function( Event_SetKeyShiftPage value)  setKeyShiftPage,required TResult Function( Event_ToggleSync value)  toggleSync,required TResult Function( Event_SetMasterDeck value)  setMasterDeck,required TResult Function( Event_SetCuePoint value)  setCuePoint,required TResult Function( Event_BeginCueHold value)  beginCueHold,required TResult Function( Event_EndCueHold value)  endCueHold,required TResult Function( Event_SetQuantize value)  setQuantize,required TResult Function( Event_ToggleQuantize value)  toggleQuantize,required TResult Function( Event_SetSlip value)  setSlip,required TResult Function( Event_ToggleSlip value)  toggleSlip,required TResult Function( Event_SetAutoLoop value)  setAutoLoop,required TResult Function( Event_LoopIn value)  loopIn,required TResult Function( Event_LoopOut value)  loopOut,required TResult Function( Event_ExitLoop value)  exitLoop,required TResult Function( Event_RecallSavedLoop value)  recallSavedLoop,required TResult Function( Event_BeginLoopRoll value)  beginLoopRoll,required TResult Function( Event_EndLoopRoll value)  endLoopRoll,required TResult Function( Event_BeatJump value)  beatJump,required TResult Function( Event_SetPadMode value)  setPadMode,required TResult Function( Event_PadPress value)  padPress,required TResult Function( Event_PadRelease value)  padRelease,required TResult Function( Event_HotCuePadPress value)  hotCuePadPress,required TResult Function( Event_HotCuePadRelease value)  hotCuePadRelease,required TResult Function( Event_LoopRollPadPress value)  loopRollPadPress,required TResult Function( Event_LoopRollPadRelease value)  loopRollPadRelease,required TResult Function( Event_BeatJumpPadPress value)  beatJumpPadPress,required TResult Function( Event_BeatJumpPadRelease value)  beatJumpPadRelease,required TResult Function( Event_SamplerPadPress value)  samplerPadPress,required TResult Function( Event_SamplerPadRelease value)  samplerPadRelease,required TResult Function( Event_KeyboardPadPress value)  keyboardPadPress,required TResult Function( Event_KeyboardPadRelease value)  keyboardPadRelease,required TResult Function( Event_KeyShiftPadPress value)  keyShiftPadPress,required TResult Function( Event_KeyShiftPadRelease value)  keyShiftPadRelease,required TResult Function( Event_TriggerHotCue value)  triggerHotCue,required TResult Function( Event_SaveDeckHotCue value)  saveDeckHotCue,required TResult Function( Event_DeleteDeckHotCue value)  deleteDeckHotCue,required TResult Function( Event_AssignSampler value)  assignSampler,required TResult Function( Event_AssignSamplerTrack value)  assignSamplerTrack,required TResult Function( Event_ClearSampler value)  clearSampler,required TResult Function( Event_JogTouch value)  jogTouch,required TResult Function( Event_JogTurn value)  jogTurn,required TResult Function( Event_SetJogMode value)  setJogMode,required TResult Function( Event_SetCrossfader value)  setCrossfader,required TResult Function( Event_SetMasterVolume value)  setMasterVolume,required TResult Function( Event_SetCueVolume value)  setCueVolume,required TResult Function( Event_SetCueMix value)  setCueMix,required TResult Function( Event_SetMasterCue value)  setMasterCue,required TResult Function( Event_ToggleMasterCue value)  toggleMasterCue,required TResult Function( Event_SetFxUnitSlot value)  setFxUnitSlot,required TResult Function( Event_SetFxUnitSlotEnabled value)  setFxUnitSlotEnabled,required TResult Function( Event_SetFxUnitWet value)  setFxUnitWet,required TResult Function( Event_SetFxUnitParam value)  setFxUnitParam,required TResult Function( Event_SetDeckFxRouted value)  setDeckFxRouted,required TResult Function( Event_DeckUpdated value)  deckUpdated,required TResult Function( Event_DeckPosition value)  deckPosition,required TResult Function( Event_DeckLevels value)  deckLevels,required TResult Function( Event_EngineSnapshot value)  engineSnapshot,required TResult Function( Event_Error value)  error,required TResult Function( Event_Notice value)  notice,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( Event_Play value)  play,required TResult Function( Event_Pause value)  pause,required TResult Function( Event_TogglePlay value)  togglePlay,required TResult Function( Event_Seek value)  seek,required TResult Function( Event_Unload value)  unload,required TResult Function( Event_SetVolume value)  setVolume,required TResult Function( Event_SetEq value)  setEq,required TResult Function( Event_SetEqBand value)  setEqBand,required TResult Function( Event_SetFilter value)  setFilter,required TResult Function( Event_SetGainTrim value)  setGainTrim,required TResult Function( Event_SetHeadphoneCue value)  setHeadphoneCue,required TResult Function( Event_ToggleHeadphoneCue value)  toggleHeadphoneCue,required TResult Function( Event_SetCrossfaderAssign value)  setCrossfaderAssign,required TResult Function( Event_SetSpeed value)  setSpeed,required TResult Function( Event_SetTempoRange value)  setTempoRange,required TResult Function( Event_SetKeyLock value)  setKeyLock,required TResult Function( Event_SetKeyShift value)  setKeyShift,required TResult Function( Event_SetKeyboardRoot value)  setKeyboardRoot,required TResult Function( Event_SetKeyboardPage value)  setKeyboardPage,required TResult Function( Event_SetKeyShiftPage value)  setKeyShiftPage,required TResult Function( Event_ToggleSync value)  toggleSync,required TResult Function( Event_SetMasterDeck value)  setMasterDeck,required TResult Function( Event_SetCuePoint value)  setCuePoint,required TResult Function( Event_BeginCueHold value)  beginCueHold,required TResult Function( Event_EndCueHold value)  endCueHold,required TResult Function( Event_SetQuantize value)  setQuantize,required TResult Function( Event_ToggleQuantize value)  toggleQuantize,required TResult Function( Event_SetSlip value)  setSlip,required TResult Function( Event_ToggleSlip value)  toggleSlip,required TResult Function( Event_SetAutoLoop value)  setAutoLoop,required TResult Function( Event_LoopIn value)  loopIn,required TResult Function( Event_LoopOut value)  loopOut,required TResult Function( Event_ExitLoop value)  exitLoop,required TResult Function( Event_RecallSavedLoop value)  recallSavedLoop,required TResult Function( Event_BeginLoopRoll value)  beginLoopRoll,required TResult Function( Event_EndLoopRoll value)  endLoopRoll,required TResult Function( Event_BeatJump value)  beatJump,required TResult Function( Event_SetPadMode value)  setPadMode,required TResult Function( Event_PadPress value)  padPress,required TResult Function( Event_PadRelease value)  padRelease,required TResult Function( Event_HotCuePadPress value)  hotCuePadPress,required TResult Function( Event_HotCuePadRelease value)  hotCuePadRelease,required TResult Function( Event_LoopRollPadPress value)  loopRollPadPress,required TResult Function( Event_LoopRollPadRelease value)  loopRollPadRelease,required TResult Function( Event_BeatJumpPadPress value)  beatJumpPadPress,required TResult Function( Event_BeatJumpPadRelease value)  beatJumpPadRelease,required TResult Function( Event_SamplerPadPress value)  samplerPadPress,required TResult Function( Event_SamplerPadRelease value)  samplerPadRelease,required TResult Function( Event_KeyboardPadPress value)  keyboardPadPress,required TResult Function( Event_KeyboardPadRelease value)  keyboardPadRelease,required TResult Function( Event_KeyShiftPadPress value)  keyShiftPadPress,required TResult Function( Event_KeyShiftPadRelease value)  keyShiftPadRelease,required TResult Function( Event_TriggerHotCue value)  triggerHotCue,required TResult Function( Event_SaveDeckHotCue value)  saveDeckHotCue,required TResult Function( Event_DeleteDeckHotCue value)  deleteDeckHotCue,required TResult Function( Event_AssignSampler value)  assignSampler,required TResult Function( Event_AssignSamplerTrack value)  assignSamplerTrack,required TResult Function( Event_ClearSampler value)  clearSampler,required TResult Function( Event_JogTouch value)  jogTouch,required TResult Function( Event_JogTurn value)  jogTurn,required TResult Function( Event_SetJogMode value)  setJogMode,required TResult Function( Event_SetCrossfader value)  setCrossfader,required TResult Function( Event_SetMasterVolume value)  setMasterVolume,required TResult Function( Event_SetCueVolume value)  setCueVolume,required TResult Function( Event_SetCueMix value)  setCueMix,required TResult Function( Event_SetMasterCue value)  setMasterCue,required TResult Function( Event_ToggleMasterCue value)  toggleMasterCue,required TResult Function( Event_SetFxUnitSlot value)  setFxUnitSlot,required TResult Function( Event_SetFxUnitSlotEnabled value)  setFxUnitSlotEnabled,required TResult Function( Event_SetFxUnitWet value)  setFxUnitWet,required TResult Function( Event_SetFxUnitParam value)  setFxUnitParam,required TResult Function( Event_SetDeckFxRouted value)  setDeckFxRouted,required TResult Function( Event_DeckUpdated value)  deckUpdated,required TResult Function( Event_DeckPosition value)  deckPosition,required TResult Function( Event_DeckLevels value)  deckLevels,required TResult Function( Event_EngineSnapshot value)  engineSnapshot,required TResult Function( Event_Error value)  error,required TResult Function( Event_Notice value)  notice,required TResult Function( Event_AnalyzeTrack value)  analyzeTrack,required TResult Function( Event_GenerateStems value)  generateStems,required TResult Function( Event_RefreshTrack value)  refreshTrack,required TResult Function( Event_SaveBeatGrid value)  saveBeatGrid,required TResult Function( Event_SaveTrackHotCue value)  saveTrackHotCue,required TResult Function( Event_DeleteTrackHotCue value)  deleteTrackHotCue,required TResult Function( Event_SaveTrackLoop value)  saveTrackLoop,required TResult Function( Event_DeleteTrackLoop value)  deleteTrackLoop,required TResult Function( Event_TrackAnalyzed value)  trackAnalyzed,required TResult Function( Event_TrackUpdated value)  trackUpdated,required TResult Function( Event_TrackProgress value)  trackProgress,required TResult Function( Event_HotCuesChanged value)  hotCuesChanged,required TResult Function( Event_LoopsChanged value)  loopsChanged,required TResult Function( Event_BeatGridChanged value)  beatGridChanged,required TResult Function( Event_HistorySessionUpdated value)  historySessionUpdated,required TResult Function( Event_Navigate value)  navigate,required TResult Function( Event_Focus value)  focus,required TResult Function( Event_Load value)  load,}){
 final _that = this;
 switch (_that) {
 case Event_Play():
@@ -241,7 +259,25 @@ return deckPosition(_that);case Event_DeckLevels():
 return deckLevels(_that);case Event_EngineSnapshot():
 return engineSnapshot(_that);case Event_Error():
 return error(_that);case Event_Notice():
-return notice(_that);}
+return notice(_that);case Event_AnalyzeTrack():
+return analyzeTrack(_that);case Event_GenerateStems():
+return generateStems(_that);case Event_RefreshTrack():
+return refreshTrack(_that);case Event_SaveBeatGrid():
+return saveBeatGrid(_that);case Event_SaveTrackHotCue():
+return saveTrackHotCue(_that);case Event_DeleteTrackHotCue():
+return deleteTrackHotCue(_that);case Event_SaveTrackLoop():
+return saveTrackLoop(_that);case Event_DeleteTrackLoop():
+return deleteTrackLoop(_that);case Event_TrackAnalyzed():
+return trackAnalyzed(_that);case Event_TrackUpdated():
+return trackUpdated(_that);case Event_TrackProgress():
+return trackProgress(_that);case Event_HotCuesChanged():
+return hotCuesChanged(_that);case Event_LoopsChanged():
+return loopsChanged(_that);case Event_BeatGridChanged():
+return beatGridChanged(_that);case Event_HistorySessionUpdated():
+return historySessionUpdated(_that);case Event_Navigate():
+return navigate(_that);case Event_Focus():
+return focus(_that);case Event_Load():
+return load(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -255,7 +291,7 @@ return notice(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( Event_Play value)?  play,TResult? Function( Event_Pause value)?  pause,TResult? Function( Event_TogglePlay value)?  togglePlay,TResult? Function( Event_Seek value)?  seek,TResult? Function( Event_Unload value)?  unload,TResult? Function( Event_SetVolume value)?  setVolume,TResult? Function( Event_SetEq value)?  setEq,TResult? Function( Event_SetEqBand value)?  setEqBand,TResult? Function( Event_SetFilter value)?  setFilter,TResult? Function( Event_SetGainTrim value)?  setGainTrim,TResult? Function( Event_SetHeadphoneCue value)?  setHeadphoneCue,TResult? Function( Event_ToggleHeadphoneCue value)?  toggleHeadphoneCue,TResult? Function( Event_SetCrossfaderAssign value)?  setCrossfaderAssign,TResult? Function( Event_SetSpeed value)?  setSpeed,TResult? Function( Event_SetTempoRange value)?  setTempoRange,TResult? Function( Event_SetKeyLock value)?  setKeyLock,TResult? Function( Event_SetKeyShift value)?  setKeyShift,TResult? Function( Event_SetKeyboardRoot value)?  setKeyboardRoot,TResult? Function( Event_SetKeyboardPage value)?  setKeyboardPage,TResult? Function( Event_SetKeyShiftPage value)?  setKeyShiftPage,TResult? Function( Event_ToggleSync value)?  toggleSync,TResult? Function( Event_SetMasterDeck value)?  setMasterDeck,TResult? Function( Event_SetCuePoint value)?  setCuePoint,TResult? Function( Event_BeginCueHold value)?  beginCueHold,TResult? Function( Event_EndCueHold value)?  endCueHold,TResult? Function( Event_SetQuantize value)?  setQuantize,TResult? Function( Event_ToggleQuantize value)?  toggleQuantize,TResult? Function( Event_SetSlip value)?  setSlip,TResult? Function( Event_ToggleSlip value)?  toggleSlip,TResult? Function( Event_SetAutoLoop value)?  setAutoLoop,TResult? Function( Event_LoopIn value)?  loopIn,TResult? Function( Event_LoopOut value)?  loopOut,TResult? Function( Event_ExitLoop value)?  exitLoop,TResult? Function( Event_RecallSavedLoop value)?  recallSavedLoop,TResult? Function( Event_BeginLoopRoll value)?  beginLoopRoll,TResult? Function( Event_EndLoopRoll value)?  endLoopRoll,TResult? Function( Event_BeatJump value)?  beatJump,TResult? Function( Event_SetPadMode value)?  setPadMode,TResult? Function( Event_PadPress value)?  padPress,TResult? Function( Event_PadRelease value)?  padRelease,TResult? Function( Event_HotCuePadPress value)?  hotCuePadPress,TResult? Function( Event_HotCuePadRelease value)?  hotCuePadRelease,TResult? Function( Event_LoopRollPadPress value)?  loopRollPadPress,TResult? Function( Event_LoopRollPadRelease value)?  loopRollPadRelease,TResult? Function( Event_BeatJumpPadPress value)?  beatJumpPadPress,TResult? Function( Event_BeatJumpPadRelease value)?  beatJumpPadRelease,TResult? Function( Event_SamplerPadPress value)?  samplerPadPress,TResult? Function( Event_SamplerPadRelease value)?  samplerPadRelease,TResult? Function( Event_KeyboardPadPress value)?  keyboardPadPress,TResult? Function( Event_KeyboardPadRelease value)?  keyboardPadRelease,TResult? Function( Event_KeyShiftPadPress value)?  keyShiftPadPress,TResult? Function( Event_KeyShiftPadRelease value)?  keyShiftPadRelease,TResult? Function( Event_TriggerHotCue value)?  triggerHotCue,TResult? Function( Event_SaveDeckHotCue value)?  saveDeckHotCue,TResult? Function( Event_DeleteDeckHotCue value)?  deleteDeckHotCue,TResult? Function( Event_AssignSampler value)?  assignSampler,TResult? Function( Event_AssignSamplerTrack value)?  assignSamplerTrack,TResult? Function( Event_ClearSampler value)?  clearSampler,TResult? Function( Event_JogTouch value)?  jogTouch,TResult? Function( Event_JogTurn value)?  jogTurn,TResult? Function( Event_SetJogMode value)?  setJogMode,TResult? Function( Event_SetCrossfader value)?  setCrossfader,TResult? Function( Event_SetMasterVolume value)?  setMasterVolume,TResult? Function( Event_SetCueVolume value)?  setCueVolume,TResult? Function( Event_SetCueMix value)?  setCueMix,TResult? Function( Event_SetMasterCue value)?  setMasterCue,TResult? Function( Event_ToggleMasterCue value)?  toggleMasterCue,TResult? Function( Event_SetFxUnitSlot value)?  setFxUnitSlot,TResult? Function( Event_SetFxUnitSlotEnabled value)?  setFxUnitSlotEnabled,TResult? Function( Event_SetFxUnitWet value)?  setFxUnitWet,TResult? Function( Event_SetFxUnitParam value)?  setFxUnitParam,TResult? Function( Event_SetDeckFxRouted value)?  setDeckFxRouted,TResult? Function( Event_DeckUpdated value)?  deckUpdated,TResult? Function( Event_DeckPosition value)?  deckPosition,TResult? Function( Event_DeckLevels value)?  deckLevels,TResult? Function( Event_EngineSnapshot value)?  engineSnapshot,TResult? Function( Event_Error value)?  error,TResult? Function( Event_Notice value)?  notice,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( Event_Play value)?  play,TResult? Function( Event_Pause value)?  pause,TResult? Function( Event_TogglePlay value)?  togglePlay,TResult? Function( Event_Seek value)?  seek,TResult? Function( Event_Unload value)?  unload,TResult? Function( Event_SetVolume value)?  setVolume,TResult? Function( Event_SetEq value)?  setEq,TResult? Function( Event_SetEqBand value)?  setEqBand,TResult? Function( Event_SetFilter value)?  setFilter,TResult? Function( Event_SetGainTrim value)?  setGainTrim,TResult? Function( Event_SetHeadphoneCue value)?  setHeadphoneCue,TResult? Function( Event_ToggleHeadphoneCue value)?  toggleHeadphoneCue,TResult? Function( Event_SetCrossfaderAssign value)?  setCrossfaderAssign,TResult? Function( Event_SetSpeed value)?  setSpeed,TResult? Function( Event_SetTempoRange value)?  setTempoRange,TResult? Function( Event_SetKeyLock value)?  setKeyLock,TResult? Function( Event_SetKeyShift value)?  setKeyShift,TResult? Function( Event_SetKeyboardRoot value)?  setKeyboardRoot,TResult? Function( Event_SetKeyboardPage value)?  setKeyboardPage,TResult? Function( Event_SetKeyShiftPage value)?  setKeyShiftPage,TResult? Function( Event_ToggleSync value)?  toggleSync,TResult? Function( Event_SetMasterDeck value)?  setMasterDeck,TResult? Function( Event_SetCuePoint value)?  setCuePoint,TResult? Function( Event_BeginCueHold value)?  beginCueHold,TResult? Function( Event_EndCueHold value)?  endCueHold,TResult? Function( Event_SetQuantize value)?  setQuantize,TResult? Function( Event_ToggleQuantize value)?  toggleQuantize,TResult? Function( Event_SetSlip value)?  setSlip,TResult? Function( Event_ToggleSlip value)?  toggleSlip,TResult? Function( Event_SetAutoLoop value)?  setAutoLoop,TResult? Function( Event_LoopIn value)?  loopIn,TResult? Function( Event_LoopOut value)?  loopOut,TResult? Function( Event_ExitLoop value)?  exitLoop,TResult? Function( Event_RecallSavedLoop value)?  recallSavedLoop,TResult? Function( Event_BeginLoopRoll value)?  beginLoopRoll,TResult? Function( Event_EndLoopRoll value)?  endLoopRoll,TResult? Function( Event_BeatJump value)?  beatJump,TResult? Function( Event_SetPadMode value)?  setPadMode,TResult? Function( Event_PadPress value)?  padPress,TResult? Function( Event_PadRelease value)?  padRelease,TResult? Function( Event_HotCuePadPress value)?  hotCuePadPress,TResult? Function( Event_HotCuePadRelease value)?  hotCuePadRelease,TResult? Function( Event_LoopRollPadPress value)?  loopRollPadPress,TResult? Function( Event_LoopRollPadRelease value)?  loopRollPadRelease,TResult? Function( Event_BeatJumpPadPress value)?  beatJumpPadPress,TResult? Function( Event_BeatJumpPadRelease value)?  beatJumpPadRelease,TResult? Function( Event_SamplerPadPress value)?  samplerPadPress,TResult? Function( Event_SamplerPadRelease value)?  samplerPadRelease,TResult? Function( Event_KeyboardPadPress value)?  keyboardPadPress,TResult? Function( Event_KeyboardPadRelease value)?  keyboardPadRelease,TResult? Function( Event_KeyShiftPadPress value)?  keyShiftPadPress,TResult? Function( Event_KeyShiftPadRelease value)?  keyShiftPadRelease,TResult? Function( Event_TriggerHotCue value)?  triggerHotCue,TResult? Function( Event_SaveDeckHotCue value)?  saveDeckHotCue,TResult? Function( Event_DeleteDeckHotCue value)?  deleteDeckHotCue,TResult? Function( Event_AssignSampler value)?  assignSampler,TResult? Function( Event_AssignSamplerTrack value)?  assignSamplerTrack,TResult? Function( Event_ClearSampler value)?  clearSampler,TResult? Function( Event_JogTouch value)?  jogTouch,TResult? Function( Event_JogTurn value)?  jogTurn,TResult? Function( Event_SetJogMode value)?  setJogMode,TResult? Function( Event_SetCrossfader value)?  setCrossfader,TResult? Function( Event_SetMasterVolume value)?  setMasterVolume,TResult? Function( Event_SetCueVolume value)?  setCueVolume,TResult? Function( Event_SetCueMix value)?  setCueMix,TResult? Function( Event_SetMasterCue value)?  setMasterCue,TResult? Function( Event_ToggleMasterCue value)?  toggleMasterCue,TResult? Function( Event_SetFxUnitSlot value)?  setFxUnitSlot,TResult? Function( Event_SetFxUnitSlotEnabled value)?  setFxUnitSlotEnabled,TResult? Function( Event_SetFxUnitWet value)?  setFxUnitWet,TResult? Function( Event_SetFxUnitParam value)?  setFxUnitParam,TResult? Function( Event_SetDeckFxRouted value)?  setDeckFxRouted,TResult? Function( Event_DeckUpdated value)?  deckUpdated,TResult? Function( Event_DeckPosition value)?  deckPosition,TResult? Function( Event_DeckLevels value)?  deckLevels,TResult? Function( Event_EngineSnapshot value)?  engineSnapshot,TResult? Function( Event_Error value)?  error,TResult? Function( Event_Notice value)?  notice,TResult? Function( Event_AnalyzeTrack value)?  analyzeTrack,TResult? Function( Event_GenerateStems value)?  generateStems,TResult? Function( Event_RefreshTrack value)?  refreshTrack,TResult? Function( Event_SaveBeatGrid value)?  saveBeatGrid,TResult? Function( Event_SaveTrackHotCue value)?  saveTrackHotCue,TResult? Function( Event_DeleteTrackHotCue value)?  deleteTrackHotCue,TResult? Function( Event_SaveTrackLoop value)?  saveTrackLoop,TResult? Function( Event_DeleteTrackLoop value)?  deleteTrackLoop,TResult? Function( Event_TrackAnalyzed value)?  trackAnalyzed,TResult? Function( Event_TrackUpdated value)?  trackUpdated,TResult? Function( Event_TrackProgress value)?  trackProgress,TResult? Function( Event_HotCuesChanged value)?  hotCuesChanged,TResult? Function( Event_LoopsChanged value)?  loopsChanged,TResult? Function( Event_BeatGridChanged value)?  beatGridChanged,TResult? Function( Event_HistorySessionUpdated value)?  historySessionUpdated,TResult? Function( Event_Navigate value)?  navigate,TResult? Function( Event_Focus value)?  focus,TResult? Function( Event_Load value)?  load,}){
 final _that = this;
 switch (_that) {
 case Event_Play() when play != null:
@@ -336,7 +372,25 @@ return deckPosition(_that);case Event_DeckLevels() when deckLevels != null:
 return deckLevels(_that);case Event_EngineSnapshot() when engineSnapshot != null:
 return engineSnapshot(_that);case Event_Error() when error != null:
 return error(_that);case Event_Notice() when notice != null:
-return notice(_that);case _:
+return notice(_that);case Event_AnalyzeTrack() when analyzeTrack != null:
+return analyzeTrack(_that);case Event_GenerateStems() when generateStems != null:
+return generateStems(_that);case Event_RefreshTrack() when refreshTrack != null:
+return refreshTrack(_that);case Event_SaveBeatGrid() when saveBeatGrid != null:
+return saveBeatGrid(_that);case Event_SaveTrackHotCue() when saveTrackHotCue != null:
+return saveTrackHotCue(_that);case Event_DeleteTrackHotCue() when deleteTrackHotCue != null:
+return deleteTrackHotCue(_that);case Event_SaveTrackLoop() when saveTrackLoop != null:
+return saveTrackLoop(_that);case Event_DeleteTrackLoop() when deleteTrackLoop != null:
+return deleteTrackLoop(_that);case Event_TrackAnalyzed() when trackAnalyzed != null:
+return trackAnalyzed(_that);case Event_TrackUpdated() when trackUpdated != null:
+return trackUpdated(_that);case Event_TrackProgress() when trackProgress != null:
+return trackProgress(_that);case Event_HotCuesChanged() when hotCuesChanged != null:
+return hotCuesChanged(_that);case Event_LoopsChanged() when loopsChanged != null:
+return loopsChanged(_that);case Event_BeatGridChanged() when beatGridChanged != null:
+return beatGridChanged(_that);case Event_HistorySessionUpdated() when historySessionUpdated != null:
+return historySessionUpdated(_that);case Event_Navigate() when navigate != null:
+return navigate(_that);case Event_Focus() when focus != null:
+return focus(_that);case Event_Load() when load != null:
+return load(_that);case _:
   return null;
 
 }
@@ -353,7 +407,7 @@ return notice(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( Play field0)?  play,TResult Function( Pause field0)?  pause,TResult Function( TogglePlay field0)?  togglePlay,TResult Function( Seek field0)?  seek,TResult Function( Unload field0)?  unload,TResult Function( SetVolume field0)?  setVolume,TResult Function( SetEq field0)?  setEq,TResult Function( SetEqBand field0)?  setEqBand,TResult Function( SetFilter field0)?  setFilter,TResult Function( SetGainTrim field0)?  setGainTrim,TResult Function( SetHeadphoneCue field0)?  setHeadphoneCue,TResult Function( ToggleHeadphoneCue field0)?  toggleHeadphoneCue,TResult Function( SetCrossfaderAssign field0)?  setCrossfaderAssign,TResult Function( SetSpeed field0)?  setSpeed,TResult Function( SetTempoRange field0)?  setTempoRange,TResult Function( SetKeyLock field0)?  setKeyLock,TResult Function( SetKeyShift field0)?  setKeyShift,TResult Function( SetKeyboardRoot field0)?  setKeyboardRoot,TResult Function( SetKeyboardPage field0)?  setKeyboardPage,TResult Function( SetKeyShiftPage field0)?  setKeyShiftPage,TResult Function( ToggleSync field0)?  toggleSync,TResult Function( SetMasterDeck field0)?  setMasterDeck,TResult Function( SetCuePoint field0)?  setCuePoint,TResult Function( BeginCueHold field0)?  beginCueHold,TResult Function( EndCueHold field0)?  endCueHold,TResult Function( SetQuantize field0)?  setQuantize,TResult Function( ToggleQuantize field0)?  toggleQuantize,TResult Function( SetSlip field0)?  setSlip,TResult Function( ToggleSlip field0)?  toggleSlip,TResult Function( SetAutoLoop field0)?  setAutoLoop,TResult Function( LoopIn field0)?  loopIn,TResult Function( LoopOut field0)?  loopOut,TResult Function( ExitLoop field0)?  exitLoop,TResult Function( RecallSavedLoop field0)?  recallSavedLoop,TResult Function( BeginLoopRoll field0)?  beginLoopRoll,TResult Function( EndLoopRoll field0)?  endLoopRoll,TResult Function( BeatJump field0)?  beatJump,TResult Function( SetPadMode field0)?  setPadMode,TResult Function( PadPress field0)?  padPress,TResult Function( PadRelease field0)?  padRelease,TResult Function( HotCuePadPress field0)?  hotCuePadPress,TResult Function( HotCuePadRelease field0)?  hotCuePadRelease,TResult Function( LoopRollPadPress field0)?  loopRollPadPress,TResult Function( LoopRollPadRelease field0)?  loopRollPadRelease,TResult Function( BeatJumpPadPress field0)?  beatJumpPadPress,TResult Function( BeatJumpPadRelease field0)?  beatJumpPadRelease,TResult Function( SamplerPadPress field0)?  samplerPadPress,TResult Function( SamplerPadRelease field0)?  samplerPadRelease,TResult Function( KeyboardPadPress field0)?  keyboardPadPress,TResult Function( KeyboardPadRelease field0)?  keyboardPadRelease,TResult Function( KeyShiftPadPress field0)?  keyShiftPadPress,TResult Function( KeyShiftPadRelease field0)?  keyShiftPadRelease,TResult Function( TriggerHotCue field0)?  triggerHotCue,TResult Function( SaveDeckHotCue field0)?  saveDeckHotCue,TResult Function( DeleteDeckHotCue field0)?  deleteDeckHotCue,TResult Function( AssignSampler field0)?  assignSampler,TResult Function( AssignSamplerTrack field0)?  assignSamplerTrack,TResult Function( ClearSampler field0)?  clearSampler,TResult Function( JogTouch field0)?  jogTouch,TResult Function( JogTurn field0)?  jogTurn,TResult Function( SetJogMode field0)?  setJogMode,TResult Function( SetCrossfader field0)?  setCrossfader,TResult Function( SetMasterVolume field0)?  setMasterVolume,TResult Function( SetCueVolume field0)?  setCueVolume,TResult Function( SetCueMix field0)?  setCueMix,TResult Function( SetMasterCue field0)?  setMasterCue,TResult Function( ToggleMasterCue field0)?  toggleMasterCue,TResult Function( SetFxUnitSlot field0)?  setFxUnitSlot,TResult Function( SetFxUnitSlotEnabled field0)?  setFxUnitSlotEnabled,TResult Function( SetFxUnitWet field0)?  setFxUnitWet,TResult Function( SetFxUnitParam field0)?  setFxUnitParam,TResult Function( SetDeckFxRouted field0)?  setDeckFxRouted,TResult Function( DeckUpdated field0)?  deckUpdated,TResult Function( DeckPosition field0)?  deckPosition,TResult Function( DeckLevels field0)?  deckLevels,TResult Function( EngineSnapshot field0)?  engineSnapshot,TResult Function( Error field0)?  error,TResult Function( Notice field0)?  notice,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( Play field0)?  play,TResult Function( Pause field0)?  pause,TResult Function( TogglePlay field0)?  togglePlay,TResult Function( Seek field0)?  seek,TResult Function( Unload field0)?  unload,TResult Function( SetVolume field0)?  setVolume,TResult Function( SetEq field0)?  setEq,TResult Function( SetEqBand field0)?  setEqBand,TResult Function( SetFilter field0)?  setFilter,TResult Function( SetGainTrim field0)?  setGainTrim,TResult Function( SetHeadphoneCue field0)?  setHeadphoneCue,TResult Function( ToggleHeadphoneCue field0)?  toggleHeadphoneCue,TResult Function( SetCrossfaderAssign field0)?  setCrossfaderAssign,TResult Function( SetSpeed field0)?  setSpeed,TResult Function( SetTempoRange field0)?  setTempoRange,TResult Function( SetKeyLock field0)?  setKeyLock,TResult Function( SetKeyShift field0)?  setKeyShift,TResult Function( SetKeyboardRoot field0)?  setKeyboardRoot,TResult Function( SetKeyboardPage field0)?  setKeyboardPage,TResult Function( SetKeyShiftPage field0)?  setKeyShiftPage,TResult Function( ToggleSync field0)?  toggleSync,TResult Function( SetMasterDeck field0)?  setMasterDeck,TResult Function( SetCuePoint field0)?  setCuePoint,TResult Function( BeginCueHold field0)?  beginCueHold,TResult Function( EndCueHold field0)?  endCueHold,TResult Function( SetQuantize field0)?  setQuantize,TResult Function( ToggleQuantize field0)?  toggleQuantize,TResult Function( SetSlip field0)?  setSlip,TResult Function( ToggleSlip field0)?  toggleSlip,TResult Function( SetAutoLoop field0)?  setAutoLoop,TResult Function( LoopIn field0)?  loopIn,TResult Function( LoopOut field0)?  loopOut,TResult Function( ExitLoop field0)?  exitLoop,TResult Function( RecallSavedLoop field0)?  recallSavedLoop,TResult Function( BeginLoopRoll field0)?  beginLoopRoll,TResult Function( EndLoopRoll field0)?  endLoopRoll,TResult Function( BeatJump field0)?  beatJump,TResult Function( SetPadMode field0)?  setPadMode,TResult Function( PadPress field0)?  padPress,TResult Function( PadRelease field0)?  padRelease,TResult Function( HotCuePadPress field0)?  hotCuePadPress,TResult Function( HotCuePadRelease field0)?  hotCuePadRelease,TResult Function( LoopRollPadPress field0)?  loopRollPadPress,TResult Function( LoopRollPadRelease field0)?  loopRollPadRelease,TResult Function( BeatJumpPadPress field0)?  beatJumpPadPress,TResult Function( BeatJumpPadRelease field0)?  beatJumpPadRelease,TResult Function( SamplerPadPress field0)?  samplerPadPress,TResult Function( SamplerPadRelease field0)?  samplerPadRelease,TResult Function( KeyboardPadPress field0)?  keyboardPadPress,TResult Function( KeyboardPadRelease field0)?  keyboardPadRelease,TResult Function( KeyShiftPadPress field0)?  keyShiftPadPress,TResult Function( KeyShiftPadRelease field0)?  keyShiftPadRelease,TResult Function( TriggerHotCue field0)?  triggerHotCue,TResult Function( SaveDeckHotCue field0)?  saveDeckHotCue,TResult Function( DeleteDeckHotCue field0)?  deleteDeckHotCue,TResult Function( AssignSampler field0)?  assignSampler,TResult Function( AssignSamplerTrack field0)?  assignSamplerTrack,TResult Function( ClearSampler field0)?  clearSampler,TResult Function( JogTouch field0)?  jogTouch,TResult Function( JogTurn field0)?  jogTurn,TResult Function( SetJogMode field0)?  setJogMode,TResult Function( SetCrossfader field0)?  setCrossfader,TResult Function( SetMasterVolume field0)?  setMasterVolume,TResult Function( SetCueVolume field0)?  setCueVolume,TResult Function( SetCueMix field0)?  setCueMix,TResult Function( SetMasterCue field0)?  setMasterCue,TResult Function( ToggleMasterCue field0)?  toggleMasterCue,TResult Function( SetFxUnitSlot field0)?  setFxUnitSlot,TResult Function( SetFxUnitSlotEnabled field0)?  setFxUnitSlotEnabled,TResult Function( SetFxUnitWet field0)?  setFxUnitWet,TResult Function( SetFxUnitParam field0)?  setFxUnitParam,TResult Function( SetDeckFxRouted field0)?  setDeckFxRouted,TResult Function( DeckUpdated field0)?  deckUpdated,TResult Function( DeckPosition field0)?  deckPosition,TResult Function( DeckLevels field0)?  deckLevels,TResult Function( EngineSnapshot field0)?  engineSnapshot,TResult Function( Error field0)?  error,TResult Function( Notice field0)?  notice,TResult Function( AnalyzeTrack field0)?  analyzeTrack,TResult Function( GenerateStems field0)?  generateStems,TResult Function( RefreshTrack field0)?  refreshTrack,TResult Function( SaveBeatGrid field0)?  saveBeatGrid,TResult Function( SaveTrackHotCue field0)?  saveTrackHotCue,TResult Function( DeleteTrackHotCue field0)?  deleteTrackHotCue,TResult Function( SaveTrackLoop field0)?  saveTrackLoop,TResult Function( DeleteTrackLoop field0)?  deleteTrackLoop,TResult Function( TrackAnalyzed field0)?  trackAnalyzed,TResult Function( TrackUpdated field0)?  trackUpdated,TResult Function( TrackProgress field0)?  trackProgress,TResult Function( HotCuesChanged field0)?  hotCuesChanged,TResult Function( LoopsChanged field0)?  loopsChanged,TResult Function( BeatGridChanged field0)?  beatGridChanged,TResult Function( HistorySessionUpdated field0)?  historySessionUpdated,TResult Function( Navigate field0)?  navigate,TResult Function( Focus field0)?  focus,TResult Function( Load field0)?  load,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case Event_Play() when play != null:
 return play(_that.field0);case Event_Pause() when pause != null:
@@ -433,7 +487,25 @@ return deckPosition(_that.field0);case Event_DeckLevels() when deckLevels != nul
 return deckLevels(_that.field0);case Event_EngineSnapshot() when engineSnapshot != null:
 return engineSnapshot(_that.field0);case Event_Error() when error != null:
 return error(_that.field0);case Event_Notice() when notice != null:
-return notice(_that.field0);case _:
+return notice(_that.field0);case Event_AnalyzeTrack() when analyzeTrack != null:
+return analyzeTrack(_that.field0);case Event_GenerateStems() when generateStems != null:
+return generateStems(_that.field0);case Event_RefreshTrack() when refreshTrack != null:
+return refreshTrack(_that.field0);case Event_SaveBeatGrid() when saveBeatGrid != null:
+return saveBeatGrid(_that.field0);case Event_SaveTrackHotCue() when saveTrackHotCue != null:
+return saveTrackHotCue(_that.field0);case Event_DeleteTrackHotCue() when deleteTrackHotCue != null:
+return deleteTrackHotCue(_that.field0);case Event_SaveTrackLoop() when saveTrackLoop != null:
+return saveTrackLoop(_that.field0);case Event_DeleteTrackLoop() when deleteTrackLoop != null:
+return deleteTrackLoop(_that.field0);case Event_TrackAnalyzed() when trackAnalyzed != null:
+return trackAnalyzed(_that.field0);case Event_TrackUpdated() when trackUpdated != null:
+return trackUpdated(_that.field0);case Event_TrackProgress() when trackProgress != null:
+return trackProgress(_that.field0);case Event_HotCuesChanged() when hotCuesChanged != null:
+return hotCuesChanged(_that.field0);case Event_LoopsChanged() when loopsChanged != null:
+return loopsChanged(_that.field0);case Event_BeatGridChanged() when beatGridChanged != null:
+return beatGridChanged(_that.field0);case Event_HistorySessionUpdated() when historySessionUpdated != null:
+return historySessionUpdated(_that.field0);case Event_Navigate() when navigate != null:
+return navigate(_that.field0);case Event_Focus() when focus != null:
+return focus(_that.field0);case Event_Load() when load != null:
+return load(_that.field0);case _:
   return orElse();
 
 }
@@ -451,7 +523,7 @@ return notice(_that.field0);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( Play field0)  play,required TResult Function( Pause field0)  pause,required TResult Function( TogglePlay field0)  togglePlay,required TResult Function( Seek field0)  seek,required TResult Function( Unload field0)  unload,required TResult Function( SetVolume field0)  setVolume,required TResult Function( SetEq field0)  setEq,required TResult Function( SetEqBand field0)  setEqBand,required TResult Function( SetFilter field0)  setFilter,required TResult Function( SetGainTrim field0)  setGainTrim,required TResult Function( SetHeadphoneCue field0)  setHeadphoneCue,required TResult Function( ToggleHeadphoneCue field0)  toggleHeadphoneCue,required TResult Function( SetCrossfaderAssign field0)  setCrossfaderAssign,required TResult Function( SetSpeed field0)  setSpeed,required TResult Function( SetTempoRange field0)  setTempoRange,required TResult Function( SetKeyLock field0)  setKeyLock,required TResult Function( SetKeyShift field0)  setKeyShift,required TResult Function( SetKeyboardRoot field0)  setKeyboardRoot,required TResult Function( SetKeyboardPage field0)  setKeyboardPage,required TResult Function( SetKeyShiftPage field0)  setKeyShiftPage,required TResult Function( ToggleSync field0)  toggleSync,required TResult Function( SetMasterDeck field0)  setMasterDeck,required TResult Function( SetCuePoint field0)  setCuePoint,required TResult Function( BeginCueHold field0)  beginCueHold,required TResult Function( EndCueHold field0)  endCueHold,required TResult Function( SetQuantize field0)  setQuantize,required TResult Function( ToggleQuantize field0)  toggleQuantize,required TResult Function( SetSlip field0)  setSlip,required TResult Function( ToggleSlip field0)  toggleSlip,required TResult Function( SetAutoLoop field0)  setAutoLoop,required TResult Function( LoopIn field0)  loopIn,required TResult Function( LoopOut field0)  loopOut,required TResult Function( ExitLoop field0)  exitLoop,required TResult Function( RecallSavedLoop field0)  recallSavedLoop,required TResult Function( BeginLoopRoll field0)  beginLoopRoll,required TResult Function( EndLoopRoll field0)  endLoopRoll,required TResult Function( BeatJump field0)  beatJump,required TResult Function( SetPadMode field0)  setPadMode,required TResult Function( PadPress field0)  padPress,required TResult Function( PadRelease field0)  padRelease,required TResult Function( HotCuePadPress field0)  hotCuePadPress,required TResult Function( HotCuePadRelease field0)  hotCuePadRelease,required TResult Function( LoopRollPadPress field0)  loopRollPadPress,required TResult Function( LoopRollPadRelease field0)  loopRollPadRelease,required TResult Function( BeatJumpPadPress field0)  beatJumpPadPress,required TResult Function( BeatJumpPadRelease field0)  beatJumpPadRelease,required TResult Function( SamplerPadPress field0)  samplerPadPress,required TResult Function( SamplerPadRelease field0)  samplerPadRelease,required TResult Function( KeyboardPadPress field0)  keyboardPadPress,required TResult Function( KeyboardPadRelease field0)  keyboardPadRelease,required TResult Function( KeyShiftPadPress field0)  keyShiftPadPress,required TResult Function( KeyShiftPadRelease field0)  keyShiftPadRelease,required TResult Function( TriggerHotCue field0)  triggerHotCue,required TResult Function( SaveDeckHotCue field0)  saveDeckHotCue,required TResult Function( DeleteDeckHotCue field0)  deleteDeckHotCue,required TResult Function( AssignSampler field0)  assignSampler,required TResult Function( AssignSamplerTrack field0)  assignSamplerTrack,required TResult Function( ClearSampler field0)  clearSampler,required TResult Function( JogTouch field0)  jogTouch,required TResult Function( JogTurn field0)  jogTurn,required TResult Function( SetJogMode field0)  setJogMode,required TResult Function( SetCrossfader field0)  setCrossfader,required TResult Function( SetMasterVolume field0)  setMasterVolume,required TResult Function( SetCueVolume field0)  setCueVolume,required TResult Function( SetCueMix field0)  setCueMix,required TResult Function( SetMasterCue field0)  setMasterCue,required TResult Function( ToggleMasterCue field0)  toggleMasterCue,required TResult Function( SetFxUnitSlot field0)  setFxUnitSlot,required TResult Function( SetFxUnitSlotEnabled field0)  setFxUnitSlotEnabled,required TResult Function( SetFxUnitWet field0)  setFxUnitWet,required TResult Function( SetFxUnitParam field0)  setFxUnitParam,required TResult Function( SetDeckFxRouted field0)  setDeckFxRouted,required TResult Function( DeckUpdated field0)  deckUpdated,required TResult Function( DeckPosition field0)  deckPosition,required TResult Function( DeckLevels field0)  deckLevels,required TResult Function( EngineSnapshot field0)  engineSnapshot,required TResult Function( Error field0)  error,required TResult Function( Notice field0)  notice,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( Play field0)  play,required TResult Function( Pause field0)  pause,required TResult Function( TogglePlay field0)  togglePlay,required TResult Function( Seek field0)  seek,required TResult Function( Unload field0)  unload,required TResult Function( SetVolume field0)  setVolume,required TResult Function( SetEq field0)  setEq,required TResult Function( SetEqBand field0)  setEqBand,required TResult Function( SetFilter field0)  setFilter,required TResult Function( SetGainTrim field0)  setGainTrim,required TResult Function( SetHeadphoneCue field0)  setHeadphoneCue,required TResult Function( ToggleHeadphoneCue field0)  toggleHeadphoneCue,required TResult Function( SetCrossfaderAssign field0)  setCrossfaderAssign,required TResult Function( SetSpeed field0)  setSpeed,required TResult Function( SetTempoRange field0)  setTempoRange,required TResult Function( SetKeyLock field0)  setKeyLock,required TResult Function( SetKeyShift field0)  setKeyShift,required TResult Function( SetKeyboardRoot field0)  setKeyboardRoot,required TResult Function( SetKeyboardPage field0)  setKeyboardPage,required TResult Function( SetKeyShiftPage field0)  setKeyShiftPage,required TResult Function( ToggleSync field0)  toggleSync,required TResult Function( SetMasterDeck field0)  setMasterDeck,required TResult Function( SetCuePoint field0)  setCuePoint,required TResult Function( BeginCueHold field0)  beginCueHold,required TResult Function( EndCueHold field0)  endCueHold,required TResult Function( SetQuantize field0)  setQuantize,required TResult Function( ToggleQuantize field0)  toggleQuantize,required TResult Function( SetSlip field0)  setSlip,required TResult Function( ToggleSlip field0)  toggleSlip,required TResult Function( SetAutoLoop field0)  setAutoLoop,required TResult Function( LoopIn field0)  loopIn,required TResult Function( LoopOut field0)  loopOut,required TResult Function( ExitLoop field0)  exitLoop,required TResult Function( RecallSavedLoop field0)  recallSavedLoop,required TResult Function( BeginLoopRoll field0)  beginLoopRoll,required TResult Function( EndLoopRoll field0)  endLoopRoll,required TResult Function( BeatJump field0)  beatJump,required TResult Function( SetPadMode field0)  setPadMode,required TResult Function( PadPress field0)  padPress,required TResult Function( PadRelease field0)  padRelease,required TResult Function( HotCuePadPress field0)  hotCuePadPress,required TResult Function( HotCuePadRelease field0)  hotCuePadRelease,required TResult Function( LoopRollPadPress field0)  loopRollPadPress,required TResult Function( LoopRollPadRelease field0)  loopRollPadRelease,required TResult Function( BeatJumpPadPress field0)  beatJumpPadPress,required TResult Function( BeatJumpPadRelease field0)  beatJumpPadRelease,required TResult Function( SamplerPadPress field0)  samplerPadPress,required TResult Function( SamplerPadRelease field0)  samplerPadRelease,required TResult Function( KeyboardPadPress field0)  keyboardPadPress,required TResult Function( KeyboardPadRelease field0)  keyboardPadRelease,required TResult Function( KeyShiftPadPress field0)  keyShiftPadPress,required TResult Function( KeyShiftPadRelease field0)  keyShiftPadRelease,required TResult Function( TriggerHotCue field0)  triggerHotCue,required TResult Function( SaveDeckHotCue field0)  saveDeckHotCue,required TResult Function( DeleteDeckHotCue field0)  deleteDeckHotCue,required TResult Function( AssignSampler field0)  assignSampler,required TResult Function( AssignSamplerTrack field0)  assignSamplerTrack,required TResult Function( ClearSampler field0)  clearSampler,required TResult Function( JogTouch field0)  jogTouch,required TResult Function( JogTurn field0)  jogTurn,required TResult Function( SetJogMode field0)  setJogMode,required TResult Function( SetCrossfader field0)  setCrossfader,required TResult Function( SetMasterVolume field0)  setMasterVolume,required TResult Function( SetCueVolume field0)  setCueVolume,required TResult Function( SetCueMix field0)  setCueMix,required TResult Function( SetMasterCue field0)  setMasterCue,required TResult Function( ToggleMasterCue field0)  toggleMasterCue,required TResult Function( SetFxUnitSlot field0)  setFxUnitSlot,required TResult Function( SetFxUnitSlotEnabled field0)  setFxUnitSlotEnabled,required TResult Function( SetFxUnitWet field0)  setFxUnitWet,required TResult Function( SetFxUnitParam field0)  setFxUnitParam,required TResult Function( SetDeckFxRouted field0)  setDeckFxRouted,required TResult Function( DeckUpdated field0)  deckUpdated,required TResult Function( DeckPosition field0)  deckPosition,required TResult Function( DeckLevels field0)  deckLevels,required TResult Function( EngineSnapshot field0)  engineSnapshot,required TResult Function( Error field0)  error,required TResult Function( Notice field0)  notice,required TResult Function( AnalyzeTrack field0)  analyzeTrack,required TResult Function( GenerateStems field0)  generateStems,required TResult Function( RefreshTrack field0)  refreshTrack,required TResult Function( SaveBeatGrid field0)  saveBeatGrid,required TResult Function( SaveTrackHotCue field0)  saveTrackHotCue,required TResult Function( DeleteTrackHotCue field0)  deleteTrackHotCue,required TResult Function( SaveTrackLoop field0)  saveTrackLoop,required TResult Function( DeleteTrackLoop field0)  deleteTrackLoop,required TResult Function( TrackAnalyzed field0)  trackAnalyzed,required TResult Function( TrackUpdated field0)  trackUpdated,required TResult Function( TrackProgress field0)  trackProgress,required TResult Function( HotCuesChanged field0)  hotCuesChanged,required TResult Function( LoopsChanged field0)  loopsChanged,required TResult Function( BeatGridChanged field0)  beatGridChanged,required TResult Function( HistorySessionUpdated field0)  historySessionUpdated,required TResult Function( Navigate field0)  navigate,required TResult Function( Focus field0)  focus,required TResult Function( Load field0)  load,}) {final _that = this;
 switch (_that) {
 case Event_Play():
 return play(_that.field0);case Event_Pause():
@@ -531,7 +603,25 @@ return deckPosition(_that.field0);case Event_DeckLevels():
 return deckLevels(_that.field0);case Event_EngineSnapshot():
 return engineSnapshot(_that.field0);case Event_Error():
 return error(_that.field0);case Event_Notice():
-return notice(_that.field0);}
+return notice(_that.field0);case Event_AnalyzeTrack():
+return analyzeTrack(_that.field0);case Event_GenerateStems():
+return generateStems(_that.field0);case Event_RefreshTrack():
+return refreshTrack(_that.field0);case Event_SaveBeatGrid():
+return saveBeatGrid(_that.field0);case Event_SaveTrackHotCue():
+return saveTrackHotCue(_that.field0);case Event_DeleteTrackHotCue():
+return deleteTrackHotCue(_that.field0);case Event_SaveTrackLoop():
+return saveTrackLoop(_that.field0);case Event_DeleteTrackLoop():
+return deleteTrackLoop(_that.field0);case Event_TrackAnalyzed():
+return trackAnalyzed(_that.field0);case Event_TrackUpdated():
+return trackUpdated(_that.field0);case Event_TrackProgress():
+return trackProgress(_that.field0);case Event_HotCuesChanged():
+return hotCuesChanged(_that.field0);case Event_LoopsChanged():
+return loopsChanged(_that.field0);case Event_BeatGridChanged():
+return beatGridChanged(_that.field0);case Event_HistorySessionUpdated():
+return historySessionUpdated(_that.field0);case Event_Navigate():
+return navigate(_that.field0);case Event_Focus():
+return focus(_that.field0);case Event_Load():
+return load(_that.field0);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -545,7 +635,7 @@ return notice(_that.field0);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( Play field0)?  play,TResult? Function( Pause field0)?  pause,TResult? Function( TogglePlay field0)?  togglePlay,TResult? Function( Seek field0)?  seek,TResult? Function( Unload field0)?  unload,TResult? Function( SetVolume field0)?  setVolume,TResult? Function( SetEq field0)?  setEq,TResult? Function( SetEqBand field0)?  setEqBand,TResult? Function( SetFilter field0)?  setFilter,TResult? Function( SetGainTrim field0)?  setGainTrim,TResult? Function( SetHeadphoneCue field0)?  setHeadphoneCue,TResult? Function( ToggleHeadphoneCue field0)?  toggleHeadphoneCue,TResult? Function( SetCrossfaderAssign field0)?  setCrossfaderAssign,TResult? Function( SetSpeed field0)?  setSpeed,TResult? Function( SetTempoRange field0)?  setTempoRange,TResult? Function( SetKeyLock field0)?  setKeyLock,TResult? Function( SetKeyShift field0)?  setKeyShift,TResult? Function( SetKeyboardRoot field0)?  setKeyboardRoot,TResult? Function( SetKeyboardPage field0)?  setKeyboardPage,TResult? Function( SetKeyShiftPage field0)?  setKeyShiftPage,TResult? Function( ToggleSync field0)?  toggleSync,TResult? Function( SetMasterDeck field0)?  setMasterDeck,TResult? Function( SetCuePoint field0)?  setCuePoint,TResult? Function( BeginCueHold field0)?  beginCueHold,TResult? Function( EndCueHold field0)?  endCueHold,TResult? Function( SetQuantize field0)?  setQuantize,TResult? Function( ToggleQuantize field0)?  toggleQuantize,TResult? Function( SetSlip field0)?  setSlip,TResult? Function( ToggleSlip field0)?  toggleSlip,TResult? Function( SetAutoLoop field0)?  setAutoLoop,TResult? Function( LoopIn field0)?  loopIn,TResult? Function( LoopOut field0)?  loopOut,TResult? Function( ExitLoop field0)?  exitLoop,TResult? Function( RecallSavedLoop field0)?  recallSavedLoop,TResult? Function( BeginLoopRoll field0)?  beginLoopRoll,TResult? Function( EndLoopRoll field0)?  endLoopRoll,TResult? Function( BeatJump field0)?  beatJump,TResult? Function( SetPadMode field0)?  setPadMode,TResult? Function( PadPress field0)?  padPress,TResult? Function( PadRelease field0)?  padRelease,TResult? Function( HotCuePadPress field0)?  hotCuePadPress,TResult? Function( HotCuePadRelease field0)?  hotCuePadRelease,TResult? Function( LoopRollPadPress field0)?  loopRollPadPress,TResult? Function( LoopRollPadRelease field0)?  loopRollPadRelease,TResult? Function( BeatJumpPadPress field0)?  beatJumpPadPress,TResult? Function( BeatJumpPadRelease field0)?  beatJumpPadRelease,TResult? Function( SamplerPadPress field0)?  samplerPadPress,TResult? Function( SamplerPadRelease field0)?  samplerPadRelease,TResult? Function( KeyboardPadPress field0)?  keyboardPadPress,TResult? Function( KeyboardPadRelease field0)?  keyboardPadRelease,TResult? Function( KeyShiftPadPress field0)?  keyShiftPadPress,TResult? Function( KeyShiftPadRelease field0)?  keyShiftPadRelease,TResult? Function( TriggerHotCue field0)?  triggerHotCue,TResult? Function( SaveDeckHotCue field0)?  saveDeckHotCue,TResult? Function( DeleteDeckHotCue field0)?  deleteDeckHotCue,TResult? Function( AssignSampler field0)?  assignSampler,TResult? Function( AssignSamplerTrack field0)?  assignSamplerTrack,TResult? Function( ClearSampler field0)?  clearSampler,TResult? Function( JogTouch field0)?  jogTouch,TResult? Function( JogTurn field0)?  jogTurn,TResult? Function( SetJogMode field0)?  setJogMode,TResult? Function( SetCrossfader field0)?  setCrossfader,TResult? Function( SetMasterVolume field0)?  setMasterVolume,TResult? Function( SetCueVolume field0)?  setCueVolume,TResult? Function( SetCueMix field0)?  setCueMix,TResult? Function( SetMasterCue field0)?  setMasterCue,TResult? Function( ToggleMasterCue field0)?  toggleMasterCue,TResult? Function( SetFxUnitSlot field0)?  setFxUnitSlot,TResult? Function( SetFxUnitSlotEnabled field0)?  setFxUnitSlotEnabled,TResult? Function( SetFxUnitWet field0)?  setFxUnitWet,TResult? Function( SetFxUnitParam field0)?  setFxUnitParam,TResult? Function( SetDeckFxRouted field0)?  setDeckFxRouted,TResult? Function( DeckUpdated field0)?  deckUpdated,TResult? Function( DeckPosition field0)?  deckPosition,TResult? Function( DeckLevels field0)?  deckLevels,TResult? Function( EngineSnapshot field0)?  engineSnapshot,TResult? Function( Error field0)?  error,TResult? Function( Notice field0)?  notice,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( Play field0)?  play,TResult? Function( Pause field0)?  pause,TResult? Function( TogglePlay field0)?  togglePlay,TResult? Function( Seek field0)?  seek,TResult? Function( Unload field0)?  unload,TResult? Function( SetVolume field0)?  setVolume,TResult? Function( SetEq field0)?  setEq,TResult? Function( SetEqBand field0)?  setEqBand,TResult? Function( SetFilter field0)?  setFilter,TResult? Function( SetGainTrim field0)?  setGainTrim,TResult? Function( SetHeadphoneCue field0)?  setHeadphoneCue,TResult? Function( ToggleHeadphoneCue field0)?  toggleHeadphoneCue,TResult? Function( SetCrossfaderAssign field0)?  setCrossfaderAssign,TResult? Function( SetSpeed field0)?  setSpeed,TResult? Function( SetTempoRange field0)?  setTempoRange,TResult? Function( SetKeyLock field0)?  setKeyLock,TResult? Function( SetKeyShift field0)?  setKeyShift,TResult? Function( SetKeyboardRoot field0)?  setKeyboardRoot,TResult? Function( SetKeyboardPage field0)?  setKeyboardPage,TResult? Function( SetKeyShiftPage field0)?  setKeyShiftPage,TResult? Function( ToggleSync field0)?  toggleSync,TResult? Function( SetMasterDeck field0)?  setMasterDeck,TResult? Function( SetCuePoint field0)?  setCuePoint,TResult? Function( BeginCueHold field0)?  beginCueHold,TResult? Function( EndCueHold field0)?  endCueHold,TResult? Function( SetQuantize field0)?  setQuantize,TResult? Function( ToggleQuantize field0)?  toggleQuantize,TResult? Function( SetSlip field0)?  setSlip,TResult? Function( ToggleSlip field0)?  toggleSlip,TResult? Function( SetAutoLoop field0)?  setAutoLoop,TResult? Function( LoopIn field0)?  loopIn,TResult? Function( LoopOut field0)?  loopOut,TResult? Function( ExitLoop field0)?  exitLoop,TResult? Function( RecallSavedLoop field0)?  recallSavedLoop,TResult? Function( BeginLoopRoll field0)?  beginLoopRoll,TResult? Function( EndLoopRoll field0)?  endLoopRoll,TResult? Function( BeatJump field0)?  beatJump,TResult? Function( SetPadMode field0)?  setPadMode,TResult? Function( PadPress field0)?  padPress,TResult? Function( PadRelease field0)?  padRelease,TResult? Function( HotCuePadPress field0)?  hotCuePadPress,TResult? Function( HotCuePadRelease field0)?  hotCuePadRelease,TResult? Function( LoopRollPadPress field0)?  loopRollPadPress,TResult? Function( LoopRollPadRelease field0)?  loopRollPadRelease,TResult? Function( BeatJumpPadPress field0)?  beatJumpPadPress,TResult? Function( BeatJumpPadRelease field0)?  beatJumpPadRelease,TResult? Function( SamplerPadPress field0)?  samplerPadPress,TResult? Function( SamplerPadRelease field0)?  samplerPadRelease,TResult? Function( KeyboardPadPress field0)?  keyboardPadPress,TResult? Function( KeyboardPadRelease field0)?  keyboardPadRelease,TResult? Function( KeyShiftPadPress field0)?  keyShiftPadPress,TResult? Function( KeyShiftPadRelease field0)?  keyShiftPadRelease,TResult? Function( TriggerHotCue field0)?  triggerHotCue,TResult? Function( SaveDeckHotCue field0)?  saveDeckHotCue,TResult? Function( DeleteDeckHotCue field0)?  deleteDeckHotCue,TResult? Function( AssignSampler field0)?  assignSampler,TResult? Function( AssignSamplerTrack field0)?  assignSamplerTrack,TResult? Function( ClearSampler field0)?  clearSampler,TResult? Function( JogTouch field0)?  jogTouch,TResult? Function( JogTurn field0)?  jogTurn,TResult? Function( SetJogMode field0)?  setJogMode,TResult? Function( SetCrossfader field0)?  setCrossfader,TResult? Function( SetMasterVolume field0)?  setMasterVolume,TResult? Function( SetCueVolume field0)?  setCueVolume,TResult? Function( SetCueMix field0)?  setCueMix,TResult? Function( SetMasterCue field0)?  setMasterCue,TResult? Function( ToggleMasterCue field0)?  toggleMasterCue,TResult? Function( SetFxUnitSlot field0)?  setFxUnitSlot,TResult? Function( SetFxUnitSlotEnabled field0)?  setFxUnitSlotEnabled,TResult? Function( SetFxUnitWet field0)?  setFxUnitWet,TResult? Function( SetFxUnitParam field0)?  setFxUnitParam,TResult? Function( SetDeckFxRouted field0)?  setDeckFxRouted,TResult? Function( DeckUpdated field0)?  deckUpdated,TResult? Function( DeckPosition field0)?  deckPosition,TResult? Function( DeckLevels field0)?  deckLevels,TResult? Function( EngineSnapshot field0)?  engineSnapshot,TResult? Function( Error field0)?  error,TResult? Function( Notice field0)?  notice,TResult? Function( AnalyzeTrack field0)?  analyzeTrack,TResult? Function( GenerateStems field0)?  generateStems,TResult? Function( RefreshTrack field0)?  refreshTrack,TResult? Function( SaveBeatGrid field0)?  saveBeatGrid,TResult? Function( SaveTrackHotCue field0)?  saveTrackHotCue,TResult? Function( DeleteTrackHotCue field0)?  deleteTrackHotCue,TResult? Function( SaveTrackLoop field0)?  saveTrackLoop,TResult? Function( DeleteTrackLoop field0)?  deleteTrackLoop,TResult? Function( TrackAnalyzed field0)?  trackAnalyzed,TResult? Function( TrackUpdated field0)?  trackUpdated,TResult? Function( TrackProgress field0)?  trackProgress,TResult? Function( HotCuesChanged field0)?  hotCuesChanged,TResult? Function( LoopsChanged field0)?  loopsChanged,TResult? Function( BeatGridChanged field0)?  beatGridChanged,TResult? Function( HistorySessionUpdated field0)?  historySessionUpdated,TResult? Function( Navigate field0)?  navigate,TResult? Function( Focus field0)?  focus,TResult? Function( Load field0)?  load,}) {final _that = this;
 switch (_that) {
 case Event_Play() when play != null:
 return play(_that.field0);case Event_Pause() when pause != null:
@@ -625,7 +715,25 @@ return deckPosition(_that.field0);case Event_DeckLevels() when deckLevels != nul
 return deckLevels(_that.field0);case Event_EngineSnapshot() when engineSnapshot != null:
 return engineSnapshot(_that.field0);case Event_Error() when error != null:
 return error(_that.field0);case Event_Notice() when notice != null:
-return notice(_that.field0);case _:
+return notice(_that.field0);case Event_AnalyzeTrack() when analyzeTrack != null:
+return analyzeTrack(_that.field0);case Event_GenerateStems() when generateStems != null:
+return generateStems(_that.field0);case Event_RefreshTrack() when refreshTrack != null:
+return refreshTrack(_that.field0);case Event_SaveBeatGrid() when saveBeatGrid != null:
+return saveBeatGrid(_that.field0);case Event_SaveTrackHotCue() when saveTrackHotCue != null:
+return saveTrackHotCue(_that.field0);case Event_DeleteTrackHotCue() when deleteTrackHotCue != null:
+return deleteTrackHotCue(_that.field0);case Event_SaveTrackLoop() when saveTrackLoop != null:
+return saveTrackLoop(_that.field0);case Event_DeleteTrackLoop() when deleteTrackLoop != null:
+return deleteTrackLoop(_that.field0);case Event_TrackAnalyzed() when trackAnalyzed != null:
+return trackAnalyzed(_that.field0);case Event_TrackUpdated() when trackUpdated != null:
+return trackUpdated(_that.field0);case Event_TrackProgress() when trackProgress != null:
+return trackProgress(_that.field0);case Event_HotCuesChanged() when hotCuesChanged != null:
+return hotCuesChanged(_that.field0);case Event_LoopsChanged() when loopsChanged != null:
+return loopsChanged(_that.field0);case Event_BeatGridChanged() when beatGridChanged != null:
+return beatGridChanged(_that.field0);case Event_HistorySessionUpdated() when historySessionUpdated != null:
+return historySessionUpdated(_that.field0);case Event_Navigate() when navigate != null:
+return navigate(_that.field0);case Event_Focus() when focus != null:
+return focus(_that.field0);case Event_Load() when load != null:
+return load(_that.field0);case _:
   return null;
 
 }
@@ -5931,6 +6039,1230 @@ class _$Event_NoticeCopyWithImpl<$Res>
   return _then(Event_Notice(
 null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
 as Notice,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_AnalyzeTrack extends Event {
+  const Event_AnalyzeTrack(this.field0): super._();
+  
+
+@override final  AnalyzeTrack field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_AnalyzeTrackCopyWith<Event_AnalyzeTrack> get copyWith => _$Event_AnalyzeTrackCopyWithImpl<Event_AnalyzeTrack>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_AnalyzeTrack&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.analyzeTrack(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_AnalyzeTrackCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_AnalyzeTrackCopyWith(Event_AnalyzeTrack value, $Res Function(Event_AnalyzeTrack) _then) = _$Event_AnalyzeTrackCopyWithImpl;
+@useResult
+$Res call({
+ AnalyzeTrack field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_AnalyzeTrackCopyWithImpl<$Res>
+    implements $Event_AnalyzeTrackCopyWith<$Res> {
+  _$Event_AnalyzeTrackCopyWithImpl(this._self, this._then);
+
+  final Event_AnalyzeTrack _self;
+  final $Res Function(Event_AnalyzeTrack) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_AnalyzeTrack(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as AnalyzeTrack,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_GenerateStems extends Event {
+  const Event_GenerateStems(this.field0): super._();
+  
+
+@override final  GenerateStems field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_GenerateStemsCopyWith<Event_GenerateStems> get copyWith => _$Event_GenerateStemsCopyWithImpl<Event_GenerateStems>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_GenerateStems&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.generateStems(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_GenerateStemsCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_GenerateStemsCopyWith(Event_GenerateStems value, $Res Function(Event_GenerateStems) _then) = _$Event_GenerateStemsCopyWithImpl;
+@useResult
+$Res call({
+ GenerateStems field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_GenerateStemsCopyWithImpl<$Res>
+    implements $Event_GenerateStemsCopyWith<$Res> {
+  _$Event_GenerateStemsCopyWithImpl(this._self, this._then);
+
+  final Event_GenerateStems _self;
+  final $Res Function(Event_GenerateStems) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_GenerateStems(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as GenerateStems,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_RefreshTrack extends Event {
+  const Event_RefreshTrack(this.field0): super._();
+  
+
+@override final  RefreshTrack field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_RefreshTrackCopyWith<Event_RefreshTrack> get copyWith => _$Event_RefreshTrackCopyWithImpl<Event_RefreshTrack>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_RefreshTrack&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.refreshTrack(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_RefreshTrackCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_RefreshTrackCopyWith(Event_RefreshTrack value, $Res Function(Event_RefreshTrack) _then) = _$Event_RefreshTrackCopyWithImpl;
+@useResult
+$Res call({
+ RefreshTrack field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_RefreshTrackCopyWithImpl<$Res>
+    implements $Event_RefreshTrackCopyWith<$Res> {
+  _$Event_RefreshTrackCopyWithImpl(this._self, this._then);
+
+  final Event_RefreshTrack _self;
+  final $Res Function(Event_RefreshTrack) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_RefreshTrack(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as RefreshTrack,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_SaveBeatGrid extends Event {
+  const Event_SaveBeatGrid(this.field0): super._();
+  
+
+@override final  SaveBeatGrid field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_SaveBeatGridCopyWith<Event_SaveBeatGrid> get copyWith => _$Event_SaveBeatGridCopyWithImpl<Event_SaveBeatGrid>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_SaveBeatGrid&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.saveBeatGrid(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_SaveBeatGridCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_SaveBeatGridCopyWith(Event_SaveBeatGrid value, $Res Function(Event_SaveBeatGrid) _then) = _$Event_SaveBeatGridCopyWithImpl;
+@useResult
+$Res call({
+ SaveBeatGrid field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_SaveBeatGridCopyWithImpl<$Res>
+    implements $Event_SaveBeatGridCopyWith<$Res> {
+  _$Event_SaveBeatGridCopyWithImpl(this._self, this._then);
+
+  final Event_SaveBeatGrid _self;
+  final $Res Function(Event_SaveBeatGrid) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_SaveBeatGrid(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as SaveBeatGrid,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_SaveTrackHotCue extends Event {
+  const Event_SaveTrackHotCue(this.field0): super._();
+  
+
+@override final  SaveTrackHotCue field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_SaveTrackHotCueCopyWith<Event_SaveTrackHotCue> get copyWith => _$Event_SaveTrackHotCueCopyWithImpl<Event_SaveTrackHotCue>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_SaveTrackHotCue&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.saveTrackHotCue(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_SaveTrackHotCueCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_SaveTrackHotCueCopyWith(Event_SaveTrackHotCue value, $Res Function(Event_SaveTrackHotCue) _then) = _$Event_SaveTrackHotCueCopyWithImpl;
+@useResult
+$Res call({
+ SaveTrackHotCue field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_SaveTrackHotCueCopyWithImpl<$Res>
+    implements $Event_SaveTrackHotCueCopyWith<$Res> {
+  _$Event_SaveTrackHotCueCopyWithImpl(this._self, this._then);
+
+  final Event_SaveTrackHotCue _self;
+  final $Res Function(Event_SaveTrackHotCue) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_SaveTrackHotCue(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as SaveTrackHotCue,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_DeleteTrackHotCue extends Event {
+  const Event_DeleteTrackHotCue(this.field0): super._();
+  
+
+@override final  DeleteTrackHotCue field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_DeleteTrackHotCueCopyWith<Event_DeleteTrackHotCue> get copyWith => _$Event_DeleteTrackHotCueCopyWithImpl<Event_DeleteTrackHotCue>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_DeleteTrackHotCue&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.deleteTrackHotCue(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_DeleteTrackHotCueCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_DeleteTrackHotCueCopyWith(Event_DeleteTrackHotCue value, $Res Function(Event_DeleteTrackHotCue) _then) = _$Event_DeleteTrackHotCueCopyWithImpl;
+@useResult
+$Res call({
+ DeleteTrackHotCue field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_DeleteTrackHotCueCopyWithImpl<$Res>
+    implements $Event_DeleteTrackHotCueCopyWith<$Res> {
+  _$Event_DeleteTrackHotCueCopyWithImpl(this._self, this._then);
+
+  final Event_DeleteTrackHotCue _self;
+  final $Res Function(Event_DeleteTrackHotCue) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_DeleteTrackHotCue(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as DeleteTrackHotCue,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_SaveTrackLoop extends Event {
+  const Event_SaveTrackLoop(this.field0): super._();
+  
+
+@override final  SaveTrackLoop field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_SaveTrackLoopCopyWith<Event_SaveTrackLoop> get copyWith => _$Event_SaveTrackLoopCopyWithImpl<Event_SaveTrackLoop>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_SaveTrackLoop&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.saveTrackLoop(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_SaveTrackLoopCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_SaveTrackLoopCopyWith(Event_SaveTrackLoop value, $Res Function(Event_SaveTrackLoop) _then) = _$Event_SaveTrackLoopCopyWithImpl;
+@useResult
+$Res call({
+ SaveTrackLoop field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_SaveTrackLoopCopyWithImpl<$Res>
+    implements $Event_SaveTrackLoopCopyWith<$Res> {
+  _$Event_SaveTrackLoopCopyWithImpl(this._self, this._then);
+
+  final Event_SaveTrackLoop _self;
+  final $Res Function(Event_SaveTrackLoop) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_SaveTrackLoop(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as SaveTrackLoop,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_DeleteTrackLoop extends Event {
+  const Event_DeleteTrackLoop(this.field0): super._();
+  
+
+@override final  DeleteTrackLoop field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_DeleteTrackLoopCopyWith<Event_DeleteTrackLoop> get copyWith => _$Event_DeleteTrackLoopCopyWithImpl<Event_DeleteTrackLoop>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_DeleteTrackLoop&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.deleteTrackLoop(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_DeleteTrackLoopCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_DeleteTrackLoopCopyWith(Event_DeleteTrackLoop value, $Res Function(Event_DeleteTrackLoop) _then) = _$Event_DeleteTrackLoopCopyWithImpl;
+@useResult
+$Res call({
+ DeleteTrackLoop field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_DeleteTrackLoopCopyWithImpl<$Res>
+    implements $Event_DeleteTrackLoopCopyWith<$Res> {
+  _$Event_DeleteTrackLoopCopyWithImpl(this._self, this._then);
+
+  final Event_DeleteTrackLoop _self;
+  final $Res Function(Event_DeleteTrackLoop) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_DeleteTrackLoop(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as DeleteTrackLoop,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_TrackAnalyzed extends Event {
+  const Event_TrackAnalyzed(this.field0): super._();
+  
+
+@override final  TrackAnalyzed field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_TrackAnalyzedCopyWith<Event_TrackAnalyzed> get copyWith => _$Event_TrackAnalyzedCopyWithImpl<Event_TrackAnalyzed>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_TrackAnalyzed&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.trackAnalyzed(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_TrackAnalyzedCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_TrackAnalyzedCopyWith(Event_TrackAnalyzed value, $Res Function(Event_TrackAnalyzed) _then) = _$Event_TrackAnalyzedCopyWithImpl;
+@useResult
+$Res call({
+ TrackAnalyzed field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_TrackAnalyzedCopyWithImpl<$Res>
+    implements $Event_TrackAnalyzedCopyWith<$Res> {
+  _$Event_TrackAnalyzedCopyWithImpl(this._self, this._then);
+
+  final Event_TrackAnalyzed _self;
+  final $Res Function(Event_TrackAnalyzed) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_TrackAnalyzed(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as TrackAnalyzed,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_TrackUpdated extends Event {
+  const Event_TrackUpdated(this.field0): super._();
+  
+
+@override final  TrackUpdated field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_TrackUpdatedCopyWith<Event_TrackUpdated> get copyWith => _$Event_TrackUpdatedCopyWithImpl<Event_TrackUpdated>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_TrackUpdated&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.trackUpdated(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_TrackUpdatedCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_TrackUpdatedCopyWith(Event_TrackUpdated value, $Res Function(Event_TrackUpdated) _then) = _$Event_TrackUpdatedCopyWithImpl;
+@useResult
+$Res call({
+ TrackUpdated field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_TrackUpdatedCopyWithImpl<$Res>
+    implements $Event_TrackUpdatedCopyWith<$Res> {
+  _$Event_TrackUpdatedCopyWithImpl(this._self, this._then);
+
+  final Event_TrackUpdated _self;
+  final $Res Function(Event_TrackUpdated) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_TrackUpdated(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as TrackUpdated,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_TrackProgress extends Event {
+  const Event_TrackProgress(this.field0): super._();
+  
+
+@override final  TrackProgress field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_TrackProgressCopyWith<Event_TrackProgress> get copyWith => _$Event_TrackProgressCopyWithImpl<Event_TrackProgress>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_TrackProgress&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.trackProgress(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_TrackProgressCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_TrackProgressCopyWith(Event_TrackProgress value, $Res Function(Event_TrackProgress) _then) = _$Event_TrackProgressCopyWithImpl;
+@useResult
+$Res call({
+ TrackProgress field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_TrackProgressCopyWithImpl<$Res>
+    implements $Event_TrackProgressCopyWith<$Res> {
+  _$Event_TrackProgressCopyWithImpl(this._self, this._then);
+
+  final Event_TrackProgress _self;
+  final $Res Function(Event_TrackProgress) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_TrackProgress(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as TrackProgress,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_HotCuesChanged extends Event {
+  const Event_HotCuesChanged(this.field0): super._();
+  
+
+@override final  HotCuesChanged field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_HotCuesChangedCopyWith<Event_HotCuesChanged> get copyWith => _$Event_HotCuesChangedCopyWithImpl<Event_HotCuesChanged>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_HotCuesChanged&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.hotCuesChanged(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_HotCuesChangedCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_HotCuesChangedCopyWith(Event_HotCuesChanged value, $Res Function(Event_HotCuesChanged) _then) = _$Event_HotCuesChangedCopyWithImpl;
+@useResult
+$Res call({
+ HotCuesChanged field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_HotCuesChangedCopyWithImpl<$Res>
+    implements $Event_HotCuesChangedCopyWith<$Res> {
+  _$Event_HotCuesChangedCopyWithImpl(this._self, this._then);
+
+  final Event_HotCuesChanged _self;
+  final $Res Function(Event_HotCuesChanged) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_HotCuesChanged(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as HotCuesChanged,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_LoopsChanged extends Event {
+  const Event_LoopsChanged(this.field0): super._();
+  
+
+@override final  LoopsChanged field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_LoopsChangedCopyWith<Event_LoopsChanged> get copyWith => _$Event_LoopsChangedCopyWithImpl<Event_LoopsChanged>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_LoopsChanged&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.loopsChanged(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_LoopsChangedCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_LoopsChangedCopyWith(Event_LoopsChanged value, $Res Function(Event_LoopsChanged) _then) = _$Event_LoopsChangedCopyWithImpl;
+@useResult
+$Res call({
+ LoopsChanged field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_LoopsChangedCopyWithImpl<$Res>
+    implements $Event_LoopsChangedCopyWith<$Res> {
+  _$Event_LoopsChangedCopyWithImpl(this._self, this._then);
+
+  final Event_LoopsChanged _self;
+  final $Res Function(Event_LoopsChanged) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_LoopsChanged(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as LoopsChanged,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_BeatGridChanged extends Event {
+  const Event_BeatGridChanged(this.field0): super._();
+  
+
+@override final  BeatGridChanged field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_BeatGridChangedCopyWith<Event_BeatGridChanged> get copyWith => _$Event_BeatGridChangedCopyWithImpl<Event_BeatGridChanged>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_BeatGridChanged&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.beatGridChanged(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_BeatGridChangedCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_BeatGridChangedCopyWith(Event_BeatGridChanged value, $Res Function(Event_BeatGridChanged) _then) = _$Event_BeatGridChangedCopyWithImpl;
+@useResult
+$Res call({
+ BeatGridChanged field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_BeatGridChangedCopyWithImpl<$Res>
+    implements $Event_BeatGridChangedCopyWith<$Res> {
+  _$Event_BeatGridChangedCopyWithImpl(this._self, this._then);
+
+  final Event_BeatGridChanged _self;
+  final $Res Function(Event_BeatGridChanged) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_BeatGridChanged(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as BeatGridChanged,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_HistorySessionUpdated extends Event {
+  const Event_HistorySessionUpdated(this.field0): super._();
+  
+
+@override final  HistorySessionUpdated field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_HistorySessionUpdatedCopyWith<Event_HistorySessionUpdated> get copyWith => _$Event_HistorySessionUpdatedCopyWithImpl<Event_HistorySessionUpdated>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_HistorySessionUpdated&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.historySessionUpdated(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_HistorySessionUpdatedCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_HistorySessionUpdatedCopyWith(Event_HistorySessionUpdated value, $Res Function(Event_HistorySessionUpdated) _then) = _$Event_HistorySessionUpdatedCopyWithImpl;
+@useResult
+$Res call({
+ HistorySessionUpdated field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_HistorySessionUpdatedCopyWithImpl<$Res>
+    implements $Event_HistorySessionUpdatedCopyWith<$Res> {
+  _$Event_HistorySessionUpdatedCopyWithImpl(this._self, this._then);
+
+  final Event_HistorySessionUpdated _self;
+  final $Res Function(Event_HistorySessionUpdated) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_HistorySessionUpdated(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as HistorySessionUpdated,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_Navigate extends Event {
+  const Event_Navigate(this.field0): super._();
+  
+
+@override final  Navigate field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_NavigateCopyWith<Event_Navigate> get copyWith => _$Event_NavigateCopyWithImpl<Event_Navigate>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_Navigate&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.navigate(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_NavigateCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_NavigateCopyWith(Event_Navigate value, $Res Function(Event_Navigate) _then) = _$Event_NavigateCopyWithImpl;
+@useResult
+$Res call({
+ Navigate field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_NavigateCopyWithImpl<$Res>
+    implements $Event_NavigateCopyWith<$Res> {
+  _$Event_NavigateCopyWithImpl(this._self, this._then);
+
+  final Event_Navigate _self;
+  final $Res Function(Event_Navigate) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_Navigate(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as Navigate,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_Focus extends Event {
+  const Event_Focus(this.field0): super._();
+  
+
+@override final  Focus field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_FocusCopyWith<Event_Focus> get copyWith => _$Event_FocusCopyWithImpl<Event_Focus>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_Focus&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.focus(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_FocusCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_FocusCopyWith(Event_Focus value, $Res Function(Event_Focus) _then) = _$Event_FocusCopyWithImpl;
+@useResult
+$Res call({
+ Focus field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_FocusCopyWithImpl<$Res>
+    implements $Event_FocusCopyWith<$Res> {
+  _$Event_FocusCopyWithImpl(this._self, this._then);
+
+  final Event_Focus _self;
+  final $Res Function(Event_Focus) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_Focus(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as Focus,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class Event_Load extends Event {
+  const Event_Load(this.field0): super._();
+  
+
+@override final  Load field0;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$Event_LoadCopyWith<Event_Load> get copyWith => _$Event_LoadCopyWithImpl<Event_Load>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is Event_Load&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,field0);
+}
+
+@override
+String toString() {
+    return 'Event.load(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $Event_LoadCopyWith<$Res> implements $EventCopyWith<$Res> {
+  factory $Event_LoadCopyWith(Event_Load value, $Res Function(Event_Load) _then) = _$Event_LoadCopyWithImpl;
+@useResult
+$Res call({
+ Load field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$Event_LoadCopyWithImpl<$Res>
+    implements $Event_LoadCopyWith<$Res> {
+  _$Event_LoadCopyWithImpl(this._self, this._then);
+
+  final Event_Load _self;
+  final $Res Function(Event_Load) _then;
+
+/// Create a copy of Event
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(Event_Load(
+null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as Load,
   ));
 }
 

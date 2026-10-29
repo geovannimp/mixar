@@ -3,7 +3,7 @@
 use crate::engine::Engine;
 use crate::pads::{DEFAULT_PITCH_PAGE, HOT_CUE_SLOT_COUNT};
 use anyhow::{Context, Result};
-use engine_api::{LoopRegion, PadMode, SyncMode};
+use bus_api::{LoopRegion, PadMode, SyncMode};
 use engine_dsp::KEY_SHIFT_SEMITONE_LIMIT;
 use library_core::TrackId;
 

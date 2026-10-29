@@ -48,7 +48,7 @@ The pre-fader tap is captured **after** EQ, filter and FX, which is why headphon
 | `crates/engine-dsp/src/mixer_channel.rs` | The strip: gain, EQ, filter, FX, meter/PFL capture, fader |
 | `crates/engine-dsp/src/fx/` | FX chain, echo, reverb; see [FX chain](/docs/developers/mixer/fx-chain) |
 | `crates/engine-dsp/src/mixer.rs` | Lane rendering, crossfade sum, bus routing, master peaks, FX tempo |
-| `crates/engine-api/src/payload.rs` | `DeckSnapshot` / `DeckUpdated` fields, `CmdBody` variants |
+| `crates/bus-api/src/payload.rs` | `DeckSnapshot` / `DeckUpdated` fields, `CmdBody` variants |
 | `crates/engine-core/src/control.rs` | Command decode + dispatch, mixer vs deck origin |
 | `crates/engine-core/src/status.rs` | DSP state → wire snapshot mapping |
 | `crates/host-flutter/src/api/engine.rs` | FRB transport methods and event mirrors |

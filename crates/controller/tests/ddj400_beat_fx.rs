@@ -7,15 +7,15 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
+use bus_api::Event;
+use bus_api::FxKind;
+use bus_api::FxSlotState;
+use bus_api::SetDeckFxRouted;
+use bus_api::SetFxUnitParam;
+use bus_api::SetFxUnitSlot;
+use bus_api::SetFxUnitSlotEnabled;
+use bus_api::SetFxUnitWet;
 use controller::{load_bundle, ActionPublish, MappingSession, MidiOut};
-use engine_api::Event;
-use engine_api::FxKind;
-use engine_api::FxSlotState;
-use engine_api::SetDeckFxRouted;
-use engine_api::SetFxUnitParam;
-use engine_api::SetFxUnitSlot;
-use engine_api::SetFxUnitSlotEnabled;
-use engine_api::SetFxUnitWet;
 
 /// Beat FX section status bytes: note-on, note-off, CC (channel 5).
 const BEATFX: u8 = 0x94;
@@ -43,16 +43,10 @@ struct CaptureBus {
 }
 
 impl ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, event: Event) {
+    fn publish_cmd(&mut self, event: Event) {
         self.cmds.push(event);
     }
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_evt(&mut self, _event: Event) {}
 }
 
 struct CaptureMidi {

@@ -3,40 +3,39 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use engine_api::key_shift_page_action;
-use engine_api::keyboard_page_action;
-use engine_api::BeginCueHold;
-use engine_api::EndCueHold;
-use engine_api::Event;
-use engine_api::ExitLoop;
-use engine_api::FxSlotState;
-use engine_api::HotCuePadPress;
-use engine_api::LoopIn;
-use engine_api::LoopOut;
-use engine_api::PadMode;
-use engine_api::Pause;
-use engine_api::PitchPadAction;
-use engine_api::Play;
-use engine_api::SetFxUnitParam;
-use engine_api::SetFxUnitSlot;
-use engine_api::SetFxUnitSlotEnabled;
-use engine_api::SetFxUnitWet;
-use engine_api::SetHeadphoneCue;
-use engine_api::SetKeyShift;
-use engine_api::SetKeyShiftPage;
-use engine_api::SetKeyboardPage;
-use engine_api::SetKeyboardRoot;
-use engine_api::SetMasterCue;
-use engine_api::SetPadMode;
-use engine_api::SetTempoRange;
-use engine_api::ToggleHeadphoneCue;
-use engine_api::ToggleMasterCue;
-use engine_api::ToggleQuantize;
-use engine_api::ToggleSync;
-use engine_api::TriggerHotCue;
-use engine_api::KEYBOARD_PAGE_COUNT;
-use engine_api::KEY_SHIFT_PAGE_COUNT;
-use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
+use bus_api::key_shift_page_action;
+use bus_api::keyboard_page_action;
+use bus_api::BeginCueHold;
+use bus_api::EndCueHold;
+use bus_api::Event;
+use bus_api::ExitLoop;
+use bus_api::FxSlotState;
+use bus_api::HotCuePadPress;
+use bus_api::LoopIn;
+use bus_api::LoopOut;
+use bus_api::PadMode;
+use bus_api::Pause;
+use bus_api::PitchPadAction;
+use bus_api::Play;
+use bus_api::SetFxUnitParam;
+use bus_api::SetFxUnitSlot;
+use bus_api::SetFxUnitSlotEnabled;
+use bus_api::SetFxUnitWet;
+use bus_api::SetHeadphoneCue;
+use bus_api::SetKeyShift;
+use bus_api::SetKeyShiftPage;
+use bus_api::SetKeyboardPage;
+use bus_api::SetKeyboardRoot;
+use bus_api::SetMasterCue;
+use bus_api::SetPadMode;
+use bus_api::SetTempoRange;
+use bus_api::ToggleHeadphoneCue;
+use bus_api::ToggleMasterCue;
+use bus_api::ToggleQuantize;
+use bus_api::ToggleSync;
+use bus_api::TriggerHotCue;
+use bus_api::KEYBOARD_PAGE_COUNT;
+use bus_api::KEY_SHIFT_PAGE_COUNT;
 
 use crate::action::EngineScope;
 use crate::action::{resolve_action, ControlSnapshot, ControlValue, DeckFeedback, RoutedAction};
@@ -87,15 +86,18 @@ pub struct ScriptBindingFailure {
     pub error: String,
 }
 
+/// Publish target handed to every mapping edge.
 pub trait ActionPublish {
-    fn publish_engine(&mut self, event: Event);
-    fn publish_library(&mut self, origin: LibraryOrigin, kind: LibraryKind, body: LibraryEvtBody);
+    /// Command bus: something the engine or library worker must act on.
+    fn publish_cmd(&mut self, event: Event);
+    /// Egress bus: UI-originated events the host re-broadcasts (navigate/focus/load).
+    fn publish_evt(&mut self, event: Event);
 }
 
 /// Compatibility alias for engine-only hosts/tests.
 pub trait BusPublish: ActionPublish {
     fn publish(&mut self, event: Event) {
-        self.publish_engine(event);
+        self.publish_cmd(event);
     }
 }
 
@@ -708,24 +710,20 @@ impl MappingSession {
             }
             self.cc_last.insert(key.to_string(), Instant::now());
         }
-        match &routed {
-            RoutedAction::EngineCmd(event) => {
-                self.publish_engine_cmds(std::slice::from_ref(event), bus, midi);
-            }
+        match routed {
+            RoutedAction::Cmd(event) => self.publish_cmds(std::slice::from_ref(&event), bus, midi),
             // Exclusive groups (e.g. CH SELECT) publish every cmd in order.
-            RoutedAction::EngineCmds(events) => self.publish_engine_cmds(events, bus, midi),
-            RoutedAction::LibraryEvt { origin, kind, body } => {
-                bus.publish_library(origin.clone(), kind.clone(), body.clone());
-            }
+            RoutedAction::Cmds(events) => self.publish_cmds(&events, bus, midi),
+            RoutedAction::Evt(event) => bus.publish_evt(event),
         }
         (true, None)
     }
 
-    /// Mirror a routed engine command group into the snapshot, then publish it.
+    /// Mirror a routed command group into the snapshot, then publish it.
     ///
     /// Single-command actions and exclusive groups share this, so the
     /// mirror-then-publish order (and the clones it needs) is defined once.
-    fn publish_engine_cmds(
+    fn publish_cmds(
         &mut self,
         events: &[Event],
         bus: &mut impl ActionPublish,
@@ -733,7 +731,7 @@ impl MappingSession {
     ) {
         for event in events {
             self.mirror_engine_cmd(event, midi);
-            bus.publish_engine(event.clone());
+            bus.publish_cmd(event.clone());
         }
     }
 
@@ -1129,16 +1127,10 @@ mod tests {
     }
 
     impl ActionPublish for CaptureBus {
-        fn publish_engine(&mut self, event: Event) {
+        fn publish_cmd(&mut self, event: Event) {
             self.cmds.push(event);
         }
-        fn publish_library(
-            &mut self,
-            _origin: LibraryOrigin,
-            _kind: LibraryKind,
-            _body: LibraryEvtBody,
-        ) {
-        }
+        fn publish_evt(&mut self, _event: Event) {}
     }
 
     struct NullMidi;
@@ -1165,7 +1157,7 @@ mod tests {
         s.handle_midi(&[0xB0, 0x14, 0], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 1);
         match &bus.cmds[0] {
-            Event::SetSpeed(engine_api::SetSpeed {
+            Event::SetSpeed(bus_api::SetSpeed {
                 deck: 0,
                 speed,
                 soft_takeover: false,
@@ -1180,7 +1172,7 @@ mod tests {
         s.handle_midi(&[0xB0, 0x14, 127], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1] {
-            Event::SetSpeed(engine_api::SetSpeed {
+            Event::SetSpeed(bus_api::SetSpeed {
                 deck: 0,
                 speed,
                 soft_takeover: false,
@@ -1213,7 +1205,7 @@ mod tests {
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1] {
-            Event::SetVolume(engine_api::SetVolume {
+            Event::SetVolume(bus_api::SetVolume {
                 deck: 0,
                 volume,
                 soft_takeover: true,
@@ -1233,7 +1225,7 @@ mod tests {
         s.handle_midi(&[0xB0, 0x22, 65], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 1);
         match &bus.cmds[0] {
-            Event::JogTurn(engine_api::JogTurn { deck: 0, delta }) => assert_eq!(*delta, 1),
+            Event::JogTurn(bus_api::JogTurn { deck: 0, delta }) => assert_eq!(*delta, 1),
             other => panic!("expected JogTurn, got {other:?}"),
         }
 
@@ -1246,7 +1238,7 @@ mod tests {
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1] {
-            Event::JogTurn(engine_api::JogTurn { deck: 0, delta }) => assert_eq!(*delta, 4),
+            Event::JogTurn(bus_api::JogTurn { deck: 0, delta }) => assert_eq!(*delta, 4),
             other => panic!("expected JogTurn sum, got {other:?}"),
         }
     }

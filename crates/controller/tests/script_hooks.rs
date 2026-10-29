@@ -3,22 +3,16 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
-use engine_api::Event;
+use bus_api::Event;
 
 struct CaptureBus {
     cmds: Vec<Event>,
 }
 impl controller::ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, event: Event) {
+    fn publish_cmd(&mut self, event: Event) {
         self.cmds.push(event);
     }
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_evt(&mut self, _event: Event) {}
 }
 
 struct CaptureMidi {

@@ -7,7 +7,8 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
+import 'package:gui_flutter/src/rust/api/library.dart' show LibraryTransport;
 import 'package:gui_flutter/widgets/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
@@ -107,7 +108,7 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
   Future<void> _onToggleLoop({
     required bool loopActive,
     required LoopRegion? activeLoop,
-    required List<SavedLoopInfo> savedLoops,
+    required List<SavedLoop> savedLoops,
     required int positionMs,
     required String? trackId,
   }) async {
@@ -167,7 +168,7 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
   }
 
   Future<void> _onBeatsChip({
-    required SavedLoopInfo? savedAtSlot,
+    required SavedLoop? savedAtSlot,
     required String? trackId,
   }) async {
     if (savedAtSlot == null) {
@@ -232,7 +233,7 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     final positionMs = ref.watch(deckPositionMsProvider(widget.deckId));
 
     final slot = autoLoopSlotForBeats(_loopBeats);
-    SavedLoopInfo? savedAtSlot;
+    SavedLoop? savedAtSlot;
     for (final loop in savedLoops) {
       if (loop.slot == slot) {
         savedAtSlot = loop;

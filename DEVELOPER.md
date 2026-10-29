@@ -7,7 +7,6 @@ Practical notes for people hacking on Mixar itself. See the [website developer d
 ```
 mixar/
 ├─ crates/                # Cargo workspace root (Cargo.toml)
-│  ├─ engine-api/         # shared engine command/event contracts (MessagePack omnibus)
 │  ├─ audio-core/         # shared traits/types: AudioBackend, AudioSource, StreamParams, DeviceId
 │  ├─ backend-null/       # deterministic backend for tests and CI
 │  ├─ backend-cpal/       # CPAL implementation (native PipeWire on Linux when available)
@@ -25,12 +24,13 @@ mixar/
 │  │  ├─ mixer_lane.rs    # graph node: deck + strip
 │  │  ├─ mixer_channel.rs # per-lane strip (gain/EQ/filter/VU/fader)
 │  │  └─ mixer.rs         # process lanes, crossfade-sum, bus routing
+│  ├─ bus-api/            # one Event enum + every bus payload (engine + library)
+│  ├─ event-bus/          # typed cmd/evt pair with per-subscriber merge policies
 │  ├─ codec/              # decoder wrapper (symphonia)
 │  ├─ resampler/          # resampler trait + rubato impl (pluggable)
 │  ├─ stretch/            # realtime time-stretch for key lock (timestretch)
 │  ├─ library-core/       # Library traits + Collection/Track types
 │  ├─ fs-browser/         # volume listing + directory browse for audio pickers
-│  ├─ library-api/        # shared library transport contracts
 │  ├─ library/            # library manager (canonical writable store)
 │  ├─ library-adapters/   # third-party formats (Mixxx import, CDJ USB export, …)
 │  ├─ analyzer-core/      # offline analysis traits and types

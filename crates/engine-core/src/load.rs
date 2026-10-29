@@ -1,5 +1,5 @@
 use anyhow::Result;
-use engine_api::SyncMode;
+use bus_api::SyncMode;
 use library::{LibraryManager, PreparedTrackPlayback};
 use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
 use std::sync::Arc;

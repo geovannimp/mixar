@@ -97,10 +97,10 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 
 ---
 
-### Task 2: `engine-api` surface + `engine-dsp` deck key shift
+### Task 2: `bus-api` surface + `engine-dsp` deck key shift
 
 **Files:**
-- Modify: `crates/engine-api/src/payload.rs`, `crates/engine-api/src/kind.rs`
+- Modify: `crates/bus-api/src/payload.rs`, `crates/bus-api/src/kind.rs`
 - Modify: `crates/engine-dsp/src/deck.rs`
 - Modify: `crates/engine-core/src/sync.rs` (`DeckControlState`)
 - Modify: `crates/engine-core/src/engine.rs`, `crates/engine-core/src/control.rs`
@@ -129,11 +129,11 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 
 - [ ] **Step 6: Run to verify failure** — `cargo --manifest-path crates/Cargo.toml test -p engine-core --test bus_key_shift`. Expected: FAIL (new variants unresolved).
 
-- [ ] **Step 7: Implement the `engine-api` surface.** In `payload.rs`: add `default_pitch_page()` (returns `2`); add the four `CmdBody` variants; add `#[serde(default)] key_shift: f32`, `#[serde(default = "default_pitch_page")] keyboard_page: u8`, `#[serde(default = "default_pitch_page")] key_shift_page: u8`, `#[serde(default)] keyboard_root_hot_cue: u8` to `DeckSnapshot` and `EvtBody::DeckUpdated`. In `kind.rs`: add the four kinds. Fix every literal `DeckSnapshot {` / `DeckUpdated {` construction site.
+- [ ] **Step 7: Implement the `bus-api` surface.** In `payload.rs`: add `default_pitch_page()` (returns `2`); add the four `CmdBody` variants; add `#[serde(default)] key_shift: f32`, `#[serde(default = "default_pitch_page")] keyboard_page: u8`, `#[serde(default = "default_pitch_page")] key_shift_page: u8`, `#[serde(default)] keyboard_root_hot_cue: u8` to `DeckSnapshot` and `EvtBody::DeckUpdated`. In `kind.rs`: add the four kinds. Fix every literal `DeckSnapshot {` / `DeckUpdated {` construction site.
 
 - [ ] **Step 8: Implement `engine-core` state, commands, snapshot.** `DeckControlState`: add `key_shift_semitones: f32`, `keyboard_page: u8`, `key_shift_page: u8`, `keyboard_root_hot_cue: u8`; reset in `clear_loaded_track` (key shift `0`, both pages `DEFAULT_PITCH_PAGE`, root `0`). Add the four `Engine` setters (clamp pages to `1..=PITCH_PAGE_COUNT`). `deck_snapshot_from_dsp` forwards the fields; `deck_snapshot_to_evt` forwards them; `control.rs` dispatch validates and handles the four kinds returning `CmdOutcome::DeckUpdated(deck_id)`. Keyboard and Key Shift keep independent pages; a shift-bank page switch advances only the mode being operated.
 
-- [ ] **Step 9: Run to verify pass** — `cargo --manifest-path crates/Cargo.toml test -p engine-core --test bus_key_shift`, then `-p engine-dsp -p engine-api -p engine-core`. Expected: PASS.
+- [ ] **Step 9: Run to verify pass** — `cargo --manifest-path crates/Cargo.toml test -p engine-core --test bus_key_shift`, then `-p engine-dsp -p bus-api -p engine-core`. Expected: PASS.
 
 - [ ] **Step 10: Commit** — `feat(engine): session key-shift, pitch page and keyboard root state (#298)`.
 
@@ -142,7 +142,7 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 ### Task 3: Keyboard & Key Shift pad modes
 
 **Files:**
-- Modify: `crates/engine-api/src/payload.rs` (`PadMode` variants), `crates/engine-api/src/kind.rs` (pad kinds)
+- Modify: `crates/bus-api/src/payload.rs` (`PadMode` variants), `crates/bus-api/src/kind.rs` (pad kinds)
 - Modify: `crates/engine-core/src/pads.rs` (page tables), `engine.rs` (handlers + dispatch), `control.rs`
 - Modify: `crates/controller/src/catalog.rs` (`PAD_MODES`, leaves), `action.rs` (leaf resolution)
 - Test: `crates/engine-core/tests/bus_pad_modes_kb_keyshift.rs`
@@ -253,7 +253,7 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 
 - [ ] **Step 1: Update the specs.** deck-spec: mark P4 Key shift and the Keyboard / Key Shift pad modes as shipped, linking the design doc, and describe the hot-cue-rooted page model. tech-spec: note realtime key shift now exists via `stretch`'s pitch factor. checklist: reflect the bound mode buttons and page/shift banks.
 
-- [ ] **Step 2: Run the full affected check.** `cargo --manifest-path crates/Cargo.toml test -p stretch -p engine-dsp -p engine-api -p engine-core -p controller`; `cd apps/gui-flutter && flutter test`; `npx moon ci`. Expected: PASS.
+- [ ] **Step 2: Run the full affected check.** `cargo --manifest-path crates/Cargo.toml test -p stretch -p engine-dsp -p bus-api -p engine-core -p controller`; `cd apps/gui-flutter && flutter test`; `npx moon ci`. Expected: PASS.
 
 - [ ] **Step 3: Commit** — `docs(deck): ship Keyboard and Key Shift pad modes (#298)`.
 

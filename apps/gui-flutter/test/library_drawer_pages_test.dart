@@ -12,6 +12,7 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' as bus;
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/library_pane_back_button.dart';
@@ -56,7 +57,6 @@ void main() {
     overrideCollectionTracksValue(const [track]),
     historySessionsProvider.overrideWith((ref) async => const []),
     historyCanResumeProvider.overrideWith((ref) async => false),
-    libraryEventsBootstrapProvider.overrideWith((ref) {}),
     historySettingsBootstrapProvider.overrideWith((ref) {}),
     librarySettingsBootstrapProvider.overrideWith((ref) {}),
     appSettingsProvider.overrideWith(
@@ -118,8 +118,8 @@ void main() {
 
       // The DDJ-400's library knob: press is focus_next, SHIFT + press
       // focus_prev.
-      const press = LibraryEvt(kind: LibraryEvtKind.focus, delta: 1);
-      const shiftPress = LibraryEvt(kind: LibraryEvtKind.focus, delta: -1);
+      const press = bus.Event.focus(bus.Focus(delta: 1));
+      const shiftPress = bus.Event.focus(bus.Focus(delta: -1));
 
       final drawer = await boot(
         copyAppSettings(defaultAppSettings(), libraryDrawerEnabled: true),

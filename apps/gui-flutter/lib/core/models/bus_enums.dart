@@ -1,4 +1,4 @@
-/// Bus enums generated from `engine-api` by `flutter_rust_bridge`.
+/// Bus enums generated from `bus-api` by `flutter_rust_bridge`.
 ///
 /// They live in the mirrored event module rather than `api/engine.dart`, so
 /// this barrel is what UI code imports instead of reaching into codegen output.

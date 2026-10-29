@@ -48,10 +48,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_LibraryBusHandlePtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle;
-
-  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_LibraryTransportPtr => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport;
 
@@ -83,12 +79,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   EngineTransport
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
-    dynamic raw,
-  );
-
-  @protected
-  LibraryBusHandle
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
     dynamic raw,
   );
 
@@ -129,12 +119,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  LibraryBusHandle
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    dynamic raw,
-  );
-
-  @protected
   LibraryTransport
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     dynamic raw,
@@ -171,12 +155,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  LibraryBusHandle
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    dynamic raw,
-  );
-
-  @protected
   LibraryTransport
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     dynamic raw,
@@ -197,9 +175,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<Event> dco_decode_StreamSink_event_Sse(dynamic raw);
 
   @protected
-  RustStreamSink<LibraryEvt> dco_decode_StreamSink_library_evt_Sse(dynamic raw);
-
-  @protected
   String dco_decode_String(dynamic raw);
 
   @protected
@@ -214,6 +189,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalyzeCollectionResult dco_decode_analyze_collection_result(dynamic raw);
 
   @protected
+  AnalyzeTrack dco_decode_analyze_track(dynamic raw);
+
+  @protected
   AppSettings dco_decode_app_settings(dynamic raw);
 
   @protected
@@ -221,6 +199,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AssignSamplerTrack dco_decode_assign_sampler_track(dynamic raw);
+
+  @protected
+  BeatGrid dco_decode_beat_grid(dynamic raw);
+
+  @protected
+  BeatGridChanged dco_decode_beat_grid_changed(dynamic raw);
 
   @protected
   BeatGridData dco_decode_beat_grid_data(dynamic raw);
@@ -244,6 +228,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  AnalyzeTrack dco_decode_box_autoadd_analyze_track(dynamic raw);
+
+  @protected
   AppSettings dco_decode_box_autoadd_app_settings(dynamic raw);
 
   @protected
@@ -251,6 +238,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AssignSamplerTrack dco_decode_box_autoadd_assign_sampler_track(dynamic raw);
+
+  @protected
+  BeatGridChanged dco_decode_box_autoadd_beat_grid_changed(dynamic raw);
 
   @protected
   BeatGridData dco_decode_box_autoadd_beat_grid_data(dynamic raw);
@@ -286,6 +276,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeleteDeckHotCue dco_decode_box_autoadd_delete_deck_hot_cue(dynamic raw);
 
   @protected
+  DeleteTrackHotCue dco_decode_box_autoadd_delete_track_hot_cue(dynamic raw);
+
+  @protected
+  DeleteTrackLoop dco_decode_box_autoadd_delete_track_loop(dynamic raw);
+
+  @protected
   EndCueHold dco_decode_box_autoadd_end_cue_hold(dynamic raw);
 
   @protected
@@ -310,7 +306,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  Focus dco_decode_box_autoadd_focus(dynamic raw);
+
+  @protected
+  GenerateStems dco_decode_box_autoadd_generate_stems(dynamic raw);
+
+  @protected
   HistoryRestorePromptInfo dco_decode_box_autoadd_history_restore_prompt_info(
+    dynamic raw,
+  );
+
+  @protected
+  HistorySessionUpdated dco_decode_box_autoadd_history_session_updated(
     dynamic raw,
   );
 
@@ -319,6 +326,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   HotCuePadRelease dco_decode_box_autoadd_hot_cue_pad_release(dynamic raw);
+
+  @protected
+  HotCuesChanged dco_decode_box_autoadd_hot_cues_changed(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_i_32(dynamic raw);
@@ -351,6 +361,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(dynamic raw);
 
   @protected
+  Load dco_decode_box_autoadd_load(dynamic raw);
+
+  @protected
   LoopIn dco_decode_box_autoadd_loop_in(dynamic raw);
 
   @protected
@@ -364,6 +377,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LoopRollPadRelease dco_decode_box_autoadd_loop_roll_pad_release(dynamic raw);
+
+  @protected
+  LoopsChanged dco_decode_box_autoadd_loops_changed(dynamic raw);
+
+  @protected
+  Navigate dco_decode_box_autoadd_navigate(dynamic raw);
 
   @protected
   Notice dco_decode_box_autoadd_notice(dynamic raw);
@@ -384,6 +403,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RecallSavedLoop dco_decode_box_autoadd_recall_saved_loop(dynamic raw);
 
   @protected
+  RefreshTrack dco_decode_box_autoadd_refresh_track(dynamic raw);
+
+  @protected
   SamplerPadPress dco_decode_box_autoadd_sampler_pad_press(dynamic raw);
 
   @protected
@@ -393,7 +415,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SamplerPlayMode dco_decode_box_autoadd_sampler_play_mode(dynamic raw);
 
   @protected
+  SaveBeatGrid dco_decode_box_autoadd_save_beat_grid(dynamic raw);
+
+  @protected
   SaveDeckHotCue dco_decode_box_autoadd_save_deck_hot_cue(dynamic raw);
+
+  @protected
+  SaveTrackHotCue dco_decode_box_autoadd_save_track_hot_cue(dynamic raw);
+
+  @protected
+  SaveTrackLoop dco_decode_box_autoadd_save_track_loop(dynamic raw);
 
   @protected
   Seek dco_decode_box_autoadd_seek(dynamic raw);
@@ -512,6 +543,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ToggleSync dco_decode_box_autoadd_toggle_sync(dynamic raw);
 
   @protected
+  TrackAnalyzed dco_decode_box_autoadd_track_analyzed(dynamic raw);
+
+  @protected
+  TrackProgress dco_decode_box_autoadd_track_progress(dynamic raw);
+
+  @protected
+  TrackUpdated dco_decode_box_autoadd_track_updated(dynamic raw);
+
+  @protected
   TriggerHotCue dco_decode_box_autoadd_trigger_hot_cue(dynamic raw);
 
   @protected
@@ -584,6 +624,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeleteDeckHotCue dco_decode_delete_deck_hot_cue(dynamic raw);
 
   @protected
+  DeleteTrackHotCue dco_decode_delete_track_hot_cue(dynamic raw);
+
+  @protected
+  DeleteTrackLoop dco_decode_delete_track_loop(dynamic raw);
+
+  @protected
   EndCueHold dco_decode_end_cue_hold(dynamic raw);
 
   @protected
@@ -614,6 +660,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_f_64(dynamic raw);
 
   @protected
+  Focus dco_decode_focus(dynamic raw);
+
+  @protected
   FsDirectoryListing dco_decode_fs_directory_listing(dynamic raw);
 
   @protected
@@ -627,6 +676,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FxSlotState dco_decode_fx_slot_state(dynamic raw);
+
+  @protected
+  GenerateStems dco_decode_generate_stems(dynamic raw);
 
   @protected
   HistoryEntryInfo dco_decode_history_entry_info(dynamic raw);
@@ -643,13 +695,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   HistorySessionSummary dco_decode_history_session_summary(dynamic raw);
 
   @protected
-  HotCueInfo dco_decode_hot_cue_info(dynamic raw);
+  HistorySessionUpdated dco_decode_history_session_updated(dynamic raw);
+
+  @protected
+  HotCue dco_decode_hot_cue(dynamic raw);
 
   @protected
   HotCuePadPress dco_decode_hot_cue_pad_press(dynamic raw);
 
   @protected
   HotCuePadRelease dco_decode_hot_cue_pad_release(dynamic raw);
+
+  @protected
+  HotCuesChanged dco_decode_hot_cues_changed(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -700,12 +758,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LibraryDrawerSideSetting dco_decode_library_drawer_side_setting(dynamic raw);
-
-  @protected
-  LibraryEvt dco_decode_library_evt(dynamic raw);
-
-  @protected
-  LibraryEvtKind dco_decode_library_evt_kind(dynamic raw);
 
   @protected
   LibraryRowDensitySetting dco_decode_library_row_density_setting(dynamic raw);
@@ -762,7 +814,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<HotCueInfo> dco_decode_list_hot_cue_info(dynamic raw);
+  List<HotCue> dco_decode_list_hot_cue(dynamic raw);
 
   @protected
   List<LibraryCollectionSummary> dco_decode_list_library_collection_summary(
@@ -807,7 +859,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SamplerSlotInfo> dco_decode_list_sampler_slot_info(dynamic raw);
 
   @protected
-  List<SavedLoopInfo> dco_decode_list_saved_loop_info(dynamic raw);
+  List<SavedLoop> dco_decode_list_saved_loop(dynamic raw);
+
+  @protected
+  Load dco_decode_load(dynamic raw);
 
   @protected
   LoopIn dco_decode_loop_in(dynamic raw);
@@ -825,10 +880,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LoopRollPadRelease dco_decode_loop_roll_pad_release(dynamic raw);
 
   @protected
+  LoopsChanged dco_decode_loops_changed(dynamic raw);
+
+  @protected
   MixxxImportPreview dco_decode_mixxx_import_preview(dynamic raw);
 
   @protected
   MixxxImportReport dco_decode_mixxx_import_report(dynamic raw);
+
+  @protected
+  Navigate dco_decode_navigate(dynamic raw);
 
   @protected
   Notice dco_decode_notice(dynamic raw);
@@ -884,13 +945,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WaveformPeaks? dco_decode_opt_box_autoadd_waveform_peaks(dynamic raw);
 
   @protected
-  List<HotCueInfo>? dco_decode_opt_list_hot_cue_info(dynamic raw);
-
-  @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
-
-  @protected
-  List<SavedLoopInfo>? dco_decode_opt_list_saved_loop_info(dynamic raw);
 
   @protected
   OutputDevice dco_decode_output_device(dynamic raw);
@@ -912,6 +967,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RecallSavedLoop dco_decode_recall_saved_loop(dynamic raw);
+
+  @protected
+  RefreshTrack dco_decode_refresh_track(dynamic raw);
 
   @protected
   ResolvedLibraryTrack dco_decode_resolved_library_track(dynamic raw);
@@ -943,10 +1001,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SaveBeatGrid dco_decode_save_beat_grid(dynamic raw);
+
+  @protected
   SaveDeckHotCue dco_decode_save_deck_hot_cue(dynamic raw);
 
   @protected
-  SavedLoopInfo dco_decode_saved_loop_info(dynamic raw);
+  SaveTrackHotCue dco_decode_save_track_hot_cue(dynamic raw);
+
+  @protected
+  SaveTrackLoop dco_decode_save_track_loop(dynamic raw);
+
+  @protected
+  SavedLoop dco_decode_saved_loop(dynamic raw);
 
   @protected
   Seek dco_decode_seek(dynamic raw);
@@ -1075,6 +1142,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ToggleSync dco_decode_toggle_sync(dynamic raw);
 
   @protected
+  TrackAnalyzed dco_decode_track_analyzed(dynamic raw);
+
+  @protected
+  TrackProgress dco_decode_track_progress(dynamic raw);
+
+  @protected
+  TrackSummary dco_decode_track_summary(dynamic raw);
+
+  @protected
+  TrackUpdated dco_decode_track_updated(dynamic raw);
+
+  @protected
   TriggerHotCue dco_decode_trigger_hot_cue(dynamic raw);
 
   @protected
@@ -1137,12 +1216,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  LibraryBusHandle
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   LibraryTransport
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     SseDeserializer deserializer,
@@ -1175,12 +1248,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   EngineTransport
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  LibraryBusHandle
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
     SseDeserializer deserializer,
   );
 
@@ -1221,12 +1288,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  LibraryBusHandle
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   LibraryTransport
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     SseDeserializer deserializer,
@@ -1249,11 +1310,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RustStreamSink<LibraryEvt> sse_decode_StreamSink_library_evt_Sse(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
@@ -1272,6 +1328,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  AnalyzeTrack sse_decode_analyze_track(SseDeserializer deserializer);
+
+  @protected
   AppSettings sse_decode_app_settings(SseDeserializer deserializer);
 
   @protected
@@ -1281,6 +1340,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AssignSamplerTrack sse_decode_assign_sampler_track(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BeatGrid sse_decode_beat_grid(SseDeserializer deserializer);
+
+  @protected
+  BeatGridChanged sse_decode_beat_grid_changed(SseDeserializer deserializer);
 
   @protected
   BeatGridData sse_decode_beat_grid_data(SseDeserializer deserializer);
@@ -1306,6 +1371,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  AnalyzeTrack sse_decode_box_autoadd_analyze_track(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   AppSettings sse_decode_box_autoadd_app_settings(SseDeserializer deserializer);
 
   @protected
@@ -1315,6 +1385,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AssignSamplerTrack sse_decode_box_autoadd_assign_sampler_track(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BeatGridChanged sse_decode_box_autoadd_beat_grid_changed(
     SseDeserializer deserializer,
   );
 
@@ -1368,6 +1443,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  DeleteTrackHotCue sse_decode_box_autoadd_delete_track_hot_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DeleteTrackLoop sse_decode_box_autoadd_delete_track_loop(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EndCueHold sse_decode_box_autoadd_end_cue_hold(SseDeserializer deserializer);
 
   @protected
@@ -1396,7 +1481,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  Focus sse_decode_box_autoadd_focus(SseDeserializer deserializer);
+
+  @protected
+  GenerateStems sse_decode_box_autoadd_generate_stems(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   HistoryRestorePromptInfo sse_decode_box_autoadd_history_restore_prompt_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HistorySessionUpdated sse_decode_box_autoadd_history_session_updated(
     SseDeserializer deserializer,
   );
 
@@ -1407,6 +1505,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   HotCuePadRelease sse_decode_box_autoadd_hot_cue_pad_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HotCuesChanged sse_decode_box_autoadd_hot_cues_changed(
     SseDeserializer deserializer,
   );
 
@@ -1453,6 +1556,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Load sse_decode_box_autoadd_load(SseDeserializer deserializer);
+
+  @protected
   LoopIn sse_decode_box_autoadd_loop_in(SseDeserializer deserializer);
 
   @protected
@@ -1470,6 +1576,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LoopRollPadRelease sse_decode_box_autoadd_loop_roll_pad_release(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LoopsChanged sse_decode_box_autoadd_loops_changed(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Navigate sse_decode_box_autoadd_navigate(SseDeserializer deserializer);
 
   @protected
   Notice sse_decode_box_autoadd_notice(SseDeserializer deserializer);
@@ -1492,6 +1606,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RefreshTrack sse_decode_box_autoadd_refresh_track(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SamplerPadPress sse_decode_box_autoadd_sampler_pad_press(
     SseDeserializer deserializer,
   );
@@ -1507,7 +1626,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SaveBeatGrid sse_decode_box_autoadd_save_beat_grid(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SaveDeckHotCue sse_decode_box_autoadd_save_deck_hot_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SaveTrackHotCue sse_decode_box_autoadd_save_track_hot_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SaveTrackLoop sse_decode_box_autoadd_save_track_loop(
     SseDeserializer deserializer,
   );
 
@@ -1672,6 +1806,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ToggleSync sse_decode_box_autoadd_toggle_sync(SseDeserializer deserializer);
 
   @protected
+  TrackAnalyzed sse_decode_box_autoadd_track_analyzed(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TrackProgress sse_decode_box_autoadd_track_progress(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TrackUpdated sse_decode_box_autoadd_track_updated(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   TriggerHotCue sse_decode_box_autoadd_trigger_hot_cue(
     SseDeserializer deserializer,
   );
@@ -1756,6 +1905,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeleteDeckHotCue sse_decode_delete_deck_hot_cue(SseDeserializer deserializer);
 
   @protected
+  DeleteTrackHotCue sse_decode_delete_track_hot_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DeleteTrackLoop sse_decode_delete_track_loop(SseDeserializer deserializer);
+
+  @protected
   EndCueHold sse_decode_end_cue_hold(SseDeserializer deserializer);
 
   @protected
@@ -1786,6 +1943,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
+  Focus sse_decode_focus(SseDeserializer deserializer);
+
+  @protected
   FsDirectoryListing sse_decode_fs_directory_listing(
     SseDeserializer deserializer,
   );
@@ -1801,6 +1961,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FxSlotState sse_decode_fx_slot_state(SseDeserializer deserializer);
+
+  @protected
+  GenerateStems sse_decode_generate_stems(SseDeserializer deserializer);
 
   @protected
   HistoryEntryInfo sse_decode_history_entry_info(SseDeserializer deserializer);
@@ -1821,13 +1984,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  HotCueInfo sse_decode_hot_cue_info(SseDeserializer deserializer);
+  HistorySessionUpdated sse_decode_history_session_updated(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HotCue sse_decode_hot_cue(SseDeserializer deserializer);
 
   @protected
   HotCuePadPress sse_decode_hot_cue_pad_press(SseDeserializer deserializer);
 
   @protected
   HotCuePadRelease sse_decode_hot_cue_pad_release(SseDeserializer deserializer);
+
+  @protected
+  HotCuesChanged sse_decode_hot_cues_changed(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -1892,12 +2063,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryDrawerSideSetting sse_decode_library_drawer_side_setting(
     SseDeserializer deserializer,
   );
-
-  @protected
-  LibraryEvt sse_decode_library_evt(SseDeserializer deserializer);
-
-  @protected
-  LibraryEvtKind sse_decode_library_evt_kind(SseDeserializer deserializer);
 
   @protected
   LibraryRowDensitySetting sse_decode_library_row_density_setting(
@@ -1970,7 +2135,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<HotCueInfo> sse_decode_list_hot_cue_info(SseDeserializer deserializer);
+  List<HotCue> sse_decode_list_hot_cue(SseDeserializer deserializer);
 
   @protected
   List<LibraryCollectionSummary> sse_decode_list_library_collection_summary(
@@ -2025,9 +2190,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<SavedLoopInfo> sse_decode_list_saved_loop_info(
-    SseDeserializer deserializer,
-  );
+  List<SavedLoop> sse_decode_list_saved_loop(SseDeserializer deserializer);
+
+  @protected
+  Load sse_decode_load(SseDeserializer deserializer);
 
   @protected
   LoopIn sse_decode_loop_in(SseDeserializer deserializer);
@@ -2047,6 +2213,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  LoopsChanged sse_decode_loops_changed(SseDeserializer deserializer);
+
+  @protected
   MixxxImportPreview sse_decode_mixxx_import_preview(
     SseDeserializer deserializer,
   );
@@ -2055,6 +2224,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MixxxImportReport sse_decode_mixxx_import_report(
     SseDeserializer deserializer,
   );
+
+  @protected
+  Navigate sse_decode_navigate(SseDeserializer deserializer);
 
   @protected
   Notice sse_decode_notice(SseDeserializer deserializer);
@@ -2120,17 +2292,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<HotCueInfo>? sse_decode_opt_list_hot_cue_info(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
-
-  @protected
-  List<SavedLoopInfo>? sse_decode_opt_list_saved_loop_info(
-    SseDeserializer deserializer,
-  );
 
   @protected
   OutputDevice sse_decode_output_device(SseDeserializer deserializer);
@@ -2152,6 +2314,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RecallSavedLoop sse_decode_recall_saved_loop(SseDeserializer deserializer);
+
+  @protected
+  RefreshTrack sse_decode_refresh_track(SseDeserializer deserializer);
 
   @protected
   ResolvedLibraryTrack sse_decode_resolved_library_track(
@@ -2189,10 +2354,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SaveBeatGrid sse_decode_save_beat_grid(SseDeserializer deserializer);
+
+  @protected
   SaveDeckHotCue sse_decode_save_deck_hot_cue(SseDeserializer deserializer);
 
   @protected
-  SavedLoopInfo sse_decode_saved_loop_info(SseDeserializer deserializer);
+  SaveTrackHotCue sse_decode_save_track_hot_cue(SseDeserializer deserializer);
+
+  @protected
+  SaveTrackLoop sse_decode_save_track_loop(SseDeserializer deserializer);
+
+  @protected
+  SavedLoop sse_decode_saved_loop(SseDeserializer deserializer);
 
   @protected
   Seek sse_decode_seek(SseDeserializer deserializer);
@@ -2329,6 +2503,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ToggleSync sse_decode_toggle_sync(SseDeserializer deserializer);
 
   @protected
+  TrackAnalyzed sse_decode_track_analyzed(SseDeserializer deserializer);
+
+  @protected
+  TrackProgress sse_decode_track_progress(SseDeserializer deserializer);
+
+  @protected
+  TrackSummary sse_decode_track_summary(SseDeserializer deserializer);
+
+  @protected
+  TrackUpdated sse_decode_track_updated(SseDeserializer deserializer);
+
+  @protected
   TriggerHotCue sse_decode_trigger_hot_cue(SseDeserializer deserializer);
 
   @protected
@@ -2401,13 +2587,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    LibraryBusHandle self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     LibraryTransport self,
     SseSerializer serializer,
@@ -2445,13 +2624,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     EngineTransport self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    LibraryBusHandle self,
     SseSerializer serializer,
   );
 
@@ -2499,13 +2671,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    LibraryBusHandle self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     LibraryTransport self,
     SseSerializer serializer,
@@ -2531,12 +2696,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_StreamSink_library_evt_Sse(
-    RustStreamSink<LibraryEvt> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
@@ -2558,6 +2717,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_analyze_track(AnalyzeTrack self, SseSerializer serializer);
+
+  @protected
   void sse_encode_app_settings(AppSettings self, SseSerializer serializer);
 
   @protected
@@ -2566,6 +2728,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_assign_sampler_track(
     AssignSamplerTrack self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_beat_grid(BeatGrid self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_beat_grid_changed(
+    BeatGridChanged self,
     SseSerializer serializer,
   );
 
@@ -2597,6 +2768,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_analyze_track(
+    AnalyzeTrack self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_app_settings(
     AppSettings self,
     SseSerializer serializer,
@@ -2611,6 +2788,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_assign_sampler_track(
     AssignSamplerTrack self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_beat_grid_changed(
+    BeatGridChanged self,
     SseSerializer serializer,
   );
 
@@ -2681,6 +2864,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_delete_track_hot_cue(
+    DeleteTrackHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_delete_track_loop(
+    DeleteTrackLoop self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_end_cue_hold(
     EndCueHold self,
     SseSerializer serializer,
@@ -2717,8 +2912,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_focus(Focus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_generate_stems(
+    GenerateStems self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_history_restore_prompt_info(
     HistoryRestorePromptInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_history_session_updated(
+    HistorySessionUpdated self,
     SseSerializer serializer,
   );
 
@@ -2731,6 +2941,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_hot_cue_pad_release(
     HotCuePadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_hot_cues_changed(
+    HotCuesChanged self,
     SseSerializer serializer,
   );
 
@@ -2789,6 +3005,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_load(Load self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_loop_in(LoopIn self, SseSerializer serializer);
 
   @protected
@@ -2811,6 +3030,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     LoopRollPadRelease self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_box_autoadd_loops_changed(
+    LoopsChanged self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_navigate(Navigate self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_notice(Notice self, SseSerializer serializer);
@@ -2840,6 +3068,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_refresh_track(
+    RefreshTrack self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_sampler_pad_press(
     SamplerPadPress self,
     SseSerializer serializer,
@@ -2858,8 +3092,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_save_beat_grid(
+    SaveBeatGrid self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_save_deck_hot_cue(
     SaveDeckHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_save_track_hot_cue(
+    SaveTrackHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_save_track_loop(
+    SaveTrackLoop self,
     SseSerializer serializer,
   );
 
@@ -3083,6 +3335,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_track_analyzed(
+    TrackAnalyzed self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_track_progress(
+    TrackProgress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_track_updated(
+    TrackUpdated self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_trigger_hot_cue(
     TriggerHotCue self,
     SseSerializer serializer,
@@ -3188,6 +3458,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_delete_track_hot_cue(
+    DeleteTrackHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_delete_track_loop(
+    DeleteTrackLoop self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_end_cue_hold(EndCueHold self, SseSerializer serializer);
 
   @protected
@@ -3221,6 +3503,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_focus(Focus self, SseSerializer serializer);
+
+  @protected
   void sse_encode_fs_directory_listing(
     FsDirectoryListing self,
     SseSerializer serializer,
@@ -3237,6 +3522,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_fx_slot_state(FxSlotState self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_generate_stems(GenerateStems self, SseSerializer serializer);
 
   @protected
   void sse_encode_history_entry_info(
@@ -3263,7 +3551,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_hot_cue_info(HotCueInfo self, SseSerializer serializer);
+  void sse_encode_history_session_updated(
+    HistorySessionUpdated self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_hot_cue(HotCue self, SseSerializer serializer);
 
   @protected
   void sse_encode_hot_cue_pad_press(
@@ -3274,6 +3568,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_hot_cue_pad_release(
     HotCuePadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_hot_cues_changed(
+    HotCuesChanged self,
     SseSerializer serializer,
   );
 
@@ -3355,15 +3655,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_library_drawer_side_setting(
     LibraryDrawerSideSetting self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_library_evt(LibraryEvt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_library_evt_kind(
-    LibraryEvtKind self,
     SseSerializer serializer,
   );
 
@@ -3455,10 +3746,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_hot_cue_info(
-    List<HotCueInfo> self,
-    SseSerializer serializer,
-  );
+  void sse_encode_list_hot_cue(List<HotCue> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_library_collection_summary(
@@ -3530,10 +3818,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_saved_loop_info(
-    List<SavedLoopInfo> self,
+  void sse_encode_list_saved_loop(
+    List<SavedLoop> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_load(Load self, SseSerializer serializer);
 
   @protected
   void sse_encode_loop_in(LoopIn self, SseSerializer serializer);
@@ -3557,6 +3848,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_loops_changed(LoopsChanged self, SseSerializer serializer);
+
+  @protected
   void sse_encode_mixxx_import_preview(
     MixxxImportPreview self,
     SseSerializer serializer,
@@ -3567,6 +3861,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     MixxxImportReport self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_navigate(Navigate self, SseSerializer serializer);
 
   @protected
   void sse_encode_notice(Notice self, SseSerializer serializer);
@@ -3641,20 +3938,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_opt_list_hot_cue_info(
-    List<HotCueInfo>? self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_list_saved_loop_info(
-    List<SavedLoopInfo>? self,
     SseSerializer serializer,
   );
 
@@ -3681,6 +3966,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     RecallSavedLoop self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_refresh_track(RefreshTrack self, SseSerializer serializer);
 
   @protected
   void sse_encode_resolved_library_track(
@@ -3737,13 +4025,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_save_beat_grid(SaveBeatGrid self, SseSerializer serializer);
+
+  @protected
   void sse_encode_save_deck_hot_cue(
     SaveDeckHotCue self,
     SseSerializer serializer,
   );
 
   @protected
-  void sse_encode_saved_loop_info(SavedLoopInfo self, SseSerializer serializer);
+  void sse_encode_save_track_hot_cue(
+    SaveTrackHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_save_track_loop(SaveTrackLoop self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_saved_loop(SavedLoop self, SseSerializer serializer);
 
   @protected
   void sse_encode_seek(Seek self, SseSerializer serializer);
@@ -3914,6 +4214,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_toggle_sync(ToggleSync self, SseSerializer serializer);
 
   @protected
+  void sse_encode_track_analyzed(TrackAnalyzed self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_track_progress(TrackProgress self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_track_summary(TrackSummary self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_track_updated(TrackUpdated self, SseSerializer serializer);
+
+  @protected
   void sse_encode_trigger_hot_cue(TriggerHotCue self, SseSerializer serializer);
 
   @protected
@@ -4023,22 +4335,6 @@ class RustLibWire implements BaseWire {
       );
 
   void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-        ptr,
-      );
-
-  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     int ptr,
   ) => wasmModule
@@ -4114,16 +4410,6 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void
   rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
     int ptr,
   );
 
