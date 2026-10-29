@@ -973,19 +973,24 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             })
         }
 
-        // ── egress-only events never arrive as commands ───────────────────────
-        Event::MappingOffer(_) | Event::MappingAttached(_) | Event::MappingDetached(_) => {
-            Err(anyhow!("controller event is not a command"))
-        }
-        Event::DeckUpdated(_)
+        // ── not the engine's to execute ───────────────────────────────────────
+        //
+        // The cmd bus is shared: the library worker and the controller publish
+        // their commands on it too, and egress events must never be read as
+        // commands. Anything here belongs to another owner, so the engine stays
+        // silent — an `Error` would turn another owner's valid command into a
+        // toast. The list is exhaustive on purpose: a new event must be
+        // classified, not silently swallowed.
+        Event::MappingOffer(_)
+        | Event::MappingAttached(_)
+        | Event::MappingDetached(_)
+        | Event::DeckUpdated(_)
         | Event::DeckPosition(_)
         | Event::DeckLevels(_)
         | Event::EngineSnapshot(_)
         | Event::Error(_)
-        | Event::Notice(_) => Err(anyhow!("egress event is not a command")),
-
-        // ── library and UI commands are not the engine's to execute ────────────
-        Event::AnalyzeTrack(_)
+        | Event::Notice(_)
+        | Event::AnalyzeTrack(_)
         | Event::GenerateStems(_)
         | Event::RefreshTrack(_)
         | Event::SaveBeatGrid(_)
@@ -1002,7 +1007,7 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
         | Event::HistorySessionUpdated(_)
         | Event::Navigate(_)
         | Event::Focus(_)
-        | Event::Load(_) => Err(anyhow!("library event is not an engine command")),
+        | Event::Load(_) => Ok(CmdOutcome::Silent),
     }
 }
 

@@ -139,6 +139,25 @@ void main() {
     await engine.padPress(deckId: 0, slot: 0, shift: true);
     expect((await padFuture).deck, 0);
 
+    // The deck-load path asks the library to refresh the track; that command
+    // travels the same cmd bus as engine commands, and the engine must ignore it
+    // instead of reporting "not an engine command" to the user.
+    final refreshed = StringBuffer();
+    final refreshSub = events.listen((event) {
+      final error = event.busError;
+      if (error != null && error.message.contains('not an engine command')) {
+        refreshed.write(error.message);
+      }
+    });
+    await library.refreshTrack(trackId: loaded.trackId!);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await refreshSub.cancel();
+    expect(
+      refreshed.toString(),
+      isEmpty,
+      reason: 'a library command must not surface as an engine error toast',
+    );
+
     // Failures ride the same stream as typed Errors with the deck attached.
     final errorFuture = nextEvent(
       events,
