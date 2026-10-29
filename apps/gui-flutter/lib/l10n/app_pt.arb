@@ -34,7 +34,7 @@
   "settingsUiChromeTitle": "Chrome e controles",
   "settingsUiChromeDescription": "Idioma, dicas ao passar o mouse e como os seletores abrem.",
   "settingsUiThemeTitle": "Tema",
-  "settingsUiThemeDescription": "Brilho e a cor de destaque usada pelo chrome da marca.",
+  "settingsUiThemeDescription": "Brilho e a cor de destaque usada pela interface da marca.",
   "settingsUiTheme": "Tema",
   "settingsUiThemeLight": "Claro",
   "settingsUiThemeDark": "Escuro",

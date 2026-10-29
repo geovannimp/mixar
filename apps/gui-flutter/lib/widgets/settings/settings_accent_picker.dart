@@ -56,57 +56,66 @@ class SettingsAccentPicker extends StatelessWidget {
       semanticsLabel: label,
       selected: selected,
       onPress: () => onChanged(option),
-      builder: (context, state) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: state.hovered ? theme.colors.muted : null,
-          borderRadius: theme.style.borderRadius.md,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 6,
-            children: [
-              // AspectRatio instead of a fixed 22px box: a narrow settings
-              // card shrinks the swatch rather than overflowing the cell.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 22, maxHeight: 22),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: accentPaletteFromSettings(option).scale.s500,
-                      border: Border.all(
-                        color: selected
-                            ? theme.colors.foreground
-                            : theme.colors.border,
-                        width: selected ? 2 : theme.style.borderWidth,
+      builder: (context, state) {
+        // Keyboard focus paints the same ring as selection, so tabbing through
+        // the row is visible without a mouse.
+        final ringed = selected || state.focused;
+        final highlighted = ringed || state.hovered;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: state.hovered ? theme.colors.muted : null,
+            borderRadius: theme.style.borderRadius.md,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 6,
+              children: [
+                // AspectRatio instead of a fixed 22px box: a narrow settings
+                // card shrinks the swatch rather than overflowing the cell.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 22,
+                    maxHeight: 22,
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accentPaletteFromSettings(option).scale.s500,
+                        border: Border.all(
+                          color: ringed
+                              ? theme.colors.foreground
+                              : theme.colors.border,
+                          width: ringed ? 2 : theme.style.borderWidth,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              // The cell's Semantics already carries the name; the visible
-              // label stays out of the tree so it is not read twice.
-              ExcludeSemantics(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: theme.typography.body.xs.copyWith(
-                    color: selected || state.hovered
-                        ? theme.colors.foreground
-                        : theme.colors.mutedForeground,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                // The cell's Semantics already carries the name; the visible
+                // label stays out of the tree so it is not read twice.
+                ExcludeSemantics(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.typography.body.xs.copyWith(
+                      color: highlighted
+                          ? theme.colors.foreground
+                          : theme.colors.mutedForeground,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

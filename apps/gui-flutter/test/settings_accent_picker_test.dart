@@ -1,9 +1,12 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/theme/mixar_style.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -86,39 +89,88 @@ void main() {
     expect(changed?.showTooltips, baseline.showTooltips);
   }, semanticsEnabled: false);
 
-  testWidgets('a narrow card shrinks the swatches instead of overflowing', (
-    tester,
-  ) async {
+  for (final width in [200.0, 140.0, 96.0, 64.0]) {
+    testWidgets('swatches shrink instead of overflowing at ${width}px', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: mixarTestMaterialApp(
+            theme: MixarThemeData.dark(),
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: width,
+                  child: SettingsAccentPicker(
+                    value: AccentPaletteSetting.teal,
+                    onChanged: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final swatch = tester.getSize(
+        find
+            .descendant(
+              of: find.byType(SettingsAccentPicker),
+              matching: find.byType(AspectRatio),
+            )
+            .first,
+      );
+      expect(swatch.width, lessThanOrEqualTo(22));
+      expect(swatch.width, swatch.height);
+      expect(swatch.width, greaterThan(0));
+    }, semanticsEnabled: false);
+  }
+
+  testWidgets('a focused cell shows the selection ring', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: mixarTestMaterialApp(
           theme: MixarThemeData.dark(),
           home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 140,
-                child: SettingsAccentPicker(
-                  value: AccentPaletteSetting.teal,
-                  onChanged: (_) {},
-                ),
-              ),
+            body: SettingsAccentPicker(
+              value: AccentPaletteSetting.teal,
+              onChanged: (_) {},
             ),
           ),
         ),
       ),
     );
 
-    expect(tester.takeException(), isNull);
-    final swatch = tester.getSize(
-      find
-          .descendant(
-            of: find.byType(SettingsAccentPicker),
-            matching: find.byType(AspectRatio),
-          )
-          .first,
+    final cells = find.descendant(
+      of: find.byType(SettingsAccentPicker),
+      matching: find.byType(MTappable),
     );
-    expect(swatch.width, lessThan(22));
-    expect(swatch.width, swatch.height);
+    Border ringOf(int index) {
+      final box = tester.widget<DecoratedBox>(
+        find
+            .descendant(
+              of: cells.at(index),
+              matching: find.byType(DecoratedBox),
+            )
+            .last,
+      );
+      return (box.decoration as BoxDecoration).border! as Border;
+    }
+
+    // Teal is selected, so it already carries the ring; the second tab lands on
+    // Blue, which is unselected and must gain one from focus alone.
+    expect(ringOf(0).top.width, 2);
+    expect(ringOf(1).top.width, MixarStyle().borderWidth);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    final focused = ringOf(1);
+    expect(focused.top.width, 2);
+    expect(focused.top.color, MixarThemeData.dark().colors.foreground);
   }, semanticsEnabled: false);
 }

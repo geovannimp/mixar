@@ -118,7 +118,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiThemeDescription =>
-      'Brilho e a cor de destaque usada pelo chrome da marca.';
+      'Brilho e a cor de destaque usada pela interface da marca.';
 
   @override
   String get settingsUiTheme => 'Tema';

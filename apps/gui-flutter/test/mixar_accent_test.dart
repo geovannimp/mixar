@@ -26,6 +26,13 @@ void main() {
       ('background', seeded.background, stock.background),
       ('border', seeded.border, stock.border),
       ('card', seeded.card, stock.card),
+      // Baked into recorded waveform strip pictures, so a palette must never
+      // touch it or the strip cache would keep stale lanes.
+      (
+        'waveformBackground',
+        seeded.waveformBackground,
+        stock.waveformBackground,
+      ),
       ('cueTint', seeded.cueTint, stock.cueTint),
       ('cueOn', seeded.cueOn, stock.cueOn),
     ]) {
@@ -55,10 +62,12 @@ void main() {
     expect(seeded.primary, MixarPink.s400);
     expect(seeded.accent, MixarPink.s400);
     expect(seeded.selection, MixarPink.s950);
-    // The deep wash stays magenta (Tailwind pink-950 sat at hue 336 = maroon).
+    // The deep wash must stay blue-leaning (magenta), not red-leaning: the
+    // shipped Tailwind pink-950 `#500724` is R>B and reads maroon.
     expect(
-      HSLColor.fromColor(seeded.selection).hue,
-      inInclusiveRange(280, 320),
+      seeded.selection.b,
+      greaterThan(seeded.selection.r),
+      reason: 'pink selection wash stays magenta instead of drifting to red',
     );
     expect(seeded.background, MixarColors.dark.background);
   });
