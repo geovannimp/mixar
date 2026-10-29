@@ -9,11 +9,11 @@ import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
@@ -44,31 +44,39 @@ class _SeededEngineUi extends EngineUi {
 
   @override
   EngineUiSnapshot build() {
-    var snap = applyEngineEvt(
+    var snap = applyEngineEvent(
       EngineUiSnapshot.empty,
-      const EngineEvt(
-        kind: EngineEvtKind.updated,
-        deckId: 0,
-        trackPath: '/t.flac',
-        trackId: 't1',
-        durationMs: _durationMs,
-        speed: 0.5,
-        tempoRange: 0.08,
+      deckUpdatedEvent(
+        deck: 0,
+        update: deckUpdated(
+          deck: 0,
+          trackPath: '/t.flac',
+          trackId: 't1',
+          durationMs: _durationMs,
+          speed: 0.5,
+          tempoRange: 0.08,
+        ),
       ),
     );
     if (playing) {
-      snap = applyEngineEvt(
+      snap = applyEngineEvent(
         snap,
-        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(deck: 0, durationMs: _durationMs, playing: true),
+        ),
       );
     }
     if (jogTouching) {
-      snap = applyEngineEvt(
+      snap = applyEngineEvent(
         snap,
-        const EngineEvt(
-          kind: EngineEvtKind.updated,
-          deckId: 0,
-          jogTouching: true,
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(
+            deck: 0,
+            durationMs: _durationMs,
+            jogTouching: true,
+          ),
         ),
       );
     }
@@ -170,9 +178,7 @@ Future<ProviderContainer> _pumpLane(
 void _applyPosition(ProviderContainer container, int ms) {
   container
       .read(engineUiProvider.notifier)
-      .apply(
-        EngineEvt(kind: EngineEvtKind.position, deckId: 0, positionMs: ms),
-      );
+      .apply(deckPositionEvent(deck: 0, positionMs: ms));
 }
 
 typedef _LaneRebuildProbe = ({int Function() count, void Function() stop});

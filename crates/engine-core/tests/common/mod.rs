@@ -2,16 +2,20 @@
 //!
 //! These used to be copy-pasted into every `bus_*.rs` file and had drifted into
 //! five different bodies with four different deadlines. The worst divergence was
-//! in `recv_evt_kind`: ten copies wrote
+//! the receive loop: ten copies wrote
 //!
 //! ```ignore
 //! sub.recv_timeout(...).expect("recv").expect("event")
 //! ```
 //!
-//! but `omnibus::BusReceiver::recv_timeout` returns `Ok(None)` on timeout, so the
+//! but `Subscriber::recv_timeout` returns `Ok(None)` on timeout, so the
 //! `.expect("event")` panicked after the first 50 ms poll. That made the
 //! surrounding "deadline" loop dead code and the effective timeout 50 ms — a
 //! flake under CI load (the control thread ticks every 33 ms).
+//!
+//! Every wait now goes through [`recv_evt`], which polls in short slices so a
+//! timeout stays a timeout, and through the typed wrappers below, so a test
+//! asserts on a payload field instead of decoding an envelope.
 //!
 //! Each integration-test binary compiles this module in full but uses only a
 //! subset of it, hence the module-level `dead_code` allow.
@@ -21,55 +25,129 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use engine_api::{Kind, Origin};
+use engine_api::DeckLevels;
+use engine_api::DeckPosition;
+use engine_api::DeckUpdated;
+use engine_api::EngineSnapshot;
+use engine_api::Error;
+use engine_api::Event;
 use engine_core::EngineSession;
+use event_bus::Subscriber;
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
 
-/// Event type carried by the engine's evt bus.
-pub type TestEvent = omnibus::Event<Origin, Kind, Arc<[u8]>>;
+/// Receiver type returned by `EngineSession::subscribe_evt_all` and
+/// `Engine::subscribe_evt_all`.
+pub type TestReceiver = Subscriber<Event>;
 
-/// Receiver type returned by `EngineSession::evt_bus().subscribe(..)`.
-pub type TestReceiver = omnibus::BusReceiver<Origin, Kind, Arc<[u8]>>;
+/// Default deadline for [`recv_evt`].
+pub const RECV_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Default deadline for [`recv_evt_kind`].
-pub const RECV_TIMEOUT: Duration = Duration::from_secs(2);
-
-/// Receive the next event of `kind`, skipping every other kind, until
+/// Receive the next event satisfying `pred`, skipping every other event, until
 /// [`RECV_TIMEOUT`] elapses.
 ///
 /// A disconnected bus fails immediately with the real error rather than spinning
 /// until the deadline and reporting a misleading timeout.
-pub fn recv_evt_kind(sub: &TestReceiver, kind: Kind) -> TestEvent {
-    recv_evt_where(sub, kind, |_| true)
-}
-
-/// [`recv_evt_kind`] restricted to events whose decoded body also satisfies
-/// `pred`. Use this instead of hand-rolling a receive loop when the assertion
-/// depends on a body field (e.g. a specific deck id), so every wait in the suite
-/// reports timeout and disconnect failures identically.
-pub fn recv_evt_where(
-    sub: &TestReceiver,
-    kind: Kind,
-    mut pred: impl FnMut(&TestEvent) -> bool,
-) -> TestEvent {
+pub fn recv_evt(sub: &mut TestReceiver, mut pred: impl FnMut(&Event) -> bool) -> Event {
     let deadline = Instant::now() + RECV_TIMEOUT;
-    while Instant::now() < deadline {
+    loop {
         let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            panic!("timeout waiting for a matching evt after {RECV_TIMEOUT:?}");
+        }
         match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
-            Ok(Some(event)) => {
-                if *event.kind() == kind && pred(&event) {
-                    return (*event).clone();
-                }
-            }
             // Timeout: nothing published yet, keep waiting out the deadline.
             Ok(None) => {}
-            Err(error) => panic!("evt bus disconnected while waiting for {kind:?}: {error}"),
+            Ok(Some(event)) => {
+                if pred(&event) {
+                    return event;
+                }
+            }
+            Err(error) => panic!("evt bus disconnected while waiting for an evt: {error}"),
         }
     }
-    panic!("timeout waiting for evt kind {kind:?} after {RECV_TIMEOUT:?}");
+}
+
+/// Next `DeckUpdated`, optionally restricted by `pred` on the payload.
+pub fn recv_updated_where(
+    sub: &mut TestReceiver,
+    mut pred: impl FnMut(&DeckUpdated) -> bool,
+) -> DeckUpdated {
+    let event = recv_evt(sub, |event| match event {
+        Event::DeckUpdated(update) => pred(update),
+        _ => false,
+    });
+    expect_updated(event)
+}
+
+/// Next `DeckUpdated` for any deck.
+pub fn recv_updated(sub: &mut TestReceiver) -> DeckUpdated {
+    recv_updated_where(sub, |_| true)
+}
+
+/// Next `DeckPosition`.
+pub fn recv_position(sub: &mut TestReceiver) -> DeckPosition {
+    expect_position(recv_evt(sub, |event| {
+        matches!(event, Event::DeckPosition(_))
+    }))
+}
+
+/// Next `DeckLevels`.
+pub fn recv_levels(sub: &mut TestReceiver) -> DeckLevels {
+    expect_levels(recv_evt(sub, |event| matches!(event, Event::DeckLevels(_))))
+}
+
+/// Next whole-engine snapshot.
+pub fn recv_snapshot(sub: &mut TestReceiver) -> EngineSnapshot {
+    expect_snapshot(recv_evt(sub, |event| {
+        matches!(event, Event::EngineSnapshot(_))
+    }))
+}
+
+/// Next error egress.
+pub fn recv_error(sub: &mut TestReceiver) -> Error {
+    expect_error(recv_evt(sub, |event| matches!(event, Event::Error(_))))
+}
+
+/// Unwrap a received event as `DeckUpdated`.
+pub fn expect_updated(event: Event) -> DeckUpdated {
+    match event {
+        Event::DeckUpdated(update) => update,
+        other => panic!("expected DeckUpdated, got {other:?}"),
+    }
+}
+
+/// Unwrap a received event as `DeckPosition`.
+pub fn expect_position(event: Event) -> DeckPosition {
+    match event {
+        Event::DeckPosition(position) => position,
+        other => panic!("expected DeckPosition, got {other:?}"),
+    }
+}
+
+/// Unwrap a received event as `DeckLevels`.
+pub fn expect_levels(event: Event) -> DeckLevels {
+    match event {
+        Event::DeckLevels(levels) => levels,
+        other => panic!("expected DeckLevels, got {other:?}"),
+    }
+}
+
+/// Unwrap a received event as `EngineSnapshot`.
+pub fn expect_snapshot(event: Event) -> EngineSnapshot {
+    match event {
+        Event::EngineSnapshot(snapshot) => snapshot,
+        other => panic!("expected EngineSnapshot, got {other:?}"),
+    }
+}
+
+/// Unwrap a received event as `Error`.
+pub fn expect_error(event: Event) -> Error {
+    match event {
+        Event::Error(error) => error,
+        other => panic!("expected Error, got {other:?}"),
+    }
 }
 
 /// The checked-in, CI-friendly audio fixture.

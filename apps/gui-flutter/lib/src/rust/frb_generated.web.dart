@@ -7,8 +7,10 @@
 // ignore_for_file: argument_type_not_assignable
 
 import 'api/analytics.dart';
+import 'api/bus.dart';
 import 'api/controller.dart';
 import 'api/engine.dart';
+import 'api/event_mirrors.dart';
 import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
@@ -34,12 +36,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnalyticsTransport;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_ControllerTransportPtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport;
+  get rust_arc_decrement_strong_count_BusTransportPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_EngineBusHandlePtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle;
+  get rust_arc_decrement_strong_count_ControllerTransportPtr => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_EngineTransportPtr => wire
@@ -67,14 +69,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ControllerTransport
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+  BusTransport
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
     dynamic raw,
   );
 
   @protected
-  EngineBusHandle
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+  ControllerTransport
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     dynamic raw,
   );
 
@@ -109,14 +111,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ControllerTransport
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+  BusTransport
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
     dynamic raw,
   );
 
   @protected
-  EngineBusHandle
-  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+  ControllerTransport
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     dynamic raw,
   );
 
@@ -151,14 +153,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ControllerTransport
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+  BusTransport
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
     dynamic raw,
   );
 
   @protected
-  EngineBusHandle
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+  ControllerTransport
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     dynamic raw,
   );
 
@@ -192,19 +194,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RustStreamSink<EngineEvt> dco_decode_StreamSink_engine_evt_Sse(dynamic raw);
+  RustStreamSink<Event> dco_decode_StreamSink_event_Sse(dynamic raw);
 
   @protected
   RustStreamSink<LibraryEvt> dco_decode_StreamSink_library_evt_Sse(dynamic raw);
 
   @protected
   String dco_decode_String(dynamic raw);
-
-  @protected
-  AccentPaletteSetting dco_decode_accent_palette_setting(dynamic raw);
-
-  @protected
-  ActiveLoopInfo dco_decode_active_loop_info(dynamic raw);
 
   @protected
   AddFolderCollectionResult dco_decode_add_folder_collection_result(
@@ -221,25 +217,91 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AppSettings dco_decode_app_settings(dynamic raw);
 
   @protected
+  AssignSampler dco_decode_assign_sampler(dynamic raw);
+
+  @protected
+  AssignSamplerTrack dco_decode_assign_sampler_track(dynamic raw);
+
+  @protected
   BeatGridData dco_decode_beat_grid_data(dynamic raw);
+
+  @protected
+  BeatJump dco_decode_beat_jump(dynamic raw);
+
+  @protected
+  BeatJumpPadPress dco_decode_beat_jump_pad_press(dynamic raw);
+
+  @protected
+  BeatJumpPadRelease dco_decode_beat_jump_pad_release(dynamic raw);
+
+  @protected
+  BeginCueHold dco_decode_begin_cue_hold(dynamic raw);
+
+  @protected
+  BeginLoopRoll dco_decode_begin_loop_roll(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
 
   @protected
-  ActiveLoopInfo dco_decode_box_autoadd_active_loop_info(dynamic raw);
+  AppSettings dco_decode_box_autoadd_app_settings(dynamic raw);
 
   @protected
-  AppSettings dco_decode_box_autoadd_app_settings(dynamic raw);
+  AssignSampler dco_decode_box_autoadd_assign_sampler(dynamic raw);
+
+  @protected
+  AssignSamplerTrack dco_decode_box_autoadd_assign_sampler_track(dynamic raw);
 
   @protected
   BeatGridData dco_decode_box_autoadd_beat_grid_data(dynamic raw);
 
   @protected
-  bool dco_decode_box_autoadd_bool(dynamic raw);
+  BeatJump dco_decode_box_autoadd_beat_jump(dynamic raw);
 
   @protected
-  CrossfaderAssign dco_decode_box_autoadd_crossfader_assign(dynamic raw);
+  BeatJumpPadPress dco_decode_box_autoadd_beat_jump_pad_press(dynamic raw);
+
+  @protected
+  BeatJumpPadRelease dco_decode_box_autoadd_beat_jump_pad_release(dynamic raw);
+
+  @protected
+  BeginCueHold dco_decode_box_autoadd_begin_cue_hold(dynamic raw);
+
+  @protected
+  BeginLoopRoll dco_decode_box_autoadd_begin_loop_roll(dynamic raw);
+
+  @protected
+  ClearSampler dco_decode_box_autoadd_clear_sampler(dynamic raw);
+
+  @protected
+  DeckLevels dco_decode_box_autoadd_deck_levels(dynamic raw);
+
+  @protected
+  DeckPosition dco_decode_box_autoadd_deck_position(dynamic raw);
+
+  @protected
+  DeckUpdated dco_decode_box_autoadd_deck_updated(dynamic raw);
+
+  @protected
+  DeleteDeckHotCue dco_decode_box_autoadd_delete_deck_hot_cue(dynamic raw);
+
+  @protected
+  EndCueHold dco_decode_box_autoadd_end_cue_hold(dynamic raw);
+
+  @protected
+  EndLoopRoll dco_decode_box_autoadd_end_loop_roll(dynamic raw);
+
+  @protected
+  EngineSnapshot dco_decode_box_autoadd_engine_snapshot(dynamic raw);
+
+  @protected
+  Error dco_decode_box_autoadd_error(dynamic raw);
+
+  @protected
+  Event dco_decode_box_autoadd_event(dynamic raw);
+
+  @protected
+  ExitLoop dco_decode_box_autoadd_exit_loop(dynamic raw);
 
   @protected
   double dco_decode_box_autoadd_f_32(dynamic raw);
@@ -253,10 +315,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  HotCuePadPress dco_decode_box_autoadd_hot_cue_pad_press(dynamic raw);
+
+  @protected
+  HotCuePadRelease dco_decode_box_autoadd_hot_cue_pad_release(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_i_32(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  JogTouch dco_decode_box_autoadd_jog_touch(dynamic raw);
+
+  @protected
+  JogTurn dco_decode_box_autoadd_jog_turn(dynamic raw);
+
+  @protected
+  KeyShiftPadPress dco_decode_box_autoadd_key_shift_pad_press(dynamic raw);
+
+  @protected
+  KeyShiftPadRelease dco_decode_box_autoadd_key_shift_pad_release(dynamic raw);
+
+  @protected
+  KeyboardPadPress dco_decode_box_autoadd_keyboard_pad_press(dynamic raw);
+
+  @protected
+  KeyboardPadRelease dco_decode_box_autoadd_keyboard_pad_release(dynamic raw);
 
   @protected
   LibraryColorLabel dco_decode_box_autoadd_library_color_label(dynamic raw);
@@ -265,13 +351,168 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(dynamic raw);
 
   @protected
-  PadMode dco_decode_box_autoadd_pad_mode(dynamic raw);
+  LoopIn dco_decode_box_autoadd_loop_in(dynamic raw);
+
+  @protected
+  LoopOut dco_decode_box_autoadd_loop_out(dynamic raw);
+
+  @protected
+  LoopRegion dco_decode_box_autoadd_loop_region(dynamic raw);
+
+  @protected
+  LoopRollPadPress dco_decode_box_autoadd_loop_roll_pad_press(dynamic raw);
+
+  @protected
+  LoopRollPadRelease dco_decode_box_autoadd_loop_roll_pad_release(dynamic raw);
+
+  @protected
+  Notice dco_decode_box_autoadd_notice(dynamic raw);
+
+  @protected
+  PadPress dco_decode_box_autoadd_pad_press(dynamic raw);
+
+  @protected
+  PadRelease dco_decode_box_autoadd_pad_release(dynamic raw);
+
+  @protected
+  Pause dco_decode_box_autoadd_pause(dynamic raw);
+
+  @protected
+  Play dco_decode_box_autoadd_play(dynamic raw);
+
+  @protected
+  RecallSavedLoop dco_decode_box_autoadd_recall_saved_loop(dynamic raw);
+
+  @protected
+  SamplerPadPress dco_decode_box_autoadd_sampler_pad_press(dynamic raw);
+
+  @protected
+  SamplerPadRelease dco_decode_box_autoadd_sampler_pad_release(dynamic raw);
 
   @protected
   SamplerPlayMode dco_decode_box_autoadd_sampler_play_mode(dynamic raw);
 
   @protected
-  SyncMode dco_decode_box_autoadd_sync_mode(dynamic raw);
+  SaveDeckHotCue dco_decode_box_autoadd_save_deck_hot_cue(dynamic raw);
+
+  @protected
+  Seek dco_decode_box_autoadd_seek(dynamic raw);
+
+  @protected
+  SetAutoLoop dco_decode_box_autoadd_set_auto_loop(dynamic raw);
+
+  @protected
+  SetCrossfader dco_decode_box_autoadd_set_crossfader(dynamic raw);
+
+  @protected
+  SetCrossfaderAssign dco_decode_box_autoadd_set_crossfader_assign(dynamic raw);
+
+  @protected
+  SetCueMix dco_decode_box_autoadd_set_cue_mix(dynamic raw);
+
+  @protected
+  SetCuePoint dco_decode_box_autoadd_set_cue_point(dynamic raw);
+
+  @protected
+  SetCueVolume dco_decode_box_autoadd_set_cue_volume(dynamic raw);
+
+  @protected
+  SetDeckFxRouted dco_decode_box_autoadd_set_deck_fx_routed(dynamic raw);
+
+  @protected
+  SetEq dco_decode_box_autoadd_set_eq(dynamic raw);
+
+  @protected
+  SetEqBand dco_decode_box_autoadd_set_eq_band(dynamic raw);
+
+  @protected
+  SetFilter dco_decode_box_autoadd_set_filter(dynamic raw);
+
+  @protected
+  SetFxUnitParam dco_decode_box_autoadd_set_fx_unit_param(dynamic raw);
+
+  @protected
+  SetFxUnitSlot dco_decode_box_autoadd_set_fx_unit_slot(dynamic raw);
+
+  @protected
+  SetFxUnitSlotEnabled dco_decode_box_autoadd_set_fx_unit_slot_enabled(
+    dynamic raw,
+  );
+
+  @protected
+  SetFxUnitWet dco_decode_box_autoadd_set_fx_unit_wet(dynamic raw);
+
+  @protected
+  SetGainTrim dco_decode_box_autoadd_set_gain_trim(dynamic raw);
+
+  @protected
+  SetHeadphoneCue dco_decode_box_autoadd_set_headphone_cue(dynamic raw);
+
+  @protected
+  SetJogMode dco_decode_box_autoadd_set_jog_mode(dynamic raw);
+
+  @protected
+  SetKeyLock dco_decode_box_autoadd_set_key_lock(dynamic raw);
+
+  @protected
+  SetKeyShift dco_decode_box_autoadd_set_key_shift(dynamic raw);
+
+  @protected
+  SetKeyShiftPage dco_decode_box_autoadd_set_key_shift_page(dynamic raw);
+
+  @protected
+  SetKeyboardPage dco_decode_box_autoadd_set_keyboard_page(dynamic raw);
+
+  @protected
+  SetKeyboardRoot dco_decode_box_autoadd_set_keyboard_root(dynamic raw);
+
+  @protected
+  SetMasterCue dco_decode_box_autoadd_set_master_cue(dynamic raw);
+
+  @protected
+  SetMasterDeck dco_decode_box_autoadd_set_master_deck(dynamic raw);
+
+  @protected
+  SetMasterVolume dco_decode_box_autoadd_set_master_volume(dynamic raw);
+
+  @protected
+  SetPadMode dco_decode_box_autoadd_set_pad_mode(dynamic raw);
+
+  @protected
+  SetQuantize dco_decode_box_autoadd_set_quantize(dynamic raw);
+
+  @protected
+  SetSlip dco_decode_box_autoadd_set_slip(dynamic raw);
+
+  @protected
+  SetSpeed dco_decode_box_autoadd_set_speed(dynamic raw);
+
+  @protected
+  SetTempoRange dco_decode_box_autoadd_set_tempo_range(dynamic raw);
+
+  @protected
+  SetVolume dco_decode_box_autoadd_set_volume(dynamic raw);
+
+  @protected
+  ToggleHeadphoneCue dco_decode_box_autoadd_toggle_headphone_cue(dynamic raw);
+
+  @protected
+  ToggleMasterCue dco_decode_box_autoadd_toggle_master_cue(dynamic raw);
+
+  @protected
+  TogglePlay dco_decode_box_autoadd_toggle_play(dynamic raw);
+
+  @protected
+  ToggleQuantize dco_decode_box_autoadd_toggle_quantize(dynamic raw);
+
+  @protected
+  ToggleSlip dco_decode_box_autoadd_toggle_slip(dynamic raw);
+
+  @protected
+  ToggleSync dco_decode_box_autoadd_toggle_sync(dynamic raw);
+
+  @protected
+  TriggerHotCue dco_decode_box_autoadd_trigger_hot_cue(dynamic raw);
 
   @protected
   int dco_decode_box_autoadd_u_16(dynamic raw);
@@ -281,6 +522,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_box_autoadd_u_8(dynamic raw);
+
+  @protected
+  Unload dco_decode_box_autoadd_unload(dynamic raw);
 
   @protected
   WaveformPeaks dco_decode_box_autoadd_waveform_peaks(dynamic raw);
@@ -293,6 +537,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CdjExportReport dco_decode_cdj_export_report(dynamic raw);
+
+  @protected
+  ClearSampler dco_decode_clear_sampler(dynamic raw);
 
   @protected
   ControllerDeviceDirection dco_decode_controller_device_direction(dynamic raw);
@@ -313,13 +560,52 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CrossfaderAssign dco_decode_crossfader_assign(dynamic raw);
 
   @protected
-  EngineEvt dco_decode_engine_evt(dynamic raw);
+  DeckEq dco_decode_deck_eq(dynamic raw);
 
   @protected
-  EngineEvtKind dco_decode_engine_evt_kind(dynamic raw);
+  DeckHotCue dco_decode_deck_hot_cue(dynamic raw);
+
+  @protected
+  DeckLevels dco_decode_deck_levels(dynamic raw);
+
+  @protected
+  DeckPosition dco_decode_deck_position(dynamic raw);
+
+  @protected
+  DeckSavedLoop dco_decode_deck_saved_loop(dynamic raw);
+
+  @protected
+  DeckSnapshot dco_decode_deck_snapshot(dynamic raw);
+
+  @protected
+  DeckUpdated dco_decode_deck_updated(dynamic raw);
+
+  @protected
+  DeleteDeckHotCue dco_decode_delete_deck_hot_cue(dynamic raw);
+
+  @protected
+  EndCueHold dco_decode_end_cue_hold(dynamic raw);
+
+  @protected
+  EndLoopRoll dco_decode_end_loop_roll(dynamic raw);
+
+  @protected
+  EngineSnapshot dco_decode_engine_snapshot(dynamic raw);
+
+  @protected
+  EngineStatus dco_decode_engine_status(dynamic raw);
 
   @protected
   EqBand dco_decode_eq_band(dynamic raw);
+
+  @protected
+  Error dco_decode_error(dynamic raw);
+
+  @protected
+  Event dco_decode_event(dynamic raw);
+
+  @protected
+  ExitLoop dco_decode_exit_loop(dynamic raw);
 
   @protected
   double dco_decode_f_32(dynamic raw);
@@ -340,7 +626,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FxKind dco_decode_fx_kind(dynamic raw);
 
   @protected
-  FxSlotChrome dco_decode_fx_slot_chrome(dynamic raw);
+  FxSlotState dco_decode_fx_slot_state(dynamic raw);
 
   @protected
   HistoryEntryInfo dco_decode_history_entry_info(dynamic raw);
@@ -360,19 +646,46 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   HotCueInfo dco_decode_hot_cue_info(dynamic raw);
 
   @protected
+  HotCuePadPress dco_decode_hot_cue_pad_press(dynamic raw);
+
+  @protected
+  HotCuePadRelease dco_decode_hot_cue_pad_release(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  JogMode dco_decode_jog_mode(dynamic raw);
+
+  @protected
   JogModeSetting dco_decode_jog_mode_setting(dynamic raw);
+
+  @protected
+  JogTouch dco_decode_jog_touch(dynamic raw);
+
+  @protected
+  JogTurn dco_decode_jog_turn(dynamic raw);
 
   @protected
   KeyColorModeSetting dco_decode_key_color_mode_setting(dynamic raw);
 
   @protected
   KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw);
+
+  @protected
+  KeyShiftPadPress dco_decode_key_shift_pad_press(dynamic raw);
+
+  @protected
+  KeyShiftPadRelease dco_decode_key_shift_pad_release(dynamic raw);
+
+  @protected
+  KeyboardPadPress dco_decode_keyboard_pad_press(dynamic raw);
+
+  @protected
+  KeyboardPadRelease dco_decode_keyboard_pad_release(dynamic raw);
 
   @protected
   LibraryAnalysisDurationSetting dco_decode_library_analysis_duration_setting(
@@ -423,13 +736,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DeckHotCue> dco_decode_list_deck_hot_cue(dynamic raw);
+
+  @protected
+  List<DeckSavedLoop> dco_decode_list_deck_saved_loop(dynamic raw);
+
+  @protected
+  List<DeckSnapshot> dco_decode_list_deck_snapshot(dynamic raw);
+
+  @protected
   List<FsEntry> dco_decode_list_fs_entry(dynamic raw);
 
   @protected
   List<FsVolumeInfo> dco_decode_list_fs_volume_info(dynamic raw);
 
   @protected
-  List<FxSlotChrome> dco_decode_list_fx_slot_chrome(dynamic raw);
+  List<FxSlotState> dco_decode_list_fx_slot_state(dynamic raw);
 
   @protected
   List<HistoryEntryInfo> dco_decode_list_history_entry_info(dynamic raw);
@@ -482,10 +804,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SamplerBankInfo> dco_decode_list_sampler_bank_info(dynamic raw);
 
   @protected
-  List<SamplerSlotChrome> dco_decode_list_sampler_slot_chrome(dynamic raw);
+  List<SamplerSlotInfo> dco_decode_list_sampler_slot_info(dynamic raw);
 
   @protected
   List<SavedLoopInfo> dco_decode_list_saved_loop_info(dynamic raw);
+
+  @protected
+  LoopIn dco_decode_loop_in(dynamic raw);
+
+  @protected
+  LoopOut dco_decode_loop_out(dynamic raw);
+
+  @protected
+  LoopRegion dco_decode_loop_region(dynamic raw);
+
+  @protected
+  LoopRollPadPress dco_decode_loop_roll_pad_press(dynamic raw);
+
+  @protected
+  LoopRollPadRelease dco_decode_loop_roll_pad_release(dynamic raw);
 
   @protected
   MixxxImportPreview dco_decode_mixxx_import_preview(dynamic raw);
@@ -494,19 +831,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MixxxImportReport dco_decode_mixxx_import_report(dynamic raw);
 
   @protected
+  Notice dco_decode_notice(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
-  ActiveLoopInfo? dco_decode_opt_box_autoadd_active_loop_info(dynamic raw);
-
-  @protected
   BeatGridData? dco_decode_opt_box_autoadd_beat_grid_data(dynamic raw);
-
-  @protected
-  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
-
-  @protected
-  CrossfaderAssign? dco_decode_opt_box_autoadd_crossfader_assign(dynamic raw);
 
   @protected
   double? dco_decode_opt_box_autoadd_f_32(dynamic raw);
@@ -535,13 +866,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  PadMode? dco_decode_opt_box_autoadd_pad_mode(dynamic raw);
+  LoopRegion? dco_decode_opt_box_autoadd_loop_region(dynamic raw);
 
   @protected
   SamplerPlayMode? dco_decode_opt_box_autoadd_sampler_play_mode(dynamic raw);
-
-  @protected
-  SyncMode? dco_decode_opt_box_autoadd_sync_mode(dynamic raw);
 
   @protected
   int? dco_decode_opt_box_autoadd_u_16(dynamic raw);
@@ -556,19 +884,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WaveformPeaks? dco_decode_opt_box_autoadd_waveform_peaks(dynamic raw);
 
   @protected
-  List<bool>? dco_decode_opt_list_bool(dynamic raw);
-
-  @protected
-  List<FxSlotChrome>? dco_decode_opt_list_fx_slot_chrome(dynamic raw);
-
-  @protected
   List<HotCueInfo>? dco_decode_opt_list_hot_cue_info(dynamic raw);
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
-
-  @protected
-  List<SamplerSlotChrome>? dco_decode_opt_list_sampler_slot_chrome(dynamic raw);
 
   @protected
   List<SavedLoopInfo>? dco_decode_opt_list_saved_loop_info(dynamic raw);
@@ -580,6 +899,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PadMode dco_decode_pad_mode(dynamic raw);
 
   @protected
+  PadPress dco_decode_pad_press(dynamic raw);
+
+  @protected
+  PadRelease dco_decode_pad_release(dynamic raw);
+
+  @protected
+  Pause dco_decode_pause(dynamic raw);
+
+  @protected
+  Play dco_decode_play(dynamic raw);
+
+  @protected
+  RecallSavedLoop dco_decode_recall_saved_loop(dynamic raw);
+
+  @protected
   ResolvedLibraryTrack dco_decode_resolved_library_track(dynamic raw);
 
   @protected
@@ -589,13 +923,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SamplerBankInfo dco_decode_sampler_bank_info(dynamic raw);
 
   @protected
+  SamplerPadPress dco_decode_sampler_pad_press(dynamic raw);
+
+  @protected
+  SamplerPadRelease dco_decode_sampler_pad_release(dynamic raw);
+
+  @protected
   SamplerPlayMode dco_decode_sampler_play_mode(dynamic raw);
 
   @protected
   SamplerPlayModeSetting dco_decode_sampler_play_mode_setting(dynamic raw);
 
   @protected
-  SamplerSlotChrome dco_decode_sampler_slot_chrome(dynamic raw);
+  SamplerSlotInfo dco_decode_sampler_slot_info(dynamic raw);
 
   @protected
   SamplerStripRouteSettingFrb dco_decode_sampler_strip_route_setting_frb(
@@ -603,10 +943,109 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SaveDeckHotCue dco_decode_save_deck_hot_cue(dynamic raw);
+
+  @protected
   SavedLoopInfo dco_decode_saved_loop_info(dynamic raw);
 
   @protected
+  Seek dco_decode_seek(dynamic raw);
+
+  @protected
   SelectStyleSetting dco_decode_select_style_setting(dynamic raw);
+
+  @protected
+  SetAutoLoop dco_decode_set_auto_loop(dynamic raw);
+
+  @protected
+  SetCrossfader dco_decode_set_crossfader(dynamic raw);
+
+  @protected
+  SetCrossfaderAssign dco_decode_set_crossfader_assign(dynamic raw);
+
+  @protected
+  SetCueMix dco_decode_set_cue_mix(dynamic raw);
+
+  @protected
+  SetCuePoint dco_decode_set_cue_point(dynamic raw);
+
+  @protected
+  SetCueVolume dco_decode_set_cue_volume(dynamic raw);
+
+  @protected
+  SetDeckFxRouted dco_decode_set_deck_fx_routed(dynamic raw);
+
+  @protected
+  SetEq dco_decode_set_eq(dynamic raw);
+
+  @protected
+  SetEqBand dco_decode_set_eq_band(dynamic raw);
+
+  @protected
+  SetFilter dco_decode_set_filter(dynamic raw);
+
+  @protected
+  SetFxUnitParam dco_decode_set_fx_unit_param(dynamic raw);
+
+  @protected
+  SetFxUnitSlot dco_decode_set_fx_unit_slot(dynamic raw);
+
+  @protected
+  SetFxUnitSlotEnabled dco_decode_set_fx_unit_slot_enabled(dynamic raw);
+
+  @protected
+  SetFxUnitWet dco_decode_set_fx_unit_wet(dynamic raw);
+
+  @protected
+  SetGainTrim dco_decode_set_gain_trim(dynamic raw);
+
+  @protected
+  SetHeadphoneCue dco_decode_set_headphone_cue(dynamic raw);
+
+  @protected
+  SetJogMode dco_decode_set_jog_mode(dynamic raw);
+
+  @protected
+  SetKeyLock dco_decode_set_key_lock(dynamic raw);
+
+  @protected
+  SetKeyShift dco_decode_set_key_shift(dynamic raw);
+
+  @protected
+  SetKeyShiftPage dco_decode_set_key_shift_page(dynamic raw);
+
+  @protected
+  SetKeyboardPage dco_decode_set_keyboard_page(dynamic raw);
+
+  @protected
+  SetKeyboardRoot dco_decode_set_keyboard_root(dynamic raw);
+
+  @protected
+  SetMasterCue dco_decode_set_master_cue(dynamic raw);
+
+  @protected
+  SetMasterDeck dco_decode_set_master_deck(dynamic raw);
+
+  @protected
+  SetMasterVolume dco_decode_set_master_volume(dynamic raw);
+
+  @protected
+  SetPadMode dco_decode_set_pad_mode(dynamic raw);
+
+  @protected
+  SetQuantize dco_decode_set_quantize(dynamic raw);
+
+  @protected
+  SetSlip dco_decode_set_slip(dynamic raw);
+
+  @protected
+  SetSpeed dco_decode_set_speed(dynamic raw);
+
+  @protected
+  SetTempoRange dco_decode_set_tempo_range(dynamic raw);
+
+  @protected
+  SetVolume dco_decode_set_volume(dynamic raw);
 
   @protected
   StorageUsage dco_decode_storage_usage(dynamic raw);
@@ -616,6 +1055,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ThemeSetting dco_decode_theme_setting(dynamic raw);
+
+  @protected
+  ToggleHeadphoneCue dco_decode_toggle_headphone_cue(dynamic raw);
+
+  @protected
+  ToggleMasterCue dco_decode_toggle_master_cue(dynamic raw);
+
+  @protected
+  TogglePlay dco_decode_toggle_play(dynamic raw);
+
+  @protected
+  ToggleQuantize dco_decode_toggle_quantize(dynamic raw);
+
+  @protected
+  ToggleSlip dco_decode_toggle_slip(dynamic raw);
+
+  @protected
+  ToggleSync dco_decode_toggle_sync(dynamic raw);
+
+  @protected
+  TriggerHotCue dco_decode_trigger_hot_cue(dynamic raw);
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -634,6 +1094,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  Unload dco_decode_unload(dynamic raw);
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
@@ -656,14 +1119,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ControllerTransport
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+  BusTransport
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
     SseDeserializer deserializer,
   );
 
   @protected
-  EngineBusHandle
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+  ControllerTransport
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     SseDeserializer deserializer,
   );
 
@@ -698,14 +1161,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ControllerTransport
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+  BusTransport
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
     SseDeserializer deserializer,
   );
 
   @protected
-  EngineBusHandle
-  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+  ControllerTransport
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     SseDeserializer deserializer,
   );
 
@@ -740,14 +1203,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ControllerTransport
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+  BusTransport
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
     SseDeserializer deserializer,
   );
 
   @protected
-  EngineBusHandle
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+  ControllerTransport
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     SseDeserializer deserializer,
   );
 
@@ -781,7 +1244,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RustStreamSink<EngineEvt> sse_decode_StreamSink_engine_evt_Sse(
+  RustStreamSink<Event> sse_decode_StreamSink_event_Sse(
     SseDeserializer deserializer,
   );
 
@@ -792,14 +1255,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
-
-  @protected
-  AccentPaletteSetting sse_decode_accent_palette_setting(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  ActiveLoopInfo sse_decode_active_loop_info(SseDeserializer deserializer);
 
   @protected
   AddFolderCollectionResult sse_decode_add_folder_collection_result(
@@ -820,18 +1275,48 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AppSettings sse_decode_app_settings(SseDeserializer deserializer);
 
   @protected
+  AssignSampler sse_decode_assign_sampler(SseDeserializer deserializer);
+
+  @protected
+  AssignSamplerTrack sse_decode_assign_sampler_track(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BeatGridData sse_decode_beat_grid_data(SseDeserializer deserializer);
+
+  @protected
+  BeatJump sse_decode_beat_jump(SseDeserializer deserializer);
+
+  @protected
+  BeatJumpPadPress sse_decode_beat_jump_pad_press(SseDeserializer deserializer);
+
+  @protected
+  BeatJumpPadRelease sse_decode_beat_jump_pad_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BeginCueHold sse_decode_begin_cue_hold(SseDeserializer deserializer);
+
+  @protected
+  BeginLoopRoll sse_decode_begin_loop_roll(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
-  ActiveLoopInfo sse_decode_box_autoadd_active_loop_info(
+  AppSettings sse_decode_box_autoadd_app_settings(SseDeserializer deserializer);
+
+  @protected
+  AssignSampler sse_decode_box_autoadd_assign_sampler(
     SseDeserializer deserializer,
   );
 
   @protected
-  AppSettings sse_decode_box_autoadd_app_settings(SseDeserializer deserializer);
+  AssignSamplerTrack sse_decode_box_autoadd_assign_sampler_track(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BeatGridData sse_decode_box_autoadd_beat_grid_data(
@@ -839,12 +1324,70 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+  BeatJump sse_decode_box_autoadd_beat_jump(SseDeserializer deserializer);
 
   @protected
-  CrossfaderAssign sse_decode_box_autoadd_crossfader_assign(
+  BeatJumpPadPress sse_decode_box_autoadd_beat_jump_pad_press(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BeatJumpPadRelease sse_decode_box_autoadd_beat_jump_pad_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BeginCueHold sse_decode_box_autoadd_begin_cue_hold(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BeginLoopRoll sse_decode_box_autoadd_begin_loop_roll(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ClearSampler sse_decode_box_autoadd_clear_sampler(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DeckLevels sse_decode_box_autoadd_deck_levels(SseDeserializer deserializer);
+
+  @protected
+  DeckPosition sse_decode_box_autoadd_deck_position(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  DeckUpdated sse_decode_box_autoadd_deck_updated(SseDeserializer deserializer);
+
+  @protected
+  DeleteDeckHotCue sse_decode_box_autoadd_delete_deck_hot_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EndCueHold sse_decode_box_autoadd_end_cue_hold(SseDeserializer deserializer);
+
+  @protected
+  EndLoopRoll sse_decode_box_autoadd_end_loop_roll(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EngineSnapshot sse_decode_box_autoadd_engine_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Error sse_decode_box_autoadd_error(SseDeserializer deserializer);
+
+  @protected
+  Event sse_decode_box_autoadd_event(SseDeserializer deserializer);
+
+  @protected
+  ExitLoop sse_decode_box_autoadd_exit_loop(SseDeserializer deserializer);
 
   @protected
   double sse_decode_box_autoadd_f_32(SseDeserializer deserializer);
@@ -858,10 +1401,46 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  HotCuePadPress sse_decode_box_autoadd_hot_cue_pad_press(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HotCuePadRelease sse_decode_box_autoadd_hot_cue_pad_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_box_autoadd_i_32(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  JogTouch sse_decode_box_autoadd_jog_touch(SseDeserializer deserializer);
+
+  @protected
+  JogTurn sse_decode_box_autoadd_jog_turn(SseDeserializer deserializer);
+
+  @protected
+  KeyShiftPadPress sse_decode_box_autoadd_key_shift_pad_press(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KeyShiftPadRelease sse_decode_box_autoadd_key_shift_pad_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KeyboardPadPress sse_decode_box_autoadd_keyboard_pad_press(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KeyboardPadRelease sse_decode_box_autoadd_keyboard_pad_release(
+    SseDeserializer deserializer,
+  );
 
   @protected
   LibraryColorLabel sse_decode_box_autoadd_library_color_label(
@@ -874,7 +1453,53 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  PadMode sse_decode_box_autoadd_pad_mode(SseDeserializer deserializer);
+  LoopIn sse_decode_box_autoadd_loop_in(SseDeserializer deserializer);
+
+  @protected
+  LoopOut sse_decode_box_autoadd_loop_out(SseDeserializer deserializer);
+
+  @protected
+  LoopRegion sse_decode_box_autoadd_loop_region(SseDeserializer deserializer);
+
+  @protected
+  LoopRollPadPress sse_decode_box_autoadd_loop_roll_pad_press(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LoopRollPadRelease sse_decode_box_autoadd_loop_roll_pad_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Notice sse_decode_box_autoadd_notice(SseDeserializer deserializer);
+
+  @protected
+  PadPress sse_decode_box_autoadd_pad_press(SseDeserializer deserializer);
+
+  @protected
+  PadRelease sse_decode_box_autoadd_pad_release(SseDeserializer deserializer);
+
+  @protected
+  Pause sse_decode_box_autoadd_pause(SseDeserializer deserializer);
+
+  @protected
+  Play sse_decode_box_autoadd_play(SseDeserializer deserializer);
+
+  @protected
+  RecallSavedLoop sse_decode_box_autoadd_recall_saved_loop(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SamplerPadPress sse_decode_box_autoadd_sampler_pad_press(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SamplerPadRelease sse_decode_box_autoadd_sampler_pad_release(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SamplerPlayMode sse_decode_box_autoadd_sampler_play_mode(
@@ -882,7 +1507,174 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  SyncMode sse_decode_box_autoadd_sync_mode(SseDeserializer deserializer);
+  SaveDeckHotCue sse_decode_box_autoadd_save_deck_hot_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Seek sse_decode_box_autoadd_seek(SseDeserializer deserializer);
+
+  @protected
+  SetAutoLoop sse_decode_box_autoadd_set_auto_loop(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCrossfader sse_decode_box_autoadd_set_crossfader(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCrossfaderAssign sse_decode_box_autoadd_set_crossfader_assign(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCueMix sse_decode_box_autoadd_set_cue_mix(SseDeserializer deserializer);
+
+  @protected
+  SetCuePoint sse_decode_box_autoadd_set_cue_point(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCueVolume sse_decode_box_autoadd_set_cue_volume(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetDeckFxRouted sse_decode_box_autoadd_set_deck_fx_routed(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetEq sse_decode_box_autoadd_set_eq(SseDeserializer deserializer);
+
+  @protected
+  SetEqBand sse_decode_box_autoadd_set_eq_band(SseDeserializer deserializer);
+
+  @protected
+  SetFilter sse_decode_box_autoadd_set_filter(SseDeserializer deserializer);
+
+  @protected
+  SetFxUnitParam sse_decode_box_autoadd_set_fx_unit_param(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetFxUnitSlot sse_decode_box_autoadd_set_fx_unit_slot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetFxUnitSlotEnabled sse_decode_box_autoadd_set_fx_unit_slot_enabled(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetFxUnitWet sse_decode_box_autoadd_set_fx_unit_wet(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetGainTrim sse_decode_box_autoadd_set_gain_trim(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetHeadphoneCue sse_decode_box_autoadd_set_headphone_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetJogMode sse_decode_box_autoadd_set_jog_mode(SseDeserializer deserializer);
+
+  @protected
+  SetKeyLock sse_decode_box_autoadd_set_key_lock(SseDeserializer deserializer);
+
+  @protected
+  SetKeyShift sse_decode_box_autoadd_set_key_shift(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetKeyShiftPage sse_decode_box_autoadd_set_key_shift_page(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetKeyboardPage sse_decode_box_autoadd_set_keyboard_page(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetKeyboardRoot sse_decode_box_autoadd_set_keyboard_root(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetMasterCue sse_decode_box_autoadd_set_master_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetMasterDeck sse_decode_box_autoadd_set_master_deck(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetMasterVolume sse_decode_box_autoadd_set_master_volume(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetPadMode sse_decode_box_autoadd_set_pad_mode(SseDeserializer deserializer);
+
+  @protected
+  SetQuantize sse_decode_box_autoadd_set_quantize(SseDeserializer deserializer);
+
+  @protected
+  SetSlip sse_decode_box_autoadd_set_slip(SseDeserializer deserializer);
+
+  @protected
+  SetSpeed sse_decode_box_autoadd_set_speed(SseDeserializer deserializer);
+
+  @protected
+  SetTempoRange sse_decode_box_autoadd_set_tempo_range(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetVolume sse_decode_box_autoadd_set_volume(SseDeserializer deserializer);
+
+  @protected
+  ToggleHeadphoneCue sse_decode_box_autoadd_toggle_headphone_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ToggleMasterCue sse_decode_box_autoadd_toggle_master_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TogglePlay sse_decode_box_autoadd_toggle_play(SseDeserializer deserializer);
+
+  @protected
+  ToggleQuantize sse_decode_box_autoadd_toggle_quantize(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ToggleSlip sse_decode_box_autoadd_toggle_slip(SseDeserializer deserializer);
+
+  @protected
+  ToggleSync sse_decode_box_autoadd_toggle_sync(SseDeserializer deserializer);
+
+  @protected
+  TriggerHotCue sse_decode_box_autoadd_trigger_hot_cue(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer);
@@ -892,6 +1684,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
+
+  @protected
+  Unload sse_decode_box_autoadd_unload(SseDeserializer deserializer);
 
   @protected
   WaveformPeaks sse_decode_box_autoadd_waveform_peaks(
@@ -906,6 +1701,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CdjExportReport sse_decode_cdj_export_report(SseDeserializer deserializer);
+
+  @protected
+  ClearSampler sse_decode_clear_sampler(SseDeserializer deserializer);
 
   @protected
   ControllerDeviceDirection sse_decode_controller_device_direction(
@@ -934,13 +1732,52 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CrossfaderAssign sse_decode_crossfader_assign(SseDeserializer deserializer);
 
   @protected
-  EngineEvt sse_decode_engine_evt(SseDeserializer deserializer);
+  DeckEq sse_decode_deck_eq(SseDeserializer deserializer);
 
   @protected
-  EngineEvtKind sse_decode_engine_evt_kind(SseDeserializer deserializer);
+  DeckHotCue sse_decode_deck_hot_cue(SseDeserializer deserializer);
+
+  @protected
+  DeckLevels sse_decode_deck_levels(SseDeserializer deserializer);
+
+  @protected
+  DeckPosition sse_decode_deck_position(SseDeserializer deserializer);
+
+  @protected
+  DeckSavedLoop sse_decode_deck_saved_loop(SseDeserializer deserializer);
+
+  @protected
+  DeckSnapshot sse_decode_deck_snapshot(SseDeserializer deserializer);
+
+  @protected
+  DeckUpdated sse_decode_deck_updated(SseDeserializer deserializer);
+
+  @protected
+  DeleteDeckHotCue sse_decode_delete_deck_hot_cue(SseDeserializer deserializer);
+
+  @protected
+  EndCueHold sse_decode_end_cue_hold(SseDeserializer deserializer);
+
+  @protected
+  EndLoopRoll sse_decode_end_loop_roll(SseDeserializer deserializer);
+
+  @protected
+  EngineSnapshot sse_decode_engine_snapshot(SseDeserializer deserializer);
+
+  @protected
+  EngineStatus sse_decode_engine_status(SseDeserializer deserializer);
 
   @protected
   EqBand sse_decode_eq_band(SseDeserializer deserializer);
+
+  @protected
+  Error sse_decode_error(SseDeserializer deserializer);
+
+  @protected
+  Event sse_decode_event(SseDeserializer deserializer);
+
+  @protected
+  ExitLoop sse_decode_exit_loop(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -963,7 +1800,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FxKind sse_decode_fx_kind(SseDeserializer deserializer);
 
   @protected
-  FxSlotChrome sse_decode_fx_slot_chrome(SseDeserializer deserializer);
+  FxSlotState sse_decode_fx_slot_state(SseDeserializer deserializer);
 
   @protected
   HistoryEntryInfo sse_decode_history_entry_info(SseDeserializer deserializer);
@@ -987,13 +1824,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   HotCueInfo sse_decode_hot_cue_info(SseDeserializer deserializer);
 
   @protected
+  HotCuePadPress sse_decode_hot_cue_pad_press(SseDeserializer deserializer);
+
+  @protected
+  HotCuePadRelease sse_decode_hot_cue_pad_release(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  JogMode sse_decode_jog_mode(SseDeserializer deserializer);
+
+  @protected
   JogModeSetting sse_decode_jog_mode_setting(SseDeserializer deserializer);
+
+  @protected
+  JogTouch sse_decode_jog_touch(SseDeserializer deserializer);
+
+  @protected
+  JogTurn sse_decode_jog_turn(SseDeserializer deserializer);
 
   @protected
   KeyColorModeSetting sse_decode_key_color_mode_setting(
@@ -1002,6 +1854,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KeyDisplayModeSetting sse_decode_key_display_mode_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KeyShiftPadPress sse_decode_key_shift_pad_press(SseDeserializer deserializer);
+
+  @protected
+  KeyShiftPadRelease sse_decode_key_shift_pad_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  KeyboardPadPress sse_decode_keyboard_pad_press(SseDeserializer deserializer);
+
+  @protected
+  KeyboardPadRelease sse_decode_keyboard_pad_release(
     SseDeserializer deserializer,
   );
 
@@ -1068,6 +1936,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<DeckHotCue> sse_decode_list_deck_hot_cue(SseDeserializer deserializer);
+
+  @protected
+  List<DeckSavedLoop> sse_decode_list_deck_saved_loop(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DeckSnapshot> sse_decode_list_deck_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<FsEntry> sse_decode_list_fs_entry(SseDeserializer deserializer);
 
   @protected
@@ -1076,9 +1957,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<FxSlotChrome> sse_decode_list_fx_slot_chrome(
-    SseDeserializer deserializer,
-  );
+  List<FxSlotState> sse_decode_list_fx_slot_state(SseDeserializer deserializer);
 
   @protected
   List<HistoryEntryInfo> sse_decode_list_history_entry_info(
@@ -1141,12 +2020,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<SamplerSlotChrome> sse_decode_list_sampler_slot_chrome(
+  List<SamplerSlotInfo> sse_decode_list_sampler_slot_info(
     SseDeserializer deserializer,
   );
 
   @protected
   List<SavedLoopInfo> sse_decode_list_saved_loop_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LoopIn sse_decode_loop_in(SseDeserializer deserializer);
+
+  @protected
+  LoopOut sse_decode_loop_out(SseDeserializer deserializer);
+
+  @protected
+  LoopRegion sse_decode_loop_region(SseDeserializer deserializer);
+
+  @protected
+  LoopRollPadPress sse_decode_loop_roll_pad_press(SseDeserializer deserializer);
+
+  @protected
+  LoopRollPadRelease sse_decode_loop_roll_pad_release(
     SseDeserializer deserializer,
   );
 
@@ -1161,23 +2057,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  Notice sse_decode_notice(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
-  ActiveLoopInfo? sse_decode_opt_box_autoadd_active_loop_info(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   BeatGridData? sse_decode_opt_box_autoadd_beat_grid_data(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
-
-  @protected
-  CrossfaderAssign? sse_decode_opt_box_autoadd_crossfader_assign(
     SseDeserializer deserializer,
   );
 
@@ -1210,15 +2096,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  PadMode? sse_decode_opt_box_autoadd_pad_mode(SseDeserializer deserializer);
+  LoopRegion? sse_decode_opt_box_autoadd_loop_region(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SamplerPlayMode? sse_decode_opt_box_autoadd_sampler_play_mode(
     SseDeserializer deserializer,
   );
-
-  @protected
-  SyncMode? sse_decode_opt_box_autoadd_sync_mode(SseDeserializer deserializer);
 
   @protected
   int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer);
@@ -1235,25 +2120,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<bool>? sse_decode_opt_list_bool(SseDeserializer deserializer);
-
-  @protected
-  List<FxSlotChrome>? sse_decode_opt_list_fx_slot_chrome(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   List<HotCueInfo>? sse_decode_opt_list_hot_cue_info(
     SseDeserializer deserializer,
   );
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
-
-  @protected
-  List<SamplerSlotChrome>? sse_decode_opt_list_sampler_slot_chrome(
-    SseDeserializer deserializer,
-  );
 
   @protected
   List<SavedLoopInfo>? sse_decode_opt_list_saved_loop_info(
@@ -1267,6 +2139,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PadMode sse_decode_pad_mode(SseDeserializer deserializer);
 
   @protected
+  PadPress sse_decode_pad_press(SseDeserializer deserializer);
+
+  @protected
+  PadRelease sse_decode_pad_release(SseDeserializer deserializer);
+
+  @protected
+  Pause sse_decode_pause(SseDeserializer deserializer);
+
+  @protected
+  Play sse_decode_play(SseDeserializer deserializer);
+
+  @protected
+  RecallSavedLoop sse_decode_recall_saved_loop(SseDeserializer deserializer);
+
+  @protected
   ResolvedLibraryTrack sse_decode_resolved_library_track(
     SseDeserializer deserializer,
   );
@@ -1278,6 +2165,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SamplerBankInfo sse_decode_sampler_bank_info(SseDeserializer deserializer);
 
   @protected
+  SamplerPadPress sse_decode_sampler_pad_press(SseDeserializer deserializer);
+
+  @protected
+  SamplerPadRelease sse_decode_sampler_pad_release(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SamplerPlayMode sse_decode_sampler_play_mode(SseDeserializer deserializer);
 
   @protected
@@ -1286,9 +2181,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  SamplerSlotChrome sse_decode_sampler_slot_chrome(
-    SseDeserializer deserializer,
-  );
+  SamplerSlotInfo sse_decode_sampler_slot_info(SseDeserializer deserializer);
 
   @protected
   SamplerStripRouteSettingFrb sse_decode_sampler_strip_route_setting_frb(
@@ -1296,12 +2189,115 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SaveDeckHotCue sse_decode_save_deck_hot_cue(SseDeserializer deserializer);
+
+  @protected
   SavedLoopInfo sse_decode_saved_loop_info(SseDeserializer deserializer);
+
+  @protected
+  Seek sse_decode_seek(SseDeserializer deserializer);
 
   @protected
   SelectStyleSetting sse_decode_select_style_setting(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SetAutoLoop sse_decode_set_auto_loop(SseDeserializer deserializer);
+
+  @protected
+  SetCrossfader sse_decode_set_crossfader(SseDeserializer deserializer);
+
+  @protected
+  SetCrossfaderAssign sse_decode_set_crossfader_assign(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCueMix sse_decode_set_cue_mix(SseDeserializer deserializer);
+
+  @protected
+  SetCuePoint sse_decode_set_cue_point(SseDeserializer deserializer);
+
+  @protected
+  SetCueVolume sse_decode_set_cue_volume(SseDeserializer deserializer);
+
+  @protected
+  SetDeckFxRouted sse_decode_set_deck_fx_routed(SseDeserializer deserializer);
+
+  @protected
+  SetEq sse_decode_set_eq(SseDeserializer deserializer);
+
+  @protected
+  SetEqBand sse_decode_set_eq_band(SseDeserializer deserializer);
+
+  @protected
+  SetFilter sse_decode_set_filter(SseDeserializer deserializer);
+
+  @protected
+  SetFxUnitParam sse_decode_set_fx_unit_param(SseDeserializer deserializer);
+
+  @protected
+  SetFxUnitSlot sse_decode_set_fx_unit_slot(SseDeserializer deserializer);
+
+  @protected
+  SetFxUnitSlotEnabled sse_decode_set_fx_unit_slot_enabled(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetFxUnitWet sse_decode_set_fx_unit_wet(SseDeserializer deserializer);
+
+  @protected
+  SetGainTrim sse_decode_set_gain_trim(SseDeserializer deserializer);
+
+  @protected
+  SetHeadphoneCue sse_decode_set_headphone_cue(SseDeserializer deserializer);
+
+  @protected
+  SetJogMode sse_decode_set_jog_mode(SseDeserializer deserializer);
+
+  @protected
+  SetKeyLock sse_decode_set_key_lock(SseDeserializer deserializer);
+
+  @protected
+  SetKeyShift sse_decode_set_key_shift(SseDeserializer deserializer);
+
+  @protected
+  SetKeyShiftPage sse_decode_set_key_shift_page(SseDeserializer deserializer);
+
+  @protected
+  SetKeyboardPage sse_decode_set_keyboard_page(SseDeserializer deserializer);
+
+  @protected
+  SetKeyboardRoot sse_decode_set_keyboard_root(SseDeserializer deserializer);
+
+  @protected
+  SetMasterCue sse_decode_set_master_cue(SseDeserializer deserializer);
+
+  @protected
+  SetMasterDeck sse_decode_set_master_deck(SseDeserializer deserializer);
+
+  @protected
+  SetMasterVolume sse_decode_set_master_volume(SseDeserializer deserializer);
+
+  @protected
+  SetPadMode sse_decode_set_pad_mode(SseDeserializer deserializer);
+
+  @protected
+  SetQuantize sse_decode_set_quantize(SseDeserializer deserializer);
+
+  @protected
+  SetSlip sse_decode_set_slip(SseDeserializer deserializer);
+
+  @protected
+  SetSpeed sse_decode_set_speed(SseDeserializer deserializer);
+
+  @protected
+  SetTempoRange sse_decode_set_tempo_range(SseDeserializer deserializer);
+
+  @protected
+  SetVolume sse_decode_set_volume(SseDeserializer deserializer);
 
   @protected
   StorageUsage sse_decode_storage_usage(SseDeserializer deserializer);
@@ -1311,6 +2307,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ThemeSetting sse_decode_theme_setting(SseDeserializer deserializer);
+
+  @protected
+  ToggleHeadphoneCue sse_decode_toggle_headphone_cue(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ToggleMasterCue sse_decode_toggle_master_cue(SseDeserializer deserializer);
+
+  @protected
+  TogglePlay sse_decode_toggle_play(SseDeserializer deserializer);
+
+  @protected
+  ToggleQuantize sse_decode_toggle_quantize(SseDeserializer deserializer);
+
+  @protected
+  ToggleSlip sse_decode_toggle_slip(SseDeserializer deserializer);
+
+  @protected
+  ToggleSync sse_decode_toggle_sync(SseDeserializer deserializer);
+
+  @protected
+  TriggerHotCue sse_decode_trigger_hot_cue(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -1331,6 +2350,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  Unload sse_decode_unload(SseDeserializer deserializer);
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
@@ -1358,15 +2380,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
-    ControllerTransport self,
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+    BusTransport self,
     SseSerializer serializer,
   );
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
-    EngineBusHandle self,
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
     SseSerializer serializer,
   );
 
@@ -1407,15 +2429,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
-    ControllerTransport self,
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+    BusTransport self,
     SseSerializer serializer,
   );
 
   @protected
   void
-  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
-    EngineBusHandle self,
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
     SseSerializer serializer,
   );
 
@@ -1456,15 +2478,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
-    ControllerTransport self,
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+    BusTransport self,
     SseSerializer serializer,
   );
 
   @protected
   void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
-    EngineBusHandle self,
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
     SseSerializer serializer,
   );
 
@@ -1503,8 +2525,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_StreamSink_engine_evt_Sse(
-    RustStreamSink<EngineEvt> self,
+  void sse_encode_StreamSink_event_Sse(
+    RustStreamSink<Event> self,
     SseSerializer serializer,
   );
 
@@ -1516,18 +2538,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_accent_palette_setting(
-    AccentPaletteSetting self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_active_loop_info(
-    ActiveLoopInfo self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_add_folder_collection_result(
@@ -1551,20 +2561,56 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_app_settings(AppSettings self, SseSerializer serializer);
 
   @protected
+  void sse_encode_assign_sampler(AssignSampler self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_assign_sampler_track(
+    AssignSamplerTrack self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_beat_grid_data(BeatGridData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_beat_jump(BeatJump self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_beat_jump_pad_press(
+    BeatJumpPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_beat_jump_pad_release(
+    BeatJumpPadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_begin_cue_hold(BeginCueHold self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_begin_loop_roll(BeginLoopRoll self, SseSerializer serializer);
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_active_loop_info(
-    ActiveLoopInfo self,
+  void sse_encode_box_autoadd_app_settings(
+    AppSettings self,
     SseSerializer serializer,
   );
 
   @protected
-  void sse_encode_box_autoadd_app_settings(
-    AppSettings self,
+  void sse_encode_box_autoadd_assign_sampler(
+    AssignSampler self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_assign_sampler_track(
+    AssignSamplerTrack self,
     SseSerializer serializer,
   );
 
@@ -1575,11 +2621,92 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+  void sse_encode_box_autoadd_beat_jump(
+    BeatJump self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_box_autoadd_crossfader_assign(
-    CrossfaderAssign self,
+  void sse_encode_box_autoadd_beat_jump_pad_press(
+    BeatJumpPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_beat_jump_pad_release(
+    BeatJumpPadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_begin_cue_hold(
+    BeginCueHold self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_begin_loop_roll(
+    BeginLoopRoll self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_clear_sampler(
+    ClearSampler self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_deck_levels(
+    DeckLevels self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_deck_position(
+    DeckPosition self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_deck_updated(
+    DeckUpdated self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_delete_deck_hot_cue(
+    DeleteDeckHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_end_cue_hold(
+    EndCueHold self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_end_loop_roll(
+    EndLoopRoll self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_engine_snapshot(
+    EngineSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_error(Error self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_event(Event self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_exit_loop(
+    ExitLoop self,
     SseSerializer serializer,
   );
 
@@ -1596,11 +2723,56 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_hot_cue_pad_press(
+    HotCuePadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_hot_cue_pad_release(
+    HotCuePadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_i_64(
     PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_jog_touch(
+    JogTouch self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_jog_turn(JogTurn self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_key_shift_pad_press(
+    KeyShiftPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_key_shift_pad_release(
+    KeyShiftPadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_keyboard_pad_press(
+    KeyboardPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_keyboard_pad_release(
+    KeyboardPadRelease self,
     SseSerializer serializer,
   );
 
@@ -1617,7 +2789,67 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_pad_mode(PadMode self, SseSerializer serializer);
+  void sse_encode_box_autoadd_loop_in(LoopIn self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_loop_out(LoopOut self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_loop_region(
+    LoopRegion self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_loop_roll_pad_press(
+    LoopRollPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_loop_roll_pad_release(
+    LoopRollPadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_notice(Notice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_pad_press(
+    PadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_pad_release(
+    PadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_pause(Pause self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_play(Play self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_recall_saved_loop(
+    RecallSavedLoop self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sampler_pad_press(
+    SamplerPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sampler_pad_release(
+    SamplerPadRelease self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_sampler_play_mode(
@@ -1626,8 +2858,233 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_sync_mode(
-    SyncMode self,
+  void sse_encode_box_autoadd_save_deck_hot_cue(
+    SaveDeckHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_seek(Seek self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_set_auto_loop(
+    SetAutoLoop self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_crossfader(
+    SetCrossfader self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_crossfader_assign(
+    SetCrossfaderAssign self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_cue_mix(
+    SetCueMix self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_cue_point(
+    SetCuePoint self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_cue_volume(
+    SetCueVolume self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_deck_fx_routed(
+    SetDeckFxRouted self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_eq(SetEq self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_set_eq_band(
+    SetEqBand self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_filter(
+    SetFilter self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_unit_param(
+    SetFxUnitParam self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_unit_slot(
+    SetFxUnitSlot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_unit_slot_enabled(
+    SetFxUnitSlotEnabled self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_unit_wet(
+    SetFxUnitWet self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_gain_trim(
+    SetGainTrim self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_headphone_cue(
+    SetHeadphoneCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_jog_mode(
+    SetJogMode self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_key_lock(
+    SetKeyLock self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_key_shift(
+    SetKeyShift self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_key_shift_page(
+    SetKeyShiftPage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_keyboard_page(
+    SetKeyboardPage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_keyboard_root(
+    SetKeyboardRoot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_master_cue(
+    SetMasterCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_master_deck(
+    SetMasterDeck self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_master_volume(
+    SetMasterVolume self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_pad_mode(
+    SetPadMode self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_quantize(
+    SetQuantize self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_slip(SetSlip self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_set_speed(
+    SetSpeed self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_tempo_range(
+    SetTempoRange self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_volume(
+    SetVolume self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_toggle_headphone_cue(
+    ToggleHeadphoneCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_toggle_master_cue(
+    ToggleMasterCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_toggle_play(
+    TogglePlay self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_toggle_quantize(
+    ToggleQuantize self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_toggle_slip(
+    ToggleSlip self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_toggle_sync(
+    ToggleSync self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_trigger_hot_cue(
+    TriggerHotCue self,
     SseSerializer serializer,
   );
 
@@ -1639,6 +3096,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_unload(Unload self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_waveform_peaks(
@@ -1663,6 +3123,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     CdjExportReport self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_clear_sampler(ClearSampler self, SseSerializer serializer);
 
   @protected
   void sse_encode_controller_device_direction(
@@ -1698,13 +3161,58 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_engine_evt(EngineEvt self, SseSerializer serializer);
+  void sse_encode_deck_eq(DeckEq self, SseSerializer serializer);
 
   @protected
-  void sse_encode_engine_evt_kind(EngineEvtKind self, SseSerializer serializer);
+  void sse_encode_deck_hot_cue(DeckHotCue self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deck_levels(DeckLevels self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deck_position(DeckPosition self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deck_saved_loop(DeckSavedLoop self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deck_snapshot(DeckSnapshot self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_deck_updated(DeckUpdated self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_delete_deck_hot_cue(
+    DeleteDeckHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_end_cue_hold(EndCueHold self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_end_loop_roll(EndLoopRoll self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_engine_snapshot(
+    EngineSnapshot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_engine_status(EngineStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_eq_band(EqBand self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_error(Error self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_event(Event self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_exit_loop(ExitLoop self, SseSerializer serializer);
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
@@ -1728,7 +3236,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_fx_kind(FxKind self, SseSerializer serializer);
 
   @protected
-  void sse_encode_fx_slot_chrome(FxSlotChrome self, SseSerializer serializer);
+  void sse_encode_fx_slot_state(FxSlotState self, SseSerializer serializer);
 
   @protected
   void sse_encode_history_entry_info(
@@ -1758,16 +3266,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_hot_cue_info(HotCueInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_hot_cue_pad_press(
+    HotCuePadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_hot_cue_pad_release(
+    HotCuePadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_jog_mode(JogMode self, SseSerializer serializer);
+
+  @protected
   void sse_encode_jog_mode_setting(
     JogModeSetting self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_jog_touch(JogTouch self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_jog_turn(JogTurn self, SseSerializer serializer);
 
   @protected
   void sse_encode_key_color_mode_setting(
@@ -1778,6 +3307,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_key_display_mode_setting(
     KeyDisplayModeSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_key_shift_pad_press(
+    KeyShiftPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_key_shift_pad_release(
+    KeyShiftPadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_keyboard_pad_press(
+    KeyboardPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_keyboard_pad_release(
+    KeyboardPadRelease self,
     SseSerializer serializer,
   );
 
@@ -1857,6 +3410,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_deck_hot_cue(
+    List<DeckHotCue> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_deck_saved_loop(
+    List<DeckSavedLoop> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_deck_snapshot(
+    List<DeckSnapshot> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_fs_entry(List<FsEntry> self, SseSerializer serializer);
 
   @protected
@@ -1866,8 +3437,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_fx_slot_chrome(
-    List<FxSlotChrome> self,
+  void sse_encode_list_fx_slot_state(
+    List<FxSlotState> self,
     SseSerializer serializer,
   );
 
@@ -1953,14 +3524,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_sampler_slot_chrome(
-    List<SamplerSlotChrome> self,
+  void sse_encode_list_sampler_slot_info(
+    List<SamplerSlotInfo> self,
     SseSerializer serializer,
   );
 
   @protected
   void sse_encode_list_saved_loop_info(
     List<SavedLoopInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_loop_in(LoopIn self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_loop_out(LoopOut self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_loop_region(LoopRegion self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_loop_roll_pad_press(
+    LoopRollPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_loop_roll_pad_release(
+    LoopRollPadRelease self,
     SseSerializer serializer,
   );
 
@@ -1977,26 +3569,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_opt_String(String? self, SseSerializer serializer);
+  void sse_encode_notice(Notice self, SseSerializer serializer);
 
   @protected
-  void sse_encode_opt_box_autoadd_active_loop_info(
-    ActiveLoopInfo? self,
-    SseSerializer serializer,
-  );
+  void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_box_autoadd_beat_grid_data(
     BeatGridData? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_opt_box_autoadd_crossfader_assign(
-    CrossfaderAssign? self,
     SseSerializer serializer,
   );
 
@@ -2034,20 +3614,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_opt_box_autoadd_pad_mode(
-    PadMode? self,
+  void sse_encode_opt_box_autoadd_loop_region(
+    LoopRegion? self,
     SseSerializer serializer,
   );
 
   @protected
   void sse_encode_opt_box_autoadd_sampler_play_mode(
     SamplerPlayMode? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_box_autoadd_sync_mode(
-    SyncMode? self,
     SseSerializer serializer,
   );
 
@@ -2067,15 +3641,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_opt_list_bool(List<bool>? self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_opt_list_fx_slot_chrome(
-    List<FxSlotChrome>? self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_opt_list_hot_cue_info(
     List<HotCueInfo>? self,
     SseSerializer serializer,
@@ -2084,12 +3649,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_list_sampler_slot_chrome(
-    List<SamplerSlotChrome>? self,
     SseSerializer serializer,
   );
 
@@ -2104,6 +3663,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_pad_mode(PadMode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pad_press(PadPress self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pad_release(PadRelease self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pause(Pause self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_play(Play self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_recall_saved_loop(
+    RecallSavedLoop self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_resolved_library_track(
@@ -2124,6 +3701,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_sampler_pad_press(
+    SamplerPadPress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sampler_pad_release(
+    SamplerPadRelease self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_sampler_play_mode(
     SamplerPlayMode self,
     SseSerializer serializer,
@@ -2136,8 +3725,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_sampler_slot_chrome(
-    SamplerSlotChrome self,
+  void sse_encode_sampler_slot_info(
+    SamplerSlotInfo self,
     SseSerializer serializer,
   );
 
@@ -2148,13 +3737,145 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_save_deck_hot_cue(
+    SaveDeckHotCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_saved_loop_info(SavedLoopInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_seek(Seek self, SseSerializer serializer);
 
   @protected
   void sse_encode_select_style_setting(
     SelectStyleSetting self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_set_auto_loop(SetAutoLoop self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_crossfader(SetCrossfader self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_crossfader_assign(
+    SetCrossfaderAssign self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_cue_mix(SetCueMix self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_cue_point(SetCuePoint self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_cue_volume(SetCueVolume self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_deck_fx_routed(
+    SetDeckFxRouted self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_eq(SetEq self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_eq_band(SetEqBand self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_filter(SetFilter self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_fx_unit_param(
+    SetFxUnitParam self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_fx_unit_slot(
+    SetFxUnitSlot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_fx_unit_slot_enabled(
+    SetFxUnitSlotEnabled self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_fx_unit_wet(SetFxUnitWet self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_gain_trim(SetGainTrim self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_headphone_cue(
+    SetHeadphoneCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_jog_mode(SetJogMode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_key_lock(SetKeyLock self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_key_shift(SetKeyShift self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_key_shift_page(
+    SetKeyShiftPage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_keyboard_page(
+    SetKeyboardPage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_keyboard_root(
+    SetKeyboardRoot self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_master_cue(SetMasterCue self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_master_deck(SetMasterDeck self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_master_volume(
+    SetMasterVolume self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_pad_mode(SetPadMode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_quantize(SetQuantize self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_slip(SetSlip self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_speed(SetSpeed self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_tempo_range(SetTempoRange self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_volume(SetVolume self, SseSerializer serializer);
 
   @protected
   void sse_encode_storage_usage(StorageUsage self, SseSerializer serializer);
@@ -2164,6 +3885,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_theme_setting(ThemeSetting self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_toggle_headphone_cue(
+    ToggleHeadphoneCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_toggle_master_cue(
+    ToggleMasterCue self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_toggle_play(TogglePlay self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_toggle_quantize(
+    ToggleQuantize self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_toggle_slip(ToggleSlip self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_toggle_sync(ToggleSync self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_trigger_hot_cue(TriggerHotCue self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);
@@ -2185,6 +3936,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_unload(Unload self, SseSerializer serializer);
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
@@ -2221,6 +3975,22 @@ class RustLibWire implements BaseWire {
       );
 
   void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+        ptr,
+      );
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+    int ptr,
+  ) => wasmModule
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+        ptr,
+      );
+
+  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     int ptr,
   ) => wasmModule
@@ -2233,22 +4003,6 @@ class RustLibWire implements BaseWire {
     int ptr,
   ) => wasmModule
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
-        ptr,
-      );
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
         ptr,
       );
 
@@ -2334,22 +4088,22 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+    int ptr,
+  );
+
+  external void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+    int ptr,
+  );
+
+  external void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
     int ptr,
   );
 
   external void
   rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
     int ptr,
   );
 

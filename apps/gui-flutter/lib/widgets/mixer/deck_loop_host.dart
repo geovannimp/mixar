@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart'
-    show ActiveLoopInfo, EngineTransport;
+import 'package:gui_flutter/core/models/bus_enums.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -33,7 +33,7 @@ class DeckLoopHost extends ConsumerStatefulWidget {
 class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
   var _loopBeats = 4;
   String? _hydratedTrackId;
-  ActiveLoopInfo? _syncedRegion;
+  LoopRegion? _syncedRegion;
 
   EngineTransport? get _engine =>
       ref.read(engineTransportProvider).asData?.value;
@@ -84,7 +84,7 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     );
   }
 
-  void _syncBeatsFromRegion(ActiveLoopInfo? region, double? bpm) {
+  void _syncBeatsFromRegion(LoopRegion? region, double? bpm) {
     if (region == null) {
       _syncedRegion = null;
       return;
@@ -106,7 +106,7 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
 
   Future<void> _onToggleLoop({
     required bool loopActive,
-    required ActiveLoopInfo? activeLoop,
+    required LoopRegion? activeLoop,
     required List<SavedLoopInfo> savedLoops,
     required int positionMs,
     required String? trackId,
@@ -217,7 +217,7 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
   Widget build(BuildContext context) {
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
 
-    ref.listen<ActiveLoopInfo?>(deckActiveLoopProvider(widget.deckId), (
+    ref.listen<LoopRegion?>(deckActiveLoopProvider(widget.deckId), (
       prev,
       next,
     ) {

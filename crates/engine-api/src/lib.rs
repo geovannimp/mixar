@@ -1,33 +1,42 @@
-//! Host-facing engine bus origin/kind/payload schema.
+//! Engine event schema: every engine payload and the closed [`Event`] enum.
 //!
-//! Wire messages use MessagePack (`rmp_serde`). The `body` field holds a nested payload:
-//! - cmd bus: [`CmdBody`]
-//! - evt bus: [`EvtBody`]
+//! `events::Event` is the only thing that crosses the bus. Payload structs are
+//! plain data with no wire format — the bus carries them typed, and Flutter
+//! receives them through FRB as generated sealed classes.
 
-mod kind;
-mod origin;
+mod events;
 pub mod pads;
 mod payload;
-mod wire;
 
 /// Product display name shared by desktop hosts (Tauri / Flutter).
 pub const APP_DISPLAY_NAME: &str = "Mixar";
 
 pub use audio_core::CrossfaderAssign;
-pub use kind::Kind;
-pub use origin::Origin;
 pub use pads::{
     key_shift_page_action, key_shift_page_next, key_shift_page_prev, keyboard_page_action,
     keyboard_page_next, keyboard_page_prev, PitchPadAction, DEFAULT_PITCH_PAGE,
     KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
 };
 pub use payload::{
-    default_pitch_page, CmdBody, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot, EngineStatus,
-    EqBand, EvtBody, FxKind, FxSlotState, JogMode, LoopRegion, PadMode, SamplerBankInfo,
-    SamplerPlayMode, SamplerSlotInfo, SamplerStatus, SyncMode, FX_DIVISION_COUNT, FX_PARAM_COUNT,
-    FX_SLOT_COUNT,
+    default_pitch_page, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot, EngineStatus, EqBand,
+    FxKind, FxSlotState, JogMode, LoopRegion, PadMode, SamplerSlotInfo, SyncMode,
+    FX_DIVISION_COUNT, FX_PARAM_COUNT, FX_SLOT_COUNT,
 };
-pub use wire::{
-    decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,
-    DecodeError, EncodeError, WireMessage, MAX_WIRE_PAYLOAD_BYTES,
+
+pub use events::Event;
+pub use events::Topic;
+pub use events::{
+    AssignSampler, AssignSamplerTrack, BeatJump, BeatJumpPadPress, BeatJumpPadRelease,
+    BeginCueHold, BeginLoopRoll, ClearSampler, DeckLevels, DeckPosition, DeckUpdated,
+    DeleteDeckHotCue, EndCueHold, EndLoopRoll, EngineSnapshot, Error, ExitLoop, HotCuePadPress,
+    HotCuePadRelease, JogTouch, JogTurn, KeyShiftPadPress, KeyShiftPadRelease, KeyboardPadPress,
+    KeyboardPadRelease, LoopIn, LoopOut, LoopRollPadPress, LoopRollPadRelease, Notice, PadPress,
+    PadRelease, Pause, Play, RecallSavedLoop, SamplerPadPress, SamplerPadRelease, SaveDeckHotCue,
+    Seek, SetAutoLoop, SetCrossfader, SetCrossfaderAssign, SetCueMix, SetCuePoint, SetCueVolume,
+    SetDeckFxRouted, SetEq, SetEqBand, SetFilter, SetFxUnitParam, SetFxUnitSlot,
+    SetFxUnitSlotEnabled, SetFxUnitWet, SetGainTrim, SetHeadphoneCue, SetJogMode, SetKeyLock,
+    SetKeyShift, SetKeyShiftPage, SetKeyboardPage, SetKeyboardRoot, SetMasterCue, SetMasterDeck,
+    SetMasterVolume, SetPadMode, SetQuantize, SetSlip, SetSpeed, SetTempoRange, SetVolume,
+    ToggleHeadphoneCue, ToggleMasterCue, TogglePlay, ToggleQuantize, ToggleSlip, ToggleSync,
+    TriggerHotCue, Unload,
 };

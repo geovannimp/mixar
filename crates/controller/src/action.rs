@@ -1,9 +1,65 @@
 //! Action string → [`RoutedAction`].
 
-use engine_api::{
-    CmdBody, FxKind, FxSlotState, JogMode, Kind, Origin, PadMode, DEFAULT_PITCH_PAGE,
-    FX_DIVISION_COUNT,
-};
+use engine_api::BeatJump;
+use engine_api::BeatJumpPadPress;
+use engine_api::BeatJumpPadRelease;
+use engine_api::BeginCueHold;
+use engine_api::CrossfaderAssign;
+use engine_api::DeleteDeckHotCue;
+use engine_api::EndCueHold;
+use engine_api::EqBand;
+use engine_api::Event;
+use engine_api::ExitLoop;
+use engine_api::FxKind;
+use engine_api::FxSlotState;
+use engine_api::HotCuePadPress;
+use engine_api::HotCuePadRelease;
+use engine_api::JogMode;
+use engine_api::JogTouch;
+use engine_api::JogTurn;
+use engine_api::KeyShiftPadPress;
+use engine_api::KeyShiftPadRelease;
+use engine_api::KeyboardPadPress;
+use engine_api::KeyboardPadRelease;
+use engine_api::LoopIn;
+use engine_api::LoopOut;
+use engine_api::LoopRollPadPress;
+use engine_api::LoopRollPadRelease;
+use engine_api::PadMode;
+use engine_api::PadPress;
+use engine_api::PadRelease;
+use engine_api::Pause;
+use engine_api::Play;
+use engine_api::SamplerPadPress;
+use engine_api::SamplerPadRelease;
+use engine_api::SaveDeckHotCue;
+use engine_api::SetAutoLoop;
+use engine_api::SetCrossfader;
+use engine_api::SetCrossfaderAssign;
+use engine_api::SetCueMix;
+use engine_api::SetCuePoint;
+use engine_api::SetCueVolume;
+use engine_api::SetDeckFxRouted;
+use engine_api::SetEqBand;
+use engine_api::SetFilter;
+use engine_api::SetFxUnitParam;
+use engine_api::SetFxUnitSlot;
+use engine_api::SetFxUnitSlotEnabled;
+use engine_api::SetFxUnitWet;
+use engine_api::SetGainTrim;
+use engine_api::SetMasterVolume;
+use engine_api::SetPadMode;
+use engine_api::SetSpeed;
+use engine_api::SetTempoRange;
+use engine_api::SetVolume;
+use engine_api::ToggleHeadphoneCue;
+use engine_api::ToggleMasterCue;
+use engine_api::TogglePlay;
+use engine_api::ToggleQuantize;
+use engine_api::ToggleSync;
+use engine_api::TriggerHotCue;
+use engine_api::DEFAULT_PITCH_PAGE;
+use engine_api::FX_DIVISION_COUNT;
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
@@ -16,6 +72,24 @@ const FX_SLOT: u8 = 0;
 
 /// FX SELECT cycle: the unit always holds an effect, so `Off` is not a stop.
 const FX_SELECT_CYCLE: [FxKind; 2] = [FxKind::Echo, FxKind::Reverb];
+
+/// Engine side a bound action addresses: one deck, the mixer strip, or the engine.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EngineScope {
+    Deck(u16),
+    Mixer,
+    Engine,
+}
+
+impl EngineScope {
+    /// Deck id, defaulting to deck 0 for scopes that address no deck.
+    pub(crate) fn deck_or_default(self) -> u16 {
+        match self {
+            Self::Deck(deck) => deck,
+            Self::Mixer | Self::Engine => 0,
+        }
+    }
+}
 
 /// Local mirrors for LED + soft-takeover (not MIDI pad routing).
 /// Absolute values are wire `0..1` when present.
@@ -118,9 +192,9 @@ impl Default for ControlSnapshot {
 }
 
 impl ControlSnapshot {
-    pub fn set_value(&mut self, origin: Origin, key: &str, value: f32) {
-        match origin {
-            Origin::Mixer => match key {
+    pub fn set_value(&mut self, scope: EngineScope, key: &str, value: f32) {
+        match scope {
+            EngineScope::Mixer => match key {
                 "crossfader" => self.crossfader = value,
                 "master_volume" => self.master_volume = value,
                 "cue_volume" => self.cue_volume = value,
@@ -128,7 +202,7 @@ impl ControlSnapshot {
                 "master_cue" => self.master_cue = value > 0.5,
                 _ => {}
             },
-            Origin::Deck(d) => {
+            EngineScope::Deck(d) => {
                 let Some(i) = deck_idx(d) else {
                     return;
                 };
@@ -161,7 +235,7 @@ impl ControlSnapshot {
                     _ => {}
                 }
             }
-            Origin::Engine => {}
+            EngineScope::Engine => {}
         }
     }
 
@@ -275,15 +349,16 @@ fn next_tempo_range(current: f32) -> f32 {
 }
 
 /// Resolved mapping publish target.
+///
+/// `Event` is a fat enum (`DeckUpdated` carries a whole deck); boxing it would
+/// allocate on every MIDI edge, so the enum stays inline and is built once per
+/// control press.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum RoutedAction {
-    EngineCmd {
-        origin: Origin,
-        kind: Kind,
-        body: CmdBody,
-    },
+    EngineCmd(Event),
     /// One physical control publishing several cmds (exclusive routing groups).
-    EngineCmds(Vec<(Origin, Kind, CmdBody)>),
+    EngineCmds(Vec<Event>),
     LibraryEvt {
         origin: LibraryOrigin,
         kind: LibraryKind,
@@ -291,20 +366,49 @@ pub enum RoutedAction {
     },
 }
 
-fn engine_cmd(origin: Origin, kind: Kind, body: CmdBody) -> RoutedAction {
-    RoutedAction::EngineCmd { origin, kind, body }
+/// Deck-scoped command: `None` when the bound section addresses no deck.
+fn deck_cmd(scope: EngineScope, build: impl FnOnce(u16) -> Event) -> Option<RoutedAction> {
+    match scope {
+        EngineScope::Deck(deck) => Some(RoutedAction::EngineCmd(build(deck))),
+        EngineScope::Mixer | EngineScope::Engine => None,
+    }
+}
+
+/// Deck-scoped command gated on a press edge.
+fn deck_press(
+    active: bool,
+    scope: EngineScope,
+    build: impl FnOnce(u16) -> Event,
+) -> Option<RoutedAction> {
+    if active {
+        deck_cmd(scope, build)
+    } else {
+        None
+    }
+}
+
+/// Mixer-scoped command (no deck to fill in).
+fn mixer_cmd(event: impl FnOnce() -> Event) -> Option<RoutedAction> {
+    Some(RoutedAction::EngineCmd(event()))
+}
+
+/// Mixer-scoped command gated on a press edge.
+fn mixer_press(active: bool, event: impl FnOnce() -> Event) -> Option<RoutedAction> {
+    if active {
+        mixer_cmd(event)
+    } else {
+        None
+    }
 }
 
 /// Arm or disarm the shared Beat FX unit ([`FX_SLOT`]).
-fn fx_unit_enabled(enabled: bool) -> RoutedAction {
-    engine_cmd(
-        Origin::Mixer,
-        Kind::SetFxUnitSlotEnabled,
-        CmdBody::SetFxUnitSlotEnabled {
+fn fx_unit_enabled(enabled: bool) -> Option<RoutedAction> {
+    mixer_cmd(|| {
+        Event::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled {
             slot: FX_SLOT,
             enabled,
-        },
-    )
+        })
+    })
 }
 
 /// Wire value after device decode: absolute `0..1` or relative tick delta.
@@ -417,7 +521,7 @@ pub fn resolve_action(
         }
     }
 
-    let BoundOrigin::Engine(origin) = bound else {
+    let BoundOrigin::Engine(scope) = bound else {
         return None;
     };
 
@@ -429,150 +533,138 @@ pub fn resolve_action(
 
     // Buttons: only fire on press (active edge handled by caller).
     match leaf {
-        "toggle_play" => active.then_some(engine_cmd(origin, Kind::TogglePlay, CmdBody::Empty)),
-        "play" => active.then_some(engine_cmd(origin, Kind::Play, CmdBody::Empty)),
-        "pause" => active.then_some(engine_cmd(origin, Kind::Pause, CmdBody::Empty)),
-        "cue" => active.then_some(engine_cmd(origin, Kind::SetCuePoint, CmdBody::Empty)),
+        "toggle_play" => deck_press(active, scope, |deck| Event::TogglePlay(TogglePlay { deck })),
+        "play" => deck_press(active, scope, |deck| Event::Play(Play { deck })),
+        "pause" => deck_press(active, scope, |deck| Event::Pause(Pause { deck })),
+        "cue" => deck_press(active, scope, |deck| {
+            Event::SetCuePoint(SetCuePoint { deck })
+        }),
         "cue_default" => {
             if active {
-                Some(engine_cmd(origin, Kind::BeginCueHold, CmdBody::Empty))
+                deck_cmd(scope, |deck| Event::BeginCueHold(BeginCueHold { deck }))
             } else {
-                Some(engine_cmd(origin, Kind::EndCueHold, CmdBody::Empty))
+                deck_cmd(scope, |deck| Event::EndCueHold(EndCueHold { deck }))
             }
         }
-        "begin_cue_hold" => {
-            active.then_some(engine_cmd(origin, Kind::BeginCueHold, CmdBody::Empty))
+        "begin_cue_hold" => deck_press(active, scope, |deck| {
+            Event::BeginCueHold(BeginCueHold { deck })
+        }),
+        "end_cue_hold" => {
+            if active {
+                None
+            } else {
+                deck_cmd(scope, |deck| Event::EndCueHold(EndCueHold { deck }))
+            }
         }
-        "end_cue_hold" => (!active).then_some(engine_cmd(origin, Kind::EndCueHold, CmdBody::Empty)),
-        "toggle_sync" => active.then_some(engine_cmd(
-            origin,
-            Kind::ToggleSync,
-            CmdBody::ToggleSync { beat_sync: false },
-        )),
-        "set_quantize" => {
-            active.then_some(engine_cmd(origin, Kind::ToggleQuantize, CmdBody::Empty))
-        }
-        "set_volume" => Some(engine_cmd(
-            origin,
-            Kind::SetVolume,
-            CmdBody::SetVolume {
+        "toggle_sync" => deck_press(active, scope, |deck| {
+            Event::ToggleSync(ToggleSync {
+                deck,
+                beat_sync: false,
+            })
+        }),
+        "set_quantize" => deck_press(active, scope, |deck| {
+            Event::ToggleQuantize(ToggleQuantize { deck })
+        }),
+        "set_volume" => deck_cmd(scope, |deck| {
+            Event::SetVolume(SetVolume {
+                deck,
                 volume: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
-        "set_filter" => Some(engine_cmd(
-            origin,
-            Kind::SetFilter,
-            CmdBody::SetFilter {
+            })
+        }),
+        "set_filter" => deck_cmd(scope, |deck| {
+            Event::SetFilter(SetFilter {
+                deck,
                 filter: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
-        "set_gain" => Some(engine_cmd(
-            origin,
-            Kind::SetGainTrim,
-            CmdBody::SetGainTrim {
+            })
+        }),
+        "set_gain" => deck_cmd(scope, |deck| {
+            Event::SetGainTrim(SetGainTrim {
+                deck,
                 gain_trim: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
-        "set_speed" => Some(engine_cmd(
-            origin,
-            Kind::SetSpeed,
-            CmdBody::SetSpeed {
+            })
+        }),
+        "set_speed" => deck_cmd(scope, |deck| {
+            Event::SetSpeed(SetSpeed {
+                deck,
                 speed: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
+            })
+        }),
         "cycle_tempo_range" => {
             if !active {
                 return None;
             }
-            let Origin::Deck(d) = origin else {
+            let EngineScope::Deck(d) = scope else {
                 return None;
             };
             let i = deck_idx(d)?;
             let next = next_tempo_range(snap.tempo_range[i]);
-            Some(engine_cmd(
-                origin,
-                Kind::SetTempoRange,
-                CmdBody::SetTempoRange { tempo_range: next },
-            ))
+            deck_cmd(scope, |deck| {
+                Event::SetTempoRange(SetTempoRange {
+                    deck,
+                    tempo_range: next,
+                })
+            })
         }
         "set_eq_low" | "set_eq_mid" | "set_eq_high" => {
             let band = match leaf {
-                "set_eq_low" => engine_api::EqBand::Low,
-                "set_eq_mid" => engine_api::EqBand::Mid,
-                "set_eq_high" => engine_api::EqBand::High,
+                "set_eq_low" => EqBand::Low,
+                "set_eq_mid" => EqBand::Mid,
+                "set_eq_high" => EqBand::High,
                 _ => return None,
             };
-            Some(engine_cmd(
-                origin,
-                Kind::SetEqBand,
-                CmdBody::SetEqBand {
+            deck_cmd(scope, |deck| {
+                Event::SetEqBand(SetEqBand {
+                    deck,
                     band,
                     gain: norm.clamp(0.0, 1.0),
                     soft_takeover,
-                },
-            ))
+                })
+            })
         }
         "set_crossfader_assign" => {
-            let Origin::Deck(deck) = origin else {
-                return None;
-            };
             let assignment = if norm < CROSSFADER_ASSIGN_A_BAND {
-                engine_api::CrossfaderAssign::A
+                CrossfaderAssign::A
             } else if norm < CROSSFADER_ASSIGN_THRU_BAND {
-                engine_api::CrossfaderAssign::Thru
+                CrossfaderAssign::Thru
             } else {
-                engine_api::CrossfaderAssign::B
+                CrossfaderAssign::B
             };
-            Some(engine_cmd(
-                Origin::Deck(deck),
-                Kind::SetCrossfaderAssign,
-                CmdBody::SetCrossfaderAssign { assignment },
-            ))
+            deck_cmd(scope, |deck| {
+                Event::SetCrossfaderAssign(SetCrossfaderAssign { deck, assignment })
+            })
         }
-        "set_crossfader" => Some(engine_cmd(
-            Origin::Mixer,
-            Kind::SetCrossfader,
-            CmdBody::SetCrossfader {
+        "set_crossfader" => mixer_cmd(|| {
+            Event::SetCrossfader(SetCrossfader {
                 position: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
-        "set_master_volume" => Some(engine_cmd(
-            Origin::Mixer,
-            Kind::SetMasterVolume,
-            CmdBody::SetMasterVolume {
+            })
+        }),
+        "set_master_volume" => mixer_cmd(|| {
+            Event::SetMasterVolume(SetMasterVolume {
                 volume: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
-        "set_cue_volume" => Some(engine_cmd(
-            Origin::Mixer,
-            Kind::SetCueVolume,
-            CmdBody::SetCueVolume {
+            })
+        }),
+        "set_cue_volume" => mixer_cmd(|| {
+            Event::SetCueVolume(SetCueVolume {
                 volume: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
-        "set_cue_mix" => Some(engine_cmd(
-            Origin::Mixer,
-            Kind::SetCueMix,
-            CmdBody::SetCueMix {
+            })
+        }),
+        "set_cue_mix" => mixer_cmd(|| {
+            Event::SetCueMix(SetCueMix {
                 mix: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
-        "set_master_cue" => active.then_some(engine_cmd(
-            Origin::Mixer,
-            Kind::ToggleMasterCue,
-            CmdBody::Empty,
-        )),
+            })
+        }),
+        "set_master_cue" => mixer_press(active, || Event::ToggleMasterCue(ToggleMasterCue {})),
         // Beat FX: ON/OFF arms the shared unit; SHIFT+ON/OFF disarms it.
-        "toggle_fx" => active.then(|| fx_unit_enabled(!snap.fx.enabled)),
-        "disarm_fx" => active.then(|| fx_unit_enabled(false)),
+        "toggle_fx" => active.then(|| fx_unit_enabled(!snap.fx.enabled)).flatten(),
+        "disarm_fx" => active.then(|| fx_unit_enabled(false)).flatten(),
         "cycle_fx_next" | "cycle_fx_prev" => {
             if !active {
                 return None;
@@ -587,14 +679,12 @@ pub fn resolve_action(
             } else {
                 (i + len - 1) % len
             };
-            Some(engine_cmd(
-                Origin::Mixer,
-                Kind::SetFxUnitSlot,
-                CmdBody::SetFxUnitSlot {
+            mixer_cmd(|| {
+                Event::SetFxUnitSlot(SetFxUnitSlot {
                     slot: FX_SLOT,
                     kind: FX_SELECT_CYCLE[next],
-                },
-            ))
+                })
+            })
         }
         // BEAT ◀▶ steps Echo's division knob; other effects have no beat table.
         "step_fx_division_down" | "step_fx_division_up" => {
@@ -608,37 +698,28 @@ pub fn resolve_action(
             if next == idx {
                 return None;
             }
-            Some(engine_cmd(
-                Origin::Mixer,
-                Kind::SetFxUnitParam,
-                CmdBody::SetFxUnitParam {
+            mixer_cmd(|| {
+                Event::SetFxUnitParam(SetFxUnitParam {
                     slot: FX_SLOT,
                     param: 0,
                     value: next as f32 / last,
-                },
-            ))
+                })
+            })
         }
-        "set_fx_wet" => Some(engine_cmd(
-            Origin::Mixer,
-            Kind::SetFxUnitWet,
-            CmdBody::SetFxUnitWet {
+        "set_fx_wet" => mixer_cmd(|| {
+            Event::SetFxUnitWet(SetFxUnitWet {
                 slot: FX_SLOT,
                 wet: norm.clamp(0.0, 1.0),
                 soft_takeover,
-            },
-        )),
+            })
+        }),
         // CH SELECT is exclusive: every press publishes the full routing group.
         "set_fx_route" => {
             if !active {
                 return None;
             }
-            let routed = |deck: u16, on: bool| {
-                (
-                    Origin::Deck(deck),
-                    Kind::SetDeckFxRouted,
-                    CmdBody::SetDeckFxRouted { routed: on },
-                )
-            };
+            let routed =
+                |deck: u16, on: bool| Event::SetDeckFxRouted(SetDeckFxRouted { deck, routed: on });
             let cmds = match args.require_ident("target").ok()? {
                 "ch1" => vec![routed(0, true), routed(1, false)],
                 "ch2" => vec![routed(0, false), routed(1, true)],
@@ -648,24 +729,21 @@ pub fn resolve_action(
             };
             Some(RoutedAction::EngineCmds(cmds))
         }
-        "set_headphone_cue" => {
-            active.then_some(engine_cmd(origin, Kind::ToggleHeadphoneCue, CmdBody::Empty))
-        }
-        "jog_touch" => Some(engine_cmd(
-            origin,
-            Kind::JogTouch,
-            CmdBody::JogTouch { touching: active },
-        )),
+        "set_headphone_cue" => deck_press(active, scope, |deck| {
+            Event::ToggleHeadphoneCue(ToggleHeadphoneCue { deck })
+        }),
+        "jog_touch" => deck_cmd(scope, |deck| {
+            Event::JogTouch(JogTouch {
+                deck,
+                touching: active,
+            })
+        }),
         "jog_turn" => {
             let delta = value.as_relative()?;
             if delta == 0 {
                 return None;
             }
-            Some(engine_cmd(
-                origin,
-                Kind::JogTurn,
-                CmdBody::JogTurn { delta },
-            ))
+            deck_cmd(scope, |deck| Event::JogTurn(JogTurn { deck, delta }))
         }
         "trigger_hot_cue" => {
             if !active {
@@ -676,30 +754,33 @@ pub fn resolve_action(
                 return None;
             }
             let slot_u = slot as u8;
-            let Origin::Deck(d) = origin else {
+            let EngineScope::Deck(d) = scope else {
                 return None;
             };
             let i = deck_idx(d)?;
             let cues = &snap.hot_cues[i];
             let idx = (slot_u - 1) as usize;
             if idx >= cues.len() {
-                return Some(engine_cmd(
-                    origin,
-                    Kind::SaveHotCue,
-                    CmdBody::SaveHotCue { slot: slot_u - 1 },
-                ));
+                return deck_cmd(scope, |deck| {
+                    Event::SaveDeckHotCue(SaveDeckHotCue {
+                        deck,
+                        slot: slot_u - 1,
+                    })
+                });
             }
             match cues[idx] {
-                Some(pos) => Some(engine_cmd(
-                    origin,
-                    Kind::TriggerHotCue,
-                    CmdBody::TriggerHotCue { position_ms: pos },
-                )),
-                None => Some(engine_cmd(
-                    origin,
-                    Kind::SaveHotCue,
-                    CmdBody::SaveHotCue { slot: slot_u - 1 },
-                )),
+                Some(pos) => deck_cmd(scope, |deck| {
+                    Event::TriggerHotCue(TriggerHotCue {
+                        deck,
+                        position_ms: pos,
+                    })
+                }),
+                None => deck_cmd(scope, |deck| {
+                    Event::SaveDeckHotCue(SaveDeckHotCue {
+                        deck,
+                        slot: slot_u - 1,
+                    })
+                }),
             }
         }
         "delete_hot_cue" => {
@@ -710,47 +791,44 @@ pub fn resolve_action(
             if slot < 1 {
                 return None;
             }
-            Some(engine_cmd(
-                origin,
-                Kind::DeleteHotCue,
-                CmdBody::DeleteHotCue {
+            deck_cmd(scope, |deck| {
+                Event::DeleteDeckHotCue(DeleteDeckHotCue {
+                    deck,
                     slot: (slot as u8) - 1,
-                },
-            ))
+                })
+            })
         }
         "loop_in" => {
             if !active {
                 return None;
             }
-            let Origin::Deck(d) = origin else {
+            let EngineScope::Deck(d) = scope else {
                 return None;
             };
             let i = deck_idx(d)?;
-            Some(engine_cmd(
-                origin,
-                Kind::LoopIn,
-                CmdBody::LoopIn {
+            deck_cmd(scope, |deck| {
+                Event::LoopIn(LoopIn {
+                    deck,
                     position_ms: snap.position_ms[i],
-                },
-            ))
+                })
+            })
         }
         "loop_out" => {
             if !active {
                 return None;
             }
-            let Origin::Deck(d) = origin else {
+            let EngineScope::Deck(d) = scope else {
                 return None;
             };
             let i = deck_idx(d)?;
-            Some(engine_cmd(
-                origin,
-                Kind::LoopOut,
-                CmdBody::LoopOut {
+            deck_cmd(scope, |deck| {
+                Event::LoopOut(LoopOut {
+                    deck,
                     position_ms: snap.position_ms[i],
-                },
-            ))
+                })
+            })
         }
-        "exit_loop" => active.then_some(engine_cmd(origin, Kind::ExitLoop, CmdBody::Empty)),
+        "exit_loop" => deck_press(active, scope, |deck| Event::ExitLoop(ExitLoop { deck })),
         "auto_loop" => {
             if !active {
                 return None;
@@ -759,11 +837,9 @@ pub fn resolve_action(
             if !beats.is_finite() || beats <= 0.0 {
                 return None;
             }
-            Some(engine_cmd(
-                origin,
-                Kind::SetAutoLoop,
-                CmdBody::SetAutoLoop { beats },
-            ))
+            deck_cmd(scope, |deck| {
+                Event::SetAutoLoop(SetAutoLoop { deck, beats })
+            })
         }
         "beat_jump" => {
             if !active {
@@ -773,11 +849,7 @@ pub fn resolve_action(
             if !beats.is_finite() || beats == 0.0 {
                 return None;
             }
-            Some(engine_cmd(
-                origin,
-                Kind::BeatJump,
-                CmdBody::BeatJump { beats },
-            ))
+            deck_cmd(scope, |deck| Event::BeatJump(BeatJump { deck, beats }))
         }
         "pad_mode" => {
             if !active {
@@ -794,49 +866,43 @@ pub fn resolve_action(
                 "key_shift" => PadMode::KeyShift,
                 _ => return None,
             };
-            Some(engine_cmd(
-                origin,
-                Kind::SetPadMode,
-                CmdBody::SetPadMode { mode },
-            ))
+            deck_cmd(scope, |deck| Event::SetPadMode(SetPadMode { deck, mode }))
         }
         "pad" => {
             let slot = pad_n_slot(&args)?;
             if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::PadPress,
-                    CmdBody::PadPress { slot, shift: false },
-                ))
+                deck_cmd(scope, |deck| {
+                    Event::PadPress(PadPress {
+                        deck,
+                        slot,
+                        shift: false,
+                    })
+                })
             } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::PadRelease,
-                    CmdBody::PadRelease { slot },
-                ))
+                deck_cmd(scope, |deck| Event::PadRelease(PadRelease { deck, slot }))
             }
         }
         "hot_cue_pad" => {
-            resolve_pad_slot(origin, pad_n_slot(&args)?, active, false, PadMode::HotCue)
+            resolve_pad_slot(scope, pad_n_slot(&args)?, active, false, PadMode::HotCue)
         }
         "loop_roll_pad" => {
-            resolve_pad_slot(origin, pad_n_slot(&args)?, active, false, PadMode::LoopRoll)
+            resolve_pad_slot(scope, pad_n_slot(&args)?, active, false, PadMode::LoopRoll)
         }
         "beat_jump_pad" => {
-            resolve_pad_slot(origin, pad_n_slot(&args)?, active, false, PadMode::BeatJump)
+            resolve_pad_slot(scope, pad_n_slot(&args)?, active, false, PadMode::BeatJump)
         }
         "sampler_pad" => {
-            resolve_pad_slot(origin, pad_n_slot(&args)?, active, false, PadMode::Sampler)
+            resolve_pad_slot(scope, pad_n_slot(&args)?, active, false, PadMode::Sampler)
         }
         "keyboard_pad" => resolve_pad_slot(
-            origin,
+            scope,
             pad_n_slot(&args)?,
             active,
             pad_shift(&args)?,
             PadMode::Keyboard,
         ),
         "key_shift_pad" => resolve_pad_slot(
-            origin,
+            scope,
             pad_n_slot(&args)?,
             active,
             pad_shift(&args)?,
@@ -849,17 +915,17 @@ pub fn resolve_action(
             }
             let slot = u8::try_from(slot - 1).ok()?;
             if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::SamplerPadPress,
-                    CmdBody::SamplerPadPress { slot, shift: false },
-                ))
+                deck_cmd(scope, |deck| {
+                    Event::SamplerPadPress(SamplerPadPress {
+                        deck,
+                        slot,
+                        shift: false,
+                    })
+                })
             } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::SamplerPadRelease,
-                    CmdBody::SamplerPadRelease { slot },
-                ))
+                deck_cmd(scope, |deck| {
+                    Event::SamplerPadRelease(SamplerPadRelease { deck, slot })
+                })
             }
         }
         _ => None,
@@ -884,119 +950,44 @@ fn pad_shift(args: &crate::action_id::ActionArgs) -> Option<bool> {
 /// Named pad leaves publish the mode-specific press/release pair (Pioneer note banks).
 /// Generic `pad` publishes PadPress / PadRelease instead.
 fn resolve_pad_slot(
-    origin: Origin,
+    scope: EngineScope,
     slot: u8,
     active: bool,
     shift: bool,
     mode: PadMode,
 ) -> Option<RoutedAction> {
-    match mode {
-        PadMode::HotCue => {
-            if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::HotCuePadPress,
-                    CmdBody::HotCuePadPress { slot, shift: false },
-                ))
-            } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::HotCuePadRelease,
-                    CmdBody::HotCuePadRelease { slot },
-                ))
-            }
+    deck_cmd(scope, |deck| match (mode, active) {
+        (PadMode::HotCue, true) => Event::HotCuePadPress(HotCuePadPress {
+            deck,
+            slot,
+            shift: false,
+        }),
+        (PadMode::HotCue, false) => Event::HotCuePadRelease(HotCuePadRelease { deck, slot }),
+        (PadMode::LoopRoll, true) => Event::LoopRollPadPress(LoopRollPadPress { deck, slot }),
+        (PadMode::LoopRoll, false) => Event::LoopRollPadRelease(LoopRollPadRelease { deck, slot }),
+        (PadMode::BeatJump, true) => Event::BeatJumpPadPress(BeatJumpPadPress { deck, slot }),
+        (PadMode::BeatJump, false) => Event::BeatJumpPadRelease(BeatJumpPadRelease { deck, slot }),
+        (PadMode::Sampler, true) => Event::SamplerPadPress(SamplerPadPress {
+            deck,
+            slot,
+            shift: false,
+        }),
+        (PadMode::Sampler, false) => Event::SamplerPadRelease(SamplerPadRelease { deck, slot }),
+        (PadMode::Stems, true) => Event::PadPress(PadPress {
+            deck,
+            slot,
+            shift: false,
+        }),
+        (PadMode::Stems, false) => Event::PadRelease(PadRelease { deck, slot }),
+        (PadMode::Keyboard, true) => {
+            Event::KeyboardPadPress(KeyboardPadPress { deck, slot, shift })
         }
-        PadMode::LoopRoll => {
-            if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::LoopRollPadPress,
-                    CmdBody::LoopRollPadPress { slot },
-                ))
-            } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::LoopRollPadRelease,
-                    CmdBody::LoopRollPadRelease { slot },
-                ))
-            }
+        (PadMode::Keyboard, false) => Event::KeyboardPadRelease(KeyboardPadRelease { deck, slot }),
+        (PadMode::KeyShift, true) => {
+            Event::KeyShiftPadPress(KeyShiftPadPress { deck, slot, shift })
         }
-        PadMode::BeatJump => {
-            if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::BeatJumpPadPress,
-                    CmdBody::BeatJumpPadPress { slot },
-                ))
-            } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::BeatJumpPadRelease,
-                    CmdBody::BeatJumpPadRelease { slot },
-                ))
-            }
-        }
-        PadMode::Sampler => {
-            if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::SamplerPadPress,
-                    CmdBody::SamplerPadPress { slot, shift: false },
-                ))
-            } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::SamplerPadRelease,
-                    CmdBody::SamplerPadRelease { slot },
-                ))
-            }
-        }
-        PadMode::Stems => {
-            if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::PadPress,
-                    CmdBody::PadPress { slot, shift: false },
-                ))
-            } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::PadRelease,
-                    CmdBody::PadRelease { slot },
-                ))
-            }
-        }
-        PadMode::Keyboard => {
-            if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::KeyboardPadPress,
-                    CmdBody::KeyboardPadPress { slot, shift },
-                ))
-            } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::KeyboardPadRelease,
-                    CmdBody::KeyboardPadRelease { slot },
-                ))
-            }
-        }
-        PadMode::KeyShift => {
-            if active {
-                Some(engine_cmd(
-                    origin,
-                    Kind::KeyShiftPadPress,
-                    CmdBody::KeyShiftPadPress { slot, shift },
-                ))
-            } else {
-                Some(engine_cmd(
-                    origin,
-                    Kind::KeyShiftPadRelease,
-                    CmdBody::KeyShiftPadRelease { slot },
-                ))
-            }
-        }
-    }
+        (PadMode::KeyShift, false) => Event::KeyShiftPadRelease(KeyShiftPadRelease { deck, slot }),
+    })
 }
 
 #[allow(dead_code)]
@@ -1021,15 +1012,12 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body:
-                    CmdBody::SetEqBand {
-                        band: engine_api::EqBand::Low,
-                        gain,
-                        soft_takeover: false,
-                    },
-                ..
-            } => assert!((gain - 1.0).abs() < 1e-5, "gain={gain}"),
+            RoutedAction::EngineCmd(Event::SetEqBand(SetEqBand {
+                deck: 0,
+                band: EqBand::Low,
+                gain,
+                soft_takeover: false,
+            })) => assert!((gain - 1.0).abs() < 1e-5, "gain={gain}"),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -1047,15 +1035,12 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body:
-                    CmdBody::SetEqBand {
-                        band: engine_api::EqBand::Mid,
-                        gain,
-                        soft_takeover: false,
-                    },
-                ..
-            } => assert!((gain - 0.5).abs() < 1e-5, "gain={gain}"),
+            RoutedAction::EngineCmd(Event::SetEqBand(SetEqBand {
+                deck: 0,
+                band: EqBand::Mid,
+                gain,
+                soft_takeover: false,
+            })) => assert!((gain - 0.5).abs() < 1e-5, "gain={gain}"),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -1073,14 +1058,11 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body:
-                    CmdBody::SetFilter {
-                        filter,
-                        soft_takeover: false,
-                    },
-                ..
-            } => assert!((filter - 1.0).abs() < 1e-5, "filter={filter}"),
+            RoutedAction::EngineCmd(Event::SetFilter(SetFilter {
+                deck: 0,
+                filter,
+                soft_takeover: false,
+            })) => assert!((filter - 1.0).abs() < 1e-5, "filter={filter}"),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -1098,14 +1080,11 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body:
-                    CmdBody::SetGainTrim {
-                        gain_trim,
-                        soft_takeover: false,
-                    },
-                ..
-            } => assert!((gain_trim - 1.0).abs() < 1e-5, "gain_trim={gain_trim}"),
+            RoutedAction::EngineCmd(Event::SetGainTrim(SetGainTrim {
+                deck: 0,
+                gain_trim,
+                soft_takeover: false,
+            })) => assert!((gain_trim - 1.0).abs() < 1e-5, "gain_trim={gain_trim}"),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -1123,10 +1102,11 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::EngineCmd {
-                body: CmdBody::PadPress { slot, shift },
-                ..
-            } => {
+            RoutedAction::EngineCmd(Event::PadPress(PadPress {
+                deck: 0,
+                slot,
+                shift,
+            })) => {
                 assert_eq!(slot, 0);
                 assert!(!shift);
             }
@@ -1143,10 +1123,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::EngineCmd {
-                body: CmdBody::PadRelease { slot: 0 },
-                ..
-            }
+            RoutedAction::EngineCmd(Event::PadRelease(PadRelease { deck: 0, slot: 0 }))
         ));
 
         snap.pad_mode[0] = PadMode::BeatJump;
@@ -1163,13 +1140,11 @@ mod tests {
         assert!(
             matches!(
                 still_generic,
-                RoutedAction::EngineCmd {
-                    body: CmdBody::PadPress {
-                        slot: 0,
-                        shift: false
-                    },
-                    ..
-                }
+                RoutedAction::EngineCmd(Event::PadPress(PadPress {
+                    deck: 0,
+                    slot: 0,
+                    shift: false
+                }))
             ),
             "generic pad must not read snapshot pad_mode or cues, got {still_generic:?}"
         );
@@ -1188,10 +1163,11 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::EngineCmd {
-                body: CmdBody::HotCuePadPress { slot, shift: false },
-                ..
-            } => assert_eq!(slot, 0),
+            RoutedAction::EngineCmd(Event::HotCuePadPress(HotCuePadPress {
+                deck: 0,
+                slot,
+                shift: false,
+            })) => assert_eq!(slot, 0),
             other => panic!("expected HotCuePadPress, got {other:?}"),
         }
         let release = resolve_action(
@@ -1205,10 +1181,10 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::EngineCmd {
-                body: CmdBody::HotCuePadRelease { slot: 0 },
-                ..
-            }
+            RoutedAction::EngineCmd(Event::HotCuePadRelease(HotCuePadRelease {
+                deck: 0,
+                slot: 0
+            }))
         ));
 
         let routed = resolve_action(
@@ -1221,10 +1197,12 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::BeatJumpPadPress { slot },
-                ..
-            } => assert_eq!(slot, 0),
+            RoutedAction::EngineCmd(Event::BeatJumpPadPress(BeatJumpPadPress {
+                deck: 0,
+                slot,
+            })) => {
+                assert_eq!(slot, 0)
+            }
             other => panic!("expected BeatJumpPadPress, got {other:?}"),
         }
 
@@ -1238,10 +1216,10 @@ mod tests {
         )
         .unwrap();
         match begin {
-            RoutedAction::EngineCmd {
-                body: CmdBody::LoopRollPadPress { slot },
-                ..
-            } => assert_eq!(slot, 2),
+            RoutedAction::EngineCmd(Event::LoopRollPadPress(LoopRollPadPress {
+                deck: 0,
+                slot,
+            })) => assert_eq!(slot, 2),
             other => panic!("expected LoopRollPadPress slot 2, got {other:?}"),
         }
         let end = resolve_action(
@@ -1255,10 +1233,10 @@ mod tests {
         .unwrap();
         assert!(matches!(
             end,
-            RoutedAction::EngineCmd {
-                body: CmdBody::LoopRollPadRelease { slot: 2 },
-                ..
-            }
+            RoutedAction::EngineCmd(Event::LoopRollPadRelease(LoopRollPadRelease {
+                deck: 0,
+                slot: 2
+            }))
         ));
 
         let routed = resolve_action(
@@ -1271,10 +1249,11 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::SamplerPadPress { slot, shift: false },
-                ..
-            } => assert_eq!(slot, 1),
+            RoutedAction::EngineCmd(Event::SamplerPadPress(SamplerPadPress {
+                deck: 0,
+                slot,
+                shift: false,
+            })) => assert_eq!(slot, 1),
             other => panic!("expected SamplerPadPress, got {other:?}"),
         }
         let end = resolve_action(
@@ -1288,10 +1267,10 @@ mod tests {
         .unwrap();
         assert!(matches!(
             end,
-            RoutedAction::EngineCmd {
-                body: CmdBody::SamplerPadRelease { slot: 1 },
-                ..
-            }
+            RoutedAction::EngineCmd(Event::SamplerPadRelease(SamplerPadRelease {
+                deck: 0,
+                slot: 1
+            }))
         ));
     }
 
@@ -1308,10 +1287,11 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::PadPress { slot, shift: false },
-                ..
-            } => assert_eq!(slot, 8),
+            RoutedAction::EngineCmd(Event::PadPress(PadPress {
+                deck: 0,
+                slot,
+                shift: false,
+            })) => assert_eq!(slot, 8),
             other => panic!("expected PadPress slot 8, got {other:?}"),
         }
         assert!(resolve_action(
@@ -1333,10 +1313,11 @@ mod tests {
         )
         .unwrap();
         match named {
-            RoutedAction::EngineCmd {
-                body: CmdBody::HotCuePadPress { slot, shift: false },
-                ..
-            } => assert_eq!(slot, 8),
+            RoutedAction::EngineCmd(Event::HotCuePadPress(HotCuePadPress {
+                deck: 0,
+                slot,
+                shift: false,
+            })) => assert_eq!(slot, 8),
             other => panic!("expected HotCuePadPress slot 8, got {other:?}"),
         }
     }
@@ -1354,10 +1335,11 @@ mod tests {
         )
         .unwrap();
         match press {
-            RoutedAction::EngineCmd {
-                body: CmdBody::SamplerPadPress { slot, shift: false },
-                ..
-            } => assert_eq!(slot, 1),
+            RoutedAction::EngineCmd(Event::SamplerPadPress(SamplerPadPress {
+                deck: 0,
+                slot,
+                shift: false,
+            })) => assert_eq!(slot, 1),
             other => panic!("expected SamplerPadPress, got {other:?}"),
         }
         let release = resolve_action(
@@ -1371,10 +1353,10 @@ mod tests {
         .unwrap();
         assert!(matches!(
             release,
-            RoutedAction::EngineCmd {
-                body: CmdBody::SamplerPadRelease { slot: 1 },
-                ..
-            }
+            RoutedAction::EngineCmd(Event::SamplerPadRelease(SamplerPadRelease {
+                deck: 0,
+                slot: 1
+            }))
         ));
     }
 
@@ -1391,10 +1373,9 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::SetPadMode { mode },
-                ..
-            } => assert_eq!(mode, PadMode::LoopRoll),
+            RoutedAction::EngineCmd(Event::SetPadMode(SetPadMode { deck: 0, mode })) => {
+                assert_eq!(mode, PadMode::LoopRoll)
+            }
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -1413,10 +1394,10 @@ mod tests {
         )
         .unwrap();
         match inn {
-            RoutedAction::EngineCmd {
-                body: CmdBody::LoopIn { position_ms },
-                ..
-            } => assert_eq!(position_ms, 12_345),
+            RoutedAction::EngineCmd(Event::LoopIn(LoopIn {
+                deck: 0,
+                position_ms,
+            })) => assert_eq!(position_ms, 12_345),
             other => panic!("unexpected {other:?}"),
         }
         let out = resolve_action(
@@ -1429,10 +1410,10 @@ mod tests {
         )
         .unwrap();
         match out {
-            RoutedAction::EngineCmd {
-                body: CmdBody::LoopOut { position_ms },
-                ..
-            } => assert_eq!(position_ms, 12_345),
+            RoutedAction::EngineCmd(Event::LoopOut(LoopOut {
+                deck: 0,
+                position_ms,
+            })) => assert_eq!(position_ms, 12_345),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -1450,10 +1431,9 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::SetAutoLoop { beats },
-                ..
-            } => assert!((beats - 0.25).abs() < 1e-6),
+            RoutedAction::EngineCmd(Event::SetAutoLoop(SetAutoLoop { deck: 0, beats })) => {
+                assert!((beats - 0.25).abs() < 1e-6)
+            }
             other => panic!("expected SetAutoLoop 0.25, got {other:?}"),
         }
     }
@@ -1522,10 +1502,9 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::JogTurn { delta },
-                ..
-            } => assert_eq!(delta, 3),
+            RoutedAction::EngineCmd(Event::JogTurn(JogTurn { deck: 0, delta })) => {
+                assert_eq!(delta, 3)
+            }
             other => panic!("expected JogTurn, got {other:?}"),
         }
         assert!(resolve_action(
@@ -1578,10 +1557,10 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::SetTempoRange { tempo_range },
-                ..
-            } => assert!((tempo_range - 0.10).abs() < 1e-5),
+            RoutedAction::EngineCmd(Event::SetTempoRange(SetTempoRange {
+                deck: 0,
+                tempo_range,
+            })) => assert!((tempo_range - 0.10).abs() < 1e-5),
             other => panic!("unexpected {other:?}"),
         }
         snap.tempo_range[0] = 0.25;
@@ -1595,10 +1574,10 @@ mod tests {
         )
         .unwrap();
         match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::SetTempoRange { tempo_range },
-                ..
-            } => assert!((tempo_range - 0.06).abs() < 1e-5),
+            RoutedAction::EngineCmd(Event::SetTempoRange(SetTempoRange {
+                deck: 0,
+                tempo_range,
+            })) => assert!((tempo_range - 0.06).abs() < 1e-5),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -1648,10 +1627,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             a,
-            RoutedAction::EngineCmd {
-                kind: Kind::KeyShiftPadPress,
-                ..
-            }
+            RoutedAction::EngineCmd(Event::KeyShiftPadPress(KeyShiftPadPress { deck: 0, .. }))
         ));
     }
 
@@ -1669,10 +1645,10 @@ mod tests {
         .unwrap();
         assert!(matches!(
             keyboard,
-            RoutedAction::EngineCmd {
-                body: CmdBody::KeyboardPadPress { shift: true, .. },
+            RoutedAction::EngineCmd(Event::KeyboardPadPress(KeyboardPadPress {
+                shift: true,
                 ..
-            }
+            }))
         ));
         let key_shift = resolve_action(
             "Deck(_)::key_shift_pad(n:6, shift:true)",
@@ -1685,10 +1661,10 @@ mod tests {
         .unwrap();
         assert!(matches!(
             key_shift,
-            RoutedAction::EngineCmd {
-                body: CmdBody::KeyShiftPadPress { shift: true, .. },
+            RoutedAction::EngineCmd(Event::KeyShiftPadPress(KeyShiftPadPress {
+                shift: true,
                 ..
-            }
+            }))
         ));
         // Without `shift`, the main bank publishes a non-shift press.
         let plain = resolve_action(
@@ -1702,10 +1678,10 @@ mod tests {
         .unwrap();
         assert!(matches!(
             plain,
-            RoutedAction::EngineCmd {
-                body: CmdBody::KeyboardPadPress { shift: false, .. },
+            RoutedAction::EngineCmd(Event::KeyboardPadPress(KeyboardPadPress {
+                shift: false,
                 ..
-            }
+            }))
         ));
     }
 
@@ -1772,8 +1748,7 @@ mod tests {
                 true,
                 false,
                 &snap,
-            )
-            .unwrap(),
+            ),
             fx_unit_enabled(true)
         );
 
@@ -1786,8 +1761,7 @@ mod tests {
                 true,
                 false,
                 &snap,
-            )
-            .unwrap(),
+            ),
             fx_unit_enabled(false)
         );
 
@@ -1816,10 +1790,7 @@ mod tests {
         )
         .unwrap()
         {
-            RoutedAction::EngineCmd {
-                body: CmdBody::SetFxUnitSlot { slot: 0, kind },
-                ..
-            } => kind,
+            RoutedAction::EngineCmd(Event::SetFxUnitSlot(SetFxUnitSlot { slot: 0, kind })) => kind,
             other => panic!("unexpected {other:?}"),
         };
 
@@ -1849,15 +1820,11 @@ mod tests {
 
         // Boot division is index 3 of 7 → 4/6 after one up-step.
         match step(&snap, "step_fx_division_up").unwrap() {
-            RoutedAction::EngineCmd {
-                body:
-                    CmdBody::SetFxUnitParam {
-                        slot: 0,
-                        param: 0,
-                        value,
-                    },
-                ..
-            } => assert!((value - 4.0 / 6.0).abs() < 1e-6, "value={value}"),
+            RoutedAction::EngineCmd(Event::SetFxUnitParam(SetFxUnitParam {
+                slot: 0,
+                param: 0,
+                value,
+            })) => assert!((value - 4.0 / 6.0).abs() < 1e-6, "value={value}"),
             other => panic!("unexpected {other:?}"),
         }
 
@@ -1890,22 +1857,17 @@ mod tests {
         )
         .unwrap()
         {
-            RoutedAction::EngineCmd {
-                body:
-                    CmdBody::SetFxUnitWet {
-                        slot: 0,
-                        wet,
-                        soft_takeover: true,
-                    },
-                ..
-            } => assert!((wet - 0.25).abs() < 1e-6, "wet={wet}"),
+            RoutedAction::EngineCmd(Event::SetFxUnitWet(SetFxUnitWet {
+                slot: 0,
+                wet,
+                soft_takeover: true,
+            })) => assert!((wet - 0.25).abs() < 1e-6, "wet={wet}"),
             other => panic!("unexpected {other:?}"),
         }
     }
 
     #[test]
     fn fx_route_publishes_the_full_exclusive_group() {
-        use Kind::SetDeckFxRouted;
         let snap = ControlSnapshot::default();
         let route = |leaf: &str| {
             resolve_action(
@@ -1917,13 +1879,8 @@ mod tests {
                 &snap,
             )
         };
-        let routed = |deck: u16, on: bool| {
-            (
-                Origin::Deck(deck),
-                SetDeckFxRouted,
-                CmdBody::SetDeckFxRouted { routed: on },
-            )
-        };
+        let routed =
+            |deck: u16, on: bool| Event::SetDeckFxRouted(SetDeckFxRouted { deck, routed: on });
 
         assert_eq!(
             route("ch1").unwrap(),
@@ -1973,22 +1930,21 @@ mod tests {
             )
         };
         for (value, expected) in [
-            (0.0, engine_api::CrossfaderAssign::A),
-            (1.0 / 3.0 - 0.0001, engine_api::CrossfaderAssign::A),
-            (1.0 / 3.0, engine_api::CrossfaderAssign::Thru),
-            (2.0 / 3.0 - 0.0001, engine_api::CrossfaderAssign::Thru),
-            (2.0 / 3.0, engine_api::CrossfaderAssign::B),
-            (1.0, engine_api::CrossfaderAssign::B),
+            (0.0, CrossfaderAssign::A),
+            (1.0 / 3.0 - 0.0001, CrossfaderAssign::A),
+            (1.0 / 3.0, CrossfaderAssign::Thru),
+            (2.0 / 3.0 - 0.0001, CrossfaderAssign::Thru),
+            (2.0 / 3.0, CrossfaderAssign::B),
+            (1.0, CrossfaderAssign::B),
         ] {
             assert_eq!(
                 map(value),
-                Some(RoutedAction::EngineCmd {
-                    origin: Origin::Deck(3),
-                    kind: Kind::SetCrossfaderAssign,
-                    body: CmdBody::SetCrossfaderAssign {
+                Some(RoutedAction::EngineCmd(Event::SetCrossfaderAssign(
+                    SetCrossfaderAssign {
+                        deck: 3,
                         assignment: expected
-                    },
-                })
+                    }
+                )))
             );
         }
     }

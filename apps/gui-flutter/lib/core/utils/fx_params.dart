@@ -1,4 +1,4 @@
-import 'package:gui_flutter/src/rust/api/engine.dart' show FxKind;
+import 'package:gui_flutter/core/models/bus_enums.dart';
 
 /// Index of the Beat FX unit inside the shared chain; the remaining capacity is
 /// reserved for the future preset / chain editor.

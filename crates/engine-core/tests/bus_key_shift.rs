@@ -3,11 +3,21 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession, DEFAULT_PITCH_PAGE, KEYBOARD_PAGE_COUNT};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
-use omnibus::Filter;
+use common::recv_updated;
+use common::short_tone_fixture;
+use engine_api::Event;
+use engine_api::SetKeyShift;
+use engine_api::SetKeyShiftPage;
+use engine_api::SetKeyboardPage;
+use engine_api::SetKeyboardRoot;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
+use engine_core::DEFAULT_PITCH_PAGE;
+use engine_core::KEYBOARD_PAGE_COUNT;
+use library_core::AudioSource;
+use library_core::FileAudioSource;
+use library_core::TrackId;
+use library_core::TrackMetadata;
 
 fn null_session_with_loaded_deck() -> EngineSession {
     let config = EngineConfig {
@@ -37,79 +47,37 @@ fn null_session_with_loaded_deck() -> EngineSession {
 #[test]
 fn set_key_shift_pages_and_root_publish_fields() {
     let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyShift,
-            encode_cmd_body(&CmdBody::SetKeyShift { semitones: 2.0 }).unwrap(),
-        )
+        .publish_cmd(Event::SetKeyShift(SetKeyShift {
+            deck: 0,
+            semitones: 2.0,
+        }))
         .unwrap();
-    let body = decode_evt_body(recv_evt_kind(&evt, Kind::Updated).payload()).unwrap();
-    let EvtBody::DeckUpdated { key_shift, .. } = body else {
-        panic!("DeckUpdated")
-    };
-    assert!((key_shift - 2.0).abs() < 1e-6);
+    let update = recv_updated(&mut evt);
+    assert!((update.key_shift - 2.0).abs() < 1e-6);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyboardPage,
-            encode_cmd_body(&CmdBody::SetKeyboardPage { page: 4 }).unwrap(),
-        )
+        .publish_cmd(Event::SetKeyboardPage(SetKeyboardPage { deck: 0, page: 4 }))
         .unwrap();
-    let body = decode_evt_body(recv_evt_kind(&evt, Kind::Updated).payload()).unwrap();
-    let EvtBody::DeckUpdated {
-        keyboard_page,
-        key_shift_page,
-        ..
-    } = body
-    else {
-        panic!("DeckUpdated")
-    };
-    assert_eq!(keyboard_page, 4);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.keyboard_page, 4);
     // The Key Shift page is untouched by a Keyboard page command.
-    assert_eq!(key_shift_page, DEFAULT_PITCH_PAGE);
+    assert_eq!(update.key_shift_page, DEFAULT_PITCH_PAGE);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyShiftPage,
-            encode_cmd_body(&CmdBody::SetKeyShiftPage { page: 1 }).unwrap(),
-        )
+        .publish_cmd(Event::SetKeyShiftPage(SetKeyShiftPage { deck: 0, page: 1 }))
         .unwrap();
-    let body = decode_evt_body(recv_evt_kind(&evt, Kind::Updated).payload()).unwrap();
-    let EvtBody::DeckUpdated {
-        keyboard_page,
-        key_shift_page,
-        ..
-    } = body
-    else {
-        panic!("DeckUpdated")
-    };
-    assert_eq!(keyboard_page, 4);
-    assert_eq!(key_shift_page, 1);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.keyboard_page, 4);
+    assert_eq!(update.key_shift_page, 1);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyboardRoot,
-            encode_cmd_body(&CmdBody::SetKeyboardRoot { slot: 3 }).unwrap(),
-        )
+        .publish_cmd(Event::SetKeyboardRoot(SetKeyboardRoot { deck: 0, slot: 3 }))
         .unwrap();
-    let body = decode_evt_body(recv_evt_kind(&evt, Kind::Updated).payload()).unwrap();
-    let EvtBody::DeckUpdated {
-        keyboard_root_hot_cue,
-        ..
-    } = body
-    else {
-        panic!("DeckUpdated")
-    };
-    assert_eq!(keyboard_root_hot_cue, 3);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.keyboard_root_hot_cue, 3);
 }
 
 #[test]

@@ -3,13 +3,24 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, PadMode};
-use engine_core::{EngineConfig, EngineSession};
-use library::{LibraryConfig, LibraryManager};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
-use omnibus::Filter;
-use std::sync::{Arc, Mutex};
+use common::recv_error;
+use common::recv_updated;
+use common::short_tone_fixture;
+use engine_api::AssignSampler;
+use engine_api::Event;
+use engine_api::PadMode;
+use engine_api::SamplerPadPress;
+use engine_api::SamplerPadRelease;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
+use library::LibraryConfig;
+use library::LibraryManager;
+use library_core::AudioSource;
+use library_core::FileAudioSource;
+use library_core::TrackId;
+use library_core::TrackMetadata;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 fn sample_source() -> AudioSource {
     AudioSource::File(FileAudioSource::new(
@@ -49,20 +60,17 @@ fn assign_sampler_path_via_bus_assigns_slot() {
     session.with_engine(|engine| engine.start()).expect("start");
 
     let path = short_tone_fixture().to_string_lossy().into_owned();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::AssignSampler,
-            encode_cmd_body(&CmdBody::AssignSampler { slot: 1, path }).unwrap(),
-        )
+        .publish_cmd(Event::AssignSampler(AssignSampler {
+            deck: 0,
+            slot: 1,
+            path,
+        }))
         .expect("assign");
 
-    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let _ = recv_updated(&mut evt);
     let assigned = session
         .with_engine(|engine| Ok(engine.sampler_slot_assigned(0, 1)))
         .expect("query");
@@ -75,47 +83,31 @@ fn assign_sampler_path_via_bus_assigns_slot() {
 #[test]
 fn trigger_and_end_sampler_roundtrip() {
     let session = null_session_with_sample();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SamplerPadPress,
-            encode_cmd_body(&CmdBody::SamplerPadPress {
-                slot: 0,
-                shift: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+            deck: 0,
+            slot: 0,
+            shift: false,
+        }))
         .expect("trigger");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
+    let update = recv_updated(&mut evt);
     // `pad_mode` mirrors engine state (the fixture configured Sampler). The
     // sampler voice has no wire representation, so this is the strongest check
     // available: the press produced a deck snapshot still in sampler mode.
-    assert_eq!(pad_mode, PadMode::Sampler);
+    assert_eq!(update.pad_mode, PadMode::Sampler);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SamplerPadRelease,
-            encode_cmd_body(&CmdBody::SamplerPadRelease { slot: 0 }).unwrap(),
-        )
+        .publish_cmd(Event::SamplerPadRelease(SamplerPadRelease {
+            deck: 0,
+            slot: 0,
+        }))
         .expect("end");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated on release");
-    };
-    assert_eq!(pad_mode, PadMode::Sampler);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.pad_mode, PadMode::Sampler);
 }
 
 #[test]
@@ -133,80 +125,54 @@ fn sampler_pad_press_release_without_sampler_mode() {
         })
         .expect("assign");
 
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SamplerPadPress,
-            encode_cmd_body(&CmdBody::SamplerPadPress {
-                slot: 0,
-                shift: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+            deck: 0,
+            slot: 0,
+            shift: false,
+        }))
         .expect("press");
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    // `Kind::SamplerPadPress` is dispatched straight to
+    let update = recv_updated(&mut evt);
+    // `Event::SamplerPadPress` is dispatched straight to
     // `Engine::sampler_pad_press` in `control.rs`; it does not go through the
     // `pad_mode` router, so this asserts only that the sampler command leaves the
     // deck's pad mode untouched (it starts, and stays, on the HotCue default).
-    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert_eq!(pad_mode, PadMode::HotCue);
+    assert_eq!(update.pad_mode, PadMode::HotCue);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SamplerPadRelease,
-            encode_cmd_body(&CmdBody::SamplerPadRelease { slot: 0 }).unwrap(),
-        )
+        .publish_cmd(Event::SamplerPadRelease(SamplerPadRelease {
+            deck: 0,
+            slot: 0,
+        }))
         .expect("release");
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated on release");
-    };
-    assert_eq!(pad_mode, PadMode::HotCue);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.pad_mode, PadMode::HotCue);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SamplerPadPress,
-            encode_cmd_body(&CmdBody::SamplerPadPress {
-                slot: 0,
-                shift: true,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+            deck: 0,
+            slot: 0,
+            shift: true,
+        }))
         .expect("clear");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SamplerPadPress,
-            encode_cmd_body(&CmdBody::SamplerPadPress {
-                slot: 0,
-                shift: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+            deck: 0,
+            slot: 0,
+            shift: false,
+        }))
         .expect("empty press");
-    let event = recv_evt_kind(&evt, Kind::Error);
-    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
-        panic!("expected Error");
-    };
+    let error = recv_error(&mut evt);
     // Anchor to the slot index as well as the semantic word: a bare
     // `contains("0")` would match any message carrying a 0 (e.g. a frame count),
     // while the engine's message is `"Sampler slot {slot} is empty"`.
     assert!(
-        message.contains("slot 0") && message.contains("empty"),
-        "cleared slot should fail trigger with an empty-slot error for slot 0, got: {message}"
+        error.message.contains("slot 0") && error.message.contains("empty"),
+        "cleared slot should fail trigger with an empty-slot error for slot 0, got: {}",
+        error.message
     );
 }

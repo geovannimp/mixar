@@ -3,11 +3,17 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource};
-use omnibus::Filter;
+use common::recv_error;
+use common::recv_snapshot;
+use common::recv_updated;
+use common::short_tone_fixture;
+use engine_api::Event;
+use engine_api::Play;
+use engine_api::SetCrossfader;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
+use library_core::AudioSource;
+use library_core::FileAudioSource;
 
 fn null_config() -> EngineConfig {
     EngineConfig {
@@ -19,35 +25,25 @@ fn null_config() -> EngineConfig {
 #[test]
 fn play_on_empty_deck_publishes_track_error() {
     let session = EngineSession::new(null_config()).expect("session");
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    let body = encode_cmd_body(&CmdBody::Empty).unwrap();
     session
-        .publish_cmd(Origin::Deck(0), Kind::Play, body)
+        .publish_cmd(Event::Play(Play { deck: 0 }))
         .expect("publish");
-    let event = recv_evt_kind(&evt, Kind::Error);
-    assert_eq!(*event.origin(), Origin::Deck(0));
-    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode evt body")
-    else {
-        panic!("expected Error body");
-    };
-    let lower = message.to_lowercase();
+    let error = recv_error(&mut evt);
+    assert_eq!(error.deck, Some(0));
+    let lower = error.message.to_lowercase();
     assert!(
         lower.contains("track") || lower.contains("load"),
-        "expected track/load error, got: {message}"
+        "expected track/load error, got: {}",
+        error.message
     );
 }
 
 #[test]
 fn play_with_track_loaded_publishes_updated_playing() {
     let session = EngineSession::new(null_config()).expect("session");
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
     session
         .with_engine(|engine| {
             engine.start()?;
@@ -58,45 +54,25 @@ fn play_with_track_loaded_publishes_updated_playing() {
             Ok(())
         })
         .expect("setup");
-    let body = encode_cmd_body(&CmdBody::Empty).unwrap();
     session
-        .publish_cmd(Origin::Deck(0), Kind::Play, body)
+        .publish_cmd(Event::Play(Play { deck: 0 }))
         .expect("publish");
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    assert_eq!(*event.origin(), Origin::Deck(0));
-    let EvtBody::DeckUpdated { id, playing, .. } =
-        decode_evt_body(event.payload()).expect("decode evt body")
-    else {
-        panic!("expected DeckUpdated body");
-    };
-    assert_eq!(id, 0);
-    assert!(playing);
-    assert!(session.revision() > 0);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.deck, 0);
+    assert!(update.playing);
 }
 
 #[test]
 fn set_crossfader_publishes_status() {
     let session = EngineSession::new(null_config()).expect("session");
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    let body = encode_cmd_body(&CmdBody::SetCrossfader {
-        position: 0.75,
-        soft_takeover: false,
-    })
-    .unwrap();
     session
-        .publish_cmd(Origin::Mixer, Kind::SetCrossfader, body)
+        .publish_cmd(Event::SetCrossfader(SetCrossfader {
+            position: 0.75,
+            soft_takeover: false,
+        }))
         .expect("publish");
-    let event = recv_evt_kind(&evt, Kind::Status);
-    assert_eq!(*event.origin(), Origin::Mixer);
-    let EvtBody::EngineStatus { status } =
-        decode_evt_body(event.payload()).expect("decode evt body")
-    else {
-        panic!("expected EngineStatus body");
-    };
-    assert!((status.crossfader - 0.75).abs() < f32::EPSILON);
-    assert!(session.revision() > 0);
+    let snapshot = recv_snapshot(&mut evt);
+    assert!((snapshot.status.crossfader - 0.75).abs() < f32::EPSILON);
 }

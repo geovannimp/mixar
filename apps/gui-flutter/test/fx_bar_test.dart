@@ -2,12 +2,13 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show FxSlotState;
 import 'package:gui_flutter/widgets/mixer/fx_bar.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
@@ -15,22 +16,23 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
+import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
 /// Echo as the engine publishes it; `divisionNorm` is param 0 (0 = 1/16 … 1 = 2/1).
-FxSlotChrome echoSlot({
+FxSlotState echoSlot({
   bool enabled = false,
   double wet = 0.5,
   double divisionNorm = 0.5,
-}) => FxSlotChrome(
+}) => FxSlotState(
   kind: FxKind.echo,
   enabled: enabled,
   wet: wet,
   params: Float32List.fromList([divisionNorm, 0.5, 0.0]),
 );
 
-FxSlotChrome reverbSlot() => FxSlotChrome(
+FxSlotState reverbSlot() => FxSlotState(
   kind: FxKind.reverb,
   enabled: false,
   wet: 0.5,
@@ -43,7 +45,7 @@ void main() {
   Future<({ProviderContainer container, FakeEngineTransport engine})> pumpBar(
     WidgetTester tester, {
     bool running = true,
-    List<FxSlotChrome>? fxSlots,
+    List<FxSlotState>? fxSlots,
     double width = 640,
   }) async {
     final engine = FakeEngineTransport();
@@ -54,15 +56,15 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    // A null fx list leaves the shared unit untouched, like a real evt would.
+    // The deck update always carries the unit; an unspecified list is the
+    // "no evt yet" case, so the mirror stays empty and the strip falls back to
+    // the engine's own default.
     container.read(engineUiProvider.notifier)
-      ..apply(EngineEvt(kind: EngineEvtKind.status, running: running))
+      ..apply(engineSnapshotEvent(running: running))
       ..apply(
-        EngineEvt(
-          kind: EngineEvtKind.updated,
-          deckId: 0,
-          fx: fxSlots,
-          fxRouted: true,
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(deck: 0, fx: fxSlots ?? const [], fxRouted: true),
         ),
       );
 
@@ -179,11 +181,13 @@ void main() {
     container
         .read(engineUiProvider.notifier)
         .apply(
-          EngineEvt(
-            kind: EngineEvtKind.updated,
-            deckId: 0,
-            fx: [echoSlot(enabled: true, divisionNorm: 1)],
-            fxRouted: true,
+          deckUpdatedEvent(
+            deck: 0,
+            update: deckUpdated(
+              deck: 0,
+              fx: [echoSlot(enabled: true, divisionNorm: 1)],
+              fxRouted: true,
+            ),
           ),
         );
     await tester.pumpAndSettle();
@@ -221,11 +225,13 @@ void main() {
       container
           .read(engineUiProvider.notifier)
           .apply(
-            EngineEvt(
-              kind: EngineEvtKind.updated,
-              deckId: 0,
-              fx: [echoSlot(enabled: true)],
-              fxRouted: true,
+            deckUpdatedEvent(
+              deck: 0,
+              update: deckUpdated(
+                deck: 0,
+                fx: [echoSlot(enabled: true)],
+                fxRouted: true,
+              ),
             ),
           );
       await tester.pumpAndSettle();
@@ -256,11 +262,9 @@ void main() {
     container
         .read(engineUiProvider.notifier)
         .apply(
-          EngineEvt(
-            kind: EngineEvtKind.updated,
-            deckId: 0,
-            fx: [reverbSlot()],
-            fxRouted: true,
+          deckUpdatedEvent(
+            deck: 0,
+            update: deckUpdated(deck: 0, fx: [reverbSlot()], fxRouted: true),
           ),
         );
     await tester.pumpAndSettle();
@@ -292,11 +296,13 @@ void main() {
     harness.container
         .read(engineUiProvider.notifier)
         .apply(
-          EngineEvt(
-            kind: EngineEvtKind.updated,
-            deckId: 0,
-            fx: [echoSlot(wet: 0.9)],
-            fxRouted: true,
+          deckUpdatedEvent(
+            deck: 0,
+            update: deckUpdated(
+              deck: 0,
+              fx: [echoSlot(wet: 0.9)],
+              fxRouted: true,
+            ),
           ),
         );
     await tester.pumpAndSettle();

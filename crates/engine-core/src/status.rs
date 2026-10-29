@@ -1,6 +1,6 @@
 use crate::sync::DeckControlState;
 use audio_core::secs_to_ms;
-use engine_api::{DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, LoopRegion, SamplerStatus};
+use engine_api::{DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, LoopRegion};
 use engine_dsp::{DeckState, DspEngine};
 
 use crate::engine::{DeckTransportState, Engine};
@@ -115,14 +115,6 @@ impl Engine {
             master_cue: dsp.mixer().master_cue(),
             master_deck: self.master_deck as u16,
             decks,
-            sampler: SamplerStatus {
-                banks: Vec::new(),
-                active_bank_id: None,
-                active_bank_name: None,
-                bank_play_mode: None,
-                deck_slots: vec![Vec::new(); dsp.num_decks()],
-                effective_play_modes: vec![Default::default(); dsp.num_decks()],
-            },
         })
     }
 }
@@ -175,7 +167,9 @@ fn deck_snapshot_from_dsp(
         filter: crate::control_norm::strip_db_to_norm(channel.filter_db()),
         gain_trim: crate::control_norm::strip_db_to_norm(channel.gain_trim_db()),
         fx_routed: channel.fx_routed(),
-        fx: std::array::from_fn(|slot| fx_slot_state(channel.fx(), slot)),
+        fx: (0..engine_api::FX_SLOT_COUNT)
+            .map(|slot| fx_slot_state(channel.fx(), slot))
+            .collect(),
         headphone_cue: channel.headphone_cue(),
         sync_mode: control.sync_mode,
         cue_point_ms: deck.cue_point_ms(),
@@ -187,7 +181,7 @@ fn deck_snapshot_from_dsp(
         pad_mode: control.pad_mode,
         stems_ready: deck.stems_ready(),
         stems_live: deck.stems_live(),
-        stem_mute: deck.stem_mute(),
+        stem_mute: deck.stem_mute().to_vec(),
         stem_isolate: deck.stem_isolate(),
         position_ms,
         duration_ms,
@@ -233,7 +227,7 @@ fn fx_slot_state(fx: &engine_dsp::FxChain, slot: usize) -> engine_api::FxSlotSta
         kind: map_fx_kind_to_api(fx_slot.kind()),
         enabled: fx_slot.enabled(),
         wet: fx_slot.wet(),
-        params: fx_slot.params(),
+        params: fx_slot.params().to_vec(),
     }
 }
 

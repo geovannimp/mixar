@@ -1,11 +1,15 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource};
-use omnibus::Filter;
+use common::recv_updated;
+use common::short_tone_fixture;
+use engine_api::Event;
+use engine_api::Pause;
+use engine_api::Play;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
+use library_core::AudioSource;
+use library_core::FileAudioSource;
 use std::thread;
 use std::time::Duration;
 
@@ -16,10 +20,7 @@ fn pause_preserves_playback_position() {
         ..Default::default()
     })
     .expect("session");
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
     session
         .with_engine(|engine| {
             engine.start()?;
@@ -32,28 +33,19 @@ fn pause_preserves_playback_position() {
         })
         .expect("load");
 
-    let empty = encode_cmd_body(&CmdBody::Empty).unwrap();
     session
-        .publish_cmd(Origin::Deck(0), Kind::Play, empty.clone())
+        .publish_cmd(Event::Play(Play { deck: 0 }))
         .expect("play");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let _ = recv_updated(&mut evt);
 
     // Let the null backend advance a bit.
     thread::sleep(Duration::from_millis(80));
     session
-        .publish_cmd(Origin::Deck(0), Kind::Pause, empty)
+        .publish_cmd(Event::Pause(Pause { deck: 0 }))
         .expect("pause");
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated {
-        playing,
-        position_ms,
-        ..
-    } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(!playing);
-    let pos = position_ms.expect("position");
+    let update = recv_updated(&mut evt);
+    assert!(!update.playing);
+    let pos = update.position_ms.expect("position");
     assert!(
         pos >= 40,
         "pause should not reset to start, got position_ms={pos}"

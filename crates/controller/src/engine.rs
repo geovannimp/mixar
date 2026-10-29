@@ -1099,13 +1099,7 @@ impl ControllerEngine {
 struct NullPublish;
 
 impl ActionPublish for NullPublish {
-    fn publish_engine(
-        &mut self,
-        _origin: engine_api::Origin,
-        _kind: engine_api::Kind,
-        _body: engine_api::CmdBody,
-    ) {
-    }
+    fn publish_engine(&mut self, _event: engine_api::Event) {}
     fn publish_library(
         &mut self,
         _origin: library_api::Origin,

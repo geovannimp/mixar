@@ -3,11 +3,16 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
-use omnibus::Filter;
+use common::recv_updated;
+use common::short_tone_fixture;
+use engine_api::Event;
+use engine_api::SetKeyLock;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
+use library_core::AudioSource;
+use library_core::FileAudioSource;
+use library_core::TrackId;
+use library_core::TrackMetadata;
 
 fn null_session_with_loaded_deck() -> EngineSession {
     let config = EngineConfig {
@@ -37,38 +42,27 @@ fn null_session_with_loaded_deck() -> EngineSession {
 #[test]
 fn set_key_lock_publishes_enabled_flag() {
     let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyLock,
-            encode_cmd_body(&CmdBody::SetKeyLock { enabled: true }).unwrap(),
-        )
+        .publish_cmd(Event::SetKeyLock(SetKeyLock {
+            deck: 0,
+            enabled: true,
+        }))
         .expect("set key lock");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { key_lock, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(key_lock);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.deck, 0);
+    assert!(update.key_lock);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyLock,
-            encode_cmd_body(&CmdBody::SetKeyLock { enabled: false }).unwrap(),
-        )
+        .publish_cmd(Event::SetKeyLock(SetKeyLock {
+            deck: 0,
+            enabled: false,
+        }))
         .expect("clear key lock");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { key_lock, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(!key_lock);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.deck, 0);
+    assert!(!update.key_lock);
 }

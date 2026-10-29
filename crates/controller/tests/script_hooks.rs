@@ -3,14 +3,14 @@ use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
-use engine_api::{CmdBody, Kind, Origin};
+use engine_api::Event;
 
 struct CaptureBus {
-    cmds: Vec<(Origin, Kind, CmdBody)>,
+    cmds: Vec<Event>,
 }
 impl controller::ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
-        self.cmds.push((origin, kind, body));
+    fn publish_engine(&mut self, event: Event) {
+        self.cmds.push(event);
     }
     fn publish_library(
         &mut self,
@@ -74,7 +74,7 @@ fn idle_heartbeat_rate_limits_and_skips_when_playing() {
     s.idle_heartbeat(&mut bus, &mut midi).unwrap();
     assert_eq!(midi.frames.len(), 1, "second call within window must no-op");
 
-    s.set_control_value(engine_api::Origin::Deck(0), "playing", 1.0);
+    s.set_control_value(controller::EngineScope::Deck(0), "playing", 1.0);
     midi.frames.clear();
     // Wait out the idle interval so a firing heartbeat would be observable.
     thread::sleep(Duration::from_secs(1) + Duration::from_millis(50));

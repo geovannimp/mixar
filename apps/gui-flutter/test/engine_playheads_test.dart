@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+
+import 'support/bus_events.dart';
 
 void main() {
   test('position put updates deckPositionMsProvider', () {
@@ -10,13 +11,7 @@ void main() {
 
     container
         .read(engineUiProvider.notifier)
-        .apply(
-          const EngineEvt(
-            kind: EngineEvtKind.position,
-            deckId: 0,
-            positionMs: 1234,
-          ),
-        );
+        .apply(deckPositionEvent(deck: 0, positionMs: 1234));
 
     expect(container.read(deckPositionMsProvider(0)), 1234);
     expect(container.read(deckPositionMsProvider(1)), 0);
@@ -26,18 +21,10 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final ui = container.read(engineUiProvider.notifier)
-      ..apply(
-        const EngineEvt(
-          kind: EngineEvtKind.position,
-          deckId: 0,
-          positionMs: 500,
-        ),
-      );
+      ..apply(deckPositionEvent(deck: 0, positionMs: 500));
     final first = container.read(deckPlayheadsProvider);
 
-    ui.apply(
-      const EngineEvt(kind: EngineEvtKind.position, deckId: 0, positionMs: 500),
-    );
+    ui.apply(deckPositionEvent(deck: 0, positionMs: 500));
     final second = container.read(deckPlayheadsProvider);
 
     expect(identical(first, second), isTrue);
@@ -50,12 +37,9 @@ void main() {
     container
         .read(engineUiProvider.notifier)
         .apply(
-          const EngineEvt(
-            kind: EngineEvtKind.updated,
-            deckId: 0,
-            durationKnown: true,
-            durationMs: 10000,
-            positionMs: 2000,
+          deckUpdatedEvent(
+            deck: 0,
+            update: deckUpdated(deck: 0, durationMs: 10000, positionMs: 2000),
           ),
         );
 
@@ -67,23 +51,12 @@ void main() {
     addTearDown(container.dispose);
     final ui = container.read(engineUiProvider.notifier)
       ..apply(
-        const EngineEvt(
-          kind: EngineEvtKind.position,
-          deckId: 0,
-          positionMs: 900,
-          slipShadowPositionMs: 800,
-        ),
+        deckPositionEvent(deck: 0, positionMs: 900, slipShadowPositionMs: 800),
       );
     expect(container.read(deckPositionMsProvider(0)), 900);
     expect(container.read(deckSlipShadowsProvider)[0], 800);
 
-    ui.apply(
-      const EngineEvt(
-        kind: EngineEvtKind.updated,
-        deckId: 0,
-        durationKnown: true,
-      ),
-    );
+    ui.apply(deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0)));
 
     expect(container.read(deckPlayheadsProvider).containsKey(0), isFalse);
     expect(container.read(deckSlipShadowsProvider).containsKey(0), isFalse);

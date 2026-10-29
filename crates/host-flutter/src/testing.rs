@@ -2,9 +2,12 @@
 
 use std::path::Path;
 
+use crate::api::bus::BusTransport;
 use crate::api::controller::ControllerTransport;
-use crate::api::engine::{EngineBusHandle, EngineTransport};
+use crate::api::engine::EngineTransport;
 use crate::api::library::{LibraryBusHandle, LibraryTransport};
+use engine_api::Event;
+use event_bus::Subscriber;
 
 /// Start an [`EngineTransport`] with an explicit engine config.
 ///
@@ -12,10 +15,16 @@ use crate::api::library::{LibraryBusHandle, LibraryTransport};
 /// outside `crate::api`, so the Dart bridge never exposes a backend selector:
 /// production always boots the compiled-in real backend from the settings host.
 pub fn start_engine(
+    bus: &BusTransport,
     library_transport: &LibraryTransport,
     config: engine_core::EngineConfig,
 ) -> Result<EngineTransport, String> {
-    EngineTransport::start_with(library_transport, config)
+    EngineTransport::start_with(bus.bus(), bus.deck_chrome(), library_transport, config)
+}
+
+/// Subscribe to every bus event, for integration tests that assert on egress.
+pub fn subscribe_evt(bus: &BusTransport) -> Result<Subscriber<Event>, String> {
+    bus.subscribe_evt()
 }
 
 /// Open a library at an explicit path, so tests use a temp directory instead of
@@ -27,14 +36,14 @@ pub fn open_library_at(db_path: &Path) -> Result<LibraryTransport, String> {
 
 /// Start the controller host against explicit mapping directories.
 pub fn start_controller_at(
-    engine_buses: &EngineBusHandle,
+    bus: &BusTransport,
     library_buses: &LibraryBusHandle,
     mappings_dir: &Path,
     shipped_mappings_dir: Option<&Path>,
     trusted_device_ids: Vec<String>,
 ) -> Result<ControllerTransport, String> {
     ControllerTransport::start_at(
-        engine_buses,
+        bus,
         library_buses,
         mappings_dir.to_path_buf(),
         shipped_mappings_dir.map(Path::to_path_buf),

@@ -3,15 +3,24 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
-use engine_api::{CmdBody, Kind, Origin, PadMode};
+use engine_api::Event;
+use engine_api::KeyShiftPadPress;
+use engine_api::KeyboardPadPress;
+use engine_api::KeyboardPadRelease;
+use engine_api::PadMode;
+use engine_api::SetCueMix;
+use engine_api::SetCueVolume;
+use engine_api::SetMasterVolume;
+use engine_api::SetPadMode;
+use engine_api::ToggleMasterCue;
 
 struct CaptureBus {
-    cmds: Vec<(Origin, Kind, CmdBody)>,
+    cmds: Vec<Event>,
 }
 
 impl controller::ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
-        self.cmds.push((origin, kind, body));
+    fn publish_engine(&mut self, event: Event) {
+        self.cmds.push(event);
     }
     fn publish_library(
         &mut self,
@@ -53,54 +62,56 @@ fn keyboard_and_key_shift_banks_dispatch() {
 
     // Keyboard bank press/release: ch8 note 0x40 = keyboard_pad_1.
     s.handle_midi(&[0x97, 0x40, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::KeyboardPadPress);
-    assert!(matches!(
-        bus.cmds.last().unwrap().2,
-        CmdBody::KeyboardPadPress {
+    assert_eq!(
+        bus.cmds.last(),
+        Some(&Event::KeyboardPadPress(KeyboardPadPress {
+            deck: 0,
             slot: 0,
             shift: false
-        }
-    ));
+        }))
+    );
 
     s.handle_midi(&[0x87, 0x40, 0x00], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::KeyboardPadRelease);
-    assert!(matches!(
-        bus.cmds.last().unwrap().2,
-        CmdBody::KeyboardPadRelease { slot: 0 }
-    ));
+    assert_eq!(
+        bus.cmds.last(),
+        Some(&Event::KeyboardPadRelease(KeyboardPadRelease {
+            deck: 0,
+            slot: 0
+        }))
+    );
 
     // Key Shift bank press: ch8 note 0x70 = key_shift_pad_1 (offset 0).
     s.handle_midi(&[0x97, 0x70, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::KeyShiftPadPress);
-    assert!(matches!(
-        bus.cmds.last().unwrap().2,
-        CmdBody::KeyShiftPadPress {
+    assert_eq!(
+        bus.cmds.last(),
+        Some(&Event::KeyShiftPadPress(KeyShiftPadPress {
+            deck: 0,
             slot: 0,
             shift: false
-        }
-    ));
+        }))
+    );
 
     // Shift bank: keyboard ch9 note 0x40 → KeyboardPadPress { shift: true }.
     s.handle_midi(&[0x98, 0x40, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::KeyboardPadPress);
-    assert!(matches!(
-        bus.cmds.last().unwrap().2,
-        CmdBody::KeyboardPadPress {
+    assert_eq!(
+        bus.cmds.last(),
+        Some(&Event::KeyboardPadPress(KeyboardPadPress {
+            deck: 0,
             slot: 0,
             shift: true
-        }
-    ));
+        }))
+    );
 
     // Shift bank: key-shift ch9 note 0x70 → KeyShiftPadPress { shift: true }.
     s.handle_midi(&[0x98, 0x70, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::KeyShiftPadPress);
-    assert!(matches!(
-        bus.cmds.last().unwrap().2,
-        CmdBody::KeyShiftPadPress {
+    assert_eq!(
+        bus.cmds.last(),
+        Some(&Event::KeyShiftPadPress(KeyShiftPadPress {
+            deck: 0,
             slot: 0,
             shift: true
-        }
-    ));
+        }))
+    );
 }
 
 #[test]
@@ -111,7 +122,10 @@ fn key_shift_pad_lights_led_and_reset_clears() {
 
     // Enter the Key Shift page so the bank LEDs are driven.
     s.handle_midi(&[0x90, 0x6F, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::SetPadMode);
+    assert!(matches!(
+        bus.cmds.last(),
+        Some(Event::SetPadMode(SetPadMode { .. }))
+    ));
     midi.frames.clear();
 
     // Engine echo: +2 semitones → key_shift_pad_3 (index 2) lit, pad 1 dark.
@@ -177,23 +191,23 @@ fn mode_buttons_set_pad_mode() {
     let mut midi = new_midi();
 
     s.handle_midi(&[0x90, 0x69, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::SetPadMode);
-    assert!(matches!(
-        bus.cmds.last().unwrap().2,
-        CmdBody::SetPadMode {
+    assert_eq!(
+        bus.cmds.last(),
+        Some(&Event::SetPadMode(SetPadMode {
+            deck: 0,
             mode: PadMode::Keyboard
-        }
-    ));
+        }))
+    );
 
     s.handle_midi(&[0x80, 0x69, 0x00], &mut bus, &mut midi);
     s.handle_midi(&[0x90, 0x6F, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::SetPadMode);
-    assert!(matches!(
-        bus.cmds.last().unwrap().2,
-        CmdBody::SetPadMode {
+    assert_eq!(
+        bus.cmds.last(),
+        Some(&Event::SetPadMode(SetPadMode {
+            deck: 0,
             mode: PadMode::KeyShift
-        }
-    ));
+        }))
+    );
 }
 
 #[test]
@@ -205,8 +219,7 @@ fn master_mixer_controls_dispatch() {
     // MASTER CUE (ch7 / note 0x63) → ToggleMasterCue + LED on/off
     s.handle_midi(&[0x96, 0x63, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].0, Origin::Mixer);
-    assert_eq!(bus.cmds[0].1, Kind::ToggleMasterCue);
+    assert_eq!(bus.cmds[0], Event::ToggleMasterCue(ToggleMasterCue {}));
     assert_eq!(midi.frames.len(), 1, "MASTER CUE LED should turn on");
     assert_eq!(midi.frames[0], vec![0x96, 0x63, 0x7F]);
 
@@ -216,7 +229,7 @@ fn master_mixer_controls_dispatch() {
 
     s.handle_midi(&[0x96, 0x63, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 2);
-    assert_eq!(bus.cmds[1].1, Kind::ToggleMasterCue);
+    assert_eq!(bus.cmds[1], Event::ToggleMasterCue(ToggleMasterCue {}));
     assert_eq!(midi.frames.len(), 2, "MASTER CUE LED should turn off");
     assert_eq!(midi.frames[1], vec![0x96, 0x63, 0x00]);
 
@@ -226,14 +239,12 @@ fn master_mixer_controls_dispatch() {
     assert!(bus.cmds.is_empty(), "MSB alone must not publish");
     s.handle_midi(&[0xB6, 0x2C, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].0, Origin::Mixer);
-    assert_eq!(bus.cmds[0].1, Kind::SetCueMix);
-    let CmdBody::SetCueMix {
+    let Event::SetCueMix(SetCueMix {
         soft_takeover: true,
         ..
-    } = bus.cmds[0].2
+    }) = bus.cmds[0]
     else {
-        panic!("expected SetCueMix soft_takeover, got {:?}", bus.cmds[0].2);
+        panic!("expected SetCueMix soft_takeover, got {:?}", bus.cmds[0]);
     };
 
     // MASTER LEVEL cc14 0x08/0x28 → SetMasterVolume soft-takeover
@@ -242,35 +253,28 @@ fn master_mixer_controls_dispatch() {
     assert!(bus.cmds.is_empty(), "MSB alone must not publish");
     s.handle_midi(&[0xB6, 0x28, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].0, Origin::Mixer);
-    assert_eq!(bus.cmds[0].1, Kind::SetMasterVolume);
-    let CmdBody::SetMasterVolume {
+    let Event::SetMasterVolume(SetMasterVolume {
         soft_takeover: true,
         ..
-    } = bus.cmds[0].2
+    }) = bus.cmds[0]
     else {
         panic!(
             "expected SetMasterVolume soft_takeover, got {:?}",
-            bus.cmds[0].2
+            bus.cmds[0]
         );
     };
 
-    // HEADPHONES LEVEL cc14 0x0D/0x2D → SetCueVolume soft-takeover
+    // HEADPHONES LEVEL cc14 0x0D/0x2D → SetCueVolume soft_takeover
     bus.cmds.clear();
     s.handle_midi(&[0xB6, 0x0D, 0x40], &mut bus, &mut midi);
     assert!(bus.cmds.is_empty(), "MSB alone must not publish");
     s.handle_midi(&[0xB6, 0x2D, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].0, Origin::Mixer);
-    assert_eq!(bus.cmds[0].1, Kind::SetCueVolume);
-    let CmdBody::SetCueVolume {
+    let Event::SetCueVolume(SetCueVolume {
         soft_takeover: true,
         ..
-    } = bus.cmds[0].2
+    }) = bus.cmds[0]
     else {
-        panic!(
-            "expected SetCueVolume soft_takeover, got {:?}",
-            bus.cmds[0].2
-        );
+        panic!("expected SetCueVolume soft_takeover, got {:?}", bus.cmds[0]);
     };
 }

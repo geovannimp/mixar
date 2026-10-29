@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';

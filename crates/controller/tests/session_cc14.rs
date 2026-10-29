@@ -2,16 +2,16 @@
 
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use controller::{load_bundle, ActionPublish, MappingSession};
-use engine_api::{CmdBody, Kind, Origin};
+use engine_api::{Event, SetVolume};
 use std::path::PathBuf;
 
 struct Capture {
-    cmds: Vec<(Origin, Kind, CmdBody)>,
+    cmds: Vec<Event>,
 }
 
 impl ActionPublish for Capture {
-    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
-        self.cmds.push((origin, kind, body));
+    fn publish_engine(&mut self, event: Event) {
+        self.cmds.push(event);
     }
     fn publish_library(
         &mut self,
@@ -46,13 +46,13 @@ fn cc14_waits_for_both_bytes_then_publishes_volume() {
     // LSB completes pair
     session.handle_midi(&[0xB0, 0x33, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::SetVolume);
-    let CmdBody::SetVolume {
+    let Event::SetVolume(SetVolume {
+        deck: 0,
         volume,
         soft_takeover: false,
-    } = &bus.cmds[0].2
+    }) = &bus.cmds[0]
     else {
-        panic!("expected SetVolume");
+        panic!("expected SetVolume, got {:?}", bus.cmds[0]);
     };
     let expected = (0x40u16 << 7) as f32 / 16383.0;
     assert!((volume - expected).abs() < 1e-5);

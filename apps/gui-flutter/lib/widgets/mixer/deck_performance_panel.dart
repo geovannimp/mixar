@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/performance_modes.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/widgets/mixer/deck_grid_host.dart';
 import 'package:gui_flutter/widgets/mixer/deck_grid_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_jog_host.dart';

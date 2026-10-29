@@ -12,6 +12,7 @@ analytics = { path = "../analytics" }
 analyzer-stems = { path = "../analyzer-stems" }
 engine-api = { path = "../engine-api" }
 engine-core = { path = "../engine-core" }
+event-bus = { path = "../event-bus" }
 fs-browser = { path = "../fs-browser" }
 flutter_rust_bridge = "=2.13.0"
 audio-core = { path = "../audio-core" }

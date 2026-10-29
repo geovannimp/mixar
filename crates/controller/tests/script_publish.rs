@@ -3,15 +3,15 @@ use std::collections::HashSet;
 
 use controller::script::{ScriptHost, ScriptRuntime};
 use controller::{ActionPublish, MidiOut};
-use engine_api::{CmdBody, Kind, Origin};
+use engine_api::{Event, SetVolume};
 
 struct CaptureBus {
-    cmds: Vec<(Origin, Kind, CmdBody)>,
+    cmds: Vec<Event>,
 }
 
 impl ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
-        self.cmds.push((origin, kind, body));
+    fn publish_engine(&mut self, event: Event) {
+        self.cmds.push(event);
     }
 
     fn publish_library(
@@ -47,13 +47,12 @@ fn publish_forwards_json_payload() {
     runtime.call_hook("on_init", &mut host).unwrap();
 
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].0, Origin::Deck(0));
-    assert_eq!(bus.cmds[0].1, Kind::SetVolume);
     assert_eq!(
-        bus.cmds[0].2,
-        CmdBody::SetVolume {
+        bus.cmds[0],
+        Event::SetVolume(SetVolume {
+            deck: 0,
             volume: 0.5,
             soft_takeover: false,
-        }
+        })
     );
 }

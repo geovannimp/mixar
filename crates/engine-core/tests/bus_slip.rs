@@ -3,11 +3,18 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
-use omnibus::Filter;
+use common::recv_position;
+use common::recv_updated;
+use common::short_tone_fixture;
+use engine_api::Event;
+use engine_api::JogTouch;
+use engine_api::SetSlip;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
+use library_core::AudioSource;
+use library_core::FileAudioSource;
+use library_core::TrackId;
+use library_core::TrackMetadata;
 use std::time::Duration;
 
 fn null_session_with_loaded_deck() -> EngineSession {
@@ -38,31 +45,19 @@ fn null_session_with_loaded_deck() -> EngineSession {
 #[test]
 fn set_slip_publishes_enabled_flag_without_shadow() {
     let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetSlip,
-            encode_cmd_body(&CmdBody::SetSlip { enabled: true }).unwrap(),
-        )
+        .publish_cmd(Event::SetSlip(SetSlip {
+            deck: 0,
+            enabled: true,
+        }))
         .expect("set slip");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated {
-        slip_enabled,
-        slip_shadow_position_ms,
-        ..
-    } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(slip_enabled);
+    let update = recv_updated(&mut evt);
+    assert!(update.slip_enabled);
     assert!(
-        slip_shadow_position_ms.is_none(),
+        update.slip_shadow_position_ms.is_none(),
         "enabling slip must not arm the cursor"
     );
 }
@@ -109,10 +104,7 @@ fn exit_loop_with_slip_catches_up() {
 #[test]
 fn slip_shadow_publishes_only_during_a_manual_action() {
     let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
         .with_engine(|engine| {
@@ -122,19 +114,13 @@ fn slip_shadow_publishes_only_during_a_manual_action() {
         })
         .expect("setup");
 
-    // No sleep: `recv_evt_kind` blocks until the first Position tick arrives,
+    // No sleep: `recv_position` blocks until the first Position tick arrives,
     // which is a few ms into the 250 ms fixture — well inside track end, so
     // the deck is still Playing when the jog touch lands and can arm.
     //
     // Plain playback: Position ticks carry no slip cursor.
-    let position = recv_evt_kind(&evt, Kind::Position);
-    let EvtBody::Position {
-        slip_shadow_position_ms: idle,
-        ..
-    } = decode_evt_body(position.payload()).expect("decode")
-    else {
-        panic!("expected Position");
-    };
+    let position = recv_position(&mut evt);
+    let idle = position.slip_shadow_position_ms;
     assert!(
         idle.is_none(),
         "idle playback must publish no slip cursor: {idle:?}"
@@ -142,39 +128,29 @@ fn slip_shadow_publishes_only_during_a_manual_action() {
 
     // Jog touch arms the cursor …
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::JogTouch,
-            encode_cmd_body(&CmdBody::JogTouch { touching: true }).unwrap(),
-        )
+        .publish_cmd(Event::JogTouch(JogTouch {
+            deck: 0,
+            touching: true,
+        }))
         .expect("touch");
-    let touch = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated {
-        slip_shadow_position_ms: armed,
-        ..
-    } = decode_evt_body(touch.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(armed.is_some(), "jog touch must arm the slip cursor");
+    let touch = recv_updated(&mut evt);
+    assert!(
+        touch.slip_shadow_position_ms.is_some(),
+        "jog touch must arm the slip cursor"
+    );
 
     // … and release catches up and clears it.
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::JogTouch,
-            encode_cmd_body(&CmdBody::JogTouch { touching: false }).unwrap(),
-        )
+        .publish_cmd(Event::JogTouch(JogTouch {
+            deck: 0,
+            touching: false,
+        }))
         .expect("release");
-    let release = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated {
-        slip_shadow_position_ms: cleared,
-        ..
-    } = decode_evt_body(release.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(cleared.is_none(), "jog release must clear the slip cursor");
+    let release = recv_updated(&mut evt);
+    assert!(
+        release.slip_shadow_position_ms.is_none(),
+        "jog release must clear the slip cursor"
+    );
 }
 
 #[test]

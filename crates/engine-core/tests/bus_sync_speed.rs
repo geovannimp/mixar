@@ -3,10 +3,18 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, recv_evt_where, source_with_bpm};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, SyncMode};
-use engine_core::{AudioConfig, EngineConfig, EngineSession};
-use omnibus::Filter;
+use common::recv_snapshot;
+use common::recv_updated;
+use common::recv_updated_where;
+use common::source_with_bpm;
+use engine_api::Event;
+use engine_api::SetMasterDeck;
+use engine_api::SetSpeed;
+use engine_api::SyncMode;
+use engine_api::ToggleSync;
+use engine_core::AudioConfig;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
 
 /// ±25% tempo fader span, wide enough that the 120→100 BPM sync ratio (1.2×)
 /// is reachable instead of saturating the default ±6% fader.
@@ -41,84 +49,56 @@ fn null_session_with_synced_decks() -> EngineSession {
 #[test]
 fn toggle_sync_publishes_tempo_mode_and_matched_speed() {
     let session = null_session_with_synced_decks();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(1),
-            Kind::ToggleSync,
-            encode_cmd_body(&CmdBody::ToggleSync { beat_sync: false }).unwrap(),
-        )
+        .publish_cmd(Event::ToggleSync(ToggleSync {
+            deck: 1,
+            beat_sync: false,
+        }))
         .expect("toggle");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated {
-        id,
-        sync_mode,
-        speed,
-        ..
-    } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert_eq!(id, 1);
-    assert_eq!(sync_mode, SyncMode::Tempo);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.deck, 1);
+    assert_eq!(update.sync_mode, SyncMode::Tempo);
     // Master 120 BPM at unity → slave 100 BPM needs ratio 1.2×.
     // playback_ratio_to_norm(1.2, ±0.25) = 0.5 − (1.2−1.0)/0.5 = 0.1.
     assert!(
-        (speed - 0.1).abs() < 1e-3,
-        "slave should be synced to the master tempo, speed={speed}"
+        (update.speed - 0.1).abs() < 1e-3,
+        "slave should be synced to the master tempo, speed={}",
+        update.speed
     );
 }
 
 #[test]
 fn master_speed_change_updates_synced_slave() {
     let session = null_session_with_synced_decks();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(1),
-            Kind::ToggleSync,
-            encode_cmd_body(&CmdBody::ToggleSync { beat_sync: false }).unwrap(),
-        )
+        .publish_cmd(Event::ToggleSync(ToggleSync {
+            deck: 1,
+            beat_sync: false,
+        }))
         .expect("toggle");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetSpeed,
-            encode_cmd_body(&CmdBody::SetSpeed {
-                // Slower than unity: norm 0.8 with ±0.25 → ratio
-                // 1 + (0.5 − 0.8)·0.5 = 0.85, so the slave target
-                // 0.85 × 120/100 = 1.02 stays inside the fader span.
-                speed: 0.8,
-                soft_takeover: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SetSpeed(SetSpeed {
+            deck: 0,
+            // Slower than unity: norm 0.8 with ±0.25 → ratio
+            // 1 + (0.5 − 0.8)·0.5 = 0.85, so the slave target
+            // 0.85 × 120/100 = 1.02 stays inside the fader span.
+            speed: 0.8,
+            soft_takeover: false,
+        }))
         .expect("speed");
 
     // Master update first, then slave follow. Filter on the slave's deck id via
     // the shared helper so this wait reports timeouts/disconnects identically to
     // every other receive in the suite.
-    let event = recv_evt_where(&evt, Kind::Updated, |event| {
-        matches!(
-            decode_evt_body(event.payload()),
-            Ok(EvtBody::DeckUpdated { id: 1, .. })
-        )
-    });
-    let EvtBody::DeckUpdated { speed, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
+    let update = recv_updated_where(&mut evt, |update| update.deck == 1);
+    let speed = update.speed;
     // Master ratio 0.85 → slave needs 0.85 × 120/100 = 1.02×.
     // playback_ratio_to_norm(1.02, ±0.25) = 0.5 − 0.02/0.5 = 0.46.
     // Asserting the derived value (not 0.0) means deleting `apply_tempo_sync`
@@ -132,22 +112,12 @@ fn master_speed_change_updates_synced_slave() {
 #[test]
 fn set_master_deck_publishes_status_with_master_deck() {
     let session = null_session_with_synced_decks();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(1),
-            Kind::SetMasterDeck,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Event::SetMasterDeck(SetMasterDeck { deck: 1 }))
         .expect("master");
 
-    let event = recv_evt_kind(&evt, Kind::Status);
-    let EvtBody::EngineStatus { status } = decode_evt_body(event.payload()).expect("decode") else {
-        panic!("expected EngineStatus");
-    };
-    assert_eq!(status.master_deck, 1);
+    let snapshot = recv_snapshot(&mut evt);
+    assert_eq!(snapshot.status.master_deck, 1);
 }

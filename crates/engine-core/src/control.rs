@@ -1,21 +1,24 @@
 //! Control thread: cmd dispatch and high-rate evt egress.
 
-use crate::bus::EngineBus;
 use crate::engine::Engine;
 use crate::soft_takeover;
 use crate::transport::TransportEvent;
-use anyhow::{anyhow, Result};
-use engine_api::{
-    decode_cmd_body, encode_evt_body, CmdBody, DeckSnapshot, EqBand, EvtBody, Kind, Origin,
-};
+use anyhow::anyhow;
+use anyhow::Result;
+use engine_api::DeckLevels;
+use engine_api::DeckPosition;
+use engine_api::DeckUpdated;
+use engine_api::EngineSnapshot;
+use engine_api::EqBand;
+use engine_api::Event;
+use event_bus::EventBus;
 use library::{LibraryManager, PreparedTrackPlayback};
-use library_api::{
-    decode_evt_body as decode_library_evt_body, EvtBody as LibraryEvtBody, Kind as LibraryKind,
-};
+use library_api::decode_evt_body as decode_library_evt_body;
+use library_api::EvtBody as LibraryEvtBody;
+use library_api::Kind as LibraryKind;
 use library_core::TrackId;
-use omnibus::Event;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -23,6 +26,9 @@ use std::time::Duration;
 const TICK_INTERVAL: Duration = Duration::from_millis(33);
 const PEAK_HOLD_DECAY_PER_TICK: f32 = 0.04;
 const LEVEL_IDLE_EPSILON: f32 = 1e-5;
+
+/// Engine handle shared with the host (the engine can be stopped/restarted).
+type EngineHandle = Arc<Mutex<Option<Engine>>>;
 
 enum CmdOutcome {
     DeckUpdated(usize),
@@ -106,11 +112,11 @@ impl Drop for EngineWorker {
     }
 }
 
-/// Spawn the cmd-draining worker using buses attached to `engine`.
+/// Spawn the cmd-draining worker using the bus attached to `engine`.
 ///
 /// Errors if [`Engine::set_buses`] was not called, or if the thread fails to subscribe.
-pub fn spawn_engine_worker(engine: Arc<Mutex<Option<Engine>>>) -> Result<EngineWorker> {
-    let buses = {
+pub fn spawn_engine_worker(engine: EngineHandle) -> Result<EngineWorker> {
+    let bus = {
         let guard = engine.lock().unwrap_or_else(|e| e.into_inner());
         guard.as_ref().and_then(Engine::buses).ok_or_else(|| {
             anyhow!("engine buses not attached; call set_buses before spawn_engine_worker")
@@ -118,14 +124,11 @@ pub fn spawn_engine_worker(engine: Arc<Mutex<Option<Engine>>>) -> Result<EngineW
     };
 
     let shutdown = Arc::new(AtomicBool::new(false));
-    let cmd = buses.cmd_bus();
-    let evt = buses.evt_bus();
-    let revision = buses.revision_arc();
     let engine_handle = Arc::clone(&engine);
     let shutdown_flag = Arc::clone(&shutdown);
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
     let handle = std::thread::spawn(move || {
-        control_thread_loop(cmd, evt, engine_handle, revision, shutdown_flag, ready_tx);
+        control_thread_loop(bus, engine_handle, shutdown_flag, ready_tx);
     });
     ready_rx
         .recv()
@@ -138,14 +141,12 @@ pub fn spawn_engine_worker(engine: Arc<Mutex<Option<Engine>>>) -> Result<EngineW
 }
 
 fn control_thread_loop(
-    cmd_bus: EngineBus,
-    evt_bus: EngineBus,
-    engine: Arc<Mutex<Option<Engine>>>,
-    revision: Arc<AtomicU64>,
+    bus: EventBus<Event>,
+    engine: EngineHandle,
     shutdown: Arc<AtomicBool>,
     ready: std::sync::mpsc::Sender<Result<()>>,
 ) {
-    let rx = match cmd_bus.subscribe(omnibus::Filter::Any, omnibus::Filter::Any) {
+    let mut cmd_rx = match bus.subscribe_cmd() {
         Ok(rx) => rx,
         Err(e) => {
             let _ = ready.send(Err(e.into()));
@@ -160,19 +161,19 @@ fn control_thread_loop(
     let mut peak_hold = PeakHoldState::new();
 
     while !shutdown.load(Ordering::Relaxed) {
-        match rx.recv_timeout(TICK_INTERVAL) {
-            Ok(Some(event)) => handle_cmd_event(&event, &engine, &evt_bus, &revision),
+        match cmd_rx.recv_timeout(TICK_INTERVAL) {
+            Ok(Some(event)) => handle_cmd_event(event, &engine, &bus),
             Ok(None) => {}
             Err(_) => break,
         }
         if let Some(lib_rx) = library_evt_rx.as_ref() {
-            drain_library_evt(lib_rx, &engine, &evt_bus, &revision);
+            drain_library_evt(lib_rx, &engine, &bus);
         }
-        tick(&engine, &evt_bus, &revision, &mut peak_hold);
+        tick(&engine, &bus, &mut peak_hold);
     }
 }
 
-fn library_evt_receiver(engine: &Arc<Mutex<Option<Engine>>>) -> Option<library::EvtReceiver> {
+fn library_evt_receiver(engine: &EngineHandle) -> Option<library::EvtReceiver> {
     let guard = engine.lock().ok()?;
     let eng = guard.as_ref()?;
     let library = eng.library_manager()?;
@@ -199,23 +200,17 @@ fn library_evt_receiver(engine: &Arc<Mutex<Option<Engine>>>) -> Option<library::
     }
 }
 
-fn drain_library_evt(
-    rx: &library::EvtReceiver,
-    engine: &Arc<Mutex<Option<Engine>>>,
-    evt_bus: &EngineBus,
-    revision: &AtomicU64,
-) {
+fn drain_library_evt(rx: &library::EvtReceiver, engine: &EngineHandle, bus: &EventBus<Event>) {
     // omnibus `recv` is non-blocking (`try_recv`); drains only queued events.
     while let Ok(Some(event)) = rx.recv() {
-        handle_library_evt(event.as_ref(), engine, evt_bus, revision);
+        handle_library_evt(event.as_ref(), engine, bus);
     }
 }
 
 fn handle_library_evt(
     event: &omnibus::Event<library_api::Origin, LibraryKind, Arc<[u8]>>,
-    engine: &Arc<Mutex<Option<Engine>>>,
-    evt_bus: &EngineBus,
-    revision: &AtomicU64,
+    engine: &EngineHandle,
+    bus: &EventBus<Event>,
 ) {
     match *event.kind() {
         LibraryKind::HotCuesChanged => {
@@ -233,7 +228,7 @@ fn handle_library_evt(
             if let Err(err) = with_engine_mut(engine, |eng| {
                 let changed = eng.apply_track_hot_cues(&track_id, &hot_cues);
                 for deck_id in changed {
-                    publish_deck_updated(evt_bus, revision, eng, deck_id)?;
+                    publish_deck_updated(bus, eng, deck_id)?;
                 }
                 Ok(())
             }) {
@@ -258,7 +253,7 @@ fn handle_library_evt(
             if let Err(err) = with_engine_mut(engine, |eng| {
                 let changed = eng.apply_track_beat_grid(&track_id, &beat_grid);
                 for deck_id in changed {
-                    publish_deck_updated(evt_bus, revision, eng, deck_id)?;
+                    publish_deck_updated(bus, eng, deck_id)?;
                 }
                 Ok(())
             }) {
@@ -269,7 +264,7 @@ fn handle_library_evt(
     }
 }
 
-fn with_engine_mut<F, R>(engine: &Arc<Mutex<Option<Engine>>>, f: F) -> Result<R>
+fn with_engine_mut<F, R>(engine: &EngineHandle, f: F) -> Result<R>
 where
     F: FnOnce(&mut Engine) -> Result<R>,
 {
@@ -280,7 +275,7 @@ where
     f(eng)
 }
 
-fn with_engine_ref<F, R>(engine: &Arc<Mutex<Option<Engine>>>, f: F) -> Result<R>
+fn with_engine_ref<F, R>(engine: &EngineHandle, f: F) -> Result<R>
 where
     F: FnOnce(&Engine) -> Result<R>,
 {
@@ -291,143 +286,128 @@ where
     f(eng)
 }
 
-fn bump_revision(revision: &AtomicU64) {
-    revision.fetch_add(1, Ordering::Relaxed);
+/// Fire-and-forget egress publish from the control thread.
+fn publish(bus: &EventBus<Event>, event: Event) {
+    // A dead bus only means no host is listening; the control loop keeps running.
+    let _ = bus.publish_evt(event);
 }
 
-fn publish_evt(evt_bus: &EngineBus, origin: Origin, kind: Kind, body: EvtBody) {
-    if let Ok(bytes) = encode_evt_body(&body) {
-        let _ = evt_bus.publish(Event::new(origin, kind, Arc::from(bytes)));
-    }
-}
-
-fn publish_error(evt_bus: &EngineBus, origin: Origin, message: impl Into<String>) {
-    publish_evt(
-        evt_bus,
-        origin,
-        Kind::Error,
-        EvtBody::Error {
+fn publish_error(bus: &EventBus<Event>, deck: Option<u16>, message: impl Into<String>) {
+    publish(
+        bus,
+        Event::Error(engine_api::Error {
             message: message.into(),
-        },
+            track_id: None,
+            deck,
+        }),
     );
 }
 
-/// Map a deck snapshot to the `DeckUpdated` evt body (host load paths + cmd worker).
-pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
-    EvtBody::DeckUpdated {
-        id: snap.id,
-        track: snap.track,
-        track_id: snap.track_id,
-        title: snap.title,
-        artist: snap.artist,
-        album: snap.album,
-        isrc: snap.isrc,
-        bpm: snap.bpm,
-        key: snap.key,
-        crossfader_assign: snap.crossfader_assign,
-        playing: snap.playing,
-        volume: snap.volume,
-        speed: snap.speed,
-        tempo_range: snap.tempo_range,
-        key_lock: snap.key_lock,
-        key_shift: snap.key_shift,
-        keyboard_page: snap.keyboard_page,
-        key_shift_page: snap.key_shift_page,
-        keyboard_root_hot_cue: snap.keyboard_root_hot_cue,
-        eq: snap.eq,
-        filter: snap.filter,
-        gain_trim: snap.gain_trim,
-        fx_routed: snap.fx_routed,
-        fx: snap.fx,
-        headphone_cue: snap.headphone_cue,
-        sync_mode: snap.sync_mode,
-        cue_point_ms: snap.cue_point_ms,
-        quantize: snap.quantize,
-        active_loop: snap.active_loop,
-        pending_loop_in_ms: snap.pending_loop_in_ms,
-        slip_enabled: snap.slip_enabled,
-        slip_shadow_position_ms: snap.slip_shadow_position_ms,
-        pad_mode: snap.pad_mode,
-        stems_ready: snap.stems_ready,
-        stems_live: snap.stems_live,
-        stem_mute: snap.stem_mute,
-        stem_isolate: snap.stem_isolate,
-        position_ms: snap.position_ms,
-        duration_ms: snap.duration_ms,
-        hot_cues: snap.hot_cues,
-        saved_loops: snap.saved_loops,
-        loudness_lufs: snap.loudness_lufs,
-        auto_gain_db: snap.auto_gain_db,
-        active_sampler_bank_id: snap.active_sampler_bank_id,
-        top_jog_mode: snap.top_jog_mode,
-        outer_jog_mode: snap.outer_jog_mode,
-        jog_touching: snap.jog_touching,
-    }
-}
-
-fn publish_deck_updated(
-    evt_bus: &EngineBus,
-    revision: &AtomicU64,
-    engine: &Engine,
-    deck_id: usize,
-) -> Result<()> {
+fn publish_deck_updated(bus: &EventBus<Event>, engine: &Engine, deck_id: usize) -> Result<()> {
     let snap = engine
         .deck_snapshot(deck_id)
         .ok_or_else(|| anyhow!("deck snapshot unavailable"))?;
-    bump_revision(revision);
-    publish_evt(
-        evt_bus,
-        Origin::Deck(deck_id as u16),
-        Kind::Updated,
-        deck_snapshot_to_evt(snap),
-    );
+    publish(bus, Event::DeckUpdated(DeckUpdated::from(snap)));
     Ok(())
 }
 
-fn handle_cmd_event(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
-    engine: &Arc<Mutex<Option<Engine>>>,
-    evt_bus: &EngineBus,
-    revision: &AtomicU64,
-) {
-    let origin = event.origin().clone();
-    let kind = event.kind().clone();
-    let payload = event.payload();
+fn publish_engine_status(bus: &EventBus<Event>, engine: &Engine) {
+    if let Some(status) = engine.engine_status_snapshot() {
+        publish(bus, Event::EngineSnapshot(EngineSnapshot { status }));
+    }
+}
 
-    let result = match origin.clone() {
-        Origin::Deck(deck_id) => dispatch_deck_cmd(deck_id as usize, kind, payload, engine),
-        Origin::Mixer => dispatch_mixer_cmd(kind, payload, engine),
-        Origin::Engine => Err(anyhow!("unsupported origin on cmd bus")),
-    };
+/// Deck an event refers to, for error reporting.
+fn deck_of(event: &Event) -> Option<u16> {
+    match event {
+        Event::Play(e) => Some(e.deck),
+        Event::Pause(e) => Some(e.deck),
+        Event::TogglePlay(e) => Some(e.deck),
+        Event::Seek(e) => Some(e.deck),
+        Event::Unload(e) => Some(e.deck),
+        Event::SetVolume(e) => Some(e.deck),
+        Event::SetEq(e) => Some(e.deck),
+        Event::SetEqBand(e) => Some(e.deck),
+        Event::SetFilter(e) => Some(e.deck),
+        Event::SetGainTrim(e) => Some(e.deck),
+        Event::SetHeadphoneCue(e) => Some(e.deck),
+        Event::ToggleHeadphoneCue(e) => Some(e.deck),
+        Event::SetCrossfaderAssign(e) => Some(e.deck),
+        Event::SetSpeed(e) => Some(e.deck),
+        Event::SetTempoRange(e) => Some(e.deck),
+        Event::SetKeyLock(e) => Some(e.deck),
+        Event::SetKeyShift(e) => Some(e.deck),
+        Event::SetKeyboardRoot(e) => Some(e.deck),
+        Event::SetKeyboardPage(e) => Some(e.deck),
+        Event::SetKeyShiftPage(e) => Some(e.deck),
+        Event::ToggleSync(e) => Some(e.deck),
+        Event::SetMasterDeck(e) => Some(e.deck),
+        Event::SetCuePoint(e) => Some(e.deck),
+        Event::BeginCueHold(e) => Some(e.deck),
+        Event::EndCueHold(e) => Some(e.deck),
+        Event::SetQuantize(e) => Some(e.deck),
+        Event::ToggleQuantize(e) => Some(e.deck),
+        Event::SetSlip(e) => Some(e.deck),
+        Event::ToggleSlip(e) => Some(e.deck),
+        Event::SetAutoLoop(e) => Some(e.deck),
+        Event::LoopIn(e) => Some(e.deck),
+        Event::LoopOut(e) => Some(e.deck),
+        Event::ExitLoop(e) => Some(e.deck),
+        Event::RecallSavedLoop(e) => Some(e.deck),
+        Event::BeginLoopRoll(e) => Some(e.deck),
+        Event::EndLoopRoll(e) => Some(e.deck),
+        Event::BeatJump(e) => Some(e.deck),
+        Event::SetPadMode(e) => Some(e.deck),
+        Event::PadPress(e) => Some(e.deck),
+        Event::PadRelease(e) => Some(e.deck),
+        Event::HotCuePadPress(e) => Some(e.deck),
+        Event::HotCuePadRelease(e) => Some(e.deck),
+        Event::LoopRollPadPress(e) => Some(e.deck),
+        Event::LoopRollPadRelease(e) => Some(e.deck),
+        Event::BeatJumpPadPress(e) => Some(e.deck),
+        Event::BeatJumpPadRelease(e) => Some(e.deck),
+        Event::SamplerPadPress(e) => Some(e.deck),
+        Event::SamplerPadRelease(e) => Some(e.deck),
+        Event::KeyboardPadPress(e) => Some(e.deck),
+        Event::KeyboardPadRelease(e) => Some(e.deck),
+        Event::KeyShiftPadPress(e) => Some(e.deck),
+        Event::KeyShiftPadRelease(e) => Some(e.deck),
+        Event::TriggerHotCue(e) => Some(e.deck),
+        Event::SaveDeckHotCue(e) => Some(e.deck),
+        Event::DeleteDeckHotCue(e) => Some(e.deck),
+        Event::AssignSampler(e) => Some(e.deck),
+        Event::AssignSamplerTrack(e) => Some(e.deck),
+        Event::ClearSampler(e) => Some(e.deck),
+        Event::JogTouch(e) => Some(e.deck),
+        Event::JogTurn(e) => Some(e.deck),
+        Event::SetJogMode(e) => Some(e.deck),
+        Event::SetDeckFxRouted(e) => Some(e.deck),
+        _ => None,
+    }
+}
+
+fn handle_cmd_event(event: Event, engine: &EngineHandle, bus: &EventBus<Event>) {
+    let deck = deck_of(&event);
+    let result = dispatch_cmd(&event, engine);
 
     match result {
         Ok(CmdOutcome::DeckUpdated(deck_id)) => {
-            if let Err(e) = with_engine_ref(engine, |eng| {
-                publish_deck_updated(evt_bus, revision, eng, deck_id)
-            }) {
-                publish_error(evt_bus, origin, format!("{e:#}"));
+            if let Err(e) = with_engine_ref(engine, |eng| publish_deck_updated(bus, eng, deck_id)) {
+                publish_error(bus, deck, format!("{e:#}"));
             }
         }
         Ok(CmdOutcome::DecksUpdated(deck_ids)) => {
             for deck_id in deck_ids {
-                if let Err(e) = with_engine_ref(engine, |eng| {
-                    publish_deck_updated(evt_bus, revision, eng, deck_id)
-                }) {
-                    publish_error(evt_bus, origin.clone(), format!("{e:#}"));
+                if let Err(e) =
+                    with_engine_ref(engine, |eng| publish_deck_updated(bus, eng, deck_id))
+                {
+                    publish_error(bus, deck, format!("{e:#}"));
                 }
             }
         }
         Ok(CmdOutcome::EngineStatus) => {
             let _ = with_engine_ref(engine, |eng| {
-                if let Some(status) = eng.engine_status_snapshot() {
-                    bump_revision(revision);
-                    publish_evt(
-                        evt_bus,
-                        Origin::Mixer,
-                        Kind::Status,
-                        EvtBody::EngineStatus { status },
-                    );
-                }
+                publish_engine_status(bus, eng);
                 Ok(())
             });
         }
@@ -438,661 +418,637 @@ fn handle_cmd_event(
                         .deck_slip_enabled(deck_id)
                         .filter(|enabled| *enabled)
                         .and_then(|_| eng.deck_slip_shadow_position_ms(deck_id));
-                    publish_evt(
-                        evt_bus,
-                        Origin::Deck(deck_id as u16),
-                        Kind::Position,
-                        EvtBody::Position {
+                    publish(
+                        bus,
+                        Event::DeckPosition(DeckPosition {
+                            deck: deck_id as u16,
                             position_ms,
                             slip_shadow_position_ms,
-                        },
+                        }),
                     );
                 }
                 Ok(())
             });
         }
         Ok(CmdOutcome::Silent) => {}
-        Err(e) => publish_error(evt_bus, origin, format!("{e:#}")),
+        Err(e) => publish_error(bus, deck, format!("{e:#}")),
     }
 }
 
-fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
-    let body = decode_cmd_body(payload).map_err(|e| anyhow!("invalid cmd body: {e}"))?;
-    match (&kind, &body) {
-        (
-            Kind::Play
-            | Kind::Pause
-            | Kind::TogglePlay
-            | Kind::ToggleQuantize
-            | Kind::ToggleSlip
-            | Kind::ToggleHeadphoneCue
-            | Kind::ToggleMasterCue
-            | Kind::SetMasterDeck
-            | Kind::Unload
-            | Kind::SetCuePoint
-            | Kind::BeginCueHold
-            | Kind::EndCueHold
-            | Kind::ExitLoop
-            | Kind::EndLoopRoll,
-            CmdBody::Empty,
-        ) => Ok(body),
-        (Kind::Seek, CmdBody::Seek { .. })
-        | (Kind::SetVolume, CmdBody::SetVolume { .. })
-        | (Kind::SetEq, CmdBody::SetEq { .. })
-        | (Kind::SetEqBand, CmdBody::SetEqBand { .. })
-        | (Kind::SetSpeed, CmdBody::SetSpeed { .. })
-        | (Kind::SetTempoRange, CmdBody::SetTempoRange { .. })
-        | (Kind::SetKeyLock, CmdBody::SetKeyLock { .. })
-        | (Kind::SetKeyShift, CmdBody::SetKeyShift { .. })
-        | (Kind::SetKeyboardRoot, CmdBody::SetKeyboardRoot { .. })
-        | (Kind::SetKeyboardPage, CmdBody::SetKeyboardPage { .. })
-        | (Kind::SetKeyShiftPage, CmdBody::SetKeyShiftPage { .. })
-        | (Kind::SetFilter, CmdBody::SetFilter { .. })
-        | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
-        | (Kind::SetFxUnitSlot, CmdBody::SetFxUnitSlot { .. })
-        | (Kind::SetFxUnitSlotEnabled, CmdBody::SetFxUnitSlotEnabled { .. })
-        | (Kind::SetFxUnitWet, CmdBody::SetFxUnitWet { .. })
-        | (Kind::SetFxUnitParam, CmdBody::SetFxUnitParam { .. })
-        | (Kind::SetDeckFxRouted, CmdBody::SetDeckFxRouted { .. })
-        | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
-        | (Kind::ToggleSync, CmdBody::ToggleSync { .. })
-        | (Kind::SetQuantize, CmdBody::SetQuantize { .. })
-        | (Kind::SetSlip, CmdBody::SetSlip { .. })
-        | (Kind::SetAutoLoop, CmdBody::SetAutoLoop { .. })
-        | (Kind::LoopIn, CmdBody::LoopIn { .. })
-        | (Kind::LoopOut, CmdBody::LoopOut { .. })
-        | (Kind::BeatJump, CmdBody::BeatJump { .. })
-        | (Kind::SetPadMode, CmdBody::SetPadMode { .. })
-        | (Kind::BeginLoopRoll, CmdBody::BeginLoopRoll { .. })
-        | (Kind::PadPress, CmdBody::PadPress { .. })
-        | (Kind::PadRelease, CmdBody::PadRelease { .. })
-        | (Kind::TriggerHotCue, CmdBody::TriggerHotCue { .. })
-        | (Kind::RecallSavedLoop, CmdBody::RecallSavedLoop { .. })
-        | (Kind::SaveHotCue, CmdBody::SaveHotCue { .. })
-        | (Kind::DeleteHotCue, CmdBody::DeleteHotCue { .. })
-        | (Kind::HotCuePadPress, CmdBody::HotCuePadPress { .. })
-        | (Kind::HotCuePadRelease, CmdBody::HotCuePadRelease { .. })
-        | (Kind::LoopRollPadPress, CmdBody::LoopRollPadPress { .. })
-        | (Kind::LoopRollPadRelease, CmdBody::LoopRollPadRelease { .. })
-        | (Kind::BeatJumpPadPress, CmdBody::BeatJumpPadPress { .. })
-        | (Kind::BeatJumpPadRelease, CmdBody::BeatJumpPadRelease { .. })
-        | (Kind::SamplerPadPress, CmdBody::SamplerPadPress { .. })
-        | (Kind::SamplerPadRelease, CmdBody::SamplerPadRelease { .. })
-        | (Kind::KeyboardPadPress, CmdBody::KeyboardPadPress { .. })
-        | (Kind::KeyboardPadRelease, CmdBody::KeyboardPadRelease { .. })
-        | (Kind::KeyShiftPadPress, CmdBody::KeyShiftPadPress { .. })
-        | (Kind::KeyShiftPadRelease, CmdBody::KeyShiftPadRelease { .. })
-        | (Kind::AssignSampler, CmdBody::AssignSampler { .. })
-        | (Kind::AssignSamplerTrack, CmdBody::AssignSamplerTrack { .. })
-        | (Kind::ClearSampler, CmdBody::ClearSampler { .. })
-        | (Kind::SaveLoop, CmdBody::SaveLoop { .. })
-        | (Kind::DeleteLoop, CmdBody::DeleteLoop { .. })
-        | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
-        | (Kind::SetCrossfaderAssign, CmdBody::SetCrossfaderAssign { .. })
-        | (Kind::SetMasterVolume, CmdBody::SetMasterVolume { .. })
-        | (Kind::SetCueVolume, CmdBody::SetCueVolume { .. })
-        | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
-        | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. })
-        | (Kind::JogTouch, CmdBody::JogTouch { .. })
-        | (Kind::JogTurn, CmdBody::JogTurn { .. })
-        | (Kind::SetJogMode, CmdBody::SetJogMode { .. }) => Ok(body),
-        _ => Err(anyhow!("cmd body does not match kind {kind:?}")),
-    }
-}
-
-fn dispatch_deck_cmd(
-    deck_id: usize,
-    kind: Kind,
-    payload: &[u8],
-    engine: &Arc<Mutex<Option<Engine>>>,
+/// Run `f` against the engine with the deck id already converted to the index.
+fn deck_cmd(
+    deck: u16,
+    engine: &EngineHandle,
+    f: impl FnOnce(&mut Engine, usize) -> Result<CmdOutcome>,
 ) -> Result<CmdOutcome> {
-    if kind == Kind::AssignSampler {
-        return dispatch_assign_sampler(deck_id, payload, engine);
-    }
-    if kind == Kind::AssignSamplerTrack {
-        return dispatch_assign_sampler_track(deck_id, payload, engine);
-    }
-    with_engine_mut(engine, |eng| match kind {
-        Kind::Play => {
-            if !eng.deck_has_audio_loaded(deck_id).unwrap_or(false) {
+    with_engine_mut(engine, |eng| f(eng, usize::from(deck)))
+}
+
+fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
+    match event {
+        // ── deck transport ───────────────────────────────────────────────────
+        Event::Play(engine_api::Play { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            if !eng.deck_has_audio_loaded(id).unwrap_or(false) {
                 return Err(anyhow!("No track loaded"));
             }
-            eng.play(deck_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::Pause => {
-            eng.pause(deck_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::TogglePlay => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            if eng.deck_is_playing(deck_id).unwrap_or(false) {
-                eng.pause(deck_id)?;
+            eng.play(id)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::Pause(engine_api::Pause { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.pause(id)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::TogglePlay(engine_api::TogglePlay { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            if eng.deck_is_playing(id).unwrap_or(false) {
+                eng.pause(id)?;
             } else {
-                if !eng.deck_has_audio_loaded(deck_id).unwrap_or(false) {
+                if !eng.deck_has_audio_loaded(id).unwrap_or(false) {
                     return Err(anyhow!("No track loaded"));
                 }
-                eng.play(deck_id)?;
+                eng.play(id)?;
             }
-            Ok(CmdOutcome::DeckUpdated(deck_id))
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::Seek(engine_api::Seek { deck, position_ms }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.seek_deck(id, *position_ms)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
         }
-        Kind::Seek => {
-            let CmdBody::Seek { position_ms } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.seek_deck(deck_id, position_ms)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetVolume => {
-            let CmdBody::SetVolume {
-                volume,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_deck(deck_id, "volume");
-            let current = eng
-                .deck_strip_norms(deck_id)
-                .map(|s| s.volume)
-                .unwrap_or(0.0);
-            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, volume) {
+        Event::Unload(engine_api::Unload { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.unload_deck(id)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+
+        // ── levels and mixer strip ───────────────────────────────────────────
+        Event::SetVolume(engine_api::SetVolume {
+            deck,
+            volume,
+            soft_takeover,
+        }) => deck_cmd(*deck, engine, |eng, id| {
+            let key = soft_takeover::key_deck(id, "volume");
+            let current = eng.deck_strip_norms(id).map(|s| s.volume).unwrap_or(0.0);
+            if !gate_mixer_soft_takeover(eng, &key, *soft_takeover, current, *volume) {
                 return Ok(CmdOutcome::Silent);
             }
-            eng.set_deck_volume(deck_id, volume)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetEq => {
-            let CmdBody::SetEq { low, mid, high } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
+            eng.set_deck_volume(id, *volume)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetEq(engine_api::SetEq {
+            deck,
+            low,
+            mid,
+            high,
+        }) => deck_cmd(*deck, engine, |eng, id| {
             eng.set_deck_eq_bands(
-                deck_id,
-                crate::control_norm::norm_to_strip_db(low),
-                crate::control_norm::norm_to_strip_db(mid),
-                crate::control_norm::norm_to_strip_db(high),
+                id,
+                crate::control_norm::norm_to_strip_db(*low),
+                crate::control_norm::norm_to_strip_db(*mid),
+                crate::control_norm::norm_to_strip_db(*high),
             )?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetEqBand => {
-            let CmdBody::SetEqBand {
-                band,
-                gain,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let strip = eng.deck_strip_norms(deck_id);
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetEqBand(engine_api::SetEqBand {
+            deck,
+            band,
+            gain,
+            soft_takeover,
+        }) => deck_cmd(*deck, engine, |eng, id| {
+            let strip = eng.deck_strip_norms(id);
             let (ctrl, current, low, mid, high) = match (band, strip) {
-                (EqBand::Low, Some(s)) => ("eq_low", s.eq_low, gain, s.eq_mid, s.eq_high),
-                (EqBand::Mid, Some(s)) => ("eq_mid", s.eq_mid, s.eq_low, gain, s.eq_high),
-                (EqBand::High, Some(s)) => ("eq_high", s.eq_high, s.eq_low, s.eq_mid, gain),
-                (EqBand::Low, None) => ("eq_low", 0.5, gain, 0.5, 0.5),
-                (EqBand::Mid, None) => ("eq_mid", 0.5, 0.5, gain, 0.5),
-                (EqBand::High, None) => ("eq_high", 0.5, 0.5, 0.5, gain),
+                (EqBand::Low, Some(s)) => ("eq_low", s.eq_low, *gain, s.eq_mid, s.eq_high),
+                (EqBand::Mid, Some(s)) => ("eq_mid", s.eq_mid, s.eq_low, *gain, s.eq_high),
+                (EqBand::High, Some(s)) => ("eq_high", s.eq_high, s.eq_low, s.eq_mid, *gain),
+                (EqBand::Low, None) => ("eq_low", 0.5, *gain, 0.5, 0.5),
+                (EqBand::Mid, None) => ("eq_mid", 0.5, 0.5, *gain, 0.5),
+                (EqBand::High, None) => ("eq_high", 0.5, 0.5, 0.5, *gain),
             };
-            let key = soft_takeover::key_deck(deck_id, ctrl);
+            let key = soft_takeover::key_deck(id, ctrl);
             if !eng
                 .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, gain)
+                .allow(&key, *soft_takeover, current, *gain)
             {
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_deck_eq_bands(
-                deck_id,
+                id,
                 crate::control_norm::norm_to_strip_db(low),
                 crate::control_norm::norm_to_strip_db(mid),
                 crate::control_norm::norm_to_strip_db(high),
             )?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetSpeed => {
-            let CmdBody::SetSpeed {
-                speed,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_deck(deck_id, "speed");
-            let current = eng
-                .deck_strip_norms(deck_id)
-                .map(|s| s.speed)
-                .unwrap_or(0.5);
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetFilter(engine_api::SetFilter {
+            deck,
+            filter,
+            soft_takeover,
+        }) => deck_cmd(*deck, engine, |eng, id| {
+            let key = soft_takeover::key_deck(id, "filter");
+            let current = eng.deck_strip_norms(id).map(|s| s.filter).unwrap_or(0.5);
             if !eng
                 .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, speed)
+                .allow(&key, *soft_takeover, current, *filter)
             {
                 return Ok(CmdOutcome::Silent);
             }
-            let updated = eng.set_deck_speed(deck_id, speed.clamp(0.0, 1.0))?;
-            Ok(CmdOutcome::DecksUpdated(updated))
-        }
-        Kind::SetTempoRange => {
-            let CmdBody::SetTempoRange { tempo_range } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            let updated = eng.set_deck_tempo_range(deck_id, tempo_range)?;
-            Ok(CmdOutcome::DecksUpdated(updated))
-        }
-        Kind::SetKeyLock => {
-            let CmdBody::SetKeyLock { enabled } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_key_lock(deck_id, enabled)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetKeyShift => {
-            let CmdBody::SetKeyShift { semitones } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_key_shift(deck_id, semitones)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetKeyboardRoot => {
-            let CmdBody::SetKeyboardRoot { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_keyboard_root(deck_id, slot)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetKeyboardPage => {
-            let CmdBody::SetKeyboardPage { page } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_keyboard_page(deck_id, page)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetKeyShiftPage => {
-            let CmdBody::SetKeyShiftPage { page } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_key_shift_page(deck_id, page)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetFilter => {
-            let CmdBody::SetFilter {
-                filter,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_deck(deck_id, "filter");
-            let current = eng
-                .deck_strip_norms(deck_id)
-                .map(|s| s.filter)
-                .unwrap_or(0.5);
+            eng.set_deck_filter_db(id, crate::control_norm::norm_to_strip_db(*filter))?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetGainTrim(engine_api::SetGainTrim {
+            deck,
+            gain_trim,
+            soft_takeover,
+        }) => deck_cmd(*deck, engine, |eng, id| {
+            let key = soft_takeover::key_deck(id, "gain");
+            let current = eng.deck_strip_norms(id).map(|s| s.gain_trim).unwrap_or(0.5);
             if !eng
                 .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, filter)
+                .allow(&key, *soft_takeover, current, *gain_trim)
             {
                 return Ok(CmdOutcome::Silent);
             }
-            eng.set_deck_filter_db(deck_id, crate::control_norm::norm_to_strip_db(filter))?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
+            eng.set_deck_gain_trim_db(id, crate::control_norm::norm_to_strip_db(*gain_trim))?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetHeadphoneCue(engine_api::SetHeadphoneCue { deck, enabled }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_headphone_cue(id, *enabled)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
         }
-        Kind::SetGainTrim => {
-            let CmdBody::SetGainTrim {
-                gain_trim,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_deck(deck_id, "gain");
-            let current = eng
-                .deck_strip_norms(deck_id)
-                .map(|s| s.gain_trim)
-                .unwrap_or(0.5);
+        Event::ToggleHeadphoneCue(engine_api::ToggleHeadphoneCue { deck }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                let enabled = !eng
+                    .deck_strip_norms(id)
+                    .map(|s| s.headphone_cue)
+                    .unwrap_or(false);
+                eng.set_deck_headphone_cue(id, enabled)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::SetCrossfaderAssign(engine_api::SetCrossfaderAssign { deck, assignment }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_crossfader_assign(id, *assignment)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+
+        // ── tempo / pitch ────────────────────────────────────────────────────
+        Event::SetSpeed(engine_api::SetSpeed {
+            deck,
+            speed,
+            soft_takeover,
+        }) => deck_cmd(*deck, engine, |eng, id| {
+            let key = soft_takeover::key_deck(id, "speed");
+            let current = eng.deck_strip_norms(id).map(|s| s.speed).unwrap_or(0.5);
             if !eng
                 .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, gain_trim)
+                .allow(&key, *soft_takeover, current, *speed)
             {
                 return Ok(CmdOutcome::Silent);
             }
-            eng.set_deck_gain_trim_db(deck_id, crate::control_norm::norm_to_strip_db(gain_trim))?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetDeckFxRouted => {
-            let CmdBody::SetDeckFxRouted { routed } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_fx_routed(deck_id, routed)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetHeadphoneCue => {
-            let CmdBody::SetHeadphoneCue { enabled } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_headphone_cue(deck_id, enabled)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetCrossfaderAssign => {
-            let CmdBody::SetCrossfaderAssign { assignment } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.set_deck_crossfader_assign(deck_id, assignment)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::ToggleHeadphoneCue => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            let enabled = !eng
-                .deck_strip_norms(deck_id)
-                .map(|s| s.headphone_cue)
-                .unwrap_or(false);
-            eng.set_deck_headphone_cue(deck_id, enabled)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::ToggleSync => {
-            let CmdBody::ToggleSync { beat_sync } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            let updated = eng.toggle_deck_sync(deck_id, beat_sync)?;
+            let updated = eng.set_deck_speed(id, speed.clamp(0.0, 1.0))?;
             Ok(CmdOutcome::DecksUpdated(updated))
+        }),
+        Event::SetTempoRange(engine_api::SetTempoRange { deck, tempo_range }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                let updated = eng.set_deck_tempo_range(id, *tempo_range)?;
+                Ok(CmdOutcome::DecksUpdated(updated))
+            })
         }
-        Kind::SetMasterDeck => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            let _updated = eng.set_master_deck(deck_id)?;
-            // master_deck + slave speeds/sync live on EngineStatus decks.
+        Event::SetKeyLock(engine_api::SetKeyLock { deck, enabled }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_key_lock(id, *enabled)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::SetKeyShift(engine_api::SetKeyShift { deck, semitones }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_key_shift(id, *semitones)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::SetKeyboardRoot(engine_api::SetKeyboardRoot { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_keyboard_root(id, *slot)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::SetKeyboardPage(engine_api::SetKeyboardPage { deck, page }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_keyboard_page(id, *page)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::SetKeyShiftPage(engine_api::SetKeyShiftPage { deck, page }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_key_shift_page(id, *page)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::ToggleSync(engine_api::ToggleSync { deck, beat_sync }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                let updated = eng.toggle_deck_sync(id, *beat_sync)?;
+                Ok(CmdOutcome::DecksUpdated(updated))
+            })
+        }
+        Event::SetMasterDeck(engine_api::SetMasterDeck { deck }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                let _updated = eng.set_master_deck(id)?;
+                // master_deck + slave speeds/sync live on the engine snapshot decks.
+                Ok(CmdOutcome::EngineStatus)
+            })
+        }
+
+        // ── cue / loop ───────────────────────────────────────────────────────
+        Event::SetCuePoint(engine_api::SetCuePoint { deck }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_cue_point_at_playhead(id)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::BeginCueHold(engine_api::BeginCueHold { deck }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.begin_deck_cue_hold(id)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::EndCueHold(engine_api::EndCueHold { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.end_deck_cue_hold(id)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetQuantize(engine_api::SetQuantize { deck, enabled }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_quantize(id, *enabled)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::ToggleQuantize(engine_api::ToggleQuantize { deck }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                let enabled = !eng.deck_quantize(id).unwrap_or(true);
+                eng.set_deck_quantize(id, enabled)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::SetSlip(engine_api::SetSlip { deck, enabled }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_slip(id, *enabled)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::ToggleSlip(engine_api::ToggleSlip { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            let enabled = !eng.deck_slip_enabled(id).unwrap_or(false);
+            eng.set_deck_slip(id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetAutoLoop(engine_api::SetAutoLoop { deck, beats }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_auto_loop(id, *beats)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::LoopIn(engine_api::LoopIn { deck, position_ms }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_loop_in(id, *position_ms)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::LoopOut(engine_api::LoopOut { deck, position_ms }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_loop_out(id, *position_ms)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::ExitLoop(engine_api::ExitLoop { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.clear_deck_loop(id)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::RecallSavedLoop(engine_api::RecallSavedLoop {
+            deck,
+            in_ms,
+            out_ms,
+        }) => deck_cmd(*deck, engine, |eng, id| {
+            eng.recall_deck_saved_loop(id, *in_ms, *out_ms)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::BeginLoopRoll(engine_api::BeginLoopRoll { deck, beats }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.begin_deck_loop_roll(id, *beats)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::EndLoopRoll(engine_api::EndLoopRoll { deck }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.end_deck_loop_roll(id)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::BeatJump(engine_api::BeatJump { deck, beats }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.beat_jump_deck(id, *beats)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+
+        // ── pads ─────────────────────────────────────────────────────────────
+        Event::SetPadMode(engine_api::SetPadMode { deck, mode }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_pad_mode(id, *mode)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::PadPress(engine_api::PadPress { deck, slot, shift }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.pad_press(id, *slot, *shift)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::PadRelease(engine_api::PadRelease { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.pad_release(id, *slot)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::HotCuePadPress(engine_api::HotCuePadPress { deck, slot, shift }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.hot_cue_pad_press(id, *slot, *shift)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::HotCuePadRelease(engine_api::HotCuePadRelease { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.hot_cue_pad_release(id, *slot)?;
+                Ok(CmdOutcome::Silent)
+            })
+        }
+        Event::LoopRollPadPress(engine_api::LoopRollPadPress { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.loop_roll_pad_press(id, *slot)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::LoopRollPadRelease(engine_api::LoopRollPadRelease { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.loop_roll_pad_release(id, *slot)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::BeatJumpPadPress(engine_api::BeatJumpPadPress { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.beat_jump_pad_press(id, *slot)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::BeatJumpPadRelease(engine_api::BeatJumpPadRelease { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.beat_jump_pad_release(id, *slot)?;
+                Ok(CmdOutcome::Silent)
+            })
+        }
+        Event::SamplerPadPress(engine_api::SamplerPadPress { deck, slot, shift }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.sampler_pad_press(id, *slot, *shift)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::SamplerPadRelease(engine_api::SamplerPadRelease { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.sampler_pad_release(id, *slot)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::KeyboardPadPress(engine_api::KeyboardPadPress { deck, slot, shift }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.keyboard_pad_press(id, *slot, *shift)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::KeyboardPadRelease(engine_api::KeyboardPadRelease { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.keyboard_pad_release(id, *slot)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::KeyShiftPadPress(engine_api::KeyShiftPadPress { deck, slot, shift }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.key_shift_pad_press(id, *slot, *shift)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::KeyShiftPadRelease(engine_api::KeyShiftPadRelease { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.key_shift_pad_release(id, *slot)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::TriggerHotCue(engine_api::TriggerHotCue { deck, position_ms }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.trigger_deck_hot_cue(id, *position_ms)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+
+        // ── hot cues / loops on the deck ─────────────────────────────────────
+        Event::SaveDeckHotCue(engine_api::SaveDeckHotCue { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.save_deck_hot_cue(id, *slot)?;
+                Ok(CmdOutcome::Silent)
+            })
+        }
+        Event::DeleteDeckHotCue(engine_api::DeleteDeckHotCue { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.delete_deck_hot_cue(id, *slot)?;
+                Ok(CmdOutcome::Silent)
+            })
+        }
+
+        // ── sampler slots ────────────────────────────────────────────────────
+        Event::AssignSampler(engine_api::AssignSampler { deck, slot, path }) => {
+            dispatch_assign_sampler(*deck, *slot, path, engine)
+        }
+        Event::AssignSamplerTrack(engine_api::AssignSamplerTrack {
+            deck,
+            slot,
+            track_id,
+        }) => dispatch_assign_sampler_track(*deck, *slot, track_id, engine),
+        Event::ClearSampler(engine_api::ClearSampler { deck, slot }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.clear_sampler_slot(id, usize::from(*slot))?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+
+        // ── jog ──────────────────────────────────────────────────────────────
+        Event::JogTouch(engine_api::JogTouch { deck, touching }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_jog_touch(id, *touching)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::JogTurn(engine_api::JogTurn { deck, delta }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.deck_jog_turn(id, *delta)?;
+                // So paused vinyl scrub updates UI playhead/time without waiting for
+                // the next 33ms tick (JogTouch release used to be the only cue).
+                Ok(CmdOutcome::Position(id))
+            })
+        }
+        Event::SetJogMode(engine_api::SetJogMode { deck, top, outer }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_jog_mode(id, *top, *outer)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::SetDeckFxRouted(engine_api::SetDeckFxRouted { deck, routed }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_fx_routed(id, *routed)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+
+        // ── mixer ────────────────────────────────────────────────────────────
+        Event::SetCrossfader(engine_api::SetCrossfader {
+            position,
+            soft_takeover,
+        }) => with_engine_mut(engine, |eng| {
+            let key = soft_takeover::key_mixer("crossfader");
+            let current = eng.crossfader().unwrap_or(0.5);
+            if !gate_mixer_soft_takeover(eng, &key, *soft_takeover, current, *position) {
+                return Ok(CmdOutcome::Silent);
+            }
+            eng.set_crossfader(*position)?;
             Ok(CmdOutcome::EngineStatus)
+        }),
+        Event::SetMasterVolume(engine_api::SetMasterVolume {
+            volume,
+            soft_takeover,
+        }) => with_engine_mut(engine, |eng| {
+            let key = soft_takeover::key_mixer("master_volume");
+            let current = eng.master_volume().unwrap_or(1.0);
+            if !gate_mixer_soft_takeover(eng, &key, *soft_takeover, current, *volume) {
+                return Ok(CmdOutcome::Silent);
+            }
+            eng.set_master_volume(*volume)?;
+            Ok(CmdOutcome::EngineStatus)
+        }),
+        Event::SetCueVolume(engine_api::SetCueVolume {
+            volume,
+            soft_takeover,
+        }) => with_engine_mut(engine, |eng| {
+            let key = soft_takeover::key_mixer("cue_volume");
+            let current = eng.cue_volume().unwrap_or(1.0);
+            if !gate_mixer_soft_takeover(eng, &key, *soft_takeover, current, *volume) {
+                return Ok(CmdOutcome::Silent);
+            }
+            eng.set_cue_volume(*volume)?;
+            Ok(CmdOutcome::EngineStatus)
+        }),
+        Event::SetCueMix(engine_api::SetCueMix { mix, soft_takeover }) => {
+            with_engine_mut(engine, |eng| {
+                let key = soft_takeover::key_mixer("cue_mix");
+                let current = eng.cue_mix().unwrap_or(0.5);
+                if !gate_mixer_soft_takeover(eng, &key, *soft_takeover, current, *mix) {
+                    return Ok(CmdOutcome::Silent);
+                }
+                eng.set_cue_mix(*mix)?;
+                Ok(CmdOutcome::EngineStatus)
+            })
         }
-        Kind::Unload => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            eng.unload_deck(deck_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
+        Event::SetMasterCue(engine_api::SetMasterCue { enabled }) => {
+            with_engine_mut(engine, |eng| {
+                eng.set_master_cue(*enabled)?;
+                Ok(CmdOutcome::EngineStatus)
+            })
         }
-        Kind::SetCuePoint => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            eng.set_deck_cue_point_at_playhead(deck_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
+        Event::ToggleMasterCue(first) => {
+            // `ToggleMasterCue` folds in the subscriber, so a folded pair never
+            // reaches the engine and `flipped` is always false here.
+            let _ = first;
+            with_engine_mut(engine, |eng| {
+                let enabled = !eng.master_cue().unwrap_or(false);
+                eng.set_master_cue(enabled)?;
+                Ok(CmdOutcome::EngineStatus)
+            })
         }
-        Kind::BeginCueHold => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            eng.begin_deck_cue_hold(deck_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
+
+        // ── shared FX unit ───────────────────────────────────────────────────
+        Event::SetFxUnitSlot(engine_api::SetFxUnitSlot { slot, kind }) => {
+            with_engine_mut(engine, |eng| {
+                eng.set_fx_unit_slot(*slot, crate::status::map_fx_kind(*kind))?;
+                Ok(CmdOutcome::DecksUpdated(
+                    (0..eng.config.num_decks).collect(),
+                ))
+            })
         }
-        Kind::EndCueHold => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            eng.end_deck_cue_hold(deck_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
+        Event::SetFxUnitSlotEnabled(engine_api::SetFxUnitSlotEnabled { slot, enabled }) => {
+            with_engine_mut(engine, |eng| {
+                eng.set_fx_unit_slot_enabled(*slot, *enabled)?;
+                Ok(CmdOutcome::DecksUpdated(
+                    (0..eng.config.num_decks).collect(),
+                ))
+            })
         }
-        Kind::SetQuantize => {
-            let CmdBody::SetQuantize { enabled } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_quantize(deck_id, enabled)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
+        Event::SetFxUnitWet(engine_api::SetFxUnitWet {
+            slot,
+            wet,
+            soft_takeover,
+        }) => with_engine_mut(engine, |eng| {
+            let key = soft_takeover::key_mixer(&format!("fx_wet{slot}"));
+            let current = eng.fx_unit_wet(*slot).unwrap_or(0.5);
+            if !gate_mixer_soft_takeover(eng, &key, *soft_takeover, current, *wet) {
+                return Ok(CmdOutcome::Silent);
+            }
+            eng.set_fx_unit_wet(*slot, *wet)?;
+            Ok(CmdOutcome::DecksUpdated(
+                (0..eng.config.num_decks).collect(),
+            ))
+        }),
+        Event::SetFxUnitParam(engine_api::SetFxUnitParam { slot, param, value }) => {
+            with_engine_mut(engine, |eng| {
+                eng.set_fx_unit_param(*slot, *param, *value)?;
+                Ok(CmdOutcome::DecksUpdated(
+                    (0..eng.config.num_decks).collect(),
+                ))
+            })
         }
-        Kind::ToggleQuantize => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            let enabled = !eng.deck_quantize(deck_id).unwrap_or(true);
-            eng.set_deck_quantize(deck_id, enabled)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetSlip => {
-            let CmdBody::SetSlip { enabled } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_slip(deck_id, enabled)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::ToggleSlip => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            let enabled = !eng.deck_slip_enabled(deck_id).unwrap_or(false);
-            eng.set_deck_slip(deck_id, enabled)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetAutoLoop => {
-            let CmdBody::SetAutoLoop { beats } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_auto_loop(deck_id, beats)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::LoopIn => {
-            let CmdBody::LoopIn { position_ms } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_loop_in(deck_id, position_ms)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::LoopOut => {
-            let CmdBody::LoopOut { position_ms } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_loop_out(deck_id, position_ms)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::ExitLoop => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            eng.clear_deck_loop(deck_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::BeatJump => {
-            let CmdBody::BeatJump { beats } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.beat_jump_deck(deck_id, beats)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SetPadMode => {
-            let CmdBody::SetPadMode { mode } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_pad_mode(deck_id, mode)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::BeginLoopRoll => {
-            let CmdBody::BeginLoopRoll { beats } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.begin_deck_loop_roll(deck_id, beats)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::EndLoopRoll => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            eng.end_deck_loop_roll(deck_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::PadPress => {
-            let CmdBody::PadPress { slot, shift } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.pad_press(deck_id, slot, shift)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::PadRelease => {
-            let CmdBody::PadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.pad_release(deck_id, slot)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::TriggerHotCue => {
-            let CmdBody::TriggerHotCue { position_ms } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.trigger_deck_hot_cue(deck_id, position_ms)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SaveHotCue => {
-            let CmdBody::SaveHotCue { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.save_deck_hot_cue(deck_id, slot)?;
-            Ok(CmdOutcome::Silent)
-        }
-        Kind::DeleteHotCue => {
-            let CmdBody::DeleteHotCue { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.delete_deck_hot_cue(deck_id, slot)?;
-            Ok(CmdOutcome::Silent)
-        }
-        Kind::HotCuePadPress => {
-            let CmdBody::HotCuePadPress { slot, shift } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.hot_cue_pad_press(deck_id, slot, shift)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::HotCuePadRelease => {
-            let CmdBody::HotCuePadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.hot_cue_pad_release(deck_id, slot)?;
-            Ok(CmdOutcome::Silent)
-        }
-        Kind::LoopRollPadPress => {
-            let CmdBody::LoopRollPadPress { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.loop_roll_pad_press(deck_id, slot)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::LoopRollPadRelease => {
-            let CmdBody::LoopRollPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.loop_roll_pad_release(deck_id, slot)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::BeatJumpPadPress => {
-            let CmdBody::BeatJumpPadPress { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.beat_jump_pad_press(deck_id, slot)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::BeatJumpPadRelease => {
-            let CmdBody::BeatJumpPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.beat_jump_pad_release(deck_id, slot)?;
-            Ok(CmdOutcome::Silent)
-        }
-        Kind::SamplerPadPress => {
-            let CmdBody::SamplerPadPress { slot, shift } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.sampler_pad_press(deck_id, slot, shift)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::SamplerPadRelease => {
-            let CmdBody::SamplerPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.sampler_pad_release(deck_id, slot)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::KeyboardPadPress => {
-            let CmdBody::KeyboardPadPress { slot, shift } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.keyboard_pad_press(deck_id, slot, shift)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::KeyboardPadRelease => {
-            let CmdBody::KeyboardPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.keyboard_pad_release(deck_id, slot)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::KeyShiftPadPress => {
-            let CmdBody::KeyShiftPadPress { slot, shift } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.key_shift_pad_press(deck_id, slot, shift)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::KeyShiftPadRelease => {
-            let CmdBody::KeyShiftPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.key_shift_pad_release(deck_id, slot)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::ClearSampler => {
-            let CmdBody::ClearSampler { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.clear_sampler_slot(deck_id, slot as usize)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::RecallSavedLoop => {
-            let CmdBody::RecallSavedLoop { in_ms, out_ms } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.recall_deck_saved_loop(deck_id, in_ms, out_ms)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::JogTouch => {
-            let CmdBody::JogTouch { touching } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_jog_touch(deck_id, touching)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::JogTurn => {
-            let CmdBody::JogTurn { delta } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.deck_jog_turn(deck_id, delta)?;
-            // So paused vinyl scrub updates UI playhead/time without waiting for
-            // the next 33ms tick (JogTouch release used to be the only cue).
-            Ok(CmdOutcome::Position(deck_id))
-        }
-        Kind::SetJogMode => {
-            let CmdBody::SetJogMode { top, outer } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_deck_jog_mode(deck_id, top, outer)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        _ => Err(anyhow!("unsupported kind on cmd bus")),
-    })
+
+        // ── egress-only events never arrive as commands ───────────────────────
+        Event::DeckUpdated(_)
+        | Event::DeckPosition(_)
+        | Event::DeckLevels(_)
+        | Event::EngineSnapshot(_)
+        | Event::Error(_)
+        | Event::Notice(_) => Err(anyhow!("egress event is not a command")),
+    }
 }
 
 fn dispatch_assign_sampler(
-    deck_id: usize,
-    payload: &[u8],
-    engine: &Arc<Mutex<Option<Engine>>>,
+    deck: u16,
+    slot: u8,
+    path: &str,
+    engine: &EngineHandle,
 ) -> Result<CmdOutcome> {
-    let kind = Kind::AssignSampler;
-    let CmdBody::AssignSampler { slot, path } = decode_cmd_body_for(kind, payload)? else {
-        unreachable!()
-    };
+    let deck_id = usize::from(deck);
     let library = with_engine_ref(engine, |eng| {
         eng.library_manager()
             .ok_or_else(|| anyhow!("Engine has no attached LibraryManager"))
     })?;
     let prepared: PreparedTrackPlayback =
-        LibraryManager::prepare_file_path_for_playback(library.as_ref(), Path::new(&path))
+        LibraryManager::prepare_file_path_for_playback(library.as_ref(), Path::new(path))
             .map_err(|e| anyhow!(e.to_string()))?;
     with_engine_mut(engine, |eng| {
-        eng.assign_prepared_sampler(deck_id, slot as usize, prepared)?;
+        eng.assign_prepared_sampler(deck_id, usize::from(slot), prepared)?;
         Ok(CmdOutcome::DeckUpdated(deck_id))
     })
 }
 
 fn dispatch_assign_sampler_track(
-    deck_id: usize,
-    payload: &[u8],
-    engine: &Arc<Mutex<Option<Engine>>>,
+    deck: u16,
+    slot: u8,
+    track_id: &str,
+    engine: &EngineHandle,
 ) -> Result<CmdOutcome> {
-    let kind = Kind::AssignSamplerTrack;
-    let CmdBody::AssignSamplerTrack { slot, track_id } = decode_cmd_body_for(kind, payload)? else {
-        unreachable!()
-    };
+    let deck_id = usize::from(deck);
     let library = with_engine_ref(engine, |eng| {
         eng.library_manager()
             .ok_or_else(|| anyhow!("Engine has no attached LibraryManager"))
@@ -1101,7 +1057,7 @@ fn dispatch_assign_sampler_track(
         LibraryManager::prepare_track_for_playback(library.as_ref(), &TrackId::new(track_id))
             .map_err(|e| anyhow!(e.to_string()))?;
     with_engine_mut(engine, |eng| {
-        eng.assign_prepared_sampler(deck_id, slot as usize, prepared)?;
+        eng.assign_prepared_sampler(deck_id, usize::from(slot), prepared)?;
         Ok(CmdOutcome::DeckUpdated(deck_id))
     })
 }
@@ -1121,146 +1077,7 @@ fn gate_mixer_soft_takeover(
         .allow(key, soft_takeover, current, requested)
 }
 
-fn dispatch_mixer_cmd(
-    kind: Kind,
-    payload: &[u8],
-    engine: &Arc<Mutex<Option<Engine>>>,
-) -> Result<CmdOutcome> {
-    with_engine_mut(engine, |eng| match kind {
-        Kind::SetCrossfader => {
-            let CmdBody::SetCrossfader {
-                position,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_mixer("crossfader");
-            let current = eng.crossfader().unwrap_or(0.5);
-            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, position) {
-                return Ok(CmdOutcome::Silent);
-            }
-            eng.set_crossfader(position)?;
-            Ok(CmdOutcome::EngineStatus)
-        }
-        Kind::SetMasterVolume => {
-            let CmdBody::SetMasterVolume {
-                volume,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_mixer("master_volume");
-            let current = eng.master_volume().unwrap_or(1.0);
-            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, volume) {
-                return Ok(CmdOutcome::Silent);
-            }
-            eng.set_master_volume(volume)?;
-            Ok(CmdOutcome::EngineStatus)
-        }
-        Kind::SetCueVolume => {
-            let CmdBody::SetCueVolume {
-                volume,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_mixer("cue_volume");
-            let current = eng.cue_volume().unwrap_or(1.0);
-            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, volume) {
-                return Ok(CmdOutcome::Silent);
-            }
-            eng.set_cue_volume(volume)?;
-            Ok(CmdOutcome::EngineStatus)
-        }
-        Kind::SetCueMix => {
-            let CmdBody::SetCueMix { mix, soft_takeover } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_mixer("cue_mix");
-            let current = eng.cue_mix().unwrap_or(0.5);
-            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, mix) {
-                return Ok(CmdOutcome::Silent);
-            }
-            eng.set_cue_mix(mix)?;
-            Ok(CmdOutcome::EngineStatus)
-        }
-        Kind::SetMasterCue => {
-            let CmdBody::SetMasterCue { enabled } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_master_cue(enabled)?;
-            Ok(CmdOutcome::EngineStatus)
-        }
-        Kind::ToggleMasterCue => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            let enabled = !eng.master_cue().unwrap_or(false);
-            eng.set_master_cue(enabled)?;
-            Ok(CmdOutcome::EngineStatus)
-        }
-        Kind::SetFxUnitSlot => {
-            let CmdBody::SetFxUnitSlot { slot, kind } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.set_fx_unit_slot(slot, crate::status::map_fx_kind(kind))?;
-            Ok(CmdOutcome::DecksUpdated(
-                (0..eng.config.num_decks).collect(),
-            ))
-        }
-        Kind::SetFxUnitSlotEnabled => {
-            let CmdBody::SetFxUnitSlotEnabled { slot, enabled } =
-                decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.set_fx_unit_slot_enabled(slot, enabled)?;
-            Ok(CmdOutcome::DecksUpdated(
-                (0..eng.config.num_decks).collect(),
-            ))
-        }
-        Kind::SetFxUnitWet => {
-            let CmdBody::SetFxUnitWet {
-                slot,
-                wet,
-                soft_takeover,
-            } = decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            let key = soft_takeover::key_mixer(&format!("fx_wet{slot}"));
-            let current = eng.fx_unit_wet(slot).unwrap_or(0.5);
-            if !gate_mixer_soft_takeover(eng, &key, soft_takeover, current, wet) {
-                return Ok(CmdOutcome::Silent);
-            }
-            eng.set_fx_unit_wet(slot, wet)?;
-            Ok(CmdOutcome::DecksUpdated(
-                (0..eng.config.num_decks).collect(),
-            ))
-        }
-        Kind::SetFxUnitParam => {
-            let CmdBody::SetFxUnitParam { slot, param, value } =
-                decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.set_fx_unit_param(slot, param, value)?;
-            Ok(CmdOutcome::DecksUpdated(
-                (0..eng.config.num_decks).collect(),
-            ))
-        }
-        _ => Err(anyhow!("unsupported kind on cmd bus")),
-    })
-}
-
-fn tick(
-    engine: &Arc<Mutex<Option<Engine>>>,
-    evt_bus: &EngineBus,
-    revision: &AtomicU64,
-    peak_hold: &mut PeakHoldState,
-) {
+fn tick(engine: &EngineHandle, bus: &EventBus<Event>, peak_hold: &mut PeakHoldState) {
     let mut guard = match engine.lock() {
         Ok(guard) => guard,
         Err(_) => return,
@@ -1272,7 +1089,7 @@ fn tick(
 
     let transport_events = eng.drain_transport_events();
     for TransportEvent::TrackEnded { deck_id } in transport_events {
-        let _ = publish_deck_updated(evt_bus, revision, eng, deck_id);
+        let _ = publish_deck_updated(bus, eng, deck_id);
     }
 
     // A live stem producer publishes its first window asynchronously; emit one
@@ -1281,7 +1098,7 @@ fn tick(
         let ready = eng.deck_stems_ready(deck_id).unwrap_or(false);
         if ready != eng.stems_ready_seen[deck_id] {
             eng.stems_ready_seen[deck_id] = ready;
-            let _ = publish_deck_updated(evt_bus, revision, eng, deck_id);
+            let _ = publish_deck_updated(bus, eng, deck_id);
         }
     }
 
@@ -1296,14 +1113,13 @@ fn tick(
                 .deck_slip_enabled(deck_id)
                 .filter(|enabled| *enabled)
                 .and_then(|_| eng.deck_slip_shadow_position_ms(deck_id));
-            publish_evt(
-                evt_bus,
-                Origin::Deck(deck_id as u16),
-                Kind::Position,
-                EvtBody::Position {
+            publish(
+                bus,
+                Event::DeckPosition(DeckPosition {
+                    deck: deck_id as u16,
                     position_ms: position,
                     slip_shadow_position_ms,
-                },
+                }),
             );
         }
     }
@@ -1315,31 +1131,29 @@ fn tick(
         let (peak_hold_l, peak_hold_r) = peak_hold.update(deck_id, peak_l, peak_r);
         if !should_publish_levels(playing, peak_l, peak_r, peak_hold_l, peak_hold_r) {
             if peak_hold.take_zero_flush(deck_id) {
-                publish_evt(
-                    evt_bus,
-                    Origin::Deck(deck_id as u16),
-                    Kind::Levels,
-                    EvtBody::Levels {
+                publish(
+                    bus,
+                    Event::DeckLevels(DeckLevels {
+                        deck: Some(deck_id as u16),
                         peak_l: 0.0,
                         peak_r: 0.0,
                         peak_hold_l: 0.0,
                         peak_hold_r: 0.0,
-                    },
+                    }),
                 );
             }
             continue;
         }
         peak_hold.mark_published(deck_id, false);
-        publish_evt(
-            evt_bus,
-            Origin::Deck(deck_id as u16),
-            Kind::Levels,
-            EvtBody::Levels {
+        publish(
+            bus,
+            Event::DeckLevels(DeckLevels {
+                deck: Some(deck_id as u16),
                 peak_l,
                 peak_r,
                 peak_hold_l,
                 peak_hold_r,
-            },
+            }),
         );
     }
 
@@ -1351,30 +1165,28 @@ fn tick(
         let (peak_hold_l, peak_hold_r) = peak_hold.update(master_hold_slot, peak_l, peak_r);
         if !should_publish_levels(any_playing, peak_l, peak_r, peak_hold_l, peak_hold_r) {
             if peak_hold.take_zero_flush(master_hold_slot) {
-                publish_evt(
-                    evt_bus,
-                    Origin::Mixer,
-                    Kind::Levels,
-                    EvtBody::Levels {
+                publish(
+                    bus,
+                    Event::DeckLevels(DeckLevels {
+                        deck: None,
                         peak_l: 0.0,
                         peak_r: 0.0,
                         peak_hold_l: 0.0,
                         peak_hold_r: 0.0,
-                    },
+                    }),
                 );
             }
         } else {
             peak_hold.mark_published(master_hold_slot, false);
-            publish_evt(
-                evt_bus,
-                Origin::Mixer,
-                Kind::Levels,
-                EvtBody::Levels {
+            publish(
+                bus,
+                Event::DeckLevels(DeckLevels {
+                    deck: None,
                     peak_l,
                     peak_r,
                     peak_hold_l,
                     peak_hold_r,
-                },
+                }),
             );
         }
     }

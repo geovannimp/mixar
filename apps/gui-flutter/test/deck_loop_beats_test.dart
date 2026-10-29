@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show LoopRegion;
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/deck_loop_panel.dart';
+
+import 'support/bus_events.dart';
 
 void main() {
   test('kAutoLoopBeats matches Tauri list', () {
@@ -39,56 +41,54 @@ void main() {
     expect(beatsFromLoopMs(inMs: 0, outMs: 2000, bpm: null), 4);
   });
 
-  test('applyEngineEvt stores and clears active_loop when known', () {
-    var snap = applyEngineEvt(
+  test('applyEngineEvent stores and clears active_loop', () {
+    var snap = applyEngineEvent(
       EngineUiSnapshot.empty,
-      const EngineEvt(
-        kind: EngineEvtKind.updated,
-        deckId: 0,
-        activeLoop: ActiveLoopInfo(inMs: 10, outMs: 20, active: true),
-        activeLoopKnown: true,
+      deckUpdatedEvent(
+        deck: 0,
+        update: deckUpdated(
+          deck: 0,
+          durationMs: 1000,
+          activeLoop: const LoopRegion(inMs: 10, outMs: 20, active: true),
+        ),
       ),
     );
     expect(snap.activeLoopFor(0)?.inMs, 10);
 
-    snap = applyEngineEvt(
+    snap = applyEngineEvent(
       snap,
-      const EngineEvt(
-        kind: EngineEvtKind.updated,
-        deckId: 0,
-        activeLoopKnown: true,
-      ),
+      deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, durationMs: 1000)),
     );
     expect(snap.activeLoopFor(0), isNull);
 
-    snap = applyEngineEvt(
-      EngineUiSnapshot.empty.copyWith(
-        activeLoops: {0: const ActiveLoopInfo(inMs: 1, outMs: 2, active: true)},
+    // A loop that is carried but not active is not an active loop.
+    snap = applyEngineEvent(
+      snap,
+      deckUpdatedEvent(
+        deck: 0,
+        update: deckUpdated(
+          deck: 0,
+          durationMs: 1000,
+          activeLoop: const LoopRegion(inMs: 1, outMs: 2, active: false),
+        ),
       ),
-      const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
     );
-    expect(snap.activeLoopFor(0)?.inMs, 1);
+    expect(snap.activeLoopFor(0), isNull);
   });
 
-  test('applyEngineEvt stores and clears pending_loop_in when known', () {
-    var snap = applyEngineEvt(
+  test('applyEngineEvent stores and clears pending_loop_in', () {
+    var snap = applyEngineEvent(
       EngineUiSnapshot.empty,
-      const EngineEvt(
-        kind: EngineEvtKind.updated,
-        deckId: 0,
-        pendingLoopInMs: 1500,
-        pendingLoopInMsKnown: true,
+      deckUpdatedEvent(
+        deck: 0,
+        update: deckUpdated(deck: 0, durationMs: 1000, pendingLoopInMs: 1500),
       ),
     );
     expect(snap.pendingLoopInMsFor(0), 1500);
 
-    snap = applyEngineEvt(
+    snap = applyEngineEvent(
       snap,
-      const EngineEvt(
-        kind: EngineEvtKind.updated,
-        deckId: 0,
-        pendingLoopInMsKnown: true,
-      ),
+      deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, durationMs: 1000)),
     );
     expect(snap.pendingLoopInMsFor(0), isNull);
   });

@@ -1,14 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
@@ -44,13 +45,7 @@ Future<({ProviderContainer container, _RoutingTransport engine})> _pumpStrip(
   addTearDown(engine.dispose);
   container
       .read(engineUiProvider.notifier)
-      .apply(
-        EngineEvt(
-          kind: EngineEvtKind.status,
-          running: running,
-          crossfader: 0.35,
-        ),
-      );
+      .apply(engineSnapshotEvent(running: running, crossfader: 0.35));
   for (var id = 0; id < numDecks; id++) {
     _route(container, id, id.isEven ? CrossfaderAssign.a : CrossfaderAssign.b);
   }
@@ -73,10 +68,9 @@ void _route(ProviderContainer container, int deckId, CrossfaderAssign side) {
   container
       .read(engineUiProvider.notifier)
       .apply(
-        EngineEvt(
-          kind: EngineEvtKind.updated,
-          deckId: deckId,
-          crossfaderAssign: side,
+        deckUpdatedEvent(
+          deck: deckId,
+          update: deckUpdated(deck: deckId, crossfaderAssign: side),
         ),
       );
 }

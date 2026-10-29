@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, ProviderFamily;
+import 'package:gui_flutter/core/models/bus_event_payload.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/fx_params.dart';
@@ -13,7 +14,12 @@ import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
+import 'package:gui_flutter/providers/shell/bus_providers.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' as bus;
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
+    show SamplerSlotInfo;
 import 'package:gui_flutter/src/rust/api/library.dart'
     show LibraryTrackSummary, SavedLoopInfo;
 import 'package:gui_flutter/widgets/mixer/level_meter.dart';
@@ -35,7 +41,7 @@ enum OptimisticField {
 
 class EngineUi extends Notifier<EngineUiSnapshot> {
   /// Per-field / per-deck generation so rollback only runs while our write owns
-  /// the mirror. EngineEvt bumps the token and wins over a failed send.
+  /// the mirror. A bus event bumps the token and wins over a failed send.
   final Map<OptimisticField, Map<int, int>> _optimisticGen = {
     for (final field in OptimisticField.values) field: <int, int>{},
   };
@@ -51,132 +57,137 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
 
   int? _activeDeckCount;
 
+  int? get _deckCount => _activeDeckCount;
+
   /// Track the live profile, independently of settings saved before a restart.
   void setActiveDeckCount(int deckCount) => _activeDeckCount = deckCount;
 
   @override
   EngineUiSnapshot build() => EngineUiSnapshot.empty;
 
-  void apply(EngineEvt evt) {
-    final deckId = evt.deckId;
-    final deckCount = _activeDeckCount;
-    if (deckId != null && deckCount != null && deckId >= deckCount) {
-      return;
-    }
-    if (evt.kind == EngineEvtKind.position) {
-      final id = evt.deckId;
-      final ms = evt.positionMs;
-      if (id != null && ms != null) {
-        ref.read(deckPlayheadsProvider.notifier).put(id, ms);
+  void apply(bus.Event event) {
+    final position = event.deckPosition;
+    if (position != null) {
+      final id = position.deck;
+      final level = _deckCount;
+      if (level != null && id >= level) {
+        return;
       }
-      final shadow = evt.slipShadowPositionMs;
-      if (id != null) {
-        if (shadow != null) {
-          ref.read(deckSlipShadowsProvider.notifier).put(id, shadow);
-        } else {
-          ref.read(deckSlipShadowsProvider.notifier).remove(id);
-        }
-      }
-      return;
-    }
-    // The pre-evt mirror still carries any in-flight optimistic writes.
-    final beforeEvt = state;
-    state = applyEngineEvt(state, evt);
-    if (evt.kind == EngineEvtKind.updated && evt.deckId != null) {
-      final id = evt.deckId!;
-      // Unload before positionMs: authored null duration can still carry positionMs: 0.
-      if (evt.durationKnown && evt.durationMs == null) {
-        ref.read(deckPlayheadsProvider.notifier).remove(id);
-        ref.read(deckSlipShadowsProvider.notifier).remove(id);
-      } else if (evt.positionMs != null) {
-        ref.read(deckPlayheadsProvider.notifier).put(id, evt.positionMs!);
-      }
-      if (evt.slipShadowPositionMs != null) {
-        ref
-            .read(deckSlipShadowsProvider.notifier)
-            .put(id, evt.slipShadowPositionMs!);
+      ref.read(deckPlayheadsProvider.notifier).put(id, position.positionMs);
+      final shadow = position.slipShadowPositionMs;
+      if (shadow != null) {
+        ref.read(deckSlipShadowsProvider.notifier).put(id, shadow);
       } else {
         ref.read(deckSlipShadowsProvider.notifier).remove(id);
       }
-      // External absolute state supersedes in-flight optimistic ownership.
-      if (evt.playing != null) {
-        _invalidateOptimistic(OptimisticField.playing, id);
-      }
-      if (evt.quantize != null) {
-        _invalidateOptimistic(OptimisticField.quantize, id);
-      }
-      if (evt.slipEnabled != null) {
-        _invalidateOptimistic(OptimisticField.slip, id);
-      }
-      if (evt.keyLock != null) {
-        _invalidateOptimistic(OptimisticField.keyLock, id);
-      }
-      if (evt.fxRouted != null) {
-        _invalidateOptimistic(OptimisticField.fxRouted, id);
-      }
-      final publishedFx = evt.fx;
-      if (publishedFx != null) {
-        final slots = List<FxSlotChrome>.of(state.fxSlots);
-        var patched = false;
-        for (var slot = 0; slot < publishedFx.length; slot++) {
-          final published = publishedFx[slot];
-          // A deck update covers both decks, so the shared unit is republished
-          // even when nothing about it changed; only a payload that moved away
-          // from the pre-optimistic value supersedes an in-flight command.
-          final armedBase = _optimisticBase[OptimisticField.fxArmed]![slot];
-          final keepArmed = armedBase is bool && armedBase == published.enabled;
-          if (!keepArmed) {
-            _invalidateOptimistic(OptimisticField.fxArmed, slot);
-          }
-          final divisionBase =
-              _optimisticBase[OptimisticField.fxDivision]![slot];
-          final keepDivision =
-              divisionBase is int &&
-              divisionBase == fxDivisionIndexFrom(published.params);
-          if (!keepDivision) {
-            _invalidateOptimistic(OptimisticField.fxDivision, slot);
-          }
-          if ((!keepArmed && !keepDivision) ||
-              slot >= beforeEvt.fxSlots.length ||
-              slot >= slots.length) {
-            continue;
-          }
-          // The merge above replaced the unit with the engine's pre-command
-          // state; restore the values our command still owns so the strip (and
-          // the next step derived from it) keeps the optimistic reading.
-          final optimistic = beforeEvt.fxSlots[slot];
-          var current = slots[slot];
-          if (keepArmed && current.enabled != optimistic.enabled) {
-            current = FxSlotChrome(
-              kind: current.kind,
-              enabled: optimistic.enabled,
-              wet: current.wet,
-              params: current.params,
-            );
-            patched = true;
-          }
-          if (keepDivision &&
-              optimistic.params.isNotEmpty &&
-              (current.params.isEmpty ||
-                  current.params.first != optimistic.params.first)) {
-            final params = Float32List.fromList(current.params);
-            if (params.isNotEmpty) {
-              params[0] = optimistic.params.first;
-              current = FxSlotChrome(
-                kind: current.kind,
-                enabled: current.enabled,
-                wet: current.wet,
-                params: params,
-              );
-              patched = true;
-            }
-          }
-          slots[slot] = current;
-        }
-        if (patched) {
-          state = state.copyWith(fxSlots: slots);
+      return;
+    }
+
+    final update = event.deckUpdated;
+    if (update == null) {
+      final deckCount = _deckCount;
+      if (event.deckLevels case final levels? when deckCount != null) {
+        final deck = levels.deck;
+        if (deck != null && deck >= deckCount) {
+          return;
         }
       }
+      state = applyEngineEvent(state, event);
+      return;
+    }
+
+    final id = update.deck;
+    final deckCount = _deckCount;
+    if (deckCount != null && id >= deckCount) {
+      return;
+    }
+
+    // The pre-evt mirror still carries any in-flight optimistic writes.
+    final beforeEvt = state;
+    state = applyEngineEvent(state, event);
+
+    // Unload before positionMs: a null duration still carries positionMs: 0.
+    if (update.durationMs == null) {
+      ref.read(deckPlayheadsProvider.notifier).remove(id);
+      ref.read(deckSlipShadowsProvider.notifier).remove(id);
+    } else if (update.positionMs case final positionMs?) {
+      ref.read(deckPlayheadsProvider.notifier).put(id, positionMs);
+    }
+    if (update.slipShadowPositionMs case final shadow?) {
+      ref.read(deckSlipShadowsProvider.notifier).put(id, shadow);
+    } else {
+      ref.read(deckSlipShadowsProvider.notifier).remove(id);
+    }
+
+    // External absolute state supersedes in-flight optimistic ownership.
+    _invalidateOptimistic(OptimisticField.playing, id);
+    _invalidateOptimistic(OptimisticField.quantize, id);
+    _invalidateOptimistic(OptimisticField.slip, id);
+    _invalidateOptimistic(OptimisticField.keyLock, id);
+    _invalidateOptimistic(OptimisticField.fxRouted, id);
+
+    final publishedFx = update.fx;
+    final slots = List<bus.FxSlotState>.of(state.fxSlots);
+    var patched = false;
+    for (var slot = 0; slot < publishedFx.length; slot++) {
+      if (slot >= slots.length) {
+        break;
+      }
+      final published = publishedFx[slot];
+      // A deck update covers both decks, so the shared unit is republished
+      // even when nothing about it changed; only a payload that moved away
+      // from the pre-optimistic value supersedes an in-flight command.
+      final armedBase = _optimisticBase[OptimisticField.fxArmed]![slot];
+      final keepArmed = armedBase is bool && armedBase == published.enabled;
+      if (!keepArmed) {
+        _invalidateOptimistic(OptimisticField.fxArmed, slot);
+      }
+      final divisionBase = _optimisticBase[OptimisticField.fxDivision]![slot];
+      final keepDivision =
+          divisionBase is int &&
+          divisionBase == fxDivisionIndexFrom(published.params);
+      if (!keepDivision) {
+        _invalidateOptimistic(OptimisticField.fxDivision, slot);
+      }
+      if ((!keepArmed && !keepDivision) ||
+          slot >= beforeEvt.fxSlots.length ||
+          slot >= slots.length) {
+        continue;
+      }
+      // The merge above replaced the unit with the engine's pre-command
+      // state; restore the values our command still owns so the strip (and
+      // the next step derived from it) keeps the optimistic reading.
+      final optimistic = beforeEvt.fxSlots[slot];
+      var current = slots[slot];
+      if (keepArmed && current.enabled != optimistic.enabled) {
+        current = bus.FxSlotState(
+          kind: current.kind,
+          enabled: optimistic.enabled,
+          wet: current.wet,
+          params: current.params,
+        );
+        patched = true;
+      }
+      if (keepDivision &&
+          optimistic.params.isNotEmpty &&
+          (current.params.isEmpty ||
+              current.params.first != optimistic.params.first)) {
+        final params = Float32List.fromList(current.params);
+        if (params.isNotEmpty) {
+          params[0] = optimistic.params.first;
+          current = bus.FxSlotState(
+            kind: current.kind,
+            enabled: current.enabled,
+            wet: current.wet,
+            params: params,
+          );
+          patched = true;
+        }
+      }
+      slots[slot] = current;
+    }
+    if (patched) {
+      state = state.copyWith(fxSlots: slots);
     }
   }
 
@@ -224,8 +235,8 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     if (current.enabled == value) {
       return;
     }
-    final next = List<FxSlotChrome>.from(state.fxSlots);
-    next[slot] = FxSlotChrome(
+    final next = List<bus.FxSlotState>.from(state.fxSlots);
+    next[slot] = bus.FxSlotState(
       kind: current.kind,
       enabled: value,
       wet: current.wet,
@@ -244,8 +255,8 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       return;
     }
     final params = Float32List.fromList(current.params)..[0] = divisionNorm;
-    final next = List<FxSlotChrome>.from(state.fxSlots);
-    next[slot] = FxSlotChrome(
+    final next = List<bus.FxSlotState>.from(state.fxSlots);
+    next[slot] = bus.FxSlotState(
       kind: current.kind,
       enabled: current.enabled,
       wet: current.wet,
@@ -283,7 +294,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     state = state.copyWith(jogTouching: next);
   }
 
-  /// Optimistic mirror before absolute play/pause; EngineEvt reconciles.
+  /// Optimistic mirror before absolute play/pause; A bus event reconciles.
   void setPlaying(int deckId, bool playing) {
     if (state.isPlaying(deckId) == playing) {
       return;
@@ -293,7 +304,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     state = state.copyWith(playing: next);
   }
 
-  /// Optimistic mirror before absolute setQuantize; EngineEvt reconciles.
+  /// Optimistic mirror before absolute setQuantize; A bus event reconciles.
   void setQuantize(int deckId, bool enabled) {
     if (state.quantizeFor(deckId) == enabled) {
       return;
@@ -303,7 +314,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     state = state.copyWith(quantize: next);
   }
 
-  /// Optimistic mirror before absolute setSlip; EngineEvt reconciles.
+  /// Optimistic mirror before absolute setSlip; A bus event reconciles.
   void setSlipEnabled(int deckId, bool enabled) {
     if (state.slipEnabledFor(deckId) == enabled) {
       return;
@@ -313,7 +324,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     state = state.copyWith(slipEnabled: next);
   }
 
-  /// Optimistic mirror before absolute setKeyLock; EngineEvt reconciles.
+  /// Optimistic mirror before absolute setKeyLock; A bus event reconciles.
   void setKeyLock(int deckId, bool enabled) {
     if (state.keyLockFor(deckId) == enabled) {
       return;
@@ -663,8 +674,8 @@ final ProviderFamily<String?, int> deckActiveSamplerBankIdProvider =
       ),
     );
 
-final ProviderFamily<List<SamplerSlotChrome>, int> deckSamplerSlotsProvider =
-    Provider.family<List<SamplerSlotChrome>, int>(
+final ProviderFamily<List<SamplerSlotInfo>, int> deckSamplerSlotsProvider =
+    Provider.family<List<SamplerSlotInfo>, int>(
       (ref, deckId) =>
           ref.watch(engineUiProvider.select((s) => s.samplerSlotsFor(deckId))),
     );
@@ -849,8 +860,8 @@ final ProviderFamily<List<DeckHotCue>, int> deckHotCuesProvider =
       ];
     });
 
-final ProviderFamily<ActiveLoopInfo?, int> deckActiveLoopProvider =
-    Provider.family<ActiveLoopInfo?, int>(
+final ProviderFamily<LoopRegion?, int> deckActiveLoopProvider =
+    Provider.family<LoopRegion?, int>(
       (ref, deckId) =>
           ref.watch(engineUiProvider.select((s) => s.activeLoopFor(deckId))),
     );
@@ -885,7 +896,7 @@ final ProviderFamily<bool, int> deckFxRoutedProvider =
       ),
     );
 
-final fxSlotsProvider = Provider<List<FxSlotChrome>>(
+final fxSlotsProvider = Provider<List<bus.FxSlotState>>(
   (ref) => ref.watch(engineUiProvider.select((s) => s.fxSlots)),
 );
 
@@ -927,7 +938,11 @@ final engineTransportProvider = FutureProvider<EngineTransport?>((ref) async {
   }
   final library = await ref.watch(libraryTransportProvider.future);
   try {
-    final engine = await EngineTransport.start(libraryTransport: library);
+    final bus = await ref.watch(busTransportProvider.future);
+    final engine = await EngineTransport.start(
+      bus: bus,
+      libraryTransport: library,
+    );
     ref.keepAlive();
     ref.read(engineUiProvider.notifier).setRunning(true);
     return engine;
@@ -940,30 +955,6 @@ final engineTransportProvider = FutureProvider<EngineTransport?>((ref) async {
         .read(appNoticeProvider.notifier)
         .setError('Audio engine failed to start: $e');
     return null;
-  }
-});
-
-/// Long-lived engine evt subscription while the transport is open.
-final engineEventsBootstrapProvider = Provider<void>((ref) {
-  final transportAsync = ref.watch(engineTransportProvider);
-  if (transportAsync case AsyncData(:final value) when value != null) {
-    final sub = value.subscribeEvents().listen(
-      (evt) {
-        ref.read(engineUiProvider.notifier).apply(evt);
-        if (evt.kind == EngineEvtKind.error) {
-          ref
-              .read(appNoticeProvider.notifier)
-              .setError(evt.message ?? 'Engine error');
-        }
-      },
-      onError: (Object e, StackTrace _) {
-        if (!ref.mounted) {
-          return;
-        }
-        ref.read(appNoticeProvider.notifier).setError('$e');
-      },
-    );
-    ref.onDispose(sub.cancel);
   }
 });
 
@@ -1000,11 +991,11 @@ Future<void> sendDeckPlaying({
 }
 
 /// Optimistic absolute cmd: mirror first, roll back if transport is missing
-/// or the send fails — unless an intervening EngineEvt invalidated our
+/// or the send fails — unless an intervening bus event invalidated our
 /// generation (MIDI dual-control), including when it set the same value.
 ///
 /// If ownership is lost while awaiting the transport, skip [send] so a stale
-/// UI intent cannot override a newer absolute controller/EngineEvt state.
+/// UI intent cannot override a newer absolute controller/engine state.
 @visibleForTesting
 Future<void> runOptimisticDeckValue<V extends Object, T extends Object>({
   required V previous,

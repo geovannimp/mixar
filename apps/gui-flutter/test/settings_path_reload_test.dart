@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+
+import 'support/bus_events.dart';
 
 class _PendingDeckLoadTransport implements DeckLoadTransport {
   final started = Completer<void>();
@@ -119,13 +121,7 @@ void main() {
       deckCount: 2,
       restart: () async {
         for (var deckId = 0; deckId < 4; deckId++) {
-          ui.apply(
-            EngineEvt(
-              kind: EngineEvtKind.updated,
-              deckId: deckId,
-              durationKnown: true,
-            ),
-          );
+          ui.apply(deckUpdatedEvent(deck: deckId));
         }
       },
       loadLibraryTrack: ({required deckId, required trackId}) async {
@@ -170,13 +166,7 @@ void main() {
       restart: () async {
         container
             .read(engineUiProvider.notifier)
-            .apply(
-              const EngineEvt(
-                kind: EngineEvtKind.updated,
-                deckId: 0,
-                durationKnown: true,
-              ),
-            );
+            .apply(deckUpdatedEvent(deck: 0));
       },
       loadLibraryTrack: ({required deckId, required trackId}) async {
         loads.add(trackId);
@@ -226,13 +216,14 @@ void main() {
 
     for (final deckId in [2, 3]) {
       ui.apply(
-        EngineEvt(
-          kind: EngineEvtKind.updated,
-          deckId: deckId,
-          trackPath: '/music/stale.wav',
-          trackId: 'stale',
-          durationKnown: true,
-          durationMs: 5000,
+        deckUpdatedEvent(
+          deck: deckId,
+          update: deckUpdated(
+            deck: deckId,
+            trackPath: '/music/stale.wav',
+            trackId: 'stale',
+            durationMs: 5000,
+          ),
         ),
       );
       expect(container.read(engineUiProvider).trackPathFor(deckId), isNull);
@@ -275,7 +266,10 @@ void main() {
 
     expect(container.read(engineUiProvider).trackIdFor(3), 'lib-d');
     ui.apply(
-      const EngineEvt(kind: EngineEvtKind.updated, deckId: 3, trackId: 'new-d'),
+      deckUpdatedEvent(
+        deck: 3,
+        update: deckUpdated(deck: 3, trackId: 'new-d', durationMs: 5000),
+      ),
     );
     expect(container.read(engineUiProvider).trackIdFor(3), 'new-d');
   });
@@ -292,11 +286,9 @@ void main() {
       deckCount: 4,
       restart: () async {
         ui.apply(
-          const EngineEvt(
-            kind: EngineEvtKind.updated,
-            deckId: 3,
-            durationKnown: true,
-            crossfaderAssign: CrossfaderAssign.b,
+          deckUpdatedEvent(
+            deck: 3,
+            update: deckUpdated(deck: 3, crossfaderAssign: CrossfaderAssign.b),
           ),
         );
       },

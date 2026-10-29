@@ -1,4 +1,4 @@
-import 'package:gui_flutter/src/rust/api/engine.dart' show PadMode;
+import 'package:gui_flutter/core/models/bus_enums.dart';
 
 /// Top-level deck performance surface modes (vertical Pads / Loop / Grid / Jog tabs).
 ///

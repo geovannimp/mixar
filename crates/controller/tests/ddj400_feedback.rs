@@ -9,7 +9,7 @@ use std::thread;
 use std::time::Duration;
 
 use controller::{DeckFeedback, MappingSession, MidiOut, BLINK_HALF_PERIOD};
-use engine_api::{CmdBody, FxKind, FxSlotState, Kind, Origin, PadMode};
+use engine_api::{Event, FxKind, FxSlotState, PadMode};
 
 /// Deck 1 button channel, pad channels, master channel, beat-FX channel.
 const D1: u8 = 0x90;
@@ -34,7 +34,7 @@ impl MidiOut for CaptureMidi {
 struct NullBus;
 
 impl controller::ActionPublish for NullBus {
-    fn publish_engine(&mut self, _origin: Origin, _kind: Kind, _body: CmdBody) {}
+    fn publish_engine(&mut self, _event: Event) {}
     fn publish_library(
         &mut self,
         _origin: library_api::Origin,
@@ -418,7 +418,7 @@ fn fx(enabled: bool) -> FxSlotState {
         kind: FxKind::Echo,
         enabled,
         wet: 0.5,
-        params: [0.5, 0.5, 0.0],
+        params: vec![0.5, 0.5, 0.0],
     }
 }
 

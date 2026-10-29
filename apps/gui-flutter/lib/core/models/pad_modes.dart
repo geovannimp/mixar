@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter/services.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart' show PadMode;
+import 'package:gui_flutter/core/models/bus_enums.dart';
 
 /// Pad mode helpers + Tauri-matching beat tables / labels.
 

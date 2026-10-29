@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show LoopRegion;
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
@@ -69,7 +69,7 @@ void main() {
     );
     expect(
       recordActiveLoopPicture(
-        loop: const ActiveLoopInfo(inMs: 0, outMs: 1000, active: false),
+        loop: const LoopRegion(inMs: 0, outMs: 1000, active: false),
         durationMs: 10_000,
         size: const Size(100, 40),
       ),
@@ -79,7 +79,7 @@ void main() {
 
   test('recordActiveLoopPicture returns a picture when active', () {
     final picture = recordActiveLoopPicture(
-      loop: const ActiveLoopInfo(inMs: 1000, outMs: 3000, active: true),
+      loop: const LoopRegion(inMs: 1000, outMs: 3000, active: true),
       durationMs: 10_000,
       size: const Size(100, 40),
     );

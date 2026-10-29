@@ -44,7 +44,7 @@ pub struct FxSlotState {
     /// Wet/dry `0..1` (`0` = dry).
     pub wet: f32,
     /// Normalized knob positions `0..1` for [`Self::kind`]; unused entries `0.0`.
-    pub params: [f32; FX_PARAM_COUNT],
+    pub params: Vec<f32>,
 }
 
 impl FxSlotState {
@@ -58,7 +58,7 @@ impl FxSlotState {
             kind: FxKind::Echo,
             enabled: false,
             wet: 0.5,
-            params: [0.5, 0.5, 0.0],
+            params: vec![0.5, 0.5, 0.0],
         }
     }
 }
@@ -69,7 +69,7 @@ impl Default for FxSlotState {
             kind: FxKind::Off,
             enabled: false,
             wet: 0.5,
-            params: [0.0; FX_PARAM_COUNT],
+            params: vec![0.0; FX_PARAM_COUNT],
         }
     }
 }
@@ -142,39 +142,12 @@ pub struct DeckSavedLoop {
     pub color: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SamplerPlayMode {
-    #[default]
-    Oneshot,
-    Hold,
-    Loop,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct SamplerSlotInfo {
     pub label: Option<String>,
     pub track_id: Option<String>,
     pub path: Option<String>,
     pub duration_ms: Option<i32>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct SamplerBankInfo {
-    pub id: String,
-    pub name: String,
-    pub play_mode: Option<SamplerPlayMode>,
-    pub sort_index: i32,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct SamplerStatus {
-    pub banks: Vec<SamplerBankInfo>,
-    pub active_bank_id: Option<String>,
-    pub active_bank_name: Option<String>,
-    pub bank_play_mode: Option<SamplerPlayMode>,
-    pub deck_slots: Vec<Vec<SamplerSlotInfo>>,
-    pub effective_play_modes: Vec<SamplerPlayMode>,
 }
 
 fn default_crossfader_assign() -> CrossfaderAssign {
@@ -230,7 +203,7 @@ pub struct DeckSnapshot {
     pub fx_routed: bool,
     /// Shared FX unit slots (identical for every deck).
     #[serde(default)]
-    pub fx: [FxSlotState; FX_SLOT_COUNT],
+    pub fx: Vec<FxSlotState>,
     pub headphone_cue: bool,
     pub sync_mode: SyncMode,
     pub cue_point_ms: Option<i32>,
@@ -253,7 +226,7 @@ pub struct DeckSnapshot {
     pub stems_live: bool,
     /// Per-stem mute flags (vocals, drums, bass, other).
     #[serde(default)]
-    pub stem_mute: [bool; 4],
+    pub stem_mute: Vec<bool>,
     /// When set, only this stem index is audible (isolate).
     #[serde(default)]
     pub stem_isolate: Option<u8>,
@@ -281,371 +254,4 @@ pub struct EngineStatus {
     pub master_cue: bool,
     pub master_deck: u16,
     pub decks: Vec<DeckSnapshot>,
-    pub sampler: SamplerStatus,
-}
-
-/// Command bus payload nested inside [`crate::WireMessage::body`].
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum CmdBody {
-    Empty,
-    Seek {
-        position_ms: i32,
-    },
-    SetVolume {
-        volume: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    /// EQ bands as `0..1` positions (center `0.5` = 0 dB).
-    SetEq {
-        low: f32,
-        mid: f32,
-        high: f32,
-    },
-    SetEqBand {
-        band: EqBand,
-        /// Band gain as `0..1` (center `0.5` = 0 dB).
-        gain: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    /// Tempo fader position `0..1` (not playback ratio).
-    SetSpeed {
-        speed: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
-    SetTempoRange {
-        tempo_range: f32,
-    },
-    /// Key lock / master tempo (time-stretch; pitch held).
-    SetKeyLock {
-        enabled: bool,
-    },
-    /// Session key-shift offset in semitones (`-16..=16`).
-    SetKeyShift {
-        semitones: f32,
-    },
-    /// Keyboard pad root: hot-cue slot whose position is the root note.
-    SetKeyboardRoot {
-        slot: u8,
-    },
-    /// Keyboard pad semitone page (`1..=4`).
-    SetKeyboardPage {
-        page: u8,
-    },
-    /// Key Shift pad semitone page (`1..=5`).
-    SetKeyShiftPage {
-        page: u8,
-    },
-    SetFilter {
-        /// Filter knob `0..1`.
-        filter: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    SetGainTrim {
-        /// Gain trim knob `0..1`.
-        gain_trim: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    SetHeadphoneCue {
-        enabled: bool,
-    },
-    SetCrossfader {
-        position: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    SetCrossfaderAssign {
-        assignment: CrossfaderAssign,
-    },
-    SetMasterVolume {
-        volume: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    SetCueVolume {
-        volume: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    SetCueMix {
-        mix: f32,
-        #[serde(default)]
-        soft_takeover: bool,
-    },
-    SetMasterCue {
-        enabled: bool,
-    },
-    ToggleSync {
-        beat_sync: bool,
-    },
-    SetQuantize {
-        enabled: bool,
-    },
-    SetSlip {
-        enabled: bool,
-    },
-    SetAutoLoop {
-        beats: f32,
-    },
-    /// Manual Loop In at caller-supplied media position (ms).
-    LoopIn {
-        position_ms: i32,
-    },
-    /// Manual Loop Out at caller-supplied media position (ms).
-    LoopOut {
-        position_ms: i32,
-    },
-    BeatJump {
-        beats: f32,
-    },
-    SetPadMode {
-        mode: PadMode,
-    },
-    BeginLoopRoll {
-        beats: f32,
-    },
-    PadPress {
-        slot: u8,
-        #[serde(default)]
-        shift: bool,
-    },
-    PadRelease {
-        slot: u8,
-    },
-    HotCuePadPress {
-        slot: u8,
-        #[serde(default)]
-        shift: bool,
-    },
-    HotCuePadRelease {
-        slot: u8,
-    },
-    LoopRollPadPress {
-        slot: u8,
-    },
-    LoopRollPadRelease {
-        slot: u8,
-    },
-    BeatJumpPadPress {
-        slot: u8,
-    },
-    BeatJumpPadRelease {
-        slot: u8,
-    },
-    SamplerPadPress {
-        slot: u8,
-        #[serde(default)]
-        shift: bool,
-    },
-    SamplerPadRelease {
-        slot: u8,
-    },
-    KeyboardPadPress {
-        slot: u8,
-        #[serde(default)]
-        shift: bool,
-    },
-    KeyboardPadRelease {
-        slot: u8,
-    },
-    KeyShiftPadPress {
-        slot: u8,
-        #[serde(default)]
-        shift: bool,
-    },
-    KeyShiftPadRelease {
-        slot: u8,
-    },
-    TriggerHotCue {
-        position_ms: i32,
-    },
-    RecallSavedLoop {
-        in_ms: i32,
-        out_ms: i32,
-    },
-    AssignSampler {
-        slot: u8,
-        path: String,
-    },
-    AssignSamplerTrack {
-        slot: u8,
-        track_id: String,
-    },
-    ClearSampler {
-        slot: u8,
-    },
-    SetSamplerBank {
-        bank_id: String,
-    },
-    CreateSamplerBank {
-        name: Option<String>,
-        play_mode: Option<String>,
-    },
-    UpdateSamplerBank {
-        bank_id: String,
-        name: String,
-        play_mode: Option<String>,
-    },
-    DeleteSamplerBank {
-        bank_id: String,
-    },
-    SaveHotCue {
-        slot: u8,
-    },
-    DeleteHotCue {
-        slot: u8,
-    },
-    SaveLoop {
-        slot: u8,
-    },
-    DeleteLoop {
-        slot: u8,
-    },
-    LoadPath {
-        path: String,
-    },
-    LoadLibraryTrack {
-        track_id: String,
-    },
-    JogTouch {
-        touching: bool,
-    },
-    JogTurn {
-        delta: i32,
-    },
-    SetJogMode {
-        top: JogMode,
-        outer: JogMode,
-    },
-    /// FX unit slot `slot` (`0..=2`) effect selection.
-    SetFxUnitSlot {
-        slot: u8,
-        kind: FxKind,
-    },
-    /// FX unit slot `slot` on/off; wet/dry and knobs are kept.
-    SetFxUnitSlotEnabled {
-        slot: u8,
-        enabled: bool,
-    },
-    /// FX unit slot `slot` wet/dry `0..1`.
-    SetFxUnitWet {
-        slot: u8,
-        wet: f32,
-        /// Absolute-control gate (MIDI knobs); `false` hard-sets and clears the latch.
-        soft_takeover: bool,
-    },
-    /// FX unit slot `slot` knob `param` (`0..=2`), normalized `0..1`.
-    SetFxUnitParam {
-        slot: u8,
-        param: u8,
-        value: f32,
-    },
-    /// Route this deck through the shared FX unit (deck-scoped).
-    SetDeckFxRouted {
-        routed: bool,
-    },
-}
-
-/// Event bus payload nested inside [`crate::WireMessage::body`].
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[allow(clippy::large_enum_variant)] // DeckUpdated mirrors DeckSnapshot wire fields.
-pub enum EvtBody {
-    Empty,
-    DeckUpdated {
-        id: u16,
-        track: Option<String>,
-        track_id: Option<String>,
-        title: Option<String>,
-        artist: Option<String>,
-        #[serde(default)]
-        album: Option<String>,
-        #[serde(default)]
-        isrc: Option<String>,
-        bpm: Option<f64>,
-        key: Option<String>,
-        playing: bool,
-        #[serde(default = "default_crossfader_assign")]
-        crossfader_assign: CrossfaderAssign,
-        volume: f32,
-        speed: f32,
-        tempo_range: f32,
-        #[serde(default)]
-        key_lock: bool,
-        /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
-        #[serde(default)]
-        key_shift: f32,
-        /// Keyboard pad semitone page (`1..=4`; default 2).
-        #[serde(default = "default_pitch_page")]
-        keyboard_page: u8,
-        /// Key Shift pad semitone page (`1..=5`; default 2).
-        #[serde(default = "default_pitch_page")]
-        key_shift_page: u8,
-        /// Hot-cue slot used as the Keyboard pad root (default 0).
-        #[serde(default)]
-        keyboard_root_hot_cue: u8,
-        eq: DeckEq,
-        filter: f32,
-        gain_trim: f32,
-        #[serde(default)]
-        fx_routed: bool,
-        #[serde(default)]
-        fx: [FxSlotState; FX_SLOT_COUNT],
-        headphone_cue: bool,
-        sync_mode: SyncMode,
-        cue_point_ms: Option<i32>,
-        quantize: bool,
-        active_loop: Option<LoopRegion>,
-        #[serde(default)]
-        pending_loop_in_ms: Option<i32>,
-        #[serde(default)]
-        slip_enabled: bool,
-        #[serde(default)]
-        slip_shadow_position_ms: Option<i32>,
-        pad_mode: PadMode,
-        #[serde(default)]
-        stems_ready: bool,
-        #[serde(default)]
-        stems_live: bool,
-        #[serde(default)]
-        stem_mute: [bool; 4],
-        #[serde(default)]
-        stem_isolate: Option<u8>,
-        position_ms: Option<i32>,
-        duration_ms: Option<i32>,
-        hot_cues: Vec<DeckHotCue>,
-        saved_loops: Vec<DeckSavedLoop>,
-        loudness_lufs: Option<f64>,
-        auto_gain_db: f32,
-        active_sampler_bank_id: Option<String>,
-        top_jog_mode: JogMode,
-        outer_jog_mode: JogMode,
-        jog_touching: bool,
-    },
-    Position {
-        position_ms: i32,
-        #[serde(default)]
-        slip_shadow_position_ms: Option<i32>,
-    },
-    Levels {
-        peak_l: f32,
-        peak_r: f32,
-        peak_hold_l: f32,
-        peak_hold_r: f32,
-    },
-    EngineStatus {
-        status: EngineStatus,
-    },
-    Error {
-        message: String,
-    },
-    Notice {
-        message: String,
-    },
 }

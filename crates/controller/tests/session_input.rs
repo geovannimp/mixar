@@ -1,15 +1,15 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
-use engine_api::{CmdBody, Kind, Origin};
+use engine_api::Event;
 use std::path::Path;
 
 struct CaptureBus {
-    cmds: Vec<(Origin, Kind, CmdBody)>,
+    cmds: Vec<Event>,
     library: Vec<(library_api::Origin, library_api::Kind, library_api::EvtBody)>,
 }
 
 impl controller::ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
-        self.cmds.push((origin, kind, body));
+    fn publish_engine(&mut self, event: Event) {
+        self.cmds.push(event);
     }
     fn publish_library(
         &mut self,
@@ -52,8 +52,10 @@ fn note_toggle_play_publishes_toggle_play() {
     // note on play_pause ch1 note 0x0B
     s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].0, Origin::Deck(0));
-    assert_eq!(bus.cmds[0].1, Kind::TogglePlay);
+    assert_eq!(
+        bus.cmds[0],
+        Event::TogglePlay(engine_api::TogglePlay { deck: 0 })
+    );
 }
 
 #[test]
@@ -70,7 +72,10 @@ fn modifier_shift_selects_set_filter() {
     // CC volume with shift → set_filter
     s.handle_midi(&[0xB0, 0x13, 64], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::SetFilter);
+    assert!(matches!(
+        bus.cmds[0],
+        Event::SetFilter(engine_api::SetFilter { deck: 0, .. })
+    ));
 }
 
 #[test]
@@ -83,12 +88,12 @@ fn soft_takeover_flag_passed_on_absolute_volume() {
     let mut midi = NullMidi;
     s.handle_midi(&[0xB0, 0x13, 13], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::SetVolume);
-    match &bus.cmds[0].2 {
-        CmdBody::SetVolume {
+    match &bus.cmds[0] {
+        Event::SetVolume(engine_api::SetVolume {
+            deck: 0,
             soft_takeover: true,
             ..
-        } => {}
+        }) => {}
         other => panic!("expected soft_takeover volume, got {other:?}"),
     }
 }
@@ -104,14 +109,20 @@ fn headphone_cue_toggles_and_lights_led() {
 
     s.handle_midi(&[0x90, 0x54, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::ToggleHeadphoneCue);
+    assert_eq!(
+        bus.cmds[0],
+        Event::ToggleHeadphoneCue(engine_api::ToggleHeadphoneCue { deck: 0 })
+    );
     assert_eq!(midi.frames.len(), 1, "PFL LED should turn on");
     assert_eq!(midi.frames[0], vec![0x90, 0x54, 0x7F]);
 
     s.handle_midi(&[0x80, 0x54, 0x00], &mut bus, &mut midi);
     s.handle_midi(&[0x90, 0x54, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 2);
-    assert_eq!(bus.cmds[1].1, Kind::ToggleHeadphoneCue);
+    assert_eq!(
+        bus.cmds[1],
+        Event::ToggleHeadphoneCue(engine_api::ToggleHeadphoneCue { deck: 0 })
+    );
     assert_eq!(midi.frames.len(), 2, "PFL LED should turn off");
     assert_eq!(midi.frames[1], vec![0x90, 0x54, 0x00]);
 }
@@ -134,19 +145,32 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     // pad_1 → hot_cue_pad → HotCuePadPress (engine save vs trigger; filled cue starts playback)
     s.handle_midi(&[0x90, 0x2E, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::HotCuePadPress);
+    assert_eq!(
+        bus.cmds[0],
+        Event::HotCuePadPress(engine_api::HotCuePadPress {
+            deck: 0,
+            slot: 0,
+            shift: false
+        })
+    );
     assert!(s.snapshot().playing[0], "hot cue must mark deck playing");
 
     bus.cmds.clear();
     s.handle_midi(&[0x80, 0x2E, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::HotCuePadRelease);
+    assert_eq!(
+        bus.cmds[0],
+        Event::HotCuePadRelease(engine_api::HotCuePadRelease { deck: 0, slot: 0 })
+    );
 
     bus.cmds.clear();
     // play_pause always publishes TogglePlay; engine owns play/pause decision
     s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::TogglePlay);
+    assert_eq!(
+        bus.cmds[0],
+        Event::TogglePlay(engine_api::TogglePlay { deck: 0 })
+    );
 }
 
 #[test]

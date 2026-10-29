@@ -4,7 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-import 'engine.dart';
+import 'bus.dart';
 import 'library.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -30,11 +30,11 @@ abstract class ControllerTransport implements RustOpaqueInterface {
   /// Mappings live in `{app-support}/mappings`; the shipped bundles are resolved
   /// from the executable.
   static Future<ControllerTransport> start({
-    required EngineBusHandle engineBuses,
+    required BusTransport bus,
     required LibraryBusHandle libraryBuses,
     required List<String> trustedDeviceIds,
   }) => RustLib.instance.api.crateApiControllerControllerTransportStart(
-    engineBuses: engineBuses,
+    bus: bus,
     libraryBuses: libraryBuses,
     trustedDeviceIds: trustedDeviceIds,
   );

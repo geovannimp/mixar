@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter/painting.dart';
 import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
@@ -78,7 +78,7 @@ Picture recordLoopPicture({
 
 /// Returns null when there is no engaged active loop to draw.
 Picture? recordActiveLoopPicture({
-  required ActiveLoopInfo? loop,
+  required LoopRegion? loop,
   required int durationMs,
   required Size size,
 }) {

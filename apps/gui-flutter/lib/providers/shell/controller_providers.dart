@@ -4,6 +4,7 @@ import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/providers/shell/bus_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 
 /// Starts once on desktop after engine+library buses exist.
@@ -23,8 +24,9 @@ final controllerTransportProvider = FutureProvider<ControllerTransport?>((
   // Read once per (re)start — invalidate this provider when trusts change.
   final settings = await ref.read(appSettingsProvider.future);
   try {
+    final bus = await ref.watch(busTransportProvider.future);
     final controller = await ControllerTransport.start(
-      engineBuses: await engine.buses(),
+      bus: bus,
       libraryBuses: await library.buses(),
       trustedDeviceIds: List<String>.from(settings.trustedControllerDeviceIds),
     );

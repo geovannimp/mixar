@@ -1,5 +1,4 @@
 use crate::backend::create_backend;
-use crate::bus::{EngineBuses, EvtReceiver};
 use crate::callback::ConsumerCallback;
 use crate::config::EngineConfig;
 use crate::producer::{
@@ -11,8 +10,10 @@ use crate::sync::DeckControlState;
 use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::{AudioStream, Sample, StreamParams};
-use engine_api::{EvtBody, Kind, Origin};
+use engine_api::Event;
 use engine_dsp::DspEngine;
+use event_bus::EventBus;
+use event_bus::Subscriber;
 use library::{LibraryBus, LibraryManager};
 use rtrb::Producer;
 use std::sync::atomic::{AtomicU32, AtomicU64};
@@ -35,7 +36,7 @@ pub struct Engine {
     pub(crate) library: Option<Arc<Mutex<LibraryManager>>>,
     /// Optional library cmd bus for deck performance persistence (hot cues / loops).
     pub(crate) library_cmd: Option<LibraryBus>,
-    pub(crate) engine_buses: Option<EngineBuses>,
+    pub(crate) engine_buses: Option<EventBus<Event>>,
     pub(crate) master_deck: usize,
     pub(crate) deck_control: Vec<DeckControlState>,
     /// Last published `stems_ready` per deck, so the tick emits one `Updated`
@@ -112,13 +113,13 @@ impl Engine {
         })
     }
 
-    /// Attach host-owned omnibus buses (clones stored on the engine).
-    pub fn set_buses(&mut self, buses: EngineBuses) {
+    /// Attach the host-owned bus (a clone is stored on the engine).
+    pub fn set_buses(&mut self, buses: EventBus<Event>) {
         self.engine_buses = Some(buses);
     }
 
-    /// Clone of attached buses, if any.
-    pub fn buses(&self) -> Option<EngineBuses> {
+    /// Clone of the attached bus, if any.
+    pub fn buses(&self) -> Option<EventBus<Event>> {
         self.engine_buses.clone()
     }
 
@@ -127,25 +128,27 @@ impl Engine {
         self.library.clone()
     }
 
-    fn require_buses(&self) -> Result<&EngineBuses> {
+    fn require_buses(&self) -> Result<&EventBus<Event>> {
         self.engine_buses
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("engine buses not attached; call set_buses first"))
     }
 
-    /// Fire-and-forget publish of a command (nested `CmdBody` bytes in payload).
-    pub fn publish_cmd(&self, origin: Origin, kind: Kind, body: impl AsRef<[u8]>) -> Result<()> {
-        self.require_buses()?.publish_cmd(origin, kind, body)
+    /// Fire-and-forget publish of a command.
+    pub fn publish_cmd(&self, event: Event) -> Result<()> {
+        self.require_buses()?.publish_cmd(event)?;
+        Ok(())
     }
 
-    /// Encode `EvtBody`, bump revision, publish on the evt bus.
-    pub fn publish_evt(&self, origin: Origin, kind: Kind, body: EvtBody) -> Result<()> {
-        self.require_buses()?.publish_evt(origin, kind, body)
+    /// Publish an egress event.
+    pub fn publish_evt(&self, event: Event) -> Result<()> {
+        self.require_buses()?.publish_evt(event)?;
+        Ok(())
     }
 
-    /// Subscribe to all egress events (host bridge / MIDI).
-    pub fn subscribe_evt_all(&self) -> Result<EvtReceiver> {
-        self.require_buses()?.subscribe_evt_all()
+    /// Subscribe to every egress event (host bridge / controller feedback).
+    pub fn subscribe_evt_all(&self) -> Result<Subscriber<Event>> {
+        Ok(self.require_buses()?.subscribe_evt()?)
     }
 
     /// Whether [`Self::start`] has opened streams (producer running).
