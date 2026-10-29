@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -100,6 +101,23 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         _resetDrawerTuck();
         unawaited(_showDrawer(settings.libraryDrawerSide));
       }
+    });
+
+    // Docked library: a deck action (cover click) scrolls the compact pane to
+    // the library instead of opening a drawer that does not exist here.
+    ref.listen(libraryRevealProvider, (_, _) {
+      if (drawerMode || !_compactScroll.hasClients) {
+        return;
+      }
+      final target = math.min(
+        deckRowHeight + theme.style.borderWidth,
+        _compactScroll.position.maxScrollExtent,
+      );
+      _compactScroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
     });
 
     // Invisible chrome; keep a grab hit-area (was library divider:none).

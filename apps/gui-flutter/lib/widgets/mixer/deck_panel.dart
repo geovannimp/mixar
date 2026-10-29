@@ -6,7 +6,6 @@ import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/utils/deck_cue_hold_session.dart';
 import 'package:gui_flutter/core/utils/mixer_live_color.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
-import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show EngineTransport;
@@ -166,22 +165,6 @@ class DeckPanel extends ConsumerWidget {
                             context,
                             () => setDeckFxRouted(ref, deckId, routed),
                           ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _EjectLoadButton(
-                      hasTrack: hasTrack,
-                      disabled: loadDisabled,
-                      onPress: () {
-                        unawaited(
-                          _engineCmd(context, () async {
-                            if (hasTrack) {
-                              await unloadDeck(ref, deckId);
-                              return;
-                            }
-                            await pickTrackForDeck(ref, deckId);
-                          }),
                         );
                       },
                     ),
@@ -364,35 +347,6 @@ class _DeckPlayButton extends ConsumerWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _EjectLoadButton extends StatelessWidget {
-  const new({
-    required this.onPress,
-    required this.hasTrack,
-    this.disabled = false,
-  });
-
-  final VoidCallback onPress;
-  final bool disabled;
-  final bool hasTrack;
-
-  @override
-  Widget build(BuildContext context) {
-    final tip = hasTrack ? 'Eject track' : 'Load track';
-    return AppTooltip(
-      tip: tip,
-      child: MixerButton(
-        variant: .outline,
-        size: .xs,
-        mainAxisSize: .min,
-        onPress: disabled ? null : onPress,
-        semanticsLabel: tip,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        child: Icon(hasTrack ? LucideIcons.eject : LucideIcons.fileInput),
       ),
     );
   }

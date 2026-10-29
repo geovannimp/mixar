@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:gui_flutter/core/utils/track_drag.dart';
@@ -139,16 +138,3 @@ Future<void> loadPayloadToDeck(
   int deckId,
   TrackDragPayload payload,
 ) => loadPayloadOntoDeck(ref.read, deckId, payload);
-
-Future<void> pickTrackForDeck(WidgetRef ref, int deckId) async {
-  final result = await FilePicker.pickFiles(
-    type: FileType.custom,
-    allowMultiple: false,
-    allowedExtensions: supportedAudioExtensions,
-  );
-  final path = result?.files.firstOrNull?.path;
-  if (path == null || path.isEmpty) {
-    return;
-  }
-  await loadPayloadToDeck(ref, deckId, payloadFromOsPath(path));
-}

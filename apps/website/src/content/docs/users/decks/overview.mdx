@@ -11,7 +11,7 @@ A deck is one player: a track, a transport, a tempo column, and a performance su
 
 | Part | What it holds |
 | --- | --- |
-| Header | Deck letter, gain details, master, **Q**, **S**, **FX**, eject/load |
+| Header | Deck letter, gain details, master, **Q**, **S**, **FX** |
 | Track info | Artwork, title, artist, key, times, and the overview strip |
 | Performance panel | **Pads**, **Loop**, **Grid** and **Jog** tabs |
 | Tempo column | BPM, pitch, sync status, tempo fader, tempo range |
@@ -21,8 +21,8 @@ The tempo column faces the mixer: it sits on the right edge of decks A and C, an
 
 ## Track info
 
-- 64 px artwork, with a disc icon when the track has no cover.
-- Title, falling back to the file name. An empty deck reads **No track loaded** over **Drop or load a track**.
+- 64 px artwork, with a disc icon when the track has no cover. The cover is also the deck's load surface; see [Cover actions](#cover-actions).
+- Title, falling back to the file name. An empty deck reads **No track loaded** over **Drop a track or click the cover**.
 - Artist, or **—** when the file has none.
 - Key chip with a lock icon, which is the key lock control.
 - Time left as `-m:ss.t` on the left, total duration as `m:ss.t` on the right.
@@ -39,9 +39,19 @@ The header row scrolls sideways when the deck is narrow, so the last keys stay r
 | **Q** | Quantize: "Snap cues, loops, and hot cues to the beat grid." |
 | **S** | Slip: a shadow playhead keeps moving through loops and scratch, then catches up |
 | **FX** | Routes the deck through the shared effect unit, see [Beat FX](/docs/users/mixer/beat-fx) |
-| **Load track** / **Eject track** | Opens the picker, or clears the deck |
 
 The gain popover is titled **Gain** and lists **Loudness**, **ReplayGain**, **Auto gain**, **Gain trim**, and **Total gain**.
+
+## Cover actions
+
+Loading and unloading belong to the track, so they sit on the artwork instead of taking a header key:
+
+- **Empty deck — click the cover** to open the library. The cover is a ghost button filling the whole square: a plus that takes a ghost wash on hover. Pick the track in the library and drag it onto the deck.
+- **Loaded deck — hover or tab to the cover** and the eject chip in its corner grows until it fills the cover: the whole artwork becomes the unload button. Clicking it clears the deck. The library entry, cues, loops and beat grid stay; you are unloading the player, not the track.
+- **Playing deck — unload asks first.** Clearing a live deck is audible, so the click opens **Unload Deck A?** with **Cancel** and **Unload**; the track keeps playing until you confirm.
+- **Drag over the deck** to load without opening anything. While a library row or an audio file is over the deck, the card's border lights up and the cover shows a drop icon. Drops, like unload, need a running engine — a stopped engine installs no drop target.
+
+With the library docked, opening it scrolls the library pane into view; in drawer mode it opens the drawer. Unload needs a running engine and dims while it is stopped or a load is in flight — opening the library never does.
 
 ## Performance tabs
 
@@ -61,8 +71,8 @@ The surfaces need a loaded track before their controls work, but the selected ta
 Three ways, all landing on the same deck:
 
 - Drag a row from the library onto the deck.
-- Press **Load track** and pick a file. The picker accepts the same formats the library imports: `mp3`, `flac`, `wav`, `aiff`, `aif`, `ogg`, `m4a`, `aac`, `opus`, `wma`, `alac`.
-- Drop an audio file from the desktop onto the deck. This OS drop is switched off while the library drawer is open, so a file cannot land on a deck hidden under it; a drop with nothing playable reports "No supported audio files in drop".
+- Click the cover, then drag (or double-click) a track from the library onto the deck.
+- Drop an audio file from the desktop onto the deck. The drop accepts the same formats the library imports: `mp3`, `flac`, `wav`, `aiff`, `aif`, `ogg`, `m4a`, `aac`, `opus`, `wma`, `alac`. This OS drop is switched off while the library drawer is open, so a file cannot land on a deck hidden under it; a drop with nothing playable reports "No supported audio files in drop".
 
 While a track loads, the track info shimmers, the BPM readout shows `000.00`, and the transport stays disabled.
 
@@ -74,7 +84,7 @@ While a track loads, the track info shimmers, the BPM readout shows `000.00`, an
 
 | Page | What it covers |
 | --- | --- |
-| [Transport](/docs/users/decks/transport) | Play, cue, eject, vinyl brake |
+| [Transport](/docs/users/decks/transport) | Play, cue, cover eject, vinyl brake |
 | [Tempo and sync](/docs/users/decks/tempo-and-sync) | Fader, range, sync, key lock |
 | [Loops](/docs/users/decks/loops) | Auto loops, manual in/out, saved loops |
 | [Beat grid](/docs/users/decks/beat-grid) | BPM and downbeat correction |

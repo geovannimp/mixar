@@ -20,6 +20,7 @@ import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_grid.dart';
 import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
@@ -225,6 +226,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('the deck cover scrolls the docked library into view', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      size: const Size(1024, 600),
+      settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
+    );
+    // A short window leaves the docked library below the fold.
+    expect(
+      tester.getBottomLeft(find.byType(LibraryPanel)).dy,
+      greaterThan(600),
+    );
+
+    await tester.tap(find.byType(DeckCover).first);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getBottomLeft(find.byType(LibraryPanel)).dy,
+      lessThanOrEqualTo(600),
+      reason: 'opening the library from the cover must bring it on screen',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('pad scrolling stays isolated from library drag scrolling', (
     tester,
   ) async {
@@ -348,7 +374,7 @@ void main() {
     expect(find.text('Engine running'), findsNothing);
     expect(find.text('No track loaded'), findsWidgets);
     expect(find.text('Q'), findsWidgets);
-    expect(find.text('Drop or load a track'), findsWidgets);
+    expect(find.text('Drop a track or click the cover'), findsWidgets);
     expect(find.byKey(const ValueKey('mixer-panel-toggle')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('crossfader-panel-toggle')),
