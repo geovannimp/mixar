@@ -61,9 +61,10 @@ class Application extends ConsumerWidget {
       builder: (context, child) {
         final dark = Theme.brightnessOf(context) == Brightness.dark;
         final data = dark ? MixarThemeData.dark() : MixarThemeData.light();
-        return DesktopChrome(
-          child: MixarTheme(
-            data: data,
+        // Theme first: the window chrome paints its frame from Mixar tokens.
+        return MixarTheme(
+          data: data,
+          child: DesktopChrome(
             child: ShadTheme(
               data: dark ? _shadDark : _shadLight,
               child: child!,
