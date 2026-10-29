@@ -4,8 +4,8 @@ import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -192,21 +192,18 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
     final ready = !_loading && usage != null;
     final clearEnabled = ready && !_busy;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 16,
-      children: [
-        SettingsSectionHeader(
-          title: l10n.settingsSectionStorage,
-          description: l10n.settingsStorageDescription,
-        ),
-        if (_error != null)
-          Text(
-            _error!,
-            style: theme.typography.body.sm.copyWith(
-              color: theme.colors.destructive,
+    return SettingsSectionBody(
+      title: l10n.settingsSectionStorage,
+      description: l10n.settingsStorageDescription,
+      before: _error == null
+          ? null
+          : Text(
+              _error!,
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.destructive,
+              ),
             ),
-          ),
+      cards: [
         SettingsSectionCard(
           title: l10n.settingsStorageOverviewTitle,
           subtitle: l10n.settingsStorageOverviewDescription,

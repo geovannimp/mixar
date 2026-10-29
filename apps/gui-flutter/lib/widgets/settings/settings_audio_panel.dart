@@ -9,8 +9,8 @@ import 'package:gui_flutter/widgets/settings/settings_bus_route_fields.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -37,14 +37,10 @@ class SettingsAudioPanel extends ConsumerWidget {
     final devicesAsync = ref.watch(audioDevicesProvider);
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 16,
-      children: [
-        SettingsSectionHeader(
-          title: l10n.settingsSectionAudio,
-          description: l10n.settingsAudioDescription,
-        ),
+    return SettingsSectionBody(
+      title: l10n.settingsSectionAudio,
+      description: l10n.settingsAudioDescription,
+      cards: [
         SettingsSectionCard(
           title: l10n.settingsAudioEngineTitle,
           subtitle: l10n.settingsAudioEngineDescription,

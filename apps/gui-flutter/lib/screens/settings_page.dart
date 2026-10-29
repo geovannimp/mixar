@@ -197,16 +197,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 672),
-                        child: _SettingsSectionPanel(
-                          section: _section,
-                          draft: draft,
-                          highlightPreviewBus: _highlightPreviewBus,
-                          previewBusCardKey: _previewBusCardKey,
-                          onChanged: (next) => setState(() => _draft = next),
-                        ),
+                      // Full-bleed width: the panel owns the header inset and
+                      // lets its cards run to the pane edges.
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: _SettingsSectionPanel(
+                        section: _section,
+                        draft: draft,
+                        highlightPreviewBus: _highlightPreviewBus,
+                        previewBusCardKey: _previewBusCardKey,
+                        onChanged: (next) => setState(() => _draft = next),
                       ),
                     ),
                   ),

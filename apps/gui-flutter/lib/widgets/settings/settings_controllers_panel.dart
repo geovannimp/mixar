@@ -6,8 +6,8 @@ import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/controller_mapping_row.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -69,14 +69,10 @@ class _SettingsControllersPanelState
     final devices = ref.watch(controllerDevicesProvider);
     final attachedIds = ref.watch(attachedMappingIdsProvider);
     final transport = ref.watch(controllerTransportProvider).value;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 16,
-      children: [
-        SettingsSectionHeader(
-          title: l10n.settingsSectionControllers,
-          description: l10n.settingsControllersDescription,
-        ),
+    return SettingsSectionBody(
+      title: l10n.settingsSectionControllers,
+      description: l10n.settingsControllersDescription,
+      cards: [
         SettingsSectionCard(
           title: l10n.settingsControllersMappingsTitle,
           subtitle: l10n.settingsControllersMappingsDescription,

@@ -4,8 +4,8 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -19,14 +19,10 @@ class SettingsSessionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 16,
-      children: [
-        SettingsSectionHeader(
-          title: l10n.settingsSectionSession,
-          description: l10n.settingsSessionDescription,
-        ),
+    return SettingsSectionBody(
+      title: l10n.settingsSectionSession,
+      description: l10n.settingsSessionDescription,
+      cards: [
         SettingsSectionCard(
           title: l10n.settingsSessionHistoryTitle,
           subtitle: l10n.settingsSessionHistoryDescription,
