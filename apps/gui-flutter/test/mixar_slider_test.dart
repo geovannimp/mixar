@@ -1,5 +1,8 @@
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -134,4 +137,103 @@ void main() {
       reason: 'outside a drag the model is authoritative',
     );
   });
+
+  testWidgets('reserves the thumb height so the card body cannot crop it', (
+    tester,
+  ) async {
+    const sliderWidth = 200.0;
+    final theme = MixarThemeData.dark();
+    final captureKey = GlobalKey();
+    // The real settings card clips its body to the body's content box
+    // (ClipRect + SizeTransition), so anything a field paints outside its
+    // layout box is lost: the session card cut the deck-volume thumb at the
+    // track's bottom edge.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: RepaintBoundary(
+            key: captureKey,
+            child: SettingsSectionCard(
+              title: 'Slider',
+              subtitle: 'Thumb crop',
+              child: SizedBox(
+                width: sliderWidth,
+                child: MixarSlider(value: 0.5, onChanged: (_) {}),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(find.byType(MixarSlider));
+    expect(
+      rect.height,
+      28,
+      reason: 'the 20px thumb plus 8px of focus ring must fit the box',
+    );
+
+    // Keyboard focus is the tallest paint: the ring adds 4 px on every side of
+    // the thumb, so asserting the focused frame also covers a reservation that
+    // only fits the bare thumb.
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widgetList<Focus>(
+            find.descendant(
+              of: find.byType(ShadSlider),
+              matching: find.byType(Focus),
+            ),
+          )
+          .any((focus) => focus.focusNode?.hasFocus ?? false),
+      isTrue,
+      reason: 'Tab must focus the slider to paint its focus ring',
+    );
+
+    final boundary =
+        captureKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    // Rasterizing needs the real event loop; toImage deadlocks inside the
+    // fake-async zone tester.runAsync would otherwise keep. Rows and stride
+    // come from the image, not the render box, so a non-1 device pixel ratio
+    // cannot shift the sampling window.
+    final raster = await tester.runAsync(() async {
+      final image = await boundary.toImage();
+      try {
+        final data = await image.toByteData();
+        return (rgba: data!.buffer.asUint8List(), width: image.width);
+      } finally {
+        image.dispose();
+      }
+    });
+    final rgba = raster!.rgba;
+    final stride = raster.width * 4;
+    final left = rect.left.toInt() * 4;
+    final right = rect.right.toInt() * 4;
+    final paintedRows = <int>{
+      for (var y = rect.top.toInt(); y < rect.bottom.toInt(); y++)
+        if (_hasThumbPixel(rgba, y * stride + left, right - left)) y,
+    };
+    expect(
+      paintedRows.length,
+      greaterThanOrEqualTo(26),
+      reason: 'the focused thumb and ring span the whole box: $paintedRows',
+    );
+  });
+}
+
+/// Mixar's accent (`MixarTeal.s600`), the slider's active track and thumb ring.
+bool _hasThumbPixel(Uint8List rgba, int offset, int stride) {
+  for (var i = offset; i < offset + stride; i += 4) {
+    final r = rgba[i];
+    final g = rgba[i + 1];
+    final b = rgba[i + 2];
+    if (g > 150 && b > 130 && r < 90) {
+      return true;
+    }
+  }
+  return false;
 }
