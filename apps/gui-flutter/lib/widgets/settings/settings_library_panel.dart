@@ -7,8 +7,8 @@ import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 
 class SettingsLibraryPanel extends StatelessWidget {
@@ -119,14 +119,10 @@ class SettingsLibraryPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 16,
-      children: [
-        SettingsSectionHeader(
-          title: l10n.settingsSectionLibrary,
-          description: l10n.settingsLibraryDescription,
-        ),
+    return SettingsSectionBody(
+      title: l10n.settingsSectionLibrary,
+      description: l10n.settingsLibraryDescription,
+      cards: [
         SettingsSectionCard(
           title: l10n.settingsLibraryAnalysisTitle,
           subtitle: l10n.settingsLibraryAnalysisDescription,

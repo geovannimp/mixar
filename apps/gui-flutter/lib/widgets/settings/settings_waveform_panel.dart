@@ -3,8 +3,8 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 
 class SettingsWaveformPanel extends StatelessWidget {
@@ -16,14 +16,10 @@ class SettingsWaveformPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 16,
-      children: [
-        SettingsSectionHeader(
-          title: l10n.settingsSectionWaveform,
-          description: l10n.settingsWaveformDescription,
-        ),
+    return SettingsSectionBody(
+      title: l10n.settingsSectionWaveform,
+      description: l10n.settingsWaveformDescription,
+      cards: [
         SettingsSectionCard(
           title: l10n.settingsWaveformDisplayTitle,
           subtitle: l10n.settingsWaveformDisplayDescription,

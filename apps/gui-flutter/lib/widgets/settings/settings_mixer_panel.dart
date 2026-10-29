@@ -5,8 +5,8 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 
 class SettingsMixerPanel extends StatelessWidget {
@@ -18,14 +18,10 @@ class SettingsMixerPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 16,
-      children: [
-        SettingsSectionHeader(
-          title: l10n.settingsSectionMixer,
-          description: l10n.settingsMixerDescription,
-        ),
+    return SettingsSectionBody(
+      title: l10n.settingsSectionMixer,
+      description: l10n.settingsMixerDescription,
+      cards: [
         SettingsSectionCard(
           title: l10n.settingsMixerNormalizerTitle,
           subtitle: l10n.settingsMixerNormalizerDescription,
