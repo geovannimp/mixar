@@ -36,11 +36,10 @@ Finder get _windowFrame => find.byWidgetPredicate(
 /// Runs [body] as a desktop Linux host whose window reports [maximized].
 ///
 /// [DesktopChrome] queries window_manager, which has no host in widget tests.
-Future<void> withDesktopChrome(
+Future<void> withWindowHost(
   WidgetTester tester, {
   required bool maximized,
-  required MixarThemeData theme,
-  Future<void> Function()? body,
+  required Future<void> Function() body,
 }) async {
   debugDefaultTargetPlatformOverride = TargetPlatform.linux;
   debugOverrideDesktopWindow = true;
@@ -51,19 +50,23 @@ Future<void> withDesktopChrome(
           (call) async => call.method == 'isMaximized' ? maximized : null,
         );
   try {
-    await tester.pumpWidget(
-      mixarTestMaterialApp(
-        theme: theme,
-        home: const DesktopChrome(child: ColoredBox(color: Color(0xFF102030))),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await body?.call();
+    await body();
   } finally {
     messenger.setMockMethodCallHandler(_windowManagerChannel, null);
     debugDefaultTargetPlatformOverride = null;
     debugOverrideDesktopWindow = null;
   }
+}
+
+/// Pumps the chrome; [theme] `null` mounts it outside any [MixarTheme].
+Future<void> pumpChrome(WidgetTester tester, {MixarThemeData? theme}) async {
+  const chrome = DesktopChrome(child: ColoredBox(color: Color(0xFF102030)));
+  await tester.pumpWidget(
+    theme == null
+        ? const MaterialApp(home: chrome)
+        : mixarTestMaterialApp(theme: theme, home: chrome),
+  );
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -101,11 +104,11 @@ void main() {
   for (final theme in [MixarThemeData.dark(), MixarThemeData.light()]) {
     testWidgets('the window frame is the section hairline '
         '(${theme.colors.brightness.name})', (tester) async {
-      await withDesktopChrome(
+      await withWindowHost(
         tester,
         maximized: false,
-        theme: theme,
         body: () async {
+          await pumpChrome(tester, theme: theme);
           // Same colour and width as MCard, MDivider and every pane split,
           // so the window edge reads as one more section border.
           final frame = tester.widget<DecoratedBox>(_windowFrame);
@@ -131,11 +134,28 @@ void main() {
   }
 
   testWidgets('a maximized window drops the frame', (tester) async {
-    await withDesktopChrome(
+    await withWindowHost(
       tester,
       maximized: true,
-      theme: MixarThemeData.dark(),
       body: () async {
+        await pumpChrome(tester, theme: MixarThemeData.dark());
+        expect(_windowFrame, findsNothing);
+      },
+    );
+  });
+
+  testWidgets('without a MixarTheme it clips but paints no frame', (
+    tester,
+  ) async {
+    // A host that mounts the chrome outside the app's tree has no tokens to
+    // stroke with; it must degrade, not fail on the missing ancestor.
+    await withWindowHost(
+      tester,
+      maximized: false,
+      body: () async {
+        await pumpChrome(tester);
+        expect(tester.takeException(), isNull);
+        expect(find.byType(ClipRRect), findsOneWidget);
         expect(_windowFrame, findsNothing);
       },
     );

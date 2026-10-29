@@ -28,9 +28,9 @@ bool get isRoundedDesktopChrome =>
 /// when maximized, and are absent on every host except Linux — see
 /// [isRoundedDesktopChrome].
 ///
-/// On those hosts it must sit under a [MixarTheme]: the frame is painted with
-/// the theme's `colors.border` and `style.borderWidth`, the same pair every
-/// card and divider uses.
+/// The frame is painted with the `colors.border` / `style.borderWidth` tokens
+/// of the enclosing [MixarTheme], the same pair every card and divider uses.
+/// Without one it still clips, it just has no tokens to stroke with.
 class DesktopChrome extends StatefulWidget {
   const new({required this.child, super.key});
 
@@ -78,7 +78,10 @@ class _DesktopChromeState extends State<DesktopChrome> with WindowListener {
     if (!isDesktopWindow || !isRoundedDesktopChrome) {
       return widget.child;
     }
-    final theme = context.theme;
+    // Hosts outside the app's tree (widget tests, future embed points) may not
+    // supply MixarTheme. There are no tokens to paint the frame with then, so
+    // keep the bare clip instead of failing on the missing ancestor.
+    final theme = MixarTheme.maybeOf(context);
     // Maximized windows square off and drop the frame: a stroke there would
     // ring the screen edge rather than the window.
     final radius = _maximized
@@ -87,23 +90,21 @@ class _DesktopChromeState extends State<DesktopChrome> with WindowListener {
             topLeft: Radius.circular(kDesktopWindowRadius),
             topRight: Radius.circular(kDesktopWindowRadius),
           );
+    // The frame is the same hairline as every section (cards, dividers): the
+    // window edge against the desktop is a section border too.
+    final border = theme == null || _maximized
+        ? null
+        : Border.all(
+            color: theme.colors.border,
+            width: theme.style.borderWidth,
+          );
     return ClipRRect(
       borderRadius: radius,
-      // The frame is the same hairline as every section (cards, dividers): the
-      // window edge against the desktop is a section border too.
       child: DecoratedBox(
         // Foreground: the shell paints an opaque background, so a stroke drawn
         // behind it would never show.
         position: DecorationPosition.foreground,
-        decoration: BoxDecoration(
-          border: _maximized
-              ? null
-              : Border.all(
-                  color: theme.colors.border,
-                  width: theme.style.borderWidth,
-                ),
-          borderRadius: radius,
-        ),
+        decoration: BoxDecoration(border: border, borderRadius: radius),
         child: widget.child,
       ),
     );
