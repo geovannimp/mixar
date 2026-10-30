@@ -101,6 +101,30 @@ DeckUpdated deckUpdated({
   samplerSlots: samplerSlots,
 );
 
+/// One `DeckUpdated` bus event for a loaded deck carrying one sampler pad.
+///
+/// Sampler chrome is host state, so the tests that pin how it survives (or is
+/// cleared by) a hydrate all start from this shape.
+Event deckWithSamplerSlotEvent({
+  int deck = 0,
+  String label = 'kick',
+  String? path = '/samples/kick.wav',
+  int? durationMs = 250,
+  String? activeSamplerBankId,
+}) => deckUpdatedEvent(
+  deck: deck,
+  update: deckUpdated(
+    deck: deck,
+    trackPath: '/song.wav',
+    trackId: 't1',
+    durationMs: 1000,
+    activeSamplerBankId: activeSamplerBankId,
+    samplerSlots: [
+      SamplerSlotInfo(label: label, path: path, durationMs: durationMs),
+    ],
+  ),
+);
+
 /// The shared FX unit's boot state: one armed-off Echo slot.
 final defaultFxSlots = <FxSlotState>[
   FxSlotState(

@@ -2,8 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
-import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
-    show DeckEq, SamplerSlotInfo;
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show DeckEq;
 
 import 'support/bus_events.dart';
 
@@ -369,21 +368,7 @@ void main() {
     test('updated stores sampler bank id and slot chrome', () {
       final snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(
-            deck: 0,
-            durationMs: 1000,
-            activeSamplerBankId: 'bank-1',
-            samplerSlots: const [
-              SamplerSlotInfo(
-                label: 'kick',
-                path: '/samples/kick.wav',
-                durationMs: 250,
-              ),
-            ],
-          ),
-        ),
+        deckWithSamplerSlotEvent(activeSamplerBankId: 'bank-1'),
       );
       expect(snap.activeSamplerBankIdFor(0), 'bank-1');
       expect(snap.samplerSlotsFor(0).single.label, 'kick');
@@ -394,19 +379,7 @@ void main() {
     test('unload clears sampler bank and slots with the deck', () {
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(
-            deck: 0,
-            trackPath: '/song.wav',
-            trackId: 't1',
-            durationMs: 1000,
-            activeSamplerBankId: 'bank-1',
-            samplerSlots: const [
-              SamplerSlotInfo(label: 'kick', path: '/samples/kick.wav'),
-            ],
-          ),
-        ),
+        deckWithSamplerSlotEvent(activeSamplerBankId: 'bank-1'),
       );
       expect(snap.activeSamplerBankIdFor(0), 'bank-1');
       // A null duration is the engine's unloaded snapshot: the bank and the
@@ -427,18 +400,7 @@ void main() {
       // would clear every pad label on any crossfader move.
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(
-            deck: 0,
-            trackPath: '/song.wav',
-            trackId: 't1',
-            durationMs: 1000,
-            samplerSlots: const [
-              SamplerSlotInfo(label: 'kick', path: '/samples/kick.wav'),
-            ],
-          ),
-        ),
+        deckWithSamplerSlotEvent(),
       );
       expect(snap.samplerSlotsFor(0).single.label, 'kick');
 
@@ -458,20 +420,30 @@ void main() {
     test('an unloaded deck in a snapshot still clears its chrome', () {
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(
-            deck: 0,
-            trackPath: '/song.wav',
-            trackId: 't1',
-            durationMs: 1000,
-            samplerSlots: const [SamplerSlotInfo(label: 'kick')],
-          ),
-        ),
+        deckWithSamplerSlotEvent(),
       );
       snap = applyEngineEvent(
         snap,
         engineSnapshotEvent(decks: [deckSnapshot(deck: 0)]),
+      );
+      expect(snap.samplerSlotsFor(0), isEmpty);
+    });
+
+    test('a host-stamped empty list clears a loaded deck chrome', () {
+      // Bank load and clear_sampler publish a loaded deck whose slot list is
+      // empty; that must clear, unlike a snapshot that simply cannot carry one.
+      var snap = applyEngineEvent(
+        EngineUiSnapshot.empty,
+        deckWithSamplerSlotEvent(),
+      );
+      expect(snap.samplerSlotsFor(0), isNotEmpty);
+
+      snap = applyEngineEvent(
+        snap,
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(deck: 0, trackId: 't1', durationMs: 1000),
+        ),
       );
       expect(snap.samplerSlotsFor(0), isEmpty);
     });
