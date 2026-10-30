@@ -528,13 +528,27 @@ EngineUiSnapshot _applyEngineSnapshot(
   for (final deck in status.decks) {
     // The snapshot's decks are full deck snapshots too, so they go through the
     // same path as a live update; the deck's own id wins over the field.
-    next = _applyDeckUpdate(next, _updateFromSnapshot(deck));
+    //
+    // Sampler pad chrome is host UI state the engine snapshot cannot carry, so
+    // keep what the mirror already has: wiping it here would clear every pad
+    // label on any mixer change (a crossfader move publishes a snapshot). A
+    // genuine clear still arrives as a host-stamped `DeckUpdated`.
+    next = _applyDeckUpdate(
+      next,
+      _updateFromSnapshot(deck, samplerSlots: prev.samplerSlotsFor(deck.id)),
+    );
   }
   return next;
 }
 
 /// Deck snapshot in the shape a live `DeckUpdated` carries.
-bus.DeckUpdated _updateFromSnapshot(bus.DeckSnapshot deck) => bus.DeckUpdated(
+///
+/// Sampler pad chrome is not part of a deck snapshot; the caller passes what the
+/// mirror should keep for that deck.
+bus.DeckUpdated _updateFromSnapshot(
+  bus.DeckSnapshot deck, {
+  required List<SamplerSlotInfo> samplerSlots,
+}) => bus.DeckUpdated(
   deck: deck.id,
   track: deck.track,
   trackId: deck.trackId,
@@ -582,7 +596,7 @@ bus.DeckUpdated _updateFromSnapshot(bus.DeckSnapshot deck) => bus.DeckUpdated(
   topJogMode: deck.topJogMode,
   outerJogMode: deck.outerJogMode,
   jogTouching: deck.jogTouching,
-  samplerSlots: const [],
+  samplerSlots: samplerSlots,
 );
 
 /// Value comparison for published FX slots; see the `nextFxSlots` note above.

@@ -421,6 +421,61 @@ void main() {
       expect(snap.samplerSlotsFor(0), isEmpty);
     });
 
+    test('a mixer snapshot keeps the sampler chrome it cannot carry', () {
+      // Pad chrome is host UI state: the engine snapshot has no slot to put it
+      // in, so hydrating must keep what the mirror already shows. Wiping it here
+      // would clear every pad label on any crossfader move.
+      var snap = applyEngineEvent(
+        EngineUiSnapshot.empty,
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(
+            deck: 0,
+            trackPath: '/song.wav',
+            trackId: 't1',
+            durationMs: 1000,
+            samplerSlots: const [
+              SamplerSlotInfo(label: 'kick', path: '/samples/kick.wav'),
+            ],
+          ),
+        ),
+      );
+      expect(snap.samplerSlotsFor(0).single.label, 'kick');
+
+      snap = applyEngineEvent(
+        snap,
+        engineSnapshotEvent(
+          crossfader: 0.2,
+          decks: [deckSnapshot(deck: 0, trackId: 't1', durationMs: 1000)],
+        ),
+      );
+
+      expect(snap.crossfader, 0.2);
+      expect(snap.samplerSlotsFor(0).single.label, 'kick');
+      expect(snap.samplerSlotsFor(0).single.path, '/samples/kick.wav');
+    });
+
+    test('an unloaded deck in a snapshot still clears its chrome', () {
+      var snap = applyEngineEvent(
+        EngineUiSnapshot.empty,
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(
+            deck: 0,
+            trackPath: '/song.wav',
+            trackId: 't1',
+            durationMs: 1000,
+            samplerSlots: const [SamplerSlotInfo(label: 'kick')],
+          ),
+        ),
+      );
+      snap = applyEngineEvent(
+        snap,
+        engineSnapshotEvent(decks: [deckSnapshot(deck: 0)]),
+      );
+      expect(snap.samplerSlotsFor(0), isEmpty);
+    });
+
     test('updated forwards stemsReady stemsLive mute and isolate', () {
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
