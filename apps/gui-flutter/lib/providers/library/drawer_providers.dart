@@ -39,7 +39,8 @@ final libraryDrawerSizeProvider =
 /// launch, like the `panes` split sizes.
 ///
 /// A track drag closes it (see `showLibraryDrawer`) and nothing reopens it —
-/// the header toggle is the way back.
+/// the header toggle is the way back. A deck load closes it too, whichever
+/// path asked for the load (`loadPayloadOntoDeck`).
 class LibraryDrawerOpen extends Notifier<bool> {
   @override
   bool build() => false;
@@ -72,8 +73,8 @@ final libraryRevealProvider = NotifierProvider<LibraryReveal, int>(
 /// Brings the library into view for a deck action such as a cover click.
 ///
 /// Whichever layout is on: the drawer opens, or the docked pane scrolls to the
-/// library. Loading itself still happens in the library (drag or double-click
-/// onto the deck).
+/// library. Loading itself still happens in the library (a row is dragged, or
+/// its Load to deck menu used, onto the deck).
 void openLibrary(WidgetRef ref) {
   if (_drawerMode(ref.read(appSettingsProvider).asData?.value)) {
     ref.read(libraryDrawerOpenProvider.notifier).set(true);

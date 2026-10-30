@@ -7,8 +7,10 @@ import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
+import 'package:gui_flutter/providers/library/focused_load.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
@@ -26,6 +28,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
 
 import 'helpers/collection_tracks_override.dart';
+import 'helpers/recording_deck_load_transport.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -473,6 +476,44 @@ void main() {
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(find.byType(LibraryPanel), findsOneWidget);
+  });
+
+  testWidgets('a controller load closes the drawer', (tester) async {
+    final transport = RecordingDeckLoadTransport();
+    await pumpSized(
+      tester,
+      size: const Size(1200, 800),
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+      extra: [deckLoadTransportProvider.overrideWith((ref) async => transport)],
+      child: const MixerPage(),
+    );
+
+    final container = mixerContainer(tester);
+    // The shell watches this in the app; here nothing else does, so keep it
+    // alive for the request to be consumed.
+    final bootstrap = container.listen(
+      focusedDeckLoadBootstrapProvider,
+      (_, _) {},
+    );
+    addTearDown(bootstrap.close);
+
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+
+    // The DDJ-400's load button takes the focused row, not a drag, so nothing
+    // else would dismiss the panel over the deck it just loaded. The list
+    // publishes that row while the drawer is up, so the request resolves it.
+    container.read(pendingFocusedDeckLoadProvider.notifier).request(0);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LibraryPanel), findsNothing);
+    expect(container.read(libraryDrawerOpenProvider), isFalse);
+    expect(transport.libraryLoads, [(0, 't1')]);
+    expect(container.read(engineUiProvider).trackIdFor(0), 't1');
   });
 
   testWidgets('the drawer stays below the app header', (tester) async {
