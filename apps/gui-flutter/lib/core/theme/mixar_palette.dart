@@ -86,3 +86,67 @@ abstract final class MixarAmber {
   static const s900 = Color(0xFF78350F);
   static const s950 = Color(0xFF451A03);
 }
+
+/// Blue scale — accent palette option.
+abstract final class MixarBlue {
+  static const s50 = Color(0xFFEFF6FF);
+  static const s100 = Color(0xFFDBEAFE);
+  static const s200 = Color(0xFFBFDBFE);
+  static const s300 = Color(0xFF93C5FD);
+  static const s400 = Color(0xFF60A5FA);
+  static const s500 = Color(0xFF3B82F6);
+  static const s600 = Color(0xFF2563EB);
+  static const s700 = Color(0xFF1D4ED8);
+  static const s800 = Color(0xFF1E40AF);
+  static const s900 = Color(0xFF1E3A8A);
+  static const s950 = Color(0xFF172554);
+}
+
+/// Violet scale — accent palette option.
+abstract final class MixarViolet {
+  static const s50 = Color(0xFFF5F3FF);
+  static const s100 = Color(0xFFEDE9FE);
+  static const s200 = Color(0xFFDDD6FE);
+  static const s300 = Color(0xFFC4B5FD);
+  static const s400 = Color(0xFFA78BFA);
+  static const s500 = Color(0xFF8B5CF6);
+  static const s600 = Color(0xFF7C3AED);
+  static const s700 = Color(0xFF6D28D9);
+  static const s800 = Color(0xFF5B21B6);
+  static const s900 = Color(0xFF4C1D95);
+  static const s950 = Color(0xFF2E1065);
+}
+
+/// Orange scale — accent palette option.
+abstract final class MixarOrange {
+  static const s50 = Color(0xFFFFF7ED);
+  static const s100 = Color(0xFFFFEDD5);
+  static const s200 = Color(0xFFFED7AA);
+  static const s300 = Color(0xFFFDBA74);
+  static const s400 = Color(0xFFFB923C);
+  static const s500 = Color(0xFFF97316);
+  static const s600 = Color(0xFFEA580C);
+  static const s700 = Color(0xFFC2410C);
+  static const s800 = Color(0xFF9A3412);
+  static const s900 = Color(0xFF7C2D12);
+  static const s950 = Color(0xFF431407);
+}
+
+/// Pink scale — accent palette option.
+///
+/// Tailwind fuchsia, not pink: at the deep steps the picker uses for washes,
+/// pink's hue drifts to maroon (pink-950 `#500724`) and the selected row reads
+/// red. Fuchsia keeps every step on the magenta side of the hue wheel.
+abstract final class MixarPink {
+  static const s50 = Color(0xFFFDF4FF);
+  static const s100 = Color(0xFFFAE8FF);
+  static const s200 = Color(0xFFF5D0FE);
+  static const s300 = Color(0xFFF0ABFC);
+  static const s400 = Color(0xFFE879F9);
+  static const s500 = Color(0xFFD946EF);
+  static const s600 = Color(0xFFC026D3);
+  static const s700 = Color(0xFFA21CAF);
+  static const s800 = Color(0xFF86198F);
+  static const s900 = Color(0xFF701A75);
+  static const s950 = Color(0xFF4A044E);
+}

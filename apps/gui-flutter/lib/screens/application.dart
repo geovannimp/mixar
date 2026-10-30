@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/theme/shad_theme.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/ui_language.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/l10n/kit_localizations.dart';
@@ -14,16 +16,23 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Cached Material / Shad themes so [Application.build] and
 /// MaterialApp.builder do not rebuild style graphs every frame.
-final ThemeData _materialLight = materialUiThemeFromMixar(
-  MixarThemeData.light(),
-  scaffoldBackgroundColor: Colors.transparent,
-);
-final ThemeData _materialDark = materialUiThemeFromMixar(
-  MixarThemeData.dark(),
-  scaffoldBackgroundColor: Colors.transparent,
-);
-final ShadThemeData _shadLight = shadThemeFromMixar(MixarThemeData.light());
-final ShadThemeData _shadDark = shadThemeFromMixar(MixarThemeData.dark());
+final _materialThemes = <(MixarAccentPalette, Brightness), ThemeData>{};
+final _shadThemes = <(MixarAccentPalette, Brightness), ShadThemeData>{};
+
+ThemeData _materialTheme(MixarAccentPalette palette, Brightness brightness) =>
+    _materialThemes.putIfAbsent(
+      (palette, brightness),
+      () => materialUiThemeFromMixar(
+        MixarThemeData.of(palette, brightness),
+        scaffoldBackgroundColor: Colors.transparent,
+      ),
+    );
+
+ShadThemeData _shadTheme(MixarAccentPalette palette, Brightness brightness) =>
+    _shadThemes.putIfAbsent((
+      palette,
+      brightness,
+    ), () => shadThemeFromMixar(MixarThemeData.of(palette, brightness)));
 
 /// Root app: Mixar theme tokens + Shad bridge + mixer shell.
 class Application extends ConsumerWidget {
@@ -48,6 +57,14 @@ class Application extends ConsumerWidget {
       ThemeSetting.light => ThemeMode.light,
       ThemeSetting.dark => ThemeMode.dark,
     };
+    // Accent palette is resolved once, then threaded through MaterialApp's
+    // themes and the builder so both bridges stay on the same palette.
+    final palette = accentPaletteFromSettings(
+      settings.maybeWhen(
+        data: (settings) => settings.accentPalette,
+        orElse: () => AccentPaletteSetting.teal,
+      ),
+    );
 
     return MaterialApp(
       title: appTitle,
@@ -55,18 +72,19 @@ class Application extends ConsumerWidget {
       locale: locale,
       localizationsDelegates: mixarLocalizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      theme: _materialLight,
-      darkTheme: _materialDark,
+      theme: _materialTheme(palette, Brightness.light),
+      darkTheme: _materialTheme(palette, Brightness.dark),
       themeMode: themeMode,
       builder: (context, child) {
-        final dark = Theme.brightnessOf(context) == Brightness.dark;
-        final data = dark ? MixarThemeData.dark() : MixarThemeData.light();
+        final brightness = Theme.brightnessOf(context) == Brightness.dark
+            ? Brightness.dark
+            : Brightness.light;
         // Theme first: the window chrome paints its frame from Mixar tokens.
         return MixarTheme(
-          data: data,
+          data: MixarThemeData.of(palette, brightness),
           child: DesktopChrome(
             child: ShadTheme(
-              data: dark ? _shadDark : _shadLight,
+              data: _shadTheme(palette, brightness),
               child: child!,
             ),
           ),

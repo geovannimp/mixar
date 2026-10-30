@@ -5,7 +5,6 @@ import 'package:anchor_ui/anchor_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/fx_params.dart';
-import 'package:gui_flutter/core/utils/mixer_live_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show FxKind;
 import 'package:gui_flutter/widgets/mixer/master_meter_bar.dart';
@@ -314,7 +313,7 @@ class _ArmButton extends StatelessWidget {
           style: theme.typography.body.xs2.copyWith(
             fontWeight: .w600,
             letterSpacing: 1.4,
-            color: lit ? kMixerLiveOn : theme.colors.mutedForeground,
+            color: lit ? theme.colors.primary : theme.colors.mutedForeground,
           ),
         ),
       ),

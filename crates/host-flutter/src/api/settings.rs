@@ -337,6 +337,19 @@ pub enum ThemeSetting {
     Dark,
 }
 
+/// Accent palette for brand chrome (Settings → UI). Teal is the website
+/// `--accent` hue and stays the default.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AccentPaletteSetting {
+    #[default]
+    Teal,
+    Blue,
+    Violet,
+    Orange,
+    Pink,
+}
+
 /// Edge the library drawer opens from (Settings → UI).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -437,6 +450,9 @@ pub struct AppSettings {
     /// App colour theme. `system` follows the host's light/dark preference.
     #[serde(default)]
     pub theme: ThemeSetting,
+    /// Brand accent palette; only chrome re-tints, deck colours stay put.
+    #[serde(default)]
+    pub accent_palette: AccentPaletteSetting,
     /// Open the library as an overlay drawer instead of the docked panel.
     #[serde(default)]
     pub library_drawer_enabled: bool,
@@ -481,6 +497,7 @@ struct SettingsHost {
     realtime_stems: bool,
     ui_language: UiLanguageSetting,
     theme: ThemeSetting,
+    accent_palette: AccentPaletteSetting,
     library_drawer_enabled: bool,
     library_drawer_side: LibraryDrawerSideSetting,
     analytics_enabled: bool,
@@ -520,6 +537,7 @@ impl Default for SettingsHost {
             realtime_stems: false,
             ui_language: UiLanguageSetting::default(),
             theme: ThemeSetting::default(),
+            accent_palette: AccentPaletteSetting::default(),
             library_drawer_enabled: false,
             library_drawer_side: LibraryDrawerSideSetting::Bottom,
             analytics_enabled: false,
@@ -841,6 +859,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         realtime_stems: host.realtime_stems,
         ui_language: host.ui_language,
         theme: host.theme,
+        accent_palette: host.accent_palette,
         library_drawer_enabled: host.library_drawer_enabled,
         library_drawer_side: host.library_drawer_side,
         analytics_enabled: host.analytics_enabled,
@@ -893,6 +912,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.realtime_stems = settings.realtime_stems;
     host.ui_language = settings.ui_language;
     host.theme = settings.theme;
+    host.accent_palette = settings.accent_palette;
     host.library_drawer_enabled = settings.library_drawer_enabled;
     host.analytics_enabled = settings.analytics_enabled;
     host.library_drawer_side = settings.library_drawer_side;
@@ -1581,6 +1601,30 @@ mod tests {
         assert_eq!(
             settings_from_host(&load_host(&path)).theme,
             ThemeSetting::Dark
+        );
+    }
+
+    #[test]
+    fn missing_accent_palette_defaults_teal() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("accent_palette");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(settings.accent_palette, AccentPaletteSetting::Teal);
+    }
+
+    #[test]
+    fn accent_palette_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.accent_palette = AccentPaletteSetting::Violet;
+        write_settings_file(&path, &settings).expect("write");
+        assert_eq!(
+            settings_from_host(&load_host(&path)).accent_palette,
+            AccentPaletteSetting::Violet
         );
     }
 

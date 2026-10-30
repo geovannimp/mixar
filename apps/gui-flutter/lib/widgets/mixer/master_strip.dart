@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
-import 'package:gui_flutter/core/utils/mixer_live_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
@@ -91,7 +90,7 @@ class MasterStrip extends ConsumerWidget {
                           LucideIcons.headphones,
                           size: 14,
                           color: masterCue
-                              ? kMixerLiveOn
+                              ? theme.colors.primary
                               : theme.colors.mutedForeground,
                         ),
                       ),

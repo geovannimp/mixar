@@ -199,6 +199,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AccentPaletteSetting dco_decode_accent_palette_setting(dynamic raw);
+
+  @protected
   ActiveLoopInfo dco_decode_active_loop_info(dynamic raw);
 
   @protected
@@ -787,6 +790,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  AccentPaletteSetting sse_decode_accent_palette_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ActiveLoopInfo sse_decode_active_loop_info(SseDeserializer deserializer);
@@ -1506,6 +1514,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_accent_palette_setting(
+    AccentPaletteSetting self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_active_loop_info(

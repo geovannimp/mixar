@@ -424,7 +424,7 @@ class _QuantizeButton extends StatelessWidget {
           'Q',
           style: TextStyle(
             fontWeight: .w600,
-            color: on ? kMixerLiveOn : theme.colors.mutedForeground,
+            color: on ? theme.colors.primary : theme.colors.mutedForeground,
           ),
         ),
       ),
@@ -502,7 +502,7 @@ class _FxButton extends StatelessWidget {
           'FX',
           style: TextStyle(
             fontWeight: .w600,
-            color: on ? kMixerLiveOn : theme.colors.mutedForeground,
+            color: on ? theme.colors.primary : theme.colors.mutedForeground,
           ),
         ),
       ),

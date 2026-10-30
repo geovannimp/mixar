@@ -17,18 +17,28 @@ Section and card subtitle are the same sentence: "RGB mixes low/mid/high into on
 
 RGB blends the low, mid and high bands into one colour; Filtered stacks them as three separate bands. Both draw the same analysed data. See [Jog and waveform](/docs/users/decks/jog-and-waveform) for what the display shows.
 
-## UI → Chrome and controls
+## UI → Theme
 
-Card subtitle: "Theme, language, hover tips, and how selects open."
+Card subtitle: "Brightness and the accent color used by brand chrome."
 
 | Control | Type | Values | Default |
 | --- | --- | --- | --- |
 | **Theme** | select | **System default** / **Light** / **Dark** | System default |
+| **Accent color** | swatches | **Teal** / **Blue** / **Violet** / **Orange** / **Pink** | Teal |
+
+**System default** follows the host's light/dark preference. **Light** and **Dark** pin the app theme regardless of the host.
+
+**Accent color** re-tints brand chrome: buttons, selection washes, the waveform playhead, text selection, and the lit mixer signals (SYNC, KY, the headphone cue icon, FX). Deck faders keep their sky/rose identity and the deck **CUE** button stays amber. The chosen hue follows the theme: light mode uses the deeper steps, dark mode the brighter ones.
+
+## UI → Chrome and controls
+
+Card subtitle: "Language, hover tips, and how selects open."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
 | **Language** | select | **System default** / **English** / **Português (Brasil)** | System default |
 | **Show tooltips** | checkbox | on / off | on |
 | **Select style** | select | **Auto**: "Platform default — desktop OS uses popovers, phones use dialogs." / **Desktop**: "Anchored popovers for selects and ⋯ menus." / **Mobile**: "Open selects and ⋯ menus in a dialog." | Auto |
-
-**System default** follows the host's light/dark preference. **Light** and **Dark** pin the app theme regardless of the host.
 
 **Auto** resolves against the host: on desktop it behaves as **Desktop**, on a phone as **Mobile**.
 

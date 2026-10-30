@@ -213,6 +213,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
       analyticsEnabled: previous.analyticsEnabled,
       libraryRowFields: previous.libraryRowFields,
       theme: previous.theme,
+      accentPalette: previous.accentPalette,
     ),
     previous,
   );

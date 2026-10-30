@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/theme/mixar_palette.dart';
 
 /// Mixar color tokens aligned with the website palette.
@@ -145,6 +146,40 @@ class MixarColors {
   final double hoverLighten;
   final double hoverDarken;
   final double disabledOpacity;
+
+  /// Accent-seeded copy: same neutrals, cue amber and hairlines, brand tokens
+  /// re-read from [scale]. Shade slots are fixed per brightness, so every
+  /// palette keeps the contrast the teal default was tuned for.
+  MixarColors withAccentScale(MixarAccentScale scale) {
+    final dark = brightness == Brightness.dark;
+    return MixarColors(
+      brightness: brightness,
+      background: background,
+      foreground: foreground,
+      primary: dark ? scale.s400 : scale.s600,
+      primaryForeground: primaryForeground,
+      secondary: secondary,
+      secondaryForeground: secondaryForeground,
+      muted: muted,
+      mutedForeground: mutedForeground,
+      accent: dark ? scale.s400 : scale.s700,
+      destructive: destructive,
+      destructiveForeground: destructiveForeground,
+      card: card,
+      waveformBackground: waveformBackground,
+      border: border,
+      selection: dark ? scale.s950 : scale.s100,
+      selectionForeground: selectionForeground,
+      primaryTint: dark ? scale.s950 : scale.s50,
+      primaryDim: dark ? scale.s600 : scale.s500,
+      accentTint: dark ? scale.s950 : scale.s50,
+      cueTint: cueTint,
+      cueOn: cueOn,
+      hoverLighten: hoverLighten,
+      hoverDarken: hoverDarken,
+      disabledOpacity: disabledOpacity,
+    );
+  }
 
   /// Hovered variant (Forui `FColors.hover` algorithm).
   Color hover(Color color) {
