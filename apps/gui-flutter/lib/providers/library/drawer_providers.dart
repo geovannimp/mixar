@@ -73,8 +73,8 @@ final libraryRevealProvider = NotifierProvider<LibraryReveal, int>(
 /// Brings the library into view for a deck action such as a cover click.
 ///
 /// Whichever layout is on: the drawer opens, or the docked pane scrolls to the
-/// library. Loading itself still happens in the library (drag or double-click
-/// onto the deck).
+/// library. Loading itself still happens in the library (a row is dragged, or
+/// its Load to deck menu used, onto the deck).
 void openLibrary(WidgetRef ref) {
   if (_drawerMode(ref.read(appSettingsProvider).asData?.value)) {
     ref.read(libraryDrawerOpenProvider.notifier).set(true);

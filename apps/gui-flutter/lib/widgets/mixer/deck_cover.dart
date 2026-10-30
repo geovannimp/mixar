@@ -36,8 +36,7 @@ const _chipGrow = Duration(milliseconds: 110);
 /// live on it rather than in the header chip row with the deck settings:
 ///
 /// * empty deck — a full-bleed ghost button (plus glyph, ghost wash on hover)
-///   that opens the library, where a row is dragged or double-clicked onto
-///   the deck;
+///   that opens the library, where a row is dragged or sent to the deck;
 /// * loaded deck — the artwork carries an eject chip; hovering or focusing the
 ///   cover grows that chip until it fills the tile, so the whole cover is the
 ///   unload target, and a playing deck asks before it is cleared;

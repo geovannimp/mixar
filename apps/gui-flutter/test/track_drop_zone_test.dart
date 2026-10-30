@@ -9,26 +9,8 @@ import 'package:gui_flutter/widgets/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/widgets/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
+import 'helpers/recording_deck_load_transport.dart';
 import 'support/fake_engine_transport.dart';
-
-/// Records the tracks a deck load asked for.
-class _RecordingDeckLoadTransport implements DeckLoadTransport {
-  final List<(int deckId, String trackId)> libraryLoads = [];
-  final List<(int deckId, String path)> pathLoads = [];
-
-  @override
-  Future<void> loadLibraryTrack({
-    required int deckId,
-    required String trackId,
-  }) async {
-    libraryLoads.add((deckId, trackId));
-  }
-
-  @override
-  Future<void> loadPath({required int deckId, required String path}) async {
-    pathLoads.add((deckId, path));
-  }
-}
 
 const _sourceKey = Key('drag-source');
 const _targetKey = Key('drop-target');
@@ -37,7 +19,7 @@ void main() {
   testWidgets('a track dragged onto a deck loads into that deck', (
     tester,
   ) async {
-    final loads = _RecordingDeckLoadTransport();
+    final loads = RecordingDeckLoadTransport();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

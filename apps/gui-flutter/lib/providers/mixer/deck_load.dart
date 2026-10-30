@@ -88,22 +88,33 @@ Future<void> loadPayloadOntoDeck(
   int deckId,
   TrackDragPayload payload,
 ) async {
-  // Every load path lands here — OS drop, library double-click, deck picker,
-  // and the controller's focused-row load — so the drawer is dismissed for all
-  // of them. Skipped mid-drag: the drag source lives inside the drawer and its
+  // Resolved before the first await, and before the drawer below closes: the
+  // widget that asked for this load lives *inside* the drawer (the track list,
+  // the deck picker popover), so popping it disposes the caller's `WidgetRef`
+  // and every `read` after that throws. Nothing past this point may call read.
+  final generations = read(deckLoadGenerationProvider.notifier);
+  final loading = read(deckLoadInFlightProvider.notifier);
+  final engineUi = read(engineUiProvider.notifier);
+  final notices = read(appNoticeProvider.notifier);
+  final transportFuture = read(deckLoadTransportProvider.future);
+
+  // Every load path lands here — a library drag, the row's Load to deck menu,
+  // the keyboard Enter / Shift+Enter intents, the deck picker, and the
+  // controller's focused-row load — so the drawer is dismissed for all of
+  // them. Skipped mid-drag: the drag source lives inside the drawer and its
   // own end closes the panel.
   if (!read(libraryTrackDragActiveProvider)) {
     read(libraryDrawerOpenProvider.notifier).set(false);
   }
-  final generation = read(deckLoadGenerationProvider.notifier).begin(deckId);
-  final loading = read(deckLoadInFlightProvider.notifier)..set(deckId, true);
+
+  final generation = generations.begin(deckId);
+  loading.set(deckId, true);
   try {
-    final transport = await read(deckLoadTransportProvider.future);
+    final transport = await transportFuture;
     if (transport == null) {
       return;
     }
-    if (!read(deckLoadGenerationProvider.notifier)
-        .isCurrent(deckId, generation)) {
+    if (!generations.isCurrent(deckId, generation)) {
       return;
     }
     await applyTrackDrop(
@@ -113,30 +124,23 @@ Future<void> loadPayloadOntoDeck(
           transport.loadLibraryTrack(deckId: id, trackId: trackId),
       loadPath: (id, path) => transport.loadPath(deckId: id, path: path),
     );
-    if (!read(deckLoadGenerationProvider.notifier)
-        .isCurrent(deckId, generation)) {
+    if (!generations.isCurrent(deckId, generation)) {
       return;
     }
-    read(engineUiProvider.notifier)
+    engineUi
       ..setDeckTrackPath(deckId, payload.path)
       ..setDeckTrackId(deckId, payload.trackId);
   } catch (e) {
-    // Superseded loads must stay silent (same contract as the isCurrent
-    // guards above). A disposed WidgetRef.read after await must not escape.
-    try {
-      if (!read(deckLoadGenerationProvider.notifier)
-          .isCurrent(deckId, generation)) {
-        return;
-      }
-      read(appNoticeProvider.notifier).setError('$e');
-    } on Object {
-      // Caller unmounted while the engine load was in flight.
+    // Superseded loads stay silent, same contract as the isCurrent guards.
+    if (!generations.isCurrent(deckId, generation)) {
+      return;
     }
+    notices.setError('$e');
   } finally {
     try {
       loading.set(deckId, false);
     } on Object {
-      // Caller unmounted while the engine load was in flight.
+      // The container was torn down while the engine load was in flight.
     }
   }
 }
