@@ -39,7 +39,8 @@ final libraryDrawerSizeProvider =
 /// launch, like the `panes` split sizes.
 ///
 /// A track drag closes it (see `showLibraryDrawer`) and nothing reopens it —
-/// the header toggle is the way back.
+/// the header toggle is the way back. A deck load closes it too, whichever
+/// path asked for the load (`loadPayloadOntoDeck`).
 class LibraryDrawerOpen extends Notifier<bool> {
   @override
   bool build() => false;

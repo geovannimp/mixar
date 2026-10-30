@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
@@ -148,5 +149,33 @@ void main() {
     await stale;
 
     expect(container.read(appNoticeProvider), isNull);
+  });
+
+  test('load closes the open library drawer', () async {
+    final fake = _FakeDeckLoadTransport();
+    final container = ProviderContainer(
+      overrides: [deckLoadTransportProvider.overrideWith((ref) async => fake)],
+    );
+    addTearDown(container.dispose);
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+
+    // The controller path reaches the same funnel as the UI ones.
+    await loadPayloadOntoDeck(container.read, 0, _payload('A'));
+
+    expect(container.read(libraryDrawerOpenProvider), isFalse);
+  });
+
+  test('load leaves the drawer up mid-drag to keep the drag source', () async {
+    final fake = _FakeDeckLoadTransport();
+    final container = ProviderContainer(
+      overrides: [deckLoadTransportProvider.overrideWith((ref) async => fake)],
+    );
+    addTearDown(container.dispose);
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    container.read(libraryTrackDragActiveProvider.notifier).begin();
+
+    await loadPayloadOntoDeck(container.read, 0, _payload('A'));
+
+    expect(container.read(libraryDrawerOpenProvider), isTrue);
   });
 }

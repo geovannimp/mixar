@@ -27,7 +27,9 @@ const _scrimColor = Color(0x80000000);
 /// A track drag tucks the panel off its edge — keeping it mounted, because the
 /// drag source (a row inside it) has to outlive the native drag — so the deck
 /// it is dragged to is never covered at drop time. The drag's end closes the
-/// drawer, and nothing reopens it: the header toggle is the way back.
+/// drawer, and nothing reopens it: the header toggle is the way back. A deck
+/// load that is not a library drag — double-click, the deck picker, or a
+/// controller load of the focused row — pops the drawer as the load starts.
 Future<void> showLibraryDrawer(
   BuildContext context,
   LibraryDrawerSideSetting side,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:gui_flutter/core/utils/track_drag.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/focused_load.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -87,6 +88,13 @@ Future<void> loadPayloadOntoDeck(
   int deckId,
   TrackDragPayload payload,
 ) async {
+  // Every load path lands here — OS drop, library double-click, deck picker,
+  // and the controller's focused-row load — so the drawer is dismissed for all
+  // of them. Skipped mid-drag: the drag source lives inside the drawer and its
+  // own end closes the panel.
+  if (!read(libraryTrackDragActiveProvider)) {
+    read(libraryDrawerOpenProvider.notifier).set(false);
+  }
   final generation = read(deckLoadGenerationProvider.notifier).begin(deckId);
   final loading = read(deckLoadInFlightProvider.notifier)..set(deckId, true);
   try {

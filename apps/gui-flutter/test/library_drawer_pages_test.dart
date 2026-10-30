@@ -9,6 +9,7 @@ import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/mixer/deck_load.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
@@ -28,6 +29,23 @@ import 'package:panes/panes.dart';
 import 'helpers/collection_tracks_override.dart';
 
 import 'support/mixar_material_app.dart';
+
+class _RecordingDeckLoadTransport implements DeckLoadTransport {
+  final List<String> loads = [];
+
+  @override
+  Future<void> loadLibraryTrack({
+    required int deckId,
+    required String trackId,
+  }) async {
+    loads.add(trackId);
+  }
+
+  @override
+  Future<void> loadPath({required int deckId, required String path}) async {
+    loads.add(path);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -473,6 +491,46 @@ void main() {
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(find.byType(LibraryPanel), findsOneWidget);
+  });
+
+  testWidgets('a controller load closes the drawer', (tester) async {
+    await pumpSized(
+      tester,
+      size: const Size(1200, 800),
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        libraryDrawerEnabled: true,
+      ),
+      extra: [
+        deckLoadTransportProvider.overrideWith(
+          (ref) async => _RecordingDeckLoadTransport(),
+        ),
+      ],
+      child: const MixerPage(),
+    );
+
+    final container = mixerContainer(tester);
+    container.read(libraryDrawerOpenProvider.notifier).set(true);
+    await tester.pumpAndSettle();
+    expect(find.byType(LibraryPanel), findsOneWidget);
+
+    // The DDJ-400's load button takes the focused row, not a drag, so nothing
+    // else would dismiss the panel over the deck it just loaded.
+    await loadPayloadOntoDeck(
+      container.read,
+      0,
+      const TrackDragPayload(
+        source: TrackDragSource.library,
+        trackId: 't1',
+        path: '/tmp/samples/demo.wav',
+        title: 'Demo Track',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LibraryPanel), findsNothing);
+    expect(container.read(libraryDrawerOpenProvider), isFalse);
+    expect(container.read(engineUiProvider).trackIdFor(0), 't1');
   });
 
   testWidgets('the drawer stays below the app header', (tester) async {
