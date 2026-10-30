@@ -173,6 +173,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AccentPaletteSetting dco_decode_accent_palette_setting(dynamic raw);
+
+  @protected
   AddFolderCollectionResult dco_decode_add_folder_collection_result(
     dynamic raw,
   );
@@ -1313,6 +1316,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  AccentPaletteSetting sse_decode_accent_palette_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   AddFolderCollectionResult sse_decode_add_folder_collection_result(
@@ -2707,6 +2715,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_accent_palette_setting(
+    AccentPaletteSetting self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_add_folder_collection_result(

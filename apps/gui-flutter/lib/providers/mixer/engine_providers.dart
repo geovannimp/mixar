@@ -284,6 +284,30 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     state = state.copyWith(trackIds: next);
   }
 
+  /// Optimistic unload: drop everything that identifies a loaded track, so the
+  /// cover and the deck header stop claiming a track before the engine's own
+  /// empty snapshot arrives. Mirrors what `DeckUpdated` with a null duration
+  /// clears.
+  void clearDeck(int deckId) {
+    final trackPaths = Map<int, String>.from(state.trackPaths)..remove(deckId);
+    final trackIds = Map<int, String>.from(state.trackIds)..remove(deckId);
+    final durations = Map<int, int>.from(state.durationMs)..remove(deckId);
+    final playing = Map<int, bool>.from(state.playing)..[deckId] = false;
+    final loudness = Map<int, double>.from(state.loudnessLufs)..remove(deckId);
+    final autoGain = Map<int, double>.from(state.autoGainDb)..remove(deckId);
+    final levels = Map<int, DeckLevels>.from(state.levels)
+      ..[deckId] = zeroDeckLevels;
+    state = state.copyWith(
+      trackPaths: trackPaths,
+      trackIds: trackIds,
+      durationMs: durations,
+      playing: playing,
+      loudnessLufs: loudness,
+      autoGainDb: autoGain,
+      levels: levels,
+    );
+  }
+
   void setJogTouching(int deckId, bool touching) {
     if (state.jogTouchingFor(deckId) == touching) {
       return;
@@ -1326,6 +1350,5 @@ Future<void> unloadDeck(WidgetRef ref, int deckId) async {
     return;
   }
   await engine.unload(deckId: deckId);
-  ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, null);
-  ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, null);
+  ref.read(engineUiProvider.notifier).clearDeck(deckId);
 }

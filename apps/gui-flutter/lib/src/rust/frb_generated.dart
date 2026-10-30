@@ -77,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 723315415;
+  int get rustContentHash => -1380214026;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -822,6 +822,8 @@ abstract class RustLibApi extends BaseApi {
     required SettingsTransport that,
     required AppSettings settings,
   });
+
+  Future<AccentPaletteSetting> crateApiSettingsAccentPaletteSettingDefault();
 
   String crateApiMetaAppDisplayName();
 
@@ -6139,6 +6141,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<AccentPaletteSetting> crateApiSettingsAccentPaletteSettingDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 131,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_accent_palette_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsAccentPaletteSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsAccentPaletteSettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "accent_palette_setting_default",
+        argNames: [],
+      );
+
+  @override
   String crateApiMetaAppDisplayName() {
     return handler.executeSync(
       SyncTask(
@@ -6147,7 +6179,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 131,
+            funcId: 132,
           )!;
         },
         codec: SseCodec(
@@ -6176,7 +6208,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 132,
+            funcId: 133,
             port: port_,
           );
         },
@@ -6203,7 +6235,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 133,
+            funcId: 134,
             port: port_,
           );
         },
@@ -6230,7 +6262,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 134,
+            funcId: 135,
             port: port_,
           );
         },
@@ -6257,7 +6289,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 135,
+            funcId: 136,
             port: port_,
           );
         },
@@ -6287,7 +6319,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 137,
             port: port_,
           );
         },
@@ -6318,7 +6350,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 138,
             port: port_,
           );
         },
@@ -6349,7 +6381,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 138,
+            funcId: 139,
             port: port_,
           );
         },
@@ -6379,7 +6411,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 139,
+            funcId: 140,
             port: port_,
           );
         },
@@ -6409,7 +6441,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 140,
+            funcId: 141,
             port: port_,
           );
         },
@@ -6436,7 +6468,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 141,
+            funcId: 142,
             port: port_,
           );
         },
@@ -6463,7 +6495,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 142,
+            funcId: 143,
             port: port_,
           );
         },
@@ -6496,7 +6528,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 143,
+            funcId: 144,
             port: port_,
           );
         },
@@ -6526,7 +6558,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 144,
+            funcId: 145,
             port: port_,
           );
         },
@@ -6556,7 +6588,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 145,
+            funcId: 146,
             port: port_,
           );
         },
@@ -6583,7 +6615,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 146,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6833,6 +6865,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AccentPaletteSetting dco_decode_accent_palette_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AccentPaletteSetting.values[raw as int];
+  }
+
+  @protected
   AddFolderCollectionResult dco_decode_add_folder_collection_result(
     dynamic raw,
   ) {
@@ -6883,8 +6921,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 43)
-      throw Exception('unexpected arr length: expect 43 but see ${arr.length}');
+    if (arr.length != 44)
+      throw Exception('unexpected arr length: expect 44 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -6926,9 +6964,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       realtimeStems: dco_decode_bool(arr[37]),
       uiLanguage: dco_decode_ui_language_setting(arr[38]),
       theme: dco_decode_theme_setting(arr[39]),
-      libraryDrawerEnabled: dco_decode_bool(arr[40]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[41]),
-      analyticsEnabled: dco_decode_bool(arr[42]),
+      accentPalette: dco_decode_accent_palette_setting(arr[40]),
+      libraryDrawerEnabled: dco_decode_bool(arr[41]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[42]),
+      analyticsEnabled: dco_decode_bool(arr[43]),
     );
   }
 
@@ -10442,6 +10481,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AccentPaletteSetting sse_decode_accent_palette_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return AccentPaletteSetting.values[inner];
+  }
+
+  @protected
   AddFolderCollectionResult sse_decode_add_folder_collection_result(
     SseDeserializer deserializer,
   ) {
@@ -10545,6 +10593,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_realtimeStems = sse_decode_bool(deserializer);
     var var_uiLanguage = sse_decode_ui_language_setting(deserializer);
     var var_theme = sse_decode_theme_setting(deserializer);
+    var var_accentPalette = sse_decode_accent_palette_setting(deserializer);
     var var_libraryDrawerEnabled = sse_decode_bool(deserializer);
     var var_libraryDrawerSide = sse_decode_library_drawer_side_setting(
       deserializer,
@@ -10591,6 +10640,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       realtimeStems: var_realtimeStems,
       uiLanguage: var_uiLanguage,
       theme: var_theme,
+      accentPalette: var_accentPalette,
       libraryDrawerEnabled: var_libraryDrawerEnabled,
       libraryDrawerSide: var_libraryDrawerSide,
       analyticsEnabled: var_analyticsEnabled,
@@ -14537,6 +14587,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_accent_palette_setting(
+    AccentPaletteSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_add_folder_collection_result(
     AddFolderCollectionResult self,
     SseSerializer serializer,
@@ -14627,6 +14686,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.realtimeStems, serializer);
     sse_encode_ui_language_setting(self.uiLanguage, serializer);
     sse_encode_theme_setting(self.theme, serializer);
+    sse_encode_accent_palette_setting(self.accentPalette, serializer);
     sse_encode_bool(self.libraryDrawerEnabled, serializer);
     sse_encode_library_drawer_side_setting(self.libraryDrawerSide, serializer);
     sse_encode_bool(self.analyticsEnabled, serializer);

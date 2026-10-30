@@ -3,15 +3,18 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
+
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_drop_hover.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+
+import 'support/bus_events.dart';
+
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'support/fake_engine_transport.dart';
@@ -28,13 +31,16 @@ class _InFlightLoad extends DeckLoadInFlight {
 /// Engine snapshot with `_deckId` loaded — the cover's loaded state.
 class _LoadedEngineUi extends EngineUi {
   @override
-  EngineUiSnapshot build() => applyEngineEvt(
+  EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
-    const EngineEvt(
-      kind: EngineEvtKind.updated,
-      deckId: _deckId,
-      trackPath: '/music/a.wav',
-      trackId: 't1',
+    deckUpdatedEvent(
+      deck: _deckId,
+      update: deckUpdated(
+        deck: _deckId,
+        trackPath: '/music/a.wav',
+        trackId: 't1',
+        durationMs: 180000,
+      ),
     ),
   );
 }
