@@ -10,7 +10,7 @@ use std::time::Duration;
 
 /// A subscription with its own pending queue.
 ///
-/// The queue is where deduplication happens: `omnibus` fans out duplicate
+/// The queue is where deduplication happens: `omnibus` fans events out in
 /// publish order, and the subscriber folds whatever is still undelivered before
 /// yielding the next event. Draining the channel before yielding is what makes
 /// "latest" mean "latest queued at read time" rather than "latest published

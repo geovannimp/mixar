@@ -4,7 +4,6 @@
 use std::io::Write;
 use std::path::Path;
 
-
 /// One second of silence as a WAV, so the folder scan registers a real track.
 fn write_minimal_wav(path: &Path) {
     let sample_rate = 8_000u32;

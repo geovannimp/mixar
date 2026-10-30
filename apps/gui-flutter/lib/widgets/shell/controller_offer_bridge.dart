@@ -6,6 +6,7 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/providers/shell/bus_providers.dart';
+import 'package:gui_flutter/src/rust/api/bus.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -23,6 +24,7 @@ class ControllerOfferBridge extends ConsumerStatefulWidget {
 
 class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   ProviderSubscription<AsyncValue<ControllerTransport?>>? _listen;
+  ProviderSubscription<AsyncValue<BusTransport>>? _busListen;
   StreamSubscription<Event>? _events;
   Timer? _retry;
   final _shownPorts = <String>{};
@@ -32,6 +34,13 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     super.initState();
     _listen = ref.listenManual(controllerTransportProvider, (prev, next) {
       next.whenData(_bind);
+    }, fireImmediately: true);
+    // The bus resolves independently of the controller: bind again when it
+    // arrives, otherwise the first offers would have no stream to arrive on.
+    _busListen = ref.listenManual(busTransportProvider, (prev, next) {
+      if (next.hasValue) {
+        _bind(ref.read(controllerTransportProvider).asData?.value);
+      }
     }, fireImmediately: true);
   }
 
@@ -247,6 +256,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   @override
   void dispose() {
     _listen?.close();
+    _busListen?.close();
     _events?.cancel();
     _retry?.cancel();
     super.dispose();

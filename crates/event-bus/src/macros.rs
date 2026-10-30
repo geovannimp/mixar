@@ -35,7 +35,6 @@ macro_rules! bus_events {
             $part:expr ,
             { $( $field:ident : $ty:ty ),* $(,)? }
             $(, fold: $fold:ident)?
-            $(, when: $when:expr)?
         );
         * $(;)?
     ) => {
@@ -65,11 +64,6 @@ macro_rules! bus_events {
                     // simply unused here.
                     #[allow(unused_variables)]
                     let Self { $( $field ),* } = self;
-                    $(
-                        if !($when) {
-                            return ::core::option::Option::None;
-                        }
-                    )?
                     ::core::option::Option::Some($crate::EventKey::new(
                         $entity,
                         Topic::$name,

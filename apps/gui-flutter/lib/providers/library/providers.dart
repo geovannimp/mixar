@@ -742,8 +742,9 @@ void handleLibraryEvt(Ref ref, Event event) {
         ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
       }
     case Event_Error(:final field0):
+      // The notice itself is surfaced once, by `dispatchBusEvent`; this handler
+      // only clears the per-track job state the failure ended.
       final trackId = field0.trackId;
-      ref.read(appNoticeProvider.notifier).setError(field0.message);
       if (trackId != null) {
         ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
         ref
@@ -753,8 +754,6 @@ void handleLibraryEvt(Ref ref, Event event) {
       } else {
         ref.read(analyzingTrackIdsProvider.notifier).clear();
       }
-    case Event_Notice(:final field0):
-      ref.read(appNoticeProvider.notifier).setNotice(field0.message);
     case Event_HotCuesChanged(:final field0):
       ref
           .read(trackHotCuesProvider.notifier)
