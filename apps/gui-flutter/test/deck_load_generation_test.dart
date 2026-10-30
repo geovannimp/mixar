@@ -206,6 +206,24 @@ void main() {
     expect(container.read(libraryDrawerOpenProvider), isTrue);
   });
 
+  /// A container whose transport answers only once [gate] completes, so a test
+  /// can dispose the requesting widget while the load is blocked on it.
+  ProviderContainer gatedContainer(
+    Completer<void> gate,
+    DeckLoadTransport transport,
+  ) {
+    final container = ProviderContainer(
+      overrides: [
+        deckLoadTransportProvider.overrideWith((ref) async {
+          await gate.future;
+          return transport;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    return container;
+  }
+
   /// Pumps the requesting widget and waits until its load is blocked on the
   /// gated transport, so the rest of the test can dispose it mid-load.
   Future<void> pumpRequester(
@@ -235,15 +253,7 @@ void main() {
   ) async {
     final gate = Completer<void>();
     final fake = _FakeDeckLoadTransport();
-    final container = ProviderContainer(
-      overrides: [
-        deckLoadTransportProvider.overrideWith((ref) async {
-          await gate.future;
-          return fake;
-        }),
-      ],
-    );
-    addTearDown(container.dispose);
+    final container = gatedContainer(gate, fake);
 
     await pumpRequester(tester, container);
     await dropRequester(tester, container);
@@ -261,15 +271,7 @@ void main() {
     tester,
   ) async {
     final gate = Completer<void>();
-    final container = ProviderContainer(
-      overrides: [
-        deckLoadTransportProvider.overrideWith((ref) async {
-          await gate.future;
-          return _ThrowingDeckLoadTransport();
-        }),
-      ],
-    );
-    addTearDown(container.dispose);
+    final container = gatedContainer(gate, _ThrowingDeckLoadTransport());
 
     await pumpRequester(tester, container);
     await dropRequester(tester, container);
