@@ -3,18 +3,27 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_where, wait_engine_hot_cue_count, write_two_second_wav};
-use engine_api::{
-    decode_evt_body as decode_engine_evt, encode_cmd_body, CmdBody, EvtBody as EngineEvtBody, Kind,
-    Origin,
-};
-use engine_core::{EngineConfig, EngineSession};
-use library::{LibraryConfig, LibrarySession, NewCollection, WritableLibrary};
-use library_api::{decode_evt_body, EvtBody, Kind as LibKind};
-use library_core::{AudioSource, FileAudioSource, Library, TrackMetadata};
-use std::time::{Duration, Instant};
+use bus_api::Event;
+use bus_api::HotCuePadPress;
+use bus_api::SaveDeckHotCue;
+use common::recv_updated_where;
+use common::wait_engine_hot_cue_count;
+use common::write_two_second_wav;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
+use event_bus::Subscriber;
+use library::LibraryConfig;
+use library::LibrarySession;
+use library::NewCollection;
+use library::WritableLibrary;
+use library_core::AudioSource;
+use library_core::FileAudioSource;
+use library_core::Library;
+use library_core::TrackMetadata;
+use std::time::Duration;
+use std::time::Instant;
 
-fn recv_lib_kind(sub: &library::EvtReceiver, kind: LibKind) -> library::Evt {
+fn recv_hot_cues(sub: &mut Subscriber<Event>, track_id: &str) -> Vec<bus_api::HotCue> {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
@@ -25,11 +34,14 @@ fn recv_lib_kind(sub: &library::EvtReceiver, kind: LibKind) -> library::Evt {
             Ok(None) => continue,
             Err(error) => panic!("library evt bus: {error}"),
         };
-        if *event.kind() == kind {
-            return (*event).clone();
+        // The subscription is unfiltered, so match this track explicitly.
+        if let Event::HotCuesChanged(changed) = event {
+            if changed.track_id == track_id {
+                return changed.hot_cues;
+            }
         }
     }
-    panic!("timeout waiting for library evt kind {kind:?}");
+    panic!("timeout waiting for HotCuesChanged of {track_id}");
 }
 
 /// Buses attached, but no library worker → SaveHotCue never yields HotCuesChanged.
@@ -50,7 +62,7 @@ fn save_hot_cue_does_not_commit_memory_before_library_ack() {
         backend: "null".to_string(),
         ..Default::default()
     };
-    let session = EngineSession::new_with_library_bus(config, library.clone(), buses.cmd_bus())
+    let session = EngineSession::new_with_library_bus(config, library.clone(), buses.bus())
         .expect("engine session");
     session.with_engine(|engine| engine.start()).expect("start");
 
@@ -123,7 +135,7 @@ fn save_hot_cue_snaps_with_quantize_and_emits_library_evt() {
     let session = EngineSession::new_with_library_bus(
         config,
         library_session.library(),
-        library_session.cmd_bus(),
+        library_session.bus(),
     )
     .expect("engine session");
     session.with_engine(|engine| engine.start()).expect("start");
@@ -146,27 +158,16 @@ fn save_hot_cue_snaps_with_quantize_and_emits_library_evt() {
         })
         .expect("load");
 
-    let rx = library_session
-        .subscribe_evt_track(track_id.as_str())
-        .unwrap();
+    let mut rx = library_session.subscribe_evt().unwrap();
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SaveHotCue,
-            encode_cmd_body(&CmdBody::SaveHotCue { slot: 1 }).unwrap(),
-        )
+        .publish_cmd(Event::SaveDeckHotCue(SaveDeckHotCue { deck: 0, slot: 1 }))
         .expect("save");
 
-    let event = recv_lib_kind(&rx, LibKind::HotCuesChanged);
-    match decode_evt_body(event.payload()).unwrap() {
-        EvtBody::HotCuesChanged { hot_cues, .. } => {
-            assert_eq!(hot_cues.len(), 1);
-            assert_eq!(hot_cues[0].slot, 1);
-            assert_eq!(hot_cues[0].position_ms, 500);
-        }
-        other => panic!("unexpected: {other:?}"),
-    }
+    let hot_cues = recv_hot_cues(&mut rx, track_id.as_str());
+    assert_eq!(hot_cues.len(), 1);
+    assert_eq!(hot_cues[0].slot, 1);
+    assert_eq!(hot_cues[0].position_ms, 500);
 }
 
 #[test]
@@ -194,7 +195,7 @@ fn hot_cue_pad_press_saves_then_triggers() {
     let session = EngineSession::new_with_library_bus(
         config,
         library_session.library(),
-        library_session.cmd_bus(),
+        library_session.bus(),
     )
     .expect("engine session");
     session.with_engine(|engine| engine.start()).expect("start");
@@ -217,34 +218,20 @@ fn hot_cue_pad_press_saves_then_triggers() {
         })
         .expect("load");
 
-    let rx = library_session
-        .subscribe_evt_track(track_id.as_str())
-        .unwrap();
-    let evt = session
-        .evt_bus()
-        .subscribe(omnibus::Filter::Any, omnibus::Filter::Any)
-        .expect("sub");
+    let mut rx = library_session.subscribe_evt().unwrap();
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::HotCuePadPress,
-            encode_cmd_body(&CmdBody::HotCuePadPress {
-                slot: 0,
-                shift: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+            deck: 0,
+            slot: 0,
+            shift: false,
+        }))
         .expect("save press");
 
-    let event = recv_lib_kind(&rx, LibKind::HotCuesChanged);
-    match decode_evt_body(event.payload()).unwrap() {
-        EvtBody::HotCuesChanged { hot_cues, .. } => {
-            assert_eq!(hot_cues[0].slot, 0);
-            assert_eq!(hot_cues[0].position_ms, 500);
-        }
-        other => panic!("unexpected: {other:?}"),
-    }
+    let hot_cues = recv_hot_cues(&mut rx, track_id.as_str());
+    assert_eq!(hot_cues[0].slot, 0);
+    assert_eq!(hot_cues[0].position_ms, 500);
 
     wait_engine_hot_cue_count(&session, 0, 1);
     session
@@ -281,56 +268,30 @@ fn hot_cue_pad_press_saves_then_triggers() {
     }
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::HotCuePadPress,
-            encode_cmd_body(&CmdBody::HotCuePadPress {
-                slot: 0,
-                shift: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+            deck: 0,
+            slot: 0,
+            shift: false,
+        }))
         .expect("trigger press");
 
-    // Match on the trigger's effect (the deck starts playing), not on `Kind`
-    // alone, so a stale pre-trigger `Updated` cannot satisfy the assertion.
-    // `recv_evt_where` owns the deadline/poll/disconnect handling.
-    let event = recv_evt_where(&evt, Kind::Updated, |event| {
-        matches!(
-            decode_engine_evt(event.payload()),
-            Ok(EngineEvtBody::DeckUpdated { playing: true, .. })
-        )
-    });
-    let EngineEvtBody::DeckUpdated {
-        position_ms,
-        playing,
-        ..
-    } = decode_engine_evt(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert_eq!(position_ms, Some(500));
-    assert!(playing);
+    // Match on the trigger's effect (the deck starts playing), not on the event
+    // kind alone, so a stale pre-trigger `DeckUpdated` cannot satisfy the
+    // assertion. `recv_updated_where` owns the deadline/poll/disconnect handling.
+    let update = recv_updated_where(&mut evt, |update| update.playing);
+    assert_eq!(update.position_ms, Some(500));
+    assert!(update.playing);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::HotCuePadPress,
-            encode_cmd_body(&CmdBody::HotCuePadPress {
-                slot: 0,
-                shift: true,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+            deck: 0,
+            slot: 0,
+            shift: true,
+        }))
         .expect("delete press");
 
-    let event = recv_lib_kind(&rx, LibKind::HotCuesChanged);
-    match decode_evt_body(event.payload()).unwrap() {
-        EvtBody::HotCuesChanged { hot_cues, .. } => {
-            assert!(hot_cues.is_empty());
-        }
-        other => panic!("unexpected: {other:?}"),
-    }
+    let hot_cues = recv_hot_cues(&mut rx, track_id.as_str());
+    assert!(hot_cues.is_empty());
     wait_engine_hot_cue_count(&session, 0, 0);
 }
 
@@ -359,7 +320,7 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
     let session = EngineSession::new_with_library_bus(
         config.clone(),
         library_session.library(),
-        library_session.cmd_bus(),
+        library_session.bus(),
     )
     .expect("engine session");
     session.with_engine(|engine| engine.start()).expect("start");
@@ -382,23 +343,17 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
         })
         .expect("load");
 
-    let rx = library_session
-        .subscribe_evt_track(track_id.as_str())
-        .unwrap();
+    let mut rx = library_session.subscribe_evt().unwrap();
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SaveHotCue,
-            encode_cmd_body(&CmdBody::SaveHotCue { slot: 0 }).unwrap(),
-        )
+        .publish_cmd(Event::SaveDeckHotCue(SaveDeckHotCue { deck: 0, slot: 0 }))
         .expect("save");
-    let _ = recv_lib_kind(&rx, LibKind::HotCuesChanged);
+    let _ = recv_hot_cues(&mut rx, track_id.as_str());
     drop(session);
 
     let session = EngineSession::new_with_library_bus(
         config,
         library_session.library(),
-        library_session.cmd_bus(),
+        library_session.bus(),
     )
     .expect("reload session");
     session.with_engine(|engine| engine.start()).expect("start");
@@ -429,41 +384,21 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
         })
         .expect("hydrated");
 
-    let evt = session
-        .evt_bus()
-        .subscribe(omnibus::Filter::Any, omnibus::Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::HotCuePadPress,
-            encode_cmd_body(&CmdBody::HotCuePadPress {
-                slot: 0,
-                shift: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+            deck: 0,
+            slot: 0,
+            shift: false,
+        }))
         .expect("trigger");
 
-    // Match on the trigger's effect (the deck starts playing), not on `Kind`
-    // alone, so a stale pre-trigger `DeckUpdated` (playing == false, position 0)
-    // buffered on the bus cannot satisfy the assertions below — the same hazard
-    // the twin test above documents.
-    let event = recv_evt_where(&evt, Kind::Updated, |event| {
-        matches!(
-            decode_engine_evt(event.payload()),
-            Ok(EngineEvtBody::DeckUpdated { playing: true, .. })
-        )
-    });
-    let EngineEvtBody::DeckUpdated {
-        position_ms,
-        hot_cues,
-        ..
-    } = decode_engine_evt(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert_eq!(position_ms, Some(500));
-    assert_eq!(hot_cues.len(), 1);
-    assert_eq!(hot_cues[0].position_ms, 500);
+    // Match on the trigger's effect (the deck starts playing), not on the event
+    // kind alone, so a stale pre-trigger `DeckUpdated` (playing == false,
+    // position 0) buffered on the bus cannot satisfy the assertions below — the
+    // same hazard the twin test above documents.
+    let update = recv_updated_where(&mut evt, |update| update.playing);
+    assert_eq!(update.position_ms, Some(500));
+    assert_eq!(update.hot_cues.len(), 1);
+    assert_eq!(update.hot_cues[0].position_ms, 500);
 }

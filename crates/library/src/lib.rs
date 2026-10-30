@@ -41,7 +41,6 @@ use crate::analysis::{compute_file_analysis, ComputedFileAnalysis};
 use codec::is_loadable_audio_path;
 
 use decode_cache::DecodeCache;
-use library_api::{EvtBody, Kind, Origin};
 use library_core::AnalysisDurationMode;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -55,7 +54,7 @@ pub use library_core::{
     WritableLibrary,
 };
 
-pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
+pub use bus::{LibraryBus, LibraryBuses};
 pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
     LoopRecord,
@@ -188,35 +187,25 @@ impl LibraryManager {
         Ok(playlist)
     }
 
-    /// Fire-and-forget publish of a command (nested `CmdBody` bytes in payload).
-    pub fn publish_cmd(&self, origin: Origin, kind: Kind, body: impl AsRef<[u8]>) -> Result<()> {
-        self.require_buses()?.publish_cmd(origin, kind, body)
+    /// Fire-and-forget publish of a command on the shared typed bus.
+    pub fn publish_cmd(&self, event: bus_api::Event) -> Result<()> {
+        self.require_buses()?.publish_cmd(event)
     }
 
-    /// Encode `EvtBody`, bump revision, publish on the evt bus.
-    pub fn publish_evt(&self, origin: Origin, kind: Kind, body: EvtBody) -> Result<()> {
-        self.require_buses()?.publish_evt(origin, kind, body)
+    /// Fire-and-forget publish of an egress event on the shared typed bus.
+    pub fn publish_evt(&self, event: bus_api::Event) -> Result<()> {
+        self.require_buses()?.publish_evt(event)
     }
 
-    /// Subscribe to all egress events (host bridge).
-    pub fn subscribe_evt_all(&self) -> Result<EvtReceiver> {
-        self.require_buses()?.subscribe_evt_all()
-    }
-
-    /// Subscribe to egress events for one track (`Origin::Track`).
-    pub fn subscribe_evt_track(&self, track_id: impl Into<String>) -> Result<EvtReceiver> {
-        self.require_buses()?.subscribe_evt_track(track_id)
+    /// Subscribe to all egress events (host bridge / engine ack sync).
+    pub fn subscribe_evt(&self) -> Result<event_bus::Subscriber<bus_api::Event>> {
+        self.require_buses()?.subscribe_evt()
     }
 
     /// Update default analysis duration used by AnalyzeTrack cmds.
     pub fn set_analysis_duration(&self, duration: AnalysisDurationMode) -> Result<()> {
         self.require_buses()?.set_analysis_duration(duration);
         Ok(())
-    }
-
-    /// Monotonic revision bumped when discrete library state changes.
-    pub fn revision(&self) -> Result<u64> {
-        Ok(self.require_buses()?.revision())
     }
 
     /// Borrow the library configuration.

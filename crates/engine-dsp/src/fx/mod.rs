@@ -18,9 +18,9 @@ pub use echo::Echo;
 pub use reverb::Reverb;
 
 /// Chain capacity per deck (bounds a preset's effect count); keep in sync with
-/// `engine_api::FX_SLOT_COUNT`.
+/// `bus_api::FX_SLOT_COUNT`.
 pub const FX_SLOT_COUNT: usize = 3;
-/// Maximum knobs per effect (F3); keep in sync with `engine_api::FX_PARAM_COUNT`.
+/// Maximum knobs per effect (F3); keep in sync with `bus_api::FX_PARAM_COUNT`.
 pub const FX_PARAM_COUNT: usize = 3;
 
 /// Fallback sync tempo when the master deck has no BPM (unanalyzed track).

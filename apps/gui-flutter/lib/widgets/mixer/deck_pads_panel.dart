@@ -5,7 +5,7 @@ import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/widgets/mixer/pads/beat_jump_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/key_shift_pads.dart';

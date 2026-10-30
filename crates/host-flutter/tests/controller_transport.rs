@@ -4,10 +4,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use engine_core::EngineBuses;
-use host_flutter::api::engine::EngineBusHandle;
-use host_flutter::api::library::LibraryBusHandle;
-use library::LibraryBuses;
+use host_flutter::api::bus::BusTransport;
 
 fn write_minimal_bundle(dir: &PathBuf, id: &str, product_name: &str) {
     fs::create_dir_all(dir).unwrap();
@@ -53,8 +50,7 @@ fn start_seeds_and_lists_shipped_mapping() {
     write_minimal_bundle(&shipped.join("test-map"), "test.map", "Test Map");
 
     let transport = host_flutter::testing::start_controller_at(
-        &EngineBusHandle::from_buses(EngineBuses::new()),
-        &LibraryBusHandle::from_buses(LibraryBuses::new()),
+        &BusTransport::open().unwrap(),
         &app,
         Some(&shipped),
         Vec::new(),

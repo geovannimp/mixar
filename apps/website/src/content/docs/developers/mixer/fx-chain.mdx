@@ -17,7 +17,7 @@ The FX unit is a per-deck **pre-fader insert chain** in `engine-dsp`, configured
 | `Echo` | Beat-synced delay line |
 | `Reverb` | Freeverb-style reverb |
 
-`FX_SLOT_COUNT = 3` (`engine-api` mirrors it) is chain capacity, not three visible units: slot `0` is the Beat FX unit and the rest is headroom for preset chains. `FX_PARAM_COUNT = 3` is the knob bound per effect.
+`FX_SLOT_COUNT = 3` (`bus-api` mirrors it) is chain capacity, not three visible units: slot `0` is the Beat FX unit and the rest is headroom for preset chains. `FX_PARAM_COUNT = 3` is the knob bound per effect.
 
 ## Processing and gating
 
@@ -102,7 +102,7 @@ The configuration commands carry no `soft_takeover` flag: FX knobs are UI-only t
 ## Adding an effect
 
 1. Add `crates/engine-dsp/src/fx/<effect>.rs` implementing `Fx`, and register it from `fx/mod.rs`.
-2. Add the `FxKind` variant in `engine-dsp` **and** `engine-api` (plus both `map_fx_kind*` arms in `engine-core/src/status.rs`, and the `From` impls in `host-flutter`).
+2. Add the `FxKind` variant in `engine-dsp` **and** `bus-api` (plus both `map_fx_kind*` arms in `engine-core/src/status.rs`, and the `From` impls in `host-flutter`).
 3. Add one arm to `FxKind::create`.
 4. Add a label entry (and any beat divisions) in `apps/gui-flutter/lib/core/utils/fx_params.dart`.
 5. Add DSP tests (defaults, clamping, characteristic behaviour) and, if the UI grows a per-effect control, a widget test.

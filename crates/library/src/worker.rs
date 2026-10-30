@@ -1,14 +1,29 @@
 //! Library worker thread: drains cmd bus and publishes evt.
 
-use crate::bus::{LibraryBus, LibraryBuses};
+use crate::bus::LibraryBuses;
 use crate::{HotCueRecord, LibraryError, LibraryManager, LoopRecord};
-use library_api::{
-    decode_cmd_body, encode_evt_body, BeatGrid, CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop,
-    TrackSummary,
-};
+use bus_api::AnalyzeTrack;
+use bus_api::BeatGrid;
+use bus_api::BeatGridChanged;
+use bus_api::DeleteTrackHotCue;
+use bus_api::DeleteTrackLoop;
+use bus_api::Error;
+use bus_api::Event;
+use bus_api::GenerateStems;
+use bus_api::HotCue;
+use bus_api::HotCuesChanged;
+use bus_api::LoopsChanged;
+use bus_api::RefreshTrack;
+use bus_api::SaveBeatGrid;
+use bus_api::SaveTrackHotCue;
+use bus_api::SaveTrackLoop;
+use bus_api::SavedLoop;
+use bus_api::TrackAnalyzed;
+use bus_api::TrackProgress;
+use bus_api::TrackSummary;
+use bus_api::TrackUpdated;
 use library_core::{AnalyzeTrackOptions, AudioSource, Library, TrackId};
-use omnibus::Event;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -19,8 +34,8 @@ use std::time::Duration;
 /// This bounds how long `Drop` waits to join an idle worker, and every
 /// `LibraryTransport` drop pays it (15+ per `host-flutter` test run), so it is
 /// kept short. The timeout is a no-op poll in both loops, which differ in how it
-/// is reported: the cmd loop's `omnibus` receiver returns `Ok(None)`, the stem
-/// loop's `std::sync::mpsc` receiver returns `Err(RecvTimeoutError::Timeout)`.
+/// is reported: the cmd loop's subscriber returns `Ok(None)`, the stem loop's
+/// `std::sync::mpsc` receiver returns `Err(RecvTimeoutError::Timeout)`.
 const RECV_TIMEOUT: Duration = Duration::from_millis(25);
 
 /// Host-owned library cmd worker (JoinHandle must not live inside `Mutex<LibraryManager>`).
@@ -50,14 +65,7 @@ impl Drop for LibraryWorker {
 /// Errors if [`LibraryManager::set_buses`] was not called, or if the worker
 /// fails to subscribe to the cmd bus.
 pub fn spawn_library_worker(library: Arc<Mutex<LibraryManager>>) -> crate::Result<LibraryWorker> {
-    let buses = {
-        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
-        lib.buses().ok_or_else(|| LibraryError::Backend {
-            backend: "library",
-            message: "library buses not attached; call set_buses before spawn_library_worker"
-                .into(),
-        })?
-    };
+    let buses = attach_buses(&library)?;
 
     let shutdown = Arc::new(AtomicBool::new(false));
     let library_handle = Arc::clone(&library);
@@ -75,25 +83,9 @@ pub fn spawn_library_worker(library: Arc<Mutex<LibraryManager>>) -> crate::Resul
     // (collection-wide "generate stems") would otherwise spawn one thread per
     // cmd and OOM.
     let (stem_tx, stem_rx) = std::sync::mpsc::channel::<String>();
-    {
-        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
-        lib.buses()
-            .ok_or_else(|| LibraryError::Backend {
-                backend: "library",
-                message: "library buses not attached; call set_buses before spawn_library_worker"
-                    .into(),
-            })?
-            .set_stem_queue(stem_tx);
-    }
+    attach_buses(&library)?.set_stem_queue(stem_tx);
     let stem_library = Arc::clone(&library);
-    let stem_buses = {
-        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
-        lib.buses().ok_or_else(|| LibraryError::Backend {
-            backend: "library",
-            message: "library buses not attached; call set_buses before spawn_library_worker"
-                .into(),
-        })?
-    };
+    let stem_buses = attach_buses(&library)?;
     let stem_shutdown = Arc::clone(&shutdown);
     let stem_handle = thread::Builder::new()
         .name("library-stems".into())
@@ -107,15 +99,23 @@ pub fn spawn_library_worker(library: Arc<Mutex<LibraryManager>>) -> crate::Resul
     })
 }
 
+/// Clone the buses attached to `library`, or explain why there are none.
+fn attach_buses(library: &Arc<Mutex<LibraryManager>>) -> crate::Result<LibraryBuses> {
+    let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+    lib.buses().ok_or_else(|| LibraryError::Backend {
+        backend: "library",
+        message: "library buses not attached; call set_buses before spawn_library_worker".into(),
+    })
+}
+
 pub(crate) fn worker_thread_loop(
     buses: LibraryBuses,
     library: Arc<Mutex<LibraryManager>>,
     shutdown: Arc<AtomicBool>,
     ready: std::sync::mpsc::Sender<Result<(), String>>,
 ) {
-    let cmd_bus = buses.cmd_bus();
-    let rx = match cmd_bus.subscribe(omnibus::Filter::Any, omnibus::Filter::Any) {
-        Ok(rx) => rx,
+    let mut cmd = match buses.subscribe_cmd() {
+        Ok(cmd) => cmd,
         Err(e) => {
             let _ = ready.send(Err(e.to_string()));
             return;
@@ -124,71 +124,36 @@ pub(crate) fn worker_thread_loop(
     let _ = ready.send(Ok(()));
 
     while !shutdown.load(Ordering::Relaxed) {
-        match rx.recv_timeout(RECV_TIMEOUT) {
-            Ok(Some(event)) => handle_cmd(&event, &library, &buses),
+        match cmd.recv_timeout(RECV_TIMEOUT) {
+            Ok(Some(event)) => handle_cmd(event, &library, &buses),
             Ok(None) => continue,
             Err(_) => break,
         }
     }
 }
 
-fn handle_cmd(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
-    library: &Arc<Mutex<LibraryManager>>,
-    buses: &LibraryBuses,
-) {
-    let evt_bus = buses.evt_bus();
-    let revision = buses.revision_arc();
-    match event.kind() {
-        Kind::AnalyzeTrack => handle_analyze(event, library, buses),
-        Kind::GenerateStems => handle_generate_stems(event, library, buses),
-        Kind::RefreshTrack => handle_refresh_track(event, library, &evt_bus, &revision),
-        Kind::SaveHotCue => handle_save_hot_cue(event, library, &evt_bus, &revision),
-        Kind::DeleteHotCue => handle_delete_hot_cue(event, library, &evt_bus, &revision),
-        Kind::SaveLoop => handle_save_loop(event, library, &evt_bus, &revision),
-        Kind::DeleteLoop => handle_delete_loop(event, library, &evt_bus, &revision),
-        Kind::SaveBeatGrid => handle_save_beat_grid(event, library, &evt_bus, &revision),
-        Kind::TrackAnalyzed
-        | Kind::TrackUpdated
-        | Kind::HotCuesChanged
-        | Kind::LoopsChanged
-        | Kind::BeatGridChanged
-        | Kind::HistorySessionUpdated
-        | Kind::Navigate
-        | Kind::Focus
-        | Kind::Load
-        | Kind::Error
-        | Kind::Notice
-        | Kind::TrackProgress => {
-            // Ignore evt kinds published onto cmd by mistake.
-        }
+fn handle_cmd(event: Event, library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuses) {
+    match event {
+        Event::AnalyzeTrack(cmd) => handle_analyze(cmd, library, buses),
+        Event::GenerateStems(cmd) => handle_generate_stems(cmd, library, buses),
+        Event::RefreshTrack(cmd) => handle_refresh_track(cmd, library, buses),
+        Event::SaveTrackHotCue(cmd) => handle_save_hot_cue(cmd, library, buses),
+        Event::DeleteTrackHotCue(cmd) => handle_delete_hot_cue(cmd, library, buses),
+        Event::SaveTrackLoop(cmd) => handle_save_loop(cmd, library, buses),
+        Event::DeleteTrackLoop(cmd) => handle_delete_loop(cmd, library, buses),
+        Event::SaveBeatGrid(cmd) => handle_save_beat_grid(cmd, library, buses),
+        // Egress events published onto cmd by mistake, plus engine and controller
+        // commands that are not the library worker's business.
+        _ => {}
     }
 }
 
 fn handle_refresh_track(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
+    cmd: RefreshTrack,
     library: &Arc<Mutex<LibraryManager>>,
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
 ) {
-    let track_id = match decode_cmd_body(event.payload()) {
-        Ok(CmdBody::RefreshTrack { track_id }) => track_id,
-        Ok(_) => {
-            publish_error(
-                evt_bus,
-                revision,
-                Origin::Library,
-                "refresh_track body mismatch".into(),
-                None,
-            );
-            return;
-        }
-        Err(err) => {
-            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
-            return;
-        }
-    };
-
+    let track_id = cmd.track_id;
     let id = TrackId::new(track_id.clone());
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
@@ -208,93 +173,32 @@ fn handle_refresh_track(
 
     match result {
         Ok((track, cues, loops)) => {
-            let _ = publish_evt(
-                evt_bus,
-                revision,
-                Origin::Track(track_id.clone()),
-                Kind::TrackUpdated,
-                EvtBody::TrackUpdated {
-                    track: Box::new(track),
-                },
-            );
+            let _ = buses.publish_evt(Event::TrackUpdated(TrackUpdated { track }));
             match cues {
                 Ok(rows) => {
-                    let _ = publish_evt(
-                        evt_bus,
-                        revision,
-                        Origin::Track(track_id.clone()),
-                        Kind::HotCuesChanged,
-                        EvtBody::HotCuesChanged {
-                            track_id: track_id.clone(),
-                            hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
-                        },
-                    );
+                    let _ = buses.publish_evt(Event::HotCuesChanged(HotCuesChanged {
+                        track_id: track_id.clone(),
+                        hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
+                    }));
                 }
-                Err(err) => publish_error(
-                    evt_bus,
-                    revision,
-                    Origin::Track(track_id.clone()),
-                    err.to_string(),
-                    Some(track_id.clone()),
-                ),
+                Err(err) => publish_error(buses, err.to_string(), Some(track_id.clone())),
             }
             match loops {
                 Ok(rows) => {
-                    let _ = publish_evt(
-                        evt_bus,
-                        revision,
-                        Origin::Track(track_id.clone()),
-                        Kind::LoopsChanged,
-                        EvtBody::LoopsChanged {
-                            track_id: track_id.clone(),
-                            loops: rows.into_iter().map(saved_loop_from_record).collect(),
-                        },
-                    );
+                    let _ = buses.publish_evt(Event::LoopsChanged(LoopsChanged {
+                        track_id: track_id.clone(),
+                        loops: rows.into_iter().map(saved_loop_from_record).collect(),
+                    }));
                 }
-                Err(err) => publish_error(
-                    evt_bus,
-                    revision,
-                    Origin::Track(track_id.clone()),
-                    err.to_string(),
-                    Some(track_id),
-                ),
+                Err(err) => publish_error(buses, err.to_string(), Some(track_id)),
             }
         }
-        Err(message) => publish_error(
-            evt_bus,
-            revision,
-            Origin::Track(track_id.clone()),
-            message,
-            Some(track_id),
-        ),
+        Err(message) => publish_error(buses, message, Some(track_id)),
     }
 }
 
-fn handle_analyze(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
-    library: &Arc<Mutex<LibraryManager>>,
-    buses: &LibraryBuses,
-) {
-    let evt_bus = buses.evt_bus();
-    let revision = buses.revision_arc();
-    let body = match decode_cmd_body(event.payload()) {
-        Ok(CmdBody::AnalyzeTrack { track_id, force }) => (track_id, force),
-        Ok(_) => {
-            publish_error(
-                &evt_bus,
-                &revision,
-                Origin::Library,
-                "analyze_track body mismatch".into(),
-                None,
-            );
-            return;
-        }
-        Err(err) => {
-            publish_error(&evt_bus, &revision, Origin::Library, err.to_string(), None);
-            return;
-        }
-    };
-    let (track_id, force) = body;
+fn handle_analyze(cmd: AnalyzeTrack, library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuses) {
+    let AnalyzeTrack { track_id, force } = cmd;
     let duration = *buses
         .analysis_duration_arc()
         .lock()
@@ -305,17 +209,11 @@ fn handle_analyze(
         analysis_duration: duration,
     };
 
-    let _ = publish_evt(
-        &evt_bus,
-        &revision,
-        Origin::Track(track_id.clone()),
-        Kind::TrackProgress,
-        EvtBody::TrackProgress {
-            track_id: track_id.clone(),
-            phase: "analyze".into(),
-            fraction: None,
-        },
-    );
+    let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
+        track_id: track_id.clone(),
+        phase: "analyze".into(),
+        fraction: None,
+    }));
 
     let result =
         LibraryManager::analyze_track_off_mutex(library, &TrackId::new(track_id.clone()), options);
@@ -323,31 +221,15 @@ fn handle_analyze(
     match result {
         Ok(source) => match track_summary(&source) {
             Some(track) => {
-                let _ = publish_evt(
-                    &evt_bus,
-                    &revision,
-                    Origin::Track(track.id.clone()),
-                    Kind::TrackAnalyzed,
-                    EvtBody::TrackAnalyzed {
-                        track: Box::new(track),
-                    },
-                );
+                let _ = buses.publish_evt(Event::TrackAnalyzed(TrackAnalyzed { track }));
             }
             None => publish_error(
-                &evt_bus,
-                &revision,
-                Origin::Track(track_id.clone()),
+                buses,
                 "Only file tracks can be analyzed.".into(),
                 Some(track_id),
             ),
         },
-        Err(err) => publish_error(
-            &evt_bus,
-            &revision,
-            Origin::Track(track_id.clone()),
-            err.to_string(),
-            Some(track_id),
-        ),
+        Err(err) => publish_error(buses, err.to_string(), Some(track_id)),
     }
 }
 
@@ -356,43 +238,19 @@ fn handle_analyze(
 /// A no-op when a valid cache already exists, so the UI can fire this without
 /// first checking whether the track already has stems.
 fn handle_generate_stems(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
+    cmd: GenerateStems,
     library: &Arc<Mutex<LibraryManager>>,
     buses: &LibraryBuses,
 ) {
-    let evt_bus = buses.evt_bus();
-    let revision = buses.revision_arc();
-    let track_id = match decode_cmd_body(event.payload()) {
-        Ok(CmdBody::GenerateStems { track_id }) => track_id,
-        Ok(_) => {
-            publish_error(
-                &evt_bus,
-                &revision,
-                Origin::Library,
-                "generate_stems body mismatch".into(),
-                None,
-            );
-            return;
-        }
-        Err(err) => {
-            publish_error(&evt_bus, &revision, Origin::Library, err.to_string(), None);
-            return;
-        }
-    };
+    let track_id = cmd.track_id;
 
     // Publish the queued phase before enqueueing so the UI shows a loader even
     // if the job turns out to be a no-op against an existing cache.
-    let _ = publish_evt(
-        &evt_bus,
-        &revision,
-        Origin::Track(track_id.clone()),
-        Kind::TrackProgress,
-        EvtBody::TrackProgress {
-            track_id: track_id.clone(),
-            phase: "stems_queued".into(),
-            fraction: None,
-        },
-    );
+    let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
+        track_id: track_id.clone(),
+        phase: "stems_queued".into(),
+        fraction: None,
+    }));
     if !buses.queue_stem(track_id.clone()) {
         // No serial queue installed (worker spawned without stem thread, e.g. in
         // some unit-test harnesses): fall back to a one-off thread so the job
@@ -407,23 +265,14 @@ fn run_stem_ensure_job(library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuse
     let models_root = buses.models_root();
     let format = buses.stems_format();
     let model = buses.stems_model();
-    let evt_bus = buses.evt_bus();
-    let revision = buses.revision_arc();
     let track_id_for_cb = track_id.to_string();
-    let evt_bus_cb = evt_bus.clone();
-    let revision_cb = Arc::clone(&revision);
+    let buses_cb = buses.clone();
     let progress: crate::StemProgressFn = Arc::new(move |phase, fraction| {
-        let _ = publish_evt(
-            &evt_bus_cb,
-            &revision_cb,
-            Origin::Track(track_id_for_cb.clone()),
-            Kind::TrackProgress,
-            EvtBody::TrackProgress {
-                track_id: track_id_for_cb.clone(),
-                phase: phase.to_string(),
-                fraction,
-            },
-        );
+        let _ = buses_cb.publish_evt(Event::TrackProgress(TrackProgress {
+            track_id: track_id_for_cb.clone(),
+            phase: phase.to_string(),
+            fraction,
+        }));
     });
     let result = crate::ensure_track_stems_with_progress(
         library,
@@ -436,38 +285,20 @@ fn run_stem_ensure_job(library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuse
     );
     match result {
         Ok(()) => {
-            let _ = publish_evt(
-                &evt_bus,
-                &revision,
-                Origin::Track(track_id.to_string()),
-                Kind::TrackProgress,
-                EvtBody::TrackProgress {
-                    track_id: track_id.to_string(),
-                    phase: "stems_ready".into(),
-                    fraction: Some(1.0),
-                },
-            );
+            let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
+                track_id: track_id.to_string(),
+                phase: "stems_ready".into(),
+                fraction: Some(1.0),
+            }));
         }
         Err(err) => {
             let message = err.to_string();
-            let _ = publish_evt(
-                &evt_bus,
-                &revision,
-                Origin::Track(track_id.to_string()),
-                Kind::TrackProgress,
-                EvtBody::TrackProgress {
-                    track_id: track_id.to_string(),
-                    phase: "stems_failed".into(),
-                    fraction: None,
-                },
-            );
-            publish_error(
-                &evt_bus,
-                &revision,
-                Origin::Track(track_id.to_string()),
-                message,
-                Some(track_id.to_string()),
-            );
+            let _ = buses.publish_evt(Event::TrackProgress(TrackProgress {
+                track_id: track_id.to_string(),
+                phase: "stems_failed".into(),
+                fraction: None,
+            }));
+            publish_error(buses, message, Some(track_id.to_string()));
         }
     }
 }
@@ -502,36 +333,18 @@ fn spawn_stem_ensure_job(
 }
 
 fn handle_save_hot_cue(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
+    cmd: SaveTrackHotCue,
     library: &Arc<Mutex<LibraryManager>>,
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
 ) {
-    let (track_id, slot, position_ms, loop_length_beats, color, label) =
-        match decode_cmd_body(event.payload()) {
-            Ok(CmdBody::SaveHotCue {
-                track_id,
-                slot,
-                position_ms,
-                loop_length_beats,
-                color,
-                label,
-            }) => (track_id, slot, position_ms, loop_length_beats, color, label),
-            Ok(_) => {
-                publish_error(
-                    evt_bus,
-                    revision,
-                    Origin::Library,
-                    "save_hot_cue body mismatch".into(),
-                    None,
-                );
-                return;
-            }
-            Err(err) => {
-                publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
-                return;
-            }
-        };
+    let SaveTrackHotCue {
+        track_id,
+        slot,
+        position_ms,
+        loop_length_beats,
+        color,
+        label,
+    } = cmd;
 
     let id = TrackId::new(track_id.clone());
     let result = {
@@ -539,32 +352,15 @@ fn handle_save_hot_cue(
         lib.save_track_hot_cue(&id, slot, position_ms, loop_length_beats, color, label)
             .and_then(|_| lib.list_track_hot_cues(&id))
     };
-    publish_hot_cues_result(evt_bus, revision, track_id, result);
+    publish_hot_cues_result(buses, track_id, result);
 }
 
 fn handle_delete_hot_cue(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
+    cmd: DeleteTrackHotCue,
     library: &Arc<Mutex<LibraryManager>>,
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
 ) {
-    let (track_id, slot) = match decode_cmd_body(event.payload()) {
-        Ok(CmdBody::DeleteHotCue { track_id, slot }) => (track_id, slot),
-        Ok(_) => {
-            publish_error(
-                evt_bus,
-                revision,
-                Origin::Library,
-                "delete_hot_cue body mismatch".into(),
-                None,
-            );
-            return;
-        }
-        Err(err) => {
-            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
-            return;
-        }
-    };
+    let DeleteTrackHotCue { track_id, slot } = cmd;
 
     let id = TrackId::new(track_id.clone());
     let result = {
@@ -572,39 +368,22 @@ fn handle_delete_hot_cue(
         lib.delete_track_hot_cue(&id, slot)
             .and_then(|_| lib.list_track_hot_cues(&id))
     };
-    publish_hot_cues_result(evt_bus, revision, track_id, result);
+    publish_hot_cues_result(buses, track_id, result);
 }
 
 fn handle_save_loop(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
+    cmd: SaveTrackLoop,
     library: &Arc<Mutex<LibraryManager>>,
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
 ) {
-    let (track_id, slot, in_ms, out_ms, label, color) = match decode_cmd_body(event.payload()) {
-        Ok(CmdBody::SaveLoop {
-            track_id,
-            slot,
-            in_ms,
-            out_ms,
-            label,
-            color,
-        }) => (track_id, slot, in_ms, out_ms, label, color),
-        Ok(_) => {
-            publish_error(
-                evt_bus,
-                revision,
-                Origin::Library,
-                "save_loop body mismatch".into(),
-                None,
-            );
-            return;
-        }
-        Err(err) => {
-            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
-            return;
-        }
-    };
+    let SaveTrackLoop {
+        track_id,
+        slot,
+        in_ms,
+        out_ms,
+        label,
+        color,
+    } = cmd;
 
     let id = TrackId::new(track_id.clone());
     let result = {
@@ -612,32 +391,15 @@ fn handle_save_loop(
         lib.save_track_loop(&id, slot, in_ms, out_ms, label, color)
             .and_then(|_| lib.list_track_loops(&id))
     };
-    publish_loops_result(evt_bus, revision, track_id, result);
+    publish_loops_result(buses, track_id, result);
 }
 
 fn handle_delete_loop(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
+    cmd: DeleteTrackLoop,
     library: &Arc<Mutex<LibraryManager>>,
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
 ) {
-    let (track_id, slot) = match decode_cmd_body(event.payload()) {
-        Ok(CmdBody::DeleteLoop { track_id, slot }) => (track_id, slot),
-        Ok(_) => {
-            publish_error(
-                evt_bus,
-                revision,
-                Origin::Library,
-                "delete_loop body mismatch".into(),
-                None,
-            );
-            return;
-        }
-        Err(err) => {
-            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
-            return;
-        }
-    };
+    let DeleteTrackLoop { track_id, slot } = cmd;
 
     let id = TrackId::new(track_id.clone());
     let result = {
@@ -645,36 +407,19 @@ fn handle_delete_loop(
         lib.delete_track_loop(&id, slot)
             .and_then(|_| lib.list_track_loops(&id))
     };
-    publish_loops_result(evt_bus, revision, track_id, result);
+    publish_loops_result(buses, track_id, result);
 }
 
 fn handle_save_beat_grid(
-    event: &Event<Origin, Kind, Arc<[u8]>>,
+    cmd: SaveBeatGrid,
     library: &Arc<Mutex<LibraryManager>>,
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
 ) {
-    let (track_id, bpm, first_beat_secs) = match decode_cmd_body(event.payload()) {
-        Ok(CmdBody::SaveBeatGrid {
-            track_id,
-            bpm,
-            first_beat_secs,
-        }) => (track_id, bpm, first_beat_secs),
-        Ok(_) => {
-            publish_error(
-                evt_bus,
-                revision,
-                Origin::Library,
-                "save_beat_grid body mismatch".into(),
-                None,
-            );
-            return;
-        }
-        Err(err) => {
-            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
-            return;
-        }
-    };
+    let SaveBeatGrid {
+        track_id,
+        bpm,
+        first_beat_secs,
+    } = cmd;
 
     let id = TrackId::new(track_id.clone());
     // Tag write-back is planned under the lock but executed after it is released:
@@ -705,111 +450,64 @@ fn handle_save_beat_grid(
     if let Some(plan) = write_back {
         plan.execute();
     }
-    publish_beat_grid_result(evt_bus, revision, track_id, result);
+    publish_beat_grid_result(buses, track_id, result);
 }
 
 fn publish_beat_grid_result(
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
     track_id: String,
     result: crate::Result<(crate::waveform::BeatGridSnapshot, Option<AudioSource>)>,
 ) {
     match result {
         Ok((grid, source)) => {
             let bpm = grid.bpm.unwrap_or(0.0);
-            let _ = publish_evt(
-                evt_bus,
-                revision,
-                Origin::Track(track_id.clone()),
-                Kind::BeatGridChanged,
-                EvtBody::BeatGridChanged {
-                    track_id: track_id.clone(),
-                    beat_grid: BeatGrid {
-                        beats: grid.beats,
-                        downbeats: grid.downbeats,
-                        bpm,
-                    },
+            let _ = buses.publish_evt(Event::BeatGridChanged(BeatGridChanged {
+                track_id: track_id.clone(),
+                beat_grid: BeatGrid {
+                    beats: grid.beats,
+                    downbeats: grid.downbeats,
+                    bpm,
                 },
-            );
+            }));
             if let Some(source) = source {
                 if let Some(track) = track_summary(&source) {
-                    let _ = publish_evt(
-                        evt_bus,
-                        revision,
-                        Origin::Track(track_id),
-                        Kind::TrackUpdated,
-                        EvtBody::TrackUpdated {
-                            track: Box::new(track),
-                        },
-                    );
+                    let _ = buses.publish_evt(Event::TrackUpdated(TrackUpdated { track }));
                 }
             }
         }
-        Err(err) => publish_error(
-            evt_bus,
-            revision,
-            Origin::Track(track_id.clone()),
-            err.to_string(),
-            Some(track_id),
-        ),
+        Err(err) => publish_error(buses, err.to_string(), Some(track_id)),
     }
 }
 
 fn publish_hot_cues_result(
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
     track_id: String,
     result: crate::Result<Vec<HotCueRecord>>,
 ) {
     match result {
         Ok(rows) => {
-            let _ = publish_evt(
-                evt_bus,
-                revision,
-                Origin::Track(track_id.clone()),
-                Kind::HotCuesChanged,
-                EvtBody::HotCuesChanged {
-                    track_id,
-                    hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
-                },
-            );
+            let _ = buses.publish_evt(Event::HotCuesChanged(HotCuesChanged {
+                track_id,
+                hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
+            }));
         }
-        Err(err) => publish_error(
-            evt_bus,
-            revision,
-            Origin::Track(track_id.clone()),
-            err.to_string(),
-            Some(track_id),
-        ),
+        Err(err) => publish_error(buses, err.to_string(), Some(track_id)),
     }
 }
 
 fn publish_loops_result(
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
     track_id: String,
     result: crate::Result<Vec<LoopRecord>>,
 ) {
     match result {
         Ok(rows) => {
-            let _ = publish_evt(
-                evt_bus,
-                revision,
-                Origin::Track(track_id.clone()),
-                Kind::LoopsChanged,
-                EvtBody::LoopsChanged {
-                    track_id,
-                    loops: rows.into_iter().map(saved_loop_from_record).collect(),
-                },
-            );
+            let _ = buses.publish_evt(Event::LoopsChanged(LoopsChanged {
+                track_id,
+                loops: rows.into_iter().map(saved_loop_from_record).collect(),
+            }));
         }
-        Err(err) => publish_error(
-            evt_bus,
-            revision,
-            Origin::Track(track_id.clone()),
-            err.to_string(),
-            Some(track_id),
-        ),
+        Err(err) => publish_error(buses, err.to_string(), Some(track_id)),
     }
 }
 
@@ -833,35 +531,12 @@ fn saved_loop_from_record(record: LoopRecord) -> SavedLoop {
     }
 }
 
-fn publish_error(
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
-    origin: Origin,
-    message: String,
-    track_id: Option<String>,
-) {
-    let _ = publish_evt(
-        evt_bus,
-        revision,
-        origin,
-        Kind::Error,
-        EvtBody::Error { message, track_id },
-    );
-}
-
-fn publish_evt(
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
-    origin: Origin,
-    kind: Kind,
-    body: EvtBody,
-) -> Result<(), String> {
-    let bytes = encode_evt_body(&body).map_err(|e| e.to_string())?;
-    revision.fetch_add(1, Ordering::Relaxed);
-    evt_bus
-        .publish(Event::new(origin, kind, Arc::from(bytes)))
-        .map_err(|e| e.to_string())?;
-    Ok(())
+fn publish_error(buses: &LibraryBuses, message: String, track_id: Option<String>) {
+    let _ = buses.publish_evt(Event::Error(Error {
+        message,
+        track_id,
+        deck: None,
+    }));
 }
 
 fn track_summary(source: &AudioSource) -> Option<TrackSummary> {

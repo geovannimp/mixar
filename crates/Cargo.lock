@@ -675,6 +675,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
+name = "bus-api"
+version = "0.1.0"
+dependencies = [
+ "audio-core 0.1.0",
+ "event-bus",
+ "serde",
+]
+
+[[package]]
 name = "bytecheck"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -935,9 +944,8 @@ dependencies = [
 name = "controller"
 version = "0.1.0"
 dependencies = [
+ "bus-api",
  "controller",
- "engine-api",
- "library-api",
  "midir",
  "rhai",
  "serde",
@@ -1486,18 +1494,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "engine-api"
-version = "0.1.0"
-dependencies = [
- "audio-core 0.1.0",
- "hex",
- "rmp-serde",
- "serde",
- "serde_bytes",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "engine-core"
 version = "0.1.0"
 dependencies = [
@@ -1506,11 +1502,11 @@ dependencies = [
  "audio-core 0.1.0",
  "backend-cpal",
  "backend-null",
+ "bus-api",
  "codec",
- "engine-api",
  "engine-dsp",
+ "event-bus",
  "library",
- "library-api",
  "library-core",
  "omnibus",
  "resampler",
@@ -1561,6 +1557,13 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "event-bus"
+version = "0.1.0"
+dependencies = [
+ "omnibus",
 ]
 
 [[package]]
@@ -1997,17 +2000,17 @@ dependencies = [
  "analyzer-stems",
  "anyhow",
  "audio-core 0.1.0",
+ "bus-api",
  "codec",
  "controller",
- "engine-api",
  "engine-core",
+ "event-bus",
  "flutter_rust_bridge",
  "fs-browser",
  "host_flutter",
  "image",
  "library",
  "library-adapters",
- "library-api",
  "library-core",
  "lofty",
  "resampler",
@@ -2570,13 +2573,13 @@ dependencies = [
  "analyzer-core",
  "analyzer-stems",
  "audio-core 0.1.0",
+ "bus-api",
  "chrono",
  "codec",
+ "event-bus",
  "image",
- "library-api",
  "library-core",
  "lofty",
- "omnibus",
  "rusqlite",
  "sea-orm-sync",
  "serde",
@@ -2604,17 +2607,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
-]
-
-[[package]]
-name = "library-api"
-version = "0.1.0"
-dependencies = [
- "hex",
- "rmp-serde",
- "serde",
- "serde_bytes",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -4055,25 +4047,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rmp"
-version = "0.8.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ba8be72d372b2c9b35542551678538b562e7cf86c3315773cae48dfbfe7790c"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "rmp-serde"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72f81bee8c8ef9b577d1681a70ebbc962c232461e397b22c208c43c04b67a155"
-dependencies = [
- "rmp",
- "serde",
-]
-
-[[package]]
 name = "rsqlite-vfs"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4453,16 +4426,6 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
-]
-
-[[package]]
-name = "serde_bytes"
-version = "0.11.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5d440709e79d88e51ac01c4b72fc6cb7314017bb7da9eeff678aa94c10e3ea8"
-dependencies = [
- "serde",
- "serde_core",
 ]
 
 [[package]]

@@ -73,7 +73,7 @@ entirely; 423 tests now complete in ~0.01s.
 - [x] P3.2 The three `backend: "auto"` tests no longer open a stream; they assert
       backend selection + device enumeration, which is deterministic.
 - [x] P3.3 Deleted `controller/tests/smoke.rs` (no assertions) and
-      `engine-api/tests/postcard_roundtrip.rs` (empty; postcard was retired).
+      `bus-api/tests/postcard_roundtrip.rs` (empty; postcard was retired).
 - [x] P3.4 Deleted `engine-core/tests/bus_pause_long_wav.rs` — duplicate of
       `bus_pause_preserves_position.rs` that decoded a full commercial track
       (1.33s, the slowest test in the suite).

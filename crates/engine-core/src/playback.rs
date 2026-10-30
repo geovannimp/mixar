@@ -1,7 +1,7 @@
 use crate::sync::{require_positive_bpm, snap_ms};
 use anyhow::Result;
 use audio_core::{ms_to_secs, secs_to_ms};
-use engine_api::LoopRegion;
+use bus_api::LoopRegion;
 
 use crate::engine::Engine;
 use crate::status::map_jog_mode;
@@ -97,8 +97,8 @@ impl Engine {
     pub fn set_deck_jog_mode(
         &mut self,
         deck_id: usize,
-        top: engine_api::JogMode,
-        outer: engine_api::JogMode,
+        top: bus_api::JogMode,
+        outer: bus_api::JogMode,
     ) -> Result<()> {
         let dsp_engine = self
             .dsp_engine

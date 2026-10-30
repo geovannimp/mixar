@@ -1,29 +1,34 @@
-//! Omnibus cmd/evt buses for library control and egress.
+//! The library's cmd/evt pair on the shared typed [`event_bus::EventBus`].
 
-use crate::{LibraryError, Result};
-use library_api::{encode_evt_body, EvtBody, Kind, Origin};
+use crate::LibraryError;
+use crate::Result;
+use bus_api::Event;
+use event_bus::EventBus;
+use event_bus::Subscriber;
 use library_core::AnalysisDurationMode;
-use omnibus::{Event, Filter};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
 
-/// Shared omnibus type for cmd and evt buses (payload = nested MessagePack body bytes).
-pub type LibraryBus = omnibus::Bus<Origin, Kind, Arc<[u8]>>;
+/// Shared bus type: one [`Event`] enum carries the engine's, the library's and
+/// (later) the controller's events, so a host subscribes once.
+pub type LibraryBus = EventBus<Event>;
 
-/// Host-facing evt subscription (all origins/kinds).
-pub type EvtReceiver = omnibus::BusReceiver<Origin, Kind, Arc<[u8]>>;
+/// Command depth. Deeper than the engine's 256 because bulk analysis and bulk
+/// stem generation queue one command per track, and the worker drains them
+/// serially; a collection-wide run must not overflow while it works through the
+/// backlog.
+const CMD_CAPACITY: usize = 4096;
 
-/// Shared evt handle type for host bridges.
-pub type Evt = omnibus::Event<Origin, Kind, Arc<[u8]>>;
+/// Egress depth. Per subscriber, so it has to hold a UI drain gap without
+/// dropping discrete events. Same sizing the engine evt side uses.
+const EVT_CAPACITY: usize = 2048;
 
-/// Host-owned cloneable cmd/evt bus bundle + shared revision / analysis duration.
+/// Host-owned cloneable bus handle + the config the worker reads.
 ///
 /// Hosts create this once, inject clones into [`crate::LibraryManager`] via
-/// `set_buses`, and keep a handle so controller/engine can `publish_evt`
-/// without locking the DB mutex.
+/// `set_buses`, and keep a handle so the engine/controller can publish without
+/// locking the DB mutex.
 ///
-/// `revision` is bumped on every egress publish so hosts can stamp wire messages
-/// (Tauri `library://bus`) with a monotonic library-state counter.
 /// `analysis_duration` is the worker default for `AnalyzeTrack` when the cmd
 /// does not override duration (shared with engine/settings at session start).
 /// `stems_format` / `stems_model` / `stems_root` / `models_root` configure the
@@ -35,9 +40,7 @@ pub const SCNET_STEMS_MODEL: &str = "scnet_int8_v1";
 
 #[derive(Clone)]
 pub struct LibraryBuses {
-    cmd: LibraryBus,
-    evt: LibraryBus,
-    revision: Arc<AtomicU64>,
+    buses: EventBus<Event>,
     analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
     stems_format: Arc<Mutex<String>>,
     stems_model: Arc<Mutex<String>>,
@@ -52,13 +55,15 @@ pub struct LibraryBuses {
 }
 
 impl LibraryBuses {
-    /// Create a matched cmd/evt pair with shared revision and analysis duration.
+    /// Create a private cmd/evt pair (tests, offline hosts).
     pub fn new() -> Self {
-        let (cmd, evt) = new_buses();
+        Self::with_bus(EventBus::new(CMD_CAPACITY, EVT_CAPACITY))
+    }
+
+    /// Attach to the process-wide bus the engine and controller already use.
+    pub fn with_bus(bus: EventBus<Event>) -> Self {
         Self {
-            cmd,
-            evt,
-            revision: Arc::new(AtomicU64::new(0)),
+            buses: bus,
             analysis_duration: Arc::new(Mutex::new(AnalysisDurationMode::default())),
             stems_format: Arc::new(Mutex::new(String::from("opus"))),
             stems_model: Arc::new(Mutex::new(DEFAULT_STEMS_MODEL.to_string())),
@@ -68,37 +73,29 @@ impl LibraryBuses {
         }
     }
 
-    /// Fire-and-forget publish of a command (nested `CmdBody` bytes in payload).
-    pub fn publish_cmd(&self, origin: Origin, kind: Kind, body: impl AsRef<[u8]>) -> Result<()> {
-        self.cmd
-            .publish(Event::new(origin, kind, Arc::from(body.as_ref())))
-            .map_err(omnibus_err)?;
-        Ok(())
+    /// Fire-and-forget publish of a command.
+    pub fn publish_cmd(&self, event: Event) -> Result<()> {
+        self.buses.publish_cmd(event).map_err(omnibus_err)
     }
 
-    /// Encode `EvtBody`, bump revision, publish on the evt bus.
-    pub fn publish_evt(&self, origin: Origin, kind: Kind, body: EvtBody) -> Result<()> {
-        let bytes = encode_evt_body(&body)
-            .map_err(|e| LibraryError::Io(std::io::Error::other(e.to_string())))?;
-        self.revision.fetch_add(1, Ordering::Relaxed);
-        self.evt
-            .publish(Event::new(origin, kind, Arc::from(bytes)))
-            .map_err(omnibus_err)?;
-        Ok(())
+    /// Fire-and-forget publish of an egress event.
+    pub fn publish_evt(&self, event: Event) -> Result<()> {
+        self.buses.publish_evt(event).map_err(omnibus_err)
     }
 
-    /// Subscribe to every egress event (UI / bridge).
-    pub fn subscribe_evt_all(&self) -> Result<EvtReceiver> {
-        self.evt
-            .subscribe(Filter::Any, Filter::Any)
-            .map_err(omnibus_err)
+    /// Subscribe to every command (the worker).
+    pub fn subscribe_cmd(&self) -> Result<Subscriber<Event>> {
+        self.buses.subscribe_cmd().map_err(omnibus_err)
     }
 
-    /// Subscribe to egress events for one track (`Origin::Track`).
-    pub fn subscribe_evt_track(&self, track_id: impl Into<String>) -> Result<EvtReceiver> {
-        self.evt
-            .subscribe(Filter::Is(Origin::Track(track_id.into())), Filter::Any)
-            .map_err(omnibus_err)
+    /// Subscribe to every egress event (UI / bridge / engine ack sync).
+    pub fn subscribe_evt(&self) -> Result<Subscriber<Event>> {
+        self.buses.subscribe_evt().map_err(omnibus_err)
+    }
+
+    /// Clone handle to the shared bus (hosts that publish outside these setters).
+    pub fn bus(&self) -> EventBus<Event> {
+        self.buses.clone()
     }
 
     /// Update default analysis duration used by AnalyzeTrack cmds.
@@ -186,25 +183,6 @@ impl LibraryBuses {
             .unwrap_or(false)
     }
 
-    /// Monotonic revision bumped when discrete library state changes.
-    pub fn revision(&self) -> u64 {
-        self.revision.load(Ordering::Relaxed)
-    }
-
-    /// Clone handle to the command ingress bus.
-    pub fn cmd_bus(&self) -> LibraryBus {
-        self.cmd.clone()
-    }
-
-    /// Clone handle to the event egress bus.
-    pub fn evt_bus(&self) -> LibraryBus {
-        self.evt.clone()
-    }
-
-    pub(crate) fn revision_arc(&self) -> Arc<AtomicU64> {
-        Arc::clone(&self.revision)
-    }
-
     pub(crate) fn analysis_duration_arc(&self) -> Arc<Mutex<AnalysisDurationMode>> {
         Arc::clone(&self.analysis_duration)
     }
@@ -216,19 +194,8 @@ impl Default for LibraryBuses {
     }
 }
 
-fn omnibus_err(e: omnibus::OmnibusError) -> LibraryError {
+fn omnibus_err(e: event_bus::BusError) -> LibraryError {
     LibraryError::Io(std::io::Error::other(e.to_string()))
-}
-
-/// Create a matched cmd/evt bus pair.
-///
-/// Cmd capacity is large so bulk analyze (one cmd per track) can queue without
-/// dropping while the worker runs analysis serially.
-pub fn new_buses() -> (LibraryBus, LibraryBus) {
-    (
-        LibraryBus::with_capacity(4096),
-        LibraryBus::with_capacity(2048),
-    )
 }
 
 #[cfg(test)]
@@ -243,5 +210,23 @@ mod tests {
         assert_eq!(buses.stems_model(), SCNET_STEMS_MODEL);
         buses.set_stems_model("unknown");
         assert_eq!(buses.stems_model(), DEFAULT_STEMS_MODEL);
+    }
+
+    #[test]
+    fn subscription_open_before_publish_receives_commands() {
+        let buses = LibraryBuses::new();
+        let mut cmd = buses.subscribe_cmd().expect("cmd subscription");
+        buses
+            .publish_cmd(Event::RefreshTrack(bus_api::RefreshTrack {
+                track_id: "t1".into(),
+            }))
+            .expect("publish");
+        assert_eq!(
+            cmd.recv_timeout(std::time::Duration::from_millis(200))
+                .expect("recv"),
+            Some(Event::RefreshTrack(bus_api::RefreshTrack {
+                track_id: "t1".into()
+            }))
+        );
     }
 }

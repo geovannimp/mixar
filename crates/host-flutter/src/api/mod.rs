@@ -1,6 +1,8 @@
 pub mod analytics;
+pub mod bus;
 pub mod controller;
 pub mod engine;
+pub mod event_mirrors;
 pub mod fs_browser;
 pub mod handler;
 pub mod history_worker;

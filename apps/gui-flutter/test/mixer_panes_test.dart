@@ -42,7 +42,6 @@ void main() {
     overrideCollectionTracksValue(const []),
     historySessionsProvider.overrideWith((ref) async => const []),
     historyCanResumeProvider.overrideWith((ref) async => false),
-    libraryEventsBootstrapProvider.overrideWith((ref) {}),
     historySettingsBootstrapProvider.overrideWith((ref) {}),
     librarySettingsBootstrapProvider.overrideWith((ref) {}),
     appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),

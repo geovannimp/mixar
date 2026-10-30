@@ -5,18 +5,11 @@ use std::collections::HashSet;
 
 use controller::script::{ScriptHost, ScriptRuntime};
 use controller::{ActionPublish, MidiOut};
-use engine_api::{CmdBody, Kind, Origin};
 
 struct CaptureBus;
 impl ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, _origin: Origin, _kind: Kind, _body: CmdBody) {}
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_cmd(&mut self, _event: bus_api::Event) {}
+    fn publish_evt(&mut self, _event: bus_api::Event) {}
 }
 
 struct CaptureMidi {

@@ -6,8 +6,11 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use crate::bridge::BridgeResult;
-use engine_api::{decode_evt_body, DeckSnapshot, EvtBody};
-use engine_core::EngineBuses;
+use bus_api::DeckSnapshot;
+use bus_api::DeckUpdated;
+use bus_api::Event;
+use event_bus::EventBus;
+use event_bus::Subscriber;
 use library::{DeckPlaySnapshot, LibraryManager};
 
 const TICK_INTERVAL: Duration = Duration::from_millis(200);
@@ -28,8 +31,11 @@ impl Drop for HistoryWorker {
 }
 
 impl HistoryWorker {
-    pub fn start(buses: &EngineBuses, library: Arc<Mutex<LibraryManager>>) -> Result<Self, String> {
-        let rx = buses.subscribe_evt_all().bridge()?;
+    pub fn start(
+        buses: &EventBus<Event>,
+        library: Arc<Mutex<LibraryManager>>,
+    ) -> Result<Self, String> {
+        let rx = buses.subscribe_evt().bridge()?;
         let shutdown = Arc::new(AtomicBool::new(false));
         let shutdown_flag = Arc::clone(&shutdown);
         let handle = std::thread::Builder::new()
@@ -44,18 +50,14 @@ impl HistoryWorker {
 }
 
 fn run_loop(
-    rx: engine_core::EvtReceiver,
+    mut rx: Subscriber<Event>,
     library: Arc<Mutex<LibraryManager>>,
     shutdown: Arc<AtomicBool>,
 ) {
     let mut last_tick = Instant::now();
     while !shutdown.load(Ordering::Relaxed) {
         match rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(Some(ev)) => {
-                if let Ok(body) = decode_evt_body(ev.payload()) {
-                    apply_evt(&library, &body);
-                }
-            }
+            Ok(Some(event)) => apply_evt(&library, &event),
             Ok(None) => {}
             Err(_) => break,
         }
@@ -73,53 +75,27 @@ fn run_loop(
     }
 }
 
-fn apply_evt(library: &Arc<Mutex<LibraryManager>>, body: &EvtBody) {
+/// History reads two event families (`DeckUpdated` for play state, `EngineSnapshot`
+/// for crossfader and profile changes), so it subscribes unfiltered and matches
+/// instead of taking a single-topic subscription.
+fn apply_evt(library: &Arc<Mutex<LibraryManager>>, event: &Event) {
     let Ok(mut lib) = library.lock() else {
         eprintln!("history worker: library lock poisoned");
         return;
     };
-    match body {
-        EvtBody::DeckUpdated {
-            id,
-            track,
-            track_id,
-            title,
-            artist,
-            album,
-            isrc,
-            bpm,
-            key,
-            playing,
-            volume,
-            crossfader_assign,
-            duration_ms,
-            ..
-        } => {
-            if let Err(err) = lib.history_on_deck_updated(
-                *id as usize,
-                DeckPlaySnapshot {
-                    playing: *playing,
-                    volume: *volume,
-                    crossfader_assign: *crossfader_assign,
-                    track_id: track_id.clone(),
-                    track_path: track.clone(),
-                    title: title.clone(),
-                    artist: artist.clone(),
-                    album: album.clone(),
-                    isrc: isrc.clone(),
-                    bpm: *bpm,
-                    key: key.clone(),
-                    duration_ms: *duration_ms,
-                },
-            ) {
+    match event {
+        Event::DeckUpdated(update) => {
+            if let Err(err) =
+                lib.history_on_deck_updated(usize::from(update.deck), update_snapshot(update))
+            {
                 eprintln!("history worker: history_on_deck_updated failed: {err}");
             }
         }
-        EvtBody::EngineStatus { status } => {
-            if let Err(err) = lib.history_on_crossfader(status.crossfader) {
+        Event::EngineSnapshot(snapshot) => {
+            if let Err(err) = lib.history_on_crossfader(snapshot.status.crossfader) {
                 eprintln!("history worker: history_on_crossfader failed: {err}");
             }
-            for deck in &status.decks {
+            for deck in &snapshot.status.decks {
                 if let Err(err) = lib.history_on_deck_updated(deck.id as usize, deck_snapshot(deck))
                 {
                     eprintln!("history worker: history_on_deck_updated failed: {err}");
@@ -127,6 +103,23 @@ fn apply_evt(library: &Arc<Mutex<LibraryManager>>, body: &EvtBody) {
             }
         }
         _ => {}
+    }
+}
+
+fn update_snapshot(update: &DeckUpdated) -> DeckPlaySnapshot {
+    DeckPlaySnapshot {
+        playing: update.playing,
+        volume: update.volume,
+        crossfader_assign: update.crossfader_assign,
+        track_id: update.track_id.clone(),
+        track_path: update.track.clone(),
+        title: update.title.clone(),
+        artist: update.artist.clone(),
+        album: update.album.clone(),
+        isrc: update.isrc.clone(),
+        bpm: update.bpm,
+        key: update.key.clone(),
+        duration_ms: update.duration_ms,
     }
 }
 
@@ -151,29 +144,29 @@ fn deck_snapshot(deck: &DeckSnapshot) -> DeckPlaySnapshot {
 mod tests {
     use super::*;
 
-    fn drives_history(body: &EvtBody) -> bool {
-        matches!(
-            body,
-            EvtBody::DeckUpdated { .. } | EvtBody::EngineStatus { .. }
-        )
+    fn drives_history(event: &Event) -> bool {
+        matches!(event, Event::DeckUpdated(_) | Event::EngineSnapshot(_))
     }
 
     #[test]
     fn non_deck_events_do_not_drive_history() {
-        // Sampler / PFL are CmdBody or DeckUpdated.headphone_cue — never history inputs.
-        assert!(!drives_history(&EvtBody::Empty));
-        assert!(!drives_history(&EvtBody::Position {
-            position_ms: 0,
-            slip_shadow_position_ms: None,
-        }));
-        assert!(!drives_history(&EvtBody::Levels {
+        // Sampler / PFL are commands or DeckUpdated.headphone_cue — never history inputs.
+        assert!(!drives_history(&Event::DeckPosition(
+            bus_api::DeckPosition {
+                deck: 0,
+                position_ms: 0,
+                slip_shadow_position_ms: None,
+            }
+        )));
+        assert!(!drives_history(&Event::DeckLevels(bus_api::DeckLevels {
+            deck: None,
             peak_l: 0.0,
             peak_r: 0.0,
             peak_hold_l: 0.0,
             peak_hold_r: 0.0,
-        }));
-        assert!(!drives_history(&EvtBody::Notice {
+        })));
+        assert!(!drives_history(&Event::Notice(bus_api::Notice {
             message: "hi".into(),
-        }));
+        })));
     }
 }

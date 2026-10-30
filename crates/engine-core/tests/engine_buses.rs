@@ -1,13 +1,16 @@
-//! Engine + EngineBuses without EngineSession.
+//! Engine + typed event bus without EngineSession.
 
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::recv_evt_kind;
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{spawn_engine_worker, Engine, EngineBuses, EngineConfig};
+use bus_api::Event;
+use bus_api::Play;
+use common::recv_error;
+use engine_core::new_event_bus;
+use engine_core::spawn_engine_worker;
+use engine_core::Engine;
+use engine_core::EngineConfig;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 fn null_config() -> EngineConfig {
     EngineConfig {
@@ -19,45 +22,37 @@ fn null_config() -> EngineConfig {
 #[test]
 fn engine_publish_evt_without_session() {
     let mut engine = Engine::new(null_config()).unwrap();
-    let buses = EngineBuses::new();
-    engine.set_buses(buses.clone());
-    let rx = engine.subscribe_evt_all().unwrap();
+    let bus = new_event_bus();
+    engine.set_buses(bus.clone());
+    let mut rx = engine.subscribe_evt_all().unwrap();
     engine
-        .publish_evt(
-            Origin::Engine,
-            Kind::Error,
-            EvtBody::Error {
-                message: "missing".into(),
-            },
-        )
+        .publish_evt(Event::Error(bus_api::Error {
+            message: "missing".into(),
+            track_id: None,
+            deck: None,
+        }))
         .unwrap();
-    let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-    assert_eq!(ev.kind(), &Kind::Error);
+    let error = recv_error(&mut rx);
+    assert_eq!(error.message, "missing");
 }
 
 #[test]
 fn spawn_worker_play_empty_deck_emits_error() {
     let mut engine = Engine::new(null_config()).unwrap();
-    let buses = EngineBuses::new();
-    engine.set_buses(buses.clone());
+    let bus = new_event_bus();
+    engine.set_buses(bus.clone());
     let engine = Arc::new(Mutex::new(Some(engine)));
     let _worker = spawn_engine_worker(Arc::clone(&engine)).unwrap();
 
-    let rx = buses.subscribe_evt_all().unwrap();
-    let body = encode_cmd_body(&CmdBody::Empty).unwrap();
-    buses
-        .publish_cmd(Origin::Deck(0), Kind::Play, body)
-        .unwrap();
+    let mut rx = bus.subscribe_evt().unwrap();
+    bus.publish_cmd(Event::Play(Play { deck: 0 })).unwrap();
 
-    // `recv_evt_kind` handles `Ok(None)` timeouts correctly; the previous hand
+    // `recv_error` owns the deadline/poll/disconnect handling; the previous hand
     // rolled loop used `remaining.max(1ms)` and `.expect("Error evt")`, which
     // panicked on the first timeout instead of waiting out the deadline.
-    let event = recv_evt_kind(&rx, Kind::Error);
-    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("Error body") else {
-        panic!("expected Error body");
-    };
+    let error = recv_error(&mut rx);
     assert!(
-        !message.trim().is_empty(),
+        !error.message.trim().is_empty(),
         "play on an empty deck must explain the failure"
     );
 }

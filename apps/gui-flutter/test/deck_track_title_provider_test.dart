@@ -3,10 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 import 'helpers/collection_tracks_override.dart';
+import 'support/bus_events.dart';
 
 void main() {
   test('deckTrackTitleProvider prefers library title over path stem', () {
@@ -68,27 +68,23 @@ void main() {
 
 class _SeedEngineUi extends EngineUi {
   @override
-  EngineUiSnapshot build() => applyEngineEvt(
+  EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
-    const EngineEvt(
-      kind: EngineEvtKind.updated,
-      deckId: 0,
-      trackPath: '/music/file.flac',
-      durationMs: 1000,
-      durationKnown: true,
+    deckUpdatedEvent(
+      deck: 0,
+      update: deckUpdated(
+        deck: 0,
+        trackPath: '/music/file.flac',
+        durationMs: 1000,
+      ),
     ),
   );
 }
 
 class _DurationOnlyEngineUi extends EngineUi {
   @override
-  EngineUiSnapshot build() => applyEngineEvt(
+  EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
-    const EngineEvt(
-      kind: EngineEvtKind.updated,
-      deckId: 0,
-      durationMs: 1000,
-      durationKnown: true,
-    ),
+    deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, durationMs: 1000)),
   );
 }

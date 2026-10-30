@@ -2,8 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use engine_api::Origin as EngineOrigin;
-
+use crate::action::EngineScope;
 use crate::device::origin_deck_id;
 use crate::error::LoadError;
 
@@ -20,7 +19,7 @@ pub enum OriginTemplate {
 /// Concrete origin after binding `Deck(_)`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BoundOrigin {
-    Engine(EngineOrigin),
+    Engine(EngineScope),
     LibraryNavigation,
 }
 
@@ -273,8 +272,8 @@ fn parse_origin_template(s: &str) -> Result<OriginTemplate, LoadError> {
 /// Bind `Deck(_)` from map section (`deck_1` → deck 0).
 pub fn bind_origin(template: OriginTemplate, section: &str) -> Result<BoundOrigin, LoadError> {
     match template {
-        OriginTemplate::Mixer => Ok(BoundOrigin::Engine(EngineOrigin::Mixer)),
-        OriginTemplate::Engine => Ok(BoundOrigin::Engine(EngineOrigin::Engine)),
+        OriginTemplate::Mixer => Ok(BoundOrigin::Engine(EngineScope::Mixer)),
+        OriginTemplate::Engine => Ok(BoundOrigin::Engine(EngineScope::Engine)),
         OriginTemplate::LibraryNavigation => Ok(BoundOrigin::LibraryNavigation),
         OriginTemplate::Deck(Some(id)) => {
             if id > 3 {
@@ -282,7 +281,7 @@ pub fn bind_origin(template: OriginTemplate, section: &str) -> Result<BoundOrigi
                     "deck index `{id}` out of range (0..=3)"
                 )));
             }
-            Ok(BoundOrigin::Engine(EngineOrigin::Deck(id)))
+            Ok(BoundOrigin::Engine(EngineScope::Deck(id)))
         }
         OriginTemplate::Deck(None) => {
             let Some(id) = origin_deck_id(section) else {
@@ -290,7 +289,7 @@ pub fn bind_origin(template: OriginTemplate, section: &str) -> Result<BoundOrigi
                     "Deck(_) requires a deck_* section, got `{section}`"
                 )));
             };
-            Ok(BoundOrigin::Engine(EngineOrigin::Deck(id)))
+            Ok(BoundOrigin::Engine(EngineScope::Deck(id)))
         }
     }
 }
@@ -298,9 +297,9 @@ pub fn bind_origin(template: OriginTemplate, section: &str) -> Result<BoundOrigi
 /// Format bound origin + leaf for soft-takeover / absolute catalogs.
 pub fn format_bound_action(bound: &BoundOrigin, leaf: &str) -> String {
     match bound {
-        BoundOrigin::Engine(EngineOrigin::Deck(id)) => format!("Deck({id})::{leaf}"),
-        BoundOrigin::Engine(EngineOrigin::Mixer) => format!("Mixer::{leaf}"),
-        BoundOrigin::Engine(EngineOrigin::Engine) => format!("Engine::{leaf}"),
+        BoundOrigin::Engine(EngineScope::Deck(id)) => format!("Deck({id})::{leaf}"),
+        BoundOrigin::Engine(EngineScope::Mixer) => format!("Mixer::{leaf}"),
+        BoundOrigin::Engine(EngineScope::Engine) => format!("Engine::{leaf}"),
         BoundOrigin::LibraryNavigation => format!("LibraryNavigation::{leaf}"),
     }
 }
@@ -308,7 +307,6 @@ pub fn format_bound_action(bound: &BoundOrigin, leaf: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_api::Origin;
 
     #[test]
     fn deck_wildcard_binds_from_section() {
@@ -317,7 +315,7 @@ mod tests {
         assert!(args.is_empty());
         assert_eq!(
             bind_origin(t, "deck_1").unwrap(),
-            BoundOrigin::Engine(Origin::Deck(0))
+            BoundOrigin::Engine(EngineScope::Deck(0))
         );
     }
 

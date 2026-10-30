@@ -4,16 +4,18 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+import 'bus.dart';
+import 'event_mirrors.dart';
 import 'library.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `begin_deck_load`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `fx_slot_chrome`, `is_coalescible`, `is_current_deck_load`, `load_prepared`, `map_engine_evts`, `output_device`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `publish_retired_decks`, `source_label`, `source_path`, `start_live_stems`, `start_with`, `updated_from_snapshot`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `begin_deck_load`, `build_started_engine`, `chrome_from_bank_slot`, `chrome_from_prepared`, `is_current_deck_load`, `load_prepared`, `output_device`, `publish_cmd`, `publish_current_status`, `publish_deck_updated`, `publish_retired_decks`, `source_label`, `source_path`, `start_live_stems`, `start_with`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineHistoryWorker`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `restart`
 
 /// Output devices of the compiled-in real backend (Settings → Audio).
 ///
@@ -21,9 +23,6 @@ import 'settings.dart';
 /// backend; it never falls back to the headless `null` backend.
 Future<List<OutputDevice>> listOutputDevices() =>
     RustLib.instance.api.crateApiEngineListOutputDevices();
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineBusHandle>>
-abstract class EngineBusHandle implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>>
 abstract class EngineTransport implements RustOpaqueInterface {
@@ -44,9 +43,6 @@ abstract class EngineTransport implements RustOpaqueInterface {
   Future<void> beatJumpPadRelease({required int deckId, required int slot});
 
   Future<void> beginCueHold({required int deckId});
-
-  /// Clone of the engine cmd/evt buses for [`crate::api::controller::ControllerTransport`].
-  Future<EngineBusHandle> buses();
 
   Future<void> clearSampler({required int deckId, required int slot});
 
@@ -238,21 +234,17 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Channel fader `0..1`.
   Future<void> setVolume({required int deckId, required double volume});
 
-  /// Start the engine from the saved settings host config.
+  /// Start the engine on the shared bus, from the saved settings host config.
   static Future<EngineTransport> start({
+    required BusTransport bus,
     required LibraryTransport libraryTransport,
   }) => RustLib.instance.api.crateApiEngineEngineTransportStart(
+    bus: bus,
     libraryTransport: libraryTransport,
   );
 
   /// Stop audio streams; the transport still owns the worker until Drop.
   Future<void> stop();
-
-  /// Forward thin typed engine events to Dart via FRB `StreamSink`.
-  ///
-  /// Coalesces Position/Levels/Updated/Status (latest wins) like Tauri.
-  /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
-  Stream<EngineEvt> subscribeEvents();
 
   Future<void> toggleSync({required int deckId, required bool beatSync});
 
@@ -264,360 +256,6 @@ abstract class EngineTransport implements RustOpaqueInterface {
     required String name,
     SamplerPlayMode? playMode,
   });
-}
-
-/// Active loop region for Dart (`engine_api::LoopRegion`).
-class ActiveLoopInfo {
-  final int inMs;
-  final int outMs;
-  final bool active;
-
-  const ActiveLoopInfo({
-    required this.inMs,
-    required this.outMs,
-    required this.active,
-  });
-
-  @override
-  int get hashCode => inMs.hashCode ^ outMs.hashCode ^ active.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ActiveLoopInfo &&
-          runtimeType == other.runtimeType &&
-          inMs == other.inMs &&
-          outMs == other.outMs &&
-          active == other.active;
-}
-
-/// How a deck lane is affected by the main crossfader (Dart mirror).
-enum CrossfaderAssign { a, thru, b }
-
-/// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
-class EngineEvt {
-  final EngineEvtKind kind;
-  final int? deckId;
-  final bool? running;
-  final bool? playing;
-
-  /// Filesystem path of the loaded track (`DeckSnapshot.track`); not a display title.
-  final String? trackPath;
-  final String? trackId;
-  final int? positionMs;
-  final double? peakL;
-  final double? peakR;
-  final double? peakHoldL;
-  final double? peakHoldR;
-  final String? message;
-  final double? volume;
-  final double? eqLow;
-  final double? eqMid;
-  final double? eqHigh;
-  final double? filter;
-  final double? gainTrim;
-
-  /// FX unit slot state when authored on this evt (`FX_SLOT_COUNT` entries).
-  final List<FxSlotChrome>? fx;
-
-  /// True when this deck's pre-fader signal runs through the FX unit.
-  final bool? fxRouted;
-  final bool? headphoneCue;
-  final double? crossfader;
-  final CrossfaderAssign? crossfaderAssign;
-  final double? masterVolume;
-  final double? cueVolume;
-  final double? cueMix;
-  final bool? masterCue;
-  final int? durationMs;
-  final double? speed;
-  final double? tempoRange;
-  final bool? keyLock;
-
-  /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
-  final double? keyShift;
-
-  /// Keyboard pad semitone page (`1..=4`; default 2).
-  final int? keyboardPage;
-
-  /// Key Shift pad semitone page (`1..=5`; default 2).
-  final int? keyShiftPage;
-
-  /// Hot-cue slot used as the Keyboard pad root (default 0).
-  final int? keyboardRootHotCue;
-  final PadMode? padMode;
-  final SyncMode? syncMode;
-  final int? masterDeck;
-
-  /// Set on every [`EngineEvtKind::Updated`] (including `None` when cleared).
-  final ActiveLoopInfo? activeLoop;
-
-  /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
-  final bool activeLoopKnown;
-
-  /// Pending Loop In position (ms) before Loop Out completes the region.
-  final int? pendingLoopInMs;
-
-  /// True when [`Self::pending_loop_in_ms`] was authored on this Updated evt (even if `None`).
-  final bool pendingLoopInMsKnown;
-
-  /// True when [`Self::duration_ms`] was authored on this Updated evt (even if `None`).
-  final bool durationKnown;
-  final bool? quantize;
-  final bool? slipEnabled;
-  final int? slipShadowPositionMs;
-  final bool? jogTouching;
-  final double? loudnessLufs;
-  final double? autoGainDb;
-
-  /// Active sampler bank for this deck (`None` when cleared / unset).
-  final String? activeSamplerBankId;
-
-  /// True when [`Self::active_sampler_bank_id`] was authored on this Updated evt.
-  final bool activeSamplerBankIdKnown;
-
-  /// Pad chrome for this deck when [`Self::sampler_slots_known`].
-  final List<SamplerSlotChrome>? samplerSlots;
-
-  /// True when [`Self::sampler_slots`] was authored on this Updated evt.
-  final bool samplerSlotsKnown;
-
-  /// True when four stem layers are attached for playback.
-  final bool? stemsReady;
-
-  /// True when the attached stems come from the realtime StemgenRT ring.
-  final bool? stemsLive;
-
-  /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[drums, bass, other, vocals]`).
-  final List<bool>? stemMute;
-
-  /// Isolated stem index when set; `None` clears isolate when stems are authored.
-  final int? stemIsolate;
-
-  const EngineEvt({
-    required this.kind,
-    this.deckId,
-    this.running,
-    this.playing,
-    this.trackPath,
-    this.trackId,
-    this.positionMs,
-    this.peakL,
-    this.peakR,
-    this.peakHoldL,
-    this.peakHoldR,
-    this.message,
-    this.volume,
-    this.eqLow,
-    this.eqMid,
-    this.eqHigh,
-    this.filter,
-    this.gainTrim,
-    this.fx,
-    this.fxRouted,
-    this.headphoneCue,
-    this.crossfader,
-    this.crossfaderAssign,
-    this.masterVolume,
-    this.cueVolume,
-    this.cueMix,
-    this.masterCue,
-    this.durationMs,
-    this.speed,
-    this.tempoRange,
-    this.keyLock,
-    this.keyShift,
-    this.keyboardPage,
-    this.keyShiftPage,
-    this.keyboardRootHotCue,
-    this.padMode,
-    this.syncMode,
-    this.masterDeck,
-    this.activeLoop,
-    this.activeLoopKnown = false,
-    this.pendingLoopInMs,
-    this.pendingLoopInMsKnown = false,
-    this.durationKnown = false,
-    this.quantize,
-    this.slipEnabled,
-    this.slipShadowPositionMs,
-    this.jogTouching,
-    this.loudnessLufs,
-    this.autoGainDb,
-    this.activeSamplerBankId,
-    this.activeSamplerBankIdKnown = false,
-    this.samplerSlots,
-    this.samplerSlotsKnown = false,
-    this.stemsReady,
-    this.stemsLive,
-    this.stemMute,
-    this.stemIsolate,
-  });
-
-  @override
-  int get hashCode =>
-      kind.hashCode ^
-      deckId.hashCode ^
-      running.hashCode ^
-      playing.hashCode ^
-      trackPath.hashCode ^
-      trackId.hashCode ^
-      positionMs.hashCode ^
-      peakL.hashCode ^
-      peakR.hashCode ^
-      peakHoldL.hashCode ^
-      peakHoldR.hashCode ^
-      message.hashCode ^
-      volume.hashCode ^
-      eqLow.hashCode ^
-      eqMid.hashCode ^
-      eqHigh.hashCode ^
-      filter.hashCode ^
-      gainTrim.hashCode ^
-      fx.hashCode ^
-      fxRouted.hashCode ^
-      headphoneCue.hashCode ^
-      crossfader.hashCode ^
-      crossfaderAssign.hashCode ^
-      masterVolume.hashCode ^
-      cueVolume.hashCode ^
-      cueMix.hashCode ^
-      masterCue.hashCode ^
-      durationMs.hashCode ^
-      speed.hashCode ^
-      tempoRange.hashCode ^
-      keyLock.hashCode ^
-      keyShift.hashCode ^
-      keyboardPage.hashCode ^
-      keyShiftPage.hashCode ^
-      keyboardRootHotCue.hashCode ^
-      padMode.hashCode ^
-      syncMode.hashCode ^
-      masterDeck.hashCode ^
-      activeLoop.hashCode ^
-      activeLoopKnown.hashCode ^
-      pendingLoopInMs.hashCode ^
-      pendingLoopInMsKnown.hashCode ^
-      durationKnown.hashCode ^
-      quantize.hashCode ^
-      slipEnabled.hashCode ^
-      slipShadowPositionMs.hashCode ^
-      jogTouching.hashCode ^
-      loudnessLufs.hashCode ^
-      autoGainDb.hashCode ^
-      activeSamplerBankId.hashCode ^
-      activeSamplerBankIdKnown.hashCode ^
-      samplerSlots.hashCode ^
-      samplerSlotsKnown.hashCode ^
-      stemsReady.hashCode ^
-      stemsLive.hashCode ^
-      stemMute.hashCode ^
-      stemIsolate.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EngineEvt &&
-          runtimeType == other.runtimeType &&
-          kind == other.kind &&
-          deckId == other.deckId &&
-          running == other.running &&
-          playing == other.playing &&
-          trackPath == other.trackPath &&
-          trackId == other.trackId &&
-          positionMs == other.positionMs &&
-          peakL == other.peakL &&
-          peakR == other.peakR &&
-          peakHoldL == other.peakHoldL &&
-          peakHoldR == other.peakHoldR &&
-          message == other.message &&
-          volume == other.volume &&
-          eqLow == other.eqLow &&
-          eqMid == other.eqMid &&
-          eqHigh == other.eqHigh &&
-          filter == other.filter &&
-          gainTrim == other.gainTrim &&
-          fx == other.fx &&
-          fxRouted == other.fxRouted &&
-          headphoneCue == other.headphoneCue &&
-          crossfader == other.crossfader &&
-          crossfaderAssign == other.crossfaderAssign &&
-          masterVolume == other.masterVolume &&
-          cueVolume == other.cueVolume &&
-          cueMix == other.cueMix &&
-          masterCue == other.masterCue &&
-          durationMs == other.durationMs &&
-          speed == other.speed &&
-          tempoRange == other.tempoRange &&
-          keyLock == other.keyLock &&
-          keyShift == other.keyShift &&
-          keyboardPage == other.keyboardPage &&
-          keyShiftPage == other.keyShiftPage &&
-          keyboardRootHotCue == other.keyboardRootHotCue &&
-          padMode == other.padMode &&
-          syncMode == other.syncMode &&
-          masterDeck == other.masterDeck &&
-          activeLoop == other.activeLoop &&
-          activeLoopKnown == other.activeLoopKnown &&
-          pendingLoopInMs == other.pendingLoopInMs &&
-          pendingLoopInMsKnown == other.pendingLoopInMsKnown &&
-          durationKnown == other.durationKnown &&
-          quantize == other.quantize &&
-          slipEnabled == other.slipEnabled &&
-          slipShadowPositionMs == other.slipShadowPositionMs &&
-          jogTouching == other.jogTouching &&
-          loudnessLufs == other.loudnessLufs &&
-          autoGainDb == other.autoGainDb &&
-          activeSamplerBankId == other.activeSamplerBankId &&
-          activeSamplerBankIdKnown == other.activeSamplerBankIdKnown &&
-          samplerSlots == other.samplerSlots &&
-          samplerSlotsKnown == other.samplerSlotsKnown &&
-          stemsReady == other.stemsReady &&
-          stemsLive == other.stemsLive &&
-          stemMute == other.stemMute &&
-          stemIsolate == other.stemIsolate;
-}
-
-/// Discriminator for thin engine egress (unit enum — no freezed on Dart).
-enum EngineEvtKind { status, updated, position, levels, error, notice }
-
-/// EQ band for [`EngineTransport::set_eq_band`].
-enum EqBand { low, mid, high }
-
-/// FX unit effect selection (FRB mirror of `engine_api::FxKind`).
-enum FxKind { off, echo, reverb }
-
-/// Per-slot FX state surfaced to the UI.
-class FxSlotChrome {
-  final FxKind kind;
-  final bool enabled;
-
-  /// Wet/dry `0..1` (`0` = dry).
-  final double wet;
-
-  /// Normalized knob positions for `kind` (unused entries `0.0`).
-  final Float32List params;
-
-  const FxSlotChrome({
-    required this.kind,
-    required this.enabled,
-    required this.wet,
-    required this.params,
-  });
-
-  @override
-  int get hashCode =>
-      kind.hashCode ^ enabled.hashCode ^ wet.hashCode ^ params.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is FxSlotChrome &&
-          runtimeType == other.runtimeType &&
-          kind == other.kind &&
-          enabled == other.enabled &&
-          wet == other.wet &&
-          params == other.params;
 }
 
 /// Output device summary for the Flutter settings / smoke UI.
@@ -670,9 +308,6 @@ class OutputDevice {
           sampleRateRanges == other.sampleRateRanges;
 }
 
-/// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
-enum PadMode { hotCue, loopRoll, beatJump, sampler, stems, keyboard, keyShift }
-
 /// Inclusive sample-rate span a device can open.
 class SampleRateRange {
   final int min;
@@ -691,38 +326,3 @@ class SampleRateRange {
           min == other.min &&
           max == other.max;
 }
-
-/// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
-class SamplerSlotChrome {
-  final String? label;
-  final String? trackId;
-  final String? path;
-  final int? durationMs;
-
-  const SamplerSlotChrome({
-    this.label,
-    this.trackId,
-    this.path,
-    this.durationMs,
-  });
-
-  static Future<SamplerSlotChrome> default_() =>
-      RustLib.instance.api.crateApiEngineSamplerSlotChromeDefault();
-
-  @override
-  int get hashCode =>
-      label.hashCode ^ trackId.hashCode ^ path.hashCode ^ durationMs.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SamplerSlotChrome &&
-          runtimeType == other.runtimeType &&
-          label == other.label &&
-          trackId == other.trackId &&
-          path == other.path &&
-          durationMs == other.durationMs;
-}
-
-/// Deck sync follow mode (slave → master).
-enum SyncMode { off, tempo, beat }

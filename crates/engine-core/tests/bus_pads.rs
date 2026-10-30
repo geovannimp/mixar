@@ -3,10 +3,20 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, source_with_bpm};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, PadMode};
-use engine_core::{EngineConfig, EngineSession};
-use omnibus::Filter;
+use bus_api::BeatJumpPadPress;
+use bus_api::BeginLoopRoll;
+use bus_api::EndLoopRoll;
+use bus_api::Event;
+use bus_api::LoopRollPadPress;
+use bus_api::LoopRollPadRelease;
+use bus_api::PadMode;
+use bus_api::PadPress;
+use bus_api::SetAutoLoop;
+use bus_api::SetPadMode;
+use common::recv_updated;
+use common::source_with_bpm;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
 
 fn null_session_loaded() -> EngineSession {
     let config = EngineConfig {
@@ -27,96 +37,58 @@ fn null_session_loaded() -> EngineSession {
 #[test]
 fn set_pad_mode_publishes_updated() {
     let session = null_session_loaded();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetPadMode,
-            encode_cmd_body(&CmdBody::SetPadMode {
-                mode: PadMode::LoopRoll,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SetPadMode(SetPadMode {
+            deck: 0,
+            mode: PadMode::LoopRoll,
+        }))
         .expect("set pad mode");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert_eq!(pad_mode, PadMode::LoopRoll);
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.pad_mode, PadMode::LoopRoll);
 }
 
 #[test]
 fn begin_and_end_loop_roll_clears_when_no_prior() {
     let session = null_session_loaded();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::BeginLoopRoll,
-            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 4.0 }).unwrap(),
-        )
+        .publish_cmd(Event::BeginLoopRoll(BeginLoopRoll {
+            deck: 0,
+            beats: 4.0,
+        }))
         .expect("begin roll");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    let region = active_loop.expect("roll loop");
+    let update = recv_updated(&mut evt);
+    let region = update.active_loop.expect("roll loop");
     assert!(region.active);
     assert!(region.out_ms > region.in_ms);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::EndLoopRoll,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Event::EndLoopRoll(EndLoopRoll { deck: 0 }))
         .expect("end roll");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(active_loop.is_none());
+    let update = recv_updated(&mut evt);
+    assert!(update.active_loop.is_none());
 }
 
 #[test]
 fn auto_loop_quarter_beat_preserves_length() {
     let session = null_session_loaded();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetAutoLoop,
-            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 0.25 }).unwrap(),
-        )
+        .publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+            deck: 0,
+            beats: 0.25,
+        }))
         .expect("auto loop");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    let region = active_loop.expect("loop");
+    let update = recv_updated(&mut evt);
+    let region = update.active_loop.expect("loop");
     let len_ms = region.out_ms - region.in_ms;
     // 120 BPM => 1 beat = 500ms; 0.25 beat = 125ms
     assert!(
@@ -130,50 +102,31 @@ fn auto_loop_quarter_beat_preserves_length() {
 #[test]
 fn end_loop_roll_restores_prior_active_loop() {
     let session = null_session_loaded();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetAutoLoop,
-            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 8.0 }).unwrap(),
-        )
+        .publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+            deck: 0,
+            beats: 8.0,
+        }))
         .expect("auto loop");
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    let prior = active_loop.expect("prior loop");
+    let update = recv_updated(&mut evt);
+    let prior = update.active_loop.expect("prior loop");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::BeginLoopRoll,
-            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 1.0 }).unwrap(),
-        )
+        .publish_cmd(Event::BeginLoopRoll(BeginLoopRoll {
+            deck: 0,
+            beats: 1.0,
+        }))
         .expect("begin roll");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::EndLoopRoll,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Event::EndLoopRoll(EndLoopRoll { deck: 0 }))
         .expect("end roll");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    let restored = active_loop.expect("restored loop");
+    let update = recv_updated(&mut evt);
+    let restored = update.active_loop.expect("restored loop");
     assert_eq!(restored.in_ms, prior.in_ms);
     assert_eq!(restored.out_ms, prior.out_ms);
     assert!(restored.active);
@@ -182,44 +135,29 @@ fn end_loop_roll_restores_prior_active_loop() {
 #[test]
 fn loop_roll_pad_press_release_roundtrip() {
     let session = null_session_loaded();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopRollPadPress,
-            encode_cmd_body(&CmdBody::LoopRollPadPress { slot: 2 }).unwrap(),
-        )
+        .publish_cmd(Event::LoopRollPadPress(LoopRollPadPress {
+            deck: 0,
+            slot: 2,
+        }))
         .expect("press");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    let region = active_loop.expect("roll loop");
+    let update = recv_updated(&mut evt);
+    let region = update.active_loop.expect("roll loop");
     assert!(region.active);
     assert!(region.out_ms > region.in_ms);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopRollPadRelease,
-            encode_cmd_body(&CmdBody::LoopRollPadRelease { slot: 2 }).unwrap(),
-        )
+        .publish_cmd(Event::LoopRollPadRelease(LoopRollPadRelease {
+            deck: 0,
+            slot: 2,
+        }))
         .expect("release");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(active_loop.is_none());
+    let update = recv_updated(&mut evt);
+    assert!(update.active_loop.is_none());
 }
 
 #[test]
@@ -231,26 +169,17 @@ fn beat_jump_pad_press_moves_playhead() {
             Ok(())
         })
         .expect("seek");
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::BeatJumpPadPress,
-            encode_cmd_body(&CmdBody::BeatJumpPadPress { slot: 0 }).unwrap(),
-        )
+        .publish_cmd(Event::BeatJumpPadPress(BeatJumpPadPress {
+            deck: 0,
+            slot: 0,
+        }))
         .expect("press");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { position_ms, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    let pos = position_ms.expect("position");
+    let update = recv_updated(&mut evt);
+    let pos = update.position_ms.expect("position");
     // +1 beat at 120 BPM = 500ms
     assert!(
         (pos - 500).abs() <= 2,
@@ -267,42 +196,26 @@ fn pad_press_follows_engine_pad_mode() {
             Ok(())
         })
         .expect("seek");
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetPadMode,
-            encode_cmd_body(&CmdBody::SetPadMode {
-                mode: PadMode::BeatJump,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SetPadMode(SetPadMode {
+            deck: 0,
+            mode: PadMode::BeatJump,
+        }))
         .expect("set pad mode");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::PadPress,
-            encode_cmd_body(&CmdBody::PadPress {
-                slot: 0,
-                shift: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::PadPress(PadPress {
+            deck: 0,
+            slot: 0,
+            shift: false,
+        }))
         .expect("press");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { position_ms, .. } =
-        decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    let pos = position_ms.expect("position");
+    let update = recv_updated(&mut evt);
+    let pos = update.position_ms.expect("position");
     assert!(
         (pos - 500).abs() <= 2,
         "PadPress in beat-jump mode should jump +1 beat, got {pos}"

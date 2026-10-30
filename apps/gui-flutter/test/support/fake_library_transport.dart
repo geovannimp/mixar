@@ -1,6 +1,4 @@
 // Test doubles for LibraryTransport (FRB opaque). Hand-maintained stubs.
-import 'dart:async';
-
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 typedef GetTrackHandler = Future<LibraryTrackSummary?> Function(String trackId);
@@ -44,7 +42,12 @@ typedef ExportCdjUsbHandler = Future<CdjExportReport> Function(
   CdjExportRequest request,
 );
 
-/// Minimal [LibraryTransport] fake: override getTrack / list / events as needed.
+/// Minimal [LibraryTransport] fake: override getTrack / list as needed.
+///
+/// The transport no longer owns an event stream: library egress is a variant of
+/// the one typed `Event` on the shared bus, so a test drives library state with
+/// `dispatchBusEvent(ref, event)` (the bus transport itself is opaque FRB and
+/// cannot be built from Dart).
 class FakeLibraryTransport implements LibraryTransport {
   FakeLibraryTransport({
     this.getTrackHandler,
@@ -53,8 +56,7 @@ class FakeLibraryTransport implements LibraryTransport {
     this.entries = const [],
     this.collections = const [],
     this.deleteCollectionError,
-    StreamController<LibraryEvt>? events,
-  }) : _events = events ?? StreamController<LibraryEvt>.broadcast();
+  });
 
   GetTrackHandler? getTrackHandler;
   ListCollectionEntriesHandler? listCollectionEntriesHandler;
@@ -68,7 +70,6 @@ class FakeLibraryTransport implements LibraryTransport {
 
   /// When set, [deleteCollection] throws it after the collection row is gone.
   final Object? deleteCollectionError;
-  final StreamController<LibraryEvt> _events;
   final List<String> getTrackCalls = [];
   final List<String> listCollectionEntriesCalls = [];
   int listCollectionsCalls = 0;
@@ -77,8 +78,6 @@ class FakeLibraryTransport implements LibraryTransport {
   int outstandingGetTracks = 0;
   int maxOutstandingGetTracks = 0;
   var _disposed = false;
-
-  StreamController<LibraryEvt> get events => _events;
 
   @override
   Future<SamplerBankInfo> createSamplerBank({
@@ -99,17 +98,11 @@ class FakeLibraryTransport implements LibraryTransport {
 
   @override
   void dispose() {
-    if (_disposed) {
-      return;
-    }
     _disposed = true;
-    if (!_events.isClosed) {
-      unawaited(_events.close());
-    }
   }
 
   @override
-  bool get isDisposed => _disposed || _events.isClosed;
+  bool get isDisposed => _disposed;
 
   @override
   Future<LibraryTrackSummary?> getTrack({required String trackId}) {
@@ -157,9 +150,6 @@ class FakeLibraryTransport implements LibraryTransport {
     listCollectionsCalls++;
     return collections;
   }
-
-  @override
-  Stream<LibraryEvt> subscribeEvents() => _events.stream;
 
   @override
   Future<AddFolderCollectionResult> addFolderCollection({
@@ -221,9 +211,6 @@ class FakeLibraryTransport implements LibraryTransport {
     required String stemsModel,
     required bool tagWriteBack,
   }) async {}
-
-  @override
-  Future<LibraryBusHandle> buses() async => throw UnimplementedError('buses');
 
   @override
   Future<void> clearModelCache() async {}

@@ -4,8 +4,9 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use bus_api::Event;
+use bus_api::TrackAnalyzed;
 use host_flutter::api::library::{LibraryAnalysisDurationSetting, LibraryTransport};
-use library_api::{decode_evt_body, EvtBody};
 
 /// 6 s of 120 BPM clicks — the fixture engine tests use when they need a tempo.
 /// Copied into a temp dir: write-back must never touch a repo file.
@@ -30,19 +31,16 @@ fn analyze_and_wait(
     transport: &LibraryTransport,
     track_id: &str,
     timeout: Duration,
-) -> library_api::TrackSummary {
-    let rx = transport.subscribe_evt_all().unwrap();
+) -> bus_api::TrackSummary {
+    let mut rx = transport.bus().subscribe_evt().unwrap();
     transport.analyze_track(track_id.to_string(), true).unwrap();
 
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
         match rx.recv_timeout(Duration::from_millis(100)) {
-            Ok(Some(event)) => {
-                if let Ok(EvtBody::TrackAnalyzed { track }) = decode_evt_body(event.payload()) {
-                    return *track;
-                }
-            }
-            Ok(None) => continue,
+            // Analysis also emits `TrackProgress` first; only the final summary matters.
+            Ok(Some(Event::TrackAnalyzed(TrackAnalyzed { track }))) => return track,
+            Ok(Some(_)) | Ok(None) => continue,
             Err(err) => panic!("library evt bus closed: {err}"),
         }
     }
@@ -54,7 +52,7 @@ fn analyze_writes_the_library_bpm_and_key_into_the_file() {
     let dir = tempfile::tempdir().unwrap();
     let wav = short_beats_fixture_copy(dir.path());
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     transport
         .apply_library_settings(
             LibraryAnalysisDurationSetting::Fast,
@@ -87,7 +85,7 @@ fn analyze_leaves_the_file_alone_without_opt_in() {
     let wav = short_beats_fixture_copy(dir.path());
     let before = std::fs::read(&wav).unwrap();
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     // Default: tag write-back off.
     transport
         .apply_library_settings(

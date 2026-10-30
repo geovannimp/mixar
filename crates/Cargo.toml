@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "engine-api",
+    "bus-api",
+    "event-bus",
     "audio-core",
     "backend-null",
     "backend-cpal",
@@ -11,7 +12,6 @@ members = [
     "stretch",
     "library-core",
     "fs-browser",
-    "library-api",
     "library",
     "library-adapters",
     "analyzer-core",

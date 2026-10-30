@@ -15,7 +15,9 @@ mod session;
 pub mod check;
 pub mod script;
 
-pub use action::{resolve_action, ControlValue, DeckFeedback, RoutedAction, HOT_CUE_SLOT_COUNT};
+pub use action::{
+    resolve_action, ControlValue, DeckFeedback, EngineScope, RoutedAction, HOT_CUE_SLOT_COUNT,
+};
 pub use action_id::{
     bind_origin, format_bound_action, parse_action_id, ActionArgs, ArgValue, BoundOrigin,
     OriginTemplate,
@@ -32,9 +34,7 @@ pub use device::{
 };
 #[cfg(any(test, feature = "test-utils"))]
 pub use engine::report_script_binding_failure;
-pub use engine::{
-    ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, EngineError, MappingInfo,
-};
+pub use engine::{ControllerEngine, DeviceDirection, DeviceInfo, EngineError, MappingInfo};
 pub use error::{LoadError, MidiPortError, RuntimeError};
 pub use map_file::{
     InputBinding, LifecycleHooks, MapFile, OutputBinding, OutputTarget, RawBinding,

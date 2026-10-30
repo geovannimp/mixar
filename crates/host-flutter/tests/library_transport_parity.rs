@@ -5,8 +5,10 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
-use host_flutter::api::library::{LibraryTransport, SamplerPlayMode};
-use library_api::{decode_evt_body, EvtBody, Kind};
+use bus_api::Error;
+use bus_api::Event;
+use bus_api::TrackUpdated;
+use host_flutter::api::library::SamplerPlayMode;
 use lofty::config::WriteOptions;
 use lofty::picture::{MimeType, Picture, PictureType};
 use lofty::prelude::*;
@@ -15,7 +17,7 @@ use lofty::tag::{Tag, TagType};
 
 #[test]
 fn create_sampler_bank_trims_names_and_maps_play_modes() {
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
 
     let err = transport
         .create_sampler_bank("   ".into(), None)
@@ -107,7 +109,7 @@ fn add_folder_resolve_and_track_artwork_metadata() {
     let with_art = dir.path().join("track_cover.wav");
     write_wav_with_artwork(&with_art, &cover);
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     let added = transport
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
         .unwrap();
@@ -155,7 +157,7 @@ fn delete_collection_removes_orphaned_tracks() {
     let dir = tempfile::tempdir().unwrap();
     write_minimal_wav(&dir.path().join("keep.wav"));
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     let added = transport
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
         .unwrap();
@@ -187,13 +189,13 @@ fn add_folder_collection_skips_nested_when_not_recursive() {
     std::fs::create_dir(&nested).unwrap();
     write_minimal_wav(&nested.join("child.wav"));
 
-    let shallow = LibraryTransport::open_in_memory().unwrap();
+    let shallow = host_flutter::testing::open_library_in_memory().unwrap();
     let added = shallow
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), false, None)
         .unwrap();
     assert_eq!(added.added, 1);
 
-    let deep = LibraryTransport::open_in_memory().unwrap();
+    let deep = host_flutter::testing::open_library_in_memory().unwrap();
     let added = deep
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
         .unwrap();
@@ -202,8 +204,8 @@ fn add_folder_collection_skips_nested_when_not_recursive() {
 
 #[test]
 fn refresh_missing_track_publishes_error_evt() {
-    let transport = LibraryTransport::open_in_memory().unwrap();
-    let rx = transport.subscribe_evt_all().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
+    let mut rx = transport.bus().subscribe_evt().unwrap();
 
     transport.refresh_track("missing-track-id".into()).unwrap();
 
@@ -211,20 +213,21 @@ fn refresh_missing_track_publishes_error_evt() {
         .recv_timeout(Duration::from_secs(2))
         .expect("evt bus alive")
         .expect("Error evt");
-    assert_eq!(event.kind(), &Kind::Error);
-    match decode_evt_body(event.payload()).unwrap() {
-        EvtBody::Error { message, track_id } => {
+    match event {
+        Event::Error(Error {
+            message, track_id, ..
+        }) => {
             assert!(!message.is_empty());
             assert_eq!(track_id.as_deref(), Some("missing-track-id"));
         }
-        other => panic!("unexpected body {other:?}"),
+        other => panic!("unexpected event {other:?}"),
     }
 }
 
 #[test]
 fn analyze_missing_track_publishes_error_evt() {
-    let transport = LibraryTransport::open_in_memory().unwrap();
-    let rx = transport.subscribe_evt_all().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
+    let mut rx = transport.bus().subscribe_evt().unwrap();
 
     transport
         .analyze_track("missing-track-id".into(), false)
@@ -238,22 +241,20 @@ fn analyze_missing_track_publishes_error_evt() {
             .expect("evt bus alive")
             .expect("Error evt");
         // Analyze publishes TrackProgress before failure; wait for the Error.
-        if event.kind() == &Kind::Error {
-            break event;
+        match event {
+            Event::Error(_) => break event,
+            Event::TrackProgress(_) => {}
+            other => panic!("unexpected event before Error: {other:?}"),
         }
-        assert_eq!(
-            event.kind(),
-            &Kind::TrackProgress,
-            "unexpected evt before Error: {:?}",
-            event.kind()
-        );
     };
-    match decode_evt_body(event.payload()).unwrap() {
-        EvtBody::Error { message, track_id } => {
+    match event {
+        Event::Error(Error {
+            message, track_id, ..
+        }) => {
             assert!(!message.is_empty());
             assert_eq!(track_id.as_deref(), Some("missing-track-id"));
         }
-        other => panic!("unexpected body {other:?}"),
+        other => panic!("unexpected event {other:?}"),
     }
 }
 
@@ -263,7 +264,7 @@ fn refresh_existing_track_emits_track_updated() {
     let wav = dir.path().join("track_b.wav");
     write_minimal_wav(&wav);
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     let added = transport
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
         .unwrap();
@@ -272,19 +273,18 @@ fn refresh_existing_track_emits_track_updated() {
         .unwrap();
     assert_eq!(tracks.len(), 1);
 
-    let rx = transport.subscribe_evt_all().unwrap();
+    let mut rx = transport.bus().subscribe_evt().unwrap();
     transport.refresh_track(tracks[0].id.clone()).unwrap();
 
     let event = rx
         .recv_timeout(Duration::from_secs(2))
         .expect("evt bus alive")
         .expect("TrackUpdated evt");
-    assert_eq!(event.kind(), &Kind::TrackUpdated);
-    match decode_evt_body(event.payload()).unwrap() {
-        EvtBody::TrackUpdated { track } => {
+    match event {
+        Event::TrackUpdated(TrackUpdated { track }) => {
             assert_eq!(track.id, tracks[0].id);
             assert!(track.path.ends_with("track_b.wav"));
         }
-        other => panic!("unexpected body {other:?}"),
+        other => panic!("unexpected event {other:?}"),
     }
 }

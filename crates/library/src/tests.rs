@@ -1566,7 +1566,8 @@ fn app_managed_tags_round_trip_through_write_back() {
 
 #[test]
 fn save_beat_grid_cmd_writes_bpm_back_when_enabled() {
-    use library_api::{encode_cmd_body, CmdBody};
+    use bus_api::Event;
+    use bus_api::SaveBeatGrid;
     use std::time::{Duration, Instant};
 
     let dir = tempfile::tempdir().unwrap();
@@ -1583,32 +1584,26 @@ fn save_beat_grid_cmd_writes_bpm_back_when_enabled() {
         lib.import_file_path(&wav).unwrap().id().clone()
     };
 
-    let rx = session.subscribe_evt_track(track_id.as_str()).unwrap();
+    let mut rx = session.subscribe_evt().unwrap();
     session
-        .publish_cmd(
-            Origin::Library,
-            Kind::SaveBeatGrid,
-            encode_cmd_body(&CmdBody::SaveBeatGrid {
-                track_id: track_id.as_str().to_string(),
-                bpm: 124.0,
-                first_beat_secs: 0.25,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SaveBeatGrid(SaveBeatGrid {
+            track_id: track_id.as_str().to_string(),
+            bpm: 124.0,
+            first_beat_secs: 0.25,
+        }))
         .unwrap();
 
     let deadline = Instant::now() + Duration::from_secs(5);
     let mut seen = false;
     while Instant::now() < deadline && !seen {
         match rx.recv_timeout(Duration::from_millis(50)) {
-            Ok(Some(event)) => {
-                if let Ok(EvtBody::BeatGridChanged { .. }) =
-                    library_api::decode_evt_body(event.payload())
-                {
+            Ok(Some(Event::BeatGridChanged(event))) => {
+                // The subscription is unfiltered, so match the track explicitly.
+                if event.track_id == track_id.as_str() {
                     seen = true;
                 }
             }
-            Ok(None) => continue,
+            Ok(Some(_)) | Ok(None) => continue,
             Err(_) => break,
         }
     }

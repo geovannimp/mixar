@@ -1,30 +1,90 @@
 //! FRB audio APIs (settings device discovery) + `EngineTransport` (session + bus).
 
-use std::collections::HashMap;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
-use std::time::Duration;
 
-use engine_api::{
-    decode_evt_body, encode_cmd_body, CmdBody, CrossfaderAssign as EngineCrossfaderAssign,
-    DeckSnapshot, EvtBody, Kind, Origin,
-};
+use bus_api::BeatJumpPadPress;
+use bus_api::BeatJumpPadRelease;
+use bus_api::BeginCueHold;
+pub use bus_api::CrossfaderAssign;
+use bus_api::DeckSnapshot;
+use bus_api::DeckUpdated;
+use bus_api::EndCueHold;
+use bus_api::EngineSnapshot;
+pub use bus_api::EqBand;
+use bus_api::Event;
+use bus_api::ExitLoop;
+pub use bus_api::FxKind;
+use bus_api::HotCuePadPress;
+use bus_api::HotCuePadRelease;
+use bus_api::JogTouch;
+use bus_api::JogTurn;
+use bus_api::KeyShiftPadPress;
+use bus_api::KeyShiftPadRelease;
+use bus_api::KeyboardPadPress;
+use bus_api::KeyboardPadRelease;
+use bus_api::LoopIn;
+use bus_api::LoopOut;
+use bus_api::LoopRollPadPress;
+use bus_api::LoopRollPadRelease;
+pub use bus_api::PadMode;
+use bus_api::PadPress;
+use bus_api::PadRelease;
+use bus_api::Pause;
+use bus_api::Play;
+use bus_api::RecallSavedLoop;
+use bus_api::SamplerPadPress;
+use bus_api::SamplerPadRelease;
+use bus_api::SamplerSlotInfo;
+use bus_api::Seek;
+use bus_api::SetAutoLoop;
+use bus_api::SetCrossfader;
+use bus_api::SetCrossfaderAssign;
+use bus_api::SetCueMix;
+use bus_api::SetCuePoint;
+use bus_api::SetCueVolume;
+use bus_api::SetDeckFxRouted;
+use bus_api::SetEqBand;
+use bus_api::SetFilter;
+use bus_api::SetFxUnitParam;
+use bus_api::SetFxUnitSlot;
+use bus_api::SetFxUnitSlotEnabled;
+use bus_api::SetFxUnitWet;
+use bus_api::SetGainTrim;
+use bus_api::SetHeadphoneCue;
+use bus_api::SetJogMode;
+use bus_api::SetKeyLock;
+use bus_api::SetKeyShift;
+use bus_api::SetKeyShiftPage;
+use bus_api::SetKeyboardPage;
+use bus_api::SetKeyboardRoot;
+use bus_api::SetMasterCue;
+use bus_api::SetMasterDeck;
+use bus_api::SetMasterVolume;
+use bus_api::SetPadMode;
+use bus_api::SetQuantize;
+use bus_api::SetSlip;
+use bus_api::SetSpeed;
+use bus_api::SetTempoRange;
+use bus_api::SetVolume;
+use bus_api::ToggleSync;
+use bus_api::Unload;
 use engine_core::{
-    deck_snapshot_to_evt, spawn_engine_worker, AudioBackend, Engine, EngineBuses, EngineConfig,
-    EngineWorker, Evt, MAX_DECKS,
+    spawn_engine_worker, AudioBackend, Engine, EngineConfig, EngineWorker, MAX_DECKS,
 };
+use event_bus::EventBus;
 use library::{LibraryManager, PreparedTrackPlayback, SamplerSlotRecord};
 use library_core::{AudioSource, TrackId};
 
+use crate::api::bus::BusTransport;
+use crate::api::bus::DeckChrome;
 use crate::api::history_worker::HistoryWorker;
 use crate::api::library::LibraryTransport;
 use crate::api::settings::{
     settings_engine_config, settings_host_runtime, settings_realtime_stems_enabled, JogModeSetting,
 };
 use crate::bridge::BridgeResult;
-use crate::frb_generated::StreamSink;
 
 const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
 
@@ -49,34 +109,6 @@ pub struct OutputDevice {
     /// Spans of rates the device can open, so the UI can tell whether a rate it
     /// remembers from another device is still valid here.
     pub sample_rate_ranges: Vec<SampleRateRange>,
-}
-
-/// How a deck lane is affected by the main crossfader (Dart mirror).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CrossfaderAssign {
-    A,
-    Thru,
-    B,
-}
-
-impl From<EngineCrossfaderAssign> for CrossfaderAssign {
-    fn from(value: EngineCrossfaderAssign) -> Self {
-        match value {
-            EngineCrossfaderAssign::A => Self::A,
-            EngineCrossfaderAssign::Thru => Self::Thru,
-            EngineCrossfaderAssign::B => Self::B,
-        }
-    }
-}
-
-impl From<CrossfaderAssign> for EngineCrossfaderAssign {
-    fn from(value: CrossfaderAssign) -> Self {
-        match value {
-            CrossfaderAssign::A => EngineCrossfaderAssign::A,
-            CrossfaderAssign::Thru => EngineCrossfaderAssign::Thru,
-            CrossfaderAssign::B => EngineCrossfaderAssign::B,
-        }
-    }
 }
 
 /// Output devices of the compiled-in real backend (Settings → Audio).
@@ -107,166 +139,17 @@ fn output_device(device: audio_core::DeviceInfo) -> OutputDevice {
             .collect(),
     }
 }
+#[allow(dead_code)]
+struct EngineHistoryWorker(HistoryWorker);
 
-/// Discriminator for thin engine egress (unit enum — no freezed on Dart).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum EngineEvtKind {
-    Status,
-    Updated,
-    Position,
-    Levels,
-    Error,
-    Notice,
-}
-
-/// EQ band for [`EngineTransport::set_eq_band`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EqBand {
-    Low,
-    Mid,
-    High,
-}
-
-impl From<EqBand> for engine_api::EqBand {
-    fn from(band: EqBand) -> Self {
-        match band {
-            EqBand::Low => Self::Low,
-            EqBand::Mid => Self::Mid,
-            EqBand::High => Self::High,
-        }
-    }
-}
-
-/// FX unit effect selection (FRB mirror of `engine_api::FxKind`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FxKind {
-    Off,
-    Echo,
-    Reverb,
-}
-
-impl From<FxKind> for engine_api::FxKind {
-    fn from(kind: FxKind) -> Self {
-        match kind {
-            FxKind::Off => Self::Off,
-            FxKind::Echo => Self::Echo,
-            FxKind::Reverb => Self::Reverb,
-        }
-    }
-}
-
-impl From<engine_api::FxKind> for FxKind {
-    fn from(kind: engine_api::FxKind) -> Self {
-        match kind {
-            engine_api::FxKind::Off => Self::Off,
-            engine_api::FxKind::Echo => Self::Echo,
-            engine_api::FxKind::Reverb => Self::Reverb,
-        }
-    }
-}
-
-/// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PadMode {
-    HotCue,
-    LoopRoll,
-    BeatJump,
-    Sampler,
-    Stems,
-    Keyboard,
-    KeyShift,
-}
-
-impl From<PadMode> for engine_api::PadMode {
-    fn from(mode: PadMode) -> Self {
-        match mode {
-            PadMode::HotCue => Self::HotCue,
-            PadMode::LoopRoll => Self::LoopRoll,
-            PadMode::BeatJump => Self::BeatJump,
-            PadMode::Sampler => Self::Sampler,
-            PadMode::Stems => Self::Stems,
-            PadMode::Keyboard => Self::Keyboard,
-            PadMode::KeyShift => Self::KeyShift,
-        }
-    }
-}
-
-impl From<engine_api::PadMode> for PadMode {
-    fn from(mode: engine_api::PadMode) -> Self {
-        match mode {
-            engine_api::PadMode::HotCue => Self::HotCue,
-            engine_api::PadMode::LoopRoll => Self::LoopRoll,
-            engine_api::PadMode::BeatJump => Self::BeatJump,
-            engine_api::PadMode::Sampler => Self::Sampler,
-            engine_api::PadMode::Stems => Self::Stems,
-            engine_api::PadMode::Keyboard => Self::Keyboard,
-            engine_api::PadMode::KeyShift => Self::KeyShift,
-        }
-    }
-}
-
-pub use engine_api::SyncMode;
-
-/// Deck sync follow mode (slave → master).
-#[allow(dead_code)] // FRB codegen-only; `EngineEvt.sync_mode` is `engine_api::SyncMode`.
-#[flutter_rust_bridge::frb(mirror(SyncMode))]
-pub enum _SyncMode {
-    Off,
-    Tempo,
-    Beat,
-}
-
-/// Active loop region for Dart (`engine_api::LoopRegion`).
-#[derive(Clone, Debug, PartialEq)]
-pub struct ActiveLoopInfo {
-    pub in_ms: i32,
-    pub out_ms: i32,
-    pub active: bool,
-}
-
-/// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct SamplerSlotChrome {
-    pub label: Option<String>,
-    pub track_id: Option<String>,
-    pub path: Option<String>,
-    pub duration_ms: Option<i32>,
-}
-
-/// Per-slot FX state surfaced to the UI.
-#[derive(Clone, Debug, PartialEq)]
-pub struct FxSlotChrome {
-    pub kind: FxKind,
-    pub enabled: bool,
-    /// Wet/dry `0..1` (`0` = dry).
-    pub wet: f32,
-    /// Normalized knob positions for `kind` (unused entries `0.0`).
-    pub params: Vec<f32>,
-}
-
-fn fx_slot_chrome(slot: &engine_api::FxSlotState) -> FxSlotChrome {
-    FxSlotChrome {
-        kind: slot.kind.into(),
-        enabled: slot.enabled,
-        wet: slot.wet,
-        params: slot.params.to_vec(),
-    }
-}
-
-fn empty_deck_sampler_chrome() -> Vec<SamplerSlotChrome> {
-    vec![SamplerSlotChrome::default(); SAMPLER_SLOT_COUNT]
-}
-
-fn empty_all_sampler_chrome(num_decks: usize) -> Vec<Vec<SamplerSlotChrome>> {
-    vec![empty_deck_sampler_chrome(); num_decks]
-}
-
+/// Filesystem path of a prepared source, for the sampler pad tooltip.
 fn source_path(source: &AudioSource) -> Option<String> {
     source
         .file()
         .map(|f| f.path().to_string_lossy().into_owned())
 }
 
+/// Display label for a sampler pad: metadata title, else file stem, else track id.
 fn source_label(source: &AudioSource) -> String {
     if let Some(title) = source.metadata().title.as_ref().filter(|t| !t.is_empty()) {
         return title.clone();
@@ -282,8 +165,9 @@ fn source_label(source: &AudioSource) -> String {
         .unwrap_or_else(|| source.id().as_str().to_string())
 }
 
-fn chrome_from_prepared(prepared: &PreparedTrackPlayback) -> SamplerSlotChrome {
-    SamplerSlotChrome {
+/// Sampler pad chrome for one prepared source.
+fn chrome_from_prepared(prepared: &PreparedTrackPlayback) -> SamplerSlotInfo {
+    SamplerSlotInfo {
         label: Some(source_label(&prepared.source)),
         track_id: {
             let id = prepared.track_id.as_str();
@@ -301,7 +185,7 @@ fn chrome_from_prepared(prepared: &PreparedTrackPlayback) -> SamplerSlotChrome {
 fn chrome_from_bank_slot(
     record: &SamplerSlotRecord,
     prepared: &PreparedTrackPlayback,
-) -> SamplerSlotChrome {
+) -> SamplerSlotInfo {
     let mut chrome = chrome_from_prepared(prepared);
     if let Some(label) = record.label.clone().filter(|s| !s.is_empty()) {
         chrome.label = Some(label);
@@ -315,216 +199,6 @@ fn chrome_from_bank_slot(
     chrome
 }
 
-fn attach_sampler_chrome(evt: &mut EngineEvt, chrome: &[Vec<SamplerSlotChrome>]) {
-    if evt.kind != EngineEvtKind::Updated {
-        return;
-    }
-    let Some(deck_id) = evt.deck_id else {
-        return;
-    };
-    let idx = usize::from(deck_id);
-    if idx >= chrome.len() {
-        return;
-    }
-    evt.sampler_slots = Some(chrome[idx].clone());
-    evt.sampler_slots_known = true;
-}
-
-impl From<engine_api::LoopRegion> for ActiveLoopInfo {
-    fn from(region: engine_api::LoopRegion) -> Self {
-        Self {
-            in_ms: region.in_ms,
-            out_ms: region.out_ms,
-            active: region.active,
-        }
-    }
-}
-
-/// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
-#[derive(Clone, Debug)]
-pub struct EngineEvt {
-    pub kind: EngineEvtKind,
-    pub deck_id: Option<u16>,
-    pub running: Option<bool>,
-    pub playing: Option<bool>,
-    /// Filesystem path of the loaded track (`DeckSnapshot.track`); not a display title.
-    pub track_path: Option<String>,
-    pub track_id: Option<String>,
-    pub position_ms: Option<i32>,
-    pub peak_l: Option<f32>,
-    pub peak_r: Option<f32>,
-    pub peak_hold_l: Option<f32>,
-    pub peak_hold_r: Option<f32>,
-    pub message: Option<String>,
-    pub volume: Option<f32>,
-    pub eq_low: Option<f32>,
-    pub eq_mid: Option<f32>,
-    pub eq_high: Option<f32>,
-    pub filter: Option<f32>,
-    pub gain_trim: Option<f32>,
-    /// FX unit slot state when authored on this evt (`FX_SLOT_COUNT` entries).
-    pub fx: Option<Vec<FxSlotChrome>>,
-    /// True when this deck's pre-fader signal runs through the FX unit.
-    pub fx_routed: Option<bool>,
-    pub headphone_cue: Option<bool>,
-    pub crossfader: Option<f32>,
-    pub crossfader_assign: Option<CrossfaderAssign>,
-    pub master_volume: Option<f32>,
-    pub cue_volume: Option<f32>,
-    pub cue_mix: Option<f32>,
-    pub master_cue: Option<bool>,
-    pub duration_ms: Option<i32>,
-    pub speed: Option<f32>,
-    pub tempo_range: Option<f32>,
-    pub key_lock: Option<bool>,
-    /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
-    pub key_shift: Option<f32>,
-    /// Keyboard pad semitone page (`1..=4`; default 2).
-    pub keyboard_page: Option<u8>,
-    /// Key Shift pad semitone page (`1..=5`; default 2).
-    pub key_shift_page: Option<u8>,
-    /// Hot-cue slot used as the Keyboard pad root (default 0).
-    pub keyboard_root_hot_cue: Option<u8>,
-    pub pad_mode: Option<PadMode>,
-    pub sync_mode: Option<SyncMode>,
-    pub master_deck: Option<u16>,
-    /// Set on every [`EngineEvtKind::Updated`] (including `None` when cleared).
-    pub active_loop: Option<ActiveLoopInfo>,
-    /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
-    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
-    pub active_loop_known: bool,
-    /// Pending Loop In position (ms) before Loop Out completes the region.
-    pub pending_loop_in_ms: Option<i32>,
-    /// True when [`Self::pending_loop_in_ms`] was authored on this Updated evt (even if `None`).
-    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
-    pub pending_loop_in_ms_known: bool,
-    /// True when [`Self::duration_ms`] was authored on this Updated evt (even if `None`).
-    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
-    pub duration_known: bool,
-    pub quantize: Option<bool>,
-    pub slip_enabled: Option<bool>,
-    pub slip_shadow_position_ms: Option<i32>,
-    pub jog_touching: Option<bool>,
-    pub loudness_lufs: Option<f64>,
-    pub auto_gain_db: Option<f32>,
-    /// Active sampler bank for this deck (`None` when cleared / unset).
-    pub active_sampler_bank_id: Option<String>,
-    /// True when [`Self::active_sampler_bank_id`] was authored on this Updated evt.
-    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
-    pub active_sampler_bank_id_known: bool,
-    /// Pad chrome for this deck when [`Self::sampler_slots_known`].
-    pub sampler_slots: Option<Vec<SamplerSlotChrome>>,
-    /// True when [`Self::sampler_slots`] was authored on this Updated evt.
-    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
-    pub sampler_slots_known: bool,
-    /// True when four stem layers are attached for playback.
-    pub stems_ready: Option<bool>,
-    /// True when the attached stems come from the realtime StemgenRT ring.
-    pub stems_live: Option<bool>,
-    /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[drums, bass, other, vocals]`).
-    pub stem_mute: Option<Vec<bool>>,
-    /// Isolated stem index when set; `None` clears isolate when stems are authored.
-    pub stem_isolate: Option<u8>,
-}
-
-impl EngineEvt {
-    fn bare(kind: EngineEvtKind) -> Self {
-        Self {
-            kind,
-            deck_id: None,
-            running: None,
-            playing: None,
-            track_path: None,
-            track_id: None,
-            position_ms: None,
-            peak_l: None,
-            peak_r: None,
-            peak_hold_l: None,
-            peak_hold_r: None,
-            message: None,
-            volume: None,
-            eq_low: None,
-            eq_mid: None,
-            eq_high: None,
-            filter: None,
-            gain_trim: None,
-            fx: None,
-            fx_routed: None,
-            headphone_cue: None,
-            crossfader: None,
-            crossfader_assign: None,
-            master_volume: None,
-            cue_volume: None,
-            cue_mix: None,
-            master_cue: None,
-            duration_ms: None,
-            speed: None,
-            tempo_range: None,
-            key_lock: None,
-            key_shift: None,
-            keyboard_page: None,
-            key_shift_page: None,
-            keyboard_root_hot_cue: None,
-            pad_mode: None,
-            sync_mode: None,
-            master_deck: None,
-            active_loop: None,
-            active_loop_known: false,
-            pending_loop_in_ms: None,
-            pending_loop_in_ms_known: false,
-            duration_known: false,
-            quantize: None,
-            slip_enabled: None,
-            slip_shadow_position_ms: None,
-            jog_touching: None,
-            loudness_lufs: None,
-            auto_gain_db: None,
-            active_sampler_bank_id: None,
-            active_sampler_bank_id_known: false,
-            sampler_slots: None,
-            sampler_slots_known: false,
-            stems_ready: None,
-            stems_live: None,
-            stem_mute: None,
-            stem_isolate: None,
-        }
-    }
-}
-
-struct EngineEvtForwarder {
-    shutdown: Arc<AtomicBool>,
-    handle: JoinHandle<()>,
-}
-
-#[allow(dead_code)]
-struct EngineHistoryWorker(HistoryWorker);
-
-fn is_coalescible(kind: &Kind) -> bool {
-    matches!(
-        kind,
-        Kind::Position | Kind::Levels | Kind::Updated | Kind::Status
-    )
-}
-
-/// Cloneable engine cmd/evt buses for hosts that only publish (controller).
-#[derive(Clone)]
-#[flutter_rust_bridge::frb(opaque)]
-pub struct EngineBusHandle {
-    buses: EngineBuses,
-}
-
-impl EngineBusHandle {
-    /// Wrap an existing bus pair (tests / `EngineTransport::buses`).
-    #[flutter_rust_bridge::frb(ignore)]
-    pub fn from_buses(buses: EngineBuses) -> Self {
-        Self { buses }
-    }
-
-    pub(crate) fn buses(&self) -> EngineBuses {
-        self.buses.clone()
-    }
-}
-
 /// Host-owned engine handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct EngineTransport {
@@ -532,12 +206,11 @@ pub struct EngineTransport {
     #[allow(dead_code)]
     worker: EngineWorker,
     engine: Arc<Mutex<Option<Engine>>>,
-    buses: EngineBuses,
+    bus: EventBus<Event>,
     library: Arc<Mutex<LibraryManager>>,
     library_cmd_bus: library::LibraryBus,
-    /// Ephemeral pad chrome (Tauri `AppState.sampler_slots`).
-    sampler_slots: Arc<Mutex<Vec<Vec<SamplerSlotChrome>>>>,
-    evt_forwarder: Mutex<Option<EngineEvtForwarder>>,
+    /// Ephemeral sampler pad chrome, stamped onto `DeckUpdated` by [`crate::api::bus`].
+    sampler_slots: DeckChrome,
     history_worker: Mutex<Option<EngineHistoryWorker>>,
     /// Bumped at the start of each deck load; stale prepares skip `load_prepared`.
     ///
@@ -564,11 +237,6 @@ impl Drop for EngineTransport {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         history.take();
-        let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(fwd) = slot.take() {
-            fwd.shutdown.store(true, Ordering::Relaxed);
-            let _ = fwd.handle.join();
-        }
         if let Ok(mut live) = self.live_separators.lock() {
             for slot in live.iter_mut() {
                 slot.take();
@@ -583,29 +251,32 @@ impl Drop for EngineTransport {
 }
 
 impl EngineTransport {
-    /// Start the engine from the saved settings host config.
-    pub fn start(library_transport: &LibraryTransport) -> Result<Self, String> {
-        Self::start_with(library_transport, settings_engine_config()?)
+    /// Start the engine on the shared bus, from the saved settings host config.
+    pub fn start(bus: &BusTransport, library_transport: &LibraryTransport) -> Result<Self, String> {
+        Self::start_with(
+            bus.bus(),
+            bus.deck_chrome(),
+            library_transport,
+            settings_engine_config()?,
+        )
     }
 
     /// Start with an explicit config. Crate-private: only the `test-utils`
     /// `testing::start_engine` seam calls this, so the Dart bridge never
     /// exposes a backend selector.
     pub(crate) fn start_with(
+        bus: EventBus<Event>,
+        chrome: DeckChrome,
         library_transport: &LibraryTransport,
         config: EngineConfig,
     ) -> Result<Self, String> {
         let library_arc = library_transport.library_arc();
         let live_stems_enabled = config.backend != "null";
         let deck_count = config.num_decks;
-        let mut engine = Engine::new_with_library_bus(
-            config,
-            Arc::clone(&library_arc),
-            library_transport.cmd_bus(),
-        )
-        .bridge()?;
-        let buses = EngineBuses::new();
-        engine.set_buses(buses.clone());
+        let mut engine =
+            Engine::new_with_library_bus(config, Arc::clone(&library_arc), library_transport.bus())
+                .bridge()?;
+        engine.set_buses(bus.clone());
         // Failure reason reaches `mixar.log` through `BridgeResult`, like every other error.
         engine.start().bridge()?;
         let engine = Arc::new(Mutex::new(Some(engine)));
@@ -620,7 +291,7 @@ impl EngineTransport {
                 return Err(e.to_string());
             }
         };
-        let history_worker = match HistoryWorker::start(&buses, library_arc.clone()) {
+        let history_worker = match HistoryWorker::start(&bus, library_arc.clone()) {
             Ok(worker) => EngineHistoryWorker(worker),
             Err(e) => {
                 // Tear down the already-running engine worker before failing start.
@@ -636,11 +307,10 @@ impl EngineTransport {
         let transport = Self {
             worker: engine_worker,
             engine,
-            buses: buses.clone(),
+            bus,
             library: library_arc,
-            library_cmd_bus: library_transport.cmd_bus(),
-            sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome(deck_count))),
-            evt_forwarder: Mutex::new(None),
+            library_cmd_bus: library_transport.bus(),
+            sampler_slots: chrome,
             history_worker: Mutex::new(Some(history_worker)),
             deck_load_generation: Arc::new((0..MAX_DECKS).map(|_| AtomicU64::new(0)).collect()),
             deck_count: AtomicUsize::new(deck_count),
@@ -682,7 +352,7 @@ impl EngineTransport {
                 // template for retiring decks the new profile dropped.
                 let retirement = engine.deck_snapshot(0);
                 if let Ok(mut chrome) = self.sampler_slots.lock() {
-                    chrome.resize_with(deck_count, empty_deck_sampler_chrome);
+                    chrome.resize_with(deck_count, Vec::new);
                 }
                 self.deck_count.store(deck_count, Ordering::Release);
                 *guard = Some(engine);
@@ -714,7 +384,7 @@ impl EngineTransport {
             self.library_cmd_bus.clone(),
         )
         .bridge()?;
-        engine.set_buses(self.buses.clone());
+        engine.set_buses(self.bus.clone());
         engine.start().bridge()?;
         Ok(engine)
     }
@@ -724,8 +394,8 @@ impl EngineTransport {
     pub fn apply_host_settings(
         &self,
         normalizer_target: Option<f32>,
-        top_jog: engine_api::JogMode,
-        outer_jog: engine_api::JogMode,
+        top_jog: bus_api::JogMode,
+        outer_jog: bus_api::JogMode,
     ) -> Result<(), String> {
         let mut guard = self
             .engine
@@ -780,143 +450,108 @@ impl EngineTransport {
 
     /// Play a deck (cmd bus).
     pub fn play(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::Play)
+        self.publish_cmd(Event::Play(Play { deck: deck_id }))
     }
 
     /// Pause a deck (cmd bus).
     pub fn pause(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::Pause)
+        self.publish_cmd(Event::Pause(Pause { deck: deck_id }))
     }
 
     /// Seek a deck to `position_ms` (cmd bus).
     pub fn seek(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::Seek,
-            &CmdBody::Seek { position_ms },
-        )
+        self.publish_cmd(Event::Seek(Seek {
+            deck: deck_id,
+            position_ms,
+        }))
     }
 
     /// Channel fader `0..1`.
     pub fn set_volume(&self, deck_id: u16, volume: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetVolume,
-            &CmdBody::SetVolume {
-                volume,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetVolume(SetVolume {
+            deck: deck_id,
+            volume,
+            soft_takeover: false,
+        }))
     }
 
     /// Single EQ band as `0..1` (center `0.5` = 0 dB).
     pub fn set_eq_band(&self, deck_id: u16, band: EqBand, gain: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetEqBand,
-            &CmdBody::SetEqBand {
-                band: band.into(),
-                gain,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetEqBand(SetEqBand {
+            deck: deck_id,
+            band,
+            gain,
+            soft_takeover: false,
+        }))
     }
 
     /// Filter knob `0..1`.
     pub fn set_filter(&self, deck_id: u16, filter: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetFilter,
-            &CmdBody::SetFilter {
-                filter,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetFilter(SetFilter {
+            deck: deck_id,
+            filter,
+            soft_takeover: false,
+        }))
     }
 
     /// FX unit slot `0..=2` effect selection; `off` clears the slot.
     pub fn set_fx_unit_slot(&self, slot: u8, kind: FxKind) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetFxUnitSlot,
-            &CmdBody::SetFxUnitSlot {
-                slot,
-                kind: kind.into(),
-            },
-        )
+        self.publish_cmd(Event::SetFxUnitSlot(SetFxUnitSlot { slot, kind }))
     }
 
     /// FX unit slot on/off (wet/dry and knobs are kept).
     pub fn set_fx_unit_slot_enabled(&self, slot: u8, enabled: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetFxUnitSlotEnabled,
-            &CmdBody::SetFxUnitSlotEnabled { slot, enabled },
-        )
+        self.publish_cmd(Event::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled {
+            slot,
+            enabled,
+        }))
     }
 
     /// FX unit slot wet/dry `0..1`.
     pub fn set_fx_unit_wet(&self, slot: u8, wet: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetFxUnitWet,
-            &CmdBody::SetFxUnitWet {
-                slot,
-                wet,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetFxUnitWet(SetFxUnitWet {
+            slot,
+            wet,
+            soft_takeover: false,
+        }))
     }
 
     /// FX unit slot knob `param` `0..=2`, normalized `0..1`.
     pub fn set_fx_unit_param(&self, slot: u8, param: u8, value: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetFxUnitParam,
-            &CmdBody::SetFxUnitParam { slot, param, value },
-        )
+        self.publish_cmd(Event::SetFxUnitParam(SetFxUnitParam { slot, param, value }))
     }
 
     /// Route deck `deck_id` through the shared FX unit.
     pub fn set_deck_fx_routed(&self, deck_id: u16, routed: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetDeckFxRouted,
-            &CmdBody::SetDeckFxRouted { routed },
-        )
+        self.publish_cmd(Event::SetDeckFxRouted(SetDeckFxRouted {
+            deck: deck_id,
+            routed,
+        }))
     }
 
     /// Gain trim knob `0..1`.
     pub fn set_gain_trim(&self, deck_id: u16, gain_trim: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetGainTrim,
-            &CmdBody::SetGainTrim {
-                gain_trim,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetGainTrim(SetGainTrim {
+            deck: deck_id,
+            gain_trim,
+            soft_takeover: false,
+        }))
     }
 
     /// Per-deck headphone cue (PFL).
     pub fn set_headphone_cue(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetHeadphoneCue,
-            &CmdBody::SetHeadphoneCue { enabled },
-        )
+        self.publish_cmd(Event::SetHeadphoneCue(SetHeadphoneCue {
+            deck: deck_id,
+            enabled,
+        }))
     }
 
     /// Crossfader `0..1` (A … B).
     pub fn set_crossfader(&self, position: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetCrossfader,
-            &CmdBody::SetCrossfader {
-                position,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetCrossfader(SetCrossfader {
+            position,
+            soft_takeover: false,
+        }))
     }
 
     /// Assign a deck to crossfader side A, Thru, or side B.
@@ -925,140 +560,110 @@ impl EngineTransport {
         deck_id: u16,
         assignment: CrossfaderAssign,
     ) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetCrossfaderAssign,
-            &CmdBody::SetCrossfaderAssign {
-                assignment: assignment.into(),
-            },
-        )
+        self.publish_cmd(Event::SetCrossfaderAssign(SetCrossfaderAssign {
+            deck: deck_id,
+            assignment,
+        }))
     }
 
     /// Master bus volume `0..1`.
     pub fn set_master_volume(&self, volume: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetMasterVolume,
-            &CmdBody::SetMasterVolume {
-                volume,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetMasterVolume(SetMasterVolume {
+            volume,
+            soft_takeover: false,
+        }))
     }
 
     /// Cue/headphone bus volume `0..1`.
     pub fn set_cue_volume(&self, volume: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetCueVolume,
-            &CmdBody::SetCueVolume {
-                volume,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetCueVolume(SetCueVolume {
+            volume,
+            soft_takeover: false,
+        }))
     }
 
     /// Cue/master headphone mix `0..1`.
     pub fn set_cue_mix(&self, mix: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetCueMix,
-            &CmdBody::SetCueMix {
-                mix,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetCueMix(SetCueMix {
+            mix,
+            soft_takeover: false,
+        }))
     }
 
     /// Master cue (headphones hear master).
     pub fn set_master_cue(&self, enabled: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Mixer,
-            Kind::SetMasterCue,
-            &CmdBody::SetMasterCue { enabled },
-        )
+        self.publish_cmd(Event::SetMasterCue(SetMasterCue { enabled }))
     }
 
     /// Tempo fader position `0..1`.
     pub fn set_speed(&self, deck_id: u16, speed: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetSpeed,
-            &CmdBody::SetSpeed {
-                speed,
-                soft_takeover: false,
-            },
-        )
+        self.publish_cmd(Event::SetSpeed(SetSpeed {
+            deck: deck_id,
+            speed,
+            soft_takeover: false,
+        }))
     }
 
     /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
     pub fn set_tempo_range(&self, deck_id: u16, tempo_range: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetTempoRange,
-            &CmdBody::SetTempoRange { tempo_range },
-        )
+        self.publish_cmd(Event::SetTempoRange(SetTempoRange {
+            deck: deck_id,
+            tempo_range,
+        }))
     }
 
     /// Key lock / master tempo (time-stretch; pitch held).
     pub fn set_key_lock(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetKeyLock,
-            &CmdBody::SetKeyLock { enabled },
-        )
+        self.publish_cmd(Event::SetKeyLock(SetKeyLock {
+            deck: deck_id,
+            enabled,
+        }))
     }
 
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub fn set_key_shift(&self, deck_id: u16, semitones: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetKeyShift,
-            &CmdBody::SetKeyShift { semitones },
-        )
+        self.publish_cmd(Event::SetKeyShift(SetKeyShift {
+            deck: deck_id,
+            semitones,
+        }))
     }
 
     /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
     pub fn set_keyboard_root(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetKeyboardRoot,
-            &CmdBody::SetKeyboardRoot { slot },
-        )
+        self.publish_cmd(Event::SetKeyboardRoot(SetKeyboardRoot {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     /// Select the Keyboard pad semitone page (1..=4).
     pub fn set_keyboard_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetKeyboardPage,
-            &CmdBody::SetKeyboardPage { page },
-        )
+        self.publish_cmd(Event::SetKeyboardPage(SetKeyboardPage {
+            deck: deck_id,
+            page,
+        }))
     }
 
     /// Select the Key Shift pad semitone page (1..=5).
     pub fn set_key_shift_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetKeyShiftPage,
-            &CmdBody::SetKeyShiftPage { page },
-        )
+        self.publish_cmd(Event::SetKeyShiftPage(SetKeyShiftPage {
+            deck: deck_id,
+            page,
+        }))
     }
 
     pub fn jog_touch(&self, deck_id: u16, touching: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::JogTouch,
-            &CmdBody::JogTouch { touching },
-        )
+        self.publish_cmd(Event::JogTouch(JogTouch {
+            deck: deck_id,
+            touching,
+        }))
     }
 
     pub fn jog_turn(&self, deck_id: u16, delta: i32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::JogTurn,
-            &CmdBody::JogTurn { delta },
-        )
+        self.publish_cmd(Event::JogTurn(JogTurn {
+            deck: deck_id,
+            delta,
+        }))
     }
 
     pub fn set_jog_mode(
@@ -1067,42 +672,37 @@ impl EngineTransport {
         top: JogModeSetting,
         outer: JogModeSetting,
     ) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetJogMode,
-            &CmdBody::SetJogMode {
-                top: top.into(),
-                outer: outer.into(),
-            },
-        )
+        self.publish_cmd(Event::SetJogMode(SetJogMode {
+            deck: deck_id,
+            top: top.into(),
+            outer: outer.into(),
+        }))
     }
 
     pub fn set_cue_point(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::SetCuePoint)
+        self.publish_cmd(Event::SetCuePoint(SetCuePoint { deck: deck_id }))
     }
 
     pub fn begin_cue_hold(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::BeginCueHold)
+        self.publish_cmd(Event::BeginCueHold(BeginCueHold { deck: deck_id }))
     }
 
     pub fn end_cue_hold(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::EndCueHold)
+        self.publish_cmd(Event::EndCueHold(EndCueHold { deck: deck_id }))
     }
 
     pub fn set_quantize(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetQuantize,
-            &CmdBody::SetQuantize { enabled },
-        )
+        self.publish_cmd(Event::SetQuantize(SetQuantize {
+            deck: deck_id,
+            enabled,
+        }))
     }
 
     pub fn set_slip(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetSlip,
-            &CmdBody::SetSlip { enabled },
-        )
+        self.publish_cmd(Event::SetSlip(SetSlip {
+            deck: deck_id,
+            enabled,
+        }))
     }
 
     pub fn unload(&self, deck_id: u16) -> Result<(), String> {
@@ -1115,179 +715,165 @@ impl EngineTransport {
                 previous.stop();
             }
         }
-        self.publish_empty(Origin::Deck(deck_id), Kind::Unload)
+        self.publish_cmd(Event::Unload(Unload { deck: deck_id }))
     }
 
     pub fn set_auto_loop(&self, deck_id: u16, beats: f32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetAutoLoop,
-            &CmdBody::SetAutoLoop { beats },
-        )
+        self.publish_cmd(Event::SetAutoLoop(SetAutoLoop {
+            deck: deck_id,
+            beats,
+        }))
     }
 
     pub fn loop_in(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::LoopIn,
-            &CmdBody::LoopIn { position_ms },
-        )
+        self.publish_cmd(Event::LoopIn(LoopIn {
+            deck: deck_id,
+            position_ms,
+        }))
     }
 
     pub fn loop_out(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::LoopOut,
-            &CmdBody::LoopOut { position_ms },
-        )
+        self.publish_cmd(Event::LoopOut(LoopOut {
+            deck: deck_id,
+            position_ms,
+        }))
     }
 
     pub fn exit_loop(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::ExitLoop)
+        self.publish_cmd(Event::ExitLoop(ExitLoop { deck: deck_id }))
     }
 
     pub fn recall_saved_loop(&self, deck_id: u16, in_ms: i32, out_ms: i32) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::RecallSavedLoop,
-            &CmdBody::RecallSavedLoop { in_ms, out_ms },
-        )
+        self.publish_cmd(Event::RecallSavedLoop(RecallSavedLoop {
+            deck: deck_id,
+            in_ms,
+            out_ms,
+        }))
     }
 
     pub fn toggle_sync(&self, deck_id: u16, beat_sync: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::ToggleSync,
-            &CmdBody::ToggleSync { beat_sync },
-        )
+        self.publish_cmd(Event::ToggleSync(ToggleSync {
+            deck: deck_id,
+            beat_sync,
+        }))
     }
 
     pub fn set_master_deck(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::SetMasterDeck)
+        self.publish_cmd(Event::SetMasterDeck(SetMasterDeck { deck: deck_id }))
     }
 
     /// Per-deck pad mode.
     pub fn set_pad_mode(&self, deck_id: u16, mode: PadMode) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetPadMode,
-            &CmdBody::SetPadMode { mode: mode.into() },
-        )
+        self.publish_cmd(Event::SetPadMode(SetPadMode {
+            deck: deck_id,
+            mode,
+        }))
     }
 
     /// Stems / generic pad press (engine dispatches by current `pad_mode`).
     pub fn pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::PadPress,
-            &CmdBody::PadPress { slot, shift },
-        )
+        self.publish_cmd(Event::PadPress(PadPress {
+            deck: deck_id,
+            slot,
+            shift,
+        }))
     }
 
     pub fn pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::PadRelease,
-            &CmdBody::PadRelease { slot },
-        )
+        self.publish_cmd(Event::PadRelease(PadRelease {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     pub fn hot_cue_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::HotCuePadPress,
-            &CmdBody::HotCuePadPress { slot, shift },
-        )
+        self.publish_cmd(Event::HotCuePadPress(HotCuePadPress {
+            deck: deck_id,
+            slot,
+            shift,
+        }))
     }
 
     pub fn hot_cue_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::HotCuePadRelease,
-            &CmdBody::HotCuePadRelease { slot },
-        )
+        self.publish_cmd(Event::HotCuePadRelease(HotCuePadRelease {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     pub fn loop_roll_pad_press(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::LoopRollPadPress,
-            &CmdBody::LoopRollPadPress { slot },
-        )
+        self.publish_cmd(Event::LoopRollPadPress(LoopRollPadPress {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     pub fn loop_roll_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::LoopRollPadRelease,
-            &CmdBody::LoopRollPadRelease { slot },
-        )
+        self.publish_cmd(Event::LoopRollPadRelease(LoopRollPadRelease {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     pub fn beat_jump_pad_press(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::BeatJumpPadPress,
-            &CmdBody::BeatJumpPadPress { slot },
-        )
+        self.publish_cmd(Event::BeatJumpPadPress(BeatJumpPadPress {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     pub fn beat_jump_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::BeatJumpPadRelease,
-            &CmdBody::BeatJumpPadRelease { slot },
-        )
+        self.publish_cmd(Event::BeatJumpPadRelease(BeatJumpPadRelease {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     /// Keyboard pad press; `shift` plays the upper octave / accent.
     pub fn keyboard_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::KeyboardPadPress,
-            &CmdBody::KeyboardPadPress { slot, shift },
-        )
+        self.publish_cmd(Event::KeyboardPadPress(KeyboardPadPress {
+            deck: deck_id,
+            slot,
+            shift,
+        }))
     }
 
     pub fn keyboard_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::KeyboardPadRelease,
-            &CmdBody::KeyboardPadRelease { slot },
-        )
+        self.publish_cmd(Event::KeyboardPadRelease(KeyboardPadRelease {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     /// Key Shift pad press; `shift` resets the deck to `0.0` semitones.
     pub fn key_shift_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::KeyShiftPadPress,
-            &CmdBody::KeyShiftPadPress { slot, shift },
-        )
+        self.publish_cmd(Event::KeyShiftPadPress(KeyShiftPadPress {
+            deck: deck_id,
+            slot,
+            shift,
+        }))
     }
 
     pub fn key_shift_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::KeyShiftPadRelease,
-            &CmdBody::KeyShiftPadRelease { slot },
-        )
+        self.publish_cmd(Event::KeyShiftPadRelease(KeyShiftPadRelease {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     pub fn sampler_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SamplerPadPress,
-            &CmdBody::SamplerPadPress { slot, shift },
-        )
+        self.publish_cmd(Event::SamplerPadPress(SamplerPadPress {
+            deck: deck_id,
+            slot,
+            shift,
+        }))
     }
 
     pub fn sampler_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SamplerPadRelease,
-            &CmdBody::SamplerPadRelease { slot },
-        )
+        self.publish_cmd(Event::SamplerPadRelease(SamplerPadRelease {
+            deck: deck_id,
+            slot,
+        }))
     }
 
     pub fn assign_sampler(&self, deck_id: u16, slot: u8, path: String) -> Result<(), String> {
@@ -1339,7 +925,7 @@ impl EngineTransport {
             let snap = engine
                 .deck_snapshot(deck)
                 .ok_or_else(|| "deck snapshot unavailable".to_string())?;
-            deck_chrome[slot_i] = SamplerSlotChrome::default();
+            deck_chrome[slot_i] = SamplerSlotInfo::default();
             snap
         };
         self.publish_deck_updated(deck_id, snap)
@@ -1361,7 +947,7 @@ impl EngineTransport {
             }
             lib.list_sampler_bank_slots(&bank_id).bridge()?
         };
-        let mut prepared: Vec<(u8, PreparedTrackPlayback, SamplerSlotChrome)> = Vec::new();
+        let mut prepared: Vec<(u8, PreparedTrackPlayback, SamplerSlotInfo)> = Vec::new();
         for record in slots {
             if usize::from(record.slot_index) >= SAMPLER_SLOT_COUNT {
                 continue;
@@ -1383,7 +969,7 @@ impl EngineTransport {
             let chrome = chrome_from_bank_slot(&record, &item);
             prepared.push((record.slot_index, item, chrome));
         }
-        let mut deck_chrome = empty_deck_sampler_chrome();
+        let mut deck_chrome = vec![SamplerSlotInfo::default(); SAMPLER_SLOT_COUNT];
         let snap = {
             let mut guard = self
                 .engine
@@ -1670,13 +1256,9 @@ impl EngineTransport {
     }
 
     fn publish_deck_updated(&self, deck_id: u16, snap: DeckSnapshot) -> Result<(), String> {
-        self.buses
-            .publish_evt(
-                Origin::Deck(deck_id),
-                Kind::Updated,
-                deck_snapshot_to_evt(snap),
-            )
-            .bridge()
+        let mut update = DeckUpdated::from(snap);
+        update.deck = deck_id;
+        self.bus.publish_evt(Event::DeckUpdated(update)).bridge()
     }
 
     /// Publish an empty, stopped snapshot for every deck the new profile dropped.
@@ -1716,15 +1298,12 @@ impl EngineTransport {
         }
     }
 
-    fn publish_empty(&self, origin: Origin, kind: Kind) -> Result<(), String> {
-        self.publish_body(origin, kind, &CmdBody::Empty)
+    /// Publish one command on the shared bus.
+    fn publish_cmd(&self, event: Event) -> Result<(), String> {
+        self.bus.publish_cmd(event).bridge()
     }
 
-    fn publish_body(&self, origin: Origin, kind: Kind, body: &CmdBody) -> Result<(), String> {
-        let bytes = encode_cmd_body(body).bridge()?;
-        self.buses.publish_cmd(origin, kind, bytes).bridge()
-    }
-
+    /// Hydrate every deck and the mixer from one snapshot.
     fn publish_current_status(&self) {
         let status = self
             .engine
@@ -1732,691 +1311,31 @@ impl EngineTransport {
             .ok()
             .and_then(|g| g.as_ref().and_then(Engine::engine_status_snapshot));
         if let Some(status) = status {
-            let _ = self.buses.publish_evt(
-                Origin::Mixer,
-                Kind::Status,
-                EvtBody::EngineStatus { status },
-            );
+            let _ = self
+                .bus
+                .publish_evt(Event::EngineSnapshot(EngineSnapshot { status }));
         }
-    }
-
-    /// Forward thin typed engine events to Dart via FRB `StreamSink`.
-    ///
-    /// Coalesces Position/Levels/Updated/Status (latest wins) like Tauri.
-    /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
-    pub fn subscribe_events(&self, sink: StreamSink<EngineEvt>) -> Result<(), String> {
-        let rx = self.buses.subscribe_evt_all().bridge()?;
-        let chrome = Arc::clone(&self.sampler_slots);
-        let shutdown = Arc::new(AtomicBool::new(false));
-        let shutdown_flag = Arc::clone(&shutdown);
-        let handle = std::thread::Builder::new()
-            .name("engine-evt-forwarder".into())
-            .spawn(move || {
-                while !shutdown_flag.load(Ordering::Relaxed) {
-                    let first = match rx.recv_timeout(Duration::from_millis(100)) {
-                        Ok(Some(ev)) => ev,
-                        Ok(None) => continue,
-                        Err(_) => break,
-                    };
-                    let mut discrete: Vec<Arc<Evt>> = Vec::new();
-                    let mut coalesced: HashMap<(Origin, Kind), Arc<Evt>> = HashMap::new();
-                    let mut push = |ev: Arc<Evt>| {
-                        if is_coalescible(ev.kind()) {
-                            coalesced.insert((ev.origin().clone(), ev.kind().clone()), ev);
-                        } else {
-                            discrete.push(ev);
-                        }
-                    };
-                    push(first);
-                    while let Ok(Some(ev)) = rx.recv_timeout(Duration::ZERO) {
-                        push(ev);
-                    }
-                    let chrome_snap = chrome.lock().map(|g| g.clone()).unwrap_or_default();
-                    for ev in discrete.into_iter().chain(coalesced.into_values()) {
-                        for mut mapped in map_engine_evts(ev.as_ref()) {
-                            attach_sampler_chrome(&mut mapped, &chrome_snap);
-                            if sink.add(mapped).is_err() {
-                                return;
-                            }
-                        }
-                    }
-                }
-            })
-            .bridge()?;
-
-        let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(prev) = slot.take() {
-            prev.shutdown.store(true, Ordering::Relaxed);
-            let _ = prev.handle.join();
-        }
-        *slot = Some(EngineEvtForwarder { shutdown, handle });
-        self.publish_current_status();
-        Ok(())
-    }
-
-    /// Raw evt subscription for host/tests. Prefer [`Self::subscribe_events`] for Dart.
-    #[flutter_rust_bridge::frb(ignore)]
-    pub fn subscribe_evt_all(&self) -> Result<engine_core::EvtReceiver, String> {
-        self.buses.subscribe_evt_all().bridge()
-    }
-
-    /// Clone of the engine cmd/evt buses for [`crate::api::controller::ControllerTransport`].
-    pub fn buses(&self) -> EngineBusHandle {
-        EngineBusHandle::from_buses(self.buses.clone())
-    }
-}
-
-fn deck_id_of(origin: &Origin) -> Option<u16> {
-    match origin {
-        Origin::Deck(id) => Some(*id),
-        Origin::Engine | Origin::Mixer => None,
-    }
-}
-
-fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
-    let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
-    evt.deck_id = Some(snap.id);
-    evt.playing = Some(snap.playing);
-    evt.track_path = snap.track.clone();
-    evt.track_id = snap.track_id.clone();
-    evt.position_ms = snap.position_ms;
-    evt.volume = Some(snap.volume);
-    evt.eq_low = Some(snap.eq.low);
-    evt.eq_mid = Some(snap.eq.mid);
-    evt.eq_high = Some(snap.eq.high);
-    evt.filter = Some(snap.filter);
-    evt.gain_trim = Some(snap.gain_trim);
-    evt.fx = Some(snap.fx.iter().map(fx_slot_chrome).collect());
-    evt.fx_routed = Some(snap.fx_routed);
-    evt.crossfader_assign = Some(snap.crossfader_assign.into());
-    evt.headphone_cue = Some(snap.headphone_cue);
-    evt.duration_ms = snap.duration_ms;
-    evt.duration_known = true;
-    evt.speed = Some(snap.speed);
-    evt.tempo_range = Some(snap.tempo_range);
-    evt.key_lock = Some(snap.key_lock);
-    evt.key_shift = Some(snap.key_shift);
-    evt.keyboard_page = Some(snap.keyboard_page);
-    evt.key_shift_page = Some(snap.key_shift_page);
-    evt.keyboard_root_hot_cue = Some(snap.keyboard_root_hot_cue);
-    evt.pad_mode = Some(snap.pad_mode.into());
-    evt.sync_mode = Some(snap.sync_mode);
-    evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
-    evt.active_loop_known = true;
-    evt.pending_loop_in_ms = snap.pending_loop_in_ms;
-    evt.pending_loop_in_ms_known = true;
-    evt.quantize = Some(snap.quantize);
-    evt.slip_enabled = Some(snap.slip_enabled);
-    evt.slip_shadow_position_ms = snap.slip_shadow_position_ms;
-    evt.jog_touching = Some(snap.jog_touching);
-    evt.loudness_lufs = snap.loudness_lufs;
-    evt.auto_gain_db = Some(snap.auto_gain_db);
-    evt.active_sampler_bank_id = snap.active_sampler_bank_id.clone();
-    evt.active_sampler_bank_id_known = true;
-    evt.stems_ready = Some(snap.stems_ready);
-    evt.stems_live = Some(snap.stems_live);
-    evt.stem_mute = Some(snap.stem_mute.to_vec());
-    evt.stem_isolate = snap.stem_isolate;
-    evt
-}
-
-pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
-    let Ok(body) = decode_evt_body(ev.payload()) else {
-        return Vec::new();
-    };
-    let deck_id = deck_id_of(ev.origin());
-    match body {
-        EvtBody::EngineStatus { status } => {
-            let mut status_evt = EngineEvt::bare(EngineEvtKind::Status);
-            status_evt.running = Some(status.running);
-            status_evt.crossfader = Some(status.crossfader);
-            status_evt.master_volume = Some(status.master_volume);
-            status_evt.cue_volume = Some(status.cue_volume);
-            status_evt.cue_mix = Some(status.cue_mix);
-            status_evt.master_cue = Some(status.master_cue);
-            status_evt.master_deck = Some(status.master_deck);
-            let mut out = Vec::with_capacity(1 + status.decks.len());
-            out.push(status_evt);
-            out.extend(status.decks.iter().map(updated_from_snapshot));
-            out
-        }
-        EvtBody::DeckUpdated {
-            id,
-            playing,
-            track,
-            track_id,
-            position_ms,
-            volume,
-            eq,
-            filter,
-            gain_trim,
-            fx,
-            fx_routed,
-            headphone_cue,
-            duration_ms,
-            speed,
-            tempo_range,
-            key_lock,
-            key_shift,
-            keyboard_page,
-            crossfader_assign,
-            key_shift_page,
-            keyboard_root_hot_cue,
-            pad_mode,
-            sync_mode,
-            active_loop,
-            pending_loop_in_ms,
-            quantize,
-            slip_enabled,
-            slip_shadow_position_ms,
-            jog_touching,
-            loudness_lufs,
-            auto_gain_db,
-            active_sampler_bank_id,
-            stems_ready,
-            stems_live,
-            stem_mute,
-            stem_isolate,
-            ..
-        } => {
-            let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
-            evt.deck_id = deck_id.or(Some(id));
-            evt.playing = Some(playing);
-            evt.track_path = track;
-            evt.track_id = track_id;
-            evt.position_ms = position_ms;
-            evt.volume = Some(volume);
-            evt.eq_low = Some(eq.low);
-            evt.eq_mid = Some(eq.mid);
-            evt.eq_high = Some(eq.high);
-            evt.filter = Some(filter);
-            evt.gain_trim = Some(gain_trim);
-            evt.fx = Some(fx.iter().map(fx_slot_chrome).collect());
-            evt.fx_routed = Some(fx_routed);
-            evt.headphone_cue = Some(headphone_cue);
-            evt.crossfader_assign = Some(crossfader_assign.into());
-            evt.duration_ms = duration_ms;
-            evt.duration_known = true;
-            evt.speed = Some(speed);
-            evt.tempo_range = Some(tempo_range);
-            evt.key_lock = Some(key_lock);
-            evt.key_shift = Some(key_shift);
-            evt.keyboard_page = Some(keyboard_page);
-            evt.key_shift_page = Some(key_shift_page);
-            evt.keyboard_root_hot_cue = Some(keyboard_root_hot_cue);
-            evt.pad_mode = Some(pad_mode.into());
-            evt.sync_mode = Some(sync_mode);
-            evt.active_loop = active_loop.map(ActiveLoopInfo::from);
-            evt.active_loop_known = true;
-            evt.pending_loop_in_ms = pending_loop_in_ms;
-            evt.pending_loop_in_ms_known = true;
-            evt.quantize = Some(quantize);
-            evt.slip_enabled = Some(slip_enabled);
-            evt.slip_shadow_position_ms = slip_shadow_position_ms;
-            evt.jog_touching = Some(jog_touching);
-            evt.loudness_lufs = loudness_lufs;
-            evt.auto_gain_db = Some(auto_gain_db);
-            evt.active_sampler_bank_id = active_sampler_bank_id;
-            evt.active_sampler_bank_id_known = true;
-            evt.stems_ready = Some(stems_ready);
-            evt.stems_live = Some(stems_live);
-            evt.stem_mute = Some(stem_mute.to_vec());
-            evt.stem_isolate = stem_isolate;
-            vec![evt]
-        }
-        EvtBody::Position {
-            position_ms,
-            slip_shadow_position_ms,
-        } => {
-            let mut evt = EngineEvt::bare(EngineEvtKind::Position);
-            evt.deck_id = deck_id;
-            evt.position_ms = Some(position_ms);
-            evt.slip_shadow_position_ms = slip_shadow_position_ms;
-            vec![evt]
-        }
-        EvtBody::Levels {
-            peak_l,
-            peak_r,
-            peak_hold_l,
-            peak_hold_r,
-        } => {
-            let mut evt = EngineEvt::bare(EngineEvtKind::Levels);
-            evt.deck_id = deck_id;
-            evt.peak_l = Some(peak_l);
-            evt.peak_r = Some(peak_r);
-            evt.peak_hold_l = Some(peak_hold_l);
-            evt.peak_hold_r = Some(peak_hold_r);
-            vec![evt]
-        }
-        EvtBody::Error { message } => {
-            let mut evt = EngineEvt::bare(EngineEvtKind::Error);
-            evt.deck_id = deck_id;
-            evt.message = Some(message);
-            vec![evt]
-        }
-        EvtBody::Notice { message } => {
-            let mut evt = EngineEvt::bare(EngineEvtKind::Notice);
-            evt.deck_id = deck_id;
-            evt.message = Some(message);
-            vec![evt]
-        }
-        EvtBody::Empty => Vec::new(),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_api::{DeckEq, EngineStatus, JogMode, PadMode, SamplerStatus};
+    use bus_api::JogMode;
+    use std::time::Duration;
 
-    fn recv_mapped(origin: Origin, kind: Kind, body: EvtBody) -> Vec<EngineEvt> {
-        let buses = EngineBuses::new();
-        let rx = buses.subscribe_evt_all().unwrap();
-        buses.publish_evt(origin, kind, body).unwrap();
-        let ev = loop {
-            match rx.recv_timeout(Duration::from_millis(200)) {
-                Ok(Some(ev)) => break ev,
-                Ok(None) => continue,
-                Err(_) => panic!("timeout waiting for mapped evt"),
-            }
-        };
-        map_engine_evts(ev.as_ref())
-    }
-
-    fn sample_deck(id: u16, volume: f32) -> DeckSnapshot {
-        DeckSnapshot {
-            id,
-            track: None,
-            track_id: None,
-            title: None,
-            artist: None,
-            album: None,
-            isrc: None,
-            bpm: None,
-            key: None,
-            playing: false,
-            crossfader_assign: EngineCrossfaderAssign::A,
-            volume,
-            speed: 0.5,
-            tempo_range: 0.08,
-            key_lock: false,
-            key_shift: 0.0,
-            keyboard_page: engine_api::default_pitch_page(),
-            key_shift_page: engine_api::default_pitch_page(),
-            keyboard_root_hot_cue: 0,
-            eq: DeckEq {
-                low: 0.5,
-                mid: 0.5,
-                high: 0.25,
-            },
-            filter: 0.5,
-            gain_trim: 0.5,
-            fx_routed: false,
-            fx: Default::default(),
-            headphone_cue: true,
-            sync_mode: SyncMode::Off,
-            cue_point_ms: None,
-            quantize: true,
-            active_loop: None,
-            pending_loop_in_ms: None,
-            slip_enabled: false,
-            slip_shadow_position_ms: None,
-            pad_mode: PadMode::HotCue,
-            stems_ready: false,
-            stems_live: false,
-            stem_mute: [false; 4],
-            stem_isolate: None,
-            position_ms: None,
-            duration_ms: None,
-            hot_cues: Vec::new(),
-            saved_loops: Vec::new(),
-            loudness_lufs: None,
-            auto_gain_db: 0.0,
-            active_sampler_bank_id: None,
-            top_jog_mode: JogMode::Vinyl,
-            outer_jog_mode: JogMode::PitchBend,
-            jog_touching: false,
-        }
-    }
-
-    #[test]
-    fn map_updated_forwards_track_path_not_title() {
-        let mut deck = sample_deck(0, 1.0);
-        deck.track = Some("/music/Palawan.opus".into());
-        deck.title = Some("Palawan".into());
-        deck.track_id = Some("lib-1".into());
-        let mapped = recv_mapped(
-            Origin::Mixer,
-            Kind::Status,
-            EvtBody::EngineStatus {
-                status: EngineStatus {
-                    running: true,
-                    sample_rate: 48_000,
-                    crossfader: 0.5,
-                    master_volume: 1.0,
-                    cue_volume: 1.0,
-                    cue_mix: 0.5,
-                    master_cue: false,
-                    master_deck: 0,
-                    decks: vec![deck],
-                    sampler: SamplerStatus {
-                        banks: Vec::new(),
-                        active_bank_id: None,
-                        active_bank_name: None,
-                        bank_play_mode: None,
-                        deck_slots: Vec::new(),
-                        effective_play_modes: Vec::new(),
-                    },
-                },
-            },
-        );
-        assert_eq!(mapped.len(), 2);
-        assert_eq!(mapped[1].kind, EngineEvtKind::Updated);
-        assert_eq!(mapped[1].track_path.as_deref(), Some("/music/Palawan.opus"));
-        assert_eq!(mapped[1].track_id.as_deref(), Some("lib-1"));
-    }
-
-    #[test]
-    fn map_updated_forwards_stem_state() {
-        let mut deck = sample_deck(0, 1.0);
-        deck.stems_ready = true;
-        deck.stems_live = true;
-        deck.stem_mute = [true, false, true, false];
-        deck.stem_isolate = Some(1);
-        let mapped = recv_mapped(Origin::Deck(0), Kind::Updated, deck_snapshot_to_evt(deck));
-        assert_eq!(mapped.len(), 1);
-        assert_eq!(mapped[0].stems_ready, Some(true));
-        assert_eq!(mapped[0].stems_live, Some(true));
-        assert_eq!(
-            mapped[0].stem_mute.as_deref(),
-            Some([true, false, true, false].as_slice())
-        );
-        assert_eq!(mapped[0].stem_isolate, Some(1));
-    }
-
-    #[test]
-    fn map_updated_forwards_pages_and_keyboard_root() {
-        let mut deck = sample_deck(0, 1.0);
-        deck.keyboard_page = 5;
-        deck.key_shift_page = 3;
-        deck.keyboard_root_hot_cue = 3;
-        let mapped = recv_mapped(Origin::Deck(0), Kind::Updated, deck_snapshot_to_evt(deck));
-        assert_eq!(mapped.len(), 1);
-        assert_eq!(mapped[0].keyboard_page, Some(5));
-        assert_eq!(mapped[0].key_shift_page, Some(3));
-        assert_eq!(mapped[0].keyboard_root_hot_cue, Some(3));
-    }
-
-    #[test]
-    fn map_levels_includes_peak_hold() {
-        let mapped = recv_mapped(
-            Origin::Deck(0),
-            Kind::Levels,
-            EvtBody::Levels {
-                peak_l: 0.4,
-                peak_r: 0.5,
-                peak_hold_l: 0.8,
-                peak_hold_r: 0.9,
-            },
-        );
-        assert_eq!(mapped.len(), 1);
-        assert_eq!(mapped[0].kind, EngineEvtKind::Levels);
-        assert_eq!(mapped[0].deck_id, Some(0));
-        assert_eq!(mapped[0].peak_l, Some(0.4));
-        assert_eq!(mapped[0].peak_r, Some(0.5));
-        assert_eq!(mapped[0].peak_hold_l, Some(0.8));
-        assert_eq!(mapped[0].peak_hold_r, Some(0.9));
-    }
-
-    #[test]
-    fn map_mixer_levels_have_null_deck_id() {
-        let mapped = recv_mapped(
-            Origin::Mixer,
-            Kind::Levels,
-            EvtBody::Levels {
-                peak_l: 0.3,
-                peak_r: 0.35,
-                peak_hold_l: 0.4,
-                peak_hold_r: 0.45,
-            },
-        );
-        assert_eq!(mapped.len(), 1);
-        assert_eq!(mapped[0].kind, EngineEvtKind::Levels);
-        assert_eq!(mapped[0].deck_id, None);
-        assert_eq!(mapped[0].peak_l, Some(0.3));
-        assert_eq!(mapped[0].peak_r, Some(0.35));
-    }
-
-    #[test]
-    fn map_status_fans_out_crossfader_and_decks() {
-        let mut deck1 = sample_deck(1, 0.7);
-        deck1.sync_mode = SyncMode::Tempo;
-        deck1.crossfader_assign = EngineCrossfaderAssign::Thru;
-        let mapped = recv_mapped(
-            Origin::Mixer,
-            Kind::Status,
-            EvtBody::EngineStatus {
-                status: EngineStatus {
-                    running: true,
-                    sample_rate: 48_000,
-                    crossfader: 0.25,
-                    master_volume: 1.0,
-                    cue_volume: 1.0,
-                    cue_mix: 0.4,
-                    master_cue: true,
-                    master_deck: 1,
-                    decks: vec![sample_deck(0, 0.3), deck1],
-                    sampler: SamplerStatus {
-                        banks: Vec::new(),
-                        active_bank_id: None,
-                        active_bank_name: None,
-                        bank_play_mode: None,
-                        deck_slots: Vec::new(),
-                        effective_play_modes: Vec::new(),
-                    },
-                },
-            },
-        );
-        assert_eq!(mapped.len(), 3);
-        assert_eq!(mapped[0].kind, EngineEvtKind::Status);
-        assert_eq!(mapped[0].running, Some(true));
-        assert_eq!(mapped[0].crossfader, Some(0.25));
-        assert_eq!(mapped[0].master_volume, Some(1.0));
-        assert_eq!(mapped[0].cue_volume, Some(1.0));
-        assert_eq!(mapped[0].cue_mix, Some(0.4));
-        assert_eq!(mapped[0].master_cue, Some(true));
-        assert_eq!(mapped[0].master_deck, Some(1));
-        assert_eq!(mapped[1].kind, EngineEvtKind::Updated);
-        assert_eq!(mapped[1].deck_id, Some(0));
-        assert_eq!(mapped[1].volume, Some(0.3));
-        assert_eq!(mapped[1].eq_high, Some(0.25));
-        assert_eq!(mapped[1].headphone_cue, Some(true));
-        assert_eq!(mapped[1].speed, Some(0.5));
-        assert_eq!(mapped[1].tempo_range, Some(0.08));
-        assert_eq!(mapped[1].pad_mode, Some(super::PadMode::HotCue));
-        assert_eq!(mapped[1].sync_mode, Some(SyncMode::Off));
-        assert_eq!(mapped[1].quantize, Some(true));
-        assert!(mapped[1].duration_known);
-        assert_eq!(mapped[1].jog_touching, Some(false));
-        assert_eq!(mapped[1].loudness_lufs, None);
-        assert_eq!(mapped[1].auto_gain_db, Some(0.0));
-        assert_eq!(mapped[2].deck_id, Some(1));
-        assert_eq!(mapped[2].crossfader_assign, Some(CrossfaderAssign::Thru));
-        assert_eq!(mapped[2].sync_mode, Some(SyncMode::Tempo));
-    }
-
-    #[test]
-    fn map_status_forwards_active_loop() {
-        let mut deck = sample_deck(0, 1.0);
-        deck.active_loop = Some(engine_api::LoopRegion {
-            in_ms: 1000,
-            out_ms: 5000,
-            active: true,
-        });
-        let mapped = recv_mapped(
-            Origin::Mixer,
-            Kind::Status,
-            EvtBody::EngineStatus {
-                status: EngineStatus {
-                    running: true,
-                    sample_rate: 48_000,
-                    crossfader: 0.5,
-                    master_volume: 1.0,
-                    cue_volume: 1.0,
-                    cue_mix: 0.0,
-                    master_cue: false,
-                    master_deck: 0,
-                    decks: vec![deck],
-                    sampler: SamplerStatus {
-                        banks: Vec::new(),
-                        active_bank_id: None,
-                        active_bank_name: None,
-                        bank_play_mode: None,
-                        deck_slots: Vec::new(),
-                        effective_play_modes: Vec::new(),
-                    },
-                },
-            },
-        );
-        assert_eq!(mapped.len(), 2);
-        assert!(mapped[1].active_loop_known);
-        let region = mapped[1].active_loop.as_ref().expect("active_loop");
-        assert_eq!(region.in_ms, 1000);
-        assert_eq!(region.out_ms, 5000);
-        assert!(region.active);
-    }
-
-    #[test]
-    fn map_status_forwards_pending_loop_in() {
-        let mut deck = sample_deck(0, 1.0);
-        deck.pending_loop_in_ms = Some(1500);
-        let mapped = recv_mapped(
-            Origin::Mixer,
-            Kind::Status,
-            EvtBody::EngineStatus {
-                status: EngineStatus {
-                    running: true,
-                    sample_rate: 48_000,
-                    crossfader: 0.5,
-                    master_volume: 1.0,
-                    cue_volume: 1.0,
-                    cue_mix: 0.0,
-                    master_cue: false,
-                    master_deck: 0,
-                    decks: vec![deck],
-                    sampler: SamplerStatus {
-                        banks: Vec::new(),
-                        active_bank_id: None,
-                        active_bank_name: None,
-                        bank_play_mode: None,
-                        deck_slots: Vec::new(),
-                        effective_play_modes: Vec::new(),
-                    },
-                },
-            },
-        );
-        assert_eq!(mapped.len(), 2);
-        assert!(mapped[1].pending_loop_in_ms_known);
-        assert_eq!(mapped[1].pending_loop_in_ms, Some(1500));
-    }
-
-    #[test]
-    fn map_status_forwards_quantize_gain_and_jog() {
-        let mut deck = sample_deck(0, 1.0);
-        deck.quantize = false;
-        deck.jog_touching = true;
-        deck.loudness_lufs = Some(-14.5);
-        deck.auto_gain_db = -3.5;
-        let mapped = recv_mapped(
-            Origin::Mixer,
-            Kind::Status,
-            EvtBody::EngineStatus {
-                status: EngineStatus {
-                    running: true,
-                    sample_rate: 48_000,
-                    crossfader: 0.5,
-                    master_volume: 1.0,
-                    cue_volume: 1.0,
-                    cue_mix: 0.0,
-                    master_cue: false,
-                    master_deck: 0,
-                    decks: vec![deck],
-                    sampler: SamplerStatus {
-                        banks: Vec::new(),
-                        active_bank_id: None,
-                        active_bank_name: None,
-                        bank_play_mode: None,
-                        deck_slots: Vec::new(),
-                        effective_play_modes: Vec::new(),
-                    },
-                },
-            },
-        );
-        assert_eq!(mapped.len(), 2);
-        assert_eq!(mapped[1].quantize, Some(false));
-        assert_eq!(mapped[1].jog_touching, Some(true));
-        assert_eq!(mapped[1].loudness_lufs, Some(-14.5));
-        assert_eq!(mapped[1].auto_gain_db, Some(-3.5));
-    }
-
-    #[test]
-    fn map_status_forwards_active_sampler_bank_id() {
-        let mut deck = sample_deck(0, 1.0);
-        deck.active_sampler_bank_id = Some("bank-1".into());
-        let mapped = recv_mapped(
-            Origin::Mixer,
-            Kind::Status,
-            EvtBody::EngineStatus {
-                status: EngineStatus {
-                    running: true,
-                    sample_rate: 48_000,
-                    crossfader: 0.5,
-                    master_volume: 1.0,
-                    cue_volume: 1.0,
-                    cue_mix: 0.0,
-                    master_cue: false,
-                    master_deck: 0,
-                    decks: vec![deck],
-                    sampler: SamplerStatus {
-                        banks: Vec::new(),
-                        active_bank_id: None,
-                        active_bank_name: None,
-                        bank_play_mode: None,
-                        deck_slots: Vec::new(),
-                        effective_play_modes: Vec::new(),
-                    },
-                },
-            },
-        );
-        assert_eq!(mapped.len(), 2);
-        assert!(mapped[1].active_sampler_bank_id_known);
-        assert_eq!(mapped[1].active_sampler_bank_id.as_deref(), Some("bank-1"));
-    }
-
-    #[test]
-    fn attach_sampler_chrome_fills_updated_evt() {
-        let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
-        evt.deck_id = Some(0);
-        let mut chrome = empty_all_sampler_chrome(2);
-        chrome[0][0] = SamplerSlotChrome {
-            label: Some("kick".into()),
-            track_id: None,
-            path: Some("/samples/kick.wav".into()),
-            duration_ms: Some(250),
-        };
-        attach_sampler_chrome(&mut evt, &chrome);
-        assert!(evt.sampler_slots_known);
-        let slots = evt.sampler_slots.expect("slots");
-        assert_eq!(slots.len(), SAMPLER_SLOT_COUNT);
-        assert_eq!(slots[0].label.as_deref(), Some("kick"));
-        assert_eq!(slots[0].path.as_deref(), Some("/samples/kick.wav"));
-        assert_eq!(slots[0].duration_ms, Some(250));
-    }
-
-    fn null_transport() -> (EngineTransport, crate::api::library::LibraryTransport) {
-        let library = crate::api::library::LibraryTransport::open_in_memory().unwrap();
-        let transport = EngineTransport::start_with(&library, profile_config(2)).unwrap();
-        (transport, library)
+    /// The bus the engine publishes on, plus the library it loads from.
+    fn null_transport() -> (
+        BusTransport,
+        EngineTransport,
+        crate::api::library::LibraryTransport,
+    ) {
+        let bus = BusTransport::open().unwrap();
+        let library = crate::api::library::LibraryTransport::open_in_memory(&bus).unwrap();
+        let transport =
+            EngineTransport::start_with(bus.bus(), bus.deck_chrome(), &library, profile_config(2))
+                .unwrap();
+        (bus, transport, library)
     }
 
     fn profile_config(num_decks: usize) -> EngineConfig {
@@ -2427,28 +1346,28 @@ mod tests {
         }
     }
 
-    fn recv_status(rx: &engine_core::EvtReceiver) -> engine_api::EngineStatus {
+    fn evt_subscriber(bus: &BusTransport) -> event_bus::Subscriber<Event> {
+        bus.bus().subscribe_evt().unwrap()
+    }
+
+    fn recv_status(rx: &mut event_bus::Subscriber<Event>) -> bus_api::EngineStatus {
         loop {
             let event = rx
                 .recv_timeout(Duration::from_secs(5))
                 .expect("evt bus")
                 .expect("evt");
-            if *event.kind() == Kind::Status {
-                if let EvtBody::EngineStatus { status } =
-                    decode_evt_body(event.payload()).expect("decode status")
-                {
-                    return status;
-                }
+            if let Event::EngineSnapshot(snapshot) = event {
+                return snapshot.status;
             }
         }
     }
 
     #[test]
     fn growing_the_profile_hydrates_every_new_deck() {
-        let (transport, _library) = null_transport();
-        let rx = transport.subscribe_evt_all().unwrap();
+        let (bus, transport, _library) = null_transport();
+        let mut rx = evt_subscriber(&bus);
         transport.restart(profile_config(4)).unwrap();
-        let status = recv_status(&rx);
+        let status = recv_status(&mut rx);
         assert_eq!(status.decks.len(), 4);
         let routing: Vec<_> = status
             .decks
@@ -2458,51 +1377,36 @@ mod tests {
         assert_eq!(
             routing,
             vec![
-                EngineCrossfaderAssign::A,
-                EngineCrossfaderAssign::B,
-                EngineCrossfaderAssign::A,
-                EngineCrossfaderAssign::B,
+                CrossfaderAssign::A,
+                CrossfaderAssign::B,
+                CrossfaderAssign::A,
+                CrossfaderAssign::B,
             ]
         );
     }
 
     #[test]
     fn shrinking_the_profile_retires_removed_decks() {
-        let (transport, _library) = null_transport();
+        let (bus, transport, _library) = null_transport();
         transport.restart(profile_config(4)).unwrap();
-        let rx = transport.subscribe_evt_all().unwrap();
+        let mut rx = evt_subscriber(&bus);
         transport.restart(profile_config(2)).unwrap();
         for retired in [2u16, 3] {
-            let body = loop {
+            let update = loop {
                 let event = rx
                     .recv_timeout(Duration::from_secs(5))
                     .expect("evt bus")
                     .expect("evt");
-                if *event.kind() != Kind::Updated {
-                    continue;
-                }
-                if let EvtBody::DeckUpdated { id, .. } =
-                    decode_evt_body(event.payload()).expect("decode evt")
-                {
-                    if id == retired {
-                        break decode_evt_body(event.payload()).unwrap();
+                if let Event::DeckUpdated(update) = event {
+                    if update.deck == retired {
+                        break update;
                     }
                 }
             };
-            let EvtBody::DeckUpdated {
-                playing,
-                track,
-                track_id,
-                duration_ms,
-                ..
-            } = body
-            else {
-                panic!("expected DeckUpdated");
-            };
-            assert!(!playing);
-            assert!(track.is_none());
-            assert!(track_id.is_none());
-            assert!(duration_ms.is_none());
+            assert!(!update.playing);
+            assert!(update.track.is_none());
+            assert!(update.track_id.is_none());
+            assert!(update.duration_ms.is_none());
         }
         // The retired slots are gone: sampler commands must fail, not panic.
         assert!(transport.clear_sampler(3, 0).is_err());
@@ -2511,7 +1415,7 @@ mod tests {
 
     #[test]
     fn jog_defaults_apply_to_every_enabled_deck() {
-        let (transport, _library) = null_transport();
+        let (_bus, transport, _library) = null_transport();
         transport.restart(profile_config(4)).unwrap();
         transport
             .apply_host_settings(None, JogMode::Ignore, JogMode::Vinyl)

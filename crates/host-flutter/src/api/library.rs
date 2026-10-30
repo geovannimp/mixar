@@ -1,29 +1,29 @@
 //! FRB `LibraryTransport`: browse collections + tracks (shared Tauri `library.db`).
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
-use std::time::Duration;
 
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
+use bus_api::AnalyzeTrack;
+use bus_api::DeleteTrackLoop;
+use bus_api::Event;
+use bus_api::GenerateStems;
+use bus_api::RefreshTrack;
+use bus_api::SaveBeatGrid;
+use bus_api::SaveTrackLoop;
 use library::{
-    dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, ExportSession,
+    dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, ExportSession,
     HistoryExportFormat, HistorySettings, LibraryBuses, LibraryConfig, LibraryManager,
     LibraryWorker, NewCollection, SamplerBankRecord, TagWriteBack, TrackId, TrackMetadataEdit,
     WritableLibrary,
-};
-use library_api::{
-    decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
-    TrackSummary as ApiTrackSummary,
 };
 use library_core::{
     AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, CollectionType,
     ExportOptions, Exportable as _, Library, Migratable, MigrateOptions,
 };
 
+use crate::api::bus::BusTransport;
 use crate::bridge::BridgeResult;
-use crate::frb_generated::StreamSink;
 
 /// Closed colour label crossing the FRB boundary.
 ///
@@ -140,7 +140,7 @@ pub struct LibraryCollectionSummary {
     pub track_count: u32,
 }
 
-/// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
+/// Track row for the Flutter track table (mirrors Tauri / `bus_api::TrackSummary`).
 #[derive(Clone, Debug, Default)]
 pub struct LibraryTrackSummary {
     /// Playlist entry row id; unset for folder path-prefix tracks.
@@ -269,84 +269,6 @@ impl From<HistoryExportFormatSetting> for HistoryExportFormat {
     }
 }
 
-/// Discriminator for thin library egress (unit enum — no freezed on Dart).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum LibraryEvtKind {
-    TrackAnalyzed,
-    TrackUpdated,
-    Error,
-    Notice,
-    HotCuesChanged,
-    Navigate,
-    Focus,
-    Load,
-    LoopsChanged,
-    BeatGridChanged,
-    HistorySessionUpdated,
-    TrackProgress,
-}
-
-/// Persisted hot cue row for Dart (`library_api::HotCue`).
-#[derive(Clone, Debug)]
-pub struct HotCueInfo {
-    pub slot: u8,
-    pub position_ms: i32,
-    pub label: Option<String>,
-}
-
-/// Persisted saved-loop row for Dart (`library_api::SavedLoop`).
-#[derive(Clone, Debug)]
-pub struct SavedLoopInfo {
-    pub slot: u8,
-    pub in_ms: i32,
-    pub out_ms: i32,
-    pub label: Option<String>,
-}
-
-/// Thin typed library egress for Dart (no MessagePack on the Flutter side).
-///
-/// Struct + unit kind avoids FRB's freezed dependency for fielded enums.
-#[derive(Clone, Debug)]
-pub struct LibraryEvt {
-    pub kind: LibraryEvtKind,
-    pub track: Option<LibraryTrackSummary>,
-    pub message: Option<String>,
-    pub track_id: Option<String>,
-    pub hot_cues: Option<Vec<HotCueInfo>>,
-    pub delta: Option<i32>,
-    pub deck: Option<u16>,
-    pub loops: Option<Vec<SavedLoopInfo>>,
-    pub beat_grid: Option<BeatGridData>,
-    /// Progress phase token when [`LibraryEvtKind::TrackProgress`].
-    pub phase: Option<String>,
-    /// Optional `0.0..=1.0` progress fraction.
-    pub fraction: Option<f32>,
-}
-
-struct EvtForwarder {
-    shutdown: Arc<AtomicBool>,
-    handle: JoinHandle<()>,
-}
-
-/// Cloneable library cmd/evt buses for hosts that only publish (controller).
-#[derive(Clone)]
-#[flutter_rust_bridge::frb(opaque)]
-pub struct LibraryBusHandle {
-    buses: LibraryBuses,
-}
-
-impl LibraryBusHandle {
-    /// Wrap an existing bus pair (tests / `LibraryTransport::buses`).
-    #[flutter_rust_bridge::frb(ignore)]
-    pub fn from_buses(buses: LibraryBuses) -> Self {
-        Self { buses }
-    }
-
-    pub(crate) fn buses(&self) -> LibraryBuses {
-        self.buses.clone()
-    }
-}
-
 /// Summary of a Mixxx database, used to confirm an import.
 #[derive(Clone, Debug)]
 pub struct MixxxImportPreview {
@@ -419,32 +341,20 @@ pub struct LibraryTransport {
     /// Drop joins the worker; must not live inside the manager mutex.
     #[allow(dead_code)]
     worker: LibraryWorker,
-    /// Drop stops any active Dart evt forwarder.
-    evt_forwarder: Mutex<Option<EvtForwarder>>,
-}
-
-impl Drop for LibraryTransport {
-    fn drop(&mut self) {
-        let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(fwd) = slot.take() {
-            fwd.shutdown.store(true, Ordering::Relaxed);
-            let _ = fwd.handle.join();
-        }
-    }
 }
 
 impl LibraryTransport {
     /// Open (or create) the app-support library (`{app-support}/library.db`).
     ///
     /// Stem and model caches live next to the DB, so they follow the same directory.
-    pub fn open() -> Result<Self, String> {
-        Self::open_at(&crate::app_paths::library_db())
+    pub fn open(bus: &BusTransport) -> Result<Self, String> {
+        Self::open_at(bus, &crate::app_paths::library_db())
     }
 
     /// Open a library at an explicit path (tests: temp directories).
-    pub(crate) fn open_at(db_path: &Path) -> Result<Self, String> {
+    pub(crate) fn open_at(bus: &BusTransport, db_path: &Path) -> Result<Self, String> {
         let manager = LibraryManager::open(db_path, LibraryConfig::default()).bridge()?;
-        let transport = Self::from_manager(manager)?;
+        let transport = Self::from_manager(manager, LibraryBuses::with_bus(bus.bus()))?;
         if let Some(parent) = db_path.parent() {
             transport.buses.set_stems_root(parent.join("stems"));
             transport.buses.set_models_root(parent.join("models"));
@@ -452,14 +362,37 @@ impl LibraryTransport {
         Ok(transport)
     }
 
-    /// In-memory library for tests.
-    pub fn open_in_memory() -> Result<Self, String> {
-        let manager = LibraryManager::open_in_memory(LibraryConfig::default()).bridge()?;
-        Self::from_manager(manager)
+    /// Open a library at an explicit path on its own bus (tests / offline tools).
+    #[cfg(any(test, feature = "test-utils"))]
+    pub(crate) fn open_at_on_own_bus(db_path: &Path) -> Result<Self, String> {
+        let manager = LibraryManager::open(db_path, LibraryConfig::default()).bridge()?;
+        let transport = Self::from_manager(manager, LibraryBuses::new())?;
+        if let Some(parent) = db_path.parent() {
+            transport.buses.set_stems_root(parent.join("stems"));
+            transport.buses.set_models_root(parent.join("models"));
+        }
+        Ok(transport)
     }
 
-    fn from_manager(mut manager: LibraryManager) -> Result<Self, String> {
-        let buses = LibraryBuses::new();
+    /// In-memory library on the given bus.
+    ///
+    /// The bus is explicit on purpose: in the app the library shares the process
+    /// bus, so a test that hands the engine one bus and the library another never
+    /// exercises commands crossing owners.
+    pub fn open_in_memory(bus: &BusTransport) -> Result<Self, String> {
+        let manager = LibraryManager::open_in_memory(LibraryConfig::default()).bridge()?;
+        Self::from_manager(manager, LibraryBuses::with_bus(bus.bus()))
+    }
+
+    /// In-memory library on a private bus, for tests that only exercise the
+    /// library itself.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub(crate) fn open_in_memory_on_own_bus() -> Result<Self, String> {
+        let manager = LibraryManager::open_in_memory(LibraryConfig::default()).bridge()?;
+        Self::from_manager(manager, LibraryBuses::new())
+    }
+
+    fn from_manager(mut manager: LibraryManager, buses: LibraryBuses) -> Result<Self, String> {
         manager.set_buses(buses.clone());
         let library = Arc::new(Mutex::new(manager));
         let worker = spawn_library_worker(Arc::clone(&library)).bridge()?;
@@ -467,7 +400,6 @@ impl LibraryTransport {
             library,
             buses,
             worker,
-            evt_forwarder: Mutex::new(None),
         })
     }
 
@@ -709,9 +641,8 @@ impl LibraryTransport {
 
     /// Queue analyze for a track via the library cmd bus only (worker emits evt).
     pub fn analyze_track(&self, track_id: String, force: bool) -> Result<(), String> {
-        let bytes = encode_cmd_body(&CmdBody::AnalyzeTrack { track_id, force }).bridge()?;
         self.buses
-            .publish_cmd(Origin::Library, Kind::AnalyzeTrack, bytes)
+            .publish_cmd(Event::AnalyzeTrack(AnalyzeTrack { track_id, force }))
             .bridge()
     }
 
@@ -720,9 +651,8 @@ impl LibraryTransport {
     /// Separate from [`Self::analyze_track`]: analysis never generates stems
     /// implicitly. No-op server-side when a valid stem cache already exists.
     pub fn generate_stems(&self, track_id: String) -> Result<(), String> {
-        let bytes = encode_cmd_body(&CmdBody::GenerateStems { track_id }).bridge()?;
         self.buses
-            .publish_cmd(Origin::Library, Kind::GenerateStems, bytes)
+            .publish_cmd(Event::GenerateStems(GenerateStems { track_id }))
             .bridge()
     }
 
@@ -730,10 +660,10 @@ impl LibraryTransport {
     ///
     /// Resolves the target set server-side with the non-force skip rule (tracks
     /// that already carry BPM/key or have an analysis row are skipped), then
-    /// publishes one [`CmdBody::AnalyzeTrack`] per target — the same MessagePack
-    /// bus path as single-track analyze, so per-track `TrackProgress` /
-    /// `TrackAnalyzed` events flow unchanged. With `generate_stems`, a
-    /// [`CmdBody::GenerateStems`] is queued for every file track (stem cache
+    /// publishes one [`Event::AnalyzeTrack`] per target — the same bus path as
+    /// single-track analyze, so per-track `TrackProgress` / `TrackAnalyzed`
+    /// events flow unchanged. With `generate_stems`, an
+    /// [`Event::GenerateStems`] is queued for every file track (stem cache
     /// state is independent of BPM/tags; the serial stem queue no-ops on valid
     /// caches, including native `.stem.mp4` files). Returns the queued analysis
     /// ids so the UI can mark them analyzing up front.
@@ -773,22 +703,18 @@ impl LibraryTransport {
         // cmd worker draining the analysis queue, and `stems_queued` phases
         // land early instead of waiting behind every analysis.
         for track_id in &stem_ids {
-            let bytes = encode_cmd_body(&CmdBody::GenerateStems {
-                track_id: track_id.clone(),
-            })
-            .bridge()?;
             self.buses
-                .publish_cmd(Origin::Library, Kind::GenerateStems, bytes)
+                .publish_cmd(Event::GenerateStems(GenerateStems {
+                    track_id: track_id.clone(),
+                }))
                 .bridge()?;
         }
         for track_id in &analyze_ids {
-            let bytes = encode_cmd_body(&CmdBody::AnalyzeTrack {
-                track_id: track_id.clone(),
-                force,
-            })
-            .bridge()?;
             self.buses
-                .publish_cmd(Origin::Library, Kind::AnalyzeTrack, bytes)
+                .publish_cmd(Event::AnalyzeTrack(AnalyzeTrack {
+                    track_id: track_id.clone(),
+                    force,
+                }))
                 .bridge()?;
         }
         Ok(AnalyzeCollectionResult {
@@ -854,13 +780,12 @@ impl LibraryTransport {
 
     /// Queue metadata refresh for a track via the library cmd bus only.
     pub fn refresh_track(&self, track_id: String) -> Result<(), String> {
-        let bytes = encode_cmd_body(&CmdBody::RefreshTrack { track_id }).bridge()?;
         self.buses
-            .publish_cmd(Origin::Library, Kind::RefreshTrack, bytes)
+            .publish_cmd(Event::RefreshTrack(RefreshTrack { track_id }))
             .bridge()
     }
 
-    /// Persist an active loop region for a track (worker emits [`LibraryEvtKind::LoopsChanged`]).
+    /// Persist an active loop region for a track (worker emits `LoopsChanged`).
     pub fn save_loop(
         &self,
         track_id: String,
@@ -874,32 +799,29 @@ impl LibraryTransport {
         if out_ms <= in_ms {
             return Err("loop out must be after loop in".into());
         }
-        let bytes = encode_cmd_body(&CmdBody::SaveLoop {
-            track_id,
-            slot,
-            in_ms,
-            out_ms,
-            label: None,
-            color: None,
-        })
-        .bridge()?;
         self.buses
-            .publish_cmd(Origin::Library, Kind::SaveLoop, bytes)
+            .publish_cmd(Event::SaveTrackLoop(SaveTrackLoop {
+                track_id,
+                slot,
+                in_ms,
+                out_ms,
+                label: None,
+                color: None,
+            }))
             .bridge()
     }
 
-    /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
+    /// Delete a saved loop slot (worker emits `LoopsChanged`).
     pub fn delete_loop(&self, track_id: String, slot: u8) -> Result<(), String> {
         if slot > 15 {
             return Err("loop slot must be 0..=15".into());
         }
-        let bytes = encode_cmd_body(&CmdBody::DeleteLoop { track_id, slot }).bridge()?;
         self.buses
-            .publish_cmd(Origin::Library, Kind::DeleteLoop, bytes)
+            .publish_cmd(Event::DeleteTrackLoop(DeleteTrackLoop { track_id, slot }))
             .bridge()
     }
 
-    /// Persist a manually edited beat grid (worker emits [`LibraryEvtKind::BeatGridChanged`]).
+    /// Persist a manually edited beat grid (worker emits `BeatGridChanged`).
     pub fn save_beat_grid(
         &self,
         track_id: String,
@@ -912,73 +834,25 @@ impl LibraryTransport {
         if !first_beat_secs.is_finite() {
             return Err("beat grid first_beat_secs must be finite".into());
         }
-        let bytes = encode_cmd_body(&CmdBody::SaveBeatGrid {
-            track_id,
-            bpm,
-            first_beat_secs,
-        })
-        .bridge()?;
         self.buses
-            .publish_cmd(Origin::Library, Kind::SaveBeatGrid, bytes)
+            .publish_cmd(Event::SaveBeatGrid(SaveBeatGrid {
+                track_id,
+                bpm,
+                first_beat_secs,
+            }))
             .bridge()
     }
 
-    /// Forward thin typed library events to Dart via FRB `StreamSink`.
-    ///
-    /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
-    pub fn subscribe_events(&self, sink: StreamSink<LibraryEvt>) -> Result<(), String> {
-        let rx = self.buses.subscribe_evt_all().bridge()?;
-        let shutdown = Arc::new(AtomicBool::new(false));
-        let shutdown_flag = Arc::clone(&shutdown);
-        let handle = std::thread::Builder::new()
-            .name("library-evt-forwarder".into())
-            .spawn(move || {
-                while !shutdown_flag.load(Ordering::Relaxed) {
-                    match rx.recv_timeout(Duration::from_millis(100)) {
-                        Ok(Some(ev)) => {
-                            if let Some(mapped) = map_library_evt(ev.as_ref()) {
-                                if sink.add(mapped).is_err() {
-                                    break;
-                                }
-                            }
-                        }
-                        Ok(None) => continue,
-                        Err(_) => break,
-                    }
-                }
-            })
-            .bridge()?;
-
-        let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(prev) = slot.take() {
-            prev.shutdown.store(true, Ordering::Relaxed);
-            let _ = prev.handle.join();
-        }
-        *slot = Some(EvtForwarder { shutdown, handle });
-        Ok(())
-    }
-
-    /// Raw evt subscription for host/tests. Prefer [`Self::subscribe_events`] for Dart.
+    /// Shared library manager handle (engine loads prepared tracks through it).
     #[flutter_rust_bridge::frb(ignore)]
-    pub fn subscribe_evt_all(&self) -> Result<library::EvtReceiver, String> {
-        self.buses.subscribe_evt_all().bridge()
-    }
-
-    /// Shared manager for engine load-to-deck (prepare outside the engine lock).
-    #[flutter_rust_bridge::frb(ignore)]
-    pub fn library_arc(&self) -> Arc<Mutex<LibraryManager>> {
+    pub(crate) fn library_arc(&self) -> Arc<Mutex<LibraryManager>> {
         Arc::clone(&self.library)
     }
 
-    /// Library cmd bus clone for `Engine::new_with_library_bus`.
+    /// The library's cmd/evt bus (the process bus in the app).
     #[flutter_rust_bridge::frb(ignore)]
-    pub fn cmd_bus(&self) -> library::LibraryBus {
-        self.buses.cmd_bus()
-    }
-
-    /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
-    pub fn buses(&self) -> LibraryBusHandle {
-        LibraryBusHandle::from_buses(self.buses.clone())
+    pub fn bus(&self) -> event_bus::EventBus<Event> {
+        self.buses.bus()
     }
 
     /// Library cmd/evt buses (engine stem ensure reads stems_root / stems_format).
@@ -1343,138 +1217,6 @@ impl LibraryTransport {
     }
 }
 
-/// Map omnibus library egress to the thin Dart-facing evt.
-pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
-    let body = decode_evt_body(ev.payload()).ok()?;
-    let bare = |kind: LibraryEvtKind| LibraryEvt {
-        kind,
-        track: None,
-        message: None,
-        track_id: None,
-        hot_cues: None,
-        delta: None,
-        deck: None,
-        loops: None,
-        beat_grid: None,
-        phase: None,
-        fraction: None,
-    };
-    match body {
-        EvtBody::TrackAnalyzed { track } => Some(LibraryEvt {
-            track: Some(api_track_summary(*track)),
-            ..bare(LibraryEvtKind::TrackAnalyzed)
-        }),
-        EvtBody::TrackUpdated { track } => Some(LibraryEvt {
-            track: Some(api_track_summary(*track)),
-            ..bare(LibraryEvtKind::TrackUpdated)
-        }),
-        EvtBody::Error { message, track_id } => Some(LibraryEvt {
-            message: Some(message),
-            track_id,
-            ..bare(LibraryEvtKind::Error)
-        }),
-        EvtBody::Notice { message } => Some(LibraryEvt {
-            message: Some(message),
-            ..bare(LibraryEvtKind::Notice)
-        }),
-        EvtBody::TrackProgress {
-            track_id,
-            phase,
-            fraction,
-        } => Some(LibraryEvt {
-            track_id: Some(track_id),
-            phase: Some(phase),
-            fraction,
-            ..bare(LibraryEvtKind::TrackProgress)
-        }),
-        EvtBody::HotCuesChanged { track_id, hot_cues } => Some(LibraryEvt {
-            track_id: Some(track_id),
-            hot_cues: Some(
-                hot_cues
-                    .into_iter()
-                    .map(|c| HotCueInfo {
-                        slot: c.slot,
-                        position_ms: c.position_ms,
-                        label: c.label,
-                    })
-                    .collect(),
-            ),
-            ..bare(LibraryEvtKind::HotCuesChanged)
-        }),
-        EvtBody::LoopsChanged { track_id, loops } => Some(LibraryEvt {
-            track_id: Some(track_id),
-            loops: Some(
-                loops
-                    .into_iter()
-                    .map(|l| SavedLoopInfo {
-                        slot: l.slot,
-                        in_ms: l.in_ms,
-                        out_ms: l.out_ms,
-                        label: l.label,
-                    })
-                    .collect(),
-            ),
-            ..bare(LibraryEvtKind::LoopsChanged)
-        }),
-        EvtBody::BeatGridChanged {
-            track_id,
-            beat_grid,
-        } => Some(LibraryEvt {
-            track_id: Some(track_id),
-            beat_grid: Some(BeatGridData {
-                beats: beat_grid.beats,
-                downbeats: beat_grid.downbeats,
-                bpm: Some(beat_grid.bpm),
-            }),
-            ..bare(LibraryEvtKind::BeatGridChanged)
-        }),
-        EvtBody::Navigate { delta } => Some(LibraryEvt {
-            delta: Some(delta),
-            ..bare(LibraryEvtKind::Navigate)
-        }),
-        EvtBody::Focus { delta } => Some(LibraryEvt {
-            delta: Some(delta),
-            ..bare(LibraryEvtKind::Focus)
-        }),
-        EvtBody::Load { deck } => Some(LibraryEvt {
-            deck: Some(deck),
-            ..bare(LibraryEvtKind::Load)
-        }),
-        EvtBody::HistorySessionUpdated { session_id: _ } => {
-            Some(bare(LibraryEvtKind::HistorySessionUpdated))
-        }
-        EvtBody::Empty => None,
-    }
-}
-
-fn api_track_summary(track: ApiTrackSummary) -> LibraryTrackSummary {
-    LibraryTrackSummary {
-        entry_id: None,
-        id: track.id,
-        display_name: track.display_name,
-        artist: track.artist,
-        title: track.title,
-        album: track.album,
-        genre: track.genre,
-        bpm: track.bpm,
-        key: track.key,
-        duration_ms: track.duration_ms,
-        path: track.path,
-        isrc: track.isrc,
-        rating: track.rating,
-        comment: track.comment,
-        year: track.year,
-        track_number: track.track_number,
-        disc_number: track.disc_number,
-        color_label: track
-            .color_label
-            .as_deref()
-            .and_then(|label| label.parse::<library_core::ColorLabel>().ok())
-            .map(Into::into),
-        artwork: None,
-    }
-}
-
 fn history_entry_info(entry: library::HistoryEntry) -> HistoryEntryInfo {
     HistoryEntryInfo {
         id: entry.id,
@@ -1607,53 +1349,6 @@ fn track_display_name(source: &AudioSource) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use library_api::EvtBody;
-    use std::time::Duration;
-
-    fn sample_api_track() -> ApiTrackSummary {
-        ApiTrackSummary {
-            id: "t1".into(),
-            display_name: "Track One".into(),
-            artist: Some("Artist".into()),
-            title: Some("Title".into()),
-            album: None,
-            genre: None,
-            bpm: Some(128.0),
-            key: Some("Am".into()),
-            duration_ms: Some(60_000),
-            path: "/music/one.wav".into(),
-            isrc: None,
-            rating: None,
-            comment: None,
-            year: None,
-            track_number: None,
-            disc_number: None,
-            color_label: None,
-        }
-    }
-
-    #[test]
-    fn api_track_summary_maps_new_fields_and_rejects_unknown_colors() {
-        let mut track = sample_api_track();
-        track.rating = Some(4);
-        track.comment = Some("Peak time".into());
-        track.year = Some(2024);
-        track.track_number = Some(3);
-        track.disc_number = Some(2);
-        track.color_label = Some("aqua".into());
-
-        let summary = api_track_summary(track);
-        assert_eq!(summary.rating, Some(4));
-        assert_eq!(summary.comment.as_deref(), Some("Peak time"));
-        assert_eq!(summary.year, Some(2024));
-        assert_eq!(summary.track_number, Some(3));
-        assert_eq!(summary.disc_number, Some(2));
-        assert_eq!(summary.color_label, Some(LibraryColorLabel::Aqua));
-
-        let mut unknown = sample_api_track();
-        unknown.color_label = Some("chartreuse".into());
-        assert_eq!(api_track_summary(unknown).color_label, None);
-    }
 
     #[test]
     fn color_label_conversions_round_trip_every_variant() {
@@ -1698,150 +1393,8 @@ mod tests {
     }
 
     #[test]
-    fn map_library_evt_maps_thin_kinds_including_navigate_load_loops() {
-        let buses = LibraryBuses::new();
-        let rx = buses.subscribe_evt_all().unwrap();
-
-        buses
-            .publish_evt(
-                Origin::Library,
-                Kind::Error,
-                EvtBody::Error {
-                    message: "missing".into(),
-                    track_id: Some("t1".into()),
-                },
-            )
-            .unwrap();
-        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        let mapped = map_library_evt(ev.as_ref()).expect("Error maps");
-        assert_eq!(mapped.kind, LibraryEvtKind::Error);
-        assert_eq!(mapped.message.as_deref(), Some("missing"));
-        assert_eq!(mapped.track_id.as_deref(), Some("t1"));
-        assert!(mapped.hot_cues.is_none());
-
-        buses
-            .publish_evt(
-                Origin::Library,
-                Kind::TrackUpdated,
-                EvtBody::TrackUpdated {
-                    track: Box::new(sample_api_track()),
-                },
-            )
-            .unwrap();
-        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        let mapped = map_library_evt(ev.as_ref()).expect("TrackUpdated maps");
-        assert_eq!(mapped.kind, LibraryEvtKind::TrackUpdated);
-        let track = mapped.track.expect("track");
-        assert_eq!(track.id, "t1");
-        assert_eq!(track.display_name, "Track One");
-        assert_eq!(track.bpm, Some(128.0));
-
-        buses
-            .publish_evt(
-                Origin::Library,
-                Kind::HotCuesChanged,
-                EvtBody::HotCuesChanged {
-                    track_id: "t1".into(),
-                    hot_cues: vec![library_api::HotCue {
-                        slot: 0,
-                        position_ms: 12_500,
-                        loop_length_beats: None,
-                        color: None,
-                        label: Some("intro".into()),
-                    }],
-                },
-            )
-            .unwrap();
-        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        let mapped = map_library_evt(ev.as_ref()).expect("HotCuesChanged maps");
-        assert_eq!(mapped.kind, LibraryEvtKind::HotCuesChanged);
-        assert_eq!(mapped.track_id.as_deref(), Some("t1"));
-        let cues = mapped.hot_cues.expect("cues");
-        assert_eq!(cues.len(), 1);
-        assert_eq!(cues[0].slot, 0);
-        assert_eq!(cues[0].position_ms, 12_500);
-        assert_eq!(cues[0].label.as_deref(), Some("intro"));
-
-        buses
-            .publish_evt(
-                Origin::LibraryNavigation,
-                Kind::Navigate,
-                EvtBody::Navigate { delta: 1 },
-            )
-            .unwrap();
-        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        let mapped = map_library_evt(ev.as_ref()).expect("Navigate maps");
-        assert_eq!(mapped.kind, LibraryEvtKind::Navigate);
-        assert_eq!(mapped.delta, Some(1));
-
-        buses
-            .publish_evt(
-                Origin::LibraryNavigation,
-                Kind::Focus,
-                EvtBody::Focus { delta: -1 },
-            )
-            .unwrap();
-        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        let mapped = map_library_evt(ev.as_ref()).expect("Focus maps");
-        assert_eq!(mapped.kind, LibraryEvtKind::Focus);
-        assert_eq!(mapped.delta, Some(-1));
-
-        buses
-            .publish_evt(
-                Origin::LibraryNavigation,
-                Kind::Load,
-                EvtBody::Load { deck: 0 },
-            )
-            .unwrap();
-        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        let mapped = map_library_evt(ev.as_ref()).expect("Load maps");
-        assert_eq!(mapped.kind, LibraryEvtKind::Load);
-        assert_eq!(mapped.deck, Some(0));
-
-        buses
-            .publish_evt(
-                Origin::Library,
-                Kind::LoopsChanged,
-                EvtBody::LoopsChanged {
-                    track_id: "t1".into(),
-                    loops: vec![library_api::SavedLoop {
-                        slot: 2,
-                        in_ms: 1_000,
-                        out_ms: 5_000,
-                        label: Some("break".into()),
-                        color: None,
-                    }],
-                },
-            )
-            .unwrap();
-        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        let mapped = map_library_evt(ev.as_ref()).expect("LoopsChanged maps");
-        assert_eq!(mapped.kind, LibraryEvtKind::LoopsChanged);
-        assert_eq!(mapped.track_id.as_deref(), Some("t1"));
-        let loops = mapped.loops.expect("loops");
-        assert_eq!(loops.len(), 1);
-        assert_eq!(loops[0].slot, 2);
-        assert_eq!(loops[0].in_ms, 1_000);
-        assert_eq!(loops[0].out_ms, 5_000);
-        assert_eq!(loops[0].label.as_deref(), Some("break"));
-
-        buses
-            .publish_evt(
-                Origin::Library,
-                Kind::HistorySessionUpdated,
-                EvtBody::HistorySessionUpdated {
-                    session_id: Some("sess-1".into()),
-                },
-            )
-            .unwrap();
-        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        let mapped = map_library_evt(ev.as_ref()).expect("HistorySessionUpdated maps");
-        assert_eq!(mapped.kind, LibraryEvtKind::HistorySessionUpdated);
-    }
-
-    #[test]
     fn apply_library_settings_updates_stems_model() {
-        let transport = LibraryTransport::open_in_memory().unwrap();
+        let transport = LibraryTransport::open_in_memory_on_own_bus().unwrap();
         transport
             .apply_library_settings(
                 LibraryAnalysisDurationSetting::Fast,
@@ -1866,7 +1419,7 @@ mod tests {
     fn open_sets_stems_and_models_roots_and_clear_empties() {
         let dir = tempfile::tempdir().unwrap();
         let db = dir.path().join("library.db");
-        let transport = LibraryTransport::open_at(&db).unwrap();
+        let transport = LibraryTransport::open_at_on_own_bus(&db).unwrap();
         assert_eq!(transport.buses.stems_root(), dir.path().join("stems"));
         assert_eq!(transport.buses.models_root(), dir.path().join("models"));
 

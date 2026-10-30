@@ -113,7 +113,7 @@ Analysis + DB fields (`title`, `artist`, `bpm`, `key`, `duration_ms`, beat grid,
 
 | Field | Source | Meaning |
 |-------|--------|---------|
-| `position_ms` / `positionMs` | High-rate `position` evt on the MessagePack omnibus (FRB → `EngineEvt`) | Current playhead (elapsed) |
+| `position_ms` / `positionMs` | High-rate `Event::DeckPosition` on the shared bus (FRB → Dart sealed event) | Current playhead (elapsed) |
 | `duration_ms` / `durationMs` | Loaded track metadata on deck snapshot | Total track length |
 
 `remaining_ms` is derived in the UI as `duration_ms - position_ms` when both are set.
@@ -493,7 +493,7 @@ Extend `Deck` in `engine-dsp` with:
 
 ### 8.1 Current (implemented)
 
-There is **no** `get_deck_state` command. Authoritative deck/engine state for the UI is the **evt omnibus** (MessagePack in `engine-core`); the Flutter host bridges to typed FRB `EngineEvt` and mirrors it in Riverpod (`engine_ui`).
+There is **no** `get_deck_state` command. Authoritative deck/engine state for the UI is the **evt bus** (typed `Event` in `engine-core`); Flutter receives it as a freezed sealed class and mirrors it in Riverpod (`engine_ui`).
 
 ```text
 EngineStatus (hydrate + status events)
@@ -539,11 +539,11 @@ No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes o
 
 ## 9 — Engine Event System
 
-**Current implementation:** [`engine-event-bus-design.md`](engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, MessagePack wire; hosts (Flutter FRB) bridge bytes / typed events only; frontend **`EngineTransport`**. The JSON `engine://event` path is **retired**; runtime traffic is the MessagePack omnibus (Flutter: FRB methods + `subscribeEvents`).
+**Current implementation:** [`event-bus-design.md`](event-bus-design.md) — one process-wide **omnibus** cmd/evt pair carrying one typed `Event` enum; the host encodes nothing and Flutter subscribes once through `BusTransport.subscribeEvents()`.
 
 Library metadata / decode / waveform peaks / artwork stay on **`LibraryTransport`** (separate from the engine bus). Hosts prepare playback via `LibraryManager` → `PreparedTrackPlayback` → `Engine::load_prepared_track`, without holding `AppState` across decode.
 
-**Library bus:** [`library-event-bus-design.md`](library-event-bus-design.md) — library-owned omnibus cmd/evt (`library-api` + `LibrarySession`); Flutter FRB `LibraryTransport` publish / subscribe. First migrated domain: track analysis.
+**Library bus:** the same [`event-bus-design.md`](event-bus-design.md) bus — the library worker drains its commands and publishes its events on the shared pair; Flutter gets them on the one stream.
 
 ### 9.1 Problem
 
@@ -562,7 +562,7 @@ The UI must subscribe to **engine-originated changes**, not only refresh after i
 |------|----------|
 | Single source of truth | Engine state lives in Rust; UI is a read-only mirror |
 | Any input path | UI, MIDI, keyboard shortcuts, automation → same cmd bus |
-| Push, not poll | Evt omnibus (MessagePack) → host stream for discrete + high-rate kinds |
+| Push, not poll | Typed evt bus → one Flutter stream for discrete + high-rate kinds |
 | Efficient | Coalesce noisy sources (MIDI CC); don’t emit full status at audio rate |
 | Testable | Headless omnibus + `MemoryEngineTransport` without a window |
 
@@ -572,14 +572,14 @@ The UI must subscribe to **engine-originated changes**, not only refresh after i
 UI / MIDI / host
       │
       ▼
-EngineTransport (FRB)  →  cmd omnibus (MessagePack)
+EngineTransport (FRB)  →  cmd bus (typed Event)
                               │
                      control thread
                               │
                               ▼
-                         evt omnibus (MessagePack)
+                         evt bus (typed Event)
                               │
-                     Flutter FRB forwarder (typed EngineEvt)
+                     BusTransport (one stream, sealed Event)
                               │
                               ▼
               EngineTransport.subscribeEvents → applyEngineEvt → Riverpod
@@ -589,7 +589,7 @@ Host-only cmds (load path/library track, sampler bank persistence) are handled i
 
 ### 9.4 Event kinds (wire)
 
-Conceptual kinds on the evt bus (MessagePack envelope with `origin`, `kind`, `revision`, `body`):
+Event groups on the evt bus (each one a variant of the single `Event` enum):
 
 | Kind | Role |
 |------|------|
@@ -713,5 +713,5 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | DK8 | Deck state API | Bus `status` / `updated` snapshots — no `get_deck_state`; no `get_status` hydrate |
 | DK9 | Error UX | **Flutter host UI** toasts (`showMixarToast` / MixarTheme); engine start surfaces start failures in host error UX |
 | DK10 | Status authority | **GitHub issues** track unfinished work; §3 is a factual snapshot only (no parallel roadmap in this doc) |
-| DK11 | Position stream | High-rate `position` evt on the MessagePack omnibus (FRB → `EngineEvt`) |
-| DK12 | State sync | **Event bus** — UI subscribes; engine + host publish via session evt bus (FRB forwarder → typed `EngineEvt`) |
+| DK11 | Position stream | High-rate `Event::DeckPosition` on the shared bus (FRB → Dart sealed event) |
+| DK12 | State sync | **Event bus** — Flutter subscribes once; engine, library and controller publish on the same pair |

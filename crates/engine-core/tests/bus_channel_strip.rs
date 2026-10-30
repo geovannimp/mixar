@@ -3,10 +3,13 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::recv_evt_kind;
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession};
-use omnibus::Filter;
+use bus_api::Event;
+use bus_api::SetFilter;
+use bus_api::SetGainTrim;
+use bus_api::SetHeadphoneCue;
+use common::recv_updated;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
 
 fn null_session() -> EngineSession {
     let config = EngineConfig {
@@ -21,66 +24,39 @@ fn null_session() -> EngineSession {
 #[test]
 fn set_filter_publishes_updated_with_filter_norm() {
     let session = null_session();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
-    let body = encode_cmd_body(&CmdBody::SetFilter {
-        filter: 0.75,
-        soft_takeover: false,
-    })
-    .unwrap();
+    let mut evt = session.subscribe_evt_all().expect("sub");
     session
-        .publish_cmd(Origin::Deck(0), Kind::SetFilter, body)
+        .publish_cmd(Event::SetFilter(SetFilter {
+            deck: 0,
+            filter: 0.75,
+            soft_takeover: false,
+        }))
         .expect("publish");
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { filter, .. } =
-        decode_evt_body(event.payload()).expect("decode evt body")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!((filter - 0.75).abs() < 0.01);
+    let update = recv_updated(&mut evt);
+    assert!((update.filter - 0.75).abs() < 0.01);
 }
 
 #[test]
 fn set_gain_trim_and_headphone_cue_roundtrip() {
     let session = null_session();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetGainTrim,
-            encode_cmd_body(&CmdBody::SetGainTrim {
-                gain_trim: 0.6,
-                soft_takeover: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SetGainTrim(SetGainTrim {
+            deck: 0,
+            gain_trim: 0.6,
+            soft_takeover: false,
+        }))
         .expect("gain");
-    let gain_evt = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { gain_trim, .. } =
-        decode_evt_body(gain_evt.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!((gain_trim - 0.6).abs() < 0.01);
+    let gain_update = recv_updated(&mut evt);
+    assert!((gain_update.gain_trim - 0.6).abs() < 0.01);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetHeadphoneCue,
-            encode_cmd_body(&CmdBody::SetHeadphoneCue { enabled: true }).unwrap(),
-        )
+        .publish_cmd(Event::SetHeadphoneCue(SetHeadphoneCue {
+            deck: 0,
+            enabled: true,
+        }))
         .expect("cue");
-    let cue_evt = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { headphone_cue, .. } =
-        decode_evt_body(cue_evt.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert!(headphone_cue);
+    let cue_update = recv_updated(&mut evt);
+    assert!(cue_update.headphone_cue);
 }

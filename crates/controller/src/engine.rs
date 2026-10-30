@@ -14,7 +14,8 @@ use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
-use engine_api::{FxSlotState, PadMode};
+use bus_api::Event;
+use bus_api::{FxSlotState, PadMode};
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -65,26 +66,6 @@ pub struct DeviceInfo {
 pub enum DeviceDirection {
     Input,
     Output,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ControllerEvent {
-    MappingOffer {
-        mapping_id: String,
-        /// `device.toml` id (trust key), e.g. `pioneer.ddj-400`.
-        device_id: String,
-        device_name: String,
-        port_name: String,
-    },
-    MappingAttached {
-        mapping_id: String,
-        port_name: String,
-    },
-    MappingDetached {
-        mapping_id: String,
-        port_name: String,
-    },
 }
 
 struct Attached {
@@ -320,8 +301,8 @@ pub struct ControllerEngine {
     /// User detached this port; skip trusted auto-attach until reconnect.
     suppressed_ports: HashSet<String>,
     /// Snapshot of unmatched mapped ports — no MIDI I/O to read.
-    pending_offers_cache: Vec<ControllerEvent>,
-    events: VecDeque<ControllerEvent>,
+    pending_offers_cache: Vec<Event>,
+    events: VecDeque<Event>,
     midi_tx: Sender<(String, Vec<u8>)>,
     midi_rx: Receiver<(String, Vec<u8>)>,
     /// Enumeration-only midir clients (never `connect`ed). Lazy so seed/open works without ALSA.
@@ -629,10 +610,11 @@ impl ControllerEngine {
             } else if was_offered {
                 // Unplug before Enable: withdraw the offer so the UI can dismiss.
                 if let Some(mapping_id) = self.match_port(&gone) {
-                    self.events.push_back(ControllerEvent::MappingDetached {
-                        mapping_id,
-                        port_name: gone,
-                    });
+                    self.events
+                        .push_back(Event::MappingDetached(bus_api::MappingDetached {
+                            mapping_id,
+                            port_name: gone,
+                        }));
                 }
             }
         }
@@ -666,12 +648,13 @@ impl ControllerEngine {
                 continue;
             }
             self.offered_ports.insert(name.clone());
-            self.events.push_back(ControllerEvent::MappingOffer {
-                mapping_id,
-                device_id,
-                device_name,
-                port_name: name.clone(),
-            });
+            self.events
+                .push_back(Event::MappingOffer(bus_api::MappingOffer {
+                    mapping_id,
+                    device_id,
+                    device_name,
+                    port_name: name.clone(),
+                }));
         }
 
         self.known_input_ports = current;
@@ -685,12 +668,12 @@ impl ControllerEngine {
         Ok(())
     }
 
-    pub fn take_events(&mut self) -> Vec<ControllerEvent> {
+    pub fn take_events(&mut self) -> Vec<Event> {
         self.events.drain(..).collect()
     }
 
     /// Cached unmatched mapped ports — no MIDI I/O (safe for FE hydrate).
-    pub fn pending_offers(&self) -> Vec<ControllerEvent> {
+    pub fn pending_offers(&self) -> Vec<Event> {
         self.pending_offers_cache.clone()
     }
 
@@ -712,12 +695,12 @@ impl ControllerEngine {
                 continue;
             }
             self.pending_offers_cache
-                .push(ControllerEvent::MappingOffer {
+                .push(Event::MappingOffer(bus_api::MappingOffer {
                     mapping_id,
                     device_id,
                     device_name,
                     port_name: name.clone(),
-                });
+                }));
         }
     }
 
@@ -827,10 +810,11 @@ impl ControllerEngine {
         );
         self.refresh_pending_offers_cache();
 
-        self.events.push_back(ControllerEvent::MappingAttached {
-            mapping_id: mapping_id.to_string(),
-            port_name,
-        });
+        self.events
+            .push_back(Event::MappingAttached(bus_api::MappingAttached {
+                mapping_id: mapping_id.to_string(),
+                port_name,
+            }));
         Ok(())
     }
 
@@ -878,10 +862,11 @@ impl ControllerEngine {
                 "controller lifecycle failed"
             );
         }
-        self.events.push_back(ControllerEvent::MappingDetached {
-            mapping_id: attached.mapping_id,
-            port_name: port_name.to_string(),
-        });
+        self.events
+            .push_back(Event::MappingDetached(bus_api::MappingDetached {
+                mapping_id: attached.mapping_id,
+                port_name: port_name.to_string(),
+            }));
         self.refresh_pending_offers_cache();
         Ok(())
     }
@@ -1099,20 +1084,8 @@ impl ControllerEngine {
 struct NullPublish;
 
 impl ActionPublish for NullPublish {
-    fn publish_engine(
-        &mut self,
-        _origin: engine_api::Origin,
-        _kind: engine_api::Kind,
-        _body: engine_api::CmdBody,
-    ) {
-    }
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_cmd(&mut self, _event: bus_api::Event) {}
+    fn publish_evt(&mut self, _event: bus_api::Event) {}
 }
 
 fn open_matching_output(

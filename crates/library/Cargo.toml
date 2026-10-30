@@ -7,10 +7,10 @@ repository.workspace = true
 description = "Library manager for Mixar"
 
 [dependencies]
+bus-api = { path = "../bus-api" }
+event-bus = { path = "../event-bus" }
 library-core = { path = "../library-core" }
-library-api = { path = "../library-api" }
 audio-core = { path = "../audio-core" }
-omnibus = "0.1"
 serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"
 zstd = "0.14"

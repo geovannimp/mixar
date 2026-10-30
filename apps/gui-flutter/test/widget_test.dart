@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
@@ -17,7 +18,6 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/screens/app_shell.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
@@ -48,6 +48,7 @@ import 'helpers/collection_tracks_override.dart';
 
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
 
+import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 
@@ -69,14 +70,16 @@ class _RunningEmptyEngineUi extends EngineUi {
 
 class _SeededEngineUi extends EngineUi {
   @override
-  EngineUiSnapshot build() => applyEngineEvt(
+  EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
-    const EngineEvt(
-      kind: EngineEvtKind.updated,
-      deckId: 0,
-      trackPath: '/seeded.flac',
-      trackId: 't1',
-      durationMs: 180000,
+    deckUpdatedEvent(
+      deck: 0,
+      update: deckUpdated(
+        deck: 0,
+        trackPath: '/seeded.flac',
+        trackId: 't1',
+        durationMs: 180000,
+      ),
     ),
   );
 }
@@ -312,6 +315,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(engine.padModes, [(0, PadMode.loopRoll)]);
+
+    // The engine echoes the new mode back as a full deck snapshot; there is no
+    // fake bus, so the test pushes the event the shell would receive.
+    ProviderScope.containerOf(tester.element(find.byType(AppShell)))
+        .read(engineUiProvider.notifier)
+        .apply(
+          deckUpdatedEvent(
+            deck: 0,
+            update: deckUpdated(deck: 0, padMode: PadMode.loopRoll),
+          ),
+        );
+    await tester.pumpAndSettle();
 
     // The selector works on an empty deck, but its pads stay inert.
     await tester.tap(

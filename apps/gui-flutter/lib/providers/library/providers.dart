@@ -11,7 +11,9 @@ import 'package:gui_flutter/providers/library/focused_load.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/history_refresh.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
+import 'package:gui_flutter/providers/shell/bus_providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
 
@@ -20,9 +22,10 @@ import 'package:path/path.dart' as p;
 /// The bridge call is sync, so it sits behind a `Future`: an uninitialised Rust
 /// side (widget tests) then surfaces as a provider error the way the previous
 /// platform-channel lookup did, instead of throwing out of `create()`.
-final libraryTransportProvider = FutureProvider<LibraryTransport>(
-  (ref) => Future.sync(LibraryTransport.open),
-);
+final libraryTransportProvider = FutureProvider<LibraryTransport>((ref) async {
+  final bus = await ref.watch(busTransportProvider.future);
+  return LibraryTransport.open(bus: bus);
+});
 
 final collectionsProvider = FutureProvider<List<LibraryCollectionSummary>>((
   ref,
@@ -472,31 +475,29 @@ class LibraryAnalysisEpoch extends Notifier<int> {
 final libraryAnalysisEpochProvider =
     NotifierProvider<LibraryAnalysisEpoch, int>(LibraryAnalysisEpoch.new);
 
-class TrackHotCues extends Notifier<Map<String, List<HotCueInfo>>> {
+class TrackHotCues extends Notifier<Map<String, List<HotCue>>> {
   @override
-  Map<String, List<HotCueInfo>> build() => const {};
+  Map<String, List<HotCue>> build() => const {};
 
-  void set(String trackId, List<HotCueInfo> cues) {
+  void set(String trackId, List<HotCue> cues) {
     state = {...state, trackId: cues};
   }
 }
 
 final trackHotCuesProvider =
-    NotifierProvider<TrackHotCues, Map<String, List<HotCueInfo>>>(
-      TrackHotCues.new,
-    );
+    NotifierProvider<TrackHotCues, Map<String, List<HotCue>>>(TrackHotCues.new);
 
-class TrackSavedLoops extends Notifier<Map<String, List<SavedLoopInfo>>> {
+class TrackSavedLoops extends Notifier<Map<String, List<SavedLoop>>> {
   @override
-  Map<String, List<SavedLoopInfo>> build() => const {};
+  Map<String, List<SavedLoop>> build() => const {};
 
-  void set(String trackId, List<SavedLoopInfo> loops) {
+  void set(String trackId, List<SavedLoop> loops) {
     state = {...state, trackId: loops};
   }
 }
 
 final trackSavedLoopsProvider =
-    NotifierProvider<TrackSavedLoops, Map<String, List<SavedLoopInfo>>>(
+    NotifierProvider<TrackSavedLoops, Map<String, List<SavedLoop>>>(
       TrackSavedLoops.new,
     );
 
@@ -644,52 +645,85 @@ bool _stemsStillRunning(Ref ref, String trackId) {
   return jobs != null && jobs.any((info) => isStemProgressPhase(info.phase));
 }
 
-/// Same path as [libraryEventsBootstrapProvider]; exposed for unit tests.
-@visibleForTesting
-final libraryEvtDispatchProvider = Provider<void Function(LibraryEvt)>((ref) {
-  return (evt) {
+/// Bus record → the row shape the library UI consumes.
+LibraryTrackSummary libraryTrackSummary(TrackSummary track) =>
+    LibraryTrackSummary(
+      id: track.id,
+      displayName: track.displayName,
+      artist: track.artist,
+      title: track.title,
+      album: track.album,
+      genre: track.genre,
+      bpm: track.bpm,
+      key: track.key,
+      durationMs: track.durationMs,
+      path: track.path,
+      isrc: track.isrc,
+      rating: track.rating,
+      comment: track.comment,
+      year: track.year,
+      trackNumber: track.trackNumber,
+      discNumber: track.discNumber,
+      colorLabel: _colorLabelFromWire(track.colorLabel),
+    );
+
+/// Bus beat grid → the row shape the waveform lane consumes.
+BeatGridData beatGridData(BeatGrid grid) =>
+    BeatGridData(beats: grid.beats, downbeats: grid.downbeats, bpm: grid.bpm);
+
+/// Wire colour label → the closed UI enum; unknown values are dropped.
+LibraryColorLabel? _colorLabelFromWire(String? label) => switch (label) {
+  'pink' => LibraryColorLabel.pink,
+  'red' => LibraryColorLabel.red,
+  'orange' => LibraryColorLabel.orange,
+  'yellow' => LibraryColorLabel.yellow,
+  'green' => LibraryColorLabel.green,
+  'aqua' => LibraryColorLabel.aqua,
+  'blue' => LibraryColorLabel.blue,
+  'purple' => LibraryColorLabel.purple,
+  _ => null,
+};
+
+/// The library half of [dispatchBusEvent].
+final libraryEvtDispatchProvider = Provider<void Function(Event)>((ref) {
+  return (event) {
     if (!ref.mounted) {
       return;
     }
-    handleLibraryEvt(ref, evt);
+    handleLibraryEvt(ref, event);
   };
 });
 
 /// Apply a library egress event to Riverpod state
-/// (list patch/invalidate, progress, …).
-void handleLibraryEvt(Ref ref, LibraryEvt evt) {
-  switch (evt.kind) {
-    case LibraryEvtKind.trackUpdated:
-    case LibraryEvtKind.trackAnalyzed:
+/// (list patch/invalidate, progress, …). Events that are not library egress
+/// are ignored, so the bus bootstrap can hand every event to every handler.
+void handleLibraryEvt(Ref ref, Event event) {
+  switch (event) {
+    case Event_TrackUpdated(:final field0):
       ref
           .read(collectionTracksProvider.notifier)
-          .scheduleTrackRowEvent(evt.track);
-      if (evt.kind == LibraryEvtKind.trackAnalyzed) {
-        final trackId = evt.trackId ?? evt.track?.id;
-        final stemsWaiting =
-            trackId != null && _stemsStillRunning(ref, trackId);
-        if (!stemsWaiting) {
-          ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
-        }
-        if (trackId != null) {
-          ref.read(trackBeatGridsProvider.notifier).remove(trackId);
-          // Analysis finished: drop only its lane so a concurrent stem job
-          // keeps reporting.
-          ref
-              .read(trackProgressProvider.notifier)
-              .clearLane(trackId, lane: false);
-        }
-        ref.read(libraryAnalysisEpochProvider.notifier).bump();
+          .scheduleTrackRowEvent(libraryTrackSummary(field0.track));
+    case Event_TrackAnalyzed(:final field0):
+      final track = field0.track;
+      ref
+          .read(collectionTracksProvider.notifier)
+          .scheduleTrackRowEvent(libraryTrackSummary(track));
+      final trackId = track.id;
+      final stemsWaiting = _stemsStillRunning(ref, trackId);
+      if (!stemsWaiting) {
+        ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
       }
-    case LibraryEvtKind.trackProgress:
-      final trackId = evt.trackId;
-      final phase = evt.phase;
-      if (trackId == null || phase == null) {
-        break;
-      }
+      ref.read(trackBeatGridsProvider.notifier).remove(trackId);
+      // Analysis finished: drop only its lane so a concurrent stem job keeps
+      // reporting.
+      ref.read(trackProgressProvider.notifier).clearLane(trackId, lane: false);
+      ref.read(libraryAnalysisEpochProvider.notifier).bump();
+    case Event_TrackProgress(:final field0):
+      final trackId = field0.trackId;
+      final phase = field0.phase;
       ref
           .read(trackProgressProvider.notifier)
-          .set(trackId, phase, evt.fraction);
+          .set(trackId, phase, field0.fraction);
       final generating =
           phase == 'stems_queued' ||
           phase == 'decode' ||
@@ -707,43 +741,36 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
             .setGenerating(trackId, false);
         ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
       }
-    case LibraryEvtKind.error:
-      ref.read(appNoticeProvider.notifier).setError(evt.message ?? 'Error');
-      if (evt.trackId != null) {
-        ref.read(analyzingTrackIdsProvider.notifier).clearIf(evt.trackId);
+    case Event_Error(:final field0):
+      // The notice itself is surfaced once, by `dispatchBusEvent`; this handler
+      // only clears the per-track job state the failure ended.
+      final trackId = field0.trackId;
+      if (trackId != null) {
+        ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
         ref
             .read(stemGeneratingTrackIdsProvider.notifier)
-            .setGenerating(evt.trackId!, false);
-        ref.read(trackProgressProvider.notifier).clearIf(evt.trackId);
+            .setGenerating(trackId, false);
+        ref.read(trackProgressProvider.notifier).clearIf(trackId);
       } else {
         ref.read(analyzingTrackIdsProvider.notifier).clear();
       }
-    case LibraryEvtKind.notice:
-      ref.read(appNoticeProvider.notifier).setNotice(evt.message);
-    case LibraryEvtKind.hotCuesChanged:
-      final trackId = evt.trackId;
-      if (trackId != null) {
-        ref
-            .read(trackHotCuesProvider.notifier)
-            .set(trackId, evt.hotCues ?? const []);
-      }
-    case LibraryEvtKind.loopsChanged:
-      final trackId = evt.trackId;
-      if (trackId != null) {
-        ref
-            .read(trackSavedLoopsProvider.notifier)
-            .set(trackId, evt.loops ?? const []);
-      }
-    case LibraryEvtKind.beatGridChanged:
-      final trackId = evt.trackId;
-      if (trackId != null) {
-        ref.read(trackBeatGridsProvider.notifier).set(trackId, evt.beatGrid);
-      }
-    case LibraryEvtKind.navigate:
-      applyLibraryNavigateEvt(ref, evt.delta ?? 0);
-    case LibraryEvtKind.focus:
+    case Event_HotCuesChanged(:final field0):
+      ref
+          .read(trackHotCuesProvider.notifier)
+          .set(field0.trackId, field0.hotCues);
+    case Event_LoopsChanged(:final field0):
+      ref
+          .read(trackSavedLoopsProvider.notifier)
+          .set(field0.trackId, field0.loops);
+    case Event_BeatGridChanged(:final field0):
+      ref
+          .read(trackBeatGridsProvider.notifier)
+          .set(field0.trackId, beatGridData(field0.beatGrid));
+    case Event_Navigate(:final field0):
+      applyLibraryNavigateEvt(ref, field0.delta);
+    case Event_Focus(:final field0):
       // Same boundary guard as navigate: a step with no ticks is not a step.
-      final focusDelta = evt.delta ?? 0;
+      final focusDelta = field0.delta;
       if (focusDelta != 0) {
         // A press of the library knob reveals the drawer; SHIFT + press
         // dismisses it, and owns the step — there is no cursor to move in a
@@ -757,13 +784,12 @@ void handleLibraryEvt(Ref ref, LibraryEvt evt) {
         }
         ref.read(libraryFocusZoneProvider.notifier).move(focusDelta);
       }
-    case LibraryEvtKind.load:
-      final deck = evt.deck;
-      if (deck != null) {
-        ref.read(pendingFocusedDeckLoadProvider.notifier).request(deck);
-      }
-    case LibraryEvtKind.historySessionUpdated:
+    case Event_Load(:final field0):
+      ref.read(pendingFocusedDeckLoadProvider.notifier).request(field0.deck);
+    case Event_HistorySessionUpdated():
       ref.read(historyRefreshTickProvider.notifier).bump();
+    default:
+      break;
   }
 }
 
@@ -834,25 +860,6 @@ void navigateSidebarSelection(Ref ref, int delta) {
       _navigateDriveTree(ref, delta);
   }
 }
-
-/// Long-lived `subscribeEvents` while transport is open; watch from library UI.
-final libraryEventsBootstrapProvider = Provider<void>((ref) {
-  final transportAsync = ref.watch(libraryTransportProvider);
-  if (transportAsync case AsyncData(:final value)) {
-    final sub = value.subscribeEvents().listen(
-      (evt) {
-        handleLibraryEvt(ref, evt);
-      },
-      onError: (Object e, StackTrace _) {
-        if (!ref.mounted) {
-          return;
-        }
-        ref.read(appNoticeProvider.notifier).setError('$e');
-      },
-    );
-    ref.onDispose(sub.cancel);
-  }
-});
 
 Future<void> analyzeTrackAction(
   ProviderContainer container,

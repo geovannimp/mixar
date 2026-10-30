@@ -7,8 +7,15 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::Path;
 
+use bus_api::Event;
+use bus_api::FxKind;
+use bus_api::FxSlotState;
+use bus_api::SetDeckFxRouted;
+use bus_api::SetFxUnitParam;
+use bus_api::SetFxUnitSlot;
+use bus_api::SetFxUnitSlotEnabled;
+use bus_api::SetFxUnitWet;
 use controller::{load_bundle, ActionPublish, MappingSession, MidiOut};
-use engine_api::{CmdBody, FxKind, FxSlotState, Kind, Origin};
 
 /// Beat FX section status bytes: note-on, note-off, CC (channel 5).
 const BEATFX: u8 = 0x94;
@@ -32,20 +39,14 @@ const LEVEL: u8 = 0x02;
 const LEVEL_UNUSED_LSB: u8 = 0x22;
 
 struct CaptureBus {
-    cmds: Vec<(Origin, Kind, CmdBody)>,
+    cmds: Vec<Event>,
 }
 
 impl ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
-        self.cmds.push((origin, kind, body));
+    fn publish_cmd(&mut self, event: Event) {
+        self.cmds.push(event);
     }
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_evt(&mut self, _event: Event) {}
 }
 
 struct CaptureMidi {
@@ -102,26 +103,18 @@ fn boot_fx() -> FxSlotState {
         kind: FxKind::Echo,
         enabled: false,
         wet: 0.5,
-        params: [0.5, 0.5, 0.0],
+        params: vec![0.5, 0.5, 0.0],
     }
 }
 
 /// The command the ON/OFF button publishes.
-fn slot_enabled(enabled: bool) -> (Origin, Kind, CmdBody) {
-    (
-        Origin::Mixer,
-        Kind::SetFxUnitSlotEnabled,
-        CmdBody::SetFxUnitSlotEnabled { slot: 0, enabled },
-    )
+fn slot_enabled(enabled: bool) -> Event {
+    Event::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled { slot: 0, enabled })
 }
 
 /// The command FX SELECT publishes.
-fn slot_kind(kind: FxKind) -> (Origin, Kind, CmdBody) {
-    (
-        Origin::Mixer,
-        Kind::SetFxUnitSlot,
-        CmdBody::SetFxUnitSlot { slot: 0, kind },
-    )
+fn slot_kind(kind: FxKind) -> Event {
+    Event::SetFxUnitSlot(SetFxUnitSlot { slot: 0, kind })
 }
 
 #[test]
@@ -225,15 +218,11 @@ fn beat_buttons_step_the_echo_division_and_clamp() {
     press(&mut s, &mut bus, &mut midi, BEAT_RIGHT);
     assert_eq!(
         bus.cmds,
-        vec![(
-            Origin::Mixer,
-            Kind::SetFxUnitParam,
-            CmdBody::SetFxUnitParam {
-                slot: 0,
-                param: 0,
-                value: 4.0 / last,
-            },
-        )]
+        vec![Event::SetFxUnitParam(SetFxUnitParam {
+            slot: 0,
+            param: 0,
+            value: 4.0 / last,
+        })]
     );
 
     // Three more steps reach the longest division…
@@ -242,7 +231,7 @@ fn beat_buttons_step_the_echo_division_and_clamp() {
         bus.cmds.clear();
         release(&mut s, &mut bus, &mut midi, BEAT_RIGHT);
         press(&mut s, &mut bus, &mut midi, BEAT_RIGHT);
-        let [(_, _, CmdBody::SetFxUnitParam { value, .. })] = bus.cmds[..] else {
+        let [Event::SetFxUnitParam(SetFxUnitParam { value, .. })] = bus.cmds[..] else {
             panic!("expected one SetFxUnitParam, got {:?}", bus.cmds);
         };
         assert!((value - expected).abs() < 1e-6, "value {value}");
@@ -272,7 +261,7 @@ fn beat_left_clamps_at_the_shortest_division() {
     for expected in [2.0 / 6.0, 1.0 / 6.0, 0.0] {
         bus.cmds.clear();
         press(&mut s, &mut bus, &mut midi, BEAT_LEFT);
-        let [(_, _, CmdBody::SetFxUnitParam { value, .. })] = bus.cmds[..] else {
+        let [Event::SetFxUnitParam(SetFxUnitParam { value, .. })] = bus.cmds[..] else {
             panic!("expected one SetFxUnitParam, got {:?}", bus.cmds);
         };
         assert!((value - expected).abs() < 1e-6, "value {value}");
@@ -291,15 +280,13 @@ fn level_knob_sets_wet_and_drops_the_unchanged_position_dump() {
     // One 7-bit CC is a complete move; the knob applies immediately (no catch-up).
     s.handle_midi(&[BEATFX_CC, LEVEL, 0x40], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].0, Origin::Mixer);
-    assert_eq!(bus.cmds[0].1, Kind::SetFxUnitWet);
-    let CmdBody::SetFxUnitWet {
+    let Event::SetFxUnitWet(SetFxUnitWet {
         slot,
         wet,
         soft_takeover,
-    } = bus.cmds[0].2
+    }) = bus.cmds[0]
     else {
-        panic!("expected SetFxUnitWet, got {:?}", bus.cmds[0].2);
+        panic!("expected SetFxUnitWet, got {:?}", bus.cmds[0]);
     };
     assert_eq!(slot, 0);
     assert!(
@@ -323,8 +310,8 @@ fn level_knob_sets_wet_and_drops_the_unchanged_position_dump() {
     s.age_cc_coalesce_for_test("master.beat_fx_level_depth");
     s.handle_midi(&[BEATFX_CC, LEVEL, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    let CmdBody::SetFxUnitWet { wet, .. } = bus.cmds[0].2 else {
-        panic!("expected SetFxUnitWet, got {:?}", bus.cmds[0].2);
+    let Event::SetFxUnitWet(SetFxUnitWet { wet, .. }) = bus.cmds[0] else {
+        panic!("expected SetFxUnitWet, got {:?}", bus.cmds[0]);
     };
     assert!((wet - 1.0).abs() < 1e-6, "wet {wet}");
 
@@ -338,13 +325,7 @@ fn level_knob_sets_wet_and_drops_the_unchanged_position_dump() {
 #[test]
 fn ch_select_publishes_the_exclusive_routing_pair() {
     let (mut s, mut bus, mut midi) = attached();
-    let routed = |deck: u16, on: bool| {
-        (
-            Origin::Deck(deck),
-            Kind::SetDeckFxRouted,
-            CmdBody::SetDeckFxRouted { routed: on },
-        )
-    };
+    let routed = |deck: u16, on: bool| Event::SetDeckFxRouted(SetDeckFxRouted { deck, routed: on });
 
     press(&mut s, &mut bus, &mut midi, CH_1);
     assert_eq!(bus.cmds, vec![routed(0, true), routed(1, false)]);

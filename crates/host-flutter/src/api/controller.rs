@@ -6,25 +6,20 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use bus_api::DeckHotCue;
+use bus_api::DeckSavedLoop;
+use bus_api::Event;
+use bus_api::FxSlotState;
+use bus_api::HotCue as LibraryHotCue;
+use bus_api::SyncMode;
 use controller::{
-    ActionPublish, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, MappingInfo,
-    HOT_CUE_SLOT_COUNT, LOOP_SLOT_COUNT,
+    ActionPublish, ControllerEngine, DeviceDirection, DeviceInfo, MappingInfo, HOT_CUE_SLOT_COUNT,
+    LOOP_SLOT_COUNT,
 };
-use engine_api::{
-    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, DeckSavedLoop, EvtBody, FxSlotState,
-    Kind, Origin, SyncMode,
-};
-use engine_core::EngineBuses;
-use library::LibraryBuses;
-use library_api::{
-    decode_evt_body as decode_library_evt, EvtBody as LibraryEvtBody, HotCue as LibraryHotCue,
-    Kind as LibraryKind, Origin as LibraryOrigin,
-};
+use event_bus::EventBus;
 
-use crate::api::engine::EngineBusHandle;
-use crate::api::library::LibraryBusHandle;
+use crate::api::bus::BusTransport;
 use crate::bridge::BridgeResult;
-use crate::frb_generated::StreamSink;
 
 /// MIDI pump cadence — never blocks on ALSA port enumeration.
 const PUMP_INTERVAL: Duration = Duration::from_millis(5);
@@ -59,39 +54,19 @@ pub enum ControllerDeviceDirection {
     Output,
 }
 
-/// Discriminator for controller host events (unit enum — no freezed on Dart).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ControllerEvtKind {
-    MappingOffer,
-    MappingAttached,
-    MappingDetached,
-}
-
-/// Thin typed controller egress for Dart (no MessagePack on the Flutter side).
-#[derive(Clone, Debug)]
-pub struct ControllerEvt {
-    pub kind: ControllerEvtKind,
-    pub mapping_id: Option<String>,
-    pub device_id: Option<String>,
-    pub device_name: Option<String>,
-    pub port_name: Option<String>,
-}
-
+/// Publishes what the mapping engine resolves: commands to the cmd side, the
+/// UI-originated library events to the egress side Flutter reads.
 struct HostPublish {
-    engine: EngineBuses,
-    library: LibraryBuses,
+    bus: EventBus<Event>,
 }
 
 impl ActionPublish for HostPublish {
-    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
-        let Ok(bytes) = encode_cmd_body(&body) else {
-            return;
-        };
-        let _ = self.engine.publish_cmd(origin, kind, bytes);
+    fn publish_cmd(&mut self, event: Event) {
+        let _ = self.bus.publish_cmd(event);
     }
 
-    fn publish_library(&mut self, origin: LibraryOrigin, kind: LibraryKind, body: LibraryEvtBody) {
-        let _ = self.library.publish_evt(origin, kind, body);
+    fn publish_evt(&mut self, event: Event) {
+        let _ = self.bus.publish_evt(event);
     }
 }
 
@@ -101,15 +76,11 @@ pub struct ControllerTransport {
     engine: Arc<Mutex<ControllerEngine>>,
     stop: Arc<AtomicBool>,
     threads: Mutex<Vec<JoinHandle<()>>>,
-    sink: Arc<Mutex<Option<StreamSink<ControllerEvt>>>>,
 }
 
 impl Drop for ControllerTransport {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
-        if let Ok(mut slot) = self.sink.lock() {
-            *slot = None;
-        }
         let mut threads = self.threads.lock().unwrap_or_else(|e| e.into_inner());
         for handle in threads.drain(..) {
             let _ = handle.join();
@@ -122,14 +93,9 @@ impl ControllerTransport {
     ///
     /// Mappings live in `{app-support}/mappings`; the shipped bundles are resolved
     /// from the executable.
-    pub fn start(
-        engine_buses: &EngineBusHandle,
-        library_buses: &LibraryBusHandle,
-        trusted_device_ids: Vec<String>,
-    ) -> Result<Self, String> {
+    pub fn start(bus: &BusTransport, trusted_device_ids: Vec<String>) -> Result<Self, String> {
         Self::start_at(
-            engine_buses,
-            library_buses,
+            bus,
             crate::app_paths::mappings_dir(),
             None,
             trusted_device_ids,
@@ -138,27 +104,24 @@ impl ControllerTransport {
 
     /// Start against explicit mapping directories (tests: temp directories).
     pub(crate) fn start_at(
-        engine_buses: &EngineBusHandle,
-        library_buses: &LibraryBusHandle,
+        bus: &BusTransport,
         mappings_dir: PathBuf,
         shipped_mappings_dir: Option<PathBuf>,
         trusted_device_ids: Vec<String>,
     ) -> Result<Self, String> {
         let shipped = shipped_mappings_dir.unwrap_or_else(resolve_shipped_mappings);
         let mut engine =
-            ControllerEngine::open(engine_api::APP_DISPLAY_NAME, mappings_dir, shipped).bridge()?;
+            ControllerEngine::open(bus_api::APP_DISPLAY_NAME, mappings_dir, shipped).bridge()?;
         engine.set_trusted_device_ids(trusted_device_ids);
         let engine = Arc::new(Mutex::new(engine));
         let stop = Arc::new(AtomicBool::new(false));
-        let sink: Arc<Mutex<Option<StreamSink<ControllerEvt>>>> = Arc::new(Mutex::new(None));
-        let engine_buses = engine_buses.buses();
-        let library_buses = library_buses.buses();
+        let engine_buses = bus.bus();
 
         let mut threads = Vec::with_capacity(3);
         {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
-            let sink = Arc::clone(&sink);
+            let engine_buses = engine_buses.clone();
             spawn_named("controller-poll", &stop, &mut threads, move || loop {
                 let events = if let Ok(mut eng) = controller_engine.lock() {
                     let _ = eng.poll_devices();
@@ -166,7 +129,7 @@ impl ControllerTransport {
                 } else {
                     Vec::new()
                 };
-                emit_events(&sink, events);
+                publish_events(&engine_buses, events);
                 let mut waited = Duration::ZERO;
                 while waited < DEVICE_POLL_INTERVAL {
                     if stop_flag.load(Ordering::Relaxed) {
@@ -180,14 +143,11 @@ impl ControllerTransport {
         {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
-            let sink = Arc::clone(&sink);
             let engine_buses = engine_buses.clone();
-            let library_buses = library_buses.clone();
             spawn_named("controller-pump", &stop, &mut threads, move || {
                 while !stop_flag.load(Ordering::Relaxed) {
                     let mut bus = HostPublish {
-                        engine: engine_buses.clone(),
-                        library: library_buses.clone(),
+                        bus: engine_buses.clone(),
                     };
                     let events = if let Ok(mut eng) = controller_engine.lock() {
                         eng.pump(&mut bus);
@@ -195,7 +155,7 @@ impl ControllerTransport {
                     } else {
                         Vec::new()
                     };
-                    emit_events(&sink, events);
+                    publish_events(&engine_buses, events);
                     std::thread::sleep(PUMP_INTERVAL);
                 }
             })?;
@@ -204,14 +164,8 @@ impl ControllerTransport {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
             let engine_buses = engine_buses.clone();
-            let library_buses = library_buses.clone();
             spawn_named("controller-mirror", &stop, &mut threads, move || {
-                mirror_engine_library_to_controller(
-                    stop_flag,
-                    controller_engine,
-                    engine_buses,
-                    library_buses,
-                );
+                mirror_engine_library_to_controller(stop_flag, controller_engine, engine_buses);
             })?;
         }
 
@@ -219,7 +173,6 @@ impl ControllerTransport {
             engine,
             stop,
             threads: Mutex::new(threads),
-            sink,
         })
     }
 
@@ -243,12 +196,12 @@ impl ControllerTransport {
             .bridge()
     }
 
-    pub fn pending_offers(&self) -> Result<Vec<ControllerEvt>, String> {
+    pub fn pending_offers(&self) -> Result<Vec<Event>, String> {
         let eng = self
             .engine
             .lock()
             .map_err(|_| "controller lock poisoned".to_string())?;
-        Ok(eng.pending_offers().into_iter().map(map_evt).collect())
+        Ok(eng.pending_offers())
     }
 
     pub fn enable_mapping(
@@ -287,35 +240,12 @@ impl ControllerTransport {
             .map_err(|_| "controller lock poisoned".to_string())?;
         eng.update_all_mappings().bridge()
     }
-
-    /// Forward mapping offer/attach/detach events to Dart via FRB `StreamSink`.
-    ///
-    /// Replaces any previous sink so repeated subscribe calls do not leak.
-    pub fn subscribe_events(&self, sink: StreamSink<ControllerEvt>) -> Result<(), String> {
-        let mut slot = self
-            .sink
-            .lock()
-            .map_err(|_| "controller sink poisoned".to_string())?;
-        *slot = Some(sink);
-        Ok(())
-    }
 }
 
-fn emit_events(sink: &Mutex<Option<StreamSink<ControllerEvt>>>, events: Vec<ControllerEvent>) {
-    if events.is_empty() {
-        return;
-    }
-    let Ok(mut guard) = sink.lock() else {
-        return;
-    };
-    let failed = {
-        let Some(slot) = guard.as_ref() else {
-            return;
-        };
-        events.into_iter().any(|ev| slot.add(map_evt(ev)).is_err())
-    };
-    if failed {
-        *guard = None;
+/// Controller events are ordinary bus events; Flutter reads them on the one stream.
+fn publish_events(bus: &EventBus<Event>, events: Vec<Event>) {
+    for event in events {
+        let _ = bus.publish_evt(event);
     }
 }
 
@@ -341,43 +271,6 @@ fn device_info(info: DeviceInfo) -> ControllerDeviceInfo {
             DeviceDirection::Output => ControllerDeviceDirection::Output,
         },
         matched_mapping_id: info.matched_mapping_id,
-    }
-}
-
-fn map_evt(ev: ControllerEvent) -> ControllerEvt {
-    match ev {
-        ControllerEvent::MappingOffer {
-            mapping_id,
-            device_id,
-            device_name,
-            port_name,
-        } => ControllerEvt {
-            kind: ControllerEvtKind::MappingOffer,
-            mapping_id: Some(mapping_id),
-            device_id: Some(device_id),
-            device_name: Some(device_name),
-            port_name: Some(port_name),
-        },
-        ControllerEvent::MappingAttached {
-            mapping_id,
-            port_name,
-        } => ControllerEvt {
-            kind: ControllerEvtKind::MappingAttached,
-            mapping_id: Some(mapping_id),
-            device_id: None,
-            device_name: None,
-            port_name: Some(port_name),
-        },
-        ControllerEvent::MappingDetached {
-            mapping_id,
-            port_name,
-        } => ControllerEvt {
-            kind: ControllerEvtKind::MappingDetached,
-            mapping_id: Some(mapping_id),
-            device_id: None,
-            device_name: None,
-            port_name: Some(port_name),
-        },
     }
 }
 
@@ -528,13 +421,10 @@ fn apply_position(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, position_ms: i3
 fn mirror_engine_library_to_controller(
     stop: Arc<AtomicBool>,
     controller: Arc<Mutex<ControllerEngine>>,
-    engine_buses: EngineBuses,
-    library_buses: LibraryBuses,
+    engine_buses: EventBus<Event>,
 ) {
-    let Ok(engine_rx) = engine_buses.subscribe_evt_all() else {
-        return;
-    };
-    let Ok(library_rx) = library_buses.subscribe_evt_all() else {
+    // One bus carries engine and library egress; a single subscription sees both.
+    let Ok(mut engine_rx) = engine_buses.subscribe_evt() else {
         return;
     };
     let mut deck_tracks: [Option<String>; 4] = Default::default();
@@ -542,14 +432,10 @@ fn mirror_engine_library_to_controller(
     let mut master_deck: Option<u16> = None;
     while !stop.load(Ordering::Relaxed) {
         match engine_rx.recv_timeout(Duration::from_millis(5)) {
-            Ok(Some(ev)) => {
-                apply_engine_mirror(&controller, &mut deck_tracks, &mut master_deck, ev.as_ref())
+            Ok(Some(event)) => {
+                apply_engine_mirror(&controller, &mut deck_tracks, &mut master_deck, &event);
+                apply_library_mirror(&controller, &deck_tracks, &event);
             }
-            Ok(None) => {}
-            Err(_) => return,
-        }
-        match library_rx.recv_timeout(Duration::from_millis(5)) {
-            Ok(Some(ev)) => apply_library_mirror(&controller, &deck_tracks, ev.as_ref()),
             Ok(None) => {}
             Err(_) => return,
         }
@@ -560,77 +446,53 @@ fn apply_engine_mirror(
     controller: &Arc<Mutex<ControllerEngine>>,
     deck_tracks: &mut [Option<String>; 4],
     master_deck: &mut Option<u16>,
-    ev: &engine_core::Evt,
+    event: &Event,
 ) {
-    let Ok(body) = decode_evt_body(ev.payload()) else {
-        return;
-    };
-    match body {
-        EvtBody::DeckUpdated {
-            id,
-            track_id,
-            playing,
-            sync_mode,
-            quantize,
-            headphone_cue,
-            active_loop,
-            pending_loop_in_ms,
-            pad_mode,
-            key_shift,
-            keyboard_page,
-            key_shift_page,
-            keyboard_root_hot_cue,
-            position_ms,
-            hot_cues,
-            saved_loops,
-            fx,
-            ..
-        } => {
-            let idx = (id as usize).min(3);
-            let track_loaded = track_id.is_some();
-            deck_tracks[idx] = track_id;
-            let loop_active = active_loop.is_some_and(|l| l.active);
+    match event {
+        Event::DeckUpdated(update) => {
+            let deck = update.deck;
+            let idx = (deck as usize).min(3);
+            let track_loaded = update.track_id.is_some();
+            deck_tracks[idx] = update.track_id.clone();
+            let loop_active = update.active_loop.as_ref().is_some_and(|l| l.active);
             apply_deck_feedback(
                 controller,
-                id,
+                deck,
                 controller::DeckFeedback {
-                    playing,
+                    playing: update.playing,
                     // Master decks keep SyncMode::Off; still light SYNC like the UI.
-                    sync: sync_mode != SyncMode::Off || *master_deck == Some(id),
-                    quantize,
-                    headphone_cue,
+                    sync: update.sync_mode != SyncMode::Off || *master_deck == Some(deck),
+                    quantize: update.quantize,
+                    headphone_cue: update.headphone_cue,
                     loop_active,
-                    loop_in_set: pending_loop_in_ms.is_some() || loop_active,
+                    loop_in_set: update.pending_loop_in_ms.is_some() || loop_active,
                     track_loaded,
-                    loop_slots: loop_slots(&saved_loops),
-                    pad_mode,
-                    hot_cues: hot_cue_slots_deck(&hot_cues),
+                    loop_slots: loop_slots(&update.saved_loops),
+                    pad_mode: update.pad_mode,
+                    hot_cues: hot_cue_slots_deck(&update.hot_cues),
                 },
             );
             // Pages before shift so the last LED refresh uses both fresh values.
-            apply_keyboard_page(controller, id, keyboard_page);
-            apply_key_shift_page(controller, id, key_shift_page);
-            apply_keyboard_root(controller, id, keyboard_root_hot_cue);
-            apply_key_shift(controller, id, key_shift);
-            if let Some(ms) = position_ms {
-                apply_position(controller, id, ms);
+            apply_keyboard_page(controller, deck, update.keyboard_page);
+            apply_key_shift_page(controller, deck, update.key_shift_page);
+            apply_keyboard_root(controller, deck, update.keyboard_root_hot_cue);
+            apply_key_shift(controller, deck, update.key_shift);
+            if let Some(ms) = update.position_ms {
+                apply_position(controller, deck, ms);
             }
-            apply_fx_slots(controller, &fx);
+            apply_fx_slots(controller, &update.fx);
         }
-        EvtBody::Position { position_ms, .. } => {
-            let Origin::Deck(id) = ev.origin().clone() else {
-                return;
-            };
-            apply_position(controller, id, position_ms);
+        Event::DeckPosition(position) => {
+            apply_position(controller, position.deck, position.position_ms);
         }
-        EvtBody::Levels { peak_l, peak_r, .. } => {
+        Event::DeckLevels(levels) => {
             // Mixer/master Levels are ignored: DDJ-400 has per-deck VU only.
-            let Origin::Deck(id) = ev.origin().clone() else {
-                return;
-            };
-            apply_deck_vu(controller, id, peak_l.max(peak_r));
+            if let Some(deck) = levels.deck {
+                apply_deck_vu(controller, deck, levels.peak_l.max(levels.peak_r));
+            }
         }
-        EvtBody::EngineStatus { status } => {
+        Event::EngineSnapshot(snapshot) => {
+            let status = &snapshot.status;
             *master_deck = Some(status.master_deck);
             for deck in &status.decks {
                 let idx = (deck.id as usize).min(3);
@@ -673,17 +535,14 @@ fn apply_engine_mirror(
 fn apply_library_mirror(
     controller: &Arc<Mutex<ControllerEngine>>,
     deck_tracks: &[Option<String>; 4],
-    ev: &library::Evt,
+    event: &Event,
 ) {
-    let Ok(body) = decode_library_evt(ev.payload()) else {
+    let Event::HotCuesChanged(changed) = event else {
         return;
     };
-    let LibraryEvtBody::HotCuesChanged { track_id, hot_cues } = body else {
-        return;
-    };
-    let slots = hot_cue_slots_lib(&hot_cues);
+    let slots = hot_cue_slots_lib(&changed.hot_cues);
     for (i, loaded) in deck_tracks.iter().enumerate() {
-        if loaded.as_deref() == Some(track_id.as_str()) {
+        if loaded.as_deref() == Some(changed.track_id.as_str()) {
             apply_hot_cues(controller, i as u16, slots);
         }
     }

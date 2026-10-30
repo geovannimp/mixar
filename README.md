@@ -66,7 +66,7 @@ Library / AudioSource
 Producer thread ──► ring buffer ──► audio callback (CPAL / null)
 ```
 
-Hosts talk to the engine and library over MessagePack buses (`engine-api`, `library-api`), not by calling `Engine` from the UI thread. Flutter uses FRB transports (`EngineTransport`, `LibraryTransport`, `ControllerTransport`).
+Hosts talk to the engine and library over one typed event bus (`event-bus` + `bus-api`), not by calling `Engine` from the UI thread. Flutter opens a single `BusTransport` stream and keeps typed transports (`EngineTransport`, `LibraryTransport`, `ControllerTransport`) for commands.
 
 ```text
 mixar/

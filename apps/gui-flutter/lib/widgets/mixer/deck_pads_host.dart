@@ -8,7 +8,9 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' as rust;
-import 'package:gui_flutter/src/rust/api/engine.dart' show PadMode;
+import 'package:gui_flutter/core/models/bus_enums.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
+    show SamplerSlotInfo;
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/widgets/mixer/pads/sampler_pads.dart';
@@ -41,14 +43,14 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
   rust.EngineTransport? get _engine =>
       ref.read(engineTransportProvider).asData?.value;
 
-  rust.PadMode _toEnginePadMode(PadMode mode) => switch (mode) {
-    PadMode.hotCue => rust.PadMode.hotCue,
-    PadMode.loopRoll => rust.PadMode.loopRoll,
-    PadMode.beatJump => rust.PadMode.beatJump,
-    PadMode.sampler => rust.PadMode.sampler,
-    PadMode.stems => rust.PadMode.stems,
-    PadMode.keyboard => rust.PadMode.keyboard,
-    PadMode.keyShift => rust.PadMode.keyShift,
+  PadMode _toEnginePadMode(PadMode mode) => switch (mode) {
+    PadMode.hotCue => PadMode.hotCue,
+    PadMode.loopRoll => PadMode.loopRoll,
+    PadMode.beatJump => PadMode.beatJump,
+    PadMode.sampler => PadMode.sampler,
+    PadMode.stems => PadMode.stems,
+    PadMode.keyboard => PadMode.keyboard,
+    PadMode.keyShift => PadMode.keyShift,
   };
 
   Future<bool> _run(
@@ -78,7 +80,7 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     );
   }
 
-  List<SamplerSlot> _slotsFromChrome(List<rust.SamplerSlotChrome> chrome) {
+  List<SamplerSlot> _slotsFromChrome(List<SamplerSlotInfo> chrome) {
     return [
       for (var i = 0; i < 8; i++)
         if (i < chrome.length)

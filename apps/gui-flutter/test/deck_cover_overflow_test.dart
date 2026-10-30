@@ -11,25 +11,27 @@ import 'package:gui_flutter/providers/library/artwork_cache.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
 
+import 'support/bus_events.dart';
 import 'support/mixar_material_app.dart';
 
 class _SeededEngineUi extends EngineUi {
   @override
-  EngineUiSnapshot build() => applyEngineEvt(
+  EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
-    const EngineEvt(
-      kind: EngineEvtKind.updated,
-      deckId: 0,
-      trackPath: '/t.flac',
-      trackId: 't1',
-      durationMs: 156000,
+    deckUpdatedEvent(
+      deck: 0,
+      update: deckUpdated(
+        deck: 0,
+        trackPath: '/t.flac',
+        trackId: 't1',
+        durationMs: 156000,
+      ),
     ),
   );
 }

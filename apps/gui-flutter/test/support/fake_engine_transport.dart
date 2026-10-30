@@ -1,15 +1,15 @@
 // Test doubles for EngineTransport (FRB opaque). Hand-maintained stubs.
-import 'dart:async';
-
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart' show SamplerPlayMode;
 import 'package:gui_flutter/src/rust/api/settings.dart' show JogModeSetting;
 
 /// Minimal [EngineTransport] fake that records seek / jog calls.
+///
+/// Events reach the UI through `EngineUi.apply(...)` in tests: the transport
+/// no longer owns an event stream (the typed `BusTransport` does, and it is an
+/// opaque FRB type Dart cannot construct).
 class FakeEngineTransport implements EngineTransport {
-  final StreamController<EngineEvt> _events =
-      StreamController<EngineEvt>.broadcast();
-
   final List<(int deckId, int positionMs)> seeks = [];
   final List<(int deckId, int delta)> jogTurns = [];
   final List<(int deckId, bool touching)> jogTouches = [];
@@ -26,9 +26,7 @@ class FakeEngineTransport implements EngineTransport {
   final List<int> unloads = [];
 
   @override
-  void dispose() {
-    unawaited(_events.close());
-  }
+  void dispose() {}
 
   @override
   bool get isDisposed => false;
@@ -76,9 +74,6 @@ class FakeEngineTransport implements EngineTransport {
 
   @override
   Future<void> beginCueHold({required int deckId}) async {}
-
-  @override
-  Future<EngineBusHandle> buses() async => throw UnimplementedError('buses');
 
   @override
   Future<void> clearSampler({required int deckId, required int slot}) async {}
@@ -332,9 +327,6 @@ class FakeEngineTransport implements EngineTransport {
   @override
   Future<void> setPadMode({required int deckId, required PadMode mode}) async {
     padModes.add((deckId, mode));
-    _events.add(
-      EngineEvt(kind: EngineEvtKind.updated, deckId: deckId, padMode: mode),
-    );
   }
 
   @override
@@ -366,9 +358,6 @@ class FakeEngineTransport implements EngineTransport {
 
   @override
   Future<void> stop() async {}
-
-  @override
-  Stream<EngineEvt> subscribeEvents() => _events.stream;
 
   @override
   Future<void> toggleSync({

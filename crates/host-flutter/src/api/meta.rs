@@ -8,10 +8,10 @@ use std::sync::{Mutex, OnceLock};
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::EnvFilter;
 
-/// Product display name ([`engine_api::APP_DISPLAY_NAME`]).
+/// Product display name ([`bus_api::APP_DISPLAY_NAME`]).
 #[flutter_rust_bridge::frb(sync)]
 pub fn app_display_name() -> String {
-    engine_api::APP_DISPLAY_NAME.to_string()
+    bus_api::APP_DISPLAY_NAME.to_string()
 }
 
 #[flutter_rust_bridge::frb(init)]

@@ -1,23 +1,18 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
-use engine_api::{CmdBody, Kind, Origin};
+use bus_api::Event;
+use bus_api::TogglePlay;
 use std::path::Path;
 
 use controller::MidiOut;
 
 struct CaptureBus {
-    cmds: Vec<(Origin, Kind, CmdBody)>,
+    cmds: Vec<Event>,
 }
 impl controller::ActionPublish for CaptureBus {
-    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
-        self.cmds.push((origin, kind, body));
+    fn publish_cmd(&mut self, event: Event) {
+        self.cmds.push(event);
     }
-    fn publish_library(
-        &mut self,
-        _origin: library_api::Origin,
-        _kind: library_api::Kind,
-        _body: library_api::EvtBody,
-    ) {
-    }
+    fn publish_evt(&mut self, _event: Event) {}
 }
 
 struct CaptureMidi {
@@ -56,7 +51,7 @@ fn fake_port_midi_in_and_led_out() {
     };
 
     s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut port.out);
-    assert_eq!(bus.cmds[0].1, Kind::TogglePlay);
+    assert_eq!(bus.cmds, vec![Event::TogglePlay(TogglePlay { deck: 0 })]);
     assert!(
         port.out.frames.is_empty(),
         "TogglePlay does not light LED until engine Updated"

@@ -4,10 +4,13 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show FxSlotState;
 
+import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
 
 void main() {
@@ -62,13 +65,7 @@ void main() {
       // Controller published absolute pause.
       container
           .read(engineUiProvider.notifier)
-          .apply(
-            const EngineEvt(
-              kind: EngineEvtKind.updated,
-              deckId: 0,
-              playing: false,
-            ),
-          );
+          .apply(deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0)));
       expect(container.read(engineUiProvider).isPlaying(0), isFalse);
 
       // UI click captured wantPlaying=true from prior chrome; absolute set.
@@ -97,14 +94,16 @@ void main() {
       expect(container.read(engineUiProvider).slipEnabledFor(0), isTrue);
       expect(container.read(engineUiProvider).keyLockFor(0), isTrue);
 
-      // MIDI races the opposite polarity before EngineEvt from our cmds.
+      // MIDI races the opposite polarity before the evt from our cmds.
       ui.apply(
-        const EngineEvt(
-          kind: EngineEvtKind.updated,
-          deckId: 0,
-          quantize: true,
-          slipEnabled: false,
-          keyLock: false,
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(
+            deck: 0,
+            quantize: true,
+            slipEnabled: false,
+            keyLock: false,
+          ),
         ),
       );
       expect(container.read(engineUiProvider).quantizeFor(0), isTrue);
@@ -121,22 +120,31 @@ void main() {
       expect(container.read(engineUiProvider).keyLockFor(0), isTrue);
     });
 
-    test('EngineEvt invalidates optimistic ownership even at same value', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final ui = container.read(engineUiProvider.notifier);
+    test(
+      'a deck update invalidates optimistic ownership even at same value',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final ui = container.read(engineUiProvider.notifier);
 
-      ui.setPlaying(0, true);
-      final gen = ui.claimOptimistic(OptimisticField.playing, 0);
-      expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isTrue);
+        ui.setPlaying(0, true);
+        final gen = ui.claimOptimistic(OptimisticField.playing, 0);
+        expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isTrue);
 
-      // MIDI confirms the same absolute play state.
-      ui.apply(
-        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
-      );
-      expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isFalse);
-      expect(container.read(engineUiProvider).isPlaying(0), isTrue);
-    });
+        // MIDI confirms the same absolute play state.
+        ui.apply(
+          deckUpdatedEvent(
+            deck: 0,
+            update: deckUpdated(deck: 0, playing: true),
+          ),
+        );
+        expect(
+          ui.isOptimisticCurrent(OptimisticField.playing, 0, gen),
+          isFalse,
+        );
+        expect(container.read(engineUiProvider).isPlaying(0), isTrue);
+      },
+    );
   });
 
   group('runOptimisticDeckBool', () {
@@ -206,39 +214,36 @@ void main() {
       expect(value, isFalse);
     });
 
-    test(
-      'keeps EngineEvt value when MIDI confirms desired then send fails',
-      () async {
-        var value = false;
-        var gen = 0;
-        final writes = <bool>[];
-        await expectLater(
-          runOptimisticDeckBool<Object>(
-            previous: false,
-            desired: true,
-            write: (next) {
-              value = next;
-              writes.add(next);
-            },
-            claim: () => ++gen,
-            stillOurs: (generation) => generation == gen,
-            resolveEngine: () async => Object(),
-            send: (_) async {
-              // MIDI/EngineEvt set the same absolute true and took ownership.
-              value = true;
-              gen++;
-              throw StateError('boom');
-            },
-          ),
-          throwsStateError,
-        );
-        // No rollback write — EngineEvt already owns the mirror at desired.
-        expect(writes, [true]);
-        expect(value, isTrue);
-      },
-    );
+    test('keeps the deck update value when MIDI confirms desired then send fails', () async {
+      var value = false;
+      var gen = 0;
+      final writes = <bool>[];
+      await expectLater(
+        runOptimisticDeckBool<Object>(
+          previous: false,
+          desired: true,
+          write: (next) {
+            value = next;
+            writes.add(next);
+          },
+          claim: () => ++gen,
+          stillOurs: (generation) => generation == gen,
+          resolveEngine: () async => Object(),
+          send: (_) async {
+            // The MIDI-driven deck update set the same absolute true and took ownership.
+            value = true;
+            gen++;
+            throw StateError('boom');
+          },
+        ),
+        throwsStateError,
+      );
+      // No rollback write — the deck update already owns the mirror at desired.
+      expect(writes, [true]);
+      expect(value, isTrue);
+    });
 
-    test('null engine after EngineEvt same-value does not roll back', () async {
+    test('null engine after a same-value deck update does not roll back', () async {
       var value = false;
       var gen = 0;
       final writes = <bool>[];
@@ -252,7 +257,7 @@ void main() {
         claim: () => ++gen,
         stillOurs: (generation) => generation == gen,
         resolveEngine: () async {
-          // EngineEvt confirmed desired, then transport disappeared.
+          // The deck update confirmed desired, then the transport disappeared.
           value = true;
           gen++;
           return null;
@@ -263,7 +268,7 @@ void main() {
       expect(value, isTrue);
     });
 
-    test('skips send when EngineEvt supersedes during resolve', () async {
+    test('skips send when a deck update supersedes during resolve', () async {
       var value = false;
       var gen = 0;
       final sends = <Object>[];
@@ -333,7 +338,7 @@ void main() {
 
       expect(container.read(engineUiProvider).channelFor(0).fxRouted, isFalse);
       await setDeckFxRouted(ref, 0, true);
-      // The mirror flips before any EngineEvt, so the second press sees "on".
+      // The mirror flips before any deck update, so the second press sees "on".
       expect(container.read(engineUiProvider).channelFor(0).fxRouted, isTrue);
       await setDeckFxRouted(ref, 0, false);
       expect(container.read(engineUiProvider).channelFor(0).fxRouted, isFalse);
@@ -347,7 +352,7 @@ void main() {
       final gate = Completer<EngineTransport?>();
       final (container, ref) = await captureEngine(tester, () => gate.future);
 
-      final slot = FxSlotChrome(
+      final slot = FxSlotState(
         kind: FxKind.echo,
         enabled: false,
         wet: 0.5,
@@ -355,14 +360,18 @@ void main() {
       );
       container
           .read(engineUiProvider.notifier)
-          .apply(EngineEvt(kind: EngineEvtKind.updated, deckId: 0, fx: [slot]));
+          .apply(
+            deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, fx: [slot])),
+          );
 
       // Tap while the transport is still resolving.
       final pending = setFxUnitDivision(ref, 0, 4);
       // The other deck's update republishes the unchanged unit.
       container
           .read(engineUiProvider.notifier)
-          .apply(EngineEvt(kind: EngineEvtKind.updated, deckId: 1, fx: [slot]));
+          .apply(
+            deckUpdatedEvent(deck: 1, update: deckUpdated(deck: 1, fx: [slot])),
+          );
 
       // The evt merge must not discard the owned division: the stepper
       // derives its next target from this mirror.
@@ -381,17 +390,19 @@ void main() {
       container
           .read(engineUiProvider.notifier)
           .apply(
-            EngineEvt(
-              kind: EngineEvtKind.updated,
-              deckId: 0,
-              fx: [
-                FxSlotChrome(
-                  kind: FxKind.echo,
-                  enabled: false,
-                  wet: 0.5,
-                  params: Float32List.fromList([0.5, 0.5, 0.0]),
-                ),
-              ],
+            deckUpdatedEvent(
+              deck: 0,
+              update: deckUpdated(
+                deck: 0,
+                fx: [
+                  FxSlotState(
+                    kind: FxKind.echo,
+                    enabled: false,
+                    wet: 0.5,
+                    params: Float32List.fromList([0.5, 0.5, 0.0]),
+                  ),
+                ],
+              ),
             ),
           );
       expect(container.read(fxSlotsProvider).single.enabled, isFalse);

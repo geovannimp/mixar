@@ -3,11 +3,18 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
-use omnibus::Filter;
+use bus_api::Event;
+use bus_api::SetSpeed;
+use bus_api::SetTempoRange;
+use common::recv_error;
+use common::recv_updated;
+use common::short_tone_fixture;
+use engine_core::EngineConfig;
+use engine_core::EngineSession;
+use library_core::AudioSource;
+use library_core::FileAudioSource;
+use library_core::TrackId;
+use library_core::TrackMetadata;
 
 fn null_session_with_loaded_deck() -> EngineSession {
     let config = EngineConfig {
@@ -37,39 +44,27 @@ fn null_session_with_loaded_deck() -> EngineSession {
 #[test]
 fn set_tempo_range_keeps_speed_and_publishes_fraction() {
     let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetSpeed,
-            encode_cmd_body(&CmdBody::SetSpeed {
-                speed: 0.25,
-                soft_takeover: false,
-            })
-            .unwrap(),
-        )
+        .publish_cmd(Event::SetSpeed(SetSpeed {
+            deck: 0,
+            speed: 0.25,
+            soft_takeover: false,
+        }))
         .expect("set speed");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let _ = recv_updated(&mut evt);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetTempoRange,
-            encode_cmd_body(&CmdBody::SetTempoRange { tempo_range: 0.123 }).unwrap(),
-        )
+        .publish_cmd(Event::SetTempoRange(SetTempoRange {
+            deck: 0,
+            tempo_range: 0.123,
+        }))
         .expect("set range");
 
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated {
-        tempo_range, speed, ..
-    } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
+    let update = recv_updated(&mut evt);
+    let tempo_range = update.tempo_range;
+    let speed = update.speed;
     assert!(
         (tempo_range - 0.123).abs() < 1e-5,
         "tempo_range={tempo_range}"
@@ -80,26 +75,20 @@ fn set_tempo_range_keeps_speed_and_publishes_fraction() {
 #[test]
 fn set_tempo_range_rejects_non_positive_and_non_finite() {
     let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
+    let mut evt = session.subscribe_evt_all().expect("sub");
 
     for bad in [0.0_f32, -0.06, f32::NAN, f32::INFINITY] {
         session
-            .publish_cmd(
-                Origin::Deck(0),
-                Kind::SetTempoRange,
-                encode_cmd_body(&CmdBody::SetTempoRange { tempo_range: bad }).unwrap(),
-            )
+            .publish_cmd(Event::SetTempoRange(SetTempoRange {
+                deck: 0,
+                tempo_range: bad,
+            }))
             .expect("publish");
-        let event = recv_evt_kind(&evt, Kind::Error);
-        let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
-            panic!("expected Error body for {bad}");
-        };
+        let error = recv_error(&mut evt);
         assert!(
-            message.contains("tempo_range"),
-            "message={message} bad={bad}"
+            error.message.contains("tempo_range"),
+            "message={} bad={bad}",
+            error.message
         );
     }
 }
