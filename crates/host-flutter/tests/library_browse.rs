@@ -4,7 +4,6 @@
 use std::io::Write;
 use std::path::Path;
 
-use host_flutter::api::library::LibraryTransport;
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
 use library_core::Library;
 
@@ -60,7 +59,7 @@ fn list_collections_and_tracks_from_disk_db() {
 
 #[test]
 fn open_in_memory_lists_empty() {
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     assert!(transport.list_collections().unwrap().is_empty());
 }
 

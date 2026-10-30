@@ -374,8 +374,20 @@ impl LibraryTransport {
         Ok(transport)
     }
 
-    /// In-memory library on its own bus (tests and offline tools).
-    pub fn open_in_memory() -> Result<Self, String> {
+    /// In-memory library on the given bus.
+    ///
+    /// The bus is explicit on purpose: in the app the library shares the process
+    /// bus, so a test that hands the engine one bus and the library another never
+    /// exercises commands crossing owners.
+    pub fn open_in_memory(bus: &BusTransport) -> Result<Self, String> {
+        let manager = LibraryManager::open_in_memory(LibraryConfig::default()).bridge()?;
+        Self::from_manager(manager, LibraryBuses::with_bus(bus.bus()))
+    }
+
+    /// In-memory library on a private bus, for tests that only exercise the
+    /// library itself.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub(crate) fn open_in_memory_on_own_bus() -> Result<Self, String> {
         let manager = LibraryManager::open_in_memory(LibraryConfig::default()).bridge()?;
         Self::from_manager(manager, LibraryBuses::new())
     }
@@ -1382,7 +1394,7 @@ mod tests {
 
     #[test]
     fn apply_library_settings_updates_stems_model() {
-        let transport = LibraryTransport::open_in_memory().unwrap();
+        let transport = LibraryTransport::open_in_memory_on_own_bus().unwrap();
         transport
             .apply_library_settings(
                 LibraryAnalysisDurationSetting::Fast,

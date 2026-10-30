@@ -4,7 +4,6 @@
 use std::io::Write;
 use std::path::Path;
 
-use host_flutter::api::library::LibraryTransport;
 
 /// One second of silence as a WAV, so the folder scan registers a real track.
 fn write_minimal_wav(path: &Path) {
@@ -34,7 +33,7 @@ fn export_cdj_usb_through_transport() {
     let media = tempfile::tempdir().unwrap();
     write_minimal_wav(&media.path().join("warmup.wav"));
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     let folder = transport
         .add_folder_collection(
             media.path().to_string_lossy().into_owned(),

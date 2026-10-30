@@ -6321,10 +6321,28 @@ fn wire__crate__api__library__LibraryTransport_open_in_memory_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_bus = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<BusTransport>,
+            >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
-                    let output_ok = crate::api::library::LibraryTransport::open_in_memory()?;
+                    let mut api_bus_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_bus, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_bus_guard = Some(api_bus.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_bus_guard = api_bus_guard.unwrap();
+                    let output_ok =
+                        crate::api::library::LibraryTransport::open_in_memory(&*api_bus_guard)?;
                     std::result::Result::Ok(output_ok)
                 })())
             }

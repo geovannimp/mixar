@@ -3,7 +3,6 @@
 #![allow(clippy::unwrap_used)] // test crate: unwrap on fixtures and helpers
 use std::path::{Path, PathBuf};
 
-use host_flutter::api::library::LibraryTransport;
 use rusqlite::{params, Connection};
 
 fn build_mixxx_db(dir: &Path) -> PathBuf {
@@ -111,7 +110,7 @@ fn import_mixxx_library_through_transport() {
     let dir = tempfile::tempdir().unwrap();
     let db_path = build_mixxx_db(dir.path());
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
 
     let preview =
         host_flutter::api::library::mixxx_import_preview(db_path.to_string_lossy().into_owned())

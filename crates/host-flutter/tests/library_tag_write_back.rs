@@ -52,7 +52,7 @@ fn analyze_writes_the_library_bpm_and_key_into_the_file() {
     let dir = tempfile::tempdir().unwrap();
     let wav = short_beats_fixture_copy(dir.path());
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     transport
         .apply_library_settings(
             LibraryAnalysisDurationSetting::Fast,
@@ -85,7 +85,7 @@ fn analyze_leaves_the_file_alone_without_opt_in() {
     let wav = short_beats_fixture_copy(dir.path());
     let before = std::fs::read(&wav).unwrap();
 
-    let transport = LibraryTransport::open_in_memory().unwrap();
+    let transport = host_flutter::testing::open_library_in_memory().unwrap();
     // Default: tag write-back off.
     transport
         .apply_library_settings(

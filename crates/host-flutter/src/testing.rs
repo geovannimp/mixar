@@ -27,6 +27,11 @@ pub fn subscribe_evt(bus: &BusTransport) -> Result<Subscriber<Event>, String> {
     bus.subscribe_evt()
 }
 
+/// In-memory library on a private bus (tests that never cross domains).
+pub fn open_library_in_memory() -> Result<LibraryTransport, String> {
+    LibraryTransport::open_in_memory_on_own_bus()
+}
+
 /// Open a library at an explicit path, so tests use a temp directory instead of
 /// the host's app-support one (production resolves that in
 /// [`crate::app_paths`]).

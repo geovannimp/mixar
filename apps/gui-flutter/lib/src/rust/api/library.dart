@@ -178,9 +178,15 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   static Future<LibraryTransport> open({required BusTransport bus}) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportOpen(bus: bus);
 
-  /// In-memory library on its own bus (tests and offline tools).
-  static Future<LibraryTransport> openInMemory() =>
-      RustLib.instance.api.crateApiLibraryLibraryTransportOpenInMemory();
+  /// In-memory library on the given bus.
+  ///
+  /// The bus is explicit on purpose: in the app the library shares the process
+  /// bus, so a test that hands the engine one bus and the library another never
+  /// exercises commands crossing owners.
+  static Future<LibraryTransport> openInMemory({required BusTransport bus}) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportOpenInMemory(
+        bus: bus,
+      );
 
   /// Queue metadata refresh for a track via the library cmd bus only.
   Future<void> refreshTrack({required String trackId});

@@ -738,7 +738,9 @@ abstract class RustLibApi extends BaseApi {
     required BusTransport bus,
   });
 
-  Future<LibraryTransport> crateApiLibraryLibraryTransportOpenInMemory();
+  Future<LibraryTransport> crateApiLibraryLibraryTransportOpenInMemory({
+    required BusTransport bus,
+  });
 
   Future<void> crateApiLibraryLibraryTransportRefreshTrack({
     required LibraryTransport that,
@@ -5537,11 +5539,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<LibraryTransport> crateApiLibraryLibraryTransportOpenInMemory() {
+  Future<LibraryTransport> crateApiLibraryLibraryTransportOpenInMemory({
+    required BusTransport bus,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBusTransport(
+            bus,
+            serializer,
+          );
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -5555,7 +5563,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiLibraryLibraryTransportOpenInMemoryConstMeta,
-        argValues: [],
+        argValues: [bus],
         apiImpl: this,
       ),
     );
@@ -5564,7 +5572,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiLibraryLibraryTransportOpenInMemoryConstMeta =>
       const TaskConstMeta(
         debugName: "LibraryTransport_open_in_memory",
-        argNames: [],
+        argNames: ["bus"],
       );
 
   @override

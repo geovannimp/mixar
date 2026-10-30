@@ -1331,7 +1331,7 @@ mod tests {
         crate::api::library::LibraryTransport,
     ) {
         let bus = BusTransport::open().unwrap();
-        let library = crate::api::library::LibraryTransport::open_in_memory().unwrap();
+        let library = crate::api::library::LibraryTransport::open_in_memory(&bus).unwrap();
         let transport =
             EngineTransport::start_with(bus.bus(), bus.deck_chrome(), &library, profile_config(2))
                 .unwrap();

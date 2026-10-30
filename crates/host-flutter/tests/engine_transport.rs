@@ -113,7 +113,7 @@ fn expect_deck_fx_routed(rx: &mut EvtRx, deck_id: u16, timeout: Duration) -> boo
 #[test]
 fn start_stop_null_backend() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     assert!(transport.is_running());
     transport.stop().unwrap();
@@ -123,7 +123,7 @@ fn start_stop_null_backend() {
 #[test]
 fn play_on_empty_deck_publishes_error() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport.play(0).unwrap();
@@ -134,7 +134,7 @@ fn play_on_empty_deck_publishes_error() {
 #[test]
 fn load_path_publishes_updated() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport
@@ -153,7 +153,7 @@ fn load_path_publishes_updated() {
 #[test]
 fn set_volume_publishes_updated() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport.set_volume(0, 0.25).unwrap();
@@ -165,7 +165,7 @@ fn set_volume_publishes_updated() {
 #[test]
 fn set_crossfader_publishes_status() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport.set_crossfader(0.2).unwrap();
@@ -176,7 +176,7 @@ fn set_crossfader_publishes_status() {
 #[test]
 fn set_cue_volume_publishes_status() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport.set_cue_volume(0.33).unwrap();
@@ -187,7 +187,7 @@ fn set_cue_volume_publishes_status() {
 #[test]
 fn set_master_volume_publishes_status() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport.set_master_volume(0.42).unwrap();
@@ -198,7 +198,7 @@ fn set_master_volume_publishes_status() {
 #[test]
 fn set_cue_mix_publishes_status() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport.set_cue_mix(0.35).unwrap();
@@ -209,7 +209,7 @@ fn set_cue_mix_publishes_status() {
 #[test]
 fn set_master_cue_publishes_status() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport.set_master_cue(true).unwrap();
@@ -220,7 +220,7 @@ fn set_master_cue_publishes_status() {
 #[test]
 fn load_path_exposes_waveform_peaks() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let path = short_tone_fixture().to_string_lossy().into_owned();
     transport.load_path(0, path.clone()).unwrap();
@@ -242,7 +242,7 @@ fn load_path_exposes_waveform_peaks() {
 #[test]
 fn seek_after_load_publishes_updated() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     transport
@@ -256,7 +256,7 @@ fn seek_after_load_publishes_updated() {
 #[test]
 fn set_speed_after_load_publishes_updated() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     load_fixture(&transport, &mut rx, 0);
@@ -269,7 +269,7 @@ fn set_speed_after_load_publishes_updated() {
 #[test]
 fn set_cue_point_after_load_publishes_updated() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     load_fixture(&transport, &mut rx, 0);
@@ -282,7 +282,7 @@ fn set_cue_point_after_load_publishes_updated() {
 #[test]
 fn loop_in_after_load_publishes_pending_loop_in() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     load_beat_fixture(&transport, &mut rx, 0);
@@ -297,7 +297,7 @@ fn loop_in_after_load_publishes_pending_loop_in() {
 #[test]
 fn set_auto_loop_after_load_publishes_active_loop() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     load_beat_fixture(&transport, &mut rx, 0);
@@ -311,7 +311,7 @@ fn set_auto_loop_after_load_publishes_active_loop() {
 #[test]
 fn set_master_deck_publishes_status() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
     load_fixture(&transport, &mut rx, 0);
@@ -324,7 +324,7 @@ fn set_master_deck_publishes_status() {
 #[test]
 fn set_sampler_bank_publishes_active_bank_id() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let bank_id = library.create_sampler_bank("pads".into(), None).unwrap().id;
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
@@ -340,7 +340,7 @@ fn set_sampler_bank_publishes_active_bank_id() {
 #[test]
 fn fx_unit_and_deck_routing_publish_updated() {
     let bus = BusTransport::open().unwrap();
-    let library = LibraryTransport::open_in_memory().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
     let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
     let mut rx = testing::subscribe_evt(&bus).unwrap();
 

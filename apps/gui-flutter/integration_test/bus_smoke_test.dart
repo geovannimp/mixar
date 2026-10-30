@@ -55,7 +55,9 @@ void main() {
 
   test('engine events arrive on the one bus stream', () async {
     final bus = await BusTransport.open();
-    final library = await LibraryTransport.openInMemory();
+    // Same bus as the engine: that is the production wiring, and the only one
+    // in which a command can reach the wrong owner.
+    final library = await LibraryTransport.openInMemory(bus: bus);
     final engine = await EngineTransport.start(
       bus: bus,
       libraryTransport: library,
