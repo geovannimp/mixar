@@ -144,11 +144,25 @@ fn forward_loop(
             Err(_) => break,
         };
         let event = with_deck_chrome(event, &chrome);
-        let Ok(mut sinks) = sinks.lock() else {
-            break;
+        // Fan out with the registry unlocked: `add` encodes and hands the event
+        // to the Dart port, and holding the lock across it would stall a
+        // concurrent `subscribe_events`. Take the sinks out, send, put the ones
+        // that accepted it back; a failed send means that Dart stream is gone.
+        let taken: Vec<(u64, StreamSink<Event>)> = {
+            let Ok(mut sinks) = sinks.lock() else {
+                break;
+            };
+            sinks.drain().collect()
         };
-        // A failed send means that Dart stream is gone; drop it and keep the rest.
-        sinks.retain(|_, sink| sink.add(event.clone()).is_ok());
+        let mut delivered = Vec::with_capacity(taken.len());
+        for (id, sink) in taken {
+            if sink.add(event.clone()).is_ok() {
+                delivered.push((id, sink));
+            }
+        }
+        if let Ok(mut sinks) = sinks.lock() {
+            sinks.extend(delivered);
+        }
     }
 }
 
