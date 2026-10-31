@@ -7,21 +7,27 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 /// breathing room kept below a revealed body.
 const _cardInset = 16.0;
 
-/// Horizontal room the collapsing body keeps outside its own box.
+/// Room the collapsing body keeps outside its own box.
 ///
-/// Fields paint their focus ring outside their bounds (shad puts the ring 4 px
-/// out and strokes it 2 px wide), and the card only has to cut the body's
-/// height. Without the bleed the ring's left and right strokes fall outside the
-/// clip and the focused field reads as a pair of stray top and bottom lines.
+/// Fields paint their focus ring outside their bounds (shad inflates the ring
+/// 4 px and strokes it 2 px wide), while the card only has to cut the body's
+/// height. Without the bleed the side strokes fall outside the clip, and the
+/// last field's bottom stroke is cut at the body's own bottom edge: a focused
+/// field then reads as stray top lines.
 const _ringBleed = 8.0;
 
-/// Cuts a collapsing body's height while leaving [_ringBleed] either side.
+/// Cuts a collapsing body's height, keeping [_ringBleed] on its sides and
+/// under its last field.
 class _BodyClip extends CustomClipper<Rect> {
   const new();
 
   @override
-  Rect getClip(Size size) =>
-      Rect.fromLTRB(-_ringBleed, 0, size.width + _ringBleed, size.height);
+  Rect getClip(Size size) => Rect.fromLTRB(
+    -_ringBleed,
+    0,
+    size.width + _ringBleed,
+    size.height + _ringBleed,
+  );
 
   @override
   bool shouldReclip(covariant _BodyClip oldClipper) => false;
