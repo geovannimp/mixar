@@ -134,12 +134,18 @@ class _DeckCueButtonState extends State<DeckCueButton> {
                   borderRadius: theme.style.borderRadius.md,
                 ),
                 child: Center(
-                  child: Text(
-                    'Cue',
-                    style: theme.typography.body.sm.copyWith(
-                      color: fg,
-                      fontWeight: .w700,
-                      letterSpacing: 0.4,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Cue',
+                        style: theme.typography.body.sm.copyWith(
+                          color: fg,
+                          fontWeight: .w700,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
                     ),
                   ),
                 ),

@@ -152,7 +152,7 @@ UI layout zones:
 | **B — Metadata bar** | P0 | Title, artist, elapsed/remain/total, BPM, key |
 | **C — Controller pads** | P1 | 8 performance pads (2×4); **mode selector**; default **Hot Cue** mode |
 | **D — Loop / jump** | P1 | Loop in/out, length, ½/2×, beat jump (separate panel) |
-| **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
+| **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse. Below ~194px of pad-plus-transport space the row gives its height to the pads: Cue and Play stack to the right of the performance panel, each filling half its height, width capped at 72px |
 | **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range |
 | **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
 | **H — Extended pad modes** | P2 | Reuse the controller grid for shipped modes; see the [user guide](https://mixar.top/docs/users/performance-pads). Slicer remains open. |
