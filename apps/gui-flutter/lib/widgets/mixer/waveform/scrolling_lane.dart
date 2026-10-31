@@ -5,7 +5,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
-import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';

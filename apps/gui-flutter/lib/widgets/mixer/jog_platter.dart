@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
-import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/utils/jog_ticks.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 

@@ -22,7 +22,6 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
-import 'package:gui_flutter/core/theme/mixar_accent.dart';
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
