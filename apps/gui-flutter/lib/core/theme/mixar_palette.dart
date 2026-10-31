@@ -28,6 +28,26 @@ abstract final class MixarZinc {
   static const s950 = Color(0xFF09090B);
 }
 
+/// Bone scale — warm neutral chrome for the light theme.
+///
+/// Light chrome is paper, not a screen: the light surfaces sit on this ladder
+/// (`background` bone-100, `card` bone-50, `mutedForeground` bone-600). Nothing
+/// reaches pure white, and card sits 9 luminance points above the page so a
+/// panel reads as a plane instead of a flat sheet. Mirrors the website light
+/// tokens `--bg` / `--bg-elevated` / `--bg-card`; keep the two in sync.
+abstract final class MixarBone {
+  static const s50 = Color(0xFFFAF9F6);
+  static const s100 = Color(0xFFEFEEE9);
+  static const s200 = Color(0xFFE6E3DC);
+  static const s300 = Color(0xFFD6D2C9);
+  static const s400 = Color(0xFFB8B3A7);
+  static const s500 = Color(0xFF8A857B);
+  static const s600 = Color(0xFF57534E);
+  static const s700 = Color(0xFF3D3A36);
+  static const s800 = Color(0xFF2A2825);
+  static const s900 = Color(0xFF1C1917);
+}
+
 abstract final class MixarTeal {
   static const s50 = Color(0xFFF0FDFA);
   static const s100 = Color(0xFFCCFBF1);

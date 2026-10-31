@@ -1,6 +1,6 @@
 ---
 name: Mixar
-description: Open-source DJ software — honest performance tools on neutral zinc with a teal live signal
+description: Open-source DJ software — honest performance tools on warm bone and zinc neutrals with a teal live signal
 colors:
   accent: "#0d9488"
   accent-hover: "#0f766e"
@@ -16,12 +16,12 @@ colors:
   stem-bass: "#d55e00"
   stem-other: "#cc79a7"
   stem-vocals: "#56b4e9"
-  bg: "#fafafa"
-  bg-elevated: "#f4f4f5"
-  bg-card: "#ffffff"
-  fg: "#18181b"
-  muted: "#71717a"
-  border: "rgba(0, 0, 0, 0.08)"
+  bg: "#efeee9"
+  bg-elevated: "#e6e3dc"
+  bg-card: "#faf9f6"
+  fg: "#1c1917"
+  muted: "#57534e"
+  border: "#d6d2c9"
 typography:
   display:
     fontFamily: "\"Space Grotesk Variable\", ui-serif, Georgia, serif"
@@ -111,13 +111,13 @@ components:
 
 **Creative North Star: "The Open Deck"**
 
-Mixar looks like what it is: open, performance-ready DJ software with nothing hidden behind a paywall. The visual system is restrained zinc neutrals, a single teal accent for action and live state, and deck identity colors (sky blue / rose on marketing surfaces) that echo the booth without turning the UI into a light show. Density is comfortable — readable type, generous section rhythm, panels that breathe — while interactive elements feel tactile through soft hover lift and crisp square chrome.
+Mixar looks like what it is: open, performance-ready DJ software with nothing hidden behind a paywall. The visual system is restrained neutrals — warm bone in the light theme, zinc in the dark — a single teal accent for action and live state, and deck identity colors (sky blue / rose on marketing surfaces) that echo the booth without turning the UI into a light show. Density is comfortable — readable type, generous section rhythm, panels that breathe — while interactive elements feel tactile through soft hover lift and crisp square chrome.
 
 The marketing site (`apps/website`) is the most fully custom expression of this world: Outfit body, Space Grotesk headings, CSS token themes with light/dark via `data-theme` — dark is the default canvas (the booth is dark, and the marketing references derive from dark sites); an explicit stored choice in either direction always wins. The desktop app (`apps/gui-flutter`) uses **MixarTheme** light/dark tokens (with an intentional **ShadTheme** bridge for Shad/Material widgets) plus domain-specific performance colors (fader accents, VU segments, cue amber). Shared brand commitments: Mixar logo (inverted on dark), teal as the primary interactive signal, honest "in development" status when applicable, and deck semantics that must stay distinguishable under pressure.
 
 **Key Characteristics:**
 
-- Neutral zinc surfaces with hairline borders; color earns its place
+- Warm bone light / zinc dark surfaces with hairline borders; color earns its place
 - Teal accent for primary actions and brand signal; deck sky/rose for dual-deck semantics on web
 - Square chrome (buttons, inputs, cards, menus, dialogs, marketing CTAs); pills reserved for tiny status chips
 - Outfit + Space Grotesk on web; tabular figures for BPM/time via OpenType features
@@ -126,7 +126,7 @@ The marketing site (`apps/website`) is the most fully custom expression of this 
 
 ## Colors
 
-A zinc-forward palette with one confident teal accent and semantic deck hues — performance clarity over decoration.
+A neutral palette — warm bone light, zinc dark — with one confident teal accent and semantic deck hues — performance clarity over decoration.
 
 ### Primary
 
@@ -154,12 +154,15 @@ Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom 
 
 ### Neutral
 
-- **Stage Black** (#18181b light fg / #f4f4f5 dark fg): Primary text.
-- **Booth Muted** (#71717a light / #a1a1aa dark): Secondary copy, nav links at rest, footer meta.
-- **Floor** (#fafafa light / #09090b dark): Page background.
-- **Riser** (#f4f4f5 light / #121216 dark): Alternating section bands (`bg-bg-elevated`).
-- **Panel** (#ffffff light / #18181c dark): Cards, theme toggle, popovers.
-- **Hairline** (rgba black/white @ 8%): Borders on cards, header scroll state, inputs-at-rest.
+Light is warm bone paper, dark is zinc booth black. The two ladders line up
+step for step: page, riser, panel.
+
+- **Stage Black** (#1c1917 light fg / #f4f4f5 dark fg): Primary text.
+- **Booth Muted** (#57534e light / #a1a1aa dark): Secondary copy, nav links at rest, footer meta.
+- **Floor** (#efeee9 light / #09090b dark): Page background.
+- **Riser** (#e6e3dc light / #121216 dark): Alternating section bands (`bg-bg-elevated`), inputs, secondary chips.
+- **Panel** (#faf9f6 light / #18181c dark): Cards, theme toggle, popovers. Lightest surface in the light theme — never pure white, and 9 luminance points above the floor so a panel reads as a plane.
+- **Hairline** (#d6d2c9 light solid / rgba white 8% dark): Borders on cards, header scroll state, inputs-at-rest.
 
 ### App-specific (Flutter / MixarTheme)
 

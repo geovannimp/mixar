@@ -7,7 +7,13 @@ import {
   type StemDemoSnapshot,
 } from "./stem-demo-player";
 
-type WaveColors = { wave: string; playhead: string; bg: string };
+type WaveColors = {
+  wave: string;
+  playhead: string;
+  bg: string;
+  guideInk: string;
+  guideAlpha: number;
+};
 
 /** Paint peaks into an offscreen layer (rebuilt only when size/peaks/colors change). */
 function paintPeaksLayer(
@@ -24,11 +30,15 @@ function paintPeaksLayer(
 
   const mid = height / 2;
   if (!peaks || peaks.length === 0) {
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    // Ink at a theme alpha, stroked with globalAlpha: the guide must not
+    // depend on the canvas parsing a color-mix() token stream.
+    ctx.strokeStyle = colors.guideInk;
+    ctx.globalAlpha = colors.guideAlpha;
     ctx.beginPath();
     ctx.moveTo(0, mid);
     ctx.lineTo(width, mid);
     ctx.stroke();
+    ctx.globalAlpha = 1;
     return;
   }
 
@@ -89,8 +99,10 @@ function readThemeColor(el: Element, name: string, fallback: string): string {
 function readPalette(root: Element): WaveColors {
   return {
     wave: readThemeColor(root, "--accent", "#2dd4bf"),
-    playhead: "#f4f4f5",
-    bg: "#000000",
+    playhead: readThemeColor(root, "--wave-playhead", "#f4f4f5"),
+    bg: readThemeColor(root, "--wave-bg", "#000000"),
+    guideInk: readThemeColor(root, "--wave-guide-ink", "#f4f4f5"),
+    guideAlpha: Number(readThemeColor(root, "--wave-guide-alpha", "0.12")) || 0.12,
   };
 }
 
@@ -190,7 +202,7 @@ export function initStemDemoPlayer(
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const width = Math.max(1, Math.round(wrapW * dpr));
     const height = Math.max(1, Math.round(wrapH * dpr));
-    const key = `${width}x${height}|${colors.wave}|${colors.bg}`;
+    const key = `${width}x${height}|${colors.wave}|${colors.bg}|${colors.guideInk}|${colors.guideAlpha}`;
     if (
       layerKey === key &&
       peaks === lastPeaks &&
