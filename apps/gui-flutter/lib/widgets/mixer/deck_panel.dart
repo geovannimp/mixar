@@ -23,6 +23,21 @@ import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
 
+/// Height of the transport buttons when they sit in their own row.
+const _kTransportButtonHeight = 36.0;
+
+/// Height the full-width transport row takes: the button height plus the 8px
+/// gap above it.
+const _kStackedTransportHeight = _kTransportButtonHeight + 8;
+
+/// Performance-panel height worth keeping before the transport row gives up
+/// its space and moves beside the pads.
+const _kMinStackedPanelHeight = 150.0;
+
+/// Widest the side transport column gets. The buttons always take the full
+/// height of the pads area; only this width is capped.
+const _kMaxSideTransport = 72.0;
+
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
   const new({
@@ -83,12 +98,10 @@ class DeckPanel extends ConsumerWidget {
     );
 
     // Play/pause must not rebuild DeckTrackInfo / pads (artwork blink).
-    final play = Expanded(
-      child: _DeckPlayButton(deckId: deckId, disabled: transportDisabled),
-    );
-    final cueWrap = Expanded(
-      child: _DeckCueControl(deckId: deckId, disabled: transportDisabled),
-    );
+    final play = _DeckPlayButton(deckId: deckId, disabled: transportDisabled);
+    final cue = _DeckCueControl(deckId: deckId, disabled: transportDisabled);
+    // Cue/Play keep the deck's existing left-to-right order from the row.
+    final transport = _tempoOnRight ? [cue, play] : [play, cue];
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -176,19 +189,67 @@ class DeckPanel extends ConsumerWidget {
         ),
         DeckTrackInfo(deckId: deckId, hasTrack: hasTrack, title: loadedTitle),
         Expanded(
-          child: DeckPerformancePanel(
-            deckId: deckId,
-            hasTrack: hasTrack,
-            accent: accent,
-            // Engine-level only: pad mode must stay selectable while the deck
-            // is empty, and the per-surface panels already gate their controls
-            // on `hasTrack`.
-            disabled: loadDisabled,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final performance = DeckPerformancePanel(
+                deckId: deckId,
+                hasTrack: hasTrack,
+                accent: accent,
+                // Engine-level only: pad mode must stay selectable while the
+                // deck is empty, and the per-surface panels already gate their
+                // controls on `hasTrack`.
+                disabled: loadDisabled,
+              );
+              final available = constraints.maxHeight;
+              // A short deck cannot spare a full-width transport row without
+              // squeezing the pads to an unusable strip. There, the same two
+              // controls stack beside the panel and the row's height goes to
+              // the pads.
+              if (available >=
+                  _kMinStackedPanelHeight + _kStackedTransportHeight) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 8,
+                  children: [
+                    Expanded(child: performance),
+                    SizedBox(
+                      height: _kTransportButtonHeight,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: 8,
+                        children: [
+                          for (final control in transport)
+                            Expanded(child: control),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+              // Tight constraints from the column override the transport
+              // minimums, so both buttons fill the pads area top to bottom in
+              // equal halves; only their width is capped.
+              final side = (available / 2).clamp(0.0, _kMaxSideTransport);
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: performance),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: side,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: 8,
+                      children: [
+                        for (final control in transport)
+                          Expanded(child: control),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
-        ),
-        Row(
-          spacing: 8,
-          children: _tempoOnRight ? [cueWrap, play] : [play, cueWrap],
         ),
       ],
     );
