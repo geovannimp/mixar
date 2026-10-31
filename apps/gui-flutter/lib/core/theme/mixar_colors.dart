@@ -36,18 +36,20 @@ class MixarColors {
     this.disabledOpacity = 0.5,
   });
 
-  /// Desktop light — values from website `global.css` light theme.
+  /// Desktop light — warm bone paper, mirrored by website `global.css` light
+  /// theme. Surfaces climb the bone ladder (`background` s100, `card` s50), so
+  /// no panel is pure white and raised planes read apart from the page.
   static const light = MixarColors(
     brightness: Brightness.light,
-    background: Color(0xFFFAFAFA),
-    foreground: Color(0xFF18181B),
+    background: MixarBone.s100,
+    foreground: MixarBone.s900,
     // One teal ladder for brand primary + accent (website `--accent` family).
     primary: MixarTeal.s600,
     primaryForeground: Color(0xFFFFFFFF),
-    secondary: Color(0xFFF4F4F5),
-    secondaryForeground: Color(0xFF171717),
-    muted: Color(0xFFF4F4F5),
-    mutedForeground: Color(0xFF52525B),
+    secondary: MixarBone.s200,
+    secondaryForeground: MixarBone.s900,
+    muted: MixarBone.s200,
+    mutedForeground: MixarBone.s600,
     accent: MixarTeal.s700,
     selection: MixarTeal.s100,
     selectionForeground: Color(0xFF09090B),
@@ -58,10 +60,10 @@ class MixarColors {
     // Dark amber over cream cueTint — s300 on s100 fails WCAG.
     cueOn: MixarAmber.s700,
     destructive: Color(0xFFE7000B),
-    destructiveForeground: Color(0xFFFAFAFA),
-    card: Color(0xFFFFFFFF),
-    waveformBackground: MixarZinc.s100,
-    border: MixarZinc.s200,
+    destructiveForeground: MixarBone.s50,
+    card: MixarBone.s50,
+    waveformBackground: MixarBone.s200,
+    border: MixarBone.s300,
   );
 
   /// Desktop dark — values from website `global.css` dark theme.
