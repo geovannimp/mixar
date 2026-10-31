@@ -27,7 +27,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 class SettingsPage extends ConsumerStatefulWidget {
   const new({
     this.onClose,
-    this.initialSection = SettingsSection.audio,
+    this.initialSection = SettingsSection.ui,
     this.scrollToPreviewBus = false,
     super.key,
   }) : assert(

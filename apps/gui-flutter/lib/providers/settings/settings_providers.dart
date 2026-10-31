@@ -15,7 +15,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsDeepLink {
   const SettingsDeepLink({
-    this.section = SettingsSection.audio,
+    this.section = SettingsSection.ui,
     this.scrollToPreviewBus = false,
   });
 
