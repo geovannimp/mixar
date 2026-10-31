@@ -35,10 +35,11 @@ class MixarColorScale {
 }
 
 /// Text and control ink for a tone on this brightness: the 400 rung on the
-/// dark plate, the 800 rung on warm bone. Not the identity 600: on bone-100
-/// sky-600 measures 3.53:1 and amber-600 2.74:1, so a label in a deck's brighter
-/// rung fails AA — ink is deliberately a step darker than the grip it echoes.
-/// Bright fills and deep tints stay a call-site choice.
+/// dark plate, the 800 rung on warm bone. The 600 is skipped because on bone-100
+/// sky-600 measures 3.53:1 and amber-600 2.74:1, so a label in a deck's identity
+/// rung fails AA. This is a contrast rule, not an offset from any other control:
+/// ink is lighter than the dark fader grip and several rungs darker than the
+/// light one. Bright fills and deep tints stay a call-site choice.
 Color textColorStep(MixarColorScale color, Brightness brightness) =>
     brightness == Brightness.dark ? color.s400 : color.s800;
 
