@@ -147,6 +147,24 @@ codegen-units = 1
 panic = "abort"
 ```
 
+## Design tokens
+
+Colours are authored once, in DTCG JSON under `tokens/` — `primitives.json` (the ten Tailwind-aligned ladders), `semantic.json` (light/dark roles shared by app and website, including the five user-selectable accent palettes) and `web.json` (website aliases and web-only roles). [`packages/style-generator/`](packages/style-generator) turns them into three generated files; edit the JSON, never the output:
+
+| Generated | Emitted by | Read by |
+| --- | --- | --- |
+| `apps/gui-flutter/lib/core/theme/mixar_palette.dart` | `packages/style-generator/dart.mjs` | app widgets, `MixarAccentScale` |
+| `apps/gui-flutter/lib/core/theme/mixar_colors.dart` | `packages/style-generator/dart.mjs` | `context.theme.colors` |
+| `apps/website/src/styles/tokens.css` | `packages/style-generator/css.mjs` | `global.css` (imported at the top) |
+
+- `@mixar/style-generator` is a workspace package that owns Style Dictionary (`style-dictionary`, `typescript` and `@types/node` are its dependencies, not the root's) plus the config and the three emitters. Paths in the config resolve from `import.meta.url`, so the task works from any cwd.
+- `npm run tokens:build` → `moon run style-generator:generate` writes the files.
+- `npm run tokens:check` → `moon run style-generator:check` typechecks the JSDoc annotations (`tsc -p .` with `checkJs`), regenerates, and fails when a committed file no longer matches its tokens — the `Check design tokens are generated` step in `lint.yml`. The `tsc` half exists because the JSDoc types are the only type system left once the config is JS; unchecked they drift into decoration, and it covers just these files in about a second.
+- The generators are plain ESM JavaScript with `// @ts-check` and JSDoc types (`/** @type {import('style-dictionary/types').Config} */`, `@typedef`s for `Dictionary`/`TransformedToken`). No build step — Node runs the files as-is.
+- Behaviour stays hand-written: `MixarColors.hover()`/`disable()`/`withAccentScale`, the Tailwind `@theme inline` bridge, `.band-teal`'s variable remap, gradients/`color-mix()`, shadows, and the `--stem-*` hexes (owned by `crates/codec`).
+
+Rationale, the unification rules (light brand is teal-700 for AA; dark hairline is solid zinc-800 on both surfaces) and the full colour catalogue: [`DESIGN.md`](DESIGN.md).
+
 ## CI, testing & maintainability
 
 Root `npm` scripts / moon drive affected checks (see [`README.md`](README.md)). Rust gates typically include `cargo fmt -- --check`, `cargo clippy -- -D warnings`, and `cargo nextest run` (Rust tests run under [cargo-nextest](https://nexte.st/) — install once with `cargo install cargo-nextest --locked`; doctests are not run by nextest, use `cargo test --doc`). Prefer `backend = "null"` for headless runs. Optional `cargo bench` / criterion for DSP hot paths ([#245](https://github.com/geovannimp/mixar/issues/245)).

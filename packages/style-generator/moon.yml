@@ -1,0 +1,39 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+language: "javascript"
+layer: "automation"
+stack: "infrastructure"
+id: "style-generator"
+
+fileGroups:
+  generators:
+    - "*.mjs"
+    - "tsconfig.json"
+  tokens:
+    - "/tokens/**/*"
+
+tasks:
+  # Writes the three generated files. No moon cache: regeneration is sub-second
+  # and a cache hit would leave a hand-edited generated file in place.
+  generate:
+    command: "npm"
+    args: ["run", "generate"]
+    inputs:
+      - "@group(generators)"
+      - "@group(tokens)"
+    outputs:
+      - "/apps/gui-flutter/lib/core/theme/mixar_palette.dart"
+      - "/apps/gui-flutter/lib/core/theme/mixar_colors.dart"
+      - "/apps/website/src/styles/tokens.css"
+    options:
+      cache: false
+
+  # JSDoc typecheck + regenerate + `git diff --exit-code`: catches both a
+  # generator type error and a committed file that no longer matches its tokens.
+  check:
+    command: "npm"
+    args: ["run", "check"]
+    inputs:
+      - "@group(generators)"
+      - "@group(tokens)"
+    options:
+      cache: false

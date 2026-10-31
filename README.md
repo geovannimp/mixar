@@ -43,6 +43,8 @@ Sample tracks live in `samples/`. Headless tests can use `backend = "null"` so t
 ```bash
 npm run lint            # moon run :lint
 npm run format:check    # moon run :format-check
+npm run tokens:build    # moon run style-generator:generate — colours from tokens/*.json
+npm run tokens:check    # moon run style-generator:check — CI gate: types + no drift
 npm run test            # moon run :test (includes Flutter analyze/test when affected)
 npm run build           # moon run :build
 npx moon ci --base main # mimic affected CI locally

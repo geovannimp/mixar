@@ -1,3 +1,8 @@
+// GENERATED FILE — do not edit.
+//
+// Source: tokens/primitives.json. Regenerate with `npm run tokens:build`;
+// `npm run tokens:check` fails CI when this file and the tokens disagree.
+
 import 'package:flutter/painting.dart';
 
 // Solid Mixar colour scales (Tailwind-aligned).
@@ -9,11 +14,10 @@ import 'package:flutter/painting.dart';
 // Brand signal is teal. Deck identity is sky (A) / rose (B) — never a third
 // green/emerald ladder.
 
-/// Zinc scale — neutral chrome: hairlines, borders, muted text.
-///
-/// The dark surfaces already sit on this ladder (`background` is zinc-950,
-/// `foreground` zinc-100, `mutedForeground` zinc-400), so a hairline can name a
-/// solid step instead of compositing translucent white over whatever is behind.
+/// Zinc scale — Neutral chrome: hairlines, borders, muted text. The dark
+/// theme's surfaces sit on this ladder (`background` is zinc-950, `foreground`
+/// zinc-100, `mutedForeground` zinc-400), so a hairline can name a solid step
+/// instead of compositing translucent white over whatever is behind.
 abstract final class MixarZinc {
   static const s50 = Color(0xFFFAFAFA);
   static const s100 = Color(0xFFF4F4F5);
@@ -28,13 +32,11 @@ abstract final class MixarZinc {
   static const s950 = Color(0xFF09090B);
 }
 
-/// Bone scale — warm neutral chrome for the light theme.
-///
-/// Light chrome is paper, not a screen: the light surfaces sit on this ladder
-/// (`background` bone-100, `card` bone-50, `mutedForeground` bone-600). Nothing
-/// reaches pure white, and card sits 9 luminance points above the page so a
-/// panel reads as a plane instead of a flat sheet. Mirrors the website light
-/// tokens `--bg` / `--bg-elevated` / `--bg-card`; keep the two in sync.
+/// Bone scale — Warm neutral chrome for the light theme. Light chrome is paper,
+/// not a screen: the light surfaces sit on this ladder (`background` bone-100,
+/// `card` bone-50, `mutedForeground` bone-600). Nothing reaches pure white, and
+/// card sits 9 luminance points above the page so a panel reads as a plane
+/// instead of a flat sheet.
 abstract final class MixarBone {
   static const s50 = Color(0xFFFAF9F6);
   static const s100 = Color(0xFFEFEEE9);
@@ -48,6 +50,8 @@ abstract final class MixarBone {
   static const s900 = Color(0xFF1C1917);
 }
 
+/// Teal scale — Brand signal: the default accent and the tint family behind
+/// every accent palette.
 abstract final class MixarTeal {
   static const s50 = Color(0xFFF0FDFA);
   static const s100 = Color(0xFFCCFBF1);
@@ -92,7 +96,7 @@ abstract final class MixarRose {
   static const s950 = Color(0xFF4C0519);
 }
 
-/// Amber scale — cue / caution chrome.
+/// Amber scale — Cue and caution chrome.
 abstract final class MixarAmber {
   static const s50 = Color(0xFFFFFBEB);
   static const s100 = Color(0xFFFEF3C7);
@@ -107,7 +111,7 @@ abstract final class MixarAmber {
   static const s950 = Color(0xFF451A03);
 }
 
-/// Blue scale — accent palette option.
+/// Blue scale — Accent palette option, Tailwind blue.
 abstract final class MixarBlue {
   static const s50 = Color(0xFFEFF6FF);
   static const s100 = Color(0xFFDBEAFE);
@@ -122,7 +126,7 @@ abstract final class MixarBlue {
   static const s950 = Color(0xFF172554);
 }
 
-/// Violet scale — accent palette option.
+/// Violet scale — Accent palette option, Tailwind violet.
 abstract final class MixarViolet {
   static const s50 = Color(0xFFF5F3FF);
   static const s100 = Color(0xFFEDE9FE);
@@ -137,7 +141,7 @@ abstract final class MixarViolet {
   static const s950 = Color(0xFF2E1065);
 }
 
-/// Orange scale — accent palette option.
+/// Orange scale — Accent palette option, Tailwind orange.
 abstract final class MixarOrange {
   static const s50 = Color(0xFFFFF7ED);
   static const s100 = Color(0xFFFFEDD5);
@@ -152,11 +156,10 @@ abstract final class MixarOrange {
   static const s950 = Color(0xFF431407);
 }
 
-/// Pink scale — accent palette option.
-///
-/// Tailwind fuchsia, not pink: at the deep steps the picker uses for washes,
-/// pink's hue drifts to maroon (pink-950 `#500724`) and the selected row reads
-/// red. Fuchsia keeps every step on the magenta side of the hue wheel.
+/// Pink scale — Accent palette option: Tailwind fuchsia, not pink. At the deep
+/// steps the picker uses for washes, pink's hue drifts to maroon (pink-950
+/// `#500724`) and the selected row reads red. Fuchsia keeps every step on the
+/// magenta side of the hue wheel.
 abstract final class MixarPink {
   static const s50 = Color(0xFFFDF4FF);
   static const s100 = Color(0xFFFAE8FF);

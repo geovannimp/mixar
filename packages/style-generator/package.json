@@ -1,0 +1,17 @@
+{
+  "name": "@mixar/style-generator",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generates Mixar's Dart and CSS colour tokens from the DTCG sources in tokens/.",
+  "scripts": {
+    "generate": "style-dictionary build --config style-dictionary.config.mjs",
+    "check": "tsc -p . && npm run generate && git diff --exit-code -- :/apps/gui-flutter/lib/core/theme/mixar_palette.dart :/apps/gui-flutter/lib/core/theme/mixar_colors.dart :/apps/website/src/styles/tokens.css"
+  },
+  "dependencies": {
+    "style-dictionary": "^5.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2"
+  }
+}

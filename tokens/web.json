@@ -1,0 +1,165 @@
+{
+  "web": {
+    "color": {
+      "light": {
+        "bg": {
+          "$type": "color",
+          "$value": "{semantic.color.light.background}"
+        },
+        "bg-elevated": {
+          "$type": "color",
+          "$value": "{semantic.color.light.muted}"
+        },
+        "bg-card": {
+          "$type": "color",
+          "$value": "{semantic.color.light.card}"
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{semantic.color.light.border}"
+        },
+        "border-hover": {
+          "$type": "color",
+          "$value": "{color.bone.400}"
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{semantic.color.light.foreground}"
+        },
+        "text-muted": {
+          "$type": "color",
+          "$value": "{semantic.color.light.mutedForeground}"
+        },
+        "accent": {
+          "$type": "color",
+          "$value": "{semantic.color.light.accent}"
+        },
+        "accent-hover": {
+          "$type": "color",
+          "$value": "{color.teal.800}"
+        },
+        "accent-dim": {
+          "$type": "color",
+          "$description": "Hover wash. Web-only role: the app expresses the same idea with solid `primaryTint`/`selection` steps, so the two stay separate tokens.",
+          "$value": "#0f766e1a"
+        },
+        "deck-a": {
+          "$type": "color",
+          "$description": "sky-600 — Deck A blue.",
+          "$value": "{color.sky.600}"
+        },
+        "deck-b": {
+          "$type": "color",
+          "$description": "rose-600 — Deck B.",
+          "$value": "{color.rose.600}"
+        },
+        "warn": {
+          "$type": "color",
+          "$value": "{color.amber.400}"
+        },
+        "header-bg": {
+          "$type": "color",
+          "$description": "Sticky header scrim: page paper at 90%.",
+          "$value": "#efeee9e6"
+        },
+        "band-bg": {
+          "$type": "color",
+          "$description": "Teal contrast band surface (`.band-teal`).",
+          "$value": "{color.teal.50}"
+        },
+        "band-border": {
+          "$type": "color",
+          "$value": "#0d94882e"
+        },
+        "band-border-hover": {
+          "$type": "color",
+          "$value": "#0d948857"
+        },
+        "wave-bg": {
+          "$type": "color",
+          "$description": "Waveform lane inside the stems demo — the app's `waveformBackground`.",
+          "$value": "{semantic.color.light.waveformBackground}"
+        }
+      },
+      "dark": {
+        "bg": {
+          "$type": "color",
+          "$value": "{semantic.color.dark.background}"
+        },
+        "bg-elevated": {
+          "$type": "color",
+          "$value": "{semantic.color.dark.muted}"
+        },
+        "bg-card": {
+          "$type": "color",
+          "$value": "{semantic.color.dark.card}"
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{semantic.color.dark.border}"
+        },
+        "border-hover": {
+          "$type": "color",
+          "$value": "#a1a1aa59"
+        },
+        "text": {
+          "$type": "color",
+          "$value": "{semantic.color.dark.foreground}"
+        },
+        "text-muted": {
+          "$type": "color",
+          "$value": "{semantic.color.dark.mutedForeground}"
+        },
+        "accent": {
+          "$type": "color",
+          "$value": "{semantic.color.dark.accent}"
+        },
+        "accent-hover": {
+          "$type": "color",
+          "$value": "{color.teal.300}"
+        },
+        "accent-dim": {
+          "$type": "color",
+          "$value": "#2dd4bf1f"
+        },
+        "deck-a": {
+          "$type": "color",
+          "$description": "sky-400 — Deck A blue.",
+          "$value": "{color.sky.400}"
+        },
+        "deck-b": {
+          "$type": "color",
+          "$description": "rose-400 — Deck B.",
+          "$value": "{color.rose.400}"
+        },
+        "warn": {
+          "$type": "color",
+          "$value": "{color.amber.400}"
+        },
+        "header-bg": {
+          "$type": "color",
+          "$description": "Sticky header scrim: page ink at 85%.",
+          "$value": "#09090bd9"
+        },
+        "band-bg": {
+          "$type": "color",
+          "$description": "Teal contrast band surface (`.band-teal`).",
+          "$value": "{color.teal.950}"
+        },
+        "band-border": {
+          "$type": "color",
+          "$value": "#2dd4bf2e"
+        },
+        "band-border-hover": {
+          "$type": "color",
+          "$value": "#2dd4bf57"
+        },
+        "wave-bg": {
+          "$type": "color",
+          "$description": "Waveform lane inside the stems demo — the app's `waveformBackground`.",
+          "$value": "{semantic.color.dark.waveformBackground}"
+        }
+      }
+    }
+  }
+}

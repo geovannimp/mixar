@@ -14,6 +14,8 @@
     "lint:staged": "moon run :lint-files --affected --status staged",
     "format:check": "moon run :format-check",
     "format:staged": "moon run :format-files --affected --status staged",
+    "tokens:build": "moon run style-generator:generate",
+    "tokens:check": "moon run style-generator:check",
     "build": "moon run :build",
     "test": "moon run :test",
     "test:affected": "moon run gui-flutter:test-affected",
