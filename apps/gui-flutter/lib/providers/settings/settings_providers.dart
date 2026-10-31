@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:gui_flutter/analytics/analytics_transport.dart';
@@ -52,6 +53,28 @@ final appSettingsProvider = FutureProvider<AppSettings>((ref) async {
   final settings = await ref.watch(settingsTransportProvider.future);
   return normalizeAppSettings(await settings.getSettings());
 });
+
+/// Resolve the saved settings before the first frame.
+///
+/// `Application` otherwise boots on the defaults — `system` theme, teal
+/// palette, system locale — and swaps them once the bridge answers, so a saved
+/// light theme shows a dark frame first. Read the provider from the container
+/// handed to `runApp` so its state is already `AsyncData` on frame one.
+///
+/// [timeout] bounds the bridge read: a hung settings host must not keep the
+/// window hidden. On expiry (or any read error) the launch keeps the defaults,
+/// and the tree swaps if the read lands later — the same fallback behaviour as
+/// before the preload existed.
+Future<void> preloadAppSettings(
+  ProviderContainer container, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  try {
+    await container.read(appSettingsProvider.future).timeout(timeout);
+  } on Object catch (error, stackTrace) {
+    debugPrint('mixar: settings preload failed: $error\n$stackTrace');
+  }
+}
 
 /// Live StemgenRT opt-in; the pad-mode label only adds its source suffix when
 /// this is on.

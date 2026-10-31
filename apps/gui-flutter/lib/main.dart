@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/application.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
@@ -18,6 +19,12 @@ Future<void> main() async {
   await RustLib.init();
 
   final appTitle = appDisplayName();
+
+  // Resolve saved settings before the window and the first frame: MaterialApp
+  // boots on defaults otherwise and repaints once the bridge answers, which
+  // reads as a dark flash before a saved light theme.
+  final container = ProviderContainer();
+  await preloadAppSettings(container);
 
   if (isDesktopWindow) {
     await windowManager.ensureInitialized();
@@ -42,5 +49,10 @@ Future<void> main() async {
     });
   }
 
-  runApp(ProviderScope(child: Application(appTitle: appTitle)));
+  runApp(
+    UncontrolledProviderScope(
+      container: container,
+      child: Application(appTitle: appTitle),
+    ),
+  );
 }
