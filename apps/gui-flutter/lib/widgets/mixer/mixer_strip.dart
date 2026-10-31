@@ -22,7 +22,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// Matches Forui `MixerButton(size: .sm)` desktop height used for cue / meter spacer.
 const _columnFooterHeight = 32.0;
 
-/// Tick half-span (gap + major) ≈ 15; thumb 20 — keep fader ≥ this.
+/// Tick half-span (gap + major) ≈ 16; grip 26 — keep fader ≥ this.
 const _faderMinHitWidth = 36.0;
 
 /// Open mixer width without center VU column (4×36 + 3×8).

@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/theme/mixar_palette.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Soft snap near mid — narrow so centering is optional (Tauri `CENTER_SNAP_THRESHOLD`).
 const kFaderCenterSnapThreshold = 0.8;
@@ -37,41 +39,47 @@ const Map<_TickSize, double> _tickLength = {
 };
 
 /// Deck A/B/C/D and neutral fader tokens.
+@immutable
 class FaderColors {
-  const new({required this.track, required this.indicator, required this.grip});
+  const new({required this.indicator, required this.grip});
 
-  final Color track;
   final Color indicator;
   final Color grip;
 
-  static const a = FaderColors(
-    track: Color(0x140ea5e9), // sky-500 @ 8%
-    indicator: Color(0x8c38bdf8), // sky-400 @ 55%
-    grip: Color(0xff38bdf8), // sky-400
+  // Value equality keeps the painter's `colors != old` check honest when a
+  // caller passes a fresh instance on rebuild.
+  @override
+  bool operator ==(Object other) =>
+      other is FaderColors &&
+      other.indicator == indicator &&
+      other.grip == grip;
+
+  @override
+  int get hashCode => Object.hash(indicator, grip);
+
+  // Palette steps, not literal hex: deck identity is the sky/rose/amber/violet
+  // ladders (see [MixarSky] et al), chrome is zinc. The grip line is the bright
+  // step; the 6px lane fill takes one step down from it so a wide fader does
+  // not glare. No alpha: solid steps composite the same over slot and card.
+  static final a = FaderColors(indicator: MixarSky.s600, grip: MixarSky.s400);
+
+  static final b = FaderColors(indicator: MixarRose.s600, grip: MixarRose.s400);
+
+  static final c = FaderColors(
+    indicator: MixarAmber.s600,
+    grip: MixarAmber.s400,
   );
 
-  static const b = FaderColors(
-    track: Color(0x14f43f5e), // rose-500 @ 8%
-    indicator: Color(0x8cfb7185), // rose-400 @ 55%
-    grip: Color(0xfffb7185), // rose-400
+  static final d = FaderColors(
+    indicator: MixarViolet.s600,
+    grip: MixarViolet.s400,
   );
 
-  static const c = FaderColors(
-    track: Color(0x14f59e0b), // amber-500 @ 8%
-    indicator: Color(0x8cfbbf24), // amber-400 @ 55%
-    grip: Color(0xfffbbf24), // amber-400
-  );
-
-  static const d = FaderColors(
-    track: Color(0x148b5cf6), // violet-500 @ 8%
-    indicator: Color(0x8ca78bfa), // violet-400 @ 55%
-    grip: Color(0xffa78bfa), // violet-400
-  );
-
-  static const neutral = FaderColors(
-    track: Color(0x1f71717a), // zinc-500 @ 12%
-    indicator: Color(0x80a1a1aa), // zinc-400 @ 50%
-    grip: Color(0x8071717a), // zinc-500 @ 50%
+  // Neutral grip is zinc-500 so it contrasts with the light-theme plate
+  // (`MixarZinc.s400`) as well as the dark one (`MixarZinc.s600`).
+  static final neutral = FaderColors(
+    indicator: MixarZinc.s500,
+    grip: MixarZinc.s500,
   );
 
   static FaderColors forAccent(FaderAccent accent) => switch (accent) {
@@ -131,8 +139,16 @@ double snapTowardCenter(
 }
 
 /// Painted thumb sizes — keep in sync with [_FaderPainter].
-const kFaderThumbV = Size(20, 10);
-const kFaderThumbH = Size(10, 16);
+///
+/// The grip is a plate riding a 6px groove, wider than the lane so the deck
+/// colour and the cap read at a glance (a 10px cap disappeared into the slot).
+/// Cross-axis sizes are the plate width; the along-axis extent sets the travel.
+///
+/// The horizontal plate is 20 tall on purpose: every horizontal fader sits in a
+/// 24px row (crossfader strip, master/cue in `master_strip.dart`), so it keeps
+/// 2px clear at each edge instead of filling the row.
+const kFaderThumbV = Size(26, 12);
+const kFaderThumbH = Size(12, 20);
 
 /// Extra hit padding so the knob stays easy to grab near the track.
 const kFaderThumbHitPadding = 4.0;
@@ -414,6 +430,7 @@ class _FaderSliderState extends State<FaderSlider> {
   @override
   Widget build(BuildContext context) {
     final colors = FaderColors.forAccent(widget.accent);
+    final theme = context.theme;
     final opacity = widget.disabled ? 0.45 : 1.0;
     final t = _normalizeFaderT(widget.value, widget.min, widget.max);
     final step = widget.step > 0 ? widget.step : 1.0;
@@ -511,6 +528,11 @@ class _FaderSliderState extends State<FaderSlider> {
                         t: t,
                         orientation: widget.orientation,
                         colors: colors,
+                        grooveColor: theme.colors.background,
+                        edgeColor: theme.colors.border,
+                        faceColor: theme.colors.brightness == Brightness.dark
+                            ? MixarZinc.s600
+                            : MixarZinc.s400,
                         showIndicator: widget.showIndicator,
                         showMarkers: widget.showMarkers,
                         centerNotch: widget.centerNotch,
@@ -534,6 +556,9 @@ class _FaderPainter extends CustomPainter {
     required this.t,
     required this.orientation,
     required this.colors,
+    required this.grooveColor,
+    required this.edgeColor,
+    required this.faceColor,
     required this.showIndicator,
     required this.showMarkers,
     required this.centerNotch,
@@ -544,19 +569,26 @@ class _FaderPainter extends CustomPainter {
   final double t;
   final FaderOrientation orientation;
   final FaderColors colors;
+
+  /// Recessed lane the grip rides in (`theme.colors.background`, the window
+  /// tone: a slot cut through the card the mixer sits on).
+  final Color grooveColor;
+
+  /// Hairline around the groove and the grip (`theme.colors.border`).
+  final Color edgeColor;
+
+  /// Grip plate.
+  final Color faceColor;
+
   final bool showIndicator;
   final bool showMarkers;
   final bool centerNotch;
   final bool crossfaderTrack;
   final bool dragging;
 
-  static const _trackThickness = 4.0;
-  static const _laneExtend = 6.0; // 1.5 * 4
-  static const _tickGap = 5.0;
+  static const _grooveThickness = 6.0;
+  static const _tickGap = 6.0;
   static const _tickThickness = 2.0;
-  static const _thumbBorder = Color(0xa6a1a1aa); // zinc-400 @ 65%
-  static const _thumbTop = Color(0xfad4d4d8); // zinc-300
-  static const _thumbBottom = Color(0xfaa1a1aa); // zinc-400
   static const _tickTone = Color(0x3371717a); // zinc-500 @ 20%
   static const _tickEmphasize = Color(0x4071717a); // zinc-500 @ 25%
   static const _crossStart = Color(0x140ea5e9); // sky-500 @ 8%
@@ -568,32 +600,53 @@ class _FaderPainter extends CustomPainter {
     final vertical = orientation == FaderOrientation.vertical;
     final half = faderThumbExtentAlongAxis(orientation) / 2;
     final travel = faderTravelLength(size, orientation);
-    // Lane spans thumb travel (plus small aesthetic extend), not the full layout box.
+    // The lane ends exactly under the grip at each end stop: thumb travel plus
+    // one grip extent is the whole box, so a value at min/max never leaves a
+    // stub of empty slot sticking out past the cap.
     final trackRect = vertical
         ? Rect.fromCenter(
             center: Offset(size.width / 2, size.height / 2),
-            width: _trackThickness,
-            height: travel + _laneExtend * 2,
+            width: _grooveThickness,
+            height: size.height,
           )
         : Rect.fromCenter(
             center: Offset(size.width / 2, size.height / 2),
-            width: travel + _laneExtend * 2,
-            height: _trackThickness,
+            width: size.width,
+            height: _grooveThickness,
           );
 
-    final trackRRect = RRect.fromRectAndRadius(
-      trackRect,
-      const Radius.circular(999),
+    // Square slot: Mixar chrome has no rounded rects, only pills.
+    final trackRRect = RRect.fromRectAndRadius(trackRect, Radius.zero);
+    // The lane is a slot cut into the panel, not a painted line: the 1px
+    // [edgeColor] frame with the recessed surface inside it. The frame is what
+    // draws the lane at all in light mode, where the window tone (FAFAFA) and
+    // the card (FFFFFF) are five levels apart; in dark mode it is the same
+    // hairline the panels use, so the slot reads as chrome either way. Filled
+    // bands rather than a stroke, so the frame is exactly the outer 1px.
+    final laneRect = vertical
+        ? Rect.fromCenter(
+            center: trackRect.center,
+            width: _grooveThickness - 2,
+            height: trackRect.height - 2,
+          )
+        : Rect.fromCenter(
+            center: trackRect.center,
+            width: trackRect.width - 2,
+            height: _grooveThickness - 2,
+          );
+    canvas.drawRRect(trackRRect, Paint()..color = edgeColor);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(laneRect, Radius.zero),
+      Paint()..color = grooveColor,
     );
 
+    // Value fill and the crossfader tint sit inside the frame.
     if (crossfaderTrack && !vertical) {
       final paint = Paint()
         ..shader = const LinearGradient(
           colors: [_crossStart, _crossMid, _crossEnd],
-        ).createShader(trackRect);
-      canvas.drawRRect(trackRRect, paint);
-    } else {
-      canvas.drawRRect(trackRRect, Paint()..color = colors.track);
+        ).createShader(laneRect);
+      canvas.drawRRect(RRect.fromRectAndRadius(laneRect, Radius.zero), paint);
     }
 
     if (showMarkers) {
@@ -608,24 +661,19 @@ class _FaderPainter extends CustomPainter {
       );
       final indicator = vertical
           ? Rect.fromLTRB(
-              trackRect.left,
+              laneRect.left,
               thumbCenter.dy,
-              trackRect.right,
-              trackRect.bottom,
+              laneRect.right,
+              laneRect.bottom,
             )
           : Rect.fromLTRB(
-              trackRect.left,
-              trackRect.top,
+              laneRect.left,
+              laneRect.top,
               thumbCenter.dx,
-              trackRect.bottom,
+              laneRect.bottom,
             );
       canvas.drawRRect(
-        RRect.fromRectAndCorners(
-          indicator,
-          topLeft: vertical ? Radius.zero : const Radius.circular(999),
-          bottomLeft: const Radius.circular(999),
-          bottomRight: vertical ? const Radius.circular(999) : Radius.zero,
-        ),
+        RRect.fromRectAndRadius(indicator, Radius.zero),
         Paint()..color = colors.indicator,
       );
     }
@@ -644,45 +692,26 @@ class _FaderPainter extends CustomPainter {
       canvas.translate(-thumbCenter.dx, -thumbCenter.dy);
     }
 
-    final thumbRRect = RRect.fromRectAndRadius(
-      thumbRect,
-      const Radius.circular(2),
-    );
-    canvas.drawRRect(
-      thumbRRect,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_thumbTop, _thumbBottom],
-        ).createShader(thumbRect),
-    );
-    canvas.drawRRect(
-      thumbRRect,
-      Paint()
-        ..color = _thumbBorder
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
+    final thumbRRect = RRect.fromRectAndRadius(thumbRect, Radius.zero);
+    canvas.drawRRect(thumbRRect, Paint()..color = faceColor);
 
-    // Grip line (Tauri `after:` pseudo).
+    // Deck-coloured grip line across the plate — the same mark the EQ knobs
+    // carry as a radial tick.
     if (vertical) {
       canvas.drawLine(
-        Offset(thumbRect.left + 4, thumbCenter.dy),
-        Offset(thumbRect.right - 4, thumbCenter.dy),
+        Offset(thumbRect.left, thumbCenter.dy),
+        Offset(thumbRect.right, thumbCenter.dy),
         Paint()
           ..color = colors.grip
-          ..strokeWidth = 1
-          ..strokeCap = StrokeCap.round,
+          ..strokeWidth = 2,
       );
     } else {
       canvas.drawLine(
-        Offset(thumbCenter.dx, thumbRect.top + 4),
-        Offset(thumbCenter.dx, thumbRect.bottom - 4),
+        Offset(thumbCenter.dx, thumbRect.top),
+        Offset(thumbCenter.dx, thumbRect.bottom),
         Paint()
           ..color = colors.grip
-          ..strokeWidth = 1
-          ..strokeCap = StrokeCap.round,
+          ..strokeWidth = 2,
       );
     }
     canvas.restore();
@@ -759,7 +788,7 @@ class _FaderPainter extends CustomPainter {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             Rect.fromCenter(center: mid, width: 14, height: 2),
-            const Radius.circular(2),
+            Radius.zero,
           ),
           paint,
         );
@@ -767,7 +796,7 @@ class _FaderPainter extends CustomPainter {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
             Rect.fromCenter(center: mid, width: 2, height: 14),
-            const Radius.circular(2),
+            Radius.zero,
           ),
           paint,
         );
@@ -780,6 +809,9 @@ class _FaderPainter extends CustomPainter {
     return t != oldDelegate.t ||
         orientation != oldDelegate.orientation ||
         colors != oldDelegate.colors ||
+        grooveColor != oldDelegate.grooveColor ||
+        edgeColor != oldDelegate.edgeColor ||
+        faceColor != oldDelegate.faceColor ||
         showIndicator != oldDelegate.showIndicator ||
         showMarkers != oldDelegate.showMarkers ||
         centerNotch != oldDelegate.centerNotch ||
