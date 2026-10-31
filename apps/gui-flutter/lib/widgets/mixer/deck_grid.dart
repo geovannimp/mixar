@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -28,7 +28,7 @@ class DeckGrid extends ConsumerWidget {
       child: DeckPanel(
         deckId: deckId,
         label: _labels[deckId],
-        accent: faderAccentForDeck(deckId)!,
+        accent: deckAccentFor(deckId)!,
       ),
     ),
   );

@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/jog_ticks.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:gui_flutter/widgets/mixer/jog_platter.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -26,7 +26,7 @@ void main() {
               width: 200,
               height: 200,
               child: JogPlatter(
-                accent: FaderAccent.a,
+                accent: DeckAccent.a,
                 playing: false,
                 hasTrack: true,
                 bpm: 120,
@@ -103,7 +103,7 @@ void main() {
                   width: 200,
                   height: 200,
                   child: JogPlatter(
-                    accent: FaderAccent.a,
+                    accent: DeckAccent.a,
                     playing: false,
                     hasTrack: true,
                     bpm: 120,

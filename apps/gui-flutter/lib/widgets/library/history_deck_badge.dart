@@ -1,7 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/widgets/library/history_row_layout.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Deck A/B, tinted with the fader accent so it matches the deck panels.
 class DeckBadge extends StatelessWidget {
@@ -12,10 +13,10 @@ class DeckBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final accent = faderAccentForDeck(deck);
+    final accent = deckAccentFor(deck);
     final color = accent == null
         ? theme.colors.mutedForeground
-        : FaderColors.forAccent(accent).grip;
+        : textColorStep(deckTone(accent), theme.colors.brightness);
     return Semantics(
       label: deckDisplayLabel(deck),
       container: true,

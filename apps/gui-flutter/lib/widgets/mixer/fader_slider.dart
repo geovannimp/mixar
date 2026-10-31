@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/theme/mixar_palette.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -7,8 +8,6 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 const kFaderCenterSnapThreshold = 0.8;
 
 enum FaderOrientation { vertical, horizontal }
-
-enum FaderAccent { a, b, c, d, neutral }
 
 enum _TickSize { major, minor }
 
@@ -40,7 +39,7 @@ const Map<_TickSize, double> _tickLength = {
 
 /// Deck A/B/C/D and neutral fader tokens.
 @immutable
-class FaderColors {
+class _FaderColors {
   const new({required this.indicator, required this.grip});
 
   final Color indicator;
@@ -50,62 +49,34 @@ class FaderColors {
   // caller passes a fresh instance on rebuild.
   @override
   bool operator ==(Object other) =>
-      other is FaderColors &&
+      other is _FaderColors &&
       other.indicator == indicator &&
       other.grip == grip;
 
   @override
   int get hashCode => Object.hash(indicator, grip);
 
-  // Palette steps, not literal hex: deck identity is the sky/rose/amber/violet
-  // ladders (see [MixarSky] et al), chrome is zinc. The grip line is the bright
-  // step; the 6px lane fill takes one step down from it so a wide fader does
-  // not glare. No alpha: solid steps composite the same over slot and card.
-  static final a = FaderColors(indicator: MixarSky.s600, grip: MixarSky.s400);
-
-  static final b = FaderColors(indicator: MixarRose.s600, grip: MixarRose.s400);
-
-  static final c = FaderColors(
-    indicator: MixarAmber.s600,
-    grip: MixarAmber.s400,
-  );
-
-  static final d = FaderColors(
-    indicator: MixarViolet.s600,
-    grip: MixarViolet.s400,
-  );
-
-  // Neutral grip is zinc-500 so it contrasts with the light-theme plate
-  // (`MixarZinc.s400`) as well as the dark one (`MixarZinc.s600`).
-  static final neutral = FaderColors(
-    indicator: MixarZinc.s500,
-    grip: MixarZinc.s500,
-  );
-
-  static FaderColors forAccent(FaderAccent accent) => switch (accent) {
-    FaderAccent.a => a,
-    FaderAccent.b => b,
-    FaderAccent.c => c,
-    FaderAccent.d => d,
-    FaderAccent.neutral => neutral,
-  };
+  // Palette steps, not literal hex: the tone's 400/600 rung is the grip (the
+  // same step the deck's labels, badges and knob arcs pick), and the lane
+  // carries a quiet tint behind it — 900 on dark chrome, 200 on warm bone — so
+  // a full-height fader reads as a soft bar instead of a neon stripe. No alpha:
+  // solid steps composite the same over slot and card.
+  static _FaderColors forAccent(DeckAccent accent, Brightness brightness) {
+    // Neutral faders are chrome, not deck identity: one mid grey reads on both
+    // plates (zinc-500 against the bone-400 plate and the zinc-600 one).
+    if (accent == DeckAccent.neutral) {
+      return const _FaderColors(
+        indicator: MixarZinc.s500,
+        grip: MixarZinc.s200,
+      );
+    }
+    final tone = deckTone(accent);
+    return _FaderColors(
+      indicator: brightness == Brightness.dark ? tone.s900 : tone.s300,
+      grip: brightness == Brightness.dark ? tone.s500 : tone.s300,
+    );
+  }
 }
-
-FaderAccent? faderAccentForDeck(int deckId) => switch (deckId) {
-  0 => FaderAccent.a,
-  1 => FaderAccent.b,
-  2 => FaderAccent.c,
-  3 => FaderAccent.d,
-  _ => null,
-};
-
-String deckDisplayLabel(int deckId) => switch (deckId) {
-  0 => 'Deck A',
-  1 => 'Deck B',
-  2 => 'Deck C',
-  3 => 'Deck D',
-  _ => 'Deck ${deckId + 1}',
-};
 
 void _requireValidRange(double min, double max) {
   if (!(min.isFinite && max.isFinite && min < max)) {
@@ -322,7 +293,7 @@ class FaderSlider extends StatefulWidget {
     this.max = 100,
     this.step = 1,
     this.orientation = FaderOrientation.vertical,
-    this.accent = FaderAccent.neutral,
+    this.accent = DeckAccent.neutral,
     this.showIndicator = true,
     this.showMarkers = false,
     this.centerNotch = false,
@@ -340,7 +311,7 @@ class FaderSlider extends StatefulWidget {
   final double max;
   final double step;
   final FaderOrientation orientation;
-  final FaderAccent accent;
+  final DeckAccent accent;
   final bool showIndicator;
   final bool showMarkers;
   final bool centerNotch;
@@ -429,8 +400,11 @@ class _FaderSliderState extends State<FaderSlider> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = FaderColors.forAccent(widget.accent);
     final theme = context.theme;
+    final colors = _FaderColors.forAccent(
+      widget.accent,
+      theme.colors.brightness,
+    );
     final opacity = widget.disabled ? 0.45 : 1.0;
     final t = _normalizeFaderT(widget.value, widget.min, widget.max);
     final step = widget.step > 0 ? widget.step : 1.0;
@@ -568,7 +542,7 @@ class _FaderPainter extends CustomPainter {
 
   final double t;
   final FaderOrientation orientation;
-  final FaderColors colors;
+  final _FaderColors colors;
 
   /// Recessed lane the grip rides in (`theme.colors.background`, the window
   /// tone: a slot cut through the card the mixer sits on).

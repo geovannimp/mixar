@@ -2,10 +2,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/theme/mixar_palette.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -190,7 +192,7 @@ void main() {
                   return FaderSlider(
                     value: value,
                     showMarkers: true,
-                    accent: FaderAccent.a,
+                    accent: DeckAccent.a,
                     onValueChange: (next) => setState(() => value = next),
                   );
                 },
@@ -225,7 +227,7 @@ void main() {
               child: FaderSlider(
                 value: value,
                 disabled: true,
-                accent: FaderAccent.a,
+                accent: DeckAccent.a,
                 onValueChange: (next) {
                   calls += 1;
                   value = next;
@@ -262,7 +264,7 @@ void main() {
                 builder: (context, setState) {
                   return FaderSlider(
                     value: value,
-                    accent: FaderAccent.a,
+                    accent: DeckAccent.a,
                     onValueChange: (next) {
                       calls += 1;
                       setState(() => value = next);
@@ -311,7 +313,7 @@ void main() {
                 builder: (context, setState) {
                   return FaderSlider(
                     value: value,
-                    accent: FaderAccent.a,
+                    accent: DeckAccent.a,
                     onValueChange: (next) {
                       calls += 1;
                       setState(() => value = next);
@@ -357,7 +359,7 @@ void main() {
                 builder: (context, setState) {
                   return FaderSlider(
                     value: value,
-                    accent: FaderAccent.a,
+                    accent: DeckAccent.a,
                     onValueChange: (next) => setState(() => value = next),
                   );
                 },
@@ -459,6 +461,157 @@ void main() {
       reason: 'the frame is the only lane outline in light mode',
     );
   });
+
+  /// Exact-RGB pixel count over the whole capture.
+  int countOf(_FaderRaster raster, Color color) {
+    final (r, g, b) = rgbOf(color);
+    var found = 0;
+    for (var i = 0; i < raster.rgba.length; i += 4) {
+      if (raster.rgba[i] == r &&
+          raster.rgba[i + 1] == g &&
+          raster.rgba[i + 2] == b) {
+        found++;
+      }
+    }
+    return found;
+  }
+
+  testWidgets('each deck accent paints its identity grip and quiet tint', (
+    tester,
+  ) async {
+    const cases = <(DeckAccent, Color, Color, Color, Color)>[
+      (
+        DeckAccent.a,
+        MixarSky.s500,
+        MixarSky.s900,
+        MixarSky.s300,
+        MixarSky.s300,
+      ),
+      (
+        DeckAccent.b,
+        MixarRose.s500,
+        MixarRose.s900,
+        MixarRose.s300,
+        MixarRose.s300,
+      ),
+      (
+        DeckAccent.c,
+        MixarAmber.s500,
+        MixarAmber.s900,
+        MixarAmber.s300,
+        MixarAmber.s300,
+      ),
+      (
+        DeckAccent.d,
+        MixarViolet.s500,
+        MixarViolet.s900,
+        MixarViolet.s300,
+        MixarViolet.s300,
+      ),
+    ];
+    for (final (accent, darkGrip, darkTint, lightGrip, lightTint) in cases) {
+      for (final (theme, grip, tint) in [
+        (MixarThemeData.dark(), darkGrip, darkTint),
+        (MixarThemeData.light(), lightGrip, lightTint),
+      ]) {
+        final key = GlobalKey();
+        await _pumpFader(
+          tester,
+          theme: theme,
+          key: key,
+          value: 60,
+          accent: accent,
+        );
+        final raster = await _faderRaster(tester, key);
+        final brightness = theme.colors.brightness;
+        expect(
+          countOf(raster, grip),
+          greaterThan(0),
+          reason: '$accent grip on $brightness chrome',
+        );
+        expect(
+          countOf(raster, tint),
+          greaterThan(0),
+          reason: '$accent lane tint on $brightness chrome',
+        );
+      }
+    }
+  });
+
+  testWidgets('a neutral fader is chrome on both plates', (tester) async {
+    for (final theme in [MixarThemeData.dark(), MixarThemeData.light()]) {
+      final key = GlobalKey();
+      await _pumpFader(tester, theme: theme, key: key, value: 40);
+      final raster = await _faderRaster(tester, key);
+      expect(
+        countOf(raster, MixarZinc.s500),
+        greaterThan(0),
+        reason: 'neutral faders stay zinc-500 on ${theme.colors.brightness}',
+      );
+    }
+  });
+
+  testWidgets('a dark deck fader paints the dark steps, never the light 600', (
+    tester,
+  ) async {
+    final key = GlobalKey();
+    await _pumpFader(
+      tester,
+      theme: MixarThemeData.dark(),
+      key: key,
+      value: 100,
+      accent: DeckAccent.a,
+    );
+
+    final raster = await _faderRaster(tester, key);
+    expect(
+      countOf(raster, MixarSky.s500),
+      greaterThan(0),
+      reason: 'grip plate takes the deck\'s dark step',
+    );
+    expect(
+      countOf(raster, MixarSky.s900),
+      greaterThan(0),
+      reason: 'lane tint is the deep step, not a bright fill',
+    );
+    expect(
+      countOf(raster, MixarSky.s600),
+      0,
+      reason:
+          'sky-600 is the light-theme step and must not reach the dark fader',
+    );
+  });
+
+  testWidgets('a light deck fader paints the light steps, never the dark 400', (
+    tester,
+  ) async {
+    final key = GlobalKey();
+    await _pumpFader(
+      tester,
+      theme: MixarThemeData.light(),
+      key: key,
+      value: 100,
+      accent: DeckAccent.a,
+    );
+
+    final raster = await _faderRaster(tester, key);
+    expect(
+      countOf(raster, MixarSky.s300),
+      greaterThan(0),
+      reason: 'grip plate takes the deck\'s light step',
+    );
+    expect(
+      countOf(raster, MixarSky.s300),
+      greaterThan(0),
+      reason: 'lane tint is the pale step, not a bright fill',
+    );
+    expect(
+      countOf(raster, MixarSky.s400),
+      0,
+      reason:
+          'sky-400 is the dark-theme step and must not reach the light fader',
+    );
+  });
 }
 
 void _ignore(double _) {}
@@ -473,6 +626,7 @@ Future<void> _pumpFader(
   Size size = const Size(40, 120),
   FaderOrientation orientation = FaderOrientation.vertical,
   double step = 1,
+  DeckAccent accent = DeckAccent.neutral,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -492,6 +646,7 @@ Future<void> _pumpFader(
                     value: value,
                     orientation: orientation,
                     step: step,
+                    accent: accent,
                     onValueChange: _ignore,
                   ),
                 ),

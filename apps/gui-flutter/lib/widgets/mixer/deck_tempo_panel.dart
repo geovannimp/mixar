@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
-import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
@@ -29,7 +31,7 @@ class DeckTempoPanel extends StatelessWidget {
     super.key,
   });
 
-  final FaderAccent accent;
+  final DeckAccent accent;
   final double speed;
   final double tempoRange;
   final SyncMode syncMode;
@@ -79,7 +81,10 @@ class DeckTempoPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final accent = FaderColors.forAccent(this.accent).grip;
+    final accent = textColorStep(
+      deckTone(this.accent),
+      theme.colors.brightness,
+    );
     final liveBpm = effectiveBpm(trackBpm, speed, tempoRange);
     final sliderValue = speedToPitchSlider(speed);
     final faderDisabled = _syncActive;

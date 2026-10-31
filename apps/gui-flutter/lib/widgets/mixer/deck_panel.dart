@@ -14,7 +14,6 @@ import 'package:gui_flutter/widgets/mixer/deck_gain_popover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_track_info.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
@@ -22,6 +21,8 @@ import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
@@ -34,14 +35,17 @@ class DeckPanel extends ConsumerWidget {
 
   final int deckId;
   final String label;
-  final FaderAccent accent;
+  final DeckAccent accent;
 
   bool get _tempoOnRight => deckId.isEven;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
-    final accentColor = FaderColors.forAccent(accent).grip;
+    final accentColor = textColorStep(
+      deckTone(accent),
+      theme.colors.brightness,
+    );
     final loadedTitle = ref.watch(deckTrackTitleProvider(deckId));
     final hasTrack = ref.watch(deckHasTrackProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));

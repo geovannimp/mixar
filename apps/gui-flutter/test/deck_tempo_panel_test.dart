@@ -13,6 +13,7 @@ import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -45,7 +46,7 @@ void main() {
               width: 140,
               height: 520,
               child: DeckTempoPanel(
-                accent: FaderAccent.a,
+                accent: DeckAccent.a,
                 speed: speed,
                 tempoRange: tempoRange,
                 syncMode: syncMode,

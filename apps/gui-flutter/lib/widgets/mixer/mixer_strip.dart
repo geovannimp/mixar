@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/widgets/mixer/collapsible_section.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
@@ -120,13 +122,13 @@ class _MixerChannels extends ConsumerWidget {
         for (final deckId in const [0, 1])
           _EqColumn(
             deckId: deckId,
-            accent: faderAccentForDeck(deckId)!,
+            accent: deckAccentFor(deckId)!,
             enabled: enabled,
           ),
         for (final deckId in const [0, 1])
           _VolumeColumn(
             deckId: deckId,
-            accent: faderAccentForDeck(deckId)!,
+            accent: deckAccentFor(deckId)!,
             enabled: enabled,
           ),
         if (showMeters)
@@ -134,13 +136,13 @@ class _MixerChannels extends ConsumerWidget {
         for (final deckId in const [2, 3])
           _VolumeColumn(
             deckId: deckId,
-            accent: faderAccentForDeck(deckId)!,
+            accent: deckAccentFor(deckId)!,
             enabled: enabled,
           ),
         for (final deckId in const [2, 3])
           _EqColumn(
             deckId: deckId,
-            accent: faderAccentForDeck(deckId)!,
+            accent: deckAccentFor(deckId)!,
             enabled: enabled,
           ),
       ],
@@ -195,9 +197,10 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
     final enabled = ref.watch(engineRunningProvider);
     final theme = context.theme;
     final label = side == CrossfaderAssign.a ? 'A' : 'B';
-    final color = side == CrossfaderAssign.a
-        ? FaderColors.a.grip
-        : FaderColors.b.grip;
+    final color = textColorStep(
+      deckTone(side == CrossfaderAssign.a ? DeckAccent.a : DeckAccent.b),
+      theme.colors.brightness,
+    );
     return MixarMenuAnchor(
       enabled: enabled,
       minWidth: 160,
@@ -254,6 +257,10 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
                             .crossfaderAssign ==
                         side;
                     final deckLabel = String.fromCharCode(65 + deckId);
+                    final deckInk = textColorStep(
+                      deckTone(deckAccentFor(deckId)!),
+                      context.theme.colors.brightness,
+                    );
                     return Semantics(
                       label: 'Deck $deckLabel',
                       checked: selected,
@@ -266,11 +273,7 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
                               Expanded(
                                 child: Text(
                                   'Deck $deckLabel',
-                                  style: TextStyle(
-                                    color: FaderColors.forAccent(
-                                      faderAccentForDeck(deckId)!,
-                                    ).grip,
-                                  ),
+                                  style: TextStyle(color: deckInk),
                                 ),
                               ),
                               if (selected)
@@ -329,12 +332,15 @@ class _EqColumn extends ConsumerWidget {
   });
 
   final int deckId;
-  final FaderAccent accent;
+  final DeckAccent accent;
   final bool enabled;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accentColor = FaderColors.forAccent(accent).grip;
+    final accentColor = textColorStep(
+      deckTone(accent),
+      context.theme.colors.brightness,
+    );
     final ch = ref.watch(deckMixerChannelProvider(deckId));
 
     Widget knob(
@@ -393,12 +399,15 @@ class _VolumeColumn extends ConsumerWidget {
   });
 
   final int deckId;
-  final FaderAccent accent;
+  final DeckAccent accent;
   final bool enabled;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accentColor = FaderColors.forAccent(accent).grip;
+    final accentColor = textColorStep(
+      deckTone(accent),
+      context.theme.colors.brightness,
+    );
     final ch = ref.watch(deckMixerChannelProvider(deckId));
 
     return Column(

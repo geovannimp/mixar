@@ -4,11 +4,12 @@ import 'dart:ui';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
@@ -383,10 +384,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                         widget.label.toUpperCase(),
                         style: theme.typography.display.xs.copyWith(
                           fontFamily: MixarFonts.spaceGrotesk,
-                          color: FaderColors.forAccent(
-                            faderAccentForDeck(widget.deckId) ??
-                                FaderAccent.neutral,
-                          ).grip.withValues(alpha: 0.55),
+                          color: textColorStep(
+                            deckTone(
+                              deckAccentFor(widget.deckId) ??
+                                  DeckAccent.neutral,
+                            ),
+                            theme.colors.brightness,
+                          ).withValues(alpha: 0.55),
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.6,
                           height: 1,
