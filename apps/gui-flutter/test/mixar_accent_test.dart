@@ -121,22 +121,16 @@ void main() {
   test('deck ink clears AA on both plates', () {
     for (final accent in DeckAccent.values) {
       final tone = deckTone(accent);
-      expect(
-        _contrast(
-          textColorStep(tone, Brightness.light),
-          MixarColors.light.background,
-        ),
-        greaterThanOrEqualTo(4.5),
-        reason: '$accent ink on warm bone',
-      );
-      expect(
-        _contrast(
-          textColorStep(tone, Brightness.dark),
-          MixarColors.dark.background,
-        ),
-        greaterThanOrEqualTo(4.5),
-        reason: '$accent ink on the dark plate',
-      );
+      for (final brightness in Brightness.values) {
+        final background = brightness == Brightness.light
+            ? MixarColors.light.background
+            : MixarColors.dark.background;
+        expect(
+          _contrast(textColorStep(tone, brightness), background),
+          greaterThanOrEqualTo(4.5),
+          reason: '$accent ink on the ${brightness.name} plate',
+        );
+      }
     }
   });
 
