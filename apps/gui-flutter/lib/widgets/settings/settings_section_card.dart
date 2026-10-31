@@ -7,6 +7,26 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 /// breathing room kept below a revealed body.
 const _cardInset = 16.0;
 
+/// Horizontal room the collapsing body keeps outside its own box.
+///
+/// Fields paint their focus ring outside their bounds (shad puts the ring 4 px
+/// out and strokes it 2 px wide), and the card only has to cut the body's
+/// height. Without the bleed the ring's left and right strokes fall outside the
+/// clip and the focused field reads as a pair of stray top and bottom lines.
+const _ringBleed = 8.0;
+
+/// Cuts a collapsing body's height while leaving [_ringBleed] either side.
+class _BodyClip extends CustomClipper<Rect> {
+  const new();
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(-_ringBleed, 0, size.width + _ringBleed, size.height);
+
+  @override
+  bool shouldReclip(covariant _BodyClip oldClipper) => false;
+}
+
 /// Settings card body: required title + subtitle above optional [child].
 ///
 /// Pass [trailing] for header actions (e.g. Update All, enable toggles). Omit
@@ -269,9 +289,14 @@ class _CollapsibleCardBodyState extends State<_CollapsibleCardBody>
   Widget build(BuildContext context) {
     final body = _body;
     return ClipRect(
-      child: SizeTransition(
-        sizeFactor: _curve,
-        alignment: Alignment.topCenter,
+      clipper: const _BodyClip(),
+      child: AnimatedBuilder(
+        animation: _curve,
+        builder: (context, child) => Align(
+          alignment: Alignment.topCenter,
+          heightFactor: _curve.value,
+          child: child,
+        ),
         child: FadeTransition(
           opacity: _curve,
           child: body == null
