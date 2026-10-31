@@ -36,7 +36,7 @@
         },
         "accent-hover": {
           "$type": "color",
-          "$value": "{color.teal.800}"
+          "$value": "{semantic.color.light.primaryHover}"
         },
         "accent-dim": {
           "$type": "color",
@@ -116,7 +116,7 @@
         },
         "accent-hover": {
           "$type": "color",
-          "$value": "{color.teal.300}"
+          "$value": "{semantic.color.dark.primaryHover}"
         },
         "accent-dim": {
           "$type": "color",

@@ -41,6 +41,11 @@
           "$description": "Website `--accent` / app `accent`: same teal ladder as `primary`.",
           "$value": "{color.teal.700}"
         },
+        "primaryHover": {
+          "$type": "color",
+          "$description": "Hover/press fill for primary buttons and links: one rung darker than `primary` on warm bone (lightening a dark fill washes the white label out).",
+          "$value": "{color.teal.800}"
+        },
         "destructive": {
           "$type": "color",
           "$value": "#e7000b"
@@ -132,13 +137,18 @@
           "$type": "color",
           "$value": "{color.teal.400}"
         },
+        "primaryHover": {
+          "$type": "color",
+          "$value": "{color.teal.300}"
+        },
         "destructive": {
           "$type": "color",
           "$value": "#ff6467"
         },
         "destructiveForeground": {
           "$type": "color",
-          "$value": "{color.zinc.50}"
+          "$description": "Near-black on the light-red dark fill: zinc-50 measured 2.77:1 there, zinc-950 reads 6.89:1.",
+          "$value": "{color.zinc.950}"
         },
         "card": {
           "$type": "color",

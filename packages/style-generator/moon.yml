@@ -8,8 +8,11 @@ fileGroups:
   generators:
     - "*.mjs"
     - "tsconfig.json"
+    - "package.json"
   tokens:
     - "/tokens/**/*"
+  runtime:
+    - "/package-lock.json"
 
 tasks:
   # Writes the three generated files. No moon cache: regeneration is sub-second
@@ -20,6 +23,7 @@ tasks:
     inputs:
       - "@group(generators)"
       - "@group(tokens)"
+      - "@group(runtime)"
     outputs:
       - "/apps/gui-flutter/lib/core/theme/mixar_palette.dart"
       - "/apps/gui-flutter/lib/core/theme/mixar_colors.dart"
@@ -35,5 +39,6 @@ tasks:
     inputs:
       - "@group(generators)"
       - "@group(tokens)"
+      - "@group(runtime)"
     options:
       cache: false

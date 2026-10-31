@@ -162,7 +162,7 @@ step for step: page, riser, panel.
 - **Floor** (#efeee9 light / #09090b dark): Page background.
 - **Riser** (#e6e3dc light / #121216 dark): Alternating section bands (`bg-bg-elevated`), inputs, secondary chips.
 - **Panel** (#faf9f6 light / #18181c dark): Cards, theme toggle, popovers. Lightest surface in the light theme — never pure white, and 9 luminance points above the floor so a panel reads as a plane.
-- **Hairline** (#d6d2c9 light · zinc-800 #27272a dark, solid on both): Borders on cards, header scroll state, inputs-at-rest. The website used rgba white 8% in dark, which composites to #2a2a2e over the card — a 2/255 delta nobody can see, so both surfaces name the solid step.
+- **Hairline** (#d6d2c9 light · zinc-800 #27272a dark, solid on both): Borders on cards, header scroll state, inputs-at-rest. The website used rgba white 8% in dark, which composites to #2a2a2e over the card — 3/3/4 channel values apart, invisible, so both surfaces name the solid step.
 
 ### App-specific (Flutter / MixarTheme)
 
@@ -323,7 +323,7 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 - **Do** use semantic CSS tokens (`bg`, `fg`, `accent`, `deck-a`, `deck-b`) on the website — never hardcode zinc/teal one-offs in components.
 - **Do** keep one primary teal CTA per marketing section; secondary actions use ghost/secondary button variant.
 - **Do** mark unreleased platforms with reduced opacity and "On roadmap" tooltip — never full accent styling.
-- **Do** read colors from `context.theme` in Flutter. Deck identity comes from `deckTone(accent)` (`core/theme/deck_accent.dart`), which returns the whole 11-step tone; pick the rung at the call site — `textColorStep(tone, brightness)` for text, badges, knob arcs and the fader grip (400 dark / 600 light), `tone.s900`/`tone.s200` for a lane tint. The fader's tint pair is private to `fader_slider.dart`.
+- **Do** read colors from `context.theme` in Flutter. Shared themed colours are generated (see Token pipeline); the `stem-*` hexes in the front matter are codec metadata and stay hand-authored. Deck identity comes from `deckTone(accent)` (`core/theme/deck_accent.dart`), which returns the whole 11-step tone; pick the rung at the call site — `textColorStep(tone, brightness)` for text, badges and knob arcs (400 dark / 800 light — the 600 rungs of sky and amber fail AA on bone), `primaryHover` for the fader grip and primary hover, `tone.s900`/`tone.s200` for a lane tint. The fader's tint pair is private to `fader_slider.dart`.
 - **Do** respect reduced motion for scroll reveals and hero animation.
 
 ### Don't:

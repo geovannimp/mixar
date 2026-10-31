@@ -35,11 +35,12 @@ class MixarColorScale {
 }
 
 /// Text and control ink for a tone on this brightness: the 400 rung on the
-/// dark plate, the 600 rung on warm bone (DESIGN.md deck identity), so a deck's
-/// label, badge, knob arc and fader grip can never drift apart. Bright fills and
-/// deep tints stay a call-site choice — this is only the reading step.
+/// dark plate, the 800 rung on warm bone. Not the identity 600: on bone-100
+/// sky-600 measures 3.53:1 and amber-600 2.74:1, so a label in a deck's brighter
+/// rung fails AA — ink is deliberately a step darker than the grip it echoes.
+/// Bright fills and deep tints stay a call-site choice.
 Color textColorStep(MixarColorScale color, Brightness brightness) =>
-    brightness == Brightness.dark ? color.s400 : color.s600;
+    brightness == Brightness.dark ? color.s400 : color.s800;
 
 /// Accent palettes a user can pick in Settings → UI → Chrome. Teal is the
 /// brand default (website `--accent` family); the rest are Tailwind ladders

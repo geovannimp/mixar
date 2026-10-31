@@ -149,11 +149,11 @@ panic = "abort"
 
 ## Design tokens
 
-Colours are authored once, in DTCG JSON under `tokens/` — `primitives.json` (the ten Tailwind-aligned ladders), `semantic.json` (light/dark roles shared by app and website, including the five user-selectable accent palettes) and `web.json` (website aliases and web-only roles). [`packages/style-generator/`](packages/style-generator) turns them into three generated files; edit the JSON, never the output:
+Colours are authored once, in DTCG JSON under `tokens/` — `primitives.json` (the ten Tailwind-aligned ladders the five selectable accent palettes are cut from), `semantic.json` (light/dark roles shared by app and website) and `web.json` (website aliases and web-only roles). [`packages/style-generator/`](packages/style-generator) turns them into three generated files; edit the JSON, never the output:
 
 | Generated | Emitted by | Read by |
 | --- | --- | --- |
-| `apps/gui-flutter/lib/core/theme/mixar_palette.dart` | `packages/style-generator/dart.mjs` | app widgets, `MixarAccentScale` |
+| `apps/gui-flutter/lib/core/theme/mixar_palette.dart` | `packages/style-generator/dart.mjs` | app widgets, `MixarAccentPalette` / `MixarColorScale` |
 | `apps/gui-flutter/lib/core/theme/mixar_colors.dart` | `packages/style-generator/dart.mjs` | `context.theme.colors` |
 | `apps/website/src/styles/tokens.css` | `packages/style-generator/css.mjs` | `global.css` (imported at the top) |
 

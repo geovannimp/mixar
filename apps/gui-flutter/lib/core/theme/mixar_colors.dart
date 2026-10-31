@@ -24,6 +24,7 @@ class MixarColors {
     required this.muted,
     required this.mutedForeground,
     required this.accent,
+    required this.primaryHover,
     required this.destructive,
     required this.destructiveForeground,
     required this.card,
@@ -55,6 +56,7 @@ class MixarColors {
     muted: MixarBone.s200,
     mutedForeground: MixarBone.s600,
     accent: MixarTeal.s700,
+    primaryHover: MixarTeal.s800,
     destructive: Color(0xFFE7000B),
     destructiveForeground: MixarBone.s50,
     card: MixarBone.s50,
@@ -81,8 +83,9 @@ class MixarColors {
     muted: Color(0xFF121216),
     mutedForeground: MixarZinc.s400,
     accent: MixarTeal.s400,
+    primaryHover: MixarTeal.s300,
     destructive: Color(0xFFFF6467),
-    destructiveForeground: MixarZinc.s50,
+    destructiveForeground: MixarZinc.s950,
     card: Color(0xFF18181C),
     waveformBackground: Color(0xFF050508),
     border: MixarZinc.s800,
@@ -111,6 +114,11 @@ class MixarColors {
 
   /// Website `--accent` / app `accent`: same teal ladder as `primary`.
   final Color accent;
+
+  /// Hover/press fill for primary buttons and links: one rung darker than
+  /// `primary` on warm bone (lightening a dark fill washes the white label
+  /// out).
+  final Color primaryHover;
   final Color destructive;
   final Color destructiveForeground;
   final Color card;
@@ -145,13 +153,14 @@ class MixarColors {
       brightness: brightness,
       background: background,
       foreground: foreground,
-      primary: dark ? scale.s400 : scale.s600,
+      primary: dark ? scale.s400 : scale.s700,
       primaryForeground: primaryForeground,
       secondary: secondary,
       secondaryForeground: secondaryForeground,
       muted: muted,
       mutedForeground: mutedForeground,
       accent: dark ? scale.s400 : scale.s700,
+      primaryHover: dark ? scale.s300 : scale.s800,
       destructive: destructive,
       destructiveForeground: destructiveForeground,
       card: card,
