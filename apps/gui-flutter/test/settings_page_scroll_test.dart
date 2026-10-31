@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
@@ -37,7 +38,12 @@ void main() {
         ],
         child: mixarTestMaterialApp(
           theme: MixarThemeData.dark(),
-          home: Scaffold(body: SettingsPage(onClose: () {})),
+          home: Scaffold(
+            body: SettingsPage(
+              initialSection: SettingsSection.audio,
+              onClose: () {},
+            ),
+          ),
         ),
       ),
     );

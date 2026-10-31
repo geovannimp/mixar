@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
+import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
@@ -562,7 +563,10 @@ void main() {
           home: const SizedBox(
             width: 900,
             height: 520,
-            child: SettingsPage(scrollToPreviewBus: true),
+            child: SettingsPage(
+              initialSection: SettingsSection.audio,
+              scrollToPreviewBus: true,
+            ),
           ),
         ),
       ),
@@ -760,6 +764,20 @@ void main() {
     expect(find.text('DISPLAY MODE'), findsOneWidget);
     expect(find.text('RGB'), findsOneWidget);
     expect(find.text('Save'), findsNothing);
+  }, semanticsEnabled: false);
+
+  testWidgets('settings opens on the UI section', (tester) async {
+    await pumpShell(tester);
+    await tester.tap(find.byIcon(LucideIcons.settings));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SettingsPage), findsOneWidget);
+    expect(
+      find.text('Brightness and the accent color used by brand chrome.'),
+      findsOneWidget,
+      reason: 'the UI section is the default landing tab',
+    );
+    expect(find.text('SAMPLE RATE'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('settings page lists waveform and controllers', (tester) async {

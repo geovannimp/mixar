@@ -92,7 +92,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               ShellTab.settings => SettingsPage(
                 key: ValueKey(_settingsDeepLinkEpoch),
                 initialSection:
-                    _settingsDeepLink?.section ?? SettingsSection.audio,
+                    _settingsDeepLink?.section ?? SettingsSection.ui,
                 scrollToPreviewBus:
                     _settingsDeepLink?.scrollToPreviewBus ?? false,
                 onClose: () => setState(() {
