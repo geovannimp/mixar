@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/core/utils/performance_modes.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/utils/performance_modes.dart';
 import 'package:gui_flutter/widgets/mixer/deck_grid_host.dart';
 import 'package:gui_flutter/widgets/mixer/deck_grid_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_jog_host.dart';
@@ -8,7 +9,6 @@ import 'package:gui_flutter/widgets/mixer/deck_loop_host.dart';
 import 'package:gui_flutter/widgets/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_pads_host.dart';
 import 'package:gui_flutter/widgets/mixer/deck_pads_panel.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/jog_platter.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/m_tabs.dart';
@@ -21,7 +21,7 @@ class DeckPerformancePanel extends StatelessWidget {
     this.deckId,
     this.hasTrack = false,
     this.disabled = false,
-    this.accent = FaderAccent.a,
+    this.accent = DeckAccent.a,
     super.key,
   });
 
@@ -32,7 +32,7 @@ class DeckPerformancePanel extends StatelessWidget {
   /// track gate their own controls on [hasTrack]; pad mode stays selectable on
   /// an empty deck.
   final bool disabled;
-  final FaderAccent accent;
+  final DeckAccent accent;
 
   @override
   Widget build(BuildContext context) {

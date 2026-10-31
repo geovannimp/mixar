@@ -6,6 +6,7 @@ import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart'
     show defaultAppSettings;
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
@@ -45,7 +46,7 @@ void main() {
               width: 140,
               height: 520,
               child: DeckTempoPanel(
-                accent: FaderAccent.a,
+                accent: DeckAccent.a,
                 speed: speed,
                 tempoRange: tempoRange,
                 syncMode: syncMode,

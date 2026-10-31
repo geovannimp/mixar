@@ -118,7 +118,9 @@ void main() {
     final shell = tester.element(find.byType(AppShell));
     final colors = MixarTheme.of(shell).colors;
     expect(colors.brightness, Brightness.light);
-    expect(colors.primary, MixarTeal.s600);
+    // teal-700, not teal-600: the shared token has to pass AA on bone-100
+    // (4.71:1 as text, 5.47:1 white-on-fill).
+    expect(colors.primary, MixarTeal.s700);
   });
 
   testWidgets('saved violet palette re-tints the shell in dark mode', (

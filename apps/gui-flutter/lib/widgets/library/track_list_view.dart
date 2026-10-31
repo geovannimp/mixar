@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
@@ -13,7 +14,6 @@ import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_list_message.dart';
 import 'package:gui_flutter/widgets/library/library_list_surface.dart';
 import 'package:gui_flutter/widgets/library/track_list_row.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_body.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_group.dart';
@@ -576,6 +576,9 @@ Widget buildTrackListMenuBody({
     unawaited(loadPayloadToDeck(ref, deckId, payload));
   }
 
+  Color deckLabelColor(int deckId) =>
+      deckInk(deckAccentFor(deckId)!, context.theme.colors.brightness);
+
   const deckLabels = ['A', 'B', 'C', 'D'];
   return MixarMenuBody(
     groups: [
@@ -587,8 +590,7 @@ Widget buildTrackListMenuBody({
               for (var deckId = 0; deckId < deckCount; deckId++)
                 MixarMenuSegment(
                   label: deckLabels[deckId],
-                  color: FaderColors.forAccent(faderAccentForDeck(deckId)!)
-                      .grip,
+                  color: deckLabelColor(deckId),
                   semanticsLabel: 'Load to ${deckLabels[deckId]}',
                   onPress: engineRunning && payload != null
                       ? () {

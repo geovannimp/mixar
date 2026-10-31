@@ -1,3 +1,8 @@
+// GENERATED FILE — do not edit.
+//
+// Source: tokens/semantic.json. Regenerate with `npm run tokens:build`;
+// `npm run tokens:check` fails CI when this file and the tokens disagree.
+
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -19,6 +24,7 @@ class MixarColors {
     required this.muted,
     required this.mutedForeground,
     required this.accent,
+    required this.primaryHover,
     required this.destructive,
     required this.destructiveForeground,
     required this.card,
@@ -43,108 +49,97 @@ class MixarColors {
     brightness: Brightness.light,
     background: MixarBone.s100,
     foreground: MixarBone.s900,
-    // One teal ladder for brand primary + accent (website `--accent` family).
-    primary: MixarTeal.s600,
+    primary: MixarTeal.s700,
     primaryForeground: Color(0xFFFFFFFF),
     secondary: MixarBone.s200,
     secondaryForeground: MixarBone.s900,
     muted: MixarBone.s200,
     mutedForeground: MixarBone.s600,
     accent: MixarTeal.s700,
-    selection: MixarTeal.s100,
-    selectionForeground: Color(0xFF09090B),
-    primaryTint: MixarTeal.s50,
-    primaryDim: MixarTeal.s500,
-    accentTint: MixarTeal.s50,
-    cueTint: MixarAmber.s100,
-    // Dark amber over cream cueTint — s300 on s100 fails WCAG.
-    cueOn: MixarAmber.s700,
+    primaryHover: MixarTeal.s800,
     destructive: Color(0xFFE7000B),
     destructiveForeground: MixarBone.s50,
     card: MixarBone.s50,
     waveformBackground: MixarBone.s200,
     border: MixarBone.s300,
+    selection: MixarTeal.s100,
+    selectionForeground: MixarZinc.s950,
+    primaryTint: MixarTeal.s50,
+    primaryDim: MixarTeal.s500,
+    accentTint: MixarTeal.s50,
+    cueTint: MixarAmber.s100,
+    cueOn: MixarAmber.s700,
   );
 
-  /// Desktop dark — values from website `global.css` dark theme.
+  /// Desktop dark — booth chrome, mirrored by the website dark theme.
   static const dark = MixarColors(
     brightness: Brightness.dark,
-    background: Color(0xFF09090B),
-    foreground: Color(0xFFF4F4F5),
+    background: MixarZinc.s950,
+    foreground: MixarZinc.s100,
     primary: MixarTeal.s400,
-    primaryForeground: Color(0xFF09090B),
+    primaryForeground: MixarZinc.s950,
     secondary: Color(0xFF121216),
-    secondaryForeground: Color(0xFFFAFAFA),
+    secondaryForeground: MixarZinc.s50,
     muted: Color(0xFF121216),
-    mutedForeground: Color(0xFFA1A1AA),
+    mutedForeground: MixarZinc.s400,
     accent: MixarTeal.s400,
-    // Soft solid selection — teal-950. Same deeper fill for tabs, library
-    // rows, and menus so selected chrome stays quiet against the booth.
+    primaryHover: MixarTeal.s300,
+    destructive: Color(0xFFFF6467),
+    destructiveForeground: MixarZinc.s950,
+    card: Color(0xFF18181C),
+    waveformBackground: Color(0xFF050508),
+    border: MixarZinc.s800,
     selection: MixarTeal.s950,
-    selectionForeground: Color(0xFFF4F4F5),
+    selectionForeground: MixarZinc.s100,
     primaryTint: MixarTeal.s950,
-    // Calmer mid teal in dark — s500 reads too neon on booth chrome.
     primaryDim: MixarTeal.s600,
     accentTint: MixarTeal.s950,
     cueTint: MixarAmber.s950,
     cueOn: MixarAmber.s300,
-    destructive: Color(0xFFFF6467),
-    destructiveForeground: Color(0xFFFAFAFA),
-    card: Color(0xFF18181C),
-    waveformBackground: Color(0xFF050508),
-    border: MixarZinc.s800,
   );
 
   final Brightness brightness;
   final Color background;
   final Color foreground;
+
+  /// Fill + text + link. Teal-600 measured 3.22:1 on bone-100 as text and
+  /// 3.74:1 white-on-fill — both fail WCAG AA; teal-700 measures 4.71:1 and
+  /// 5.47:1. One step darker is the accessibility floor, not a taste call.
   final Color primary;
   final Color primaryForeground;
   final Color secondary;
   final Color secondaryForeground;
   final Color muted;
   final Color mutedForeground;
+
+  /// Website `--accent` / app `accent`: same teal ladder as `primary`.
   final Color accent;
+
+  /// Hover/press fill for primary buttons and links: one rung darker than
+  /// `primary` on warm bone (lightening a dark fill washes the white label
+  /// out).
+  final Color primaryHover;
   final Color destructive;
   final Color destructiveForeground;
   final Color card;
 
-  /// Waveform lane fill the spectral bars are drawn over.
-  ///
-  /// Near-black in dark (bars read as glowing on it), a recessed neutral in
-  /// light. Baked into recorded strip pictures, so it travels with the strip
-  /// cache key and re-records when the theme flips.
+  /// Waveform lane fill the spectral bars are drawn over. Baked into recorded
+  /// strip pictures, so it travels with the strip cache key and re-records when
+  /// the theme flips.
   final Color waveformBackground;
-
-  /// Hairline colour — a solid palette step, never an alpha wash.
-  ///
-  /// Translucent borders change shade with whatever sits behind them, so two
-  /// lines that should match (panel frame, header divider) drift apart. Pinning
-  /// the step keeps every border the same colour on every surface.
   final Color border;
 
-  /// Soft selected-row / menu-option fill — solid teal step, surface-stable.
+  /// Soft solid selection — same deeper fill for tabs, library rows, and menus
+  /// so selected chrome stays quiet.
   final Color selection;
-
-  /// Text/icon colour drawn over [selection].
   final Color selectionForeground;
-
-  /// Soft teal fill (mapping "on", Q wash) — same step as [selection] in dark.
   final Color primaryTint;
-
-  /// Mid teal for calmer accents (knob arcs) without raw [primary] neon.
   final Color primaryDim;
-
-  /// Softest teal fill (Play while playing).
   final Color accentTint;
-
-  /// Softest amber fill (Cue while auditioning).
   final Color cueTint;
 
-  /// Amber label/border over cue chrome — darker in light for contrast on
-  /// [cueTint], brighter in dark for outline transport.
+  /// Dark amber over the cream cueTint — s300 on s100 fails WCAG.
   final Color cueOn;
-
   final double hoverLighten;
   final double hoverDarken;
   final double disabledOpacity;
@@ -152,19 +147,20 @@ class MixarColors {
   /// Accent-seeded copy: same neutrals, cue amber and hairlines, brand tokens
   /// re-read from [scale]. Shade slots are fixed per brightness, so every
   /// palette keeps the contrast the teal default was tuned for.
-  MixarColors withAccentScale(MixarAccentScale scale) {
+  MixarColors withAccentScale(MixarColorScale scale) {
     final dark = brightness == Brightness.dark;
     return MixarColors(
       brightness: brightness,
       background: background,
       foreground: foreground,
-      primary: dark ? scale.s400 : scale.s600,
+      primary: dark ? scale.s400 : scale.s700,
       primaryForeground: primaryForeground,
       secondary: secondary,
       secondaryForeground: secondaryForeground,
       muted: muted,
       mutedForeground: mutedForeground,
       accent: dark ? scale.s400 : scale.s700,
+      primaryHover: dark ? scale.s300 : scale.s800,
       destructive: destructive,
       destructiveForeground: destructiveForeground,
       card: card,

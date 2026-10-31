@@ -69,9 +69,11 @@ MixarButtonLook resolveMixarButtonLook({
     Color disabledFg,
   ) = switch (variant) {
     MixarButtonVariant.primary => (
+      // Hover reads `primaryHover`, not `colors.hover(primary)`: lightening a
+      // dark light-theme fill washes the white label down to 2.95:1.
       _fill(
         colors.primary,
-        colors.hover(colors.primary),
+        colors.primaryHover,
         colors.disable(colors.primary),
         state,
       ),

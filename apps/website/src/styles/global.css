@@ -3,39 +3,24 @@
 @import "@fontsource-variable/space-grotesk";
 @import "@fontsource-variable/noto-sans-mono";
 @import "./view-transitions.css";
+@import "./tokens.css";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root,
 [data-theme="light"] {
   color-scheme: light;
-  /* Warm bone paper — matched to the app's MixarBone ladder. No surface is
-     pure white; the card sits ~9 luminance points above the page. */
-  --bg: #efeee9;
-  --bg-elevated: #e6e3dc;
-  --bg-card: #faf9f6;
-  --border: #d6d2c9;
-  --border-hover: #b8b3a7;
-  --text: #1c1917;
-  --text-muted: #57534e;
-  /* Waveform lane inside the stems demo: recessed chip, dark playhead. */
-  --wave-bg: var(--bg-elevated);
+  /* Colour tokens come from tokens.css (generated from tokens/web.json).
+     Waveform lane inside the stems demo: recessed chip, dark playhead. */
   --wave-playhead: var(--text);
   --wave-guide-ink: var(--text);
   --wave-guide-alpha: 0.3;
-  --accent: #0f766e;
-  --accent-hover: #115e59;
-  --accent-dim: rgba(15, 118, 110, 0.1);
-  --deck-a: #0284c7; /* sky-600 — Deck A blue */
-  --deck-b: #e11d48; /* rose-600 — Deck B */
-  --warn: #fbbf24;
   /* NI Stems slot colors written into the .stem.mp4 STEM atom (fixed metadata,
      not themed). Keep in sync with stem_atom.rs default_ni(). */
   --stem-drums: #009e73;
   --stem-bass: #d55e00;
   --stem-other: #cc79a7;
   --stem-vocals: #56b4e9;
-  --header-bg: rgba(239, 238, 233, 0.9);
   --screenshot-shadow: 0 24px 64px rgba(0, 0, 0, 0.12);
   --hero-glow: radial-gradient(
     ellipse 80% 60% at 50% 40%,
@@ -46,23 +31,9 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #09090b;
-  --bg-elevated: #121216;
-  --bg-card: #18181c;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(161, 161, 170, 0.35);
-  --text: #f4f4f5;
-  --text-muted: #a1a1aa;
-  --wave-bg: #050508;
-  --wave-playhead: #f4f4f5;
+  --wave-playhead: var(--text);
   --wave-guide-ink: var(--text);
   --wave-guide-alpha: 0.28;
-  --accent: #2dd4bf;
-  --accent-hover: #5eead4;
-  --accent-dim: rgba(45, 212, 191, 0.12);
-  --deck-a: #38bdf8; /* sky-400 — Deck A blue */
-  --deck-b: #fb7185; /* rose-400 — Deck B */
-  --header-bg: rgba(9, 9, 11, 0.85);
   --screenshot-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03), 0 24px 64px rgba(0, 0, 0, 0.5);
   --hero-glow: radial-gradient(
@@ -594,18 +565,10 @@
    it pops against the bone page without a white flash. Single surface
    tone — the card matches the band so there is no second green stripe;
    separation comes from the alpha hairline border, not a lighter fill. */
-[data-theme="dark"] .band-teal {
-  --bg: #042f2e; /* teal-950 */
-  --bg-elevated: #042f2e;
-  --bg-card: #042f2e; /* same as band — one teal tone, border does the lift */
-  --border: rgba(45, 212, 191, 0.18);
-  --border-hover: rgba(45, 212, 191, 0.34);
-}
-
-[data-theme="light"] .band-teal {
-  --bg: #f0fdfa; /* teal-50 */
-  --bg-elevated: #f0fdfa;
-  --bg-card: #f0fdfa; /* same as band — one teal tone */
-  --border: rgba(13, 148, 136, 0.18);
-  --border-hover: rgba(13, 148, 136, 0.34);
+[data-theme] .band-teal {
+  --bg: var(--band-bg);
+  --bg-elevated: var(--band-bg);
+  --bg-card: var(--band-bg); /* same as band — one teal tone, border does the lift */
+  --border: var(--band-border);
+  --border-hover: var(--band-border-hover);
 }

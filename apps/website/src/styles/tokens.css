@@ -1,0 +1,46 @@
+/* GENERATED FILE — do not edit. Source: tokens/web.json.
+ * Regenerate with `npm run tokens:build`; `npm run tokens:check` fails CI
+ * when this file and the tokens disagree. */
+
+:root,
+[data-theme="light"] {
+  --bg: #efeee9;
+  --bg-elevated: #e6e3dc;
+  --bg-card: #faf9f6;
+  --border: #d6d2c9;
+  --border-hover: #b8b3a7;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --accent: #0f766e;
+  --accent-hover: #115e59;
+  --accent-dim: #0f766e1a; /* Hover wash. Web-only role: the app expresses the same idea with solid `primaryTint`/`selection` steps, so the two stay separate tokens. */
+  --deck-a: #0284c7; /* sky-600 — Deck A blue. */
+  --deck-b: #e11d48; /* rose-600 — Deck B. */
+  --warn: #fbbf24;
+  --header-bg: #efeee9e6; /* Sticky header scrim: page paper at 90%. */
+  --band-bg: #f0fdfa; /* Teal contrast band surface (`.band-teal`). */
+  --band-border: #0d94882e;
+  --band-border-hover: #0d948857;
+  --wave-bg: #e6e3dc; /* Waveform lane inside the stems demo — the app's `waveformBackground`. */
+}
+
+[data-theme="dark"] {
+  --bg: #09090b;
+  --bg-elevated: #121216;
+  --bg-card: #18181c;
+  --border: #27272a;
+  --border-hover: #a1a1aa59;
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-dim: #2dd4bf1f;
+  --deck-a: #38bdf8; /* sky-400 — Deck A blue. */
+  --deck-b: #fb7185; /* rose-400 — Deck B. */
+  --warn: #fbbf24;
+  --header-bg: #09090bd9; /* Sticky header scrim: page ink at 85%. */
+  --band-bg: #042f2e; /* Teal contrast band surface (`.band-teal`). */
+  --band-border: #2dd4bf2e;
+  --band-border-hover: #2dd4bf57;
+  --wave-bg: #050508; /* Waveform lane inside the stems demo — the app's `waveformBackground`. */
+}

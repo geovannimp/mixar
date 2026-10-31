@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/jog_ticks.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Test-only: read [_JogPlatterState.debugRotationDeg].
@@ -48,7 +48,7 @@ class JogPlatter extends StatefulWidget {
     super.key,
   });
 
-  final FaderAccent accent;
+  final DeckAccent accent;
   final bool playing;
   final double? bpm;
   final bool hasTrack;
@@ -209,7 +209,7 @@ class _JogPlatterState extends State<JogPlatter> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final colors = FaderColors.forAccent(widget.accent);
+    final accent = deckInk(widget.accent, theme.colors.brightness);
     final progress =
         widget.hasTrack && widget.durationMs != null && widget.durationMs! > 0
         ? (widget.positionMs / widget.durationMs!).clamp(0.0, 1.0)
@@ -238,7 +238,7 @@ class _JogPlatterState extends State<JogPlatter> {
                   painter: _JogPainter(
                     border: theme.colors.border,
                     fill: theme.colors.background.withValues(alpha: 0.9),
-                    accent: colors.grip,
+                    accent: accent,
                     progress: progress,
                     rotationDeg: _rotationDeg,
                     hasTrack: widget.hasTrack,

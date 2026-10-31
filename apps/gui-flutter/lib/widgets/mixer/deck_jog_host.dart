@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
-import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
-import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:gui_flutter/widgets/mixer/jog_platter.dart';
+import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
 /// Interactive jog platter — `jog_touch` / `jog_turn` (Tauri `JogPlatter`).
 class DeckJogHost extends ConsumerWidget {
@@ -19,7 +19,7 @@ class DeckJogHost extends ConsumerWidget {
 
   final int deckId;
   final bool hasTrack;
-  final FaderAccent accent;
+  final DeckAccent accent;
   final bool disabled;
 
   @override

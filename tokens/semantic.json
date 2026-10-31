@@ -1,0 +1,199 @@
+{
+  "semantic": {
+    "color": {
+      "light": {
+        "$description": "Desktop + website light — warm bone paper. Surfaces climb the bone ladder (`background` s100, `card` s50), so no panel is pure white and raised planes read apart from the page.",
+        "background": {
+          "$type": "color",
+          "$value": "{color.bone.100}"
+        },
+        "foreground": {
+          "$type": "color",
+          "$value": "{color.bone.900}"
+        },
+        "primary": {
+          "$type": "color",
+          "$description": "Fill + text + link. Teal-600 measured 3.22:1 on bone-100 as text and 3.74:1 white-on-fill — both fail WCAG AA; teal-700 measures 4.71:1 and 5.47:1. One step darker is the accessibility floor, not a taste call.",
+          "$value": "{color.teal.700}"
+        },
+        "primaryForeground": {
+          "$type": "color",
+          "$value": "#ffffff"
+        },
+        "secondary": {
+          "$type": "color",
+          "$value": "{color.bone.200}"
+        },
+        "secondaryForeground": {
+          "$type": "color",
+          "$value": "{color.bone.900}"
+        },
+        "muted": {
+          "$type": "color",
+          "$value": "{color.bone.200}"
+        },
+        "mutedForeground": {
+          "$type": "color",
+          "$value": "{color.bone.600}"
+        },
+        "accent": {
+          "$type": "color",
+          "$description": "Website `--accent` / app `accent`: same teal ladder as `primary`.",
+          "$value": "{color.teal.700}"
+        },
+        "primaryHover": {
+          "$type": "color",
+          "$description": "Hover/press fill for primary buttons and links: one rung darker than `primary` on warm bone (lightening a dark fill washes the white label out).",
+          "$value": "{color.teal.800}"
+        },
+        "destructive": {
+          "$type": "color",
+          "$value": "#e7000b"
+        },
+        "destructiveForeground": {
+          "$type": "color",
+          "$value": "{color.bone.50}"
+        },
+        "card": {
+          "$type": "color",
+          "$value": "{color.bone.50}"
+        },
+        "waveformBackground": {
+          "$type": "color",
+          "$description": "Waveform lane fill the spectral bars are drawn over. Baked into recorded strip pictures, so it travels with the strip cache key and re-records when the theme flips.",
+          "$value": "{color.bone.200}"
+        },
+        "border": {
+          "$type": "color",
+          "$value": "{color.bone.300}"
+        },
+        "selection": {
+          "$type": "color",
+          "$description": "Soft solid selection — same deeper fill for tabs, library rows, and menus so selected chrome stays quiet.",
+          "$value": "{color.teal.100}"
+        },
+        "selectionForeground": {
+          "$type": "color",
+          "$value": "{color.zinc.950}"
+        },
+        "primaryTint": {
+          "$type": "color",
+          "$value": "{color.teal.50}"
+        },
+        "primaryDim": {
+          "$type": "color",
+          "$value": "{color.teal.500}"
+        },
+        "accentTint": {
+          "$type": "color",
+          "$value": "{color.teal.50}"
+        },
+        "cueTint": {
+          "$type": "color",
+          "$value": "{color.amber.100}"
+        },
+        "cueOn": {
+          "$type": "color",
+          "$description": "Dark amber over the cream cueTint — s300 on s100 fails WCAG.",
+          "$value": "{color.amber.700}"
+        }
+      },
+      "dark": {
+        "$description": "Desktop + website dark — booth chrome. Values mirror the website's dark theme.",
+        "background": {
+          "$type": "color",
+          "$value": "{color.zinc.950}"
+        },
+        "foreground": {
+          "$type": "color",
+          "$value": "{color.zinc.100}"
+        },
+        "primary": {
+          "$type": "color",
+          "$description": "Teal-400 on zinc-950 measures 10.69:1.",
+          "$value": "{color.teal.400}"
+        },
+        "primaryForeground": {
+          "$type": "color",
+          "$value": "{color.zinc.950}"
+        },
+        "secondary": {
+          "$type": "color",
+          "$value": "#121216"
+        },
+        "secondaryForeground": {
+          "$type": "color",
+          "$value": "{color.zinc.50}"
+        },
+        "muted": {
+          "$type": "color",
+          "$value": "#121216"
+        },
+        "mutedForeground": {
+          "$type": "color",
+          "$value": "{color.zinc.400}"
+        },
+        "accent": {
+          "$type": "color",
+          "$value": "{color.teal.400}"
+        },
+        "primaryHover": {
+          "$type": "color",
+          "$value": "{color.teal.300}"
+        },
+        "destructive": {
+          "$type": "color",
+          "$value": "#ff6467"
+        },
+        "destructiveForeground": {
+          "$type": "color",
+          "$description": "Near-black on the light-red dark fill: zinc-50 measured 2.77:1 there, zinc-950 reads 6.89:1.",
+          "$value": "{color.zinc.950}"
+        },
+        "card": {
+          "$type": "color",
+          "$value": "#18181c"
+        },
+        "waveformBackground": {
+          "$type": "color",
+          "$description": "Near-black so the spectral bars read as glowing on it.",
+          "$value": "#050508"
+        },
+        "border": {
+          "$type": "color",
+          "$description": "Solid zinc-800. The website used rgba(255,255,255,0.08), which composites to #2a2a2e over the card — a 2/255 delta nobody can see, so both surfaces name the solid step.",
+          "$value": "{color.zinc.800}"
+        },
+        "selection": {
+          "$type": "color",
+          "$value": "{color.teal.950}"
+        },
+        "selectionForeground": {
+          "$type": "color",
+          "$value": "{color.zinc.100}"
+        },
+        "primaryTint": {
+          "$type": "color",
+          "$value": "{color.teal.950}"
+        },
+        "primaryDim": {
+          "$type": "color",
+          "$description": "Calmer mid teal in dark — s500 reads too neon on booth chrome.",
+          "$value": "{color.teal.600}"
+        },
+        "accentTint": {
+          "$type": "color",
+          "$value": "{color.teal.950}"
+        },
+        "cueTint": {
+          "$type": "color",
+          "$value": "{color.amber.950}"
+        },
+        "cueOn": {
+          "$type": "color",
+          "$value": "{color.amber.300}"
+        }
+      }
+    }
+  }
+}

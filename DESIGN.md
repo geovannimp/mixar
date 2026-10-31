@@ -2,8 +2,8 @@
 name: Mixar
 description: Open-source DJ software — honest performance tools on warm bone and zinc neutrals with a teal live signal
 colors:
-  accent: "#0d9488"
-  accent-hover: "#0f766e"
+  accent: "#0f766e"
+  accent-hover: "#115e59"
   accent-tint: "#f0fdfa"
   teal-50: "#f0fdfa"
   teal-100: "#ccfbf1"
@@ -130,8 +130,8 @@ A neutral palette — warm bone light, zinc dark — with one confident teal acc
 
 ### Primary
 
-- **Live Teal** (#0d9488 / teal-600 light · #2dd4bf / teal-400 dark): Primary CTAs, app brand primary, section icons, accent bullets, links-in-context, booth live chrome (Q / drop-hover). The "go" color — one clear action per viewport when possible.
-- **Teal Depth** (#0f766e / teal-700 light · #5eead4 / teal-300 dark): Hover and pressed states on primary buttons.
+- **Live Teal** (#0f766e / teal-700 light · #2dd4bf / teal-400 dark): Primary CTAs, app brand primary, section icons, accent bullets, links-in-context, booth live chrome (Q / drop-hover). The "go" color — one clear action per viewport when possible. Teal-700 is the accessibility floor in light: teal-600 measured 3.22:1 on bone-100 as text and 3.74:1 white-on-fill, both below AA; teal-700 measures 4.71:1 and 5.47:1.
+- **Teal Depth** (#115e59 / teal-800 light · #5eead4 / teal-300 dark): Hover and pressed states on primary buttons.
 - **Teal Tint** (#f0fdfa–#ccfbf1 / teal-50–100 light · #042f2e / teal-950 dark): Soft solid fills (selection rows, Play while playing, selected tabs, mapping chips). Never invent this with alpha over the surface. There is no emerald / green brand ladder.
 
 ### Secondary
@@ -162,16 +162,30 @@ step for step: page, riser, panel.
 - **Floor** (#efeee9 light / #09090b dark): Page background.
 - **Riser** (#e6e3dc light / #121216 dark): Alternating section bands (`bg-bg-elevated`), inputs, secondary chips.
 - **Panel** (#faf9f6 light / #18181c dark): Cards, theme toggle, popovers. Lightest surface in the light theme — never pure white, and 9 luminance points above the floor so a panel reads as a plane.
-- **Hairline** (#d6d2c9 light solid / rgba white 8% dark): Borders on cards, header scroll state, inputs-at-rest.
+- **Hairline** (#d6d2c9 light · zinc-800 #27272a dark, solid on both): Borders on cards, header scroll state, inputs-at-rest. The website used rgba white 8% in dark, which composites to #2a2a2e over the card — 3/3/4 channel values apart, invisible, so both surfaces name the solid step.
 
 ### App-specific (Flutter / MixarTheme)
 
-- **MixarTheme semantic tokens** (`background`, `foreground`, `mutedForeground`, `border`, `primary`, `selection`, `primaryTint`, `accentTint`, `cueTint`): Base app chrome — do not override with raw hex in widgets; read from `context.theme.colors`. Solid scales live in `mixar_palette.dart` (teal / sky / rose / amber 50–950).
-- **Fader Deck A sky** (#38bdf8 grip): Vertical/horizontal fader accent for Deck A — matches website `--deck-a`.
-- **Fader Deck B rose** (#fb7185 grip): Fader accent for Deck B — matches website `--deck-b`.
-- **Fader Deck C amber** (#fbbf24 grip) and **Deck D violet** (#a78bfa grip): Distinct four-deck identities, shared across deck chrome, waveforms, mixer controls, history badges, and library load menus through `faderAccentForDeck`.
+- **MixarTheme semantic tokens** (`background`, `foreground`, `mutedForeground`, `border`, `primary`, `selection`, `primaryTint`, `accentTint`, `cueTint`, …): Base app chrome — do not override with raw hex in widgets; read from `context.theme.colors`. The solid scales (zinc / bone / teal / sky / rose / amber / blue / violet / orange / pink, every step) and the five user-selectable accent palettes are generated, see below.
+- **Fader Deck A sky** (grip sky-400 dark / sky-600 light; 6px lane tint sky-900 / sky-200): Vertical/horizontal fader accent for Deck A — the grip is the theme's deck identity, so it matches website `--deck-a` in that theme. The lane carries a deep/pale tint instead of a bright fill: a full-height fader is a soft bar, never a neon stripe.
+- **Fader Deck B rose** (grip rose-400 dark / rose-600 light; lane tint rose-900 / rose-200): Fader accent for Deck B — matches website `--deck-b` in that theme.
+- **Fader Deck C amber** (grip amber-400 / amber-600, lane amber-900 / amber-200) and **Deck D violet** (grip violet-400 / violet-600, lane violet-900 / violet-200): Distinct four-deck identities, shared across deck chrome, waveforms, mixer controls, history badges, and library load menus through `faderAccentForDeck`.
 - **Cue Amber** (#FCD34D / amber-300 · ring #D97706 / amber-600): Headphone cue / PFL active state.
 - **VU ladder:** teal → amber → red segments for level meters.
+
+### Token pipeline
+
+Every colour in this document is authored once, in `tokens/` (DTCG JSON), and generated from there:
+
+| Authored | Generated | Read by |
+| --- | --- | --- |
+| `tokens/primitives.json` — ten ladders, every step | `apps/gui-flutter/lib/core/theme/mixar_palette.dart` | app widgets, `MixarAccentScale` (Teal / Blue / Violet / Orange / Pink picker) |
+| `tokens/semantic.json` — light + dark roles | `apps/gui-flutter/lib/core/theme/mixar_colors.dart` | `context.theme.colors` |
+| `tokens/web.json` — website aliases and web-only roles | `apps/website/src/styles/tokens.css` | `global.css`, imported at the top |
+
+`npm run tokens:build` writes the three files; `npm run tokens:check` rebuilds and fails CI when the committed output and the tokens disagree. Edit the JSON, never the generated files — their headers say so.
+
+What stays authored by hand: `MixarColors.hover()` / `disable()` / `withAccentScale` behaviour, the website's `@theme inline` Tailwind bridge, `.band-teal`'s variable remap, gradients, `color-mix()` values, shadows, and the `--stem-*` hexes (owned by `crates/codec` so generated Stems match NI defaults). DTCG cannot express most of those, and duplicating them would recreate the drift this pipeline removes.
 
 ### Named Rules
 
@@ -309,7 +323,7 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 - **Do** use semantic CSS tokens (`bg`, `fg`, `accent`, `deck-a`, `deck-b`) on the website — never hardcode zinc/teal one-offs in components.
 - **Do** keep one primary teal CTA per marketing section; secondary actions use ghost/secondary button variant.
 - **Do** mark unreleased platforms with reduced opacity and "On roadmap" tooltip — never full accent styling.
-- **Do** read colors from `context.theme` in Flutter; use `FaderColors.forAccent` for deck faders.
+- **Do** read colors from `context.theme` in Flutter. Shared themed colours are generated (see Token pipeline); the `stem-*` hexes in the front matter are codec metadata and stay hand-authored. Deck identity comes from `deckTone(accent)` (`core/theme/deck_accent.dart`), which returns the whole 11-step tone; pick the rung at the call site — `textColorStep(tone, brightness)` for text, badges and knob arcs (400 dark / 800 light — the 600 rungs of sky and amber fail AA on bone), `primaryHover` for primary button hover. A fader picks its own rungs from the same tone — grip `s500` dark / `s300` light, lane tint `s900` / `s300` — and keeps that pair private to `fader_slider.dart`, so a control can tune its steps without moving the labels.
 - **Do** respect reduced motion for scroll reveals and hero animation.
 
 ### Don't:

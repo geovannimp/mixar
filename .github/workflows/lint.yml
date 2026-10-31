@@ -48,6 +48,9 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Check design tokens are generated
+        run: npx moon run style-generator:check
+
       - name: Check formatting
         run: npm run format:check
 
