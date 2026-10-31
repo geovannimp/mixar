@@ -197,8 +197,8 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
     final enabled = ref.watch(engineRunningProvider);
     final theme = context.theme;
     final label = side == CrossfaderAssign.a ? 'A' : 'B';
-    final color = textColorStep(
-      deckTone(side == CrossfaderAssign.a ? DeckAccent.a : DeckAccent.b),
+    final color = deckInk(
+      side == CrossfaderAssign.a ? DeckAccent.a : DeckAccent.b,
       theme.colors.brightness,
     );
     return MixarMenuAnchor(
@@ -257,8 +257,8 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
                             .crossfaderAssign ==
                         side;
                     final deckLabel = String.fromCharCode(65 + deckId);
-                    final deckInk = textColorStep(
-                      deckTone(deckAccentFor(deckId)!),
+                    final deckInkColor = deckInk(
+                      deckAccentFor(deckId)!,
                       context.theme.colors.brightness,
                     );
                     return Semantics(
@@ -273,7 +273,7 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
                               Expanded(
                                 child: Text(
                                   'Deck $deckLabel',
-                                  style: TextStyle(color: deckInk),
+                                  style: TextStyle(color: deckInkColor),
                                 ),
                               ),
                               if (selected)
@@ -337,10 +337,7 @@ class _EqColumn extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accentColor = textColorStep(
-      deckTone(accent),
-      context.theme.colors.brightness,
-    );
+    final accentColor = deckInk(accent, context.theme.colors.brightness);
     final ch = ref.watch(deckMixerChannelProvider(deckId));
 
     Widget knob(
@@ -404,10 +401,7 @@ class _VolumeColumn extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accentColor = textColorStep(
-      deckTone(accent),
-      context.theme.colors.brightness,
-    );
+    final accentColor = deckInk(accent, context.theme.colors.brightness);
     final ch = ref.watch(deckMixerChannelProvider(deckId));
 
     return Column(

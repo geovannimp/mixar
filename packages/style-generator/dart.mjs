@@ -8,6 +8,7 @@
 
 import { readFileSync } from 'node:fs';
 import { groupTokens } from './dictionary.mjs';
+import { at, PRIMITIVES, SEMANTIC } from './paths.mjs';
 
 /** @typedef {import('style-dictionary/types').FormatFnArguments} FormatFnArguments */
 /** @typedef {import('style-dictionary/types').TransformedToken} TransformedToken */
@@ -147,7 +148,7 @@ export const dartPalette = ({ dictionary }) => {
   });
 
   return [
-    generatedHeader('tokens/primitives.json'),
+    generatedHeader(PRIMITIVES),
     '',
     "import 'package:flutter/painting.dart';",
     '',
@@ -210,7 +211,7 @@ export const dartColors = ({ dictionary }) => {
   ];
 
   return [
-    generatedHeader('tokens/semantic.json'),
+    generatedHeader(SEMANTIC),
     '',
     "import 'dart:ui';",
     '',

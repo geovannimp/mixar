@@ -577,10 +577,8 @@ Widget buildTrackListMenuBody({
     unawaited(loadPayloadToDeck(ref, deckId, payload));
   }
 
-  Color deckLabelColor(int deckId) => textColorStep(
-    deckTone(deckAccentFor(deckId)!),
-    context.theme.colors.brightness,
-  );
+  Color deckLabelColor(int deckId) =>
+      deckInk(deckAccentFor(deckId)!, context.theme.colors.brightness);
 
   const deckLabels = ['A', 'B', 'C', 'D'];
   return MixarMenuBody(

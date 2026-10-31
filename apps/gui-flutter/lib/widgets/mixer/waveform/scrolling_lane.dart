@@ -384,11 +384,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                         widget.label.toUpperCase(),
                         style: theme.typography.display.xs.copyWith(
                           fontFamily: MixarFonts.spaceGrotesk,
-                          color: textColorStep(
-                            deckTone(
-                              deckAccentFor(widget.deckId) ??
-                                  DeckAccent.neutral,
-                            ),
+                          color: deckInk(
+                            deckAccentFor(widget.deckId) ?? DeckAccent.neutral,
                             theme.colors.brightness,
                           ).withValues(alpha: 0.55),
                           fontWeight: FontWeight.w700,

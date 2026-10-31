@@ -62,8 +62,9 @@ class _FaderColors {
   // a full-height fader reads as a soft bar instead of a neon stripe. No alpha:
   // solid steps composite the same over slot and card.
   static _FaderColors forAccent(DeckAccent accent, Brightness brightness) {
-    // Neutral faders are chrome, not deck identity: one mid grey reads on both
-    // plates (zinc-500 against the bone-400 plate and the zinc-600 one).
+    // Neutral faders are chrome, not deck identity: the indicator stays mid
+    // grey (zinc-500) and the grip is author-tuned separately — zinc-200 reads
+    // close to the light plate, so it relies on the lane frame for shape.
     if (accent == DeckAccent.neutral) {
       return const _FaderColors(
         indicator: MixarZinc.s500,

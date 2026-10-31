@@ -14,15 +14,11 @@
 // committed files and the tokens disagree.
 
 import StyleDictionary from 'style-dictionary';
-import { fileURLToPath } from 'node:url';
 import { cssTokens } from './css.mjs';
 import { dartColors, dartPalette } from './dart.mjs';
+import { at, PRIMITIVES, SEMANTIC, WEB } from './paths.mjs';
 
 /** @typedef {import('style-dictionary/types').Config} Config */
-
-/** Repo-root-relative path → absolute, anchored to this config file. */
-const at = (/** @type {string} */ path) =>
-  fileURLToPath(new URL(`../../${path}`, import.meta.url));
 
 StyleDictionary.registerFormat({
   name: 'dart/mixar-palette',
@@ -39,11 +35,7 @@ StyleDictionary.registerFormat({
 
 /** @type {Config} */
 const config = {
-  source: [
-    at('tokens/primitives.json'),
-    at('tokens/semantic.json'),
-    at('tokens/web.json'),
-  ],
+  source: [at(PRIMITIVES), at(SEMANTIC), at(WEB)],
   log: { warnings: 'warn', verbosity: 'default' },
   platforms: {
     flutter: {

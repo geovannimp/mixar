@@ -210,10 +210,7 @@ class _JogPlatterState extends State<JogPlatter> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final accent = textColorStep(
-      deckTone(widget.accent),
-      theme.colors.brightness,
-    );
+    final accent = deckInk(widget.accent, theme.colors.brightness);
     final progress =
         widget.hasTrack && widget.durationMs != null && widget.durationMs! > 0
         ? (widget.positionMs / widget.durationMs!).clamp(0.0, 1.0)

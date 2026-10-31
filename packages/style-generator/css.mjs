@@ -6,6 +6,7 @@
 // `apps/website/src/styles/global.css`, because DTCG cannot express them.
 
 import { groupTokens } from './dictionary.mjs';
+import { WEB } from './paths.mjs';
 
 /** @typedef {import('style-dictionary/types').FormatFnArguments} FormatFnArguments */
 /** @typedef {import('style-dictionary/types').TransformedToken} TransformedToken */
@@ -31,7 +32,7 @@ const block = (selector, tokens) => [
  */
 export const cssTokens = ({ dictionary }) =>
   [
-    '/* GENERATED FILE — do not edit. Source: tokens/web.json.',
+    `/* GENERATED FILE — do not edit. Source: ${WEB}.`,
     ' * Regenerate with `npm run tokens:build`; `npm run tokens:check` fails CI',
     ' * when this file and the tokens disagree. */',
     '',

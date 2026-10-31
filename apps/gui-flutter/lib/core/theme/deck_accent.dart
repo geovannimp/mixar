@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/theme/mixar_palette.dart';
 
@@ -16,6 +18,11 @@ DeckAccent? deckAccentFor(int deckId) => switch (deckId) {
   _ => null,
 };
 
+/// Label ink for a deck, composed from its tone: the pieces stay separate so a
+/// control can choose another rung, but every label reads this one derivation.
+Color deckInk(DeckAccent accent, Brightness brightness) =>
+    textColorStep(deckTone(accent), brightness);
+
 String deckDisplayLabel(int deckId) => switch (deckId) {
   0 => 'Deck A',
   1 => 'Deck B',
@@ -24,10 +31,10 @@ String deckDisplayLabel(int deckId) => switch (deckId) {
   _ => 'Deck ${deckId + 1}',
 };
 
-/// One deck's full tone, mirroring the `Mixar*` ladders. Pick the step per
-/// role at the call site — a grip reads the 400 rung on dark chrome and the 600
-/// on warm bone, a lane tint the 900 or 200 — so the choice stays visible where
-/// it is made instead of hiding inside a single "deck colour" helper.
+/// One deck's full tone, mirroring the `Mixar*` ladders. Every consumer picks
+/// its own rung — [textColorStep] for label ink, a fader its grip and lane tint
+/// — so the choice stays visible where it is made instead of hiding inside a
+/// single "deck colour" helper. There is no single canonical grip step.
 MixarColorScale deckTone(DeckAccent accent) => switch (accent) {
   DeckAccent.a => _skyTone,
   DeckAccent.b => _roseTone,

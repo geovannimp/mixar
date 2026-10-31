@@ -42,10 +42,7 @@ class DeckPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
-    final accentColor = textColorStep(
-      deckTone(accent),
-      theme.colors.brightness,
-    );
+    final accentColor = deckInk(accent, theme.colors.brightness);
     final loadedTitle = ref.watch(deckTrackTitleProvider(deckId));
     final hasTrack = ref.watch(deckHasTrackProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));

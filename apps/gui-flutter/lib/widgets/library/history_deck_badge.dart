@@ -16,7 +16,7 @@ class DeckBadge extends StatelessWidget {
     final accent = deckAccentFor(deck);
     final color = accent == null
         ? theme.colors.mutedForeground
-        : textColorStep(deckTone(accent), theme.colors.brightness);
+        : deckInk(accent, theme.colors.brightness);
     return Semantics(
       label: deckDisplayLabel(deck),
       container: true,
