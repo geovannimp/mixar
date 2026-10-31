@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
@@ -201,8 +204,8 @@ void main() {
     await tester.drag(find.byType(FaderSlider), const Offset(0, 40));
     await tester.pumpAndSettle();
 
-    // Inset travel (110px): center → 50; +40px → ~14.
-    expect(value, closeTo(14, 1));
+    // Inset travel (120 − 12px grip = 108): center → 50; +40px → 13.
+    expect(value, 13);
   });
 
   testWidgets('disabled fader ignores drag', (tester) async {
@@ -282,7 +285,7 @@ void main() {
     expect(calls, 0);
     expect(value, 100);
 
-    // Travel length = 120 - 10 = 110; +22px → −20.
+    // Travel length = 120 − 12 = 108; +22px → −20 (snapped).
     await gesture.moveBy(const Offset(0, 22));
     await tester.pump();
     expect(value, 80);
@@ -370,4 +373,171 @@ void main() {
     await tester.pumpAndSettle();
     expect(value, 50);
   });
+
+  testWidgets('the lane stops exactly under the grip at each end', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    // The lane used to extend past the thumb travel, so a fader parked at an
+    // end painted a stub of empty slot next to the cap.
+    for (final (value, above) in [(100.0, true), (0.0, false)]) {
+      final key = GlobalKey();
+      await _pumpFader(tester, theme: theme, key: key, value: value);
+
+      final raster = await _faderRaster(tester, key);
+      final box = raster.box;
+      // One column down the lane centre, over an area the fader does not own:
+      // it must still be the card, never the slot or its frame.
+      final rows = above
+          ? [for (var y = box.top - 12; y < box.top; y++) y]
+          : [for (var y = box.bottom; y < box.bottom + 12; y++) y];
+      for (final y in rows) {
+        expect(
+          raster.rgbAt(x: box.center.dx, y: y),
+          rgbOf(theme.colors.card),
+          reason: 'value $value painted the lane outside its box at y=$y',
+        );
+      }
+    }
+  });
+
+  testWidgets('the horizontal plate keeps clear of its row edges', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    final key = GlobalKey();
+    // The crossfader strip and the master/cue rows are 24 high; a plate that
+    // fills the row leaves the slot no margin.
+    await _pumpFader(
+      tester,
+      theme: theme,
+      key: key,
+      value: 50,
+      size: const Size(160, 24),
+      orientation: FaderOrientation.horizontal,
+      step: 0.05,
+    );
+
+    final raster = await _faderRaster(tester, key);
+    final box = raster.box;
+    final gripX =
+        box.left +
+        kFaderThumbH.width / 2 +
+        (box.width - kFaderThumbH.width) / 2;
+    expect(
+      kFaderThumbH.height,
+      lessThan(box.height),
+      reason: 'the plate must not span the row',
+    );
+    for (final y in [box.top, box.top + 1, box.bottom - 1, box.bottom - 2]) {
+      expect(
+        raster.rgbAt(x: gripX, y: y),
+        rgbOf(theme.colors.card),
+        reason: 'the plate touched the row edge at y=$y',
+      );
+    }
+  });
+
+  testWidgets('the lane keeps a 1px frame around the slot', (tester) async {
+    final theme = MixarThemeData.dark();
+    final key = GlobalKey();
+    await _pumpFader(tester, theme: theme, key: key, value: 30);
+
+    final raster = await _faderRaster(tester, key);
+    final box = raster.box;
+    // A row above the grip (value 30 keeps it in the lower half) shows the
+    // empty lane: 1px frame, 4px recessed fill, 1px frame.
+    final y = box.top + 20;
+    final frame = rgbOf(theme.colors.border);
+    final slot = rgbOf(theme.colors.background);
+    expect(
+      [
+        for (var dx = -3; dx < 3; dx++)
+          raster.rgbAt(x: box.center.dx + dx, y: y),
+      ],
+      [frame, slot, slot, slot, slot, frame],
+      reason: 'the frame is the only lane outline in light mode',
+    );
+  });
+}
+
+void _ignore(double _) {}
+
+/// One fader on a card-coloured boundary, padded so paint outside the fader's
+/// box still lands inside the capture. Defaults to the 40x120 vertical case.
+Future<void> _pumpFader(
+  WidgetTester tester, {
+  required MixarThemeData theme,
+  required GlobalKey key,
+  required double value,
+  Size size = const Size(40, 120),
+  FaderOrientation orientation = FaderOrientation.vertical,
+  double step = 1,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: materialUiThemeFromMixar(theme),
+      builder: mixarMaterialAppBuilder(theme),
+      home: Scaffold(
+        body: Center(
+          child: RepaintBoundary(
+            key: key,
+            child: ColoredBox(
+              color: theme.colors.card,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: SizedBox.fromSize(
+                  size: size,
+                  child: FaderSlider(
+                    value: value,
+                    orientation: orientation,
+                    step: step,
+                    onValueChange: _ignore,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// The fader's box, its boundary origin and the boundary pixels, so a global
+/// coordinate maps straight onto the raster without repeating the arithmetic.
+typedef _FaderRaster = ({Uint8List rgba, int width, Rect box, Offset origin});
+
+extension on _FaderRaster {
+  int _offsetAt(double x, double y) =>
+      (((y - origin.dy) * width).toInt() + (x - origin.dx).toInt()) * 4;
+
+  (int, int, int) rgbAt({required double x, required double y}) {
+    final offset = _offsetAt(x, y);
+    return (rgba[offset], rgba[offset + 1], rgba[offset + 2]);
+  }
+}
+
+/// Palette/Scheme colour as the 8-bit triple the raster reports.
+(int, int, int) rgbOf(Color color) =>
+    ((color.r * 255).round(), (color.g * 255).round(), (color.b * 255).round());
+
+Future<_FaderRaster> _faderRaster(WidgetTester tester, GlobalKey key) async {
+  final box = tester.getRect(find.byType(FaderSlider));
+  final origin = tester.getTopLeft(find.byKey(key));
+  final boundary =
+      key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  // Rasterizing needs the real event loop; toImage deadlocks inside the
+  // fake-async zone tester.runAsync would otherwise keep.
+  final raster = await tester.runAsync(() async {
+    final image = await boundary.toImage();
+    try {
+      final data = await image.toByteData();
+      return (rgba: data!.buffer.asUint8List(), width: image.width);
+    } finally {
+      image.dispose();
+    }
+  });
+  return (rgba: raster!.rgba, width: raster.width, box: box, origin: origin);
 }
