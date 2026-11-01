@@ -8,6 +8,14 @@ import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
+/// Reload the sidebar counts and the visible collection rows after a
+/// membership change.
+void refreshCollectionViews(WidgetRef ref) {
+  ref
+    ..invalidate(collectionsProvider)
+    ..invalidate(collectionTracksProvider);
+}
+
 Future<LibraryCollectionSummary?> createCollection(
   WidgetRef ref,
   CreateCollectionResult request, {
@@ -38,8 +46,7 @@ Future<LibraryCollectionSummary?> createCollection(
                 sortable: request.sortable,
               );
     }
-    ref.invalidate(collectionsProvider);
-    ref.invalidate(collectionTracksProvider);
+    refreshCollectionViews(ref);
     return collection;
   } catch (e) {
     ref.read(appNoticeProvider.notifier).setError('$e');
@@ -128,8 +135,7 @@ Future<bool> addTrackToCollection(
   if (!context.mounted) {
     return true;
   }
-  ref.invalidate(collectionsProvider);
-  ref.invalidate(collectionTracksProvider);
+  refreshCollectionViews(ref);
   return true;
 }
 
@@ -183,8 +189,7 @@ Future<void> deleteCollectionAction(
   if (ref.read(selectedCollectionIdProvider) == collection.id) {
     ref.read(selectedCollectionIdProvider.notifier).set(null);
   }
-  ref.invalidate(collectionsProvider);
-  ref.invalidate(collectionTracksProvider);
+  refreshCollectionViews(ref);
   if (deleted) {
     ref
         .read(appNoticeProvider.notifier)

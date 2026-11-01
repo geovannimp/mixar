@@ -58,6 +58,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
   /// Drop target for playlist rows only: a folder takes its membership from
   /// the path it was created for, so the core rejects an entry add there.
   static const _playlistKind = 'playlist';
+  static const _folderKind = 'folder';
 
   Widget _row(
     LibraryCollectionSummary c, {
@@ -94,7 +95,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
               .set(LibraryFocusZone.sidebar);
         }
       },
-      trailing: c.kind == 'folder' && c.path != null
+      trailing: c.kind == _folderKind && c.path != null
           ? MTappable.child(
               semanticsLabel: 'Browse ${c.name} in Drive',
               onPress: () => _browseInDrive(c.path!),
@@ -205,7 +206,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                             TrackLoadKind.library,
                         onAcceptWithDetails: (details) =>
                             unawaited(_dropOnPlaylist(c, details.data)),
-                        builder: (context, candidate, _) => _row(
+                        builder: (_, candidate, _) => _row(
                           c,
                           selectedId: selectedId,
                           sidebarFocused: sidebarFocused,

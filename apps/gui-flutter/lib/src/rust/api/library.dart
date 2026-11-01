@@ -25,6 +25,9 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Add a track to a playlist collection. A sortable playlist appends a new
   /// entry (the same track may appear twice); a plain playlist keeps one row
   /// per track. Non-playlist targets error in the core.
+  ///
+  /// `position` inserts at that index on a sortable playlist (appended when
+  /// `None`) and is ignored otherwise.
   Future<void> addCollectionEntry({
     required String collectionId,
     required String trackId,
