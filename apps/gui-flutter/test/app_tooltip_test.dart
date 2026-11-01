@@ -17,8 +17,9 @@ void main() {
     WidgetTester tester, {
     required bool showTooltips,
     String? description,
+    MixarThemeData? theme,
   }) async {
-    final theme = MixarThemeData.dark();
+    theme ??= MixarThemeData.dark();
     final settings = copyAppSettings(
       defaultAppSettings(),
       showTooltips: showTooltips,
@@ -62,4 +63,23 @@ void main() {
     );
     expect(find.byType(Hint), findsOneWidget);
   });
+
+  for (final theme in [MixarThemeData.dark(), MixarThemeData.light()]) {
+    testWidgets('bubble follows the ${theme.colors.brightness.name} theme '
+        'with a hairline border', (tester) async {
+      await pumpTip(tester, showTooltips: true, theme: theme);
+      final hint = tester.widget<Hint>(find.byType(Hint));
+      final colors = theme.colors;
+      expect(
+        hint.theme!.backgroundColor,
+        colors.card,
+        reason: 'fill must come from the theme, not a hardcoded white',
+      );
+      expect(hint.theme!.borderColor, colors.border);
+      // hint_kit strokes the silhouette centred, so the chrome hairline is
+      // doubled to leave one full-strength rim inside the bubble.
+      expect(hint.theme!.borderWidth, theme.style.borderWidth * 2);
+      expect(hint.theme!.foregroundColor, colors.foreground);
+    });
+  }
 }
