@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
+import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
@@ -11,6 +15,7 @@ import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Collections sidebar: header + full-width rows (Tauri collection list).
@@ -48,6 +53,89 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     // The menu names a folder, so the intent is the same in either layout:
     // show the folder's contents. On a narrow surface that is the content page.
     ref.read(libraryNarrowPageProvider.notifier).set(LibraryNarrowPage.content);
+  }
+
+  /// Drop target for playlist rows only: a folder takes its membership from
+  /// the path it was created for, so the core rejects an entry add there.
+  static const _playlistKind = 'playlist';
+
+  Widget _row(
+    LibraryCollectionSummary c, {
+    required String? selectedId,
+    required bool sidebarFocused,
+    required bool dropActive,
+  }) {
+    final colors = context.theme.colors;
+    return LibraryNavRow(
+      title: c.name,
+      subtitle: '${c.trackCount} tracks',
+      icon: c.kind == _playlistKind
+          ? LucideIcons.listMusic
+          : LucideIcons.folder,
+      selected: c.id == selectedId,
+      focused: sidebarFocused && c.id == selectedId,
+      dropActive: dropActive,
+      onPress: () {
+        ref.read(selectedCollectionIdProvider.notifier).set(c.id);
+        // Focus follows the pointer, the way a row press in the
+        // track list does. On a narrow surface the press is a
+        // page change, so focus goes to the track list page
+        // instead of parking on the sidebar.
+        if (LibraryLayoutScope.maybeOf(context)?.narrow ?? false) {
+          ref
+              .read(libraryFocusZoneProvider.notifier)
+              .set(LibraryFocusZone.trackList);
+          ref
+              .read(libraryNarrowPageProvider.notifier)
+              .set(LibraryNarrowPage.content);
+        } else {
+          ref
+              .read(libraryFocusZoneProvider.notifier)
+              .set(LibraryFocusZone.sidebar);
+        }
+      },
+      trailing: c.kind == 'folder' && c.path != null
+          ? MTappable.child(
+              semanticsLabel: 'Browse ${c.name} in Drive',
+              onPress: () => _browseInDrive(c.path!),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(
+                  LucideIcons.folderOpen,
+                  size: 14,
+                  color: colors.mutedForeground,
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  /// Add a dropped library track to [collection] and report the outcome. The
+  /// core decides duplicates: an append on a sortable playlist, an upsert on a
+  /// plain one.
+  Future<void> _dropOnPlaylist(
+    LibraryCollectionSummary collection,
+    TrackDragPayload payload,
+  ) async {
+    final trackId = payload.trackId;
+    if (trackId == null || trackId.isEmpty) {
+      return;
+    }
+    final added = await addTrackToCollection(
+      context,
+      ref,
+      collection.id,
+      trackId,
+    );
+    if (!mounted || !added) {
+      return;
+    }
+    final title = trackDisplayTitle(title: payload.title, path: payload.path);
+    showMixarToast(
+      context: context,
+      title: Text('Added “$title” to “${collection.name}”'),
+    );
   }
 
   @override
@@ -110,49 +198,27 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
               return ListView(
                 children: [
                   for (final c in items)
-                    LibraryNavRow(
-                      title: c.name,
-                      subtitle: '${c.trackCount} tracks',
-                      icon: LucideIcons.folder,
-                      selected: c.id == selectedId,
-                      focused: sidebarFocused && c.id == selectedId,
-                      onPress: () {
-                        ref
-                            .read(selectedCollectionIdProvider.notifier)
-                            .set(c.id);
-                        // Focus follows the pointer, the way a row press in the
-                        // track list does. On a narrow surface the press is a
-                        // page change, so focus goes to the track list page
-                        // instead of parking on the sidebar.
-                        if (LibraryLayoutScope.maybeOf(context)?.narrow ??
-                            false) {
-                          ref
-                              .read(libraryFocusZoneProvider.notifier)
-                              .set(LibraryFocusZone.trackList);
-                          ref
-                              .read(libraryNarrowPageProvider.notifier)
-                              .set(LibraryNarrowPage.content);
-                        } else {
-                          ref
-                              .read(libraryFocusZoneProvider.notifier)
-                              .set(LibraryFocusZone.sidebar);
-                        }
-                      },
-                      trailing: c.kind == 'folder' && c.path != null
-                          ? MTappable.child(
-                              semanticsLabel: 'Browse ${c.name} in Drive',
-                              onPress: () => _browseInDrive(c.path!),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4),
-                                child: Icon(
-                                  LucideIcons.folderOpen,
-                                  size: 14,
-                                  color: colors.mutedForeground,
-                                ),
-                              ),
-                            )
-                          : null,
-                    ),
+                    if (c.kind == _playlistKind)
+                      DragTarget<TrackDragPayload>(
+                        onWillAcceptWithDetails: (details) =>
+                            trackLoadKind(details.data) ==
+                            TrackLoadKind.library,
+                        onAcceptWithDetails: (details) =>
+                            unawaited(_dropOnPlaylist(c, details.data)),
+                        builder: (context, candidate, _) => _row(
+                          c,
+                          selectedId: selectedId,
+                          sidebarFocused: sidebarFocused,
+                          dropActive: candidate.isNotEmpty,
+                        ),
+                      )
+                    else
+                      _row(
+                        c,
+                        selectedId: selectedId,
+                        sidebarFocused: sidebarFocused,
+                        dropActive: false,
+                      ),
                 ],
               );
             },

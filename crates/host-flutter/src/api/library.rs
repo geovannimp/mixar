@@ -545,6 +545,28 @@ impl LibraryTransport {
         collection_summary(&lib, collection)
     }
 
+    /// Add a track to a playlist collection. A sortable playlist appends a new
+    /// entry (the same track may appear twice); a plain playlist keeps one row
+    /// per track. Non-playlist targets error in the core.
+    pub fn add_collection_entry(
+        &self,
+        collection_id: String,
+        track_id: String,
+        position: Option<i32>,
+    ) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.add_collection_entry(
+            &CollectionId::new(collection_id),
+            &TrackId::new(track_id),
+            position,
+        )
+        .bridge()?;
+        Ok(())
+    }
+
     /// Delete a collection (folder or playlist). Member tracks that no other
     /// collection references are removed from the pool.
     pub fn delete_collection(&self, collection_id: String) -> Result<(), String> {
@@ -1413,6 +1435,75 @@ mod tests {
             )
             .unwrap();
         assert_eq!(transport.buses.stems_model(), "htdemucs_mixxx_v1");
+    }
+
+    #[test]
+    fn add_collection_entry_round_trips_through_transport() {
+        let transport = LibraryTransport::open_in_memory_on_own_bus().unwrap();
+        let playlist = transport
+            .add_playlist_collection("Dropped".into(), true)
+            .unwrap();
+        let track_id = {
+            let mut lib = transport.library.lock().unwrap();
+            lib.import_track(
+                Path::new("/music/dropped.flac"),
+                &library_core::TrackMetadata::default(),
+            )
+            .unwrap()
+            .source
+            .id()
+            .as_str()
+            .to_string()
+        };
+
+        transport
+            .add_collection_entry(playlist.id.clone(), track_id.clone(), None)
+            .unwrap();
+        let entries = transport
+            .list_collection_entries(playlist.id.clone())
+            .unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, track_id);
+
+        // A sortable playlist lists the same track again as a new row.
+        transport
+            .add_collection_entry(playlist.id.clone(), track_id.clone(), None)
+            .unwrap();
+        assert_eq!(
+            transport
+                .list_collection_entries(playlist.id.clone())
+                .unwrap()
+                .len(),
+            2
+        );
+
+        // A plain playlist upserts, so the second add keeps one row.
+        let plain = transport
+            .add_playlist_collection("Plain".into(), false)
+            .unwrap();
+        for _ in 0..2 {
+            transport
+                .add_collection_entry(plain.id.clone(), track_id.clone(), None)
+                .unwrap();
+        }
+        assert_eq!(
+            transport.list_collection_entries(plain.id).unwrap().len(),
+            1
+        );
+
+        // Folders take membership from their path, so the core rejects the add.
+        let dir = tempfile::tempdir().unwrap();
+        let folder_id = {
+            let mut lib = transport.library.lock().unwrap();
+            lib.add_collection(&NewCollection::folder_scan(dir.path(), false))
+                .unwrap()
+                .id
+                .as_str()
+                .to_string()
+        };
+        assert!(transport
+            .add_collection_entry(folder_id, track_id, None)
+            .is_err());
     }
 
     #[test]
