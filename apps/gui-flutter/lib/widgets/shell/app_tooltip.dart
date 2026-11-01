@@ -25,19 +25,23 @@ class AppTooltip extends ConsumerWidget {
   static const Set<HintTrigger> _triggers = {HintTrigger.hover};
   static const _wait = Duration(milliseconds: 400);
 
-  /// Classic white tip on dark booth chrome — square corners, dark ink.
-  static const _tipBackground = Color(0xFFFFFFFF);
-  static const _tipForeground = Color(0xFF18181B);
-  static const _tipMuted = Color(0xFF71717A);
-
-  static const _theme = HintThemeData(
+  /// Raised-panel tip: `card` fill, hairline `border` rim, square corners.
+  /// Tones come from the active theme so the bubble sits on the page in both
+  /// light and dark instead of being a fixed white chip.
+  ///
+  /// hint_kit strokes the bubble silhouette centred on its path, so half of a
+  /// `borderWidth` stroke falls outside the fill and blends with the page.
+  /// Doubling the chrome hairline leaves one full-strength token-width rim
+  /// inside the bubble, matching `Border.all(width: style.borderWidth)`
+  /// elsewhere.
+  static HintThemeData _themeFor(MixarThemeData theme) => HintThemeData(
     preset: HintPreset.minimal,
     maxWidth: 280,
-    borderWidth: 0,
-    borderColor: Color(0x00000000),
+    borderWidth: theme.style.borderWidth * 2,
+    borderColor: theme.colors.border,
     borderRadius: BorderRadius.zero,
-    backgroundColor: _tipBackground,
-    foregroundColor: _tipForeground,
+    backgroundColor: theme.colors.card,
+    foregroundColor: theme.colors.foreground,
     transition: HintTransition.fade,
   );
 
@@ -50,16 +54,17 @@ class AppTooltip extends ConsumerWidget {
       return child;
     }
     final detail = description?.trim();
+    final theme = context.theme;
     return Hint(
       triggers: _triggers,
       waitDuration: _wait,
-      theme: _theme,
+      theme: _themeFor(theme),
       contentBuilder: (context) {
         final typography = context.theme.typography;
         if (detail == null || detail.isEmpty) {
           return Text(
             tip,
-            style: typography.body.sm.copyWith(color: _tipForeground),
+            style: typography.body.sm.copyWith(color: theme.colors.foreground),
           );
         }
         return Column(
@@ -68,10 +73,17 @@ class AppTooltip extends ConsumerWidget {
           children: [
             Text(
               tip,
-              style: typography.body.sm.copyWith(color: _tipForeground),
+              style: typography.body.sm.copyWith(
+                color: theme.colors.foreground,
+              ),
             ),
             const SizedBox(height: 2),
-            Text(detail, style: typography.body.xs.copyWith(color: _tipMuted)),
+            Text(
+              detail,
+              style: typography.body.xs.copyWith(
+                color: theme.colors.mutedForeground,
+              ),
+            ),
           ],
         );
       },

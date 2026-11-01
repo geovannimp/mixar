@@ -299,7 +299,7 @@ Borders are 1px hairlines; hover slightly increases border contrast rather than 
 - **Header:** 40px, background token, logo white-filtered, engine status caption, Mixar `MTabs`, window controls
 - **Controls:** Mixar / Shad-bridged buttons, switches, sliders — square corners via `MixarStyle` / Shad `radius`; faders custom with deck accent grips
 - **Select menus:** Desktop `ShadSelect` opens with a top-anchored height grow + short fade (`selectTheme.effects` in `shadThemeFromMixar`)
-- **Tooltips:** `AppTooltip` — square white bubble, dark ink (`#18181B`), no border radius
+- **Tooltips:** `AppTooltip` — square bubble, no border radius; fill is the theme `card`, hairline `border` stroke, ink `foreground` / `mutedForeground` (follows light and dark)
 - **Toasts:** `showMixarToast` (context_show) for concise error feedback — square chrome
 - **Panels:** Bordered deck sections; performance controls grouped in bordered panels per deck spec
 
