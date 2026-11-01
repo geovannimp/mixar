@@ -7,6 +7,15 @@
 - Query this repo's index by passing the project path (`.codegraph/` at the repo root; the server has no default project). Fall back to `read`/`grep`/`glob` only for what CodeGraph does not index (docs, configs, `mappings/`, manifests) or to confirm a specific detail it did not cover.
 - If a checkout has no `.codegraph/`, ask the user before running `codegraph init -i`.
 
+## Dart MCP
+
+`.mcp.json` defines a `dart` MCP server, launched as `mise exec -- dart mcp-server` so it always uses the pinned SDK. It exposes analyzer/LSP, `pub`, `run_tests`, `dart_format`, and Flutter app tools (hot reload, launch).
+
+- The session root is the monorepo root and has no `pubspec.yaml`. Always pass the Flutter package explicitly: `analyze_files` with `roots: [{root: "file://$PWD/apps/gui-flutter"}]`. A bare `analyze_files` call analyzes the entire repo (node_modules, Rust, docs) and reports bogus `uri_does_not_exist` errors.
+- Path-scoped requests (`paths` inside a root) currently come back as "No errors" even when the same root reports diagnostics; ask for the root instead.
+- Analysis needs `apps/gui-flutter/.dart_tool/package_config.json`; run `mise exec -- flutter pub get` there first, otherwise every `package:` import is unresolved.
+- Hot reload / widget inspector / `get_runtime_errors` need a DTD connection: start the app with `mise exec -- flutter run` (debug), or `mise exec -- flutter run --print-dtd` and connect with the `dtd` tool.
+
 ## Docs
 
 - Before architecture, module, or crate-boundary work: read `docs/tech-spec.md` and `DEVELOPER.md`.

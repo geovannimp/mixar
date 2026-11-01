@@ -4,6 +4,24 @@
       "type": "stdio",
       "command": "codegraph",
       "args": ["serve", "--mcp"]
+    },
+    "dart": {
+      "type": "stdio",
+      "command": "mise",
+      "args": [
+        "exec",
+        "--",
+        "dart",
+        "mcp-server",
+        "--enable",
+        "flutter_app_lifecycle",
+        "--enable",
+        "run_tests",
+        "--enable",
+        "dart_fix",
+        "--enable",
+        "dart_format"
+      ]
     }
   }
 }
