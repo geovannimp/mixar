@@ -43,6 +43,35 @@ tasks:
       - "@group(sources)"
       - "@group(rustBuilder)"
 
+  # Android: needs ANDROID_HOME (or `flutter config --android-sdk`), NDK
+  # 28.2.13676358 and the 2 Rust android targets — see apps/gui-flutter/README.md.
+  # `-d android` fails with "No supported devices" until a device/emulator is up.
+  # `flutter run` takes no --target-platform; it builds the ABI of the attached
+  # device (ndk.abiFilters already restricts the APK to 64-bit).
+  dev-android:
+    command: "bash"
+    args: ["scripts/run_android.sh"]
+    toolchain: "system"
+    preset: "server"
+    inputs:
+      - "@group(sources)"
+      - "@group(rustBuilder)"
+      - "scripts/run_android.sh"
+
+  build-android:
+    command: "mise"
+    args:
+      [
+        "exec", "--", "flutter", "build", "apk", "--debug",
+        "--target-platform", "android-arm64,android-x64",
+      ]
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "@group(rustBuilder)"
+    options:
+      runInCI: false
+
   # Impeller is disabled for built bundles in linux/runner/my_application.cc
   # (`flutter build linux` has no --no-enable-impeller flag).
   build-linux:

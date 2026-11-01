@@ -29,9 +29,9 @@ android {
         namespace 'com.flutter_rust_bridge.host_flutter'
     }
 
-    // Bumping the plugin compileSdkVersion requires all clients of this plugin
-    // to bump the version in their app.
-    compileSdkVersion 33
+    // Must be >= the app's compileSdk: AndroidX dependencies pulled in by
+    // Flutter's embedding (and file_picker) declare AAR metadata requiring 34+.
+    compileSdkVersion 36
 
     // Use the NDK version
     // declared in /android/app/build.gradle file of the Flutter project.
@@ -53,4 +53,8 @@ apply from: "../cargokit/gradle/plugin.gradle"
 cargokit {
     manifestDir = "../../../../crates/host-flutter"
     libname = "host_flutter"
+    // ONNX Runtime (ort-sys, used by the `stems` feature) ships no Android
+    // x86_64/32-bit prebuilt, so Android builds the host without stem
+    // separation. Live/offline stems stay enabled on desktop.
+    cargoFlags = ["--no-default-features"]
 }

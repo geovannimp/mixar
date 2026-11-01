@@ -18,7 +18,7 @@ audio-core = { path = "../audio-core" }
 analyzer-core = { path = "../analyzer-core" }
 engine-dsp = { path = "../engine-dsp" }
 library-core = { path = "../library-core" }
-library = { path = "../library" }
+library = { path = "../library", default-features = false, features = ["analysis"] }
 resampler = { path = "../resampler" }
 backend-null = { path = "../backend-null" }
 backend-cpal = { path = "../backend-cpal", optional = true }

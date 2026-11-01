@@ -12,7 +12,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `begin_deck_load`, `build_started_engine`, `chrome_from_bank_slot`, `chrome_from_prepared`, `is_current_deck_load`, `load_prepared`, `output_device`, `publish_cmd`, `publish_current_status`, `publish_deck_updated`, `publish_retired_decks`, `source_label`, `source_path`, `start_live_stems`, `start_with`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `begin_deck_load`, `build_started_engine`, `chrome_from_bank_slot`, `chrome_from_prepared`, `clear_live_producers`, `is_current_deck_load`, `load_prepared`, `output_device`, `publish_cmd`, `publish_current_status`, `publish_deck_updated`, `publish_retired_decks`, `source_label`, `source_path`, `start_live_stems`, `start_with`, `stop_live_producer`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineHistoryWorker`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `restart`

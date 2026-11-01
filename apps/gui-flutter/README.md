@@ -9,7 +9,7 @@ This is the **primary** desktop UI.
 
 | Path | Role |
 |------|------|
-| `apps/gui-flutter` | Flutter app (linux / macOS / windows / web enabled; Linux verified) |
+| `apps/gui-flutter` | Flutter app (linux / macOS / windows / web / android enabled; Linux and Android verified) |
 | `crates/host-flutter` | FRB Rust host (`host_flutter`) over `engine-core` + library browse |
 
 Library browse opens `{getApplicationSupportDirectory()}/library.db` (app id `top.mixar.app`; desktop only — web shows a placeholder). UI: MixarTheme collections/drive tabs (Shad-bridged), add-folder, analyze/refresh, visible-row artwork, and a sortable track list (shared with the history entry list through one `TrackListView`, so selection, keyboard load, drag-to-deck and the row menu behave identically). In-flight work renders as a per-row overlay: one right-aligned phase pill per job lane (analysis and stem separation run independently, so a track being analysed and split at once shows both) plus a progress bar per job, rather than in the title cell — so progress ticks rebuild one row instead of the whole list. The 3-dot menu stays open during a job; each action disables itself while its own job runs. FRB `LibraryTransport` also exposes add-folder / resolve / track list + `getTrack` (artwork only on `getTrack` until covers live in `library.db`) and a thin typed analyze/refresh event stream; waveform rasterization stays in Flutter.
@@ -36,6 +36,35 @@ npm run flutter:dev
 ```
 
 Desktop uses [`window_manager`](https://pub.dev/packages/window_manager) with `TitleBarStyle.hidden` and in-app min/max/close controls (drag empty header regions to move; double-click to maximize).
+
+### Android
+
+The engine and MIDI transports are desktop-only (`isDesktopWindow` in `lib/core/utils/desktop.dart`), so Android boots the library shell without audio playback.
+
+Android runs landscape-only and full-screen: the manifest pins `screenOrientation="sensorLandscape"` and `main.dart` switches to `SystemUiMode.immersiveSticky` before the first frame. Android 16+ ignores the orientation lock on large screens (≥600 dp), where the windowing system wins.
+
+App data lands in the platform files dir (`/data/user/<id>/top.mixar.app/files/` → `library.db`, `settings.json`, `mixar.log`). Rust cannot derive it — Android app processes have no `HOME`/`XDG_DATA_HOME`, which used to resolve to `/` and fail with `I/O error: Read-only file system` — so `main.dart` passes `path_provider`'s application support directory to `setAppSupportDir` before any transport opens; `init_app` skips log attachment on Android and `setAppSupportDir` attaches it.
+
+One-time host setup (SDK location can also come from `ANDROID_HOME`):
+
+```sh
+flutter config --android-sdk "$HOME/Android/sdk"
+mise exec -- sdkmanager "ndk;28.2.13676358"   # flutter.ndkVersion for Flutter 3.47.7
+rustup target add aarch64-linux-android x86_64-linux-android
+```
+
+Then, with a device or emulator up (`flutter emulators --launch Pixel_7_Pro_API_36`, `adb devices`):
+
+```sh
+npm run flutter:android               # moon run gui-flutter:dev-android
+moon run gui-flutter:build-android    # debug APK in build/app/outputs/flutter-apk/
+```
+
+`build-android` passes `--target-platform android-arm64,android-x64`; `flutter run` takes no such flag and builds the attached device's ABI. `android/app/build.gradle.kts` pins both 64-bit ABIs in `ndk.abiFilters`, which cargokit honours when it builds `host_flutter` — 32-bit devices are dropped instead of pulling a second Rust target.
+
+Android builds `host_flutter` with `--no-default-features` (`rust_builder/android/build.gradle`), which turns the `stems` feature off: ONNX Runtime publishes no Android x86_64 binary, and the engine (the only consumer of stems) is not started on mobile anyway. Stem jobs report "unavailable on this platform" instead of linking ORT.
+
+Gradle details worth knowing: `android/build.gradle.kts` applies KGP to `:file_picker` itself, because file_picker 11 skips KGP whenever AGP is 9+ (assuming built-in Kotlin) while this project keeps `android.builtInKotlin=false` — AGP 9.x bundles Kotlin 2.2.10, below Flutter's 2.2.20 floor, so KGP 2.4.0 (declared in `settings.gradle.kts`) is what compiles. That block also pins that module's Kotlin `jvmTarget` to 17, matching the `compileOptions` file_picker sets. `minSdk` is 29 for `libamidi` (midir) and `libaaudio` (cpal), and `rust_builder/cargokit` carries local patches for Gradle 9 (`ExecOperations` instead of `project.exec`), for the NDK/CMake environment native crates like `opusic-sys` require, for `ndk.abiFilters` platform filtering, and for per-platform cargo flags.
 
 After Rust API changes (requires `flutter_rust_bridge_codegen` 2.13.0):
 

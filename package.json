@@ -21,6 +21,7 @@
     "test:affected": "moon run gui-flutter:test-affected",
     "dev": "moon run gui-flutter:dev-linux",
     "flutter:dev": "moon run gui-flutter:dev-linux",
+    "flutter:android": "moon run gui-flutter:dev-android",
     "website:dev": "moon run website:dev",
     "website:build": "moon run website:build"
   },

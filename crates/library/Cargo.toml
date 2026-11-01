@@ -31,8 +31,12 @@ xml = "0.8"
 tracing.workspace = true
 
 [features]
-default = ["analysis"]
-analysis = ["dep:analyzer", "dep:analyzer-core", "dep:analyzer-stems"]
+default = ["analysis", "stems"]
+# BPM/key analysis; also gates the stem mixdown analysis helpers.
+analysis = ["dep:analyzer", "dep:analyzer-core"]
+# Offline stem separation (ONNX Runtime). Hosts without an ONNX Runtime build
+# for their platform (Android x86_64) build with `--no-default-features`.
+stems = ["analysis", "dep:analyzer-stems"]
 
 [dev-dependencies]
 tempfile = "3.0"

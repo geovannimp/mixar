@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/application.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
@@ -17,6 +19,28 @@ Future<void> main() async {
   // RustLib.init() resolves app data in Rust and attaches `mixar.log` there,
   // before any of the providers below open a transport.
   await RustLib.init();
+
+  final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  if (isAndroid) {
+    // Android app processes carry no HOME/XDG_DATA_HOME, so Rust cannot derive
+    // the per-app files dir; without this every write targets `/` (EROFS).
+    // A failure here is fatal for the library, so surface the cause instead of
+    // starting a shell whose every write fails.
+    try {
+      final supportDir = await getApplicationSupportDirectory();
+      await setAppSupportDir(path: supportDir.path);
+    } on Object catch (error) {
+      runApp(StartupFailureApp(message: '$error'));
+      return;
+    }
+    // The deck UI is a two-deck horizontal layout: stay landscape and give it
+    // the whole screen (immersive hides the status and navigation bars).
+    await SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
 
   final appTitle = appDisplayName();
 
@@ -55,4 +79,32 @@ Future<void> main() async {
       child: Application(appTitle: appTitle),
     ),
   );
+}
+
+/// Last-resort screen when start-up cannot reach a writable data directory.
+///
+/// Deliberately plain (no Mixar/Shad theme or providers): it renders before
+/// settings are loaded and only has to show why the app cannot continue.
+class StartupFailureApp extends StatelessWidget {
+  const StartupFailureApp({required this.message, super.key});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Mixar could not start:\n$message',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -163,6 +163,21 @@ class AndroidEnvironment {
       '_CARGOKIT_NDK_LINK_TARGET': targetArg,
       '_CARGOKIT_NDK_LINK_CLANG': ccValue,
       'CARGOKIT_TOOL_TEMP_DIR': toolTempDir,
+      // Native crates that build C/C++ with the `cmake` crate (e.g. opusic-sys
+      // vendoring Opus) need to be pointed at the NDK explicitly: `cmake-rs`
+      // forwards CMAKE_TOOLCHAIN_FILE from the environment, and CMake's
+      // Android-Determine module looks up ANDROID_NDK when no toolchain file
+      // flags the cross-build.
+      'ANDROID_NDK': ndkPath,
+      'ANDROID_NDK_HOME': ndkPath,
+      'ANDROID_NDK_ROOT': ndkPath,
+      'CMAKE_TOOLCHAIN_FILE': path.join(
+        ndkPath,
+        'build',
+        'cmake',
+        'android.toolchain.cmake',
+      ),
+      'ANDROID_PLATFORM': 'android-$minSdkVersion',
     };
   }
 

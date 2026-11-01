@@ -9,7 +9,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 anyhow = { workspace = true }
 analytics = { path = "../analytics" }
-analyzer-stems = { path = "../analyzer-stems" }
+analyzer-stems = { path = "../analyzer-stems", optional = true }
 bus-api = { path = "../bus-api" }
 engine-core = { path = "../engine-core" }
 event-bus = { path = "../event-bus" }
@@ -18,7 +18,7 @@ flutter_rust_bridge = "=2.13.0"
 audio-core = { path = "../audio-core" }
 codec = { path = "../codec" }
 controller = { path = "../controller" }
-library = { path = "../library" }
+library = { path = "../library", default-features = false, features = ["analysis"] }
 library-core = { path = "../library-core" }
 library-adapters = { path = "../library-adapters" }
 resampler = { path = "../resampler" }
@@ -29,6 +29,11 @@ tracing-subscriber = { workspace = true }
 tracing-log = { workspace = true }
 
 [features]
+# Offline + live stem separation. ONNX Runtime ships no binary for 32-bit
+# Android or Android x86_64, so the Android build passes
+# `--no-default-features` (see rust_builder/android/build.gradle).
+default = ["stems"]
+stems = ["dep:analyzer-stems", "library/stems"]
 # Exposes headless engine construction to this crate's own integration tests.
 # Integration tests are separate crates and cannot see `pub(crate)`, so without a
 # feature this hook would have to be unconditionally `pub`.
@@ -39,7 +44,10 @@ tracing-log = { workspace = true }
 test-utils = []
 
 [dev-dependencies]
-host_flutter = { path = ".", features = ["test-utils"] }
+# `default-features = false`: a dev edge with defaults on would re-enable
+# `stems` through feature unification, so `--no-default-features` test runs
+# would silently compile the desktop arms instead of the platform arms.
+host_flutter = { path = ".", default-features = false, features = ["test-utils"] }
 lofty = "0.25.5"
 tempfile = "3.0"
 rusqlite = { workspace = true }

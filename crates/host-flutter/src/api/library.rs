@@ -1263,28 +1263,27 @@ fn history_entry_info(entry: library::HistoryEntry) -> HistoryEntryInfo {
 
 fn reveal_path_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "linux")]
-    let mut command = {
-        let mut cmd = std::process::Command::new("xdg-open");
-        cmd.arg(path);
-        cmd
-    };
+    let opener = "xdg-open";
     #[cfg(target_os = "macos")]
-    let mut command = {
-        let mut cmd = std::process::Command::new("open");
-        cmd.arg(path);
-        cmd
-    };
+    let opener = "open";
     #[cfg(target_os = "windows")]
-    let mut command = {
-        let mut cmd = std::process::Command::new("explorer");
-        cmd.arg(path);
-        cmd
-    };
+    let opener = "explorer";
+    // Each cfg arm is the function's tail expression, so mobile hosts (which
+    // have no file-manager opener) still type-check as returning `Result`.
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    return Err("reveal in folder is unsupported on this platform".into());
+    {
+        let _ = path;
+        Err("reveal in folder is unsupported on this platform".into())
+    }
 
-    command.spawn().bridge()?;
-    Ok(())
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+    {
+        std::process::Command::new(opener)
+            .arg(path)
+            .spawn()
+            .bridge()?;
+        Ok(())
+    }
 }
 
 fn collection_summary(
