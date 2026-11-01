@@ -134,7 +134,6 @@ void main() {
     expect(find.text('Added “One” to “Set A”'), findsOneWidget);
     // The sidebar reloads its counts after the add.
     expect(pane.loads(), greaterThan(1));
-    await tester.pump(const Duration(seconds: 6));
   });
 
   testWidgets('playlist rows use the playlist icon, folder rows the folder', (
@@ -188,6 +187,5 @@ void main() {
     expect(find.text('0 tracks'), findsOneWidget);
     // Nothing changed, so the sidebar was not reloaded.
     expect(pane.loads(), 1);
-    await tester.pump(const Duration(seconds: 6));
   });
 }
