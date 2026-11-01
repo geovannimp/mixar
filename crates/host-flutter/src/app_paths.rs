@@ -11,6 +11,8 @@
 //! | Linux   | `$XDG_DATA_HOME/top.mixar.app` or `~/.local/share/…`         |
 //! | macOS   | `~/Library/Application Support/top.mixar.app`                |
 //! | Windows | `%APPDATA%\Mixar`                                            |
+//! | Android | the platform files dir, supplied by Dart via                   |
+//! |         | [`set_support_dir`] (the app process has no `HOME`/`XDG`)      |
 
 use std::path::{Path, PathBuf};
 
@@ -74,8 +76,59 @@ fn support_dir(
     base.join(leaf)
 }
 
+/// Host-supplied override for the app-support directory.
+///
+/// Android app processes have no `HOME`, `XDG_DATA_HOME` or `APPDATA` (only
+/// `ANDROID_DATA`), so the environment rules below degrade to a relative path
+/// and every write lands on the read-only root filesystem. Dart resolves the
+/// real per-app files dir with `path_provider` and hands it over at start-up.
+static OVERRIDE: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Pin the app-support directory (see [`OVERRIDE`]).
+///
+/// Rejects a relative path, because it resolves against the process working
+/// directory (`/` on Android) exactly as the bug above did. Callable once: a
+/// second, different directory would silently move an open library.
+pub(crate) fn set_support_dir(dir: PathBuf) -> Result<(), String> {
+    if !dir.is_absolute() {
+        return Err(format!(
+            "app-support directory must be absolute, got {}",
+            dir.display()
+        ));
+    }
+    // Idempotent so a Flutter hot restart can call it again with the same dir.
+    // Decided from the `set` result: a `get`-then-`set` check would race two
+    // concurrent callers and fail the loser, aborting start-up.
+    match OVERRIDE.set(dir) {
+        Ok(()) => Ok(()),
+        Err(attempted) => match OVERRIDE.get() {
+            // Another thread won with the same directory.
+            Some(existing) if existing == &attempted => Ok(()),
+            Some(existing) => Err(format!(
+                "app-support directory already set to {}",
+                existing.display()
+            )),
+            // `set` only fails once the lock is initialized, so `get` is Some.
+            None => Err(format!(
+                "app-support directory already set to {}",
+                attempted.display()
+            )),
+        },
+    }
+}
+
 /// `{app-support}` on the running host (not created).
 pub(crate) fn support() -> PathBuf {
+    support_with_override(OVERRIDE.get().map(PathBuf::as_path))
+}
+
+/// Override first, environment rules otherwise. Split out so both branches are
+/// testable without touching the process-wide [`OVERRIDE`].
+fn support_with_override(dir: Option<&Path>) -> PathBuf {
+    dir.map_or_else(resolve_support, Path::to_path_buf)
+}
+
+fn resolve_support() -> PathBuf {
     let home = env_path("HOME").or_else(|| env_path("USERPROFILE"));
     let xdg_data_home = env_path("XDG_DATA_HOME");
     let app_data = env_path("APPDATA");
@@ -162,6 +215,24 @@ mod tests {
             resolved.file_name(),
             Some(std::ffi::OsStr::new(WINDOWS_PRODUCT_NAME))
         );
+    }
+
+    #[test]
+    fn an_explicit_directory_wins_over_the_environment() {
+        // Android hands over the platform files dir: no HOME, no XDG, no APPDATA.
+        let dir = Path::new("/data/user/0/top.mixar.app/files");
+        assert_eq!(support_with_override(Some(dir)), dir);
+        assert_eq!(
+            support_with_override(Some(dir)).join("library.db"),
+            dir.join("library.db")
+        );
+    }
+
+    #[test]
+    fn a_relative_override_is_rejected() {
+        // Relative would resolve against `/` on Android: the EROFS this fixes.
+        let err = set_support_dir(PathBuf::from("top.mixar.app")).unwrap_err();
+        assert!(err.contains("absolute"), "{err}");
     }
 
     #[test]

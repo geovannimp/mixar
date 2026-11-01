@@ -7,9 +7,18 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `attach_log_file`, `init_tracing`, `tee_state`, `tracing_env_filter`
+// These functions are ignored because they are not marked as `pub`: `attach_app_log`, `attach_log_file`, `init_tracing`, `tee_state`, `tracing_env_filter`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `MakeTee`, `TeeState`, `TeeWriter`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `flush`, `make_writer`, `write`
 
 /// Product display name ([`bus_api::APP_DISPLAY_NAME`]).
 String appDisplayName() => RustLib.instance.api.crateApiMetaAppDisplayName();
+
+/// Pin the app-support directory before any transport opens.
+///
+/// Dart calls this from `main()` on Android with `path_provider`'s application
+/// support directory (the platform files dir), because the Rust environment
+/// rules in [`crate::app_paths`] cannot find it. Also attaches `mixar.log`
+/// there, since [`init_app`] skips that on Android.
+Future<void> setAppSupportDir({required String path}) =>
+    RustLib.instance.api.crateApiMetaSetAppSupportDir(path: path);

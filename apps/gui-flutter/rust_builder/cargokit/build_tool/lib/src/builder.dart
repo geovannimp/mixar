@@ -1,6 +1,9 @@
 /// This is copied from Cargokit (which is the official way to use it currently)
 /// Details: https://fzyzcjy.github.io/flutter_rust_bridge/manual/integrate/builtin
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:collection/collection.dart';
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
@@ -144,6 +147,21 @@ class RustBuilder {
   /// Returns the path of directory containing build artifacts.
   Future<String> build() async {
     final extraArgs = _buildOptions?.flags ?? [];
+    // Platform-scoped flags handed down by the build system (see
+    // CargoKitExtension.cargoFlags), JSON-encoded so a flag containing a space
+    // survives; empty on platforms that set none.
+    final rawPlatformFlags =
+        Platform.environment['CARGOKIT_CARGO_FLAGS'] ?? '[]';
+    final List<String> platformFlags;
+    try {
+      platformFlags = (jsonDecode(rawPlatformFlags) as List<Object?>)
+          .cast<String>();
+    } on FormatException catch (e) {
+      throw BuildException(
+        'CARGOKIT_CARGO_FLAGS is not a JSON array of flags: '
+        '$rawPlatformFlags ($e)',
+      );
+    }
     final manifestPath = path.join(environment.manifestDir, 'Cargo.toml');
     runCommand(
       'rustup',
@@ -155,6 +173,7 @@ class RustBuilder {
             ? 'zigbuild'
             : 'build',
         ...extraArgs,
+        ...platformFlags,
         '--manifest-path',
         manifestPath,
         '-p',

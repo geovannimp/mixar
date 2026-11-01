@@ -37,6 +37,8 @@ const EVT_CAPACITY: usize = 2048;
 pub const DEFAULT_STEMS_MODEL: &str = "htdemucs_mixxx_v1";
 /// Optional SCNet int8 ONNX (spectrogram I/O, faster segments).
 pub const SCNET_STEMS_MODEL: &str = "scnet_int8_v1";
+/// Built-in separation models selectable from Settings → Library.
+pub const STEM_MODELS: [&str; 2] = [DEFAULT_STEMS_MODEL, SCNET_STEMS_MODEL];
 
 #[derive(Clone)]
 pub struct LibraryBuses {

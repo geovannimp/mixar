@@ -20,10 +20,34 @@ pub fn init_app() {
     // Resolve app data and attach `mixar.log` here, before Dart runs: a failure
     // during Flutter start-up (or a caller that never opens a transport) then still
     // leaves diagnostics on disk.
-    crate::app_paths::ensure();
-    attach_log_file(&crate::app_paths::log_file());
+    //
+    // Android has no `HOME`/`XDG_DATA_HOME`, so the directory can only come from
+    // the platform (`set_app_support_dir`); attaching here would target `/`.
+    #[cfg(not(target_os = "android"))]
+    attach_app_log();
     // Keep FRB panic backtraces (`RUST_BACKTRACE` + hook); skip its `log` console init.
     flutter_rust_bridge::setup_backtrace();
+}
+
+/// Pin the app-support directory before any transport opens.
+///
+/// Dart calls this from `main()` on Android with `path_provider`'s application
+/// support directory (the platform files dir), because the Rust environment
+/// rules in [`crate::app_paths`] cannot find it. Also attaches `mixar.log`
+/// there, since [`init_app`] skips that on Android.
+pub fn set_app_support_dir(path: String) -> Result<(), String> {
+    crate::app_paths::set_support_dir(std::path::PathBuf::from(path))?;
+    attach_app_log();
+    Ok(())
+}
+
+/// Create the app-support directory and attach `mixar.log` to it.
+///
+/// Single place for the order, so the desktop start-up path ([`init_app`]) and
+/// the Android path ([`set_app_support_dir`]) cannot drift.
+fn attach_app_log() {
+    crate::app_paths::ensure();
+    attach_log_file(&crate::app_paths::log_file());
 }
 
 fn tracing_env_filter() -> EnvFilter {

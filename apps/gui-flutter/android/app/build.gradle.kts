@@ -20,7 +20,9 @@ android {
         applicationId = "top.mixar.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // midir links `libamidi.so` (API 29+); cpal's AAudio backend needs 26+.
+        // `maxOf` keeps a future Flutter floor above 29 (3.47's is 24).
+        minSdk = maxOf(flutter.minSdkVersion, 29)
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
@@ -28,6 +30,12 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            // 64-bit only: ort-sys (ONNX Runtime) has no 32-bit Android binary,
+            // and Android builds without the `stems` feature anyway.
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {

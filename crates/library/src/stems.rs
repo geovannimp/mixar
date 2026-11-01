@@ -85,6 +85,7 @@ fn model_id(backend: &str) -> &str {
 }
 
 /// Stable FNV-1a 64-bit (local cache keys; not a crypto hash).
+#[cfg(feature = "stems")]
 fn fnv1a64(data: &[u8]) -> u64 {
     let mut hash = 0xcbf29ce484222325u64;
     for &b in data {
@@ -95,10 +96,12 @@ fn fnv1a64(data: &[u8]) -> u64 {
 }
 
 /// Bounded collision-resistant cache file name under `stems_root`.
+#[cfg(feature = "stems")]
 fn stem_cache_key(track_id: &TrackId) -> String {
     format!("{:016x}", fnv1a64(track_id.as_str().as_bytes()))
 }
 
+#[cfg(feature = "stems")]
 fn stem_cache_path(stems_root: &Path, track_id: &TrackId) -> PathBuf {
     stems_root.join(format!("{}.stem.mp4", stem_cache_key(track_id)))
 }
@@ -139,15 +142,7 @@ pub(crate) fn cache_matches_source_file(info: &TrackStemsInfo, source: &Path) ->
 }
 
 fn expected_backend(model_name: &str) -> &str {
-    #[cfg(feature = "analysis")]
-    {
-        model_name
-    }
-    #[cfg(not(feature = "analysis"))]
-    {
-        let _ = model_name;
-        ""
-    }
+    model_name
 }
 
 /// stem-splitter-core keeps a process-global ONNX session; serialize Demucs so
@@ -240,7 +235,7 @@ fn generate_stem_files(
         }
     };
 
-    #[cfg(feature = "analysis")]
+    #[cfg(feature = "stems")]
     {
         let format = normalize_stems_format(format);
 
@@ -359,7 +354,7 @@ fn generate_stem_files(
         })
     }
 
-    #[cfg(not(feature = "analysis"))]
+    #[cfg(not(feature = "stems"))]
     {
         let _ = (
             id,
@@ -368,10 +363,11 @@ fn generate_stem_files(
             audio,
             fingerprint,
             format,
+            model_name,
             report,
         );
         Err(LibraryError::Unsupported(
-            "stem separation requires the analysis feature",
+            "stem separation is unavailable on this platform (built without the `stems` feature)",
         ))
     }
 }
@@ -862,6 +858,7 @@ mod tests {
         assert!(!has_track_stems(&lib.db, &id).unwrap());
     }
 
+    #[cfg(feature = "stems")]
     #[test]
     fn stem_cache_key_is_bounded_and_stable() {
         let a = TrackId::new("/music/foo bar/track.wav");
@@ -871,6 +868,7 @@ mod tests {
         assert_eq!(stem_cache_key(&a), stem_cache_key(&a));
     }
 
+    #[cfg(feature = "stems")]
     #[test]
     fn stem_cache_path_uses_stem_mp4_suffix() {
         let root = Path::new("/stems");

@@ -54,7 +54,7 @@ pub use library_core::{
     WritableLibrary,
 };
 
-pub use bus::{LibraryBus, LibraryBuses};
+pub use bus::{LibraryBus, LibraryBuses, DEFAULT_STEMS_MODEL, SCNET_STEMS_MODEL, STEM_MODELS};
 pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
     LoopRecord,

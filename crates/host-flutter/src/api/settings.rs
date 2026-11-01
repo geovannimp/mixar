@@ -582,12 +582,14 @@ fn default_stems_format() -> String {
 }
 
 fn default_stems_model() -> String {
-    analyzer_stems::DEFAULT_MODEL.into()
+    library::DEFAULT_STEMS_MODEL.into()
 }
 
 fn normalize_stems_model(model: &str) -> String {
     let model = model.trim();
-    if analyzer_stems::STEM_MODELS.contains(&model) {
+    // The catalog lives in the library crate so it stays available in builds
+    // without the `stems` feature (no ONNX Runtime, e.g. Android x86_64).
+    if library::STEM_MODELS.contains(&model) {
         model.into()
     } else {
         default_stems_model()
@@ -1016,6 +1018,7 @@ pub(crate) fn settings_engine_config() -> Result<EngineConfig, String> {
 ///
 /// Defaults to `false`; a poisoned host lock is treated as disabled so the
 /// audio/load path never starts live separation unexpectedly.
+#[cfg(feature = "stems")]
 pub(crate) fn settings_realtime_stems_enabled() -> bool {
     let host = shared_host();
     host.lock()
@@ -1059,7 +1062,7 @@ mod tests {
         assert!(parsed.show_mixer_meters);
         assert!(parsed.mixer_meters_mono);
         assert_eq!(parsed.stems_format, "opus");
-        assert_eq!(parsed.stems_model, analyzer_stems::DEFAULT_MODEL);
+        assert_eq!(parsed.stems_model, library::DEFAULT_STEMS_MODEL);
         assert!(!parsed.realtime_stems);
     }
 
@@ -1146,7 +1149,7 @@ mod tests {
         let mut value = serde_json::to_value(sample_settings()).expect("json");
         value.as_object_mut().expect("object").remove("stems_model");
         let settings: AppSettings = serde_json::from_value(value).expect("parse");
-        assert_eq!(settings.stems_model, analyzer_stems::DEFAULT_MODEL);
+        assert_eq!(settings.stems_model, library::DEFAULT_STEMS_MODEL);
 
         let mut value = serde_json::to_value(sample_settings()).expect("json");
         value
@@ -1155,7 +1158,7 @@ mod tests {
             .insert("stems_model".into(), serde_json::json!("nope"));
         let settings: AppSettings = serde_json::from_value(value).expect("parse");
         let normalized = parse_settings(settings).expect("normalize");
-        assert_eq!(normalized.stems_model, analyzer_stems::DEFAULT_MODEL);
+        assert_eq!(normalized.stems_model, library::DEFAULT_STEMS_MODEL);
     }
 
     #[test]

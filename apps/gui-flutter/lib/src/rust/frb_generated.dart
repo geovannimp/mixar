@@ -77,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -193158387;
+  int get rustContentHash => 380749105;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -865,6 +865,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<SelectStyleSetting> crateApiSettingsSelectStyleSettingDefault();
+
+  Future<void> crateApiMetaSetAppSupportDir({required String path});
 
   Future<ThemeSetting> crateApiSettingsThemeSettingDefault();
 
@@ -6630,6 +6632,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiMetaSetAppSupportDir({required String path}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 147,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiMetaSetAppSupportDirConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiMetaSetAppSupportDirConstMeta =>
+      const TaskConstMeta(debugName: "set_app_support_dir", argNames: ["path"]);
+
+  @override
   Future<ThemeSetting> crateApiSettingsThemeSettingDefault() {
     return handler.executeNormal(
       NormalTask(
@@ -6638,7 +6668,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 148,
             port: port_,
           );
         },
@@ -6665,7 +6695,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 149,
             port: port_,
           );
         },

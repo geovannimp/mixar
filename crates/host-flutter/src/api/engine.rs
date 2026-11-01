@@ -81,9 +81,9 @@ use crate::api::bus::BusTransport;
 use crate::api::bus::DeckChrome;
 use crate::api::history_worker::HistoryWorker;
 use crate::api::library::LibraryTransport;
-use crate::api::settings::{
-    settings_engine_config, settings_host_runtime, settings_realtime_stems_enabled, JogModeSetting,
-};
+#[cfg(feature = "stems")]
+use crate::api::settings::settings_realtime_stems_enabled;
+use crate::api::settings::{settings_engine_config, settings_host_runtime, JogModeSetting};
 use crate::bridge::BridgeResult;
 
 const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
@@ -219,14 +219,18 @@ pub struct EngineTransport {
     deck_load_generation: Arc<Vec<AtomicU64>>,
     deck_count: AtomicUsize,
     /// Mixar-owned model root, for opportunistic live separation.
+    #[cfg(feature = "stems")]
     models_root: std::path::PathBuf,
     /// Live producers per deck; replacing or dropping one stops it.
+    #[cfg(feature = "stems")]
     live_separators: Arc<Mutex<Vec<Option<analyzer_stems::LiveSeparator>>>>,
     /// Serializes first-use StemgenRT downloads so two deck loads cannot race
     /// on the same `.part` file.
+    #[cfg(feature = "stems")]
     stemgen_download_lock: Arc<Mutex<()>>,
     /// The null backend is used by headless tests and offline tools; keep the
     /// live filter (and its model download) out of that path.
+    #[cfg(feature = "stems")]
     live_stems_enabled: bool,
 }
 
@@ -237,11 +241,7 @@ impl Drop for EngineTransport {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         history.take();
-        if let Ok(mut live) = self.live_separators.lock() {
-            for slot in live.iter_mut() {
-                slot.take();
-            }
-        }
+        self.clear_live_producers();
         if let Ok(mut guard) = self.engine.lock() {
             if let Some(engine) = guard.as_mut() {
                 let _ = engine.stop();
@@ -271,6 +271,7 @@ impl EngineTransport {
         config: EngineConfig,
     ) -> Result<Self, String> {
         let library_arc = library_transport.library_arc();
+        #[cfg(feature = "stems")]
         let live_stems_enabled = config.backend != "null";
         let deck_count = config.num_decks;
         let mut engine =
@@ -314,9 +315,13 @@ impl EngineTransport {
             history_worker: Mutex::new(Some(history_worker)),
             deck_load_generation: Arc::new((0..MAX_DECKS).map(|_| AtomicU64::new(0)).collect()),
             deck_count: AtomicUsize::new(deck_count),
+            #[cfg(feature = "stems")]
             models_root: library_transport.library_buses().models_root(),
+            #[cfg(feature = "stems")]
             live_separators: Arc::new(Mutex::new((0..MAX_DECKS).map(|_| None).collect())),
+            #[cfg(feature = "stems")]
             stemgen_download_lock: Arc::new(Mutex::new(())),
+            #[cfg(feature = "stems")]
             live_stems_enabled,
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
@@ -332,11 +337,7 @@ impl EngineTransport {
         for generation in self.deck_load_generation.iter() {
             generation.fetch_add(1, Ordering::AcqRel);
         }
-        if let Ok(mut live) = self.live_separators.lock() {
-            for slot in live.iter_mut() {
-                slot.take();
-            }
-        }
+        self.clear_live_producers();
         let mut guard = self
             .engine
             .lock()
@@ -705,16 +706,38 @@ impl EngineTransport {
         }))
     }
 
-    pub fn unload(&self, deck_id: u16) -> Result<(), String> {
-        if usize::from(deck_id) >= self.deck_count.load(Ordering::Acquire) {
-            return Err(format!("Invalid deck ID: {deck_id}"));
-        }
-        // Drop the producer + its ring before the deck unload closes coverage.
+    /// Stop the live stem producer attached to one deck, if any.
+    #[cfg(feature = "stems")]
+    fn stop_live_producer(&self, deck_id: u16) {
         if let Ok(mut live) = self.live_separators.lock() {
             if let Some(previous) = live.get_mut(usize::from(deck_id)).and_then(Option::take) {
                 previous.stop();
             }
         }
+    }
+
+    #[cfg(not(feature = "stems"))]
+    fn stop_live_producer(&self, _deck_id: u16) {}
+
+    /// Stop every live stem producer (drop / restart).
+    #[cfg(feature = "stems")]
+    fn clear_live_producers(&self) {
+        if let Ok(mut live) = self.live_separators.lock() {
+            for slot in live.iter_mut() {
+                slot.take();
+            }
+        }
+    }
+
+    #[cfg(not(feature = "stems"))]
+    fn clear_live_producers(&self) {}
+
+    pub fn unload(&self, deck_id: u16) -> Result<(), String> {
+        if usize::from(deck_id) >= self.deck_count.load(Ordering::Acquire) {
+            return Err(format!("Invalid deck ID: {deck_id}"));
+        }
+        // Drop the producer + its ring before the deck unload closes coverage.
+        self.stop_live_producer(deck_id);
         self.publish_cmd(Event::Unload(Unload { deck: deck_id }))
     }
 
@@ -1068,6 +1091,7 @@ impl EngineTransport {
     /// The model is downloaded in the background on first use. The deck is
     /// attached to an empty ring immediately, so this call never blocks on the
     /// network; `stems_ready` flips when the producer publishes its first hop.
+    #[cfg(feature = "stems")]
     fn start_live_stems(
         &self,
         deck: usize,
@@ -1171,6 +1195,22 @@ impl EngineTransport {
         }
     }
 
+    /// Without ONNX Runtime there is no live separator to start; the deck plays
+    /// the dry mix, exactly as it does when the producer cannot be created.
+    #[cfg(not(feature = "stems"))]
+    fn start_live_stems(
+        &self,
+        deck: usize,
+        _audio: Arc<audio_core::LoadedAudio>,
+        _engine: &mut Engine,
+        _generation: u64,
+    ) {
+        tracing::debug!(
+            deck,
+            "live stem separation requires the `stems` feature; playing the dry mix"
+        );
+    }
+
     fn load_prepared(
         &self,
         deck_id: u16,
@@ -1195,11 +1235,7 @@ impl EngineTransport {
                 .ok_or_else(|| "engine not available".to_string())?;
             // A live producer from the previous track must stop before either
             // the cached-stems arm or a new live producer replaces it.
-            if let Ok(mut live) = self.live_separators.lock() {
-                if let Some(previous) = live.get_mut(deck_id as usize).and_then(Option::take) {
-                    previous.stop();
-                }
-            }
+            self.stop_live_producer(deck_id);
             engine
                 .load_prepared_track(deck_id as usize, prepared)
                 .bridge()?;
