@@ -19,6 +19,7 @@ class LibraryNavRow extends StatelessWidget {
     this.selected = false,
     this.focused = false,
     this.indented = false,
+    this.dropActive = false,
     this.onPress,
   });
 
@@ -33,6 +34,11 @@ class LibraryNavRow extends StatelessWidget {
   /// the same while the track list owns focus.
   final bool focused;
   final bool indented;
+
+  /// A valid drag payload is over this row. Painted like a selection plus a
+  /// full outline in the accent colour, so the drop target reads at a glance
+  /// without borrowing the row's selected state.
+  final bool dropActive;
   final VoidCallback? onPress;
 
   @override
@@ -44,7 +50,7 @@ class LibraryNavRow extends StatelessWidget {
       // The cursor wears the same fill as a selection: a focused Drive volume
       // is not the active volume, and an outline with no fill reads as chrome
       // rather than as the row the rotary is on.
-      final marked = selected || focused;
+      final marked = selected || focused || dropActive;
       final fill = marked
           ? librarySelectedRowColor(theme)
           : hovered
@@ -54,8 +60,9 @@ class LibraryNavRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: fill,
           // Focused cursor: the left accent grows into a full outline, so a
-          // selected row and a focused row read differently at a glance.
-          border: focused
+          // selected row and a focused row read differently at a glance. A
+          // drop target takes the same outline: it is momentary, not a state.
+          border: dropActive || focused
               ? Border.all(color: colors.primary, width: 2)
               : Border(
                   left: BorderSide(

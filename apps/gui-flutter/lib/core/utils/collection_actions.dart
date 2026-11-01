@@ -6,6 +6,15 @@ import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
+import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
+
+/// Reload the sidebar counts and the visible collection rows after a
+/// membership change.
+void refreshCollectionViews(WidgetRef ref) {
+  ref
+    ..invalidate(collectionsProvider)
+    ..invalidate(collectionTracksProvider);
+}
 
 Future<LibraryCollectionSummary?> createCollection(
   WidgetRef ref,
@@ -37,8 +46,7 @@ Future<LibraryCollectionSummary?> createCollection(
                 sortable: request.sortable,
               );
     }
-    ref.invalidate(collectionsProvider);
-    ref.invalidate(collectionTracksProvider);
+    refreshCollectionViews(ref);
     return collection;
   } catch (e) {
     ref.read(appNoticeProvider.notifier).setError('$e');
@@ -96,6 +104,41 @@ Future<void> analyzeCollectionAction(
   }
 }
 
+/// Add one track to a playlist collection.
+///
+/// Sortable playlists append a new entry (the same track may appear twice);
+/// other playlists keep a single row per track. Returns `false` when the add
+/// failed, after surfacing the error.
+Future<bool> addTrackToCollection(
+  BuildContext context,
+  WidgetRef ref,
+  String collectionId,
+  String trackId,
+) async {
+  try {
+    final transport = await ref.read(libraryTransportProvider.future);
+    await transport.addCollectionEntry(
+      collectionId: collectionId,
+      trackId: trackId,
+    );
+  } catch (e) {
+    if (context.mounted) {
+      showMixarToast(
+        context: context,
+        variant: MixarToastVariant.destructive,
+        title: Text('$e'),
+      );
+    }
+    return false;
+  }
+  // `ref` dies with the widget; the awaited call can outlive the pane.
+  if (!context.mounted) {
+    return true;
+  }
+  refreshCollectionViews(ref);
+  return true;
+}
+
 /// Confirm then delete a collection. Tracks only referenced by it go too.
 Future<void> deleteCollectionAction(
   BuildContext context,
@@ -146,8 +189,7 @@ Future<void> deleteCollectionAction(
   if (ref.read(selectedCollectionIdProvider) == collection.id) {
     ref.read(selectedCollectionIdProvider.notifier).set(null);
   }
-  ref.invalidate(collectionsProvider);
-  ref.invalidate(collectionTracksProvider);
+  refreshCollectionViews(ref);
   if (deleted) {
     ref
         .read(appNoticeProvider.notifier)
