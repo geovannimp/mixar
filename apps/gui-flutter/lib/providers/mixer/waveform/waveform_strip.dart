@@ -39,14 +39,18 @@ class WaveformStrip implements OwnedResource {
   final WaveformPeaksTexture l0;
   final List<WaveformTile> tiles;
   var _disposed = false;
+  var _relinquished = false;
 
   double get pxPerMs => widthPx / durationMs;
 
-  /// Hands the pictures and textures this strip holds to a derived strip
-  /// (`withTile`), so disposing this one becomes a no-op: the derived strip
-  /// owns them and disposes them once.
+  /// Hands the textures this strip holds to a derived strip (`withTile`).
+  ///
+  /// The derived strip owns them and disposes them once, so disposing this one
+  /// releases nothing. Kept separate from [_disposed]: "ownership handed off" is
+  /// not "already disposed", and conflating them would make a strip that is
+  /// relinquished but never superseded leak silently.
   void relinquish() {
-    _disposed = true;
+    _relinquished = true;
   }
 
   WaveformStrip withTile(WaveformTile tile) => WaveformStrip(
@@ -62,6 +66,10 @@ class WaveformStrip implements OwnedResource {
       return;
     }
     _disposed = true;
+    if (_relinquished) {
+      // A derived strip owns these now.
+      return;
+    }
     l0.dispose();
     for (final tile in tiles) {
       tile.texture.dispose();
