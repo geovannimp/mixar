@@ -14,6 +14,7 @@ toolchains:
 fileGroups:
   sources:
     - "lib/**/*"
+    - "shaders/**/*"
     - "pubspec.yaml"
     - "pubspec.lock"
     - "analysis_options.yaml"

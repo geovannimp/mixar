@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
+import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/application.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   // RustLib.init() resolves app data in Rust and attaches `mixar.log` there,
   // before any of the providers below open a transport.
   await RustLib.init();
+  await WaveformShader.load();
 
   final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   if (isAndroid) {
