@@ -20,7 +20,15 @@ Future<void> main() async {
   // RustLib.init() resolves app data in Rust and attaches `mixar.log` there,
   // before any of the providers below open a transport.
   await RustLib.init();
-  await WaveformShader.load();
+  // Waveform lanes are fragment-shader only, so a shader that will not load
+  // leaves them blank for the whole session. Fail here, with the reason on
+  // screen, instead of starting a UI whose lanes can never draw bars.
+  try {
+    await WaveformShader.load();
+  } on Object catch (error) {
+    runApp(StartupFailureApp(message: '$error'));
+    return;
+  }
 
   final isAndroid = !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
   if (isAndroid) {

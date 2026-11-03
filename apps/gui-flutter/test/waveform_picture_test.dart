@@ -33,9 +33,12 @@ class _Raster {
 
 Future<_Raster> _raster(WaveformPicture picture, int width, int height) async {
   final image = await picture.picture.toImage(width, height);
-  final data = await image.toByteData();
-  image.dispose();
-  return _Raster(data!.buffer.asUint8List(), width);
+  try {
+    final data = await image.toByteData();
+    return _Raster(data!.buffer.asUint8List(), width);
+  } finally {
+    image.dispose();
+  }
 }
 
 Matcher _near(int r, int g, int b, {int tolerance = 0}) => predicate(

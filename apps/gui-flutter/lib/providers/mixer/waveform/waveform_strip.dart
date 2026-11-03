@@ -72,20 +72,28 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       _dropAfterFrame(_owned);
       _owned = null;
     });
+    // Bump first: any recording still in flight is superseded by this build,
+    // including the one that decides to render nothing.
+    final gen = ++_gen;
+    final previous = _owned;
     if (peaks == null || peaks.isEmpty || durationMs <= 0) {
-      // Bump so an L0 recording still in flight cannot publish a strip the
-      // notifier has just decided not to show.
-      _gen++;
-      _dropAfterFrame(_owned);
-      _owned = null;
+      _release(previous);
       return null;
     }
-    final gen = ++_gen;
-    final prev = _owned;
-    _owned = null;
-    _dropAfterFrame(prev);
     unawaited(_recordL0(trackId, peaks, durationMs, background, mode, gen));
-    return null;
+    // Keep the strip that is already on screen until the new one is encoded:
+    // blanking the lane for a frame or more on every peaks refresh reads as a
+    // glitch, and the peaks behind the old strip are the same track.
+    return previous;
+  }
+
+  /// Drops [strip] once the frame that may still paint it is gone.
+  void _release(WaveformStrip? strip) {
+    if (strip == null || !identical(_owned, strip)) {
+      return;
+    }
+    _owned = null;
+    _dropAfterFrame(strip);
   }
 
   Future<void> _recordL0(
@@ -114,8 +122,10 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       heightPx: height.round(),
       l0: l0,
     );
+    final replaced = _owned;
     _owned = strip;
     state = strip;
+    _dropAfterFrame(replaced);
     unawaited(_fillL1(trackId, durationMs, width, gen, mode, background));
   }
 

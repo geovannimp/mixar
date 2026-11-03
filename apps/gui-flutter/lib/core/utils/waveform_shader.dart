@@ -61,18 +61,28 @@ Future<WaveformPeaksTexture> encodeWaveformTexture(
     bytes[o + 3] = 255;
   }
   final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-  final descriptor = ui.ImageDescriptor.raw(
-    buffer,
-    width: peaks.length,
-    height: 1,
-    pixelFormat: ui.PixelFormat.rgba8888,
-  );
-  final codec = await descriptor.instantiateCodec();
-  final frame = await codec.getNextFrame();
-  codec.dispose();
-  descriptor.dispose();
-  buffer.dispose();
-  return WaveformPeaksTexture(frame.image);
+  try {
+    final descriptor = ui.ImageDescriptor.raw(
+      buffer,
+      width: peaks.length,
+      height: 1,
+      pixelFormat: ui.PixelFormat.rgba8888,
+    );
+    try {
+      final codec = await descriptor.instantiateCodec();
+      try {
+        final frame = await codec.getNextFrame();
+        return WaveformPeaksTexture(frame.image);
+      } finally {
+        codec.dispose();
+      }
+    } finally {
+      // The descriptor holds a handle on the buffer, so it goes first.
+      descriptor.dispose();
+    }
+  } finally {
+    buffer.dispose();
+  }
 }
 
 int _channel(double value) => (value.clamp(0.0, 1.0) * 255).round();
