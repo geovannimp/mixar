@@ -5,17 +5,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
-import 'package:gui_flutter/core/utils/waveform_picture.dart';
-import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
+import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 
 class WaveformTile {
-  const new({required this.startPx, required this.picture});
+  const new({
+    required this.startPx,
+    required this.widthPx,
+    required this.texture,
+  });
 
   final double startPx;
-  final WaveformPicture picture;
+  final double widthPx;
+  final WaveformPeaksTexture texture;
 }
 
 class WaveformStrip {
@@ -30,7 +34,7 @@ class WaveformStrip {
   final int durationMs;
   final int widthPx;
   final int heightPx;
-  final WaveformPicture l0;
+  final WaveformPeaksTexture l0;
   final List<WaveformTile> tiles;
   var _disposed = false;
 
@@ -51,7 +55,7 @@ class WaveformStrip {
     _disposed = true;
     l0.dispose();
     for (final tile in tiles) {
-      tile.picture.dispose();
+      tile.texture.dispose();
     }
   }
 }
@@ -59,15 +63,16 @@ class WaveformStrip {
 class WaveformStripNotifier extends Notifier<WaveformStrip?> {
   new(this.arg);
 
-  final (String, int, Color) arg;
+  final (String, int) arg;
   var _gen = 0;
   WaveformStrip? _owned;
 
   @override
   WaveformStrip? build() {
-    final (trackId, durationMs, background) = arg;
+    final (trackId, durationMs) = arg;
     final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
-    final mode = ref.watch(waveformDisplayModeProvider);
+    // Lane fill and display mode are paint-time uniforms: watching them here
+    // would re-encode the texture on every theme flip or mode switch.
     ref.onDispose(() {
       _dropAfterFrame(_owned);
       _owned = null;
@@ -80,7 +85,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       _release(previous);
       return null;
     }
-    unawaited(_recordL0(trackId, peaks, durationMs, background, mode, gen));
+    unawaited(_recordL0(trackId, peaks, durationMs, gen));
     // Keep the strip that is already on screen until the new one is encoded:
     // blanking the lane for a frame or more on every peaks refresh reads as a
     // glitch, and the peaks behind the old strip are the same track.
@@ -100,18 +105,11 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     String trackId,
     List<SpectralPeak> overview,
     int durationMs,
-    Color background,
-    WaveformDisplayMode mode,
     int gen,
   ) async {
     final width = stripWidthPx(durationMs);
     const height = kWaveformStripHeight;
-    final l0 = await recordWaveformPicture(
-      peaks: overview,
-      size: Size(width.toDouble(), height),
-      background: background,
-      mode: mode,
-    );
+    final l0 = await encodeWaveformTexture(overview);
     if (!ref.mounted || gen != _gen) {
       l0.dispose();
       return;
@@ -126,7 +124,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     _owned = strip;
     state = strip;
     _dropAfterFrame(replaced);
-    unawaited(_fillL1(trackId, durationMs, width, gen, mode, background));
+    unawaited(_fillL1(trackId, durationMs, width, gen));
   }
 
   Future<void> _fillL1(
@@ -134,8 +132,6 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     int durationMs,
     int width,
     int gen,
-    WaveformDisplayMode mode,
-    Color background,
   ) async {
     final lib = await ref.read(libraryTransportProvider.future);
     if (!ref.mounted || gen != _gen) {
@@ -179,19 +175,18 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
         if (peaks.isEmpty) {
           continue;
         }
-        final picture = await recordWaveformPicture(
-          peaks: peaks,
-          size: Size(w.toDouble(), kWaveformStripHeight),
-          background: background,
-          mode: mode,
-        );
+        final texture = await encodeWaveformTexture(peaks);
         final cur = _owned;
         if (cur == null || gen != _gen) {
-          picture.dispose();
+          texture.dispose();
           return;
         }
         final next = cur.withTile(
-          WaveformTile(startPx: startPx.toDouble(), picture: picture),
+          WaveformTile(
+            startPx: startPx.toDouble(),
+            widthPx: w.toDouble(),
+            texture: texture,
+          ),
         );
         _owned = next;
         state = next;
@@ -225,15 +220,14 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
 
 // autoDispose so unloading a deck releases the strip and its
 // waveformOverviewProvider watch (otherwise every loaded track pins peaks).
-/// Strip pictures bake the lane background, so the theme colour is part of the
-/// key: flipping the theme records a fresh strip instead of showing dark
-/// pictures on a light lane.
+/// Only the peak texture is cached; lane fill, display mode and gains are
+/// uniforms, so neither a theme flip nor an EQ move re-records a strip.
 final NotifierProviderFamily<
   WaveformStripNotifier,
   WaveformStrip?,
-  (String, int, Color)
+  (String, int)
 >
 waveformStripProvider = NotifierProvider.autoDispose
-    .family<WaveformStripNotifier, WaveformStrip?, (String, int, Color)>(
+    .family<WaveformStripNotifier, WaveformStrip?, (String, int)>(
       WaveformStripNotifier.new,
     );

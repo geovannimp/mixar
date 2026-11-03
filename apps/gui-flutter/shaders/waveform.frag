@@ -17,6 +17,10 @@ uniform vec4 uBackground;  // lane fill (opaque)
 uniform vec4 uLowColor;
 uniform vec4 uMidColor;
 uniform vec4 uHighColor;
+// Live amplitude shaping: the deck's channel gain and per-band EQ gains.
+// 1.0 is flat, so an untouched channel renders the recorded amplitudes.
+uniform float uGain;
+uniform vec3 uBandGain;
 
 out vec4 fragColor;
 
@@ -35,6 +39,9 @@ void main() {
   float frac = clamp(p.x / uSize.x, 0.0, 1.0);
   float texel = (frac * (uPeakCount - 1.0) + 0.5) / uPeakCount;
   vec4 peak = texture(uPeaks, vec2(texel, 0.5));
+  // Gain and EQ shape the bars live, so the cached peak texture stays valid
+  // while a knob moves.
+  peak.rgb = clamp(peak.rgb * (uBandGain * uGain), 0.0, 1.0);
 
   float midY = uSize.y * 0.5;
   float maxAmp = uSize.y * 0.46;

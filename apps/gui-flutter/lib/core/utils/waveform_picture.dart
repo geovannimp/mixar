@@ -1,21 +1,34 @@
 import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/core/models/waveform_peaks.dart';
+import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 
+/// Paints one waveform quad from a cached peak texture.
+///
+/// The texture is the only per-track cache: gains, display mode and lane fill
+/// are uniforms, so a deck's EQ can shape its bars without re-recording
+/// anything.
 class WaveformShaderPainter extends CustomPainter {
   new({
     required this.texture,
     required this.background,
     this.mode = WaveformDisplayMode.rgb,
+    this.gain = 1,
+    this.bandGain = flatWaveformBandGain,
   });
 
   /// Bucket texture for exactly the pixels this painter covers.
   final WaveformPeaksTexture? texture;
   final Color background;
   final WaveformDisplayMode mode;
+
+  /// Channel gain, 1.0 = unity.
+  final double gain;
+
+  /// Per-band EQ gain, 1.0 = flat.
+  final WaveformBandGain bandGain;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -33,7 +46,7 @@ class WaveformShaderPainter extends CustomPainter {
     }
     // One FragmentShader per paint. A FragmentShader carries a single mutable
     // uniform buffer, and dart:ui requires two objects for two sets of uniforms
-    // that must coexist; recorded pictures here coexist (L0 strip + tiles), so
+    // that must coexist; the live lane and overview paint concurrently, so
     // they may not share one.
     final shader = program.fragmentShader();
     shader.getUniformVec2('uSize').set(size.width, size.height);
@@ -53,6 +66,10 @@ class WaveformShaderPainter extends CustomPainter {
     shader
         .getUniformVec4('uHighColor')
         .set(kHighColor.r, kHighColor.g, kHighColor.b, 1);
+    shader.getUniformFloat('uGain').set(gain);
+    shader
+        .getUniformVec3('uBandGain')
+        .set(bandGain.$1, bandGain.$2, bandGain.$3);
     // `low` is bilinear: one linear filter and no mipmap, so a picture wider
     // than the texture interpolates between neighbouring buckets instead of
     // picking one.
@@ -69,43 +86,7 @@ class WaveformShaderPainter extends CustomPainter {
   bool shouldRepaint(WaveformShaderPainter oldDelegate) =>
       !identical(texture, oldDelegate.texture) ||
       background != oldDelegate.background ||
-      mode != oldDelegate.mode;
-}
-
-/// A recorded waveform picture plus the texture its shader samples.
-///
-/// The texture must outlive the picture: the recorded display list samples it
-/// at raster time.
-class WaveformPicture {
-  new({required this.picture, this.texture});
-
-  final Picture picture;
-  final WaveformPeaksTexture? texture;
-
-  void draw(Canvas canvas) => canvas.drawPicture(picture);
-
-  void dispose() {
-    picture.dispose();
-    texture?.dispose();
-  }
-}
-
-/// Records [peaks] across [size]. Empty peaks record the opaque lane fill only.
-Future<WaveformPicture> recordWaveformPicture({
-  required List<SpectralPeak> peaks,
-  required Size size,
-  required Color background,
-  WaveformDisplayMode mode = WaveformDisplayMode.rgb,
-}) async {
-  final texture = peaks.isEmpty || size.width <= 0
-      ? null
-      : await encodeWaveformTexture(peaks);
-  final recorder = PictureRecorder();
-  final canvas = Canvas(recorder, Offset.zero & size);
-  WaveformShaderPainter(
-    texture: texture,
-    background: background,
-    mode: mode,
-  ).paint(canvas, size);
-  return WaveformPicture(picture: recorder.endRecording(), texture: texture);
+      mode != oldDelegate.mode ||
+      gain != oldDelegate.gain ||
+      bandGain != oldDelegate.bandGain;
 }

@@ -14,7 +14,7 @@ Mixar waveform architecture, storage, and rendering decisions. Industry research
 - [8 — Rendering Architecture](#8--rendering-architecture)
   - [8.4 Progressive resolution](#84-progressive-resolution-agreed-design)
   - [8.5 Peak buffers + Flutter paint](#85-peak-buffers-rust--host-paint-flutter-decided)
-  - [8.6 EQ-aware rendering (future)](#86-eq-aware-rendering-future--architecture-now-wiring-later)
+  - [8.6 EQ-aware rendering](#86-eq-aware-rendering-implemented)
 - [9 — Data Model & Storage](#9--data-model--storage)
   - [9.1 Size math](#91-size-math-order-of-magnitude)
   - [9.3 Storage tiers](#93-storage-tiers-agreed-for-mixar)
@@ -104,7 +104,6 @@ Waveform **analysis** (spectral peaks) runs in Rust (`library` / `audio-core`). 
 ```text
 Rust (library / host-flutter FRB)
   ├─ load overview / window peaks from library or JIT
-  ├─ apply display gains (future: deck EQ → band multipliers, §8.6)
   └─ expose peaks to UI: LibraryTransport.get_waveform_overview / get_waveform_window
 
 Frontend (Flutter)
@@ -115,9 +114,9 @@ MVP ships peak arrays (overview + window detail) over FRB; Flutter paints bars e
 
 Library access: `Library::get_track_waveform` / window APIs in Rust; Flutter FRB `LibraryTransport` wraps them — not a separate “Dart fetches PCM and analyzes” architecture.
 
-### 8.6 EQ-aware rendering (future — architecture now, wiring later)
+### 8.6 EQ-aware rendering (implemented)
 
-Stored peaks are **immutable**; EQ affects **display multipliers only**.
+Stored peaks are **immutable**; EQ affects **display multipliers only**. The multipliers are shader uniforms (`uGain`, `uBandGain`), so moving a knob repaints the cached peak texture instead of re-analyzing or re-encoding it.
 
 ```text
 struct WaveformDisplayGains {
@@ -138,7 +137,7 @@ fn color_and_height(
 }
 ```
 
-MVP: `gains` always `1.0`. Renderer and analysis APIs accept `WaveformDisplayGains` (or `Option`) so EQ can be plugged in without changing the `track_waveform` schema or re-analysis.
+Implemented in Flutter: `waveformBandGainFor(MixerChannelUi)` maps the deck's EQ knobs (0..1, 0.5 flat) to per-band multipliers and the channel volume to `uGain`; the shader multiplies the sampled band amplitudes, so killing a band collapses its bars and a boost doubles them. A flat channel renders 1.0 and matches the stored peaks exactly.
 
 ### 8.4 Progressive resolution (agreed design)
 
@@ -375,7 +374,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | When computed | JIT via library overview / window APIs on deck load |
 | Cache | In-memory per path + bucket count |
 | Resolution | Adaptive 4096–16384 buckets (~13 ms/bucket) |
-| Display | Dual-lane GLSL fragment-shader renderer recorded into cached strip pictures, center playhead, 24 s window |
+| Display | Dual-lane GLSL fragment-shader renderer over cached peak textures (lane fill, display mode and EQ gain are uniforms), center playhead, 24 s window |
 | EQ link | **None** — static colors |
 | Overview strip | Implemented in Flutter (`overview_strip.dart`) |
 | Beat grid overlay | Implemented when analysis present |
