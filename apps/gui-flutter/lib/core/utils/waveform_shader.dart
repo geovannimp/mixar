@@ -12,11 +12,31 @@ abstract final class WaveformShader {
   static const asset = 'shaders/waveform.frag';
 
   static ui.FragmentProgram? _program;
+  static ui.FragmentShader? _shader;
 
   static ui.FragmentProgram? get program => _program;
 
+  /// The one shader instance every painter configures and draws with.
+  ///
+  /// Re-setting uniforms and drawing is safe in sequence: the engine snapshots
+  /// a draw's uniforms and sampler into the recorded display list, so a picture
+  /// recorded earlier keeps its own values (pinned by the reuse test). One
+  /// instance therefore avoids a native uniform-buffer allocation per paint,
+  /// which the lane would otherwise pay for every frame.
+  static ui.FragmentShader? get shader {
+    final program = _program;
+    if (program == null) {
+      return null;
+    }
+    return _shader ??= program.fragmentShader();
+  }
+
   static Future<void> load() async {
-    _program ??= await ui.FragmentProgram.fromAsset(asset);
+    if (_program != null) {
+      return;
+    }
+    _program = await ui.FragmentProgram.fromAsset(asset);
+    _shader = null;
   }
 }
 

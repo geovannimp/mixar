@@ -8,6 +8,7 @@ import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
+import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
@@ -513,23 +514,11 @@ class _StripPainter extends CustomPainter {
     // Painted live, not replayed from a recorded picture: gains and the
     // display mode are uniforms, so a deck's EQ or a settings flip costs one
     // quad instead of a re-recorded strip.
-    WaveformShaderPainter(
-      texture: strip.l0,
-      background: background,
-      mode: mode,
-      gain: gain,
-      bandGain: bandGain,
-    ).paint(canvas, Size(strip.widthPx.toDouble(), laneHeight));
+    _paintBars(canvas, strip.l0, strip.widthPx.toDouble(), laneHeight);
     for (final tile in strip.tiles) {
       canvas.save();
       canvas.translate(tile.startPx, 0);
-      WaveformShaderPainter(
-        texture: tile.texture,
-        background: background,
-        mode: mode,
-        gain: gain,
-        bandGain: bandGain,
-      ).paint(canvas, Size(tile.widthPx, laneHeight));
+      _paintBars(canvas, tile.texture, tile.widthPx, laneHeight);
       canvas.restore();
     }
     // Overlays are authored at strip height; scale with the waveform.
@@ -539,6 +528,23 @@ class _StripPainter extends CustomPainter {
       }
     }
     canvas.restore();
+  }
+
+  /// One lane quad sampling [texture]; L0 and every tile share the lane fill,
+  /// display mode and gains, so their wiring lives in one place.
+  void _paintBars(
+    Canvas canvas,
+    WaveformPeaksTexture texture,
+    double width,
+    double laneHeight,
+  ) {
+    WaveformShaderPainter(
+      texture: texture,
+      background: background,
+      mode: mode,
+      gain: gain,
+      bandGain: bandGain,
+    ).paint(canvas, Size(width, laneHeight));
   }
 
   @override

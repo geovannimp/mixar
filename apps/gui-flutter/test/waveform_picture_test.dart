@@ -71,6 +71,18 @@ Future<_Raster> _paint({
   }
 }
 
+const size100 = Size(4, 100);
+
+Future<_Raster> _rasterPicture(Picture picture) async {
+  final image = await picture.toImage(4, 100);
+  try {
+    final data = await image.toByteData();
+    return _Raster(data!.buffer.asUint8List(), 4);
+  } finally {
+    image.dispose();
+  }
+}
+
 Matcher _near(int r, int g, int b, {int tolerance = 0}) => predicate(
   (value) =>
       value is (int, int, int) &&
@@ -262,6 +274,44 @@ void main() {
         const MixerChannelUi(eqLow: 0, eqMid: 1, eqHigh: 0.25),
       ),
       (0, 2, 0.5),
+    );
+  });
+
+  test('every painter keeps its own uniforms and texture', () async {
+    // All painters configure one process-wide FragmentShader. The engine
+    // snapshots a draw's uniforms and sampler into the recorded display list,
+    // so a picture rasterised later must still show its own band colour and
+    // texture. If that ever stops holding, this test is what catches it before
+    // a lane paints another deck's bars.
+    Future<Picture> record(List<SpectralPeak> peaks) async {
+      final texture = await encodeWaveformTexture(peaks);
+      addTearDown(texture.dispose);
+      final recorder = PictureRecorder();
+      WaveformShaderPainter(
+        texture: texture,
+        background: _background,
+      ).paint(Canvas(recorder, const Rect.fromLTWH(0, 0, 4, 100)), size100);
+      final picture = recorder.endRecording();
+      addTearDown(picture.dispose);
+      return picture;
+    }
+
+    final lowPicture = await record(const [
+      SpectralPeak(low: 1, mid: 0, high: 0),
+    ]);
+    final highPicture = await record(const [
+      SpectralPeak(low: 0, mid: 0, high: 1),
+    ]);
+
+    expect(
+      (await _rasterPicture(lowPicture)).rgb(0, 50),
+      _low,
+      reason: 'low picture kept its texture and colours',
+    );
+    expect(
+      (await _rasterPicture(highPicture)).rgb(0, 50),
+      _high,
+      reason: 'high picture kept its texture and colours',
     );
   });
 

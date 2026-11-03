@@ -33,22 +33,17 @@ class WaveformShaderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = background);
-    final program = WaveformShader.program;
+    final shader = WaveformShader.shader;
     final peaks = texture;
     // A reload keeps the previous value visible until the new one lands, so a
     // painter can be handed a texture whose scheduled disposal already ran.
     // Sampling it would assert in debug and read a freed image in release.
-    if (program == null || peaks == null || peaks.disposed || peaks.count < 1) {
+    if (shader == null || peaks == null || peaks.disposed || peaks.count < 1) {
       return;
     }
     if (size.width <= 0 || size.height <= 0) {
       return;
     }
-    // One FragmentShader per paint. A FragmentShader carries a single mutable
-    // uniform buffer, and dart:ui requires two objects for two sets of uniforms
-    // that must coexist; the live lane and overview paint concurrently, so
-    // they may not share one.
-    final shader = program.fragmentShader();
     shader.getUniformVec2('uSize').set(size.width, size.height);
     shader.getUniformFloat('uPeakCount').set(peaks.count.toDouble());
     shader
