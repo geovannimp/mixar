@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, NotifierProviderFamily, ProviderFamily;
@@ -62,7 +63,15 @@ class WaveformOverviewTextureNotifier extends Notifier<WaveformPeaksTexture?>
   }
 
   Future<void> _encode(List<SpectralPeak> peaks, int gen) async {
-    final texture = await encodeWaveformTexture(peaks);
+    final WaveformPeaksTexture texture;
+    try {
+      texture = await encodeWaveformTexture(peaks);
+    } on Object catch (error) {
+      // Keep the previous texture (and the track map) rather than failing with
+      // an uncaught async error.
+      debugPrint('waveform overview encode failed: $error');
+      return;
+    }
     // The encode spans several engine hops; a track switch can unmount this
     // ref, and `onDispose` would throw on an unmounted ref instead of
     // releasing the image.

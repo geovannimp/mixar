@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
@@ -39,6 +41,13 @@ class WaveformStrip implements OwnedResource {
   var _disposed = false;
 
   double get pxPerMs => widthPx / durationMs;
+
+  /// Hands the pictures and textures this strip holds to a derived strip
+  /// (`withTile`), so disposing this one becomes a no-op: the derived strip
+  /// owns them and disposes them once.
+  void relinquish() {
+    _disposed = true;
+  }
 
   WaveformStrip withTile(WaveformTile tile) => WaveformStrip(
     durationMs: durationMs,
@@ -96,7 +105,15 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?>
   ) async {
     final width = stripWidthPx(durationMs);
     const height = kWaveformStripHeight;
-    final l0 = await encodeWaveformTexture(overview);
+    final WaveformPeaksTexture l0;
+    try {
+      l0 = await encodeWaveformTexture(overview);
+    } on Object catch (error) {
+      // Nothing to show for this track, but a failed encode must not escape as
+      // an uncaught async error; the lane keeps its fill.
+      debugPrint('waveform strip encode failed: $error');
+      return;
+    }
     if (!ref.mounted || !isCurrent(gen)) {
       l0.dispose();
       return;
@@ -172,6 +189,9 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?>
             texture: texture,
           ),
         );
+        // The new strip shares L0 and the earlier tiles, so the old strip must
+        // release them rather than dispose them.
+        cur.relinquish();
         publish(next);
       } catch (_) {
         continue;

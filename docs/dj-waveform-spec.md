@@ -59,7 +59,7 @@ They are **not** intended to reflect post-EQ or post-filter audio with perfect a
 ## 3 — Mixar amplitude & EQ policy
 
 - **Peak** is the Mixar amplitude metric for overview and scrolling windows.
-- **Lane waveforms follow the deck's EQ and channel gain** at render time: stored peaks are immutable and the shader multiplies band amplitudes by the knob values (§8.6).
+- **Lane waveforms follow the deck's EQ and channel gain** at render time: stored peaks are immutable and the shader multiplies band amplitudes by *mapped* gain factors — the knob is not used raw, 0.5 (flat) maps to 1.0 and 1.0 to 2.0, before clamping (§8.6).
 - **The overview strip stays a static track map** — EQ-shaping a whole-track navigation aid would hide the map exactly when a channel is faded or EQ-killed.
 
 ---

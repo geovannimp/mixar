@@ -705,7 +705,7 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | DK1 | Pad count | **8 slots** (2×4 grid); schema allows **16** for Hot Cue mode expansion |
 | DK12a | Pad abstraction | **8 controller pads** with **mode selector**; **Hot Cue = default mode**; `track_hot_cue` stores Hot Cue mode data only |
 | DK2 | Key lock | Tempo fader + sync use [`timestretch`](https://crates.io/crates/timestretch) WideKeylock (`SetKeyLock`); vinyl jog stays fractional |
-| DK3 | Waveform EQ link | Static analysis colors MVP; optional EQ tint post-MVP (dj-waveform-spec) |
+| DK3 | Waveform EQ link | Lane bars scale with deck EQ + channel gain at render time (mapped gains, no re-analysis); the overview stays a static track map (dj-waveform-spec §8.6) |
 | DK4 | Stems | Separate analysis/spec when chosen; tracked in [#46](https://github.com/geovannimp/mixar/issues/46) |
 | DK5 | Deck layout | **Stacked waveforms + side mixer** (current); optional single-deck expanded view later |
 | DK6 | Cue persistence | **`track_hot_cue`** table; **`save_hot_cue`** per slot (shipped) |
