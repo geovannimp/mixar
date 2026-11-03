@@ -35,7 +35,7 @@ Mixar waveform architecture, storage, and rendering decisions. Industry research
 | **Spectral color** | Offline 3-band split (low / mid / high) drives RGB-style color |
 | **Scrolling view** | Fixed center playhead; waveform data scrolls horizontally. Zoom defines seconds visible. |
 | **Two resolutions** | Detailed waveform for scrolling + low-res **overview** for full-track navigation. |
-| **EQ affects display?** | **MVP:** static. **Future:** optional band gains at render time (§8.6). |
+| **EQ affects display?** | **Yes** — deck EQ and channel gain shape the scrolling lane (shader uniforms, §8.6). The overview stays a static track map. |
 | **When computed** | Overview at library import; scroll **window** detail at deck load / seek (background). |
 | **Mixar storage** | **Overview only** in `library.db` (`track_waveform` table); hi-res window in memory; progressive UI (§8.4). |
 
@@ -59,8 +59,8 @@ They are **not** intended to reflect post-EQ or post-filter audio with perfect a
 ## 3 — Mixar amplitude & EQ policy
 
 - **Peak** is the Mixar amplitude metric for overview and scrolling windows.
-- **MVP waveforms are static** with respect to EQ/filter knobs (colors from analysis only).
-- **Post-MVP:** optional EQ band scaling at **render time** (multiply low/mid/high by deck EQ knob values). Architecture must support this from day one (§8.6) even though MVP does not wire EQ knobs to the renderer.
+- **Lane waveforms follow the deck's EQ and channel gain** at render time: stored peaks are immutable and the shader multiplies band amplitudes by the knob values (§8.6).
+- **The overview strip stays a static track map** — EQ-shaping a whole-track navigation aid would hide the map exactly when a channel is faded or EQ-killed.
 
 ---
 
@@ -120,7 +120,7 @@ Stored peaks are **immutable**; EQ affects **display multipliers only**. The mul
 
 ```text
 struct WaveformDisplayGains {
-    low: f32,   // from deck EQ low knob (future)
+    low: f32,   // from deck EQ low knob
     mid: f32,
     high: f32,
     // optional: filterWaveformEnable bool
@@ -137,7 +137,7 @@ fn color_and_height(
 }
 ```
 
-Implemented in Flutter: `waveformBandGainFor(MixerChannelUi)` maps the deck's EQ knobs (0..1, 0.5 flat) to per-band multipliers and the channel volume to `uGain`; the shader multiplies the sampled band amplitudes, so killing a band collapses its bars and a boost doubles them. A flat channel renders 1.0 and matches the stored peaks exactly.
+Implemented in Flutter: `waveformBandGainFor(MixerChannelUi)` maps the deck's EQ knobs (0..1, 0.5 flat) to per-band multipliers and the channel volume to `uGain`; the shader multiplies the sampled band amplitudes, so killing a band collapses its bars and a boost doubles them **before the amplitude is clamped to the bar range** (a bar already at full height stops growing). A flat channel renders 1.0 and matches the stored peaks exactly.
 
 ### 8.4 Progressive resolution (agreed design)
 
@@ -354,7 +354,7 @@ Analysis pipeline selects implementation from config / `WaveformAnalysisConfig`.
 | BLOB | **zstd** compressed | Decompress on read |
 | Filter | Modular trait; one default impl | Butterworth / Bessel selectable in config |
 | Colors | **RGB spectral** | Red low, green mid, blue high |
-| EQ display | Static gains (= 1.0) | Future: band multipliers (§8.6) |
+| EQ display | Band multipliers at render time, lane only (§8.6) | — |
 
 ### 9.9 Versioning
 
@@ -375,7 +375,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | Cache | In-memory per path + bucket count |
 | Resolution | Adaptive 4096–16384 buckets (~13 ms/bucket) |
 | Display | Dual-lane GLSL fragment-shader renderer over cached peak textures (lane fill, display mode and EQ gain are uniforms), center playhead, 24 s window |
-| EQ link | **None** — static colors |
+| EQ link | Lane bars scale with deck EQ + channel gain (uniforms; the overview map does not) |
 | Overview strip | Implemented in Flutter (`overview_strip.dart`) |
 | Beat grid overlay | Implemented when analysis present |
 | RMS option | Not implemented |
@@ -400,8 +400,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 
 ### Phase C — EQ & overlays
 
-1. **MVP:** static waveform; `WaveformDisplayGains` wired to identity (§8.6).
-2. **Post-MVP:** EQ band scaling at render time (no re-analysis).
+1. ~~Static waveform; `WaveformDisplayGains` wired to identity~~ — landed: lane bars scale with deck EQ + channel gain at render time (no re-analysis, §8.6).
 3. **Beat grid overlay** on scrolling lanes (live, from library beat grid).
 
 ### Phase D — Not recommended for MVP
@@ -420,8 +419,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | D2 | **Scroll detail** | Window-only JIT in memory; not on disk |
 | D3 | **Progressive UI** | L0 overview → L1 window detail → L2 ahead/behind buffers |
 | D4 | **Database** | Same `library.db`; `track_waveform` table |
-| D5 | **EQ → waveform MVP** | Static (gains = 1.0) |
-| D6 | **EQ → waveform future** | Band multipliers at render time; architecture in §8.6 |
+| D5/D6 | **EQ → waveform** | **Implemented:** band multipliers at render time in the lane shader; overview stays static (§8.6) |
 | D7 | **Overview size (O3)** | **Fixed** `OVERVIEW_SAMPLE_COUNT` (config constant; not duration-scaled) |
 | D8 | **Amplitude (O1, O2)** | **Peak** for MVP; `amplitude_mode` + future user pref for RMS |
 | D9 | **Band filters (O4)** | **Modular** trait; Butterworth / Bessel etc. via config |
