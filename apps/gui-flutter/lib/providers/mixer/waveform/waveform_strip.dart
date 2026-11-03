@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
@@ -8,6 +7,7 @@ import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/owned_resource.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 
 class WaveformTile {
@@ -22,7 +22,7 @@ class WaveformTile {
   final WaveformPeaksTexture texture;
 }
 
-class WaveformStrip {
+class WaveformStrip implements OwnedResource {
   new({
     required this.durationMs,
     required this.widthPx,
@@ -60,12 +60,11 @@ class WaveformStrip {
   }
 }
 
-class WaveformStripNotifier extends Notifier<WaveformStrip?> {
+class WaveformStripNotifier extends Notifier<WaveformStrip?>
+    with OwnedResourceNotifier<WaveformStrip> {
   new(this.arg);
 
   final (String, int) arg;
-  var _gen = 0;
-  WaveformStrip? _owned;
 
   @override
   WaveformStrip? build() {
@@ -73,16 +72,13 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
     // Lane fill and display mode are paint-time uniforms: watching them here
     // would re-encode the texture on every theme flip or mode switch.
-    ref.onDispose(() {
-      _dropAfterFrame(_owned);
-      _owned = null;
-    });
+    ref.onDispose(releaseOwned);
     // Bump first: any recording still in flight is superseded by this build,
     // including the one that decides to render nothing.
-    final gen = ++_gen;
-    final previous = _owned;
+    final gen = supersede();
+    final previous = owned;
     if (peaks == null || peaks.isEmpty || durationMs <= 0) {
-      _release(previous);
+      releaseIfOwned(previous);
       return null;
     }
     unawaited(_recordL0(trackId, peaks, durationMs, gen));
@@ -90,15 +86,6 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     // blanking the lane for a frame or more on every peaks refresh reads as a
     // glitch, and the peaks behind the old strip are the same track.
     return previous;
-  }
-
-  /// Drops [strip] once the frame that may still paint it is gone.
-  void _release(WaveformStrip? strip) {
-    if (strip == null || !identical(_owned, strip)) {
-      return;
-    }
-    _owned = null;
-    _dropAfterFrame(strip);
   }
 
   Future<void> _recordL0(
@@ -110,7 +97,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     final width = stripWidthPx(durationMs);
     const height = kWaveformStripHeight;
     final l0 = await encodeWaveformTexture(overview);
-    if (!ref.mounted || gen != _gen) {
+    if (!ref.mounted || !isCurrent(gen)) {
       l0.dispose();
       return;
     }
@@ -120,10 +107,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       heightPx: height.round(),
       l0: l0,
     );
-    final replaced = _owned;
-    _owned = strip;
-    state = strip;
-    _dropAfterFrame(replaced);
+    publish(strip);
     unawaited(_fillL1(trackId, durationMs, width, gen));
   }
 
@@ -134,7 +118,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     int gen,
   ) async {
     final lib = await ref.read(libraryTransportProvider.future);
-    if (!ref.mounted || gen != _gen) {
+    if (!ref.mounted || !isCurrent(gen)) {
       return;
     }
     const tileW = kWaveformStripTilePx;
@@ -147,7 +131,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
         return (ca - focusPx).abs().compareTo((cb - focusPx).abs());
       });
     for (final i in order) {
-      if (!ref.mounted || gen != _gen) {
+      if (!ref.mounted || !isCurrent(gen)) {
         return;
       }
       final startPx = i * tileW;
@@ -168,7 +152,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
           endMs: endMs,
           buckets: w,
         );
-        if (!ref.mounted || gen != _gen) {
+        if (!ref.mounted || !isCurrent(gen)) {
           return;
         }
         final peaks = decodeRgbPeaks(packed.rgb);
@@ -176,8 +160,8 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
           continue;
         }
         final texture = await encodeWaveformTexture(peaks);
-        final cur = _owned;
-        if (cur == null || gen != _gen) {
+        final cur = owned;
+        if (cur == null || !isCurrent(gen)) {
           texture.dispose();
           return;
         }
@@ -188,22 +172,12 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
             texture: texture,
           ),
         );
-        _owned = next;
-        state = next;
+        publish(next);
       } catch (_) {
         continue;
       }
       await Future<void>.delayed(Duration.zero);
     }
-  }
-
-  void _dropAfterFrame(WaveformStrip? strip) {
-    if (strip == null) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      strip.dispose();
-    });
   }
 
   double _focusPx(String trackId, int width, int durationMs) {

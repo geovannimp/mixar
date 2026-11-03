@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
+import 'package:gui_flutter/core/utils/owned_resource.dart';
 
 /// Loads `shaders/waveform.frag` once and hands out the program.
 ///
@@ -42,7 +43,7 @@ abstract final class WaveformShader {
 
 /// Bucket data for the shader: width == bucket count, height 1,
 /// RGBA8 with R low, G mid, B high, A 255.
-class WaveformPeaksTexture {
+class WaveformPeaksTexture implements OwnedResource {
   new(this.image);
 
   final ui.Image image;

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, NotifierProviderFamily, ProviderFamily;
@@ -9,6 +8,7 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/owned_resource.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -39,26 +39,22 @@ waveformOverviewTextureProvider = NotifierProvider.autoDispose
       WaveformOverviewTextureNotifier.new,
     );
 
-class WaveformOverviewTextureNotifier extends Notifier<WaveformPeaksTexture?> {
+class WaveformOverviewTextureNotifier extends Notifier<WaveformPeaksTexture?>
+    with OwnedResourceNotifier<WaveformPeaksTexture> {
   new(this.trackId);
 
   final String trackId;
-  var _gen = 0;
-  WaveformPeaksTexture? _owned;
 
   @override
   WaveformPeaksTexture? build() {
     final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
-    ref.onDispose(() {
-      _dropAfterFrame(_owned);
-      _owned = null;
-    });
+    ref.onDispose(releaseOwned);
     // Bump first: an encode still in flight is superseded by this build, even
     // when this build decides to show nothing.
-    final gen = ++_gen;
-    final previous = _owned;
+    final gen = supersede();
+    final previous = owned;
     if (peaks == null || peaks.isEmpty) {
-      _release(previous);
+      releaseIfOwned(previous);
       return null;
     }
     unawaited(_encode(peaks, gen));
@@ -70,30 +66,11 @@ class WaveformOverviewTextureNotifier extends Notifier<WaveformPeaksTexture?> {
     // The encode spans several engine hops; a track switch can unmount this
     // ref, and `onDispose` would throw on an unmounted ref instead of
     // releasing the image.
-    if (!ref.mounted || gen != _gen) {
+    if (!ref.mounted || !isCurrent(gen)) {
       texture.dispose();
       return;
     }
-    final replaced = _owned;
-    _owned = texture;
-    state = texture;
-    _dropAfterFrame(replaced);
-  }
-
-  /// Drops [texture] once the frame that may still sample it is gone.
-  void _release(WaveformPeaksTexture? texture) {
-    if (texture == null || !identical(_owned, texture)) {
-      return;
-    }
-    _owned = null;
-    _dropAfterFrame(texture);
-  }
-
-  void _dropAfterFrame(WaveformPeaksTexture? texture) {
-    if (texture == null) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) => texture.dispose());
+    publish(texture);
   }
 }
 
