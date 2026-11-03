@@ -1,8 +1,10 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, ProviderFamily;
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -18,6 +20,30 @@ final waveformOverviewProvider = FutureProvider.autoDispose
         return const [];
       }
       return decodeRgbPeaks(packed.rgb);
+    });
+
+/// Overview buckets as a shader texture. Owned by this provider; disposed one
+/// frame after invalidation so a painter from the previous frame can still
+/// sample it.
+final FutureProviderFamily<WaveformPeaksTexture?, String>
+waveformOverviewTextureProvider = FutureProvider.autoDispose
+    .family<WaveformPeaksTexture?, String>((ref, trackId) async {
+      final peaks = await ref.watch(waveformOverviewProvider(trackId).future);
+      if (peaks.isEmpty) {
+        return null;
+      }
+      final texture = await encodeWaveformTexture(peaks);
+      // The awaits span an FRB fetch and several engine hops; a track switch or
+      // analysis bump can unmount this ref, and `onDispose` would throw on an
+      // unmounted ref instead of releasing the image.
+      if (!ref.mounted) {
+        texture.dispose();
+        return null;
+      }
+      ref.onDispose(() {
+        WidgetsBinding.instance.addPostFrameCallback((_) => texture.dispose());
+      });
+      return texture;
     });
 
 final FutureProviderFamily<BeatGridData?, String> beatGridFetchProvider =

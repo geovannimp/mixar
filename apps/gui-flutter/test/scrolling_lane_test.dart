@@ -6,6 +6,7 @@ import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
+import 'package:gui_flutter/core/utils/waveform_picture.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
@@ -33,7 +34,7 @@ WaveformStrip _strip() => WaveformStrip(
   durationMs: _durationMs,
   widthPx: _stripWidthPx,
   heightPx: _stripHeightPx,
-  l0: _emptyPicture(),
+  l0: WaveformPicture(picture: _emptyPicture()),
 );
 
 class _SeededEngineUi extends EngineUi {

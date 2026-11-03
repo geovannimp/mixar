@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/theme/mixar_colors.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
@@ -33,10 +32,9 @@ class OverviewStrip extends ConsumerWidget {
     final trackId = ref.watch(deckTrackIdProvider(deckId));
     final durationMs = ref.watch(deckDurationMsProvider(deckId)) ?? 0;
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
-    final peaks = trackId == null
-        ? const <SpectralPeak>[]
-        : (ref.watch(waveformOverviewProvider(trackId)).value ??
-              const <SpectralPeak>[]);
+    final texture = trackId == null
+        ? null
+        : ref.watch(waveformOverviewTextureProvider(trackId)).value;
     final mode = ref.watch(waveformDisplayModeProvider);
     final hotCues = ref.watch(deckHotCuesProvider(deckId));
     final savedLoops = ref.watch(deckSavedLoopsProvider(deckId));
@@ -71,12 +69,8 @@ class OverviewStrip extends ConsumerWidget {
                     fit: StackFit.expand,
                     children: [
                       CustomPaint(
-                        painter: WaveformBarPainter(
-                          overview: peaks,
-                          detail: null,
-                          durationMs: durationMs,
-                          originMs: 0,
-                          spanMs: durationMs.toDouble(),
+                        painter: WaveformShaderPainter(
+                          texture: texture,
                           background: theme.colors.waveformBackground,
                           mode: mode,
                         ),

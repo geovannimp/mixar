@@ -2,110 +2,110 @@ import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
+import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 
-class WaveformBarPainter extends CustomPainter {
+class WaveformShaderPainter extends CustomPainter {
   new({
-    required this.overview,
-    required this.detail,
-    required this.durationMs,
-    required this.originMs,
-    required this.spanMs,
+    required this.texture,
     required this.background,
-    this.fallbackToOverview = true,
     this.mode = WaveformDisplayMode.rgb,
   });
 
-  final List<SpectralPeak> overview;
-  final DetailWindow? detail;
-  final int durationMs;
-  final double originMs;
-  final double spanMs;
-
-  /// Lane fill behind the bars (theme `MixarColors.waveformBackground`).
-  ///
-  /// Filled here rather than by the parent so recorded strip pictures stay
-  /// opaque: a tile picture replaces the low-res overview under it instead of
-  /// letting it show through the gaps between bars.
+  /// Bucket texture for exactly the pixels this painter covers.
+  final WaveformPeaksTexture? texture;
   final Color background;
-
-  final bool fallbackToOverview;
   final WaveformDisplayMode mode;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = background);
-    if (overview.isEmpty || durationMs <= 0 || spanMs <= 0 || size.width <= 0) {
+    final program = WaveformShader.program;
+    final peaks = texture;
+    // A reload keeps the previous value visible until the new one lands, so a
+    // painter can be handed a texture whose scheduled disposal already ran.
+    // Sampling it would assert in debug and read a freed image in release.
+    if (program == null || peaks == null || peaks.disposed || peaks.count < 1) {
       return;
     }
-    final midY = size.height / 2;
-    final maxAmp = size.height * 0.46;
-    final width = size.width.floor();
-    final paint = Paint()..isAntiAlias = false;
-    for (var x = 0; x < width; x++) {
-      final timeMs = originMs + (x / size.width) * spanMs;
-      if (timeMs < 0 || timeMs > durationMs) {
-        continue;
-      }
-      final peak = peakAtTime(
-        overview,
-        detail,
-        durationMs,
-        timeMs,
-        fallbackToOverview: fallbackToOverview,
-      );
-      for (final bar in waveformBars(peak, maxAmp, mode)) {
-        if (bar.height <= 0.1) {
-          continue;
-        }
-        paint.color = bar.color;
-        canvas.drawRect(
-          Rect.fromLTRB(
-            x.toDouble(),
-            midY - bar.height,
-            x + 1.0,
-            midY + bar.height,
-          ),
-          paint,
-        );
-      }
+    if (size.width <= 0 || size.height <= 0) {
+      return;
     }
+    // One FragmentShader per paint. A FragmentShader carries a single mutable
+    // uniform buffer, and dart:ui requires two objects for two sets of uniforms
+    // that must coexist; recorded pictures here coexist (L0 strip + tiles), so
+    // they may not share one.
+    final shader = program.fragmentShader();
+    shader.getUniformVec2('uSize').set(size.width, size.height);
+    shader.getUniformFloat('uPeakCount').set(peaks.count.toDouble());
+    shader
+        .getUniformFloat('uMode')
+        .set(mode == WaveformDisplayMode.filtered ? 1.0 : 0.0);
+    shader
+        .getUniformVec4('uBackground')
+        .set(background.r, background.g, background.b, 1);
+    shader
+        .getUniformVec4('uLowColor')
+        .set(kLowColor.r, kLowColor.g, kLowColor.b, 1);
+    shader
+        .getUniformVec4('uMidColor')
+        .set(kMidColor.r, kMidColor.g, kMidColor.b, 1);
+    shader
+        .getUniformVec4('uHighColor')
+        .set(kHighColor.r, kHighColor.g, kHighColor.b, 1);
+    // `low` is bilinear: one linear filter and no mipmap, so a picture wider
+    // than the texture interpolates between neighbouring buckets instead of
+    // picking one.
+    shader.setImageSampler(0, peaks.image, filterQuality: FilterQuality.low);
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..isAntiAlias = false
+        ..shader = shader,
+    );
   }
 
   @override
-  bool shouldRepaint(WaveformBarPainter oldDelegate) =>
-      !identical(overview, oldDelegate.overview) ||
-      !identical(detail, oldDelegate.detail) ||
-      durationMs != oldDelegate.durationMs ||
-      originMs != oldDelegate.originMs ||
-      spanMs != oldDelegate.spanMs ||
+  bool shouldRepaint(WaveformShaderPainter oldDelegate) =>
+      !identical(texture, oldDelegate.texture) ||
       background != oldDelegate.background ||
-      fallbackToOverview != oldDelegate.fallbackToOverview ||
       mode != oldDelegate.mode;
 }
 
-Picture recordWaveformPicture({
-  required List<SpectralPeak> overview,
-  required int durationMs,
-  required double originMs,
-  required double spanMs,
+/// A recorded waveform picture plus the texture its shader samples.
+///
+/// The texture must outlive the picture: the recorded display list samples it
+/// at raster time.
+class WaveformPicture {
+  new({required this.picture, this.texture});
+
+  final Picture picture;
+  final WaveformPeaksTexture? texture;
+
+  void draw(Canvas canvas) => canvas.drawPicture(picture);
+
+  void dispose() {
+    picture.dispose();
+    texture?.dispose();
+  }
+}
+
+/// Records [peaks] across [size]. Empty peaks record the opaque lane fill only.
+Future<WaveformPicture> recordWaveformPicture({
+  required List<SpectralPeak> peaks,
   required Size size,
   required Color background,
-  DetailWindow? detail,
-  bool fallbackToOverview = true,
   WaveformDisplayMode mode = WaveformDisplayMode.rgb,
-}) {
+}) async {
+  final texture = peaks.isEmpty || size.width <= 0
+      ? null
+      : await encodeWaveformTexture(peaks);
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder, Offset.zero & size);
-  WaveformBarPainter(
-    overview: overview,
-    detail: detail,
-    durationMs: durationMs,
-    originMs: originMs,
-    spanMs: spanMs,
+  WaveformShaderPainter(
+    texture: texture,
     background: background,
-    fallbackToOverview: fallbackToOverview,
     mode: mode,
   ).paint(canvas, size);
-  return recorder.endRecording();
+  return WaveformPicture(picture: recorder.endRecording(), texture: texture);
 }

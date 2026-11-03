@@ -495,11 +495,11 @@ class _StripPainter extends CustomPainter {
     final sy = size.height / strip.heightPx;
     canvas.save();
     canvas.scale(1, sy);
-    canvas.drawPicture(strip.l0);
+    strip.l0.draw(canvas);
     for (final tile in strip.tiles) {
       canvas.save();
       canvas.translate(tile.startPx, 0);
-      canvas.drawPicture(tile.picture);
+      tile.picture.draw(canvas);
       canvas.restore();
     }
     // Overlays are authored at strip height; scale with the waveform.

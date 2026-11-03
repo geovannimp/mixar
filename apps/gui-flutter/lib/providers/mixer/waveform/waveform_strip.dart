@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +15,7 @@ class WaveformTile {
   const new({required this.startPx, required this.picture});
 
   final double startPx;
-  final Picture picture;
+  final WaveformPicture picture;
 }
 
 class WaveformStrip {
@@ -31,7 +30,7 @@ class WaveformStrip {
   final int durationMs;
   final int widthPx;
   final int heightPx;
-  final Picture l0;
+  final WaveformPicture l0;
   final List<WaveformTile> tiles;
   var _disposed = false;
 
@@ -73,41 +72,65 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       _dropAfterFrame(_owned);
       _owned = null;
     });
+    // Bump first: any recording still in flight is superseded by this build,
+    // including the one that decides to render nothing.
+    final gen = ++_gen;
+    final previous = _owned;
     if (peaks == null || peaks.isEmpty || durationMs <= 0) {
-      _dropAfterFrame(_owned);
-      _owned = null;
+      _release(previous);
       return null;
     }
-    final gen = ++_gen;
+    unawaited(_recordL0(trackId, peaks, durationMs, background, mode, gen));
+    // Keep the strip that is already on screen until the new one is encoded:
+    // blanking the lane for a frame or more on every peaks refresh reads as a
+    // glitch, and the peaks behind the old strip are the same track.
+    return previous;
+  }
+
+  /// Drops [strip] once the frame that may still paint it is gone.
+  void _release(WaveformStrip? strip) {
+    if (strip == null || !identical(_owned, strip)) {
+      return;
+    }
+    _owned = null;
+    _dropAfterFrame(strip);
+  }
+
+  Future<void> _recordL0(
+    String trackId,
+    List<SpectralPeak> overview,
+    int durationMs,
+    Color background,
+    WaveformDisplayMode mode,
+    int gen,
+  ) async {
     final width = stripWidthPx(durationMs);
     const height = kWaveformStripHeight;
-    final l0 = recordWaveformPicture(
-      overview: peaks,
-      durationMs: durationMs,
-      originMs: 0,
-      spanMs: durationMs.toDouble(),
+    final l0 = await recordWaveformPicture(
+      peaks: overview,
       size: Size(width.toDouble(), height),
       background: background,
       mode: mode,
     );
+    if (!ref.mounted || gen != _gen) {
+      l0.dispose();
+      return;
+    }
     final strip = WaveformStrip(
       durationMs: durationMs,
       widthPx: width,
       heightPx: height.round(),
       l0: l0,
     );
-    final prev = _owned;
+    final replaced = _owned;
     _owned = strip;
-    _dropAfterFrame(prev);
-    unawaited(
-      _fillL1(trackId, peaks, durationMs, width, gen, mode, background),
-    );
-    return strip;
+    state = strip;
+    _dropAfterFrame(replaced);
+    unawaited(_fillL1(trackId, durationMs, width, gen, mode, background));
   }
 
   Future<void> _fillL1(
     String trackId,
-    List<SpectralPeak> overview,
     int durationMs,
     int width,
     int gen,
@@ -152,20 +175,14 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
         if (!ref.mounted || gen != _gen) {
           return;
         }
-        final detail = DetailWindow(
-          peaks: decodeRgbPeaks(packed.rgb),
-          startMs: packed.startMs,
-          endMs: packed.endMs,
-        );
-        final picture = recordWaveformPicture(
-          overview: overview,
-          detail: detail,
-          durationMs: durationMs,
-          originMs: startMs.toDouble(),
-          spanMs: (endMs - startMs).toDouble(),
+        final peaks = decodeRgbPeaks(packed.rgb);
+        if (peaks.isEmpty) {
+          continue;
+        }
+        final picture = await recordWaveformPicture(
+          peaks: peaks,
           size: Size(w.toDouble(), kWaveformStripHeight),
           background: background,
-          fallbackToOverview: false,
           mode: mode,
         );
         final cur = _owned;

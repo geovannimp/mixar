@@ -83,6 +83,9 @@ flutter:
   assets:
     - assets/mixar-logo.png
 
+  shaders:
+    - shaders/waveform.frag
+
   fonts:
     - family: Outfit
       fonts:

@@ -94,7 +94,7 @@ They are **not** intended to reflect post-EQ or post-filter audio with perfect a
 ### 8.3 Performance
 
 - **Never** decode audio or run filters in the render loop.
-- **Peaks in Rust, paint in Flutter** (§8.5): library builds overview / window spectral peak buffers; the Flutter host paints lanes (`CustomPainter`), not a separate JS Canvas path.
+- **Peaks in Rust, paint in Flutter** (§8.5): library builds overview / window spectral peak buffers; the Flutter host paints lanes with a GLSL fragment shader over a 1×N peak texture, not a separate JS Canvas path.
 - Beat grid lines: derive from library `beat_grid` (BPM + first beat offset), not from waveform data.
 
 ### 8.5 Peak buffers (Rust) + host paint (Flutter) (decided)
@@ -108,7 +108,7 @@ Rust (library / host-flutter FRB)
   └─ expose peaks to UI: LibraryTransport.get_waveform_overview / get_waveform_window
 
 Frontend (Flutter)
-  └─ paint lanes per deck (CustomPainter); handle zoom/seek input only
+  └─ paint lanes per deck (fragment shader); handle zoom/seek input only
 ```
 
 MVP ships peak arrays (overview + window detail) over FRB; Flutter paints bars each frame (or dirty-region updates).
@@ -375,7 +375,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | When computed | JIT via library overview / window APIs on deck load |
 | Cache | In-memory per path + bucket count |
 | Resolution | Adaptive 4096–16384 buckets (~13 ms/bucket) |
-| Display | Dual-lane Flutter `CustomPainter`, center playhead, 24 s window |
+| Display | Dual-lane GLSL fragment-shader renderer recorded into cached strip pictures, center playhead, 24 s window |
 | EQ link | **None** — static colors |
 | Overview strip | Implemented in Flutter (`overview_strip.dart`) |
 | Beat grid overlay | Implemented when analysis present |
@@ -439,7 +439,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | D20 | **Colors (O15)** | **RGB** (red / green / blue) |
 | D21 | **Beat grid (O17)** | **Live overlay** on scrolling lanes |
 | D22 | **Library UI (O18)** | **Decks only** for now |
-| D23 | **Rendering (O19)** | **Confirmed:** Rust library peak buffers; Flutter paints lanes (`CustomPainter`) |
+| D23 | **Rendering (O19)** | **Confirmed:** Rust library peak buffers; Flutter paints lanes with a GLSL fragment shader |
 | D24 | **Window API (O20)** | By **`track_id`**; reuse decode cache |
 
 ---

@@ -1,10 +1,7 @@
-import 'dart:ui';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
-import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 
 void main() {
   test('decodeRgbPeaks maps uint8 triples to 0..1 peaks', () {
@@ -18,59 +15,6 @@ void main() {
 
   test('decodeRgbPeaks rejects truncated payloads', () {
     expect(decodeRgbPeaks([1, 2]), isEmpty);
-  });
-
-  test('spectralRgb matches Tauri band mix', () {
-    expect(spectralRgb(1, 0, 0), const Color.fromARGB(255, 255, 72, 48));
-    expect(spectralRgb(0, 1, 0), const Color.fromARGB(255, 118, 228, 88));
-    expect(spectralRgb(0, 0, 1), const Color.fromARGB(255, 72, 188, 255));
-  });
-
-  test('filteredBars draws low then mid then high from the same center', () {
-    const peak = SpectralPeak(low: 1, mid: 0.5, high: 0.25);
-    final bars = filteredBars(peak, 100);
-    expect(bars, hasLength(3));
-    expect(bars[0].height, 100);
-    expect(bars[0].color, kLowColor);
-    expect(bars[1].height, 50);
-    expect(bars[1].color, kMidColor);
-    expect(bars[2].height, 25);
-    expect(bars[2].color, kHighColor);
-  });
-
-  test(
-    'waveformBars is one mixed bar in RGB and three stacked bars in Filtered',
-    () {
-      const peak = SpectralPeak(low: 1, mid: 0.5, high: 0.25);
-      expect(
-        waveformBars(peak, 100, WaveformDisplayMode.filtered),
-        hasLength(3),
-      );
-      final rgb = waveformBars(peak, 100, WaveformDisplayMode.rgb);
-      expect(rgb, hasLength(1));
-      expect(rgb.single.height, 100);
-    },
-  );
-
-  test('peakAtTime prefers L1 inside the detail window', () {
-    const overview = [
-      SpectralPeak(low: 1, mid: 0, high: 0),
-      SpectralPeak(low: 1, mid: 0, high: 0),
-    ];
-    const detail = DetailWindow(
-      peaks: [
-        SpectralPeak(low: 0, mid: 1, high: 0),
-        SpectralPeak(low: 0, mid: 1, high: 0),
-      ],
-      startMs: 1000,
-      endMs: 2000,
-    );
-    expect(peakAtTime(overview, detail, 4000, 1500).mid, closeTo(1, 1e-6));
-    expect(peakAtTime(overview, detail, 4000, 0).low, closeTo(1, 1e-6));
-    expect(
-      peakAtTime(overview, detail, 4000, 0, fallbackToOverview: false).low,
-      0,
-    );
   });
 
   test('l1BucketCount stays one bucket per viewport pixel', () {
@@ -157,20 +101,6 @@ void main() {
     );
     expect(range.startMs, 0);
     expect(range.endMs, 36_000);
-
-    const overview = [
-      SpectralPeak(low: 1, mid: 0, high: 0),
-      SpectralPeak(low: 1, mid: 0, high: 0),
-    ];
-    final detail = DetailWindow(
-      peaks: const [
-        SpectralPeak(low: 0, mid: 0, high: 1),
-        SpectralPeak(low: 0, mid: 1, high: 0),
-      ],
-      startMs: range.startMs,
-      endMs: range.endMs,
-    );
-    expect(peakAtTime(overview, detail, 180_000, 0).high, closeTo(1, 1e-6));
 
     final tail = l1Range(
       positionMs: 170_000,
