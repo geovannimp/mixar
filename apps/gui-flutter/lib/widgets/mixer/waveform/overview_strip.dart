@@ -34,7 +34,7 @@ class OverviewStrip extends ConsumerWidget {
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final texture = trackId == null
         ? null
-        : ref.watch(waveformOverviewTextureProvider(trackId)).value;
+        : ref.watch(waveformOverviewTextureProvider(trackId));
     final mode = ref.watch(waveformDisplayModeProvider);
     final hotCues = ref.watch(deckHotCuesProvider(deckId));
     final savedLoops = ref.watch(deckSavedLoopsProvider(deckId));

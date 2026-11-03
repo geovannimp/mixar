@@ -5,9 +5,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
+import 'package:gui_flutter/core/utils/waveform_picture.dart';
+import 'package:gui_flutter/core/utils/waveform_shader.dart';
+import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -122,13 +127,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final slipShadowMs = ref.watch(deckSlipShadowMsProvider(widget.deckId));
     final strip = trackId == null || durationMs <= 0
         ? null
-        : ref.watch(
-            waveformStripProvider((
-              trackId,
-              durationMs,
-              theme.colors.waveformBackground,
-            )),
-          );
+        : ref.watch(waveformStripProvider((trackId, durationMs)));
     final beatGrid = trackId == null || durationMs <= 0
         ? null
         : ref.watch(stripBeatGridPictureProvider((trackId, durationMs)));
@@ -339,6 +338,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                       },
                       child: RepaintBoundary(
                         child: _StripLayer(
+                          deckId: widget.deckId,
                           strip: strip,
                           height: height,
                           beatGrid: beatGrid,
@@ -431,8 +431,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   }
 }
 
-class _StripLayer extends StatelessWidget {
+class _StripLayer extends ConsumerWidget {
   const new({
+    required this.deckId,
     required this.strip,
     required this.height,
     required this.beatGrid,
@@ -442,6 +443,7 @@ class _StripLayer extends StatelessWidget {
     required this.cues,
   });
 
+  final int deckId;
   final WaveformStrip strip;
   final double height;
   final Picture? beatGrid;
@@ -451,13 +453,18 @@ class _StripLayer extends StatelessWidget {
   final Picture? cues;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final channel = ref.watch(deckMixerChannelProvider(deckId));
     return SizedBox(
       width: strip.widthPx.toDouble(),
       height: height,
       child: CustomPaint(
         painter: _StripPainter(
           strip: strip,
+          background: context.theme.colors.waveformBackground,
+          mode: ref.watch(waveformDisplayModeProvider),
+          gain: channel.volume.clamp(0.0, 1.0),
+          bandGain: waveformBandGainFor(channel),
           beatGrid: beatGrid,
           loops: loops,
           activeLoop: activeLoop,
@@ -473,6 +480,10 @@ class _StripLayer extends StatelessWidget {
 class _StripPainter extends CustomPainter {
   new({
     required this.strip,
+    required this.background,
+    required this.mode,
+    required this.gain,
+    required this.bandGain,
     required this.beatGrid,
     required this.loops,
     required this.activeLoop,
@@ -481,6 +492,10 @@ class _StripPainter extends CustomPainter {
   });
 
   final WaveformStrip strip;
+  final Color background;
+  final WaveformDisplayMode mode;
+  final double gain;
+  final WaveformBandGain bandGain;
   final Picture? beatGrid;
   final Picture? loops;
   final Picture? activeLoop;
@@ -493,13 +508,17 @@ class _StripPainter extends CustomPainter {
       return;
     }
     final sy = size.height / strip.heightPx;
+    final laneHeight = strip.heightPx.toDouble();
     canvas.save();
     canvas.scale(1, sy);
-    strip.l0.draw(canvas);
+    // Painted live, not replayed from a recorded picture: gains and the
+    // display mode are uniforms, so a deck's EQ or a settings flip costs one
+    // quad instead of a re-recorded strip.
+    _paintBars(canvas, strip.l0, strip.widthPx.toDouble(), laneHeight);
     for (final tile in strip.tiles) {
       canvas.save();
       canvas.translate(tile.startPx, 0);
-      tile.picture.draw(canvas);
+      _paintBars(canvas, tile.texture, tile.widthPx, laneHeight);
       canvas.restore();
     }
     // Overlays are authored at strip height; scale with the waveform.
@@ -511,9 +530,30 @@ class _StripPainter extends CustomPainter {
     canvas.restore();
   }
 
+  /// One lane quad sampling [texture]; L0 and every tile share the lane fill,
+  /// display mode and gains, so their wiring lives in one place.
+  void _paintBars(
+    Canvas canvas,
+    WaveformPeaksTexture texture,
+    double width,
+    double laneHeight,
+  ) {
+    WaveformShaderPainter(
+      texture: texture,
+      background: background,
+      mode: mode,
+      gain: gain,
+      bandGain: bandGain,
+    ).paint(canvas, Size(width, laneHeight));
+  }
+
   @override
   bool shouldRepaint(_StripPainter oldDelegate) =>
       !identical(strip, oldDelegate.strip) ||
+      background != oldDelegate.background ||
+      mode != oldDelegate.mode ||
+      gain != oldDelegate.gain ||
+      bandGain != oldDelegate.bandGain ||
       !identical(beatGrid, oldDelegate.beatGrid) ||
       !identical(loops, oldDelegate.loops) ||
       !identical(activeLoop, oldDelegate.activeLoop) ||

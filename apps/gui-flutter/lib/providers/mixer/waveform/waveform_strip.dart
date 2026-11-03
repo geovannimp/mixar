@@ -1,24 +1,30 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
-import 'package:gui_flutter/core/utils/waveform_picture.dart';
-import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
+import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/owned_resource.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 
 class WaveformTile {
-  const new({required this.startPx, required this.picture});
+  const new({
+    required this.startPx,
+    required this.widthPx,
+    required this.texture,
+  });
 
   final double startPx;
-  final WaveformPicture picture;
+  final double widthPx;
+  final WaveformPeaksTexture texture;
 }
 
-class WaveformStrip {
+class WaveformStrip implements OwnedResource {
   new({
     required this.durationMs,
     required this.widthPx,
@@ -30,11 +36,22 @@ class WaveformStrip {
   final int durationMs;
   final int widthPx;
   final int heightPx;
-  final WaveformPicture l0;
+  final WaveformPeaksTexture l0;
   final List<WaveformTile> tiles;
   var _disposed = false;
+  var _relinquished = false;
 
   double get pxPerMs => widthPx / durationMs;
+
+  /// Hands the textures this strip holds to a derived strip (`withTile`).
+  ///
+  /// The derived strip owns them and disposes them once, so disposing this one
+  /// releases nothing. Kept separate from [_disposed]: "ownership handed off" is
+  /// not "already disposed", and conflating them would make a strip that is
+  /// relinquished but never superseded leak silently.
+  void relinquish() {
+    _relinquished = true;
+  }
 
   WaveformStrip withTile(WaveformTile tile) => WaveformStrip(
     durationMs: durationMs,
@@ -49,70 +66,63 @@ class WaveformStrip {
       return;
     }
     _disposed = true;
+    if (_relinquished) {
+      // A derived strip owns these now.
+      return;
+    }
     l0.dispose();
     for (final tile in tiles) {
-      tile.picture.dispose();
+      tile.texture.dispose();
     }
   }
 }
 
-class WaveformStripNotifier extends Notifier<WaveformStrip?> {
+class WaveformStripNotifier extends Notifier<WaveformStrip?>
+    with OwnedResourceNotifier<WaveformStrip> {
   new(this.arg);
 
-  final (String, int, Color) arg;
-  var _gen = 0;
-  WaveformStrip? _owned;
+  final (String, int) arg;
 
   @override
   WaveformStrip? build() {
-    final (trackId, durationMs, background) = arg;
+    final (trackId, durationMs) = arg;
     final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
-    final mode = ref.watch(waveformDisplayModeProvider);
-    ref.onDispose(() {
-      _dropAfterFrame(_owned);
-      _owned = null;
-    });
+    // Lane fill and display mode are paint-time uniforms: watching them here
+    // would re-encode the texture on every theme flip or mode switch.
+    ref.onDispose(releaseOwned);
     // Bump first: any recording still in flight is superseded by this build,
     // including the one that decides to render nothing.
-    final gen = ++_gen;
-    final previous = _owned;
+    final gen = supersede();
+    final previous = owned;
     if (peaks == null || peaks.isEmpty || durationMs <= 0) {
-      _release(previous);
+      releaseIfOwned(previous);
       return null;
     }
-    unawaited(_recordL0(trackId, peaks, durationMs, background, mode, gen));
+    unawaited(_recordL0(trackId, peaks, durationMs, gen));
     // Keep the strip that is already on screen until the new one is encoded:
     // blanking the lane for a frame or more on every peaks refresh reads as a
     // glitch, and the peaks behind the old strip are the same track.
     return previous;
   }
 
-  /// Drops [strip] once the frame that may still paint it is gone.
-  void _release(WaveformStrip? strip) {
-    if (strip == null || !identical(_owned, strip)) {
-      return;
-    }
-    _owned = null;
-    _dropAfterFrame(strip);
-  }
-
   Future<void> _recordL0(
     String trackId,
     List<SpectralPeak> overview,
     int durationMs,
-    Color background,
-    WaveformDisplayMode mode,
     int gen,
   ) async {
     final width = stripWidthPx(durationMs);
     const height = kWaveformStripHeight;
-    final l0 = await recordWaveformPicture(
-      peaks: overview,
-      size: Size(width.toDouble(), height),
-      background: background,
-      mode: mode,
-    );
-    if (!ref.mounted || gen != _gen) {
+    final WaveformPeaksTexture l0;
+    try {
+      l0 = await encodeWaveformTexture(overview);
+    } on Object catch (error) {
+      // Nothing to show for this track, but a failed encode must not escape as
+      // an uncaught async error; the lane keeps its fill.
+      debugPrint('waveform strip encode failed: $error');
+      return;
+    }
+    if (!ref.mounted || !isCurrent(gen)) {
       l0.dispose();
       return;
     }
@@ -122,11 +132,8 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       heightPx: height.round(),
       l0: l0,
     );
-    final replaced = _owned;
-    _owned = strip;
-    state = strip;
-    _dropAfterFrame(replaced);
-    unawaited(_fillL1(trackId, durationMs, width, gen, mode, background));
+    publish(strip);
+    unawaited(_fillL1(trackId, durationMs, width, gen));
   }
 
   Future<void> _fillL1(
@@ -134,11 +141,9 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     int durationMs,
     int width,
     int gen,
-    WaveformDisplayMode mode,
-    Color background,
   ) async {
     final lib = await ref.read(libraryTransportProvider.future);
-    if (!ref.mounted || gen != _gen) {
+    if (!ref.mounted || !isCurrent(gen)) {
       return;
     }
     const tileW = kWaveformStripTilePx;
@@ -151,7 +156,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
         return (ca - focusPx).abs().compareTo((cb - focusPx).abs());
       });
     for (final i in order) {
-      if (!ref.mounted || gen != _gen) {
+      if (!ref.mounted || !isCurrent(gen)) {
         return;
       }
       final startPx = i * tileW;
@@ -172,43 +177,35 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
           endMs: endMs,
           buckets: w,
         );
-        if (!ref.mounted || gen != _gen) {
+        if (!ref.mounted || !isCurrent(gen)) {
           return;
         }
         final peaks = decodeRgbPeaks(packed.rgb);
         if (peaks.isEmpty) {
           continue;
         }
-        final picture = await recordWaveformPicture(
-          peaks: peaks,
-          size: Size(w.toDouble(), kWaveformStripHeight),
-          background: background,
-          mode: mode,
-        );
-        final cur = _owned;
-        if (cur == null || gen != _gen) {
-          picture.dispose();
+        final texture = await encodeWaveformTexture(peaks);
+        final cur = owned;
+        if (cur == null || !isCurrent(gen)) {
+          texture.dispose();
           return;
         }
         final next = cur.withTile(
-          WaveformTile(startPx: startPx.toDouble(), picture: picture),
+          WaveformTile(
+            startPx: startPx.toDouble(),
+            widthPx: w.toDouble(),
+            texture: texture,
+          ),
         );
-        _owned = next;
-        state = next;
+        // The new strip shares L0 and the earlier tiles, so the old strip must
+        // release them rather than dispose them.
+        cur.relinquish();
+        publish(next);
       } catch (_) {
         continue;
       }
       await Future<void>.delayed(Duration.zero);
     }
-  }
-
-  void _dropAfterFrame(WaveformStrip? strip) {
-    if (strip == null) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      strip.dispose();
-    });
   }
 
   double _focusPx(String trackId, int width, int durationMs) {
@@ -225,15 +222,14 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
 
 // autoDispose so unloading a deck releases the strip and its
 // waveformOverviewProvider watch (otherwise every loaded track pins peaks).
-/// Strip pictures bake the lane background, so the theme colour is part of the
-/// key: flipping the theme records a fresh strip instead of showing dark
-/// pictures on a light lane.
+/// Only the peak texture is cached; lane fill, display mode and gains are
+/// uniforms, so neither a theme flip nor an EQ move re-records a strip.
 final NotifierProviderFamily<
   WaveformStripNotifier,
   WaveformStrip?,
-  (String, int, Color)
+  (String, int)
 >
 waveformStripProvider = NotifierProvider.autoDispose
-    .family<WaveformStripNotifier, WaveformStrip?, (String, int, Color)>(
+    .family<WaveformStripNotifier, WaveformStrip?, (String, int)>(
       WaveformStripNotifier.new,
     );

@@ -3,10 +3,11 @@ import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
+import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
-import 'package:gui_flutter/core/utils/waveform_picture.dart';
+import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
@@ -24,17 +25,13 @@ const _viewportHeight = 80.0;
 const _stripWidthPx = 1000;
 const _stripHeightPx = 64;
 
-Picture _emptyPicture() {
-  final recorder = PictureRecorder();
-  Canvas(recorder);
-  return recorder.endRecording();
-}
-
-WaveformStrip _strip() => WaveformStrip(
+Future<WaveformStrip> _strip() async => WaveformStrip(
   durationMs: _durationMs,
   widthPx: _stripWidthPx,
   heightPx: _stripHeightPx,
-  l0: WaveformPicture(picture: _emptyPicture()),
+  l0: await encodeWaveformTexture(const [
+    SpectralPeak(low: 0.4, mid: 0.2, high: 0.1),
+  ]),
 );
 
 class _SeededEngineUi extends EngineUi {
@@ -128,7 +125,7 @@ Positioned _stripPositioned(WidgetTester tester) {
 Future<ProviderContainer> _pumpLane(
   WidgetTester tester, {
   required bool playing,
-  required WaveformStrip strip,
+  required Future<WaveformStrip> Function() strip,
   bool jogTouching = false,
   int positionMs = 0,
   FakeEngineTransport? engine,
@@ -137,9 +134,12 @@ Future<ProviderContainer> _pumpLane(
   debugOverrideDesktopWindow = false;
   addTearDown(() => debugOverrideDesktopWindow = null);
 
-  _FixedStrip.strip = strip;
+  // Encoding the peak texture awaits real engine futures, which only advance
+  // outside the widget test's fake clock.
+  final built = await tester.runAsync(strip);
+  _FixedStrip.strip = built;
   addTearDown(() {
-    strip.dispose();
+    built?.dispose();
     _FixedStrip.strip = null;
   });
 
@@ -203,7 +203,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('paused position ticks move strip translate', (tester) async {
-    final container = await _pumpLane(tester, playing: false, strip: _strip());
+    final container = await _pumpLane(tester, playing: false, strip: _strip);
 
     expect(_stripPositioned(tester).left, closeTo(_expectedLeft(0), 0.5));
 
@@ -221,7 +221,7 @@ void main() {
       playing: true,
       jogTouching: true,
       positionMs: 10000,
-      strip: _strip(),
+      strip: _strip,
     );
 
     expect(_stripPositioned(tester).left, closeTo(_expectedLeft(10000), 0.5));
@@ -239,7 +239,7 @@ void main() {
       tester,
       playing: true,
       positionMs: 1000,
-      strip: _strip(),
+      strip: _strip,
     );
 
     _applyPosition(container, 1000 + kWaveformSeekSnapMs.round());
@@ -258,7 +258,7 @@ void main() {
       tester,
       playing: true,
       positionMs: 5000,
-      strip: _strip(),
+      strip: _strip,
     );
 
     // Settle any post-pump listen/sync work before measuring.
@@ -281,7 +281,7 @@ void main() {
   testWidgets('paused position ticks do not rebuild ScrollingLane', (
     tester,
   ) async {
-    final container = await _pumpLane(tester, playing: false, strip: _strip());
+    final container = await _pumpLane(tester, playing: false, strip: _strip);
 
     await tester.pump();
     final probe = _startLaneRebuildProbe();
@@ -307,7 +307,7 @@ void main() {
       playing: true,
       jogTouching: true,
       positionMs: 10000,
-      strip: _strip(),
+      strip: _strip,
     );
 
     await tester.pump();
@@ -337,7 +337,7 @@ void main() {
         tester,
         playing: false,
         positionMs: 50000,
-        strip: _strip(),
+        strip: _strip,
         engine: engine,
         nowMs: () => nowMs,
       );

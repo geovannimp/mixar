@@ -1,12 +1,15 @@
-import 'package:flutter/widgets.dart';
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
-    show FutureProviderFamily, ProviderFamily;
+    show FutureProviderFamily, NotifierProviderFamily, ProviderFamily;
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/owned_resource.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -22,29 +25,63 @@ final waveformOverviewProvider = FutureProvider.autoDispose
       return decodeRgbPeaks(packed.rgb);
     });
 
-/// Overview buckets as a shader texture. Owned by this provider; disposed one
-/// frame after invalidation so a painter from the previous frame can still
-/// sample it.
-final FutureProviderFamily<WaveformPeaksTexture?, String>
-waveformOverviewTextureProvider = FutureProvider.autoDispose
-    .family<WaveformPeaksTexture?, String>((ref, trackId) async {
-      final peaks = await ref.watch(waveformOverviewProvider(trackId).future);
-      if (peaks.isEmpty) {
-        return null;
-      }
-      final texture = await encodeWaveformTexture(peaks);
-      // The awaits span an FRB fetch and several engine hops; a track switch or
-      // analysis bump can unmount this ref, and `onDispose` would throw on an
-      // unmounted ref instead of releasing the image.
-      if (!ref.mounted) {
-        texture.dispose();
-        return null;
-      }
-      ref.onDispose(() {
-        WidgetsBinding.instance.addPostFrameCallback((_) => texture.dispose());
-      });
-      return texture;
-    });
+/// Overview buckets as a shader texture, one per track.
+///
+/// A rebuild keeps the texture already on screen until the replacement is
+/// encoded, the same deal `WaveformStripNotifier` makes: an analysis refresh
+/// must not blank the strip while the new graph is fetched and encoded.
+final NotifierProviderFamily<
+  WaveformOverviewTextureNotifier,
+  WaveformPeaksTexture?,
+  String
+>
+waveformOverviewTextureProvider = NotifierProvider.autoDispose
+    .family<WaveformOverviewTextureNotifier, WaveformPeaksTexture?, String>(
+      WaveformOverviewTextureNotifier.new,
+    );
+
+class WaveformOverviewTextureNotifier extends Notifier<WaveformPeaksTexture?>
+    with OwnedResourceNotifier<WaveformPeaksTexture> {
+  new(this.trackId);
+
+  final String trackId;
+
+  @override
+  WaveformPeaksTexture? build() {
+    final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
+    ref.onDispose(releaseOwned);
+    // Bump first: an encode still in flight is superseded by this build, even
+    // when this build decides to show nothing.
+    final gen = supersede();
+    final previous = owned;
+    if (peaks == null || peaks.isEmpty) {
+      releaseIfOwned(previous);
+      return null;
+    }
+    unawaited(_encode(peaks, gen));
+    return previous;
+  }
+
+  Future<void> _encode(List<SpectralPeak> peaks, int gen) async {
+    final WaveformPeaksTexture texture;
+    try {
+      texture = await encodeWaveformTexture(peaks);
+    } on Object catch (error) {
+      // Keep the previous texture (and the track map) rather than failing with
+      // an uncaught async error.
+      debugPrint('waveform overview encode failed: $error');
+      return;
+    }
+    // The encode spans several engine hops; a track switch can unmount this
+    // ref, and `onDispose` would throw on an unmounted ref instead of
+    // releasing the image.
+    if (!ref.mounted || !isCurrent(gen)) {
+      texture.dispose();
+      return;
+    }
+    publish(texture);
+  }
+}
 
 final FutureProviderFamily<BeatGridData?, String> beatGridFetchProvider =
     FutureProvider.family<BeatGridData?, String>((ref, trackId) async {
