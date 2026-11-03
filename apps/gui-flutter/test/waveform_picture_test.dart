@@ -55,16 +55,11 @@ Future<_Raster> _paint({
   ).paint(canvas, size);
   final picture = recorder.endRecording();
   try {
-    final image = await picture.toImage(
-      size.width.toInt(),
-      size.height.toInt(),
+    return await _rasterPicture(
+      picture,
+      width: size.width.toInt(),
+      height: size.height.toInt(),
     );
-    try {
-      final data = await image.toByteData();
-      return _Raster(data!.buffer.asUint8List(), size.width.toInt());
-    } finally {
-      image.dispose();
-    }
   } finally {
     picture.dispose();
     texture?.dispose();
@@ -73,11 +68,15 @@ Future<_Raster> _paint({
 
 const size100 = Size(4, 100);
 
-Future<_Raster> _rasterPicture(Picture picture) async {
-  final image = await picture.toImage(4, 100);
+Future<_Raster> _rasterPicture(
+  Picture picture, {
+  int width = 4,
+  int height = 100,
+}) async {
+  final image = await picture.toImage(width, height);
   try {
     final data = await image.toByteData();
-    return _Raster(data!.buffer.asUint8List(), 4);
+    return _Raster(data!.buffer.asUint8List(), width);
   } finally {
     image.dispose();
   }
@@ -275,6 +274,35 @@ void main() {
       ),
       (0, 2, 0.5),
     );
+  });
+
+  test('a graph wider than the GPU limit is max-pooled, not dropped', () async {
+    // Vulkan only guarantees maxImageDimension2D = 4096 while the library emits
+    // up to 16384 overview buckets; a wider texture would fail to decode and
+    // leave the lane blank, so the encoder narrows the graph instead.
+    final peaks = [
+      for (var i = 0; i < 10000; i++)
+        i == 7500
+            ? const SpectralPeak(low: 0, mid: 0, high: 1)
+            : const SpectralPeak(low: 0.1, mid: 0, high: 0),
+    ];
+    final texture = await encodeWaveformTexture(peaks);
+    addTearDown(texture.dispose);
+    expect(texture.count, kMaxPeakTextureWidth);
+
+    final image = texture.image;
+    final data = await image.toByteData();
+    final bytes = data!.buffer.asUint8List();
+    var blues = 0;
+    for (var i = 0; i < bytes.length; i += 4) {
+      if (bytes[i + 2] > 200) {
+        blues++;
+      }
+    }
+    // Bucket 7500 lands in texel 7500 ~/ (10000/4096) = 3072: max-pooling keeps
+    // the lone full-height high bucket instead of averaging it away.
+    expect(bytes[3072 * 4 + 2], 255);
+    expect(blues, 1);
   });
 
   test('every painter keeps its own uniforms and texture', () async {
