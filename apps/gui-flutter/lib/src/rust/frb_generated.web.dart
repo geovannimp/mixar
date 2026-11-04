@@ -1199,6 +1199,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WaveformPeaks dco_decode_waveform_peaks(dynamic raw);
 
   @protected
+  WaveformPositionSetting dco_decode_waveform_position_setting(dynamic raw);
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
@@ -2574,6 +2577,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WaveformPeaks sse_decode_waveform_peaks(SseDeserializer deserializer);
+
+  @protected
+  WaveformPositionSetting sse_decode_waveform_position_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   void sse_encode_AnyhowException(
@@ -4308,6 +4316,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_waveform_peaks(WaveformPeaks self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_waveform_position_setting(
+    WaveformPositionSetting self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class

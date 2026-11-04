@@ -18,10 +18,13 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
-  const new({required this.deckId, required this.label, this.nowMs, super.key});
+  const new({required this.deckId, this.label, this.nowMs, super.key});
 
   final int deckId;
-  final String label;
+
+  /// Deck letter painted in the lane's leading corner. Vertical lanes leave it
+  /// null: the text would be rotated with the lane and unreadable.
+  final String? label;
 
   /// Monotonic millisecond clock for the scrub-seek throttle.
   ///
@@ -375,25 +378,27 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                         );
                       },
                     ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        widget.label.toUpperCase(),
-                        style: theme.typography.display.xs.copyWith(
-                          fontFamily: MixarFonts.spaceGrotesk,
-                          color: deckInk(
-                            deckAccentFor(widget.deckId) ?? DeckAccent.neutral,
-                            theme.colors.brightness,
-                          ).withValues(alpha: 0.55),
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                          height: 1,
+                  if (widget.label case final label?)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          label.toUpperCase(),
+                          style: theme.typography.display.xs.copyWith(
+                            fontFamily: MixarFonts.spaceGrotesk,
+                            color: deckInk(
+                              deckAccentFor(widget.deckId) ??
+                                  DeckAccent.neutral,
+                              theme.colors.brightness,
+                            ).withValues(alpha: 0.55),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                            height: 1,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

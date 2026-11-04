@@ -84,6 +84,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsSectionUi => 'Interface';
 
   @override
+  String get settingsSectionLayout => 'Layout';
+
+  @override
   String get settingsSectionLibrary => 'Biblioteca';
 
   @override
@@ -101,6 +104,35 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get settingsPrivacyDescription =>
       'Dados anónimos de utilização da aplicação.';
+
+  @override
+  String get settingsLayoutDescription =>
+      'Onde a forma de onda fica em relação aos decks.';
+
+  @override
+  String get settingsLayoutWaveformTitle => 'Posição da forma de onda';
+
+  @override
+  String get settingsLayoutWaveformDescription =>
+      'Em cima, a forma de onda fica acima dos decks; em baixo, passa entre os decks e a biblioteca. No meio, substitui o mixer central pelas pistas. Desliga o interruptor para esconder a forma de onda.';
+
+  @override
+  String get settingsLayoutWaveformPosition => 'Posição';
+
+  @override
+  String get settingsLayoutShowWaveform => 'Mostrar forma de onda';
+
+  @override
+  String get settingsLayoutWaveformTop => 'Em cima';
+
+  @override
+  String get settingsLayoutWaveformMiddleHorizontal => 'Meio horizontal';
+
+  @override
+  String get settingsLayoutWaveformMiddleVertical => 'Meio vertical';
+
+  @override
+  String get settingsLayoutWaveformBottom => 'Em baixo';
 
   @override
   String get settingsUiDescription =>

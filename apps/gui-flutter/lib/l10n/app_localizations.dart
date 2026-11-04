@@ -243,6 +243,12 @@ abstract class AppLocalizations {
   /// **'UI'**
   String get settingsSectionUi;
 
+  /// No description provided for @settingsSectionLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Layout'**
+  String get settingsSectionLayout;
+
   /// No description provided for @settingsSectionLibrary.
   ///
   /// In en, this message translates to:
@@ -278,6 +284,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Anonymous app usage data.'**
   String get settingsPrivacyDescription;
+
+  /// No description provided for @settingsLayoutDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the waveform sits around the decks.'**
+  String get settingsLayoutDescription;
+
+  /// No description provided for @settingsLayoutWaveformTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform position'**
+  String get settingsLayoutWaveformTitle;
+
+  /// No description provided for @settingsLayoutWaveformDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Top keeps the waveform above the decks; bottom puts it between the decks and the library. The middle positions replace the center mixer with the lanes. Turn the switch off to hide the waveform.'**
+  String get settingsLayoutWaveformDescription;
+
+  /// No description provided for @settingsLayoutWaveformPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Position'**
+  String get settingsLayoutWaveformPosition;
+
+  /// No description provided for @settingsLayoutShowWaveform.
+  ///
+  /// In en, this message translates to:
+  /// **'Show waveform'**
+  String get settingsLayoutShowWaveform;
+
+  /// No description provided for @settingsLayoutWaveformTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Top'**
+  String get settingsLayoutWaveformTop;
+
+  /// No description provided for @settingsLayoutWaveformMiddleHorizontal.
+  ///
+  /// In en, this message translates to:
+  /// **'Middle horizontal'**
+  String get settingsLayoutWaveformMiddleHorizontal;
+
+  /// No description provided for @settingsLayoutWaveformMiddleVertical.
+  ///
+  /// In en, this message translates to:
+  /// **'Middle vertical'**
+  String get settingsLayoutWaveformMiddleVertical;
+
+  /// No description provided for @settingsLayoutWaveformBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom'**
+  String get settingsLayoutWaveformBottom;
 
   /// No description provided for @settingsUiDescription.
   ///

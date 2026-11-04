@@ -83,6 +83,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSectionUi => 'UI';
 
   @override
+  String get settingsSectionLayout => 'Layout';
+
+  @override
   String get settingsSectionLibrary => 'Library';
 
   @override
@@ -99,6 +102,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsPrivacyDescription => 'Anonymous app usage data.';
+
+  @override
+  String get settingsLayoutDescription =>
+      'Where the waveform sits around the decks.';
+
+  @override
+  String get settingsLayoutWaveformTitle => 'Waveform position';
+
+  @override
+  String get settingsLayoutWaveformDescription =>
+      'Top keeps the waveform above the decks; bottom puts it between the decks and the library. The middle positions replace the center mixer with the lanes. Turn the switch off to hide the waveform.';
+
+  @override
+  String get settingsLayoutWaveformPosition => 'Position';
+
+  @override
+  String get settingsLayoutShowWaveform => 'Show waveform';
+
+  @override
+  String get settingsLayoutWaveformTop => 'Top';
+
+  @override
+  String get settingsLayoutWaveformMiddleHorizontal => 'Middle horizontal';
+
+  @override
+  String get settingsLayoutWaveformMiddleVertical => 'Middle vertical';
+
+  @override
+  String get settingsLayoutWaveformBottom => 'Bottom';
 
   @override
   String get settingsUiDescription =>

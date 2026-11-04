@@ -77,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 380749105;
+  int get rustContentHash => -290428302;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -871,6 +871,9 @@ abstract class RustLibApi extends BaseApi {
   Future<ThemeSetting> crateApiSettingsThemeSettingDefault();
 
   Future<UiLanguageSetting> crateApiSettingsUiLanguageSettingDefault();
+
+  Future<WaveformPositionSetting>
+  crateApiSettingsWaveformPositionSettingDefault();
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_AnalyticsTransport;
@@ -6716,6 +6719,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: [],
       );
 
+  @override
+  Future<WaveformPositionSetting>
+  crateApiSettingsWaveformPositionSettingDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 150,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_waveform_position_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsWaveformPositionSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsWaveformPositionSettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "waveform_position_setting_default",
+        argNames: [],
+      );
+
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_AnalyticsTransport => wire
       .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAnalyticsTransport;
@@ -7001,8 +7035,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 44)
-      throw Exception('unexpected arr length: expect 44 but see ${arr.length}');
+    if (arr.length != 46)
+      throw Exception('unexpected arr length: expect 46 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7047,7 +7081,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       accentPalette: dco_decode_accent_palette_setting(arr[40]),
       libraryDrawerEnabled: dco_decode_bool(arr[41]),
       libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[42]),
-      analyticsEnabled: dco_decode_bool(arr[43]),
+      waveformPosition: dco_decode_waveform_position_setting(arr[43]),
+      showWaveform: dco_decode_bool(arr[44]),
+      analyticsEnabled: dco_decode_bool(arr[45]),
     );
   }
 
@@ -10323,6 +10359,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WaveformPositionSetting dco_decode_waveform_position_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return WaveformPositionSetting.values[raw as int];
+  }
+
+  @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_String(deserializer);
@@ -10678,6 +10720,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_libraryDrawerSide = sse_decode_library_drawer_side_setting(
       deserializer,
     );
+    var var_waveformPosition = sse_decode_waveform_position_setting(
+      deserializer,
+    );
+    var var_showWaveform = sse_decode_bool(deserializer);
     var var_analyticsEnabled = sse_decode_bool(deserializer);
     return AppSettings(
       bufferSize: var_bufferSize,
@@ -10723,6 +10769,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       accentPalette: var_accentPalette,
       libraryDrawerEnabled: var_libraryDrawerEnabled,
       libraryDrawerSide: var_libraryDrawerSide,
+      waveformPosition: var_waveformPosition,
+      showWaveform: var_showWaveform,
       analyticsEnabled: var_analyticsEnabled,
     );
   }
@@ -14401,6 +14449,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WaveformPositionSetting sse_decode_waveform_position_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return WaveformPositionSetting.values[inner];
+  }
+
+  @protected
   void sse_encode_AnyhowException(
     AnyhowException self,
     SseSerializer serializer,
@@ -14769,6 +14826,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_accent_palette_setting(self.accentPalette, serializer);
     sse_encode_bool(self.libraryDrawerEnabled, serializer);
     sse_encode_library_drawer_side_setting(self.libraryDrawerSide, serializer);
+    sse_encode_waveform_position_setting(self.waveformPosition, serializer);
+    sse_encode_bool(self.showWaveform, serializer);
     sse_encode_bool(self.analyticsEnabled, serializer);
   }
 
@@ -18121,6 +18180,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_list_prim_u_8_strict(self.rgb, serializer);
     sse_encode_i_32(self.startMs, serializer);
     sse_encode_i_32(self.endMs, serializer);
+  }
+
+  @protected
+  void sse_encode_waveform_position_setting(
+    WaveformPositionSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 }
 

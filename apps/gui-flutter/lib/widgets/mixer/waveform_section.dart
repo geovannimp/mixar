@@ -8,9 +8,13 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Scrolling waveform lanes for every active deck.
 class WaveformSection extends ConsumerWidget {
-  const new({super.key});
+  const new({this.showFootDivider = true, super.key});
 
   static const _labels = ['A', 'B', 'C', 'D'];
+
+  /// Hairline against the deck row below. Off when the caller supplies its own
+  /// dividers around the section (the middle-horizontal band).
+  final bool showFootDivider;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,11 +61,12 @@ class WaveformSection extends ConsumerWidget {
           ),
           // Hairline against the deck row, in the same border colour as the
           // other pane splits.
-          MDivider(
-            key: const ValueKey('waveform-foot'),
-            padding: .zero,
-            color: theme.colors.border,
-          ),
+          if (showFootDivider)
+            MDivider(
+              key: const ValueKey('waveform-foot'),
+              padding: .zero,
+              color: theme.colors.border,
+            ),
         ],
       ),
     );

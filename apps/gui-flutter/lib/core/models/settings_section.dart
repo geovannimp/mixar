@@ -2,6 +2,7 @@ import 'package:gui_flutter/l10n/app_localizations.dart';
 
 enum SettingsSection {
   ui,
+  layout,
   audio,
   mixer,
   waveform,
@@ -16,6 +17,7 @@ enum SettingsSection {
 extension SettingsSectionLabel on SettingsSection {
   String label(AppLocalizations l10n) => switch (this) {
     SettingsSection.ui => l10n.settingsSectionUi,
+    SettingsSection.layout => l10n.settingsSectionLayout,
     SettingsSection.audio => l10n.settingsSectionAudio,
     SettingsSection.mixer => l10n.settingsSectionMixer,
     SettingsSection.waveform => l10n.settingsSectionWaveform,

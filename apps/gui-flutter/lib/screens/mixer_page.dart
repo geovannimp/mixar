@@ -93,6 +93,13 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     final settings = settingsState.value ?? defaultAppSettings();
     final drawerMode = settings.libraryDrawerEnabled;
     final deckRowHeight = settings.numDecks == 4 ? 560.0 : 410.0;
+    final waveformPosition = settings.waveformPosition;
+    final showWaveform = settings.showWaveform;
+    final band =
+        showWaveform && waveformPosition == WaveformPositionSetting.bottom;
+    // The band takes the waveform pane's place inside the pane column, so the
+    // compact scroll has to clear it before the library comes into view.
+    final bandHeight = band ? MixerPage._waveformDefault : 0.0;
 
     // The drawer is its own route, so opening it is not a layout concern: the
     // panes below only decide whether the docked library is there at all.
@@ -110,7 +117,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         return;
       }
       final target = math.min(
-        deckRowHeight + theme.style.borderWidth,
+        deckRowHeight + bandHeight + 2 * theme.style.borderWidth,
         _compactScroll.position.maxScrollExtent,
       );
       _compactScroll.animateTo(
@@ -119,6 +126,20 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         curve: Curves.easeOutCubic,
       );
     });
+
+    final decksAndLibrary = _decksAndLibrary(
+      theme: theme,
+      drawerMode: drawerMode,
+      deckRowHeight: deckRowHeight,
+      band: band,
+    );
+
+    // Middle positions own their own row placement: the waveform leaves the
+    // pane stack, so there is no split to drag. Hiding it removes the pane for
+    // every position.
+    if (!showWaveform || waveformPosition != WaveformPositionSetting.top) {
+      return decksAndLibrary;
+    }
 
     // Invisible chrome; keep a grab hit-area (was library divider:none).
     return PaneTheme(
@@ -134,77 +155,97 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         controller: _controller,
         paneBuilder: (context, id, _) => switch (id) {
           'waveforms' => const WaveformSection(),
-          'decks_library' => ColoredBox(
-            color: theme.colors.card,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final minHeight = drawerMode
-                    ? constraints.maxHeight
-                    : deckRowHeight +
-                          FxBar.height +
-                          120 +
-                          2 * theme.style.borderWidth;
-                final height = constraints.maxHeight < minHeight
-                    ? minHeight
-                    : constraints.maxHeight;
-                final scrollBehavior = ScrollConfiguration.of(context);
-                return ScrollConfiguration(
-                  // Pad presses must never double as scroll drags; the library
-                  // is re-wrapped below so its lists keep default drag scrolling.
-                  behavior: scrollBehavior.copyWith(dragDevices: const {}),
-                  child: RawScrollbar(
-                    controller: _compactScroll,
-                    interactive: true,
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      controller: _compactScroll,
-                      child: SizedBox(
-                        height: height,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // In drawer mode the deck row fills the pane: the library moves
-                            // to the drawer, so there is no split and no dead band below
-                            // the decks.
-                            if (drawerMode)
-                              const Expanded(child: ClipRect(child: DeckGrid()))
-                            else ...[
-                              SizedBox(
-                                height: deckRowHeight,
-                                child: const ClipRect(child: DeckGrid()),
-                              ),
-                              // Split the library from the mixer above it in the same
-                              // border colour as the rest of the library chrome.
-                              MDivider(
-                                padding: .zero,
-                                color: theme.colors.border,
-                              ),
-                              Expanded(
-                                child: ScrollConfiguration(
-                                  behavior: scrollBehavior,
-                                  child: const LibraryPanel(),
-                                ),
-                              ),
-                            ],
-                            // The FX bar rides at the pane's foot in both layouts.
-                            MDivider(
-                              padding: .zero,
-                              color: theme.colors.border,
-                            ),
-                            const SizedBox(
-                              height: FxBar.height,
-                              child: FxBar(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          'decks_library' => decksAndLibrary,
           _ => const SizedBox.shrink(),
+        },
+      ),
+    );
+  }
+
+  /// Deck row, optional middle waveform band, docked library, and the FX bar,
+  /// stacked in a card that scrolls when the window is shorter than the deck
+  /// row plus a usable library.
+  Widget _decksAndLibrary({
+    required MixarThemeData theme,
+    required bool drawerMode,
+    required double deckRowHeight,
+    required bool band,
+  }) {
+    final border = MDivider(padding: .zero, color: theme.colors.border);
+    return ColoredBox(
+      color: theme.colors.card,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final minHeight = drawerMode
+              ? constraints.maxHeight
+              : deckRowHeight +
+                    (band ? MixerPage._waveformDefault : 0) +
+                    FxBar.height +
+                    120 +
+                    2 * theme.style.borderWidth;
+          final height = constraints.maxHeight < minHeight
+              ? minHeight
+              : constraints.maxHeight;
+          final scrollBehavior = ScrollConfiguration.of(context);
+          return ScrollConfiguration(
+            // Pad presses must never double as scroll drags; the library
+            // is re-wrapped below so its lists keep default drag scrolling.
+            behavior: scrollBehavior.copyWith(dragDevices: const {}),
+            child: RawScrollbar(
+              controller: _compactScroll,
+              interactive: true,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _compactScroll,
+                child: SizedBox(
+                  height: height,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // In drawer mode the deck row fills the pane: the library
+                      // moves to the drawer, so there is no split and no dead
+                      // band below the decks.
+                      if (drawerMode)
+                        const Expanded(child: ClipRect(child: DeckGrid()))
+                      else
+                        SizedBox(
+                          height: deckRowHeight,
+                          child: const ClipRect(child: DeckGrid()),
+                        ),
+                      // Middle horizontal: the horizontal lanes sit between the
+                      // decks and the library instead of above the deck row.
+                      if (band) ...[
+                        border,
+                        const SizedBox(
+                          height: MixerPage._waveformDefault,
+                          child: ClipRect(
+                            child: WaveformSection(showFootDivider: false),
+                          ),
+                        ),
+                        // The band closes before the library; in drawer mode
+                        // the FX divider below does that job.
+                        if (!drawerMode) border,
+                      ],
+                      if (!drawerMode) ...[
+                        // Split the library from the mixer above it in the same
+                        // border colour as the rest of the library chrome.
+                        if (!band) border,
+                        Expanded(
+                          child: ScrollConfiguration(
+                            behavior: scrollBehavior,
+                            child: const LibraryPanel(),
+                          ),
+                        ),
+                      ],
+                      // The FX bar rides at the pane's foot in both layouts.
+                      border,
+                      const SizedBox(height: FxBar.height, child: FxBar()),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
         },
       ),
     );

@@ -166,6 +166,8 @@ AppSettings defaultAppSettings() {
     accentPalette: AccentPaletteSetting.teal,
     libraryDrawerEnabled: false,
     libraryDrawerSide: LibraryDrawerSideSetting.bottom,
+    waveformPosition: WaveformPositionSetting.top,
+    showWaveform: true,
     analyticsEnabled: false,
   );
 }
@@ -271,6 +273,8 @@ AppSettings copyAppSettings(
   AccentPaletteSetting? accentPalette,
   bool? libraryDrawerEnabled,
   LibraryDrawerSideSetting? libraryDrawerSide,
+  WaveformPositionSetting? waveformPosition,
+  bool? showWaveform,
   bool? analyticsEnabled,
 }) {
   return AppSettings(
@@ -321,6 +325,8 @@ AppSettings copyAppSettings(
     accentPalette: accentPalette ?? base.accentPalette,
     libraryDrawerEnabled: libraryDrawerEnabled ?? base.libraryDrawerEnabled,
     libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
+    waveformPosition: waveformPosition ?? base.waveformPosition,
+    showWaveform: showWaveform ?? base.showWaveform,
     analyticsEnabled: analyticsEnabled ?? base.analyticsEnabled,
   );
 }
@@ -368,6 +374,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.accentPalette != baseline.accentPalette ||
       draft.libraryDrawerEnabled != baseline.libraryDrawerEnabled ||
       draft.libraryDrawerSide != baseline.libraryDrawerSide ||
+      draft.waveformPosition != baseline.waveformPosition ||
+      draft.showWaveform != baseline.showWaveform ||
       draft.analyticsEnabled != baseline.analyticsEnabled ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||
       !_sameList(draft.libraryRowFields, baseline.libraryRowFields) ||

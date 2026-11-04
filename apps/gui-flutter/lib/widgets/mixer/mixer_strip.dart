@@ -39,6 +39,10 @@ const _gainHeaderHeight = 8.0 + 2.0 + 36.0;
 class MixerStrip extends ConsumerWidget {
   const new({this.bleed = 0, super.key});
 
+  /// Vertical breathing room at the top and foot of the mixer cell. The
+  /// waveform center column keeps the same foot spacing under its crossfader.
+  static const verticalInset = 8.0;
+
   /// Horizontal space [DeckGrid] reserves between the strip and each deck card.
   /// The crossfader rule bleeds into it so it runs border to border.
   final double bleed;
@@ -55,7 +59,7 @@ class MixerStrip extends ConsumerWidget {
         ? _mixerInnerWidthWithMeters
         : _mixerInnerWidthNoMeters;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: MixerStrip.verticalInset),
       child: SizedBox(
         width: innerWidth,
         child: Column(
@@ -70,16 +74,42 @@ class MixerStrip extends ConsumerWidget {
               ),
             ),
             const Expanded(child: _MixerChannels()),
-            _SectionRule(bleed: bleed),
-            // 8 here plus the strip's own 8px inset keeps the row centred
-            // between the section rule and the panel bottom.
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: _CrossfaderStrip(),
-            ),
+            CrossfaderPanel(bleed: bleed),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Mixer foot: the section rule and the crossfader on their own panel.
+///
+/// Shared with the waveform center column, which keeps the crossfader under the
+/// lanes instead of hiding it with the rest of the mixer.
+class CrossfaderPanel extends StatelessWidget {
+  const new({this.bleed = 0, this.contentPadding = EdgeInsets.zero, super.key});
+
+  /// Horizontal space to paint the rule past the panel, into the deck gutter.
+  final double bleed;
+
+  /// Inset around the crossfader strip itself (the rule still spans the panel).
+  /// The waveform center column uses it to keep the mixer's gutter spacing.
+  final EdgeInsets contentPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 8,
+      children: [
+        _SectionRule(bleed: bleed),
+        // 8 here plus the strip's own 8px inset keeps the row centred between
+        // the section rule and the panel bottom.
+        Padding(
+          padding: contentPadding.add(const EdgeInsets.symmetric(vertical: 8)),
+          child: const _CrossfaderStrip(),
+        ),
+      ],
     );
   }
 }
