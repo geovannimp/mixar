@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_mixer_meters_mono`, `default_num_decks`, `default_preview_bus_route`, `default_show_mixer_meters`, `default_show_tooltips`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
+// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_mixer_meters_mono`, `default_num_decks`, `default_preview_bus_route`, `default_show_mixer_meters`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsHost`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SettingsTransport>>
@@ -115,6 +115,13 @@ class AppSettings {
 
   /// Edge the drawer opens from.
   final LibraryDrawerSideSetting libraryDrawerSide;
+
+  /// Where the deck waveforms sit: above the decks, below them, or in the
+  /// middle of the deck row in place of the mixer.
+  final WaveformPositionSetting waveformPosition;
+
+  /// Draw the deck waveforms at all (Settings → Layout).
+  final bool showWaveform;
   final bool analyticsEnabled;
 
   const AppSettings({
@@ -161,6 +168,8 @@ class AppSettings {
     required this.accentPalette,
     required this.libraryDrawerEnabled,
     required this.libraryDrawerSide,
+    required this.waveformPosition,
+    required this.showWaveform,
     required this.analyticsEnabled,
   });
 
@@ -209,6 +218,8 @@ class AppSettings {
       accentPalette.hashCode ^
       libraryDrawerEnabled.hashCode ^
       libraryDrawerSide.hashCode ^
+      waveformPosition.hashCode ^
+      showWaveform.hashCode ^
       analyticsEnabled.hashCode;
 
   @override
@@ -259,6 +270,8 @@ class AppSettings {
           accentPalette == other.accentPalette &&
           libraryDrawerEnabled == other.libraryDrawerEnabled &&
           libraryDrawerSide == other.libraryDrawerSide &&
+          waveformPosition == other.waveformPosition &&
+          showWaveform == other.showWaveform &&
           analyticsEnabled == other.analyticsEnabled;
 }
 
@@ -421,3 +434,18 @@ enum UiLanguageSetting {
 
 /// Waveform lane paint mode.
 enum WaveformDisplayModeSetting { rgb, filtered }
+
+/// Where the deck waveforms sit (Settings → Layout).
+///
+/// `top` is the full-width pane above the deck row, `bottom` the horizontal
+/// band between the deck row and the library, and the two middle positions
+/// replace the center mixer with the lanes inside the deck row.
+enum WaveformPositionSetting {
+  top,
+  middleHorizontal,
+  middleVertical,
+  bottom;
+
+  static Future<WaveformPositionSetting> default_() =>
+      RustLib.instance.api.crateApiSettingsWaveformPositionSettingDefault();
+}

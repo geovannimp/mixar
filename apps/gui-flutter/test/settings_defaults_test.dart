@@ -383,6 +383,34 @@ void main() {
     );
   });
 
+  test('waveform position defaults top and is dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.waveformPosition, WaveformPositionSetting.top);
+    expect(appSettingsDirty(baseline, copyAppSettings(baseline)), isFalse);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(
+          baseline,
+          waveformPosition: WaveformPositionSetting.middleHorizontal,
+        ),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
+
+  test('the waveform is shown by default and hiding it is dirty', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.showWaveform, isTrue);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, showWaveform: false),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
+
   test('effectiveSelectStyle maps auto from isDesktopWindow', () {
     addTearDown(() => debugOverrideDesktopWindow = null);
 

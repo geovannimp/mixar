@@ -1,11 +1,28 @@
 ---
 title: "Interface"
-description: "Waveform mode, theme, language, tooltips, select style, meters, and library drawer."
+description: "Waveform mode and position, theme, language, tooltips, select style, meters, and library drawer."
 section: "Settings"
 order: 605
 ---
 
-**Waveform** is a single card. **UI** holds the theme, language, control presentation, meter, and drawer cards.
+**Layout** holds where the waveform sits. **Waveform** is a single card. **UI** holds the theme, language, control presentation, meter, and drawer cards.
+
+## Layout → Waveform position
+
+Card subtitle: "Top keeps the waveform above the decks; bottom puts it between the decks and the library. The middle positions replace the center mixer with the lanes. Turn the switch off to hide the waveform."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Show waveform** | header switch | on / off | on |
+| **Position** | select | **Top** / **Middle horizontal** / **Middle vertical** / **Bottom** | Top |
+
+**Show waveform** off removes the lanes everywhere and hands the center column back to the mixer; the **Position** select hides with it.
+
+**Top** is the full-width waveform pane above the deck row, with one horizontal lane per deck, and it is the only position with a draggable split. **Bottom** keeps horizontal lanes but moves them into a band between the deck row and the library (above the FX bar when the library drawer is on).
+
+**Middle horizontal** and **Middle vertical** replace the center mixer column with the lanes themselves, inside the deck row: horizontal lanes stacked, or one vertical lane per deck side by side. The vertical lanes run bottom to top and dragging a lane still scrubs. The mixer channels (faders, EQ, cue) are not shown while either middle position is selected, but the crossfader panel stays at the foot of the column; switch back to Top or Bottom for the whole mixer.
+
+Changing this only moves chrome: saving does not restart the engine.
 
 ## Waveform → Display
 

@@ -45,7 +45,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 380749105;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -290428302;
 
 // Section: executor
 
@@ -7695,6 +7695,39 @@ fn wire__crate__api__settings__ui_language_setting_default_impl(
         },
     )
 }
+fn wire__crate__api__settings__waveform_position_setting_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "waveform_position_setting_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Ok::<_, ()>(crate::api::settings::WaveformPositionSetting::default())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 
 // Section: static_checks
 
@@ -8999,6 +9032,9 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_libraryDrawerEnabled = <bool>::sse_decode(deserializer);
         let mut var_libraryDrawerSide =
             <crate::api::settings::LibraryDrawerSideSetting>::sse_decode(deserializer);
+        let mut var_waveformPosition =
+            <crate::api::settings::WaveformPositionSetting>::sse_decode(deserializer);
+        let mut var_showWaveform = <bool>::sse_decode(deserializer);
         let mut var_analyticsEnabled = <bool>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             buffer_size: var_bufferSize,
@@ -9044,6 +9080,8 @@ impl SseDecode for crate::api::settings::AppSettings {
             accent_palette: var_accentPalette,
             library_drawer_enabled: var_libraryDrawerEnabled,
             library_drawer_side: var_libraryDrawerSide,
+            waveform_position: var_waveformPosition,
+            show_waveform: var_showWaveform,
             analytics_enabled: var_analyticsEnabled,
         };
     }
@@ -12488,6 +12526,20 @@ impl SseDecode for crate::api::library::WaveformPeaks {
     }
 }
 
+impl SseDecode for crate::api::settings::WaveformPositionSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::WaveformPositionSetting::Top,
+            1 => crate::api::settings::WaveformPositionSetting::MiddleHorizontal,
+            2 => crate::api::settings::WaveformPositionSetting::MiddleVertical,
+            3 => crate::api::settings::WaveformPositionSetting::Bottom,
+            _ => unreachable!("Invalid variant for WaveformPositionSetting: {}", inner),
+        };
+    }
+}
+
 fn pde_ffi_dispatcher_primary_impl(
     func_id: i32,
     port: flutter_rust_bridge::for_generated::MessagePort,
@@ -13337,6 +13389,12 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
+        150 => wire__crate__api__settings__waveform_position_setting_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -13617,6 +13675,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.accent_palette.into_into_dart().into_dart(),
             self.library_drawer_enabled.into_into_dart().into_dart(),
             self.library_drawer_side.into_into_dart().into_dart(),
+            self.waveform_position.into_into_dart().into_dart(),
+            self.show_waveform.into_into_dart().into_dart(),
             self.analytics_enabled.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -17393,6 +17453,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::WaveformPeaks>
         self
     }
 }
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::WaveformPositionSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Top => 0.into_dart(),
+            Self::MiddleHorizontal => 1.into_dart(),
+            Self::MiddleVertical => 2.into_dart(),
+            Self::Bottom => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::WaveformPositionSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::WaveformPositionSetting>
+    for crate::api::settings::WaveformPositionSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::WaveformPositionSetting {
+        self
+    }
+}
 
 impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -17658,6 +17741,11 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.library_drawer_side,
             serializer,
         );
+        <crate::api::settings::WaveformPositionSetting>::sse_encode(
+            self.waveform_position,
+            serializer,
+        );
+        <bool>::sse_encode(self.show_waveform, serializer);
         <bool>::sse_encode(self.analytics_enabled, serializer);
     }
 }
@@ -20273,6 +20361,24 @@ impl SseEncode for crate::api::library::WaveformPeaks {
         <Vec<u8>>::sse_encode(self.rgb, serializer);
         <i32>::sse_encode(self.start_ms, serializer);
         <i32>::sse_encode(self.end_ms, serializer);
+    }
+}
+
+impl SseEncode for crate::api::settings::WaveformPositionSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::WaveformPositionSetting::Top => 0,
+                crate::api::settings::WaveformPositionSetting::MiddleHorizontal => 1,
+                crate::api::settings::WaveformPositionSetting::MiddleVertical => 2,
+                crate::api::settings::WaveformPositionSetting::Bottom => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

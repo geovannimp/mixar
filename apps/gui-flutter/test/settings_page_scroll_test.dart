@@ -50,7 +50,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final scrollable = find.descendant(
-      of: find.byType(SingleChildScrollView),
+      of: find.byKey(kSettingsContentScrollKey),
       matching: find.byType(Scrollable),
     );
     final position = tester.state<ScrollableState>(scrollable.first).position;

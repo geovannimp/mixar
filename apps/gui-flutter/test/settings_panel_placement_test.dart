@@ -172,7 +172,7 @@ void main() {
     expect(card.left, sidebar.right);
 
     // The section title/subtitle sit centred in the band above the first card.
-    final scroll = tester.getRect(find.byType(SingleChildScrollView));
+    final scroll = tester.getRect(find.byKey(kSettingsContentScrollKey));
     final header = tester.getRect(find.byType(SettingsSectionHeader).first);
     expect(header.top - scroll.top, card.top - header.bottom);
   }, semanticsEnabled: false);

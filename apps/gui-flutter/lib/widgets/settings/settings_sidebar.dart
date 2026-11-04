@@ -21,17 +21,19 @@ class SettingsSidebar extends StatelessWidget {
       ),
       child: SizedBox(
         width: 176,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final section in kSettingsSections)
-              _SettingsNavItem(
-                label: section.label(l10n),
-                icon: _iconFor(section),
-                selected: section == active,
-                onPress: () => onSelect(section),
-              ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final section in kSettingsSections)
+                _SettingsNavItem(
+                  label: section.label(l10n),
+                  icon: _iconFor(section),
+                  selected: section == active,
+                  onPress: () => onSelect(section),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -117,6 +119,7 @@ IconData _iconFor(SettingsSection section) {
     SettingsSection.waveform => LucideIcons.audioWaveform,
     SettingsSection.deck => LucideIcons.disc3,
     SettingsSection.ui => LucideIcons.panelTop,
+    SettingsSection.layout => LucideIcons.layoutDashboard,
     SettingsSection.library => LucideIcons.library,
     SettingsSection.storage => LucideIcons.hardDrive,
     SettingsSection.session => LucideIcons.history,

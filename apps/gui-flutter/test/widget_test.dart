@@ -36,6 +36,7 @@ import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/vertical_lane.dart';
 import 'package:gui_flutter/widgets/mixer/waveform_section.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
@@ -1015,13 +1016,30 @@ void main() {
     expect(deckC.top - deckA.bottom, hairline);
     expect(split.top, deckA.bottom);
     expect(split.bottom, deckC.top);
-    expect(split.left, deckA.left, reason: 'the split stops at the deck edge');
+    expect(
+      split.left,
+      tester.getTopLeft(find.byType(DeckGrid)).dx,
+      reason: 'the split runs to the window edge, not the deck card edge',
+    );
     expect(
       split.right,
       deckA.right,
-      reason: 'the split stops at the deck edge',
+      reason: 'the split still stops at the deck edge next to the mixer',
     );
-    expect(find.byKey(const ValueKey('deck-split-1')), findsOneWidget);
+
+    final rightSplit = tester.getRect(
+      find.byKey(const ValueKey('deck-split-1')),
+    );
+    expect(
+      rightSplit.left,
+      tester.getRect(_deck('DECK B')).left,
+      reason: 'the right column starts the rule at its deck edge',
+    );
+    expect(
+      rightSplit.right,
+      tester.getBottomRight(find.byType(DeckGrid)).dx,
+      reason: 'the right column runs the rule to the window edge',
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -1068,5 +1086,272 @@ void main() {
     expect(tester.getTopLeft(rail).dy, tester.getTopLeft(deck).dy);
     expect(tester.getBottomLeft(rail).dy, tester.getBottomLeft(deck).dy);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('waveform position top stacks the lanes above the deck row', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+
+    final hairline = MixarThemeData.light().style.borderWidth;
+    expect(
+      tester.getBottomLeft(find.byType(WaveformSection)).dy,
+      tester.getTopLeft(find.byType(DeckGrid)).dy,
+      reason: 'the deck row starts where the waveform pane ends',
+    );
+    expect(find.byType(VerticalWaveformLane), findsNothing);
+    expect(find.byType(MixerStrip), findsOneWidget);
+    // The pane is above the library, not between decks and library.
+    expect(
+      tester.getBottomLeft(find.byType(WaveformSection)).dy,
+      lessThan(tester.getTopLeft(find.byType(LibraryPanel)).dy - hairline),
+    );
+  });
+
+  testWidgets('waveform position bottom sits between decks and library', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        waveformPosition: WaveformPositionSetting.bottom,
+      ),
+    );
+
+    final hairline = MixarThemeData.light().style.borderWidth;
+    final wave = find.byType(WaveformSection);
+    expect(wave, findsOneWidget);
+    expect(
+      tester.getTopLeft(wave).dy,
+      tester.getBottomLeft(find.byType(DeckGrid)).dy + hairline,
+      reason: 'the band follows the deck row',
+    );
+    expect(
+      tester.getBottomLeft(wave).dy + hairline,
+      tester.getTopLeft(find.byType(LibraryPanel)).dy,
+      reason: 'the docked library sits under the band',
+    );
+    expect(find.byType(VerticalWaveformLane), findsNothing);
+    expect(find.byType(MixerStrip), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('waveform position middle horizontal replaces the mixer', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        waveformPosition: WaveformPositionSetting.middleHorizontal,
+      ),
+    );
+
+    // The lanes take the mixer's column inside the deck row, with the mixer's
+    // margins: the band runs edge to edge against the deck cards.
+    expect(find.byType(MixerStrip), findsNothing);
+    final wave = find.byType(WaveformSection);
+    expect(wave, findsOneWidget);
+    final lane = tester.getRect(wave);
+    final deckRow = tester.getRect(find.byType(DeckGrid));
+    expect(lane.top, deckRow.top);
+    // The mixer is gone, but its foot stays: the crossfader sits under the
+    // lanes, spanning the same column.
+    final crossfader = tester.getRect(find.byType(CrossfaderPanel));
+    expect(lane.bottom, crossfader.top);
+    expect(crossfader.left, lane.left);
+    expect(crossfader.right, lane.right);
+    expect(crossfader.bottom, deckRow.bottom);
+    expect(
+      tester.getRect(_deck('DECK A')).right,
+      lane.left,
+      reason: 'the lanes sit flush against the deck columns',
+    );
+    expect(tester.getRect(_deck('DECK B')).left, lane.right);
+    expect(find.byType(VerticalWaveformLane), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('waveform position middle vertical replaces the mixer with '
+      'one lane per deck', (tester) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        waveformPosition: WaveformPositionSetting.middleVertical,
+      ),
+    );
+
+    // No pane above the decks and no mixer: the lanes are the center column.
+    expect(find.byType(WaveformSection), findsNothing);
+    expect(find.byType(MixerStrip), findsNothing);
+    final lanes = find.byType(VerticalWaveformLane);
+    expect(lanes, findsNWidgets(2));
+
+    final deckRow = tester.getRect(find.byType(DeckGrid));
+    final crossfader = tester.getRect(find.byType(CrossfaderPanel));
+    for (final lane in [lanes.at(0), lanes.at(1)]) {
+      final rect = tester.getRect(lane);
+      expect(rect.top, deckRow.top);
+      expect(rect.bottom, crossfader.top);
+    }
+    expect(crossfader.bottom, deckRow.bottom);
+    // Deck A, its lane, Deck B's lane, then Deck B, all flush.
+    final deckA = tester.getRect(_deck('DECK A'));
+    final deckB = tester.getRect(_deck('DECK B'));
+    final laneA = tester.getRect(lanes.at(0));
+    final laneB = tester.getRect(lanes.at(1));
+    expect(deckA.right, laneA.left);
+    expect(laneB.left - laneA.right, MixarThemeData.light().style.borderWidth);
+    expect(laneB.right, deckB.left);
+    // Each lane names its deck: the rotation would make an in-lane label
+    // unreadable, so it is painted outside it.
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('wave-lane-label-0'))).data,
+      'A',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('wave-lane-label-1'))).data,
+      'B',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('four-deck middle vertical shows a lane per deck in the center', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        numDecks: 4,
+        waveformPosition: WaveformPositionSetting.middleVertical,
+      ),
+    );
+
+    expect(find.byType(MixerStrip), findsNothing);
+    final lanes = find.byType(VerticalWaveformLane);
+    expect(lanes, findsNWidgets(4));
+    // Lanes share the center column, left to right in deck order.
+    var previousRight = 0.0;
+    for (var deckId = 0; deckId < 4; deckId++) {
+      final rect = tester.getRect(lanes.at(deckId));
+      expect(rect.left, greaterThan(previousRight));
+      previousRight = rect.right;
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('stacked deck divider runs to the waveform in middle layouts', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        numDecks: 4,
+        waveformPosition: WaveformPositionSetting.middleVertical,
+      ),
+    );
+
+    // The panes drop their inset against the waveform, so the split must too:
+    // it spans the deck card, not an inset inside it, and reaches the border.
+    final deck = tester.getRect(_deck('DECK A'));
+    final split = tester.getRect(find.byKey(const ValueKey('deck-split-0')));
+    expect(split.left, tester.getTopLeft(find.byType(DeckGrid)).dx);
+    expect(split.right, deck.right);
+    expect(
+      split.right,
+      tester.getRect(find.byType(VerticalWaveformLane).first).left,
+      reason: 'the divider must reach the waveform edge',
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('deck-split-1'))).left,
+      tester.getRect(find.byType(VerticalWaveformLane).last).right,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('centered crossfader keeps the mixer foot spacing', (
+    tester,
+  ) async {
+    // The center column is flush with the deck cards where the mixer keeps its
+    // gutter, so the crossfader re-adds it. Both layouts must place the fader
+    // the same distance from the deck card and the pane bottom.
+    double? insetFromDeck;
+    double? insetFromFoot;
+    for (final position in [
+      WaveformPositionSetting.top,
+      WaveformPositionSetting.middleHorizontal,
+    ]) {
+      await pumpShell(
+        tester,
+        settings: copyAppSettings(
+          defaultAppSettings(),
+          numDecks: 4,
+          waveformPosition: position,
+        ),
+      );
+
+      final deckRow = tester.getRect(find.byType(DeckGrid));
+      final crossfader = find.byWidgetPredicate(
+        (w) => w is FaderSlider && w.orientation == FaderOrientation.horizontal,
+      );
+      expect(crossfader, findsOneWidget);
+      final slider = tester.getRect(crossfader);
+      final deck = tester.getRect(_deck('DECK A'));
+      insetFromDeck ??= slider.left - deck.right;
+      insetFromFoot ??= deckRow.bottom - slider.bottom;
+      expect(
+        slider.left - deck.right,
+        insetFromDeck,
+        reason: '$position changed the crossfader gutter',
+      );
+      expect(
+        deckRow.bottom - slider.bottom,
+        insetFromFoot,
+        reason: '$position changed the crossfader foot spacing',
+      );
+    }
+  });
+
+  testWidgets('hiding the waveform removes the lanes in every position', (
+    tester,
+  ) async {
+    for (final position in WaveformPositionSetting.values) {
+      await pumpShell(
+        tester,
+        settings: copyAppSettings(
+          defaultAppSettings(),
+          showWaveform: false,
+          waveformPosition: position,
+        ),
+      );
+
+      expect(
+        find.byType(WaveformSection),
+        findsNothing,
+        reason: '$position still renders a waveform section',
+      );
+      expect(
+        find.byType(VerticalWaveformLane),
+        findsNothing,
+        reason: '$position still renders vertical lanes',
+      );
+      // The mixer gets its column back, and the deck row starts under the
+      // header instead of leaving an empty waveform pane.
+      expect(
+        find.byType(MixerStrip),
+        findsOneWidget,
+        reason: '$position lost the mixer with the waveform hidden',
+      );
+      expect(
+        tester.getTopLeft(find.byType(DeckGrid)).dy,
+        tester.getBottomLeft(find.byType(AppHeader)).dy,
+        reason: '$position left a gap where the waveform pane used to be',
+      );
+      expect(tester.takeException(), isNull);
+    }
   });
 }

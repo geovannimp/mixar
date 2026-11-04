@@ -361,8 +361,26 @@ pub enum LibraryDrawerSideSetting {
     Bottom,
 }
 
+/// Where the deck waveforms sit (Settings → Layout).
+///
+/// `top` is the full-width pane above the deck row, `bottom` the horizontal
+/// band between the deck row and the library, and the two middle positions
+/// replace the center mixer with the lanes inside the deck row.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WaveformPositionSetting {
+    #[default]
+    Top,
+    MiddleHorizontal,
+    MiddleVertical,
+    Bottom,
+}
+
 fn default_vinyl_brake_stop_secs() -> f32 {
     0.5
+}
+fn default_show_waveform() -> bool {
+    true
 }
 fn default_num_decks() -> u8 {
     2
@@ -459,6 +477,13 @@ pub struct AppSettings {
     /// Edge the drawer opens from.
     #[serde(default)]
     pub library_drawer_side: LibraryDrawerSideSetting,
+    /// Where the deck waveforms sit: above the decks, below them, or in the
+    /// middle of the deck row in place of the mixer.
+    #[serde(default)]
+    pub waveform_position: WaveformPositionSetting,
+    /// Draw the deck waveforms at all (Settings → Layout).
+    #[serde(default = "default_show_waveform")]
+    pub show_waveform: bool,
     #[serde(default)]
     pub analytics_enabled: bool,
 }
@@ -500,6 +525,8 @@ struct SettingsHost {
     accent_palette: AccentPaletteSetting,
     library_drawer_enabled: bool,
     library_drawer_side: LibraryDrawerSideSetting,
+    waveform_position: WaveformPositionSetting,
+    show_waveform: bool,
     analytics_enabled: bool,
 }
 
@@ -540,6 +567,8 @@ impl Default for SettingsHost {
             accent_palette: AccentPaletteSetting::default(),
             library_drawer_enabled: false,
             library_drawer_side: LibraryDrawerSideSetting::Bottom,
+            waveform_position: WaveformPositionSetting::Top,
+            show_waveform: default_show_waveform(),
             analytics_enabled: false,
         }
     }
@@ -864,6 +893,8 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         accent_palette: host.accent_palette,
         library_drawer_enabled: host.library_drawer_enabled,
         library_drawer_side: host.library_drawer_side,
+        waveform_position: host.waveform_position,
+        show_waveform: host.show_waveform,
         analytics_enabled: host.analytics_enabled,
     }
 }
@@ -918,6 +949,8 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.library_drawer_enabled = settings.library_drawer_enabled;
     host.analytics_enabled = settings.analytics_enabled;
     host.library_drawer_side = settings.library_drawer_side;
+    host.waveform_position = settings.waveform_position;
+    host.show_waveform = settings.show_waveform;
     host.configured = true;
     Ok(())
 }
@@ -1042,6 +1075,14 @@ mod tests {
 
     fn sample_settings() -> AppSettings {
         settings_from_host(&SettingsHost::default())
+    }
+
+    /// `sample_settings()` as JSON with one key removed, for default-value
+    /// tests on files written by older builds.
+    fn settings_without_key(key: &str) -> serde_json::Value {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value.as_object_mut().expect("object").remove(key);
+        value
     }
 
     #[test]
@@ -1548,6 +1589,49 @@ mod tests {
     }
 
     #[test]
+    fn missing_waveform_position_defaults_top() {
+        let settings: AppSettings =
+            serde_json::from_value(settings_without_key("waveform_position")).expect("parse");
+        assert_eq!(settings.waveform_position, WaveformPositionSetting::Top);
+    }
+
+    #[test]
+    fn waveform_position_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.waveform_position = WaveformPositionSetting::MiddleVertical;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert_eq!(
+            restored.waveform_position,
+            WaveformPositionSetting::MiddleVertical
+        );
+    }
+
+    #[test]
+    fn missing_show_waveform_defaults_on() {
+        let settings: AppSettings =
+            serde_json::from_value(settings_without_key("show_waveform")).expect("parse");
+        assert!(settings.show_waveform);
+    }
+
+    #[test]
+    fn show_waveform_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.show_waveform = false;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.show_waveform);
+    }
+
+    #[test]
     fn missing_ui_language_defaults_system() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
@@ -1726,6 +1810,15 @@ mod tests {
             settings_from_host(&host).waveform_display_mode,
             WaveformDisplayModeSetting::Filtered,
         );
+    }
+
+    #[test]
+    fn apply_to_host_persists_analytics_enabled() {
+        let mut host = SettingsHost::default();
+        let mut settings = sample_settings();
+        settings.analytics_enabled = true;
+        apply_to_host(&mut host, settings).expect("settings apply");
+        assert!(settings_from_host(&host).analytics_enabled);
     }
 
     #[test]

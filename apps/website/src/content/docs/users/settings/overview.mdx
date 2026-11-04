@@ -5,13 +5,14 @@ section: "Settings"
 order: 601
 ---
 
-The **Settings** screen holds every preference that shapes the engine, the mixer, the decks, and the library. Its sidebar has ten sections in this order: **UI**, **Audio**, **Mixer**, **Waveform**, **Deck**, **Library**, **Storage**, **Session**, **Controllers**, **Privacy**.
+The **Settings** screen holds every preference that shapes the engine, the mixer, the decks, and the library. Its sidebar has eleven sections in this order: **UI**, **Layout**, **Audio**, **Mixer**, **Waveform**, **Deck**, **Library**, **Storage**, **Session**, **Controllers**, **Privacy**.
 
 ## Which page covers which section
 
 | Section | Page |
 | --- | --- |
 | **UI** | [Interface](/docs/users/settings/interface): theme, language, controls, meters, library drawer |
+| **Layout** | [Interface](/docs/users/settings/interface): waveform position |
 | **Audio** | [Audio](/docs/users/settings/audio): engine, master bus, preview bus |
 | **Mixer** | [Mixer and deck](/docs/users/settings/mixer-and-deck): volume normalizer, sampler routing, realtime stems |
 | **Waveform** | [Interface](/docs/users/settings/interface): waveform display mode |
@@ -28,7 +29,7 @@ The **Settings** screen holds every preference that shapes the engine, the mixer
 
 Closing with unsaved edits asks **Unsaved settings** / "Save changes before closing?" with **Cancel**, **Discard**, and **Save**. Discard throws the draft away; Save saves and only closes if the save applied.
 
-A normal save restarts the engine when it is running, then reloads the tracks that were on the decks that still exist. Four kinds of edit skip that restart because they only change how the app paints: the **Theme** and **Accent color** controls under **UI**, the **Analytics** switch under **Privacy**, and the **Visible fields** checkboxes under **Library**. Every other preference (including UI-only ones such as **Show tooltips**) takes the restart path.
+A normal save restarts the engine when it is running, then reloads the tracks that were on the decks that still exist. Six kinds of edit skip that restart because they only change how the app paints: the **Theme** and **Accent color** controls under **UI**, the **Show waveform** switch and **Waveform position** under **Layout**, the **Analytics** switch under **Privacy**, and the **Visible fields** checkboxes under **Library**. Every other preference (including UI-only ones such as **Show tooltips**) takes the restart path.
 
 If the settings were written but the engine refused them, the toast reads "Settings saved, but not applied" with the error under it. If the write itself fails, the toast reads "Save failed" with the error.
 

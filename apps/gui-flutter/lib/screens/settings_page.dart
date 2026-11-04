@@ -10,6 +10,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_deck_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_layout_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_privacy_panel.dart';
@@ -23,6 +24,12 @@ import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+/// Scroll view holding the active section's panel.
+///
+/// The sidebar scrolls on its own, so tests that measure or drive the page
+/// content target this key instead of the first `SingleChildScrollView`.
+const kSettingsContentScrollKey = ValueKey('settings-content-scroll');
 
 class SettingsPage extends ConsumerStatefulWidget {
   const new({
@@ -197,6 +204,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                   Expanded(
                     child: SingleChildScrollView(
+                      key: kSettingsContentScrollKey,
                       // Full-bleed width: the panel owns the header inset and
                       // lets its cards run to the pane edges.
                       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -379,6 +387,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         onChanged: onChanged,
       ),
       SettingsSection.ui => SettingsUiPanel(draft: draft, onChanged: onChanged),
+      SettingsSection.layout => SettingsLayoutPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
       SettingsSection.library => SettingsLibraryPanel(
         draft: draft,
         onChanged: onChanged,
