@@ -982,6 +982,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RefreshTrack dco_decode_refresh_track(dynamic raw);
 
   @protected
+  RekordboxImportPreview dco_decode_rekordbox_import_preview(dynamic raw);
+
+  @protected
+  RekordboxImportReport dco_decode_rekordbox_import_report(dynamic raw);
+
+  @protected
   ResolvedLibraryTrack dco_decode_resolved_library_track(dynamic raw);
 
   @protected
@@ -2344,6 +2350,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RefreshTrack sse_decode_refresh_track(SseDeserializer deserializer);
+
+  @protected
+  RekordboxImportPreview sse_decode_rekordbox_import_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RekordboxImportReport sse_decode_rekordbox_import_report(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ResolvedLibraryTrack sse_decode_resolved_library_track(
@@ -4022,6 +4038,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_refresh_track(RefreshTrack self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_rekordbox_import_preview(
+    RekordboxImportPreview self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_rekordbox_import_report(
+    RekordboxImportReport self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_resolved_library_track(

@@ -35,9 +35,9 @@ pub use source::{AudioSource, FileAudioSource, StreamAudioSource, StreamProvider
 pub use traits::{Library, Migratable, WritableLibrary};
 pub use types::{
     AnalyzeTrackOptions, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
-    CollectionEntryId, CollectionId, CollectionType, ColorLabel, ImportedTrack, LibraryConfig,
-    MigrateOptions, MigrateReport, NewCollection, ScanReport, TagWriteBack, TrackId, TrackMetadata,
-    UpdateCollection,
+    CollectionEntryId, CollectionId, CollectionType, ColorLabel, HotCueImport, ImportedTrack,
+    LibraryConfig, LoopImport, MigrateOptions, MigrateReport, NewCollection, ScanReport,
+    TagWriteBack, TrackId, TrackMetadata, UpdateCollection,
 };
 
 #[cfg(test)]

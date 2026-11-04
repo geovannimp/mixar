@@ -299,7 +299,10 @@ class _CollapsibleCardBodyState extends State<_CollapsibleCardBody>
       child: AnimatedBuilder(
         animation: _curve,
         builder: (context, child) => Align(
-          alignment: Alignment.topCenter,
+          // Bodies are form fields, so they line up with the header's title
+          // instead of centering: an intrinsically narrow body (a status line,
+          // a hint) would otherwise float in the middle of the card.
+          alignment: Alignment.topLeft,
           heightFactor: _curve.value,
           child: child,
         ),

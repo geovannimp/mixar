@@ -1,17 +1,19 @@
 ---
 title: "Importing music"
-description: "Bring a Mixxx library into Mixar and understand what is copied."
+description: "Bring a Mixxx or Rekordbox library into Mixar and understand what is copied."
 section: "Library"
 order: 205
 ---
 
-Mixar reads an existing **Mixxx** library and copies its structure into yours: tracks, playlists, crates, and watched folders. It is the only migration path Mixar ships.
+Mixar reads an existing DJ library and copies its structure into yours: tracks, playlists, cues, and folders. Two sources ship today, **Mixxx** and **Rekordbox 6/7**, each with its own card in **Settings → Integrations**.
 
-It lives in **Settings → Library → Import from Mixxx**, described as *Bring tracks, playlists, and crates from your Mixxx library into Mixar.*
+Lists and track references are copied, never audio files. Your music stays where it is; the imported lists become [collections](/docs/users/library/collections).
 
-## What it looks for
+Both imports are **idempotent**: a list whose name and kind already exist is skipped, and cues are written per slot, so running an import twice does not duplicate your library. Missing files are imported as unavailable tracks — rows with no playable audio — so a list does not silently lose entries when a drive is offline.
 
-The card checks the standard Mixxx database location on launch and reports one of four states:
+## Import from Mixxx
+
+The Mixxx card is described as *Bring your Mixxx library into Mixar.* It checks the standard Mixxx database location on launch and reports one of four states:
 
 | State | Meaning |
 | --- | --- |
@@ -20,17 +22,7 @@ The card checks the standard Mixxx database location on launch and reports one o
 | **No Mixxx library found on this computer.** | Nothing to import on this machine. |
 | **Could not check for a Mixxx library.** | The lookup itself failed; the error is in the log. |
 
-**Import from Mixxx library…** is enabled only when a database was found and no import is already running.
-
-## The confirmation
-
-The dialog is titled **Import from Mixxx?** and lists exactly what is about to happen: the source path, the track count with a missing-file count, and how many playlists, crates, and watched folders were found. It closes with the line that governs the result: *Missing files are imported as unavailable tracks.*
-
-They stay in the library as rows with no playable audio, so a list does not silently lose entries when a drive is offline.
-
-## What it copies
-
-Lists and track references, never audio files. Your music stays where it is; the imported playlists and crates become [collections](/docs/users/library/collections).
+**Import from Mixxx library…** is enabled only when a database was found and no import is already running. The confirmation lists the source path, the track count with a missing-file count, and how many playlists, crates, and watched folders were found.
 
 | Mixxx | Becomes |
 | --- | --- |
@@ -38,28 +30,45 @@ Lists and track references, never audio files. Your music stays where it is; the
 | Crates | Unsortable collections |
 | Watched folders that still exist | Folder collections that scan subfolders |
 
-Hidden lists are skipped: Mixxx's AutoDJ queue and its own history are not imported.
-
-Mixar also creates an unsortable collection named **Mixxx** holding every imported track, so nothing ends up in the library unreachable from a collection. That catch-all is not counted in the playlist totals.
+Hidden lists are skipped: Mixxx's AutoDJ queue and its own history are not imported. Mixar also creates an unsortable collection named **Mixxx** holding every imported track, so nothing ends up in the library unreachable from a collection. That catch-all is not counted in the playlist totals.
 
 Track metadata comes across where Mixxx stored it: title, artist, album, genre, comment, rating, year, track and disc numbers, sample rate, channels, bitrate, replay gain, and BPM. Keys are normalized to Mixar's musical form, so `8A` arrives as `Am`. A BPM of zero or less is dropped rather than stored as a bogus tempo.
 
-The import is idempotent: a list whose name and kind already exist in Mixar is skipped, so running it twice does not duplicate your library.
+## Import from Rekordbox
+
+The Rekordbox card reads the desktop library Rekordbox 6 and 7 keep in `master.db`, so nothing has to be exported by hand. The card is described as *Bring your Rekordbox library into Mixar* and reports the same four states, based on the path Rekordbox itself records in its settings file.
+
+Rekordbox encrypts that database. Mixar copies it (with its write-ahead log) into a **private** temp directory, unlocks the copy, and deletes it when the import finishes; the original files are only ever read. Rekordbox can keep running during the import.
+
+The confirmation lists the source path, the track count with a missing-file count, and how many playlists, smart playlists, folders, hot cues, and loops were found.
+
+| Rekordbox | Becomes |
+| --- | --- |
+| Playlists | Sortable collections, keeping Rekordbox's order |
+| Smart playlists | Sortable collections holding the tracks the smart list matched at import time; the rules themselves do not carry over |
+| Playlist folders | A name prefix, so a *Warmup* list inside *House* imports as **House / Warmup** |
+| Hot cues | Hot cues on the track, slot and colour included |
+| Hot loops | Hot cues that also carry the loop length in beats |
+| Memory loops | Saved loops on the track |
+
+Mixar creates an unsortable collection named **Rekordbox** holding every imported track.
+
+Track metadata comes across where Rekordbox stored it: title, artist, album, genre, colour label, comment, rating, year, track and disc numbers, ISRC, sample rate, bitrate, and BPM. Keys are normalized to Mixar's musical form. Two kinds of row are deliberately dropped: **memory cues that are not loops** (Mixar stores hot cues and loops only), and **beat grids and waveforms**, which Rekordbox keeps in separate analysis files rather than in the database.
 
 ## Result
 
-A toast reports the outcome: **Imported … from Mixxx** with per-kind counts, and a `(N missing)` suffix when files were unavailable. Other outcomes:
+A toast reports the outcome: **Imported … from Mixxx** or **… from Rekordbox** with per-kind counts, and a `(N missing)` suffix when files were unavailable. Other outcomes:
 
 | Toast | Meaning |
 | --- | --- |
-| **Mixxx library already imported** | Nothing new; the lists already exist. |
-| **Nothing to import from Mixxx** | The database contained nothing importable. |
-| **Mixxx import finished with N error(s)** | Partial success. The first few errors are listed under the title. |
-| **Could not read Mixxx library** | The database exists but could not be parsed. |
-| **Mixxx import failed** | The import aborted; the error text is attached. |
+| **Mixxx library already imported** / **Rekordbox library already imported** | Nothing new; the lists already exist. |
+| **Nothing to import from Mixxx** / **… from Rekordbox** | The database contained nothing importable. |
+| **Mixxx import finished with N error(s)** / **Rekordbox import finished with N error(s)** | Partial success. The first few errors are listed under the title. |
+| **Could not read Mixxx library** / **… Rekordbox library** | The database exists but could not be parsed. For Rekordbox this is also what a database written by an unknown key would produce. |
+| **Mixxx import failed** / **Rekordbox import failed** | The import aborted; the error text is attached. |
 
 ## After the import
 
-Mixxx's beat grids are not part of the migration, so imported tracks have BPM and key but no grid of their own. Queue [analysis](/docs/users/library/analysis) on the imported collections, then correct anything it gets wrong in the deck's [Beat grid](/docs/users/decks/beat-grid) tab.
+Beat grids are not part of either migration, so imported tracks have BPM and key but no grid of their own. Queue [analysis](/docs/users/library/analysis) on the imported collections, then correct anything it gets wrong in the deck's [Beat grid](/docs/users/decks/beat-grid) tab.
 
 Metadata that came across wrong is editable in the [track editor](/docs/users/library/track-editing).

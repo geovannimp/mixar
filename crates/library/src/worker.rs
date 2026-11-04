@@ -158,14 +158,13 @@ fn handle_refresh_track(
     let result = {
         let lib = library.lock().unwrap_or_else(|e| e.into_inner());
         match lib.get_track(&id) {
-            Ok(Some(source)) => match track_summary(&source) {
-                Some(track) => {
-                    let cues = lib.list_track_hot_cues(&id);
-                    let loops = lib.list_track_loops(&id);
-                    Ok((track, cues, loops))
-                }
-                None => Err("Only file tracks can be refreshed.".to_string()),
-            },
+            // Cues and loops are library rows for any source, so a stream
+            // republishes them too; only the metadata refresh needs a file.
+            Ok(Some(source)) => Ok((
+                track_summary(&source),
+                lib.list_track_hot_cues(&id),
+                lib.list_track_loops(&id),
+            )),
             Ok(None) => Err(format!("Track not found: {track_id}")),
             Err(err) => Err(err.to_string()),
         }
@@ -173,7 +172,9 @@ fn handle_refresh_track(
 
     match result {
         Ok((track, cues, loops)) => {
-            let _ = buses.publish_evt(Event::TrackUpdated(TrackUpdated { track }));
+            if let Some(track) = track {
+                let _ = buses.publish_evt(Event::TrackUpdated(TrackUpdated { track }));
+            }
             match cues {
                 Ok(rows) => {
                     let _ = buses.publish_evt(Event::HotCuesChanged(HotCuesChanged {
@@ -577,6 +578,71 @@ mod tests {
     use super::*;
     use library_core::FileAudioSource;
     use std::path::PathBuf;
+
+    /// A stream track has no tags to re-read, but its cues and loops are library
+    /// rows: refreshing it must republish both and not claim a metadata update.
+    #[test]
+    fn refreshing_a_stream_track_republishes_cues_without_a_track_update() {
+        use bus_api::HotCuesChanged;
+        use bus_api::LoopsChanged;
+        use bus_api::RefreshTrack;
+
+        let session = crate::LibrarySession::open_in_memory(crate::LibraryConfig::default())
+            .expect("session");
+        let id = {
+            let lib = session.library();
+            let lib = lib.lock().unwrap_or_else(|e| e.into_inner());
+            let source = lib
+                .import_stream(
+                    "mixar://stream/1",
+                    &library_core::TrackMetadata::default(),
+                    None,
+                )
+                .expect("stream source");
+            let id = source.id().clone();
+            lib.save_track_hot_cue(&id, 0, 1_500, None, None, Some("Intro".into()))
+                .expect("hot cue");
+            id
+        };
+
+        let mut rx = session.subscribe_evt().expect("evt bus");
+        session
+            .publish_cmd(Event::RefreshTrack(RefreshTrack {
+                track_id: id.as_str().to_string(),
+            }))
+            .expect("cmd bus");
+
+        let (mut hot, mut loops, mut updated, mut error) = (false, false, false, None);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while std::time::Instant::now() < deadline && !(hot && loops) {
+            let Ok(Some(event)) = rx.recv_timeout(std::time::Duration::from_millis(200)) else {
+                continue;
+            };
+            match event {
+                Event::HotCuesChanged(HotCuesChanged { track_id, hot_cues })
+                    if track_id == id.as_str() =>
+                {
+                    assert_eq!(hot_cues.len(), 1, "the saved cue comes back");
+                    hot = true;
+                }
+                Event::LoopsChanged(LoopsChanged {
+                    track_id,
+                    loops: rows,
+                }) if track_id == id.as_str() => {
+                    assert!(rows.is_empty());
+                    loops = true;
+                }
+                Event::TrackUpdated(_) => updated = true,
+                Event::Error(err) => error = Some(format!("{err:?}")),
+                _ => {}
+            }
+        }
+
+        assert!(hot, "hot cues republished for a stream");
+        assert!(loops, "loops republished for a stream");
+        assert!(!updated, "a stream has no metadata to refresh");
+        assert_eq!(error, None, "no error for a stream refresh");
+    }
 
     #[test]
     fn track_summary_carries_new_metadata_fields() {

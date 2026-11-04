@@ -1,0 +1,17 @@
+---
+title: "Integrations"
+description: "Read a Mixxx or Rekordbox library into Mixar."
+section: "Settings"
+order: 606
+---
+
+**Settings → Integrations** ("Read another DJ application into your library.") holds one card per supported source. Nothing here is a saved preference: each card detects its own database, reports what it found, and runs the import once you confirm, which is why the page never shows **Save**.
+
+| Card | Source |
+| --- | --- |
+| **Import from Mixxx** | A Mixxx `mixxxdb.sqlite`: tracks, playlists, crates, watched folders |
+| **Import from Rekordbox** | A Rekordbox 6/7 `master.db`: tracks, playlists, hot cues, loops, memory loops |
+
+Both copy lists and track references, never audio files, and both are idempotent: running an import twice does not duplicate tracks or lists. What each source maps, and what it deliberately drops, is on [Importing music](/docs/users/library/import).
+
+The Rekordbox card opens the database read-only and unlocks a private copy of it, so Rekordbox can keep running while the import finishes. If the card reports that the database could not be decrypted, the install's SQLCipher passphrase differs from the one Mixar ships; the error names the `REKORDBOX_DATABASE_KEY` environment variable that overrides it. See [Importing music](/docs/users/library/import#result).

@@ -27,6 +27,48 @@ void main() {
     expect(find.byType(Row), findsNothing);
   }, semanticsEnabled: false);
 
+  testWidgets(
+    'lines a narrow body up with the header instead of centering it',
+    (tester) async {
+      await tester.pumpWidget(
+        mixarTestMaterialApp(
+          theme: MixarThemeData.dark(),
+          home: const Scaffold(
+            body: SettingsSectionCard(
+              title: 'Import from Rekordbox',
+              subtitle: 'Bring your Rekordbox library into Mixar.',
+              child: Text('No Rekordbox library found on this computer.'),
+            ),
+          ),
+        ),
+      );
+
+      final titleLeft = tester
+          .getTopLeft(find.text('Import from Rekordbox'))
+          .dx;
+      final bodyLeft = tester
+          .getTopLeft(find.text('No Rekordbox library found on this computer.'))
+          .dx;
+      final bodyRight = tester
+          .getBottomRight(
+            find.text('No Rekordbox library found on this computer.'),
+          )
+          .dx;
+      final cardLeft = tester.getTopLeft(find.byType(SettingsSectionCard)).dx;
+      final cardRight = tester
+          .getBottomRight(find.byType(SettingsSectionCard))
+          .dx;
+
+      expect(bodyLeft, titleLeft, reason: 'body starts where the title starts');
+      expect(
+        bodyLeft - cardLeft,
+        lessThan(cardRight - bodyRight),
+        reason: 'the slack sits after the text, not split around it',
+      );
+    },
+    semanticsEnabled: false,
+  );
+
   testWidgets('title-only card renders no description line', (tester) async {
     await tester.pumpWidget(
       mixarTestMaterialApp(

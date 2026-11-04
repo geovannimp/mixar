@@ -126,6 +126,26 @@ jobs:
         if: matrix.platform == 'linux'
         uses: ./.github/actions/install-native-deps
 
+      # `bundled-sqlcipher-vendored-openssl` builds OpenSSL from source, and the
+      # MSVC build needs Perl plus NASM for its x86-64 assembly. The Windows
+      # runner image ships both; this keeps a minimal image from failing the
+      # whole release on a missing assembler.
+      - name: Install OpenSSL build tools (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v perl >/dev/null || choco install -y strawberryperl
+          command -v nasm >/dev/null || choco install -y nasm
+          # choco updates the machine PATH, which running shells have already
+          # read; publish the directories so the later packaging steps (cargo
+          # build of openssl-src) inherit them too.
+          printf '%s\n' "C:\\Strawberry\\perl\\bin" "C:\\Strawberry\\c\\bin" \
+            "C:\\Program Files\\NASM" >> "$GITHUB_PATH"
+          export PATH="/c/Strawberry/perl/bin:/c/Program Files/NASM:$PATH"
+          perl -v | head -n 2
+          nasm -v
+
       - name: Install Flutter desktop packaging deps
         uses: ./.github/actions/install-flutter-desktop-deps
         with:

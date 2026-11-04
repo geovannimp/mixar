@@ -10,6 +10,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_deck_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_integrations_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_layout_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
@@ -395,6 +396,7 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
+      SettingsSection.integrations => const SettingsIntegrationsPanel(),
       SettingsSection.storage => const SettingsStoragePanel(),
       SettingsSection.session => SettingsSessionPanel(
         draft: draft,

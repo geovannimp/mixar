@@ -26,6 +26,7 @@
   "settingsSectionUi": "Interface",
   "settingsSectionLayout": "Layout",
   "settingsSectionLibrary": "Biblioteca",
+  "settingsSectionIntegrations": "Integrações",
   "settingsSectionStorage": "Armazenamento",
   "settingsSectionSession": "Sessão",
   "settingsSectionControllers": "Controladores",
@@ -195,7 +196,8 @@
   "settingsDeckCountRestartConfirm": "Reiniciar e aplicar",
   "settingsLibraryListTitle": "Lista da biblioteca",
   "settingsLibraryListDescription": "Como as faixas aparecem na tabela da biblioteca.",
-  "settingsLibraryDescription": "Importação de faixas, análise offline e exibição da lista.",
+  "settingsLibraryDescription": "Análise offline, metadados e exibição da lista.",
+  "settingsIntegrationsDescription": "Importe a biblioteca de outro aplicativo de DJ.",
   "settingsLibraryAnalysisTitle": "Análise",
   "settingsLibraryAnalysisDescription": "Quão profundamente a análise offline examina cada faixa.",
   "settingsLibraryAnalysisQuality": "Qualidade da análise",
@@ -324,7 +326,7 @@
     }
   },
   "mixxxImportTitle": "Importar do Mixxx",
-  "mixxxImportDescription": "Traga faixas, playlists e crates da sua biblioteca Mixxx para o Mixar.",
+  "mixxxImportDescription": "Traga sua biblioteca Mixxx para o Mixar.",
   "mixxxImportFound": "Encontrado: {path}",
   "@mixxxImportFound": {
     "placeholders": {
@@ -374,7 +376,7 @@
   },
   "mixxxImportAlreadyImported": "Biblioteca Mixxx já importada",
   "mixxxImportNothing": "Nada para importar do Mixxx",
-  "mixxxImportUpdated": "Atualizado {updated} do Mixxx{missing}",
+  "mixxxImportUpdated": "Atualizado do Mixxx: {updated}{missing}",
   "@mixxxImportUpdated": {
     "placeholders": {
       "updated": {
@@ -438,6 +440,133 @@
   },
   "mixxxCountUpdated": "{count} atualizadas",
   "@mixxxCountUpdated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rekordboxImportTitle": "Importar do Rekordbox",
+  "rekordboxImportDescription": "Traga sua biblioteca Rekordbox para o Mixar.",
+  "rekordboxImportFound": "Encontrado: {path}",
+  "@rekordboxImportFound": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "rekordboxImportCheckFailed": "Não foi possível verificar uma biblioteca Rekordbox.",
+  "rekordboxImportLooking": "Procurando uma biblioteca Rekordbox…",
+  "rekordboxImportNotFound": "Nenhuma biblioteca Rekordbox encontrada neste computador.",
+  "rekordboxImportButton": "Importar da biblioteca Rekordbox…",
+  "rekordboxImporting": "Importando…",
+  "rekordboxImportConfirmTitle": "Importar do Rekordbox?",
+  "rekordboxImportConfirmBody": "Isso importa faixas, playlists, hot cues e loops de:\n{path}\n\n{trackCount, plural, =1{1 faixa} other{{trackCount} faixas}} ({missingFileCount, plural, =1{1 ausente} other{{missingFileCount} ausentes}}), {playlistCount, plural, =1{1 playlist} other{{playlistCount} playlists}} ({smartPlaylistCount, plural, =1{1 inteligente} other{{smartPlaylistCount} inteligentes}}), {folderCount, plural, =1{1 pasta} other{{folderCount} pastas}}, {hotCueCount, plural, =1{1 hot cue} other{{hotCueCount} hot cues}}, {loopCount, plural, =1{1 loop} other{{loopCount} loops}}.\n\nArquivos ausentes são importados como faixas indisponíveis.",
+  "@rekordboxImportConfirmBody": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      },
+      "trackCount": {
+        "type": "int"
+      },
+      "missingFileCount": {
+        "type": "int"
+      },
+      "playlistCount": {
+        "type": "int"
+      },
+      "smartPlaylistCount": {
+        "type": "int"
+      },
+      "folderCount": {
+        "type": "int"
+      },
+      "hotCueCount": {
+        "type": "int"
+      },
+      "loopCount": {
+        "type": "int"
+      }
+    }
+  },
+  "rekordboxImportReadFailed": "Não foi possível ler a biblioteca Rekordbox",
+  "rekordboxImportFailed": "Falha na importação do Rekordbox",
+  "rekordboxImportFinishedWithErrors": "Importação do Rekordbox terminou com {count} erro(s)",
+  "@rekordboxImportFinishedWithErrors": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rekordboxImportAlreadyImported": "Biblioteca Rekordbox já importada",
+  "rekordboxImportNothing": "Nada para importar do Rekordbox",
+  "rekordboxImportUpdated": "Atualizado do Rekordbox: {updated}{missing}",
+  "@rekordboxImportUpdated": {
+    "placeholders": {
+      "updated": {
+        "type": "String"
+      },
+      "missing": {
+        "type": "String"
+      }
+    }
+  },
+  "rekordboxImportImported": "Importado {parts} do Rekordbox{missing}",
+  "@rekordboxImportImported": {
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      },
+      "missing": {
+        "type": "String"
+      }
+    }
+  },
+  "rekordboxImportMissingSuffix": " ({count} ausentes)",
+  "@rekordboxImportMissingSuffix": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rekordboxCountTracks": "{count, plural, =1{1 faixa} other{{count} faixas}}",
+  "@rekordboxCountTracks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rekordboxCountPlaylists": "{count, plural, =1{1 playlist} other{{count} playlists}}",
+  "@rekordboxCountPlaylists": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rekordboxCountHotCues": "{count, plural, =1{1 hot cue} other{{count} hot cues}}",
+  "@rekordboxCountHotCues": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rekordboxCountLoops": "{count, plural, =1{1 loop} other{{count} loops}}",
+  "@rekordboxCountLoops": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "rekordboxCountUpdated": "{count} atualizadas",
+  "@rekordboxCountUpdated": {
     "placeholders": {
       "count": {
         "type": "int"

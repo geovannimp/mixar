@@ -4,7 +4,7 @@ use sea_orm::sea_query::OnConflict;
 use sea_orm::ColumnTrait;
 use sea_orm::{EntityTrait, QueryFilter, Set};
 
-use library_core::{Library, LibraryError, Result, TrackId};
+use library_core::{Library, LibraryError, LoopImport, Result, TrackId};
 
 use crate::db::{self, Db};
 use crate::entity::{track_hot_cue, track_loop, TrackHotCueEntity, TrackLoopEntity};
@@ -130,6 +130,32 @@ pub fn save_loop(
     label: Option<String>,
     color: Option<String>,
 ) -> Result<()> {
+    upsert_loop(
+        db,
+        track_id,
+        &LoopImport {
+            slot: slot_index,
+            in_ms,
+            out_ms,
+            label,
+            color,
+        },
+        true,
+    )
+}
+
+/// Write a loop imported from another library, exactly as it arrived.
+///
+/// Unlike [`save_loop`], a `None` label or colour clears the column instead of
+/// keeping the target's previous value: an import is authoritative, and a
+/// stale label from an earlier import of a different library would survive
+/// otherwise.
+pub fn import_loop(db: &Db, track_id: &TrackId, saved: &LoopImport) -> Result<()> {
+    upsert_loop(db, track_id, saved, false)
+}
+
+fn upsert_loop(db: &Db, track_id: &TrackId, saved: &LoopImport, preserve: bool) -> Result<()> {
+    let (slot_index, in_ms, out_ms) = (saved.slot, saved.in_ms, saved.out_ms);
     if slot_index > 15 {
         return Err(LibraryError::Backend {
             backend: "deck_data",
@@ -143,14 +169,27 @@ pub fn save_loop(
         });
     }
 
-    // Preserve label/color when the caller omits them (None) on update.
-    let existing = TrackLoopEntity::find()
-        .filter(track_loop::Column::TrackId.eq(track_id.as_str()))
-        .filter(track_loop::Column::SlotIndex.eq(i32::from(slot_index)))
-        .one(db.conn()?.as_connection())
-        .map_err(db::db_err)?;
-    let label = label.or_else(|| existing.as_ref().and_then(|row| row.label.clone()));
-    let color = color.or_else(|| existing.as_ref().and_then(|row| row.color.clone()));
+    // A deck edit preserves label/color when the caller omits them (None); an
+    // import writes the imported value verbatim.
+    let (label, color) = if preserve {
+        let existing = TrackLoopEntity::find()
+            .filter(track_loop::Column::TrackId.eq(track_id.as_str()))
+            .filter(track_loop::Column::SlotIndex.eq(i32::from(slot_index)))
+            .one(db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        (
+            saved
+                .label
+                .clone()
+                .or_else(|| existing.as_ref().and_then(|row| row.label.clone())),
+            saved
+                .color
+                .clone()
+                .or_else(|| existing.as_ref().and_then(|row| row.color.clone())),
+        )
+    } else {
+        (saved.label.clone(), saved.color.clone())
+    };
 
     TrackLoopEntity::insert(track_loop::ActiveModel {
         track_id: Set(track_id.as_str().to_string()),
@@ -338,6 +377,54 @@ mod tests {
         assert!(save_loop(&db, &id, 2, 1000, 1000, None, None).is_err());
         assert!(save_hot_cue(&db, &id, 0, -500, None, None, None).is_ok());
         assert_eq!(list_hot_cues(&db, &id).unwrap()[0].position_ms, -500);
+    }
+
+    #[test]
+    fn imported_loop_overwrites_label_and_color_verbatim() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/import.wav");
+        store
+            .upsert_file_track(
+                &id,
+                Path::new("/music/import.wav"),
+                &TrackMetadata::default(),
+                "1",
+            )
+            .unwrap();
+
+        save_loop(
+            &db,
+            &id,
+            0,
+            0,
+            1_000,
+            Some("Drop".into()),
+            Some("#FF0000".into()),
+        )
+        .unwrap();
+        // A deck edit with None keeps what is there...
+        save_loop(&db, &id, 0, 0, 2_000, None, None).unwrap();
+        let kept = &list_loops(&db, &id).unwrap()[0];
+        assert_eq!(kept.label.as_deref(), Some("Drop"));
+
+        // ...an import with None clears it, because the source has no label.
+        import_loop(
+            &db,
+            &id,
+            &LoopImport {
+                slot: 0,
+                in_ms: 0,
+                out_ms: 2_000,
+                label: None,
+                color: None,
+            },
+        )
+        .unwrap();
+        let cleared = &list_loops(&db, &id).unwrap()[0];
+        assert_eq!(cleared.label, None);
+        assert_eq!(cleared.color, None);
+        assert_eq!(cleared.out_ms, 2_000);
     }
 
     #[test]

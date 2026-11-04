@@ -20,7 +20,7 @@ Runtime contracts: `docs/tech-spec.md` §5 (*Library Manager (Collections Model)
 | Performance history | XSPF files under app support + a session index in `library.db` |
 | Stem caches, models | app-support directories owned by the stem pipeline |
 
-Third-party DJ libraries (Rekordbox, Serato, Traktor, Mixxx) are read through `library-adapters`, which implement `Library` + `Migratable` and write into the user's one library rather than a second parallel manager.
+Third-party DJ libraries are read through `library-adapters`, which implement `Library` + `Migratable` and write into the user's one library rather than a second parallel manager. Shipped sources: Mixxx and Rekordbox 6/7 (its SQLCipher `master.db`, opened read-only from a private copy — see the crate README for the passphrase and the workspace-wide SQLCipher build that enables it). Cues and loops come through `WritableLibrary::import_hot_cue` / `import_loop`, so an importer can populate `track_hot_cue` / `track_loop` without touching the store.
 
 `library.db` is always the source of truth for track information. File tags are an input on import and analysis (see the merge policy in `docs/audio-analyzer-spec.md` §9), and an optional output; see below.
 
@@ -28,6 +28,7 @@ Third-party DJ libraries (Rekordbox, Serato, Traktor, Mixxx) are read through `l
 
 - [Tag write-back](/docs/developers/library/tag-write-back): the opt-in mirror of app-managed BPM/key into file tags, with the per-format field matrix and its lossiness.
 - [CDJ USB export](/docs/developers/library/cdj-usb-export): the DeviceSQL database and ANLZ analysis writers, the drive layout they produce, and how the output is verified.
+- Import adapters (Mixxx, Rekordbox): the repository's `crates/library-adapters/README.md` documents detection, schema mapping, dropped data, and the cue import path.
 
 ## Related
 

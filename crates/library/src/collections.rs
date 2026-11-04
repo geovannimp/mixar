@@ -8,8 +8,9 @@ use library_core::AnalyzeTrackOptions;
 use library_core::{
     path_label, path_under_folder, AudioSource, Collection, CollectionConfig,
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
-    FileAudioSource, ImportedTrack, Library, LibraryError, NewCollection, Result, ScanReport,
-    StreamAudioSource, StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
+    FileAudioSource, HotCueImport, ImportedTrack, Library, LibraryError, LoopImport, NewCollection,
+    Result, ScanReport, StreamAudioSource, StreamProvider, TrackId, TrackMetadata,
+    UpdateCollection, WritableLibrary,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -670,6 +671,23 @@ impl WritableLibrary for LibraryManager {
         let created = !self.store().track_exists(&id)?;
         let source = self.upsert_file_source_normalized(&path, metadata)?;
         Ok(ImportedTrack { source, created })
+    }
+
+    fn import_hot_cue(&mut self, track_id: &TrackId, cue: &HotCueImport) -> Result<()> {
+        self.save_track_hot_cue(
+            track_id,
+            cue.slot,
+            cue.position_ms,
+            cue.loop_length_beats,
+            cue.color.clone(),
+            cue.label.clone(),
+        )
+    }
+
+    fn import_loop(&mut self, track_id: &TrackId, saved: &LoopImport) -> Result<()> {
+        // Not `save_track_loop`: that keeps the target's label/colour when the
+        // source has none, which would leak values from an earlier import.
+        crate::deck_data::import_loop(&self.db, track_id, saved)
     }
 
     fn add_collection(&mut self, collection: &NewCollection) -> Result<Collection> {

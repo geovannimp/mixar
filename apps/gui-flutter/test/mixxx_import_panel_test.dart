@@ -36,6 +36,11 @@ void main() {
     expect(find.text(l10n.mixxxImportTitle), findsOneWidget);
     expect(find.text(l10n.mixxxImportNotFound), findsOneWidget);
     expect(tester.widget<AppButton>(find.byType(AppButton)).onPress, isNull);
+    expect(
+      tester.getTopLeft(find.text(l10n.mixxxImportNotFound)).dx,
+      tester.getTopLeft(find.text(l10n.mixxxImportTitle)).dx,
+      reason: 'the status line sits under the title, not centered in the card',
+    );
   }, semanticsEnabled: false);
 
   testWidgets('enables the action when a Mixxx database is found', (
