@@ -17,12 +17,21 @@ class DeckGrid extends ConsumerWidget {
 
   /// Deck body inset; the stacked split stops at the panel edges, not the
   /// column edges, so it must use the same value.
-  static const _inset = 10.0;
+  static const inset = 10.0;
+
+  /// Gap between the mixer column and each deck column.
+  static const rowSpacing = 8.0;
+
+  /// Mixer column; the strip bleeds these gutters so its rule reaches the deck
+  /// card borders.
+  static const _mixer = RepaintBoundary(
+    child: MixerStrip(bleed: rowSpacing + inset),
+  );
 
   // Horizontal inset only: the tempo rail must reach the waveform pane above
   // and the library divider below, so the vertical inset moves into DeckPanel.
   Widget _panel(int deckId) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: _inset),
+    padding: const EdgeInsets.symmetric(horizontal: inset),
     child: RepaintBoundary(
       key: ValueKey('deck-$deckId'),
       child: DeckPanel(
@@ -39,20 +48,20 @@ class DeckGrid extends ConsumerWidget {
     if (numDecks == 2) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: 8,
+        spacing: rowSpacing,
         children: [
           Expanded(child: _panel(0)),
-          const RepaintBoundary(child: MixerStrip()),
+          _mixer,
           Expanded(child: _panel(1)),
         ],
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 8,
+      spacing: rowSpacing,
       children: [
         Expanded(child: _stacked(context, 0, 2)),
-        const RepaintBoundary(child: MixerStrip()),
+        _mixer,
         Expanded(child: _stacked(context, 1, 3)),
       ],
     );
@@ -73,7 +82,7 @@ class DeckGrid extends ConsumerWidget {
           children: [
             SizedBox(height: height, child: _panel(topId)),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _inset),
+              padding: const EdgeInsets.symmetric(horizontal: inset),
               child: MDivider(
                 key: ValueKey('deck-split-$topId'),
                 padding: .zero,

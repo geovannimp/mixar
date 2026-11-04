@@ -391,11 +391,9 @@ void main() {
     expect(find.text('No track loaded'), findsWidgets);
     expect(find.text('Q'), findsWidgets);
     expect(find.text('Drop a track or click the cover'), findsWidgets);
-    expect(find.byKey(const ValueKey('mixer-panel-toggle')), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('crossfader-panel-toggle')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('mixer-panel-toggle')), findsNothing);
+    expect(find.byKey(const ValueKey('crossfader-panel-toggle')), findsNothing);
+    expect(find.text('Mixer'), findsOneWidget);
     expect(find.byKey(const ValueKey('master-panel-toggle')), findsNothing);
     expect(
       find.descendant(
@@ -708,42 +706,35 @@ void main() {
     expect(engine.cueMixes.last, inInclusiveRange(0.0, 1.0));
   });
 
-  testWidgets('mixer section headers toggle their panels', (tester) async {
+  testWidgets('crossfader rule bleeds the deck gutter; row is centred', (
+    tester,
+  ) async {
     await pumpShell(tester);
-    final mixer = find.byKey(const ValueKey('mixer-panel-toggle'));
-    final crossfader = find.byKey(const ValueKey('crossfader-panel-toggle'));
     Finder hiKnobs() =>
         find.byWidgetPredicate((w) => w is RotaryKnob && w.label == 'HI');
     Finder xfader() => find.byWidgetPredicate(
       (w) => w is FaderSlider && w.orientation == FaderOrientation.horizontal,
     );
 
-    Future<void> press(Finder button) async {
-      // Deck chrome can sit above the narrow mixer header in the fixed deck
-      // row; drive the MixerButton directly so the toggle still verifies.
-      tester.widget<MixerButton>(button).onPress?.call();
-      await tester.pumpAndSettle();
-    }
-
     expect(hiKnobs(), findsWidgets);
-    await press(mixer);
-    expect(hiKnobs(), findsNothing);
-    await press(mixer);
-    expect(hiKnobs(), findsWidgets);
-
-    expect(xfader(), findsOneWidget);
-    await press(crossfader);
-    expect(xfader(), findsNothing);
-    await press(crossfader);
     expect(xfader(), findsOneWidget);
 
-    expect(find.byKey(const ValueKey('master-panel-toggle')), findsNothing);
+    // DeckGrid hands the strip its gutter on both sides; the rule bleeds into
+    // it so it reaches the deck card borders.
+    const gutter = DeckGrid.rowSpacing + DeckGrid.inset;
+    final stripWidth = tester.getSize(find.byType(MixerStrip)).width;
+    final rule = find.byKey(const ValueKey('crossfader-rule'));
+    expect(tester.getSize(rule).width, stripWidth + 2 * gutter);
+    expect(
+      tester.getTopLeft(rule).dx,
+      tester.getTopLeft(find.byType(MixerStrip)).dx - gutter,
+    );
 
-    await press(mixer);
-    await press(crossfader);
-    expect(tester.getSize(find.byType(MixerStrip)).width, lessThan(212));
-    await press(mixer);
-    expect(tester.getSize(find.byType(MixerStrip)).width, 212);
+    // The crossfader row sits centred between the rule and the panel bottom.
+    final ruleBottom = tester.getRect(rule).bottom;
+    final rowCentre = tester.getRect(xfader()).center.dy;
+    final panelBottom = tester.getRect(find.byType(MixerStrip)).bottom;
+    expect(rowCentre - ruleBottom, closeTo(panelBottom - rowCentre, 0.5));
   });
 
   testWidgets('hiding mixer meters narrows the strip', (tester) async {

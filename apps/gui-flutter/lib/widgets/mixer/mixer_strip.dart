@@ -7,7 +7,6 @@ import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
-import 'package:gui_flutter/widgets/mixer/collapsible_section.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/level_meter.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
@@ -37,21 +36,16 @@ const _mixerInnerWidthFour = 388.0;
 const _gainHeaderHeight = 8.0 + 2.0 + 36.0;
 
 /// Center mixer: Tauri `DeckMixer` layout wired to [EngineTransport].
-class MixerStrip extends ConsumerStatefulWidget {
-  const new({super.key});
+class MixerStrip extends ConsumerWidget {
+  const new({this.bleed = 0, super.key});
+
+  /// Horizontal space [DeckGrid] reserves between the strip and each deck card.
+  /// The crossfader rule bleeds into it so it runs border to border.
+  final double bleed;
 
   @override
-  ConsumerState<MixerStrip> createState() => _MixerStripState();
-}
-
-class _MixerStripState extends ConsumerState<MixerStrip> {
-  var _mixerOpen = true;
-  var _crossfaderOpen = true;
-
-  bool get _anyOpen => _mixerOpen || _crossfaderOpen;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = context.theme;
     final settings = ref.watch(appSettingsProvider).value;
     final showMeters = settings?.showMixerMeters ?? true;
     final numDecks = settings?.numDecks ?? 2;
@@ -61,29 +55,62 @@ class _MixerStripState extends ConsumerState<MixerStrip> {
         ? _mixerInnerWidthWithMeters
         : _mixerInnerWidthNoMeters;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: SizedBox(
-        width: _anyOpen ? innerWidth : null,
+        width: innerWidth,
         child: Column(
+          spacing: 8,
           children: [
-            CollapsibleSection(
-              label: 'Mixer',
-              fillRemaining: true,
-              expandHeader: _anyOpen,
-              onOpenChanged: (open) => setState(() => _mixerOpen = open),
-              child: const _MixerChannels(),
-            ),
-            CollapsibleSection(
-              label: 'Crossfader',
-              expandHeader: _anyOpen,
-              onOpenChanged: (open) => setState(() => _crossfaderOpen = open),
-              child: const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: _CrossfaderStrip(),
+            Text(
+              'Mixer',
+              style: theme.typography.body.xs2.copyWith(
+                fontWeight: .w600,
+                letterSpacing: 1.6,
+                color: theme.colors.mutedForeground,
               ),
+            ),
+            const Expanded(child: _MixerChannels()),
+            _SectionRule(bleed: bleed),
+            // 8 here plus the strip's own 8px inset keeps the row centred
+            // between the section rule and the panel bottom.
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: _CrossfaderStrip(),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Section hairline that runs past the strip's own width into the deck gutter,
+/// so it spans the mixer cell border to border.
+class _SectionRule extends StatelessWidget {
+  const new({required this.bleed});
+
+  final double bleed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return SizedBox(
+      height: theme.style.borderWidth,
+      width: double.infinity,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: -bleed,
+            right: -bleed,
+            top: 0,
+            bottom: 0,
+            child: ColoredBox(
+              key: const ValueKey('crossfader-rule'),
+              color: theme.colors.border,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -157,7 +184,7 @@ class _CrossfaderStrip extends ConsumerWidget {
     final enabled = ref.watch(engineRunningProvider);
     final crossfader = ref.watch(crossfaderProvider) * 100;
     return SizedBox(
-      height: 24,
+      height: 20,
       child: Row(
         spacing: 10,
         children: [
