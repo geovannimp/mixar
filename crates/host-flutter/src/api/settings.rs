@@ -947,10 +947,10 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.theme = settings.theme;
     host.accent_palette = settings.accent_palette;
     host.library_drawer_enabled = settings.library_drawer_enabled;
+    host.analytics_enabled = settings.analytics_enabled;
     host.library_drawer_side = settings.library_drawer_side;
     host.waveform_position = settings.waveform_position;
     host.show_waveform = settings.show_waveform;
-    host.analytics_enabled = settings.analytics_enabled;
     host.configured = true;
     Ok(())
 }
@@ -1075,6 +1075,14 @@ mod tests {
 
     fn sample_settings() -> AppSettings {
         settings_from_host(&SettingsHost::default())
+    }
+
+    /// `sample_settings()` as JSON with one key removed, for default-value
+    /// tests on files written by older builds.
+    fn settings_without_key(key: &str) -> serde_json::Value {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value.as_object_mut().expect("object").remove(key);
+        value
     }
 
     #[test]
@@ -1582,12 +1590,8 @@ mod tests {
 
     #[test]
     fn missing_waveform_position_defaults_top() {
-        let mut value = serde_json::to_value(sample_settings()).expect("json");
-        value
-            .as_object_mut()
-            .expect("object")
-            .remove("waveform_position");
-        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        let settings: AppSettings =
+            serde_json::from_value(settings_without_key("waveform_position")).expect("parse");
         assert_eq!(settings.waveform_position, WaveformPositionSetting::Top);
     }
 
@@ -1609,12 +1613,8 @@ mod tests {
 
     #[test]
     fn missing_show_waveform_defaults_on() {
-        let mut value = serde_json::to_value(sample_settings()).expect("json");
-        value
-            .as_object_mut()
-            .expect("object")
-            .remove("show_waveform");
-        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        let settings: AppSettings =
+            serde_json::from_value(settings_without_key("show_waveform")).expect("parse");
         assert!(settings.show_waveform);
     }
 

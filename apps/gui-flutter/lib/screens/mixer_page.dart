@@ -95,11 +95,12 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     final deckRowHeight = settings.numDecks == 4 ? 560.0 : 410.0;
     final waveformPosition = settings.waveformPosition;
     final showWaveform = settings.showWaveform;
-    final band =
-        showWaveform && waveformPosition == WaveformPositionSetting.bottom;
     // The band takes the waveform pane's place inside the pane column, so the
     // compact scroll has to clear it before the library comes into view.
-    final bandHeight = band ? MixerPage._waveformDefault : 0.0;
+    final bandHeight =
+        showWaveform && waveformPosition == WaveformPositionSetting.bottom
+        ? MixerPage._waveformDefault
+        : 0.0;
 
     // The drawer is its own route, so opening it is not a layout concern: the
     // panes below only decide whether the docked library is there at all.
@@ -117,7 +118,9 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         return;
       }
       final target = math.min(
-        deckRowHeight + bandHeight + 2 * theme.style.borderWidth,
+        deckRowHeight +
+            bandHeight +
+            (bandHeight > 0 ? 2 : 1) * theme.style.borderWidth,
         _compactScroll.position.maxScrollExtent,
       );
       _compactScroll.animateTo(
@@ -131,7 +134,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
       theme: theme,
       drawerMode: drawerMode,
       deckRowHeight: deckRowHeight,
-      band: band,
+      bandHeight: bandHeight,
     );
 
     // Middle positions own their own row placement: the waveform leaves the
@@ -169,8 +172,9 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     required MixarThemeData theme,
     required bool drawerMode,
     required double deckRowHeight,
-    required bool band,
+    required double bandHeight,
   }) {
+    final band = bandHeight > 0;
     final border = MDivider(padding: .zero, color: theme.colors.border);
     return ColoredBox(
       color: theme.colors.card,
@@ -179,7 +183,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
           final minHeight = drawerMode
               ? constraints.maxHeight
               : deckRowHeight +
-                    (band ? MixerPage._waveformDefault : 0) +
+                    bandHeight +
                     FxBar.height +
                     120 +
                     2 * theme.style.borderWidth;
@@ -212,13 +216,13 @@ class _MixerPageState extends ConsumerState<MixerPage> {
                           height: deckRowHeight,
                           child: const ClipRect(child: DeckGrid()),
                         ),
-                      // Middle horizontal: the horizontal lanes sit between the
-                      // decks and the library instead of above the deck row.
+                      // Bottom: the horizontal lanes sit between the decks and
+                      // the library instead of above the deck row.
                       if (band) ...[
                         border,
-                        const SizedBox(
-                          height: MixerPage._waveformDefault,
-                          child: ClipRect(
+                        SizedBox(
+                          height: bandHeight,
+                          child: const ClipRect(
                             child: WaveformSection(showFootDivider: false),
                           ),
                         ),

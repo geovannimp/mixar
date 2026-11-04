@@ -1203,7 +1203,7 @@ void main() {
     final laneA = tester.getRect(lanes.at(0));
     final laneB = tester.getRect(lanes.at(1));
     expect(deckA.right, laneA.left);
-    expect(laneA.right, lessThanOrEqualTo(laneB.left));
+    expect(laneB.left - laneA.right, MixarThemeData.light().style.borderWidth);
     expect(laneB.right, deckB.left);
     // Each lane names its deck: the rotation would make an in-lane label
     // unreadable, so it is painted outside it.

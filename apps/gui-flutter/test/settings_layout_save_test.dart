@@ -38,9 +38,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          settingsTransportProvider.overrideWith((ref) async => settings),
-          appSettingsProvider.overrideWith((ref) async => baseline),
-          engineTransportProvider.overrideWith((ref) async {
+          settingsTransportProvider.overrideWith((_) async => settings),
+          appSettingsProvider.overrideWith((_) async => baseline),
+          engineTransportProvider.overrideWith((_) async {
             engineReads++;
             return null;
           }),

@@ -103,8 +103,8 @@ class CrossfaderPanel extends StatelessWidget {
       spacing: 8,
       children: [
         _SectionRule(bleed: bleed),
-        // 8 here plus the strip's own 8px inset keeps the row centred between
-        // the section rule and the panel bottom.
+        // 16px under the rule (the column spacing plus this padding's top);
+        // the foot inset comes from the caller's contentPadding.
         Padding(
           padding: contentPadding.add(const EdgeInsets.symmetric(vertical: 8)),
           child: const _CrossfaderStrip(),

@@ -46,14 +46,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> openSelect(WidgetTester tester) async {
+    await tester.tap(find.byType(ShadSelect<WaveformPositionSetting>));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('layout panel exposes the waveform position', (tester) async {
     await pumpPanel(tester);
     expect(find.text('Waveform position'), findsOneWidget);
     expect(find.text('POSITION'), findsOneWidget);
     expect(find.text('Top'), findsOneWidget);
 
-    await tester.tap(find.byType(ShadSelect<WaveformPositionSetting>));
-    await tester.pumpAndSettle();
+    await openSelect(tester);
     for (final label in [
       'Top',
       'Middle horizontal',
@@ -68,8 +72,7 @@ void main() {
     AppSettings? changed;
     await pumpPanel(tester, onChanged: (next) => changed = next);
 
-    await tester.tap(find.byType(ShadSelect<WaveformPositionSetting>));
-    await tester.pumpAndSettle();
+    await openSelect(tester);
     await tester.tap(find.text('Middle vertical'));
     await tester.pumpAndSettle();
 
