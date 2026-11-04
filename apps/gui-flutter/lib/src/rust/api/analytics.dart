@@ -18,5 +18,14 @@ abstract class AnalyticsTransport implements RustOpaqueInterface {
   static Future<AnalyticsTransport> open() =>
       RustLib.instance.api.crateApiAnalyticsAnalyticsTransportOpen();
 
+  /// Report one error. Dropped on the Rust side when analytics is off, so the
+  /// caller does not have to track the switch.
+  Future<void> reportError({
+    required String source,
+    required String kind,
+    required String message,
+    String? stack,
+  });
+
   Future<void> setEnabled({required bool enabled});
 }

@@ -78,15 +78,27 @@ const posthogHost = resolvePosthogHost();
             → UI → Analytics</strong> ("Send anonymous usage data").
           </p>
           <p class="mt-3 leading-relaxed text-muted">
-            With it on, each launch sends a single <code class="rounded-sm bg-bg-elevated px-1 py-0.5 font-mono text-[0.875rem]">app launched</code> event to the same EU-hosted PostHog service as this site. It carries your app
+            With it on, each launch sends a single <code class="rounded-sm bg-bg-elevated px-1 py-0.5 font-mono text-[0.875rem]">app launched</code> event to the same EU-hosted PostHog project this site reports to. It carries your app
             version, operating system, CPU architecture, and whether this is a debug or release
-            build — nothing else. It is tied to a random identifier generated on your machine the
-            first time you opt in, never to an account or to your library, and that identifier is
-            deleted when you turn the switch back off.
+            build — nothing else about your machine. It is tied to a random identifier generated on
+            your machine the first time you opt in, never to an account or to your library, and that
+            identifier is deleted when you turn the switch back off.
+          </p>
+          <p class="mt-3 leading-relaxed text-muted">
+            With it on, an error the app reports at runtime is sent too, so the failure you just saw
+            is one we can see and fix. That covers framework errors and uncaught asynchronous
+            errors; an error raised before analytics is armed at start-up is not sent. The report
+            carries the error's type, its message, and its stack trace when one exists. Absolute
+            file paths are replaced with
+            <code class="rounded-sm bg-bg-elevated px-1 py-0.5 font-mono text-[0.875rem]">&lt;path&gt;</code> before anything is queued, so a report about a
+            damaged file can name that file at most, never where it lives. A relative path written
+            by the failing code stays as written. Both events share the same anonymous identifier as
+            the launch event.
           </p>
           <p class="mt-3 leading-relaxed text-muted">
             Track data is not part of that design: the component that sends analytics has no
-            access to your library or your audio, so it cannot leak them.
+            access to your library or your audio, so it cannot leak them. An error message comes
+            from the code that failed, not from your tracks.
           </p>
         </section>
 
@@ -114,7 +126,7 @@ const posthogHost = resolvePosthogHost();
           </p>
           <ul class="mt-3 list-disc space-y-2 pl-5 leading-relaxed text-muted">
             <li>Track titles, artists, albums, genres, or any other metadata.</li>
-            <li>File names, file paths, or anything about your folders and collections.</li>
+            <li>Your library's paths, folders, and collections. An error report can name a single file, never where it lives.</li>
             <li>Your name, your email, your username, or your account, because there is no account.</li>
             <li>Your MIDI controller's device identifiers.</li>
             <li>Your audio, ever.</li>

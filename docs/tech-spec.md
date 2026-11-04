@@ -25,9 +25,14 @@ Runtime contracts for the Mixar engine workspace. Product scope lives in [`PRODU
 Headless engine crates provide a reusable audio engine for DJ apps: runtime-selectable backends, modular decks, producer/consumer ring-buffer I/O, pluggable `AudioSource` loading, and one library manager per user.
 
 - The audio engine (`engine-dsp` and the producer thread) sends no telemetry. The desktop host may
-  send one anonymous `app launched` event through the opt-in `crates/analytics` crate after a
-  successful engine start; it has no access to the library, track data, or controller IDs. The
-  event is limited to app version, OS, OS version, architecture, and build mode.
+  send, through the opt-in `crates/analytics` crate, one anonymous `app launched` event after a
+  successful engine start and one `$exception` event per framework or uncaught-asynchronous error
+  the Dart side reports (identical kind+message repeats are collapsed for one minute). It has no
+  access to the library, track data, or controller IDs and cannot read them. Every event carries
+  app version, OS, OS version, architecture, and build mode; error events add the error type, its
+  message, and its stack trace when available. Absolute file paths are replaced with `<path>`
+  before queueing, though an error message can still name a single file — it comes from the code
+  that failed, not from the library.
 
 Workspace layout and data-flow diagram: [`DEVELOPER.md`](../DEVELOPER.md#high-level-architecture).
 

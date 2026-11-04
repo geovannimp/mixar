@@ -16,3 +16,18 @@ The card is **Analytics**, subtitle "Share anonymous app data."
 | **Send anonymous usage data** | header switch | on / off | off |
 
 There is no prompt at any point. The switch saves without restarting the engine, like the **Theme** select and the **Visible fields** checkboxes.
+
+## What it sends
+
+With the switch on, the app sends two kinds of event to the same EU-hosted PostHog project the website uses:
+
+| Event | When | Payload |
+| --- | --- | --- |
+| `app launched` | once per launch, after the engine starts | app version, OS, OS version, CPU architecture, build mode |
+| `$exception` | each framework or uncaught asynchronous error the app reports at runtime | error type, message, stack trace when available, plus the same build fields |
+
+Reports begin once the engine has started and analytics is armed; an error raised earlier in start-up is not sent. Identical reports (same type and message) are collapsed for a minute, so a widget that throws every frame sends one event, not thousands.
+
+Before an event is queued, absolute file paths in messages and stack frames are replaced with `<path>`. A message can still name a single file; a relative path written by the failing code stays as written, and your library's paths are absolute, so they never survive.
+
+Both events carry the random identifier created when you first turn the switch on. That identifier is deleted when you turn the switch off, and turning it off also drops anything already queued.

@@ -25,11 +25,11 @@ pub(crate) fn start_worker(queue: Queue, token: String) {
             }
             let os_version = os_version();
             for event in &mut batch {
-                event.os_version.clone_from(&os_version);
+                event.set_os_version(&os_version);
             }
             let payload = json!({
                 "api_key": token,
-                "batch": batch.iter().map(CaptureEvent::to_posthog_json).collect::<Vec<_>>()
+                "batch": batch.into_iter().map(CaptureEvent::to_posthog_json).collect::<Vec<_>>()
             });
             if !queue.is_active() {
                 return;
