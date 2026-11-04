@@ -144,13 +144,13 @@ const analyticsEnabled = posthogKey !== "";
       })();
     </script>
   </head>
-  <body>
+  <body class="flex min-h-dvh flex-col">
     <a
       class="absolute -left-[9999px] top-0 z-1000 rounded-sm bg-accent px-4 py-3 font-semibold text-white focus-visible:left-4 focus-visible:top-4"
       href="#main">Skip to content</a
     >
     <Header currentPage={currentPage} />
-    <main id="main">
+    <main id="main" class="flex-1">
       <slot />
     </main>
     <Footer currentPage={currentPage} />
