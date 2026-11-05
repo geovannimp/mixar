@@ -8,6 +8,12 @@ use analytics::Analytics;
 enum Command {
     SetEnabled(bool),
     AppLaunched,
+    ReportError {
+        source: String,
+        kind: String,
+        message: String,
+        stack: Option<String>,
+    },
 }
 
 #[flutter_rust_bridge::frb(opaque)]
@@ -51,17 +57,52 @@ impl AnalyticsTransport {
                             analytics.app_launched();
                         }
                     }
+                    Command::ReportError {
+                        source,
+                        kind,
+                        message,
+                        stack,
+                    } => {
+                        if let Some(analytics) = client.as_mut() {
+                            analytics.error(&source, &kind, &message, stack.as_deref());
+                        }
+                    }
                 }
             }
         });
         Self { commands }
     }
 
+    /// Deliver one command, reporting a dead command thread instead of dropping
+    /// the failure silently. Analytics still never changes app behaviour.
+    fn send(&self, command: Command) {
+        if let Err(error) = self.commands.send(command) {
+            tracing::debug!(%error, "analytics command dropped");
+        }
+    }
+
     pub fn set_enabled(&self, enabled: bool) {
-        let _ = self.commands.send(Command::SetEnabled(enabled));
+        self.send(Command::SetEnabled(enabled));
     }
 
     pub fn app_launched(&self) {
-        let _ = self.commands.send(Command::AppLaunched);
+        self.send(Command::AppLaunched);
+    }
+
+    /// Report one error. Dropped on the Rust side when analytics is off, so the
+    /// caller does not have to track the switch.
+    pub fn report_error(
+        &self,
+        source: String,
+        kind: String,
+        message: String,
+        stack: Option<String>,
+    ) {
+        self.send(Command::ReportError {
+            source,
+            kind,
+            message,
+            stack,
+        });
     }
 }

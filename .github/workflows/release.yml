@@ -203,6 +203,13 @@ jobs:
       - name: Package with Fastforge
         working-directory: apps/gui-flutter
         shell: bash
+        # `MIXAR_POSTHOG_TOKEN` is read at compile time (`option_env!` in
+        # crates/analytics), so it must be in the environment of the `flutter
+        # build` that cargokit drives. The project token is `phc_`: public and
+        # write-only, the same one the website ships to every visitor. Without
+        # it analytics compiles to a no-op and the Settings switch does nothing.
+        env:
+          MIXAR_POSTHOG_TOKEN: ${{ secrets.POSTHOG_PROJECT_KEY }}
         run: |
           set -euo pipefail
           export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/analytics/analytics_providers.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -58,6 +59,9 @@ Future<void> main() async {
   // boots on defaults otherwise and repaints once the bridge answers, which
   // reads as a dark flash before a saved light theme.
   final container = ProviderContainer();
+  // Before settings load, so an error raised while resolving them is reported
+  // too (the sink itself checks the Analytics switch per error).
+  installAnalyticsErrorReporting(container);
   await preloadAppSettings(container);
 
   if (isDesktopWindow) {
