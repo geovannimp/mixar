@@ -1158,7 +1158,7 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), EngineError> {
 /// cross-file validation), which matters when scanning many shipped bundles
 /// for update detection.
 fn read_mapping_version(dir: &Path) -> Option<String> {
-    let text = fs::read_to_string(dir.join("device.toml")).ok()?;
+    let text = fs::read_to_string(dir.join(crate::DEVICE_FILE)).ok()?;
     let table: toml::Table = toml::from_str(&text).ok()?;
     table
         .get("mapping_version")

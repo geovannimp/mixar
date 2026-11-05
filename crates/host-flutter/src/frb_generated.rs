@@ -45,7 +45,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1875930170;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1443024690;
 
 // Section: executor
 
@@ -7350,6 +7350,38 @@ fn wire__crate__api__settings__bus_channel_mode_default_impl(
         },
     )
 }
+fn wire__crate__api__controller__detect_controllers_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "detect_controllers",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::controller::detect_controllers()?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__meta__init_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -9253,6 +9285,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_showFxBar = <bool>::sse_decode(deserializer);
         let mut var_showCrossfader = <bool>::sse_decode(deserializer);
         let mut var_analyticsEnabled = <bool>::sse_decode(deserializer);
+        let mut var_onboardingCompleted = <bool>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             buffer_size: var_bufferSize,
             resampler_quality: var_resamplerQuality,
@@ -9302,6 +9335,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             show_fx_bar: var_showFxBar,
             show_crossfader: var_showCrossfader,
             analytics_enabled: var_analyticsEnabled,
+            onboarding_completed: var_onboardingCompleted,
         };
     }
 }
@@ -9898,6 +9932,20 @@ impl SseDecode for crate::api::event_mirrors::DeleteTrackLoop {
         return crate::api::event_mirrors::DeleteTrackLoop {
             track_id: var_trackId,
             slot: var_slot,
+        };
+    }
+}
+
+impl SseDecode for crate::api::controller::DetectedController {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_portName = <String>::sse_decode(deserializer);
+        let mut var_mappingName = <Option<String>>::sse_decode(deserializer);
+        let mut var_deviceId = <Option<String>>::sse_decode(deserializer);
+        return crate::api::controller::DetectedController {
+            port_name: var_portName,
+            mapping_name: var_mappingName,
+            device_id: var_deviceId,
         };
     }
 }
@@ -11109,6 +11157,20 @@ impl SseDecode for Vec<crate::api::event_mirrors::DeckSnapshot> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::event_mirrors::DeckSnapshot>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::controller::DetectedController> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::controller::DetectedController>::sse_decode(
                 deserializer,
             ));
         }
@@ -13618,90 +13680,93 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        138 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        139 => wire__crate__api__settings__key_color_mode_setting_default_impl(
+        138 => {
+            wire__crate__api__controller__detect_controllers_impl(port, ptr, rust_vec_len, data_len)
+        }
+        139 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
+        140 => wire__crate__api__settings__key_color_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        140 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+        141 => wire__crate__api__settings__key_display_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        141 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
+        142 => wire__crate__api__settings__library_drawer_side_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        142 => wire__crate__api__settings__library_row_density_setting_default_impl(
+        143 => wire__crate__api__settings__library_row_density_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        143 => wire__crate__api__library__library_track_summary_default_impl(
+        144 => wire__crate__api__library__library_track_summary_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        144 => {
+        145 => {
             wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
         }
-        145 => {
+        146 => {
             wire__crate__api__engine__list_output_devices_impl(port, ptr, rust_vec_len, data_len)
         }
-        146 => wire__crate__api__settings__mixer_meters_setting_default_impl(
+        147 => wire__crate__api__settings__mixer_meters_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        147 => wire__crate__api__library__mixxx_default_database_path_impl(
+        148 => wire__crate__api__library__mixxx_default_database_path_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        148 => {
+        149 => {
             wire__crate__api__library__mixxx_import_preview_impl(port, ptr, rust_vec_len, data_len)
         }
-        149 => wire__crate__api__library__rekordbox_default_database_path_impl(
+        150 => wire__crate__api__library__rekordbox_default_database_path_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        150 => wire__crate__api__library__rekordbox_import_preview_impl(
+        151 => wire__crate__api__library__rekordbox_import_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        151 => wire__crate__api__settings__select_style_setting_default_impl(
+        152 => wire__crate__api__settings__select_style_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        152 => wire__crate__api__meta__set_app_support_dir_impl(port, ptr, rust_vec_len, data_len),
-        153 => wire__crate__api__settings__theme_setting_default_impl(
+        153 => wire__crate__api__meta__set_app_support_dir_impl(port, ptr, rust_vec_len, data_len),
+        154 => wire__crate__api__settings__theme_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        154 => wire__crate__api__settings__ui_language_setting_default_impl(
+        155 => wire__crate__api__settings__ui_language_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        155 => wire__crate__api__settings__waveform_position_setting_default_impl(
+        156 => wire__crate__api__settings__waveform_position_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -13992,6 +14057,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.show_fx_bar.into_into_dart().into_dart(),
             self.show_crossfader.into_into_dart().into_dart(),
             self.analytics_enabled.into_into_dart().into_dart(),
+            self.onboarding_completed.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -14713,6 +14779,28 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Del
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::DeleteTrackLoop> {
         self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::controller::DetectedController {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.port_name.into_into_dart().into_dart(),
+            self.mapping_name.into_into_dart().into_dart(),
+            self.device_id.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::controller::DetectedController
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::controller::DetectedController>
+    for crate::api::controller::DetectedController
+{
+    fn into_into_dart(self) -> crate::api::controller::DetectedController {
+        self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -18140,6 +18228,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <bool>::sse_encode(self.show_fx_bar, serializer);
         <bool>::sse_encode(self.show_crossfader, serializer);
         <bool>::sse_encode(self.analytics_enabled, serializer);
+        <bool>::sse_encode(self.onboarding_completed, serializer);
     }
 }
 
@@ -18527,6 +18616,15 @@ impl SseEncode for crate::api::event_mirrors::DeleteTrackLoop {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.track_id, serializer);
         <u8>::sse_encode(self.slot, serializer);
+    }
+}
+
+impl SseEncode for crate::api::controller::DetectedController {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.port_name, serializer);
+        <Option<String>>::sse_encode(self.mapping_name, serializer);
+        <Option<String>>::sse_encode(self.device_id, serializer);
     }
 }
 
@@ -19521,6 +19619,16 @@ impl SseEncode for Vec<crate::api::event_mirrors::DeckSnapshot> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::event_mirrors::DeckSnapshot>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::controller::DetectedController> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::controller::DetectedController>::sse_encode(item, serializer);
         }
     }
 }

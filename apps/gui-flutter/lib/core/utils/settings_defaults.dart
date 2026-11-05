@@ -171,6 +171,7 @@ AppSettings defaultAppSettings() {
     showFxBar: true,
     showCrossfader: true,
     analyticsEnabled: false,
+    onboardingCompleted: false,
   );
 }
 
@@ -293,6 +294,7 @@ AppSettings copyAppSettings(
   bool? showFxBar,
   bool? showCrossfader,
   bool? analyticsEnabled,
+  bool? onboardingCompleted,
 }) {
   return AppSettings(
     numDecks: numDecks ?? base.numDecks,
@@ -347,6 +349,7 @@ AppSettings copyAppSettings(
     showFxBar: showFxBar ?? base.showFxBar,
     showCrossfader: showCrossfader ?? base.showCrossfader,
     analyticsEnabled: analyticsEnabled ?? base.analyticsEnabled,
+    onboardingCompleted: onboardingCompleted ?? base.onboardingCompleted,
   );
 }
 
@@ -398,6 +401,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.showFxBar != baseline.showFxBar ||
       draft.showCrossfader != baseline.showCrossfader ||
       draft.analyticsEnabled != baseline.analyticsEnabled ||
+      draft.onboardingCompleted != baseline.onboardingCompleted ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||
       !_sameList(draft.libraryRowFields, baseline.libraryRowFields) ||
       draft.tagWriteBack != baseline.tagWriteBack ||

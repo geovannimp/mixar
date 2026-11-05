@@ -221,19 +221,30 @@ Future<void> restartDecksFromSettings(
 
 Future<SaveAppSettingsResult> saveAppSettings(
   WidgetRef ref,
-  AppSettings draft,
-) async {
-  final settings = await ref.read(settingsTransportProvider.future);
-  final previous = await ref.read(appSettingsProvider.future);
+  AppSettings draft, {
+
+  /// Where the transports are read from. The setup page can be swapped for the
+  /// mixer by this save's own invalidation, which makes its `ref` throw while
+  /// the library and engine work is still to do; a container captured before
+  /// the save keeps that work alive. Settings itself never needs it.
+  ProviderContainer? container,
+}) async {
+  final read = container?.read ?? ref.read;
+  final invalidate = container?.invalidate ?? ref.invalidate;
+
+  final settings = await read(settingsTransportProvider.future);
+  final previous = await read(appSettingsProvider.future);
   final normalized = normalizeAppSettings(draft);
   // A save that only changes how the list paints — the theme, the consent
-  // toggle, the visible row fields, which panels are on screen and where the
-  // waveform sits — must not restart the engine: audio would glitch for a
+  // toggle, the visible row fields, which panels are on screen, where the
+  // waveform sits, or whether first-run setup is done — must not restart the
+  // engine: audio would glitch for a
   // cosmetic edit. Everything else goes through the apply path below.
   final viewOnly = !appSettingsDirty(
     copyAppSettings(
       normalized,
       analyticsEnabled: previous.analyticsEnabled,
+      onboardingCompleted: previous.onboardingCompleted,
       libraryRowFields: previous.libraryRowFields,
       theme: previous.theme,
       accentPalette: previous.accentPalette,
@@ -255,23 +266,23 @@ Future<SaveAppSettingsResult> saveAppSettings(
   final saved = await settings.saveSettings(settings: normalized);
   if (normalized.analyticsEnabled != previous.analyticsEnabled) {
     try {
-      final analytics = await ref.read(analyticsTransportProvider.future);
+      final analytics = await read(analyticsTransportProvider.future);
       await analytics.setEnabled(enabled: normalized.analyticsEnabled);
     } on Object {
       // Analytics must never turn a successful settings save into a failure.
     }
   }
   if (viewOnly) {
-    ref.invalidate(appSettingsProvider);
+    invalidate(appSettingsProvider);
     return SaveAppSettingsResult(saved: saved);
   }
-  final library = await ref.read(libraryTransportProvider.future);
-  ref.invalidate(appSettingsProvider);
-  ref.invalidate(libraryRowDensitySettingProvider);
+  final library = await read(libraryTransportProvider.future);
+  invalidate(appSettingsProvider);
+  invalidate(libraryRowDensitySettingProvider);
   // Drop any session-only density toggle too. It outranks the saved setting in
   // `libraryRowDensityProvider`, so leaving it set would make the list ignore
   // the value the user just saved.
-  ref.invalidate(libraryRowDensityOverrideProvider);
+  invalidate(libraryRowDensityOverrideProvider);
   String? applyError;
   try {
     await library.applyLibrarySettings(
@@ -286,16 +297,16 @@ Future<SaveAppSettingsResult> saveAppSettings(
       minPlaySeconds: normalized.historyMinPlaySeconds,
       minDeckVolume: normalized.historyMinDeckVolume,
     );
-    var engine = await ref.read(engineTransportProvider.future);
+    var engine = await read(engineTransportProvider.future);
     if (engine == null && isDesktopWindow) {
       // A failed engine start caches no transport, only a notice. Saving settings is the
       // user's way back: retry once the audio device configuration has been fixed.
-      ref.invalidate(engineTransportProvider);
-      engine = await ref.read(engineTransportProvider.future);
+      invalidate(engineTransportProvider);
+      engine = await read(engineTransportProvider.future);
     }
     if (engine != null && await engine.isRunning()) {
       await restartDecksFromSettings(
-        ref.read,
+        read,
         restart: engine.restartFromSettings,
         previousDeckCount: previous.numDecks,
         deckCount: normalized.numDecks,
@@ -304,7 +315,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
       );
     } else if (normalized.numDecks < previous.numDecks) {
       // No restart to retire the removed decks: drop their stale mirror state.
-      final engineUi = ref.read(engineUiProvider.notifier);
+      final engineUi = read(engineUiProvider.notifier);
       for (
         var deckId = normalized.numDecks;
         deckId < previous.numDecks;

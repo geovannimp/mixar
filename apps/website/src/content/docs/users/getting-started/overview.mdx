@@ -39,7 +39,29 @@ Sample tracks live in `samples/` if you want something to load on the first run.
 
 ## First launch
 
-The app opens on the mixer with two empty decks, an empty library, and the engine already started on your system default output device.
+A fresh install opens **setup** instead of the mixer: six full-window steps (seven when Mixar detects a supported, mapped controller) that point Mixar at your music and set the app up the way you like it. Each step is its own stage — headline on the left, the choice on the right, and a numbered track beside the headline showing where you are.
+
+| Step | What it asks for |
+| --- | --- |
+| Welcome | Nothing — what the app is and what the steps cover |
+| Language | The interface language, switched live as you pick |
+| Appearance | Theme and accent color, previewed live as you pick |
+| Controllers | Only shown when Mixar detects a supported, mapped MIDI controller: trust it to connect on its own |
+| Library | A folder of tracks, plus an import row for any Mixxx or Rekordbox library found on this machine |
+| Privacy | Whether Mixar may send anonymous usage data, off by default |
+| Ready | Three tips, then into the mixer |
+
+**Start mixing** saves the settings draft and opens the mixer. **Skip setup** marks the flow as done while keeping what is already saved: it discards draft edits such as language, theme, accent, controller trust, and privacy, but a folder you added or a library you imported in the Library step has already happened and stays. Nothing is destructive either way — every option is in [Settings](/docs/users/settings) afterwards.
+
+Audio is not part of setup: the engine starts on your system default output when the mixer opens. Change the device in [Audio settings](/docs/users/settings/audio).
+
+The appearance step is a real preview: picking a theme, accent color, or language repaints the window immediately, so you see the app before finishing. `Enter` moves forward and `←` steps back; the mouse is optional.
+
+Setup reduces to a single column when the window is narrow, and the background animation stops if your system asks for reduced motion.
+
+To see the steps again, use **Settings → UI → First-run setup → Show setup again** and Save.
+
+The mixer itself opens on two empty decks and an empty library:
 
 | Surface | What it says when empty |
 | --- | --- |

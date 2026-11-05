@@ -51,7 +51,14 @@ class SettingsSectionCard extends StatelessWidget {
     this.trailing,
     this.child,
     this.subtitleBuilder,
+    this.decorated = true,
   });
+
+  /// Paint the band chrome (card fill + top/bottom hairlines).
+  ///
+  /// Setup steps show the same rows on the wizard's own stage, where a nested
+  /// band would read as a card inside a card.
+  final bool decorated;
 
   final String title;
 
@@ -75,6 +82,30 @@ class SettingsSectionCard extends StatelessWidget {
       color: theme.colors.border,
       width: theme.style.borderWidth,
     );
+    Widget content({required EdgeInsets padding}) => Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: .start,
+        children: [
+          if (trailing == null)
+            header
+          else
+            Row(
+              crossAxisAlignment: .start,
+              spacing: 12,
+              children: [
+                Expanded(child: header),
+                trailing!,
+              ],
+            ),
+          _CollapsibleCardBody(child: child),
+        ],
+      ),
+    );
+
+    if (!decorated) {
+      return content(padding: const EdgeInsets.symmetric(vertical: _cardInset));
+    }
     // Foreground border: the card fill would otherwise paint over the stroke,
     // and it costs no layout space between stacked cards.
     return DecoratedBox(
@@ -84,26 +115,7 @@ class SettingsSectionCard extends StatelessWidget {
       ),
       child: ColoredBox(
         color: theme.colors.card,
-        child: Padding(
-          padding: const EdgeInsets.all(_cardInset),
-          child: Column(
-            crossAxisAlignment: .start,
-            children: [
-              if (trailing == null)
-                header
-              else
-                Row(
-                  crossAxisAlignment: .start,
-                  spacing: 12,
-                  children: [
-                    Expanded(child: header),
-                    trailing!,
-                  ],
-                ),
-              _CollapsibleCardBody(child: child),
-            ],
-          ),
-        ),
+        child: content(padding: const EdgeInsets.all(_cardInset)),
       ),
     );
   }

@@ -687,6 +687,414 @@ abstract class AppLocalizations {
   /// **'Show tooltips'**
   String get settingsShowTooltips;
 
+  /// No description provided for @settingsUiOnboardingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'First-run setup'**
+  String get settingsUiOnboardingTitle;
+
+  /// No description provided for @settingsUiOnboardingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the welcome steps again instead of the mixer. Saved with the rest of Settings.'**
+  String get settingsUiOnboardingDescription;
+
+  /// No description provided for @settingsUiOnboardingReplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Show setup again'**
+  String get settingsUiOnboardingReplay;
+
+  /// No description provided for @onboardingStepProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {index} of {total}'**
+  String onboardingStepProgress(int index, int total);
+
+  /// No description provided for @onboardingSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip setup'**
+  String get onboardingSkip;
+
+  /// No description provided for @onboardingBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get onboardingBack;
+
+  /// No description provided for @onboardingNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get onboardingNext;
+
+  /// No description provided for @onboardingSaveFailedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup could not be saved'**
+  String get onboardingSaveFailedToast;
+
+  /// No description provided for @onboardingWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Mixar'**
+  String get onboardingWelcomeTitle;
+
+  /// No description provided for @onboardingWelcomeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Just a few steps to get Mixar in your style.'**
+  String get onboardingWelcomeBody;
+
+  /// No description provided for @onboardingAppearanceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it yours'**
+  String get onboardingAppearanceTitle;
+
+  /// No description provided for @onboardingAppearanceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a theme and an accent color. Both repaint the app as you choose.'**
+  String get onboardingAppearanceBody;
+
+  /// No description provided for @onboardingLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring your music'**
+  String get onboardingLibraryTitle;
+
+  /// No description provided for @onboardingLibraryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Point Mixar at a folder of tracks, or import a library from another DJ app. Audio files are never moved.'**
+  String get onboardingLibraryBody;
+
+  /// No description provided for @onboardingLibraryChooseFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose music folder'**
+  String get onboardingLibraryChooseFolder;
+
+  /// No description provided for @onboardingLibraryFolderAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder added'**
+  String get onboardingLibraryFolderAdded;
+
+  /// No description provided for @onboardingLibraryFolderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not add that folder'**
+  String get onboardingLibraryFolderFailed;
+
+  /// No description provided for @onboardingPrivacyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data stays here'**
+  String get onboardingPrivacyTitle;
+
+  /// No description provided for @onboardingPrivacyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. Sends anonymous events and error reports; file paths are redacted and your music is never uploaded.'**
+  String get onboardingPrivacyBody;
+
+  /// No description provided for @onboardingControllersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up your controller'**
+  String get onboardingControllersTitle;
+
+  /// No description provided for @onboardingControllersTrusted.
+  ///
+  /// In en, this message translates to:
+  /// **'Trusted devices connect automatically next launch.'**
+  String get onboardingControllersTrusted;
+
+  /// No description provided for @onboardingControllersMappings.
+  ///
+  /// In en, this message translates to:
+  /// **'Mappings live in Settings → Controllers.'**
+  String get onboardingControllersMappings;
+
+  /// No description provided for @onboardingKickerSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Setup'**
+  String get onboardingKickerSetup;
+
+  /// No description provided for @onboardingKickerAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get onboardingKickerAppearance;
+
+  /// No description provided for @onboardingKickerLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get onboardingKickerLibrary;
+
+  /// No description provided for @onboardingKickerPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get onboardingKickerPrivacy;
+
+  /// No description provided for @onboardingKickerControllers.
+  ///
+  /// In en, this message translates to:
+  /// **'Controllers'**
+  String get onboardingKickerControllers;
+
+  /// No description provided for @onboardingLibraryImportLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Or import an existing library'**
+  String get onboardingLibraryImportLabel;
+
+  /// No description provided for @onboardingPrivacyOffTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep it private'**
+  String get onboardingPrivacyOffTitle;
+
+  /// No description provided for @onboardingPrivacyOffBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No analytics. Nothing leaves this machine.'**
+  String get onboardingPrivacyOffBody;
+
+  /// No description provided for @onboardingPrivacyOnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Share anonymous usage'**
+  String get onboardingPrivacyOnTitle;
+
+  /// No description provided for @onboardingPrivacyOnBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonymous events and error reports. No music, no file names.'**
+  String get onboardingPrivacyOnBody;
+
+  /// No description provided for @onboardingLanguageFollowsOs.
+  ///
+  /// In en, this message translates to:
+  /// **'Follows the system language'**
+  String get onboardingLanguageFollowsOs;
+
+  /// No description provided for @onboardingLibraryFolderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixar reads the files where they are. Nothing is moved or copied.'**
+  String get onboardingLibraryFolderHint;
+
+  /// No description provided for @onboardingLibraryFolderReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Added “{name}”. Pick another folder if you want more.'**
+  String onboardingLibraryFolderReady(String name);
+
+  /// No description provided for @onboardingLibraryBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get onboardingLibraryBrowse;
+
+  /// No description provided for @onboardingReadyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re all set'**
+  String get onboardingReadyTitle;
+
+  /// No description provided for @onboardingReadyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Save these choices and the mixer opens ready to play.'**
+  String get onboardingReadyBody;
+
+  /// No description provided for @onboardingReadyFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here is permanent — every choice lives in Settings.'**
+  String get onboardingReadyFootnote;
+
+  /// No description provided for @onboardingStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start mixing'**
+  String get onboardingStart;
+
+  /// No description provided for @onboardingTipLoadTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Load your first track'**
+  String get onboardingTipLoadTitle;
+
+  /// No description provided for @onboardingTipLoadBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag a file onto a deck, or double-click a row in the library.'**
+  String get onboardingTipLoadBody;
+
+  /// No description provided for @onboardingTipAnalyzeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Analysis runs itself'**
+  String get onboardingTipAnalyzeTitle;
+
+  /// No description provided for @onboardingTipAnalyzeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Beat grid, waveform, key and BPM are written as soon as a track lands in the library.'**
+  String get onboardingTipAnalyzeBody;
+
+  /// No description provided for @onboardingTipSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tune it later'**
+  String get onboardingTipSettingsTitle;
+
+  /// No description provided for @onboardingTipSettingsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio, controllers, layout and waveform are all under Settings.'**
+  String get onboardingTipSettingsBody;
+
+  /// No description provided for @onboardingKickerReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get onboardingKickerReady;
+
+  /// No description provided for @onboardingControllersDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One controller found. Trust it to connect automatically.} other{{count} controllers found. Trust the ones you want to connect automatically.}}'**
+  String onboardingControllersDetected(int count);
+
+  /// No description provided for @onboardingControllersMapping.
+  ///
+  /// In en, this message translates to:
+  /// **'Mapping: {name}'**
+  String onboardingControllersMapping(String name);
+
+  /// No description provided for @onboardingControllersTrust.
+  ///
+  /// In en, this message translates to:
+  /// **'Trust'**
+  String get onboardingControllersTrust;
+
+  /// No description provided for @onboardingControllersTrustedAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Trusted'**
+  String get onboardingControllersTrustedAction;
+
+  /// No description provided for @onboardingFloatDecks.
+  ///
+  /// In en, this message translates to:
+  /// **'Two decks'**
+  String get onboardingFloatDecks;
+
+  /// No description provided for @onboardingFloatWaveform.
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform'**
+  String get onboardingFloatWaveform;
+
+  /// No description provided for @onboardingFloatStems.
+  ///
+  /// In en, this message translates to:
+  /// **'Stems'**
+  String get onboardingFloatStems;
+
+  /// No description provided for @onboardingFloatMixer.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixer'**
+  String get onboardingFloatMixer;
+
+  /// No description provided for @onboardingFloatJog.
+  ///
+  /// In en, this message translates to:
+  /// **'Jog'**
+  String get onboardingFloatJog;
+
+  /// No description provided for @onboardingFloatSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get onboardingFloatSync;
+
+  /// No description provided for @onboardingFloatCue.
+  ///
+  /// In en, this message translates to:
+  /// **'Cue'**
+  String get onboardingFloatCue;
+
+  /// No description provided for @onboardingFloatLoop.
+  ///
+  /// In en, this message translates to:
+  /// **'Loop'**
+  String get onboardingFloatLoop;
+
+  /// No description provided for @onboardingFloatFx.
+  ///
+  /// In en, this message translates to:
+  /// **'FX'**
+  String get onboardingFloatFx;
+
+  /// No description provided for @onboardingFloatLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get onboardingFloatLibrary;
+
+  /// No description provided for @onboardingKickerLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get onboardingKickerLanguage;
+
+  /// No description provided for @onboardingLanguageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick your language'**
+  String get onboardingLanguageTitle;
+
+  /// No description provided for @onboardingLanguageBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixar follows the system language unless you choose one. The whole app switches as soon as you pick.'**
+  String get onboardingLanguageBody;
+
+  /// No description provided for @onboardingFloatBpm.
+  ///
+  /// In en, this message translates to:
+  /// **'BPM'**
+  String get onboardingFloatBpm;
+
+  /// No description provided for @onboardingFloatKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Keys'**
+  String get onboardingFloatKeys;
+
+  /// No description provided for @onboardingFloatCues.
+  ///
+  /// In en, this message translates to:
+  /// **'Hot cues'**
+  String get onboardingFloatCues;
+
+  /// No description provided for @onboardingFloatAnalyze.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze'**
+  String get onboardingFloatAnalyze;
+
   /// No description provided for @settingsUiSelectStyle.
   ///
   /// In en, this message translates to:
@@ -2322,6 +2730,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Key'**
   String get settingsLibraryFieldKey;
+
+  /// No description provided for @onboardingLibraryNotFoundOne.
+  ///
+  /// In en, this message translates to:
+  /// **'No {name} library found on this computer. You can import one later in Settings → Integrations.'**
+  String onboardingLibraryNotFoundOne(String name);
+
+  /// No description provided for @onboardingLibraryNotFoundBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'No Mixxx or Rekordbox library found on this computer. You can import one later in Settings → Integrations.'**
+  String get onboardingLibraryNotFoundBoth;
 }
 
 class _AppLocalizationsDelegate

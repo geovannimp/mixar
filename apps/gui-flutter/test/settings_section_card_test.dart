@@ -497,4 +497,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(scroll.position.pixels, 0);
   }, semanticsEnabled: false);
+
+  testWidgets('undecorated mode keeps the content but drops the band chrome', (
+    tester,
+  ) async {
+    Future<void> pump({required bool decorated}) => tester.pumpWidget(
+      mixarTestMaterialApp(
+        theme: MixarThemeData.dark(),
+        home: Scaffold(
+          body: SettingsSectionCard(
+            title: 'Import from Mixxx',
+            decorated: decorated,
+            child: const Text('body'),
+          ),
+        ),
+      ),
+    );
+
+    await pump(decorated: true);
+    final decoratedLeft = tester.getTopLeft(find.text('Import from Mixxx')).dx;
+
+    await pump(decorated: false);
+    final bareLeft = tester.getTopLeft(find.text('Import from Mixxx')).dx;
+
+    // No card fill and no hairlines: only the header and body remain.
+    expect(
+      find.descendant(
+        of: find.byType(SettingsSectionCard),
+        matching: find.byType(ColoredBox),
+      ),
+      findsNothing,
+    );
+    // The band's inner inset is gone, so the content starts further left.
+    expect(bareLeft, lessThan(decoratedLeft));
+    expect(find.text('body'), findsOneWidget);
+  }, semanticsEnabled: false);
 }

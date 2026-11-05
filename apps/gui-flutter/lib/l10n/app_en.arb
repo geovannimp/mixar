@@ -101,6 +101,105 @@
   "settingsLanguageEn": "English",
   "settingsLanguagePtBr": "Português (Brasil)",
   "settingsShowTooltips": "Show tooltips",
+  "settingsUiOnboardingTitle": "First-run setup",
+  "settingsUiOnboardingDescription": "Show the welcome steps again instead of the mixer. Saved with the rest of Settings.",
+  "settingsUiOnboardingReplay": "Show setup again",
+  "onboardingStepProgress": "Step {index} of {total}",
+  "@onboardingStepProgress": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "onboardingSkip": "Skip setup",
+  "onboardingBack": "Back",
+  "onboardingNext": "Continue",
+  "onboardingSaveFailedToast": "Setup could not be saved",
+  "onboardingWelcomeTitle": "Welcome to Mixar",
+  "onboardingWelcomeBody": "Just a few steps to get Mixar in your style.",
+  "onboardingAppearanceTitle": "Make it yours",
+  "onboardingAppearanceBody": "Pick a theme and an accent color. Both repaint the app as you choose.",
+  "onboardingLibraryTitle": "Bring your music",
+  "onboardingLibraryBody": "Point Mixar at a folder of tracks, or import a library from another DJ app. Audio files are never moved.",
+  "onboardingLibraryChooseFolder": "Choose music folder",
+  "onboardingLibraryFolderAdded": "Folder added",
+  "onboardingLibraryFolderFailed": "Could not add that folder",
+  "onboardingPrivacyTitle": "Your data stays here",
+  "onboardingPrivacyBody": "Off by default. Sends anonymous events and error reports; file paths are redacted and your music is never uploaded.",
+  "onboardingControllersTitle": "Set up your controller",
+  "onboardingControllersTrusted": "Trusted devices connect automatically next launch.",
+  "onboardingControllersMappings": "Mappings live in Settings → Controllers.",
+  "onboardingKickerSetup": "Setup",
+  "onboardingKickerAppearance": "Appearance",
+  "onboardingKickerLibrary": "Library",
+  "onboardingKickerPrivacy": "Privacy",
+  "onboardingKickerControllers": "Controllers",
+  "onboardingLibraryImportLabel": "Or import an existing library",
+  "onboardingPrivacyOffTitle": "Keep it private",
+  "onboardingPrivacyOffBody": "No analytics. Nothing leaves this machine.",
+  "onboardingPrivacyOnTitle": "Share anonymous usage",
+  "onboardingPrivacyOnBody": "Anonymous events and error reports. No music, no file names.",
+  "onboardingLanguageFollowsOs": "Follows the system language",
+  "onboardingLibraryFolderHint": "Mixar reads the files where they are. Nothing is moved or copied.",
+  "onboardingLibraryFolderReady": "Added “{name}”. Pick another folder if you want more.",
+  "@onboardingLibraryFolderReady": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingLibraryBrowse": "Browse",
+  "onboardingReadyTitle": "You're all set",
+  "onboardingReadyBody": "Save these choices and the mixer opens ready to play.",
+  "onboardingReadyFootnote": "Nothing here is permanent — every choice lives in Settings.",
+  "onboardingStart": "Start mixing",
+  "onboardingTipLoadTitle": "Load your first track",
+  "onboardingTipLoadBody": "Drag a file onto a deck, or double-click a row in the library.",
+  "onboardingTipAnalyzeTitle": "Analysis runs itself",
+  "onboardingTipAnalyzeBody": "Beat grid, waveform, key and BPM are written as soon as a track lands in the library.",
+  "onboardingTipSettingsTitle": "Tune it later",
+  "onboardingTipSettingsBody": "Audio, controllers, layout and waveform are all under Settings.",
+  "onboardingKickerReady": "Ready",
+  "onboardingControllersDetected": "{count, plural, =1{One controller found. Trust it to connect automatically.} other{{count} controllers found. Trust the ones you want to connect automatically.}}",
+  "@onboardingControllersDetected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "onboardingControllersMapping": "Mapping: {name}",
+  "@onboardingControllersMapping": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingControllersTrust": "Trust",
+  "onboardingControllersTrustedAction": "Trusted",
+  "onboardingFloatDecks": "Two decks",
+  "onboardingFloatWaveform": "Waveform",
+  "onboardingFloatStems": "Stems",
+  "onboardingFloatMixer": "Mixer",
+  "onboardingFloatJog": "Jog",
+  "onboardingFloatSync": "Sync",
+  "onboardingFloatCue": "Cue",
+  "onboardingFloatLoop": "Loop",
+  "onboardingFloatFx": "FX",
+  "onboardingFloatLibrary": "Library",
+  "onboardingKickerLanguage": "Language",
+  "onboardingLanguageTitle": "Pick your language",
+  "onboardingLanguageBody": "Mixar follows the system language unless you choose one. The whole app switches as soon as you pick.",
+  "onboardingFloatBpm": "BPM",
+  "onboardingFloatKeys": "Keys",
+  "onboardingFloatCues": "Hot cues",
+  "onboardingFloatAnalyze": "Analyze",
   "settingsUiSelectStyle": "Select style",
   "settingsUiSelectStyleAuto": "Auto",
   "settingsUiSelectStyleDesktop": "Desktop",
@@ -707,5 +806,14 @@
   "settingsLibraryFieldRating": "Rating",
   "settingsLibraryFieldColor": "Color label",
   "settingsLibraryFieldBpm": "BPM",
-  "settingsLibraryFieldKey": "Key"
+  "settingsLibraryFieldKey": "Key",
+  "onboardingLibraryNotFoundOne": "No {name} library found on this computer. You can import one later in Settings → Integrations.",
+  "@onboardingLibraryNotFoundOne": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingLibraryNotFoundBoth": "No Mixxx or Rekordbox library found on this computer. You can import one later in Settings → Integrations."
 }

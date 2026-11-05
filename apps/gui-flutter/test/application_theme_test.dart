@@ -15,8 +15,17 @@ import 'package:material_ui/material_ui.dart';
 
 /// Providers `Application` needs stubbed in a widget test. Shared by the
 /// pumping helpers below so a new dependency is stubbed once.
-List<Override> appStubs(AppSettings settings) => [
-  appSettingsProvider.overrideWith((ref) async => settings),
+///
+/// Setup is marked complete by default: these tests are about the mixer shell,
+/// and a fresh-install flag would route `home` to the onboarding page instead.
+List<Override> appStubs(
+  AppSettings settings, {
+  bool onboardingCompleted = true,
+}) => [
+  appSettingsProvider.overrideWith(
+    (_) async =>
+        copyAppSettings(settings, onboardingCompleted: onboardingCompleted),
+  ),
   audioDevicesProvider.overrideWith((ref) async => const []),
   samplerBanksProvider.overrideWith((ref) async => const []),
   controllerTransportProvider.overrideWith((ref) async => null),

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
+import 'package:gui_flutter/core/utils/app_assets.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
@@ -73,7 +74,7 @@ class AppHeader extends ConsumerWidget {
                         BlendMode.srcIn,
                       ),
                       child: Image.asset(
-                        'assets/mixar-logo.png',
+                        kMixarLogoAsset,
                         height: 12,
                         semanticLabel: appTitle,
                       ),
