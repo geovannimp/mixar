@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
+import 'package:gui_flutter/widgets/settings/rekordbox_import_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_integrations_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
@@ -18,48 +21,77 @@ import 'package:material_ui/material_ui.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
-  Future<void> pumpLibrary(WidgetTester tester) async {
+  /// Pumps one settings panel inside the page's scroll surface.
+  Future<void> pumpPanel(
+    WidgetTester tester,
+    Widget panel, {
+    List<Override> overrides = const [],
+    bool settle = true,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          mixxxDatabasePathProvider.overrideWith((ref) async => null),
-        ],
+        overrides: overrides,
         child: mixarTestMaterialApp(
           theme: MixarThemeData.dark(),
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: SettingsLibraryPanel(
-                draft: defaultAppSettings(),
-                onChanged: (_) {},
-              ),
-            ),
-          ),
+          home: Scaffold(body: SingleChildScrollView(child: panel)),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) {
+      await tester.pumpAndSettle();
+    }
   }
 
-  Future<void> pumpUi(WidgetTester tester, {bool meters = true}) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        child: mixarTestMaterialApp(
-          theme: MixarThemeData.dark(),
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: SettingsUiPanel(
-                draft: copyAppSettings(
-                  defaultAppSettings(),
-                  showMixerMeters: meters,
-                ),
-                onChanged: (_) {},
-              ),
-            ),
-          ),
-        ),
-      ),
+  Future<void> pumpLibrary(WidgetTester tester) => pumpPanel(
+    tester,
+    SettingsLibraryPanel(draft: defaultAppSettings(), onChanged: (_) {}),
+  );
+
+  Future<void> pumpIntegrations(WidgetTester tester) => pumpPanel(
+    tester,
+    const SettingsIntegrationsPanel(),
+    overrides: [
+      mixxxDatabasePathProvider.overrideWith((ref) async => null),
+      rekordboxDatabasePathProvider.overrideWith((ref) async => null),
+    ],
+  );
+
+  Future<void> pumpUi(WidgetTester tester, {bool meters = true}) => pumpPanel(
+    tester,
+    SettingsUiPanel(
+      draft: copyAppSettings(defaultAppSettings(), showMixerMeters: meters),
+      onChanged: (_) {},
+    ),
+    // The UI panel's own tests drive animations frame by frame.
+    settle: false,
+  );
+
+  testWidgets('Integrations panel hosts both library imports', (tester) async {
+    await pumpIntegrations(tester);
+    expect(find.text('Integrations'), findsOneWidget);
+    expect(
+      find.text('Read another DJ application into your library.'),
+      findsOneWidget,
     );
-  }
+    expect(find.text('Import from Mixxx'), findsOneWidget);
+    expect(find.text('Import from Rekordbox'), findsOneWidget);
+    expect(
+      find.byType(MixxxImportPanel),
+      findsOneWidget,
+      reason: 'the Mixxx card lives in Integrations, not Library',
+    );
+    expect(find.byType(RekordboxImportPanel), findsOneWidget);
+  }, semanticsEnabled: false);
+
+  testWidgets('Library panel no longer hosts the library imports', (
+    tester,
+  ) async {
+    await pumpLibrary(tester);
+    expect(find.text('Import from Mixxx'), findsNothing);
+    expect(find.text('Import from Rekordbox'), findsNothing);
+    expect(find.byType(MixxxImportPanel), findsNothing);
+    expect(find.byType(RekordboxImportPanel), findsNothing);
+  }, semanticsEnabled: false);
 
   testWidgets('Library panel hosts list appearance controls', (tester) async {
     await pumpLibrary(tester);

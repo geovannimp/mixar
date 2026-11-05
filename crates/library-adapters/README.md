@@ -15,11 +15,13 @@ Implemented adapters:
   crates, and watched directories.
 - `cdj` — export the user's library into the Pioneer CDJ/XDJ USB layout
   (DeviceSQL `export.pdb` plus ANLZ analysis files).
+- `rekordbox` — read a Rekordbox 6/7 `master.db` (SQLCipher) and import its
+  tracks, playlists, hot cues, and saved loops.
 
 ## Architecture
 
 ```text
-Settings → Library  [ Import from Mixxx library… ]
+Settings → Integrations  [ Import from Mixxx library… ]
         │  (LibraryTransport FRB calls — the only allowed I/O path)
         ▼
 host-flutter::api::library
@@ -31,6 +33,19 @@ host-flutter::api::library
         │     implements library_core::Library + Migratable
         └─ borrows the same Arc<Mutex<LibraryManager>> the transport already owns
               └─ migrates into the user's one canonical library
+
+Settings → Integrations  [ Import from Rekordbox library… ]
+        │  (LibraryTransport FRB calls)
+        ▼
+host-flutter::api::library
+   ├─ rekordbox_default_database_path()                   -> Option<String>
+   ├─ rekordbox_import_preview(db_path)                    -> RekordboxImportPreview
+   └─ LibraryTransport::import_rekordbox_library(db_path)  -> RekordboxImportReport
+        │
+        ├─ library_adapters::rekordbox::RekordboxLibrary::open(path)
+        │     copies the database + `-wal`, unlocks the copy, reads it
+        │     read-only, implements library_core::Library + Migratable
+        └─ borrows the same Arc<Mutex<LibraryManager>> the transport already owns
 
 Collection ⋮ menu  [ Export to CDJ USB… ]
         │  (LibraryTransport FRB calls)
@@ -147,6 +162,108 @@ through. Mixxx stores the key in the user's configured notation.
 `crate_tracks`, and folders by path prefix; `list_collection_entries` returns
 synthesized rows (dropping members whose track was deleted from the Mixxx
 library), or `WrongCollectionType` for folders.
+
+## Rekordbox adapter
+
+`RekordboxLibrary::open(path)` reads a Rekordbox 6/7 desktop library. The
+database is SQLCipher-encrypted, so the adapter:
+
+1. copies `master.db` and its `-wal` (never the shared-memory `-shm`, which is
+   scratch state shared with the running process) into a private `0700`
+   directory under the system temp directory — Rekordbox may be running, and a
+   WAL database with a hot log cannot be read in place reliably;
+2. opens the copy `SQLITE_OPEN_READ_ONLY | SQLITE_OPEN_NO_MUTEX`, applies
+   `PRAGMA key = '<passphrase>'` (the SQL string form; `x'…'` skips the KDF and
+   fails), and reads `sqlite_master` once to prove the key works;
+3. deletes the copy when `RekordboxLibrary` is dropped.
+
+The original file and its siblings are only ever read; the copy is the only
+file opened with a key.
+
+### Passphrase
+
+`rekordbox::DATABASE_KEY` is the passphrase every Rekordbox install uses. It is
+a constant because the blob it derives from ships inside AlphaTheta's binary:
+pyrekordbox recovers it by base85-decoding the blob, XOR-ing with
+`657f48f84c437cc1`, and zlib-inflating; the published result is that constant.
+`REKORDBOX_DATABASE_KEY` overrides it, and
+`RekordboxLibrary::open_keyed(path, passphrase)` takes a replacement directly.
+A wrong key surfaces as `LibraryError::Backend` naming the override — never a
+panic. A plaintext (already decrypted) database still opens and is read without
+a key.
+
+### SQLCipher build
+
+`rusqlite` is declared workspace-wide with
+`bundled-sqlcipher-vendored-openssl` (`crates/Cargo.toml`). Cargo unifies
+features, so **every** crate in the workspace builds SQLCipher, including the
+canonical `library` store and the Mixxx adapter. A SQLCipher build reads
+plaintext databases unchanged (verified by `cargo test -p library`), so nothing
+else had to change. The vendored OpenSSL keeps the build self-contained:
+Windows and macOS build hosts have no usable system OpenSSL, and the MSVC build
+needs Perl + NASM (release.yml installs them). Android cross-builds OpenSSL too;
+cargokit provides the NDK paths, at the cost of a longer first Android build.
+
+### Database detection
+
+`rekordbox_default_database_path()` reads `masterDbDirectory` out of
+`<app data>/Pioneer/rekordbox6/rekordbox3.settings` (a flat `<VALUE>` list) and
+joins `master.db`; then it falls back to the conventional directory
+(`~/Library/Pioneer/rekordbox` on macOS, `%APPDATA%\Pioneer\rekordbox` on
+Windows). `REKORDBOX_DATABASE` (a file) and `REKORDBOX_SETTINGS_DIR` (a
+directory) override the search.
+
+### Schema mapping
+
+| Rekordbox | Mixar |
+| --- | --- |
+| `djmdContent.FolderPath` + `FileNameL` | track path (`\` normalized to `/`) |
+| `Title`, `BPM`, `Length`, `SampleRate`, `BitRate`, `ISRC`, `Commnt` | direct (`BPM`, `Length`, `BitRate` normalized, see below) |
+| `ArtistID` / `AlbumID` / `GenreID` / `KeyID` / `ColorID` | joins to `djmdArtist` / `djmdAlbum` / `djmdGenre` / `djmdKey.ScaleName` / `djmdColor.Commnt` (the palette name; `ColorCode` is NULL in real libraries) |
+| `Rating`, `ReleaseYear`, `DiscNo`, `TrackNo` | direct; `0` means unset |
+| `djmdPlaylist` (`Attribute` 0 / 4) | sortable `Playlist` (`parent` folders flatten into a ` / ` name prefix) |
+| `djmdSongPlaylist` (`TrackNo` order) | playlist membership |
+| `djmdCue` `Kind > 0` | hot cue whose slot is `Kind - 1` (`Kind` is the hot-cue number, `0` is a memory cue) |
+| `djmdCue` `Kind = 0` with an out point | saved loop (sequential slot) |
+
+Normalizations: a `BPM` above 1000 is assumed to be scaled by 100 (real
+libraries store `12800` for 128 BPM), a `BitRate` above 10 000 is assumed to be
+bps, and a `Rating` above 5 is read on the 0–255 scale. Cue colours are
+Rekordbox's eight-colour palette for values 1–8; anything else (`255` for "no
+colour" in a real Rekordbox 7 library, `-1` for none) maps to no colour rather
+than a guessed hue.
+
+Dropped, deliberately: memory cues that are not loops (the canonical model
+stores hot cues and loops only), label and composer (no `TrackMetadata` field),
+My Tag, history, and beat grids / waveforms (those live in ANLZ analysis files,
+not the database — see the `cdj` module for the reader).
+
+### Verifying against a real library
+
+The fixture suite builds synthetic SQLCipher databases, which proves the SQL and
+the mapping but not that the shipped passphrase decrypts what Rekordbox writes.
+For that there is an opt-in smoke test that reads a real database in place and
+prints the preview, the import report and the re-import report:
+
+```bash
+REKORDBOX_FIXTURE="$HOME/Library/Pioneer/rekordbox/master.db" \
+  cargo test -p library-adapters --features rekordbox \
+  --test rekordbox_live -- --ignored --nocapture
+```
+
+It asserts what must hold for any library — no failed items, the catch-all
+holding every track, an idempotent second run, and the source file untouched
+(length, mtime and head/tail bytes) — and is `#[ignore]`d, so CI skips it.
+Copy `master.db` together with `master.db-wal` when Rekordbox is running, or
+recent edits are missing.
+
+### Migration
+
+Same shape as Mixxx: every track once via `import_track`, then cues through
+`WritableLibrary::import_hot_cue` / `import_loop` (upserts per slot, so a
+re-import refreshes rather than duplicates), then the unsortable **Rekordbox**
+catch-all, then the playlists. `MigrateOptions::include_cues` (default on) gates
+the cue pass; `include_playlists` gates the lists.
 
 ## CDJ USB export
 
@@ -298,7 +415,7 @@ performed for this implementation.
 manager lock is taken; only the write phase runs under it.
 
 The Flutter UI (`apps/gui-flutter/lib/widgets/settings/mixxx_import_panel.dart`)
-adds an "Import from Mixxx library…" action to Settings → Library: it
+adds an "Import from Mixxx library…" action to Settings → Integrations: it
 auto-detects the database (button disabled until one is found), previews counts,
 confirms, imports, invalidates the library providers, and reports the result — a
 destructive toast when any item failed. Widgets never call raw host

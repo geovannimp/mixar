@@ -294,6 +294,33 @@ pub struct MixxxImportReport {
     pub errors: Vec<String>,
 }
 
+/// Summary of a Rekordbox `master.db`, used to confirm an import.
+#[derive(Clone, Debug)]
+pub struct RekordboxImportPreview {
+    pub db_path: String,
+    pub track_count: u32,
+    pub missing_file_count: u32,
+    pub playlist_count: u32,
+    pub smart_playlist_count: u32,
+    pub folder_count: u32,
+    pub hot_cue_count: u32,
+    pub loop_count: u32,
+}
+
+/// Outcome of importing a Rekordbox library.
+#[derive(Clone, Debug)]
+pub struct RekordboxImportReport {
+    pub tracks_added: u32,
+    pub tracks_updated: u32,
+    pub tracks_missing_files: u32,
+    pub playlists_imported: u32,
+    pub collections_skipped: u32,
+    pub hot_cues_imported: u32,
+    pub loops_imported: u32,
+    pub failed: u32,
+    pub errors: Vec<String>,
+}
+
 /// Outcome of exporting the library into the Pioneer CDJ/XDJ USB layout.
 #[derive(Clone, Debug)]
 pub struct CdjExportReport {
@@ -328,6 +355,28 @@ pub fn mixxx_import_preview(db_path: String) -> Result<MixxxImportPreview, Strin
         playlist_count: count_u32(preview.playlist_count),
         crate_count: count_u32(preview.crate_count),
         folder_count: count_u32(preview.folder_count),
+    })
+}
+
+/// Default Rekordbox database path for this machine, when it exists.
+pub fn rekordbox_default_database_path() -> Option<String> {
+    library_adapters::rekordbox_default_database_path()
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+/// Read-only summary of a Rekordbox `master.db`, used to confirm an import.
+pub fn rekordbox_import_preview(db_path: String) -> Result<RekordboxImportPreview, String> {
+    let library = library_adapters::RekordboxLibrary::open(&db_path).bridge()?;
+    let preview = library.preview();
+    Ok(RekordboxImportPreview {
+        db_path,
+        track_count: count_u32(preview.track_count),
+        missing_file_count: count_u32(preview.missing_file_count),
+        playlist_count: count_u32(preview.playlist_count),
+        smart_playlist_count: count_u32(preview.smart_playlist_count),
+        folder_count: count_u32(preview.folder_count),
+        hot_cue_count: count_u32(preview.hot_cue_count),
+        loop_count: count_u32(preview.loop_count),
     })
 }
 
@@ -604,6 +653,37 @@ impl LibraryTransport {
             playlists_imported: count_u32(report.playlists_imported),
             crates_imported: count_u32(report.crates_imported),
             collections_skipped: count_u32(report.collections_skipped),
+            failed: count_u32(report.failed),
+            errors: report.errors,
+        })
+    }
+
+    /// Import a Rekordbox 6/7 library at `db_path` into this transport's manager.
+    ///
+    /// The SQLCipher database is opened (read-only, from a private copy) outside
+    /// the manager lock, then migrated together with its hot cues and loops.
+    pub fn import_rekordbox_library(
+        &self,
+        db_path: String,
+    ) -> Result<RekordboxImportReport, String> {
+        let rekordbox = library_adapters::RekordboxLibrary::open(&db_path).bridge()?;
+        let report = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            rekordbox
+                .migrate(&mut *lib, &MigrateOptions::default())
+                .bridge()?
+        };
+        Ok(RekordboxImportReport {
+            tracks_added: count_u32(report.tracks_added),
+            tracks_updated: count_u32(report.tracks_updated),
+            tracks_missing_files: count_u32(report.tracks_missing_files),
+            playlists_imported: count_u32(report.playlists_imported),
+            collections_skipped: count_u32(report.collections_skipped),
+            hot_cues_imported: count_u32(report.hot_cues_imported),
+            loops_imported: count_u32(report.loops_imported),
             failed: count_u32(report.failed),
             errors: report.errors,
         })

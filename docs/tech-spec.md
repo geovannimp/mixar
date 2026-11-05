@@ -393,8 +393,10 @@ in `library-adapters` implement `Library` + `Migratable`, and optionally
 `Exportable` / limited write-back. Migration always targets the **user’s one
 library**, not a second parallel manager.
 
-Shipped: the Mixxx importer ([#57](https://github.com/geovannimp/mixar/issues/57))
-and the CDJ/XDJ USB exporter ([#452](https://github.com/geovannimp/mixar/issues/452),
+Shipped: the Mixxx importer ([#57](https://github.com/geovannimp/mixar/issues/57)),
+the Rekordbox 6/7 importer ([#555](https://github.com/geovannimp/mixar/issues/555),
+`library-adapters::RekordboxLibrary`) and the CDJ/XDJ USB exporter
+([#452](https://github.com/geovannimp/mixar/issues/452),
 `library-adapters::CdjExporter`): DeviceSQL `export.pdb` (tracks, playlists, artwork
 rows) plus ANLZ analysis files and cover thumbnails under `PIONEER/`, audio below
 `Contents/`. Hosts hand the exporter
@@ -412,7 +414,15 @@ External format          User library manager            External format
                          scan / tags / UI edits
 ```
 
-Adapter work (Rekordbox, Serato, Traktor, CDJ export, tag write-back): [#57](https://github.com/geovannimp/mixar/issues/57), [#251](https://github.com/geovannimp/mixar/issues/251), [#451](https://github.com/geovannimp/mixar/issues/451), [#452](https://github.com/geovannimp/mixar/issues/452).
+`master.db` is SQLCipher-encrypted, so the Rekordbox adapter copies the database
+(with its `-wal`) into a private temp directory, unlocks the copy read-only, and
+migrates tracks, playlists, hot cues and saved loops
+(`WritableLibrary::import_hot_cue` / `import_loop`). Because Cargo unifies
+features, `rusqlite` is declared workspace-wide with
+`bundled-sqlcipher-vendored-openssl`: every crate builds SQLCipher, which reads
+the plaintext `library.db` and Mixxx stores without change.
+
+Adapter work (Serato, Traktor, Rekordbox OneLibrary / USB export, tag write-back): [#57](https://github.com/geovannimp/mixar/issues/57), [#251](https://github.com/geovannimp/mixar/issues/251), [#451](https://github.com/geovannimp/mixar/issues/451), [#559](https://github.com/geovannimp/mixar/issues/559).
 
 ### 5.5 Persistent storage architecture
 

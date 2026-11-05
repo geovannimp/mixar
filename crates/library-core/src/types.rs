@@ -558,6 +558,9 @@ pub struct MigrateOptions {
     /// Skip source lists whose `(name, sortable)` already exists in the target.
     /// Makes re-running an import idempotent instead of duplicating lists.
     pub skip_existing_lists: bool,
+    /// Copy hot cues and saved loops for every imported track (Rekordbox).
+    /// Upserts per slot, so a re-import refreshes rather than duplicates.
+    pub include_cues: bool,
 }
 
 impl Default for MigrateOptions {
@@ -567,6 +570,7 @@ impl Default for MigrateOptions {
             include_playlists: true,
             include_crates: true,
             skip_existing_lists: true,
+            include_cues: true,
         }
     }
 }
@@ -591,8 +595,51 @@ pub struct MigrateReport {
     pub collections_skipped: usize,
     /// Items that failed to import.
     pub failed: usize,
+    /// Hot cues copied into the target (Rekordbox only).
+    pub hot_cues_imported: usize,
+    /// Saved loops copied into the target (Rekordbox only).
+    pub loops_imported: usize,
     /// Per-item failure messages.
     pub errors: Vec<String>,
+}
+
+/// A hot cue copied into the target library.
+///
+/// Imported from an external library (Rekordbox, …) rather than played in: the
+/// canonical store keeps these in `track_hot_cue` and the deck reads them back
+/// through the same code path as a cue the user set.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct HotCueImport {
+    /// Hot-cue slot, 0-based (`0` is Rekordbox's cue A). Store accepts 0–15.
+    pub slot: u8,
+    /// Cue position in milliseconds. Non-negative; the canonical store keeps
+    /// milliseconds as `i32` (over 24 days of audio), so importers clamp or
+    /// drop rows outside that range.
+    pub position_ms: i32,
+    /// Loop length when the cue is a hot loop.
+    pub loop_length_beats: Option<i32>,
+    /// Colour as `#RRGGBB`; the store keeps it verbatim.
+    pub color: Option<String>,
+    /// DJ-assigned label.
+    pub label: Option<String>,
+}
+
+/// A saved loop copied into the target library (`track_loop`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LoopImport {
+    /// Loop slot, 0-based. Store accepts 0–15.
+    pub slot: u8,
+    /// Loop start in milliseconds, non-negative.
+    pub in_ms: i32,
+    /// Loop end in milliseconds; must be after [`LoopImport::in_ms`].
+    ///
+    /// Both bounds are `i32` because that is the store's column width (over 24
+    /// days of audio); importers clamp or drop rows outside it.
+    pub out_ms: i32,
+    /// DJ-assigned label.
+    pub label: Option<String>,
+    /// Colour as `#RRGGBB`.
+    pub color: Option<String>,
 }
 
 /// Outcome of [`crate::WritableLibrary::import_track`].

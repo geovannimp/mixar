@@ -328,6 +328,11 @@ class FakeLibraryTransport implements LibraryTransport {
   }) async => throw UnimplementedError('importMixxxLibrary');
 
   @override
+  Future<RekordboxImportReport> importRekordboxLibrary({
+    required String dbPath,
+  }) async => throw UnimplementedError('importRekordboxLibrary');
+
+  @override
   Future<List<HistorySessionSummary>> listHistorySessions() async => const [];
 
   @override

@@ -14,12 +14,14 @@ serde = { workspace = true, optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [features]
-default = ["mixxx", "cdj"]
+default = ["mixxx", "cdj", "rekordbox"]
 # Third-party format adapters.
 mixxx = ["dep:rusqlite"]
 # Pioneer CDJ/XDJ USB export (DeviceSQL database + ANLZ analysis files).
 cdj = ["dep:chrono", "dep:serde", "dep:serde_json"]
-# Future: rekordbox = [], serato = [], traktor = [], virtualdj = [], engine = []
+# Rekordbox 6/7 desktop library (`master.db`, read-only SQLCipher).
+rekordbox = ["dep:rusqlite"]
+# Future: serato = [], traktor = [], virtualdj = [], engine = []
 
 [dev-dependencies]
 library = { path = "../library" }

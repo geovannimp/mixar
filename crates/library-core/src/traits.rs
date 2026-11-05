@@ -6,8 +6,8 @@ use crate::error::Result;
 use crate::source::AudioSource;
 use crate::types::{
     AnalyzeTrackOptions, Collection, CollectionEntry, CollectionEntryId, CollectionId,
-    ImportedTrack, MigrateOptions, MigrateReport, NewCollection, ScanReport, TrackId,
-    TrackMetadata, UpdateCollection,
+    HotCueImport, ImportedTrack, LoopImport, MigrateOptions, MigrateReport, NewCollection,
+    ScanReport, TrackId, TrackMetadata, UpdateCollection,
 };
 
 /// Read-only library manager access.
@@ -68,6 +68,15 @@ pub trait WritableLibrary: Library {
     /// Delete a collection (folder or playlist). Member tracks that no other
     /// collection references are removed from the pool.
     fn delete_collection(&mut self, id: &CollectionId) -> Result<()>;
+
+    /// Copy one hot cue into the target, upserting `slot` for this track.
+    ///
+    /// Import adapters use this so cue data from a foreign library lands in
+    /// `track_hot_cue` through the same store path the deck writes.
+    fn import_hot_cue(&mut self, track_id: &TrackId, cue: &HotCueImport) -> Result<()>;
+
+    /// Copy one saved loop into the target, upserting `slot` for this track.
+    fn import_loop(&mut self, track_id: &TrackId, saved: &LoopImport) -> Result<()>;
 
     /// Add a track to a playlist collection. Errors if not a Playlist.
     fn add_collection_entry(

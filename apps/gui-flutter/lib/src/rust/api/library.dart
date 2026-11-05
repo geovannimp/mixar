@@ -9,7 +9,7 @@ import 'bus.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `library_arc`, `missing_track_summary`, `open_at`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `bus`, `library_buses`
 
 /// Default Mixxx database path for the current OS, when it exists.
@@ -19,6 +19,16 @@ Future<String?> mixxxDefaultDatabasePath() =>
 /// Read-only summary of a Mixxx database, used to confirm an import.
 Future<MixxxImportPreview> mixxxImportPreview({required String dbPath}) =>
     RustLib.instance.api.crateApiLibraryMixxxImportPreview(dbPath: dbPath);
+
+/// Default Rekordbox database path for this machine, when it exists.
+Future<String?> rekordboxDefaultDatabasePath() =>
+    RustLib.instance.api.crateApiLibraryRekordboxDefaultDatabasePath();
+
+/// Read-only summary of a Rekordbox `master.db`, used to confirm an import.
+Future<RekordboxImportPreview> rekordboxImportPreview({
+  required String dbPath,
+}) =>
+    RustLib.instance.api.crateApiLibraryRekordboxImportPreview(dbPath: dbPath);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>>
 abstract class LibraryTransport implements RustOpaqueInterface {
@@ -170,6 +180,14 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Reads the Mixxx database outside the manager lock, then migrates into the
   /// user's one library. Missing files are imported as unavailable tracks.
   Future<MixxxImportReport> importMixxxLibrary({required String dbPath});
+
+  /// Import a Rekordbox 6/7 library at `db_path` into this transport's manager.
+  ///
+  /// The SQLCipher database is opened (read-only, from a private copy) outside
+  /// the manager lock, then migrated together with its hot cues and loops.
+  Future<RekordboxImportReport> importRekordboxLibrary({
+    required String dbPath,
+  });
 
   /// List tracks in a collection (artwork left unset — not stored in DB yet).
   Future<List<LibraryTrackSummary>> listCollectionEntries({
@@ -771,6 +789,106 @@ class MixxxImportReport {
           playlistsImported == other.playlistsImported &&
           cratesImported == other.cratesImported &&
           collectionsSkipped == other.collectionsSkipped &&
+          failed == other.failed &&
+          errors == other.errors;
+}
+
+/// Summary of a Rekordbox `master.db`, used to confirm an import.
+class RekordboxImportPreview {
+  final String dbPath;
+  final int trackCount;
+  final int missingFileCount;
+  final int playlistCount;
+  final int smartPlaylistCount;
+  final int folderCount;
+  final int hotCueCount;
+  final int loopCount;
+
+  const RekordboxImportPreview({
+    required this.dbPath,
+    required this.trackCount,
+    required this.missingFileCount,
+    required this.playlistCount,
+    required this.smartPlaylistCount,
+    required this.folderCount,
+    required this.hotCueCount,
+    required this.loopCount,
+  });
+
+  @override
+  int get hashCode =>
+      dbPath.hashCode ^
+      trackCount.hashCode ^
+      missingFileCount.hashCode ^
+      playlistCount.hashCode ^
+      smartPlaylistCount.hashCode ^
+      folderCount.hashCode ^
+      hotCueCount.hashCode ^
+      loopCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RekordboxImportPreview &&
+          runtimeType == other.runtimeType &&
+          dbPath == other.dbPath &&
+          trackCount == other.trackCount &&
+          missingFileCount == other.missingFileCount &&
+          playlistCount == other.playlistCount &&
+          smartPlaylistCount == other.smartPlaylistCount &&
+          folderCount == other.folderCount &&
+          hotCueCount == other.hotCueCount &&
+          loopCount == other.loopCount;
+}
+
+/// Outcome of importing a Rekordbox library.
+class RekordboxImportReport {
+  final int tracksAdded;
+  final int tracksUpdated;
+  final int tracksMissingFiles;
+  final int playlistsImported;
+  final int collectionsSkipped;
+  final int hotCuesImported;
+  final int loopsImported;
+  final int failed;
+  final List<String> errors;
+
+  const RekordboxImportReport({
+    required this.tracksAdded,
+    required this.tracksUpdated,
+    required this.tracksMissingFiles,
+    required this.playlistsImported,
+    required this.collectionsSkipped,
+    required this.hotCuesImported,
+    required this.loopsImported,
+    required this.failed,
+    required this.errors,
+  });
+
+  @override
+  int get hashCode =>
+      tracksAdded.hashCode ^
+      tracksUpdated.hashCode ^
+      tracksMissingFiles.hashCode ^
+      playlistsImported.hashCode ^
+      collectionsSkipped.hashCode ^
+      hotCuesImported.hashCode ^
+      loopsImported.hashCode ^
+      failed.hashCode ^
+      errors.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RekordboxImportReport &&
+          runtimeType == other.runtimeType &&
+          tracksAdded == other.tracksAdded &&
+          tracksUpdated == other.tracksUpdated &&
+          tracksMissingFiles == other.tracksMissingFiles &&
+          playlistsImported == other.playlistsImported &&
+          collectionsSkipped == other.collectionsSkipped &&
+          hotCuesImported == other.hotCuesImported &&
+          loopsImported == other.loopsImported &&
           failed == other.failed &&
           errors == other.errors;
 }

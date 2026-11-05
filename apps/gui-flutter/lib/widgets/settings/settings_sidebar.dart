@@ -121,6 +121,7 @@ IconData _iconFor(SettingsSection section) {
     SettingsSection.ui => LucideIcons.panelTop,
     SettingsSection.layout => LucideIcons.layoutDashboard,
     SettingsSection.library => LucideIcons.library,
+    SettingsSection.integrations => LucideIcons.plug,
     SettingsSection.storage => LucideIcons.hardDrive,
     SettingsSection.session => LucideIcons.history,
     SettingsSection.privacy => LucideIcons.shield,

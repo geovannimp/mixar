@@ -13,6 +13,8 @@
 //!   the user’s library.
 //! - `cdj` — export into the Pioneer CDJ/XDJ USB layout (DeviceSQL database
 //!   plus ANLZ analysis files).
+//! - `rekordbox` — read-only view over a Rekordbox 6/7 `master.db` (SQLCipher)
+//!   and migration into the user’s library, cues included.
 
 #[cfg(feature = "cdj")]
 pub mod cdj;
@@ -20,8 +22,16 @@ pub mod cdj;
 #[cfg(feature = "mixxx")]
 pub mod mixxx;
 
+#[cfg(feature = "rekordbox")]
+pub mod rekordbox;
+
 #[cfg(feature = "cdj")]
 pub use cdj::CdjExporter;
 
 #[cfg(feature = "mixxx")]
 pub use mixxx::{default_database_path, MixxxLibrary, MixxxPreview};
+
+#[cfg(feature = "rekordbox")]
+pub use rekordbox::{
+    default_database_path as rekordbox_default_database_path, RekordboxLibrary, RekordboxPreview,
+};

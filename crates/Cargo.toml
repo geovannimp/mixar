@@ -62,7 +62,12 @@ criterion = { version = "0.5", features = ["html_reports"] }
 dasp = { version = "0.11", features = ["slice"] }
 dasp_graph = { version = "0.11", default-features = false, features = ["node-sum"] }
 petgraph = "0.5"
-rusqlite = { version = "0.38", features = ["bundled"] }
+# SQLCipher-enabled SQLite for every crate (Cargo unifies features across the
+# workspace). Plaintext databases — the canonical library store and Mixxx —
+# keep working; the Rekordbox adapter needs the cipher to open `master.db`.
+# `vendored-openssl` keeps the build self-contained: system OpenSSL is absent
+# on macOS runners and Windows images.
+rusqlite = { version = "0.38", features = ["bundled-sqlcipher-vendored-openssl"] }
 
 [profile.release]
 # 3, not "z": "z" disables loop vectorization. See docs/tech-spec.md §13.

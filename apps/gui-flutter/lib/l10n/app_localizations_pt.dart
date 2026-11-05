@@ -90,6 +90,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsSectionLibrary => 'Biblioteca';
 
   @override
+  String get settingsSectionIntegrations => 'Integrações';
+
+  @override
   String get settingsSectionStorage => 'Armazenamento';
 
   @override
@@ -578,7 +581,11 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsLibraryDescription =>
-      'Importação de faixas, análise offline e exibição da lista.';
+      'Análise offline, metadados e exibição da lista.';
+
+  @override
+  String get settingsIntegrationsDescription =>
+      'Importe a biblioteca de outro aplicativo de DJ.';
 
   @override
   String get settingsLibraryAnalysisTitle => 'Análise';
@@ -905,7 +912,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get mixxxImportDescription =>
-      'Traga faixas, playlists e crates da sua biblioteca Mixxx para o Mixar.';
+      'Traga sua biblioteca Mixxx para o Mixar.';
 
   @override
   String mixxxImportFound(String path) {
@@ -963,7 +970,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String mixxxImportUpdated(String updated, String missing) {
-    return 'Atualizado $updated do Mixxx$missing';
+    return 'Atualizado do Mixxx: $updated$missing';
   }
 
   @override
@@ -1022,6 +1029,177 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String mixxxCountUpdated(int count) {
+    return '$count atualizadas';
+  }
+
+  @override
+  String get rekordboxImportTitle => 'Importar do Rekordbox';
+
+  @override
+  String get rekordboxImportDescription =>
+      'Traga sua biblioteca Rekordbox para o Mixar.';
+
+  @override
+  String rekordboxImportFound(String path) {
+    return 'Encontrado: $path';
+  }
+
+  @override
+  String get rekordboxImportCheckFailed =>
+      'Não foi possível verificar uma biblioteca Rekordbox.';
+
+  @override
+  String get rekordboxImportLooking => 'Procurando uma biblioteca Rekordbox…';
+
+  @override
+  String get rekordboxImportNotFound =>
+      'Nenhuma biblioteca Rekordbox encontrada neste computador.';
+
+  @override
+  String get rekordboxImportButton => 'Importar da biblioteca Rekordbox…';
+
+  @override
+  String get rekordboxImporting => 'Importando…';
+
+  @override
+  String get rekordboxImportConfirmTitle => 'Importar do Rekordbox?';
+
+  @override
+  String rekordboxImportConfirmBody(
+    String path,
+    int trackCount,
+    int missingFileCount,
+    int playlistCount,
+    int smartPlaylistCount,
+    int folderCount,
+    int hotCueCount,
+    int loopCount,
+  ) {
+    String _temp0 = intl.Intl.pluralLogic(
+      trackCount,
+      locale: localeName,
+      other: '$trackCount faixas',
+      one: '1 faixa',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      missingFileCount,
+      locale: localeName,
+      other: '$missingFileCount ausentes',
+      one: '1 ausente',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      playlistCount,
+      locale: localeName,
+      other: '$playlistCount playlists',
+      one: '1 playlist',
+    );
+    String _temp3 = intl.Intl.pluralLogic(
+      smartPlaylistCount,
+      locale: localeName,
+      other: '$smartPlaylistCount inteligentes',
+      one: '1 inteligente',
+    );
+    String _temp4 = intl.Intl.pluralLogic(
+      folderCount,
+      locale: localeName,
+      other: '$folderCount pastas',
+      one: '1 pasta',
+    );
+    String _temp5 = intl.Intl.pluralLogic(
+      hotCueCount,
+      locale: localeName,
+      other: '$hotCueCount hot cues',
+      one: '1 hot cue',
+    );
+    String _temp6 = intl.Intl.pluralLogic(
+      loopCount,
+      locale: localeName,
+      other: '$loopCount loops',
+      one: '1 loop',
+    );
+    return 'Isso importa faixas, playlists, hot cues e loops de:\n$path\n\n$_temp0 ($_temp1), $_temp2 ($_temp3), $_temp4, $_temp5, $_temp6.\n\nArquivos ausentes são importados como faixas indisponíveis.';
+  }
+
+  @override
+  String get rekordboxImportReadFailed =>
+      'Não foi possível ler a biblioteca Rekordbox';
+
+  @override
+  String get rekordboxImportFailed => 'Falha na importação do Rekordbox';
+
+  @override
+  String rekordboxImportFinishedWithErrors(int count) {
+    return 'Importação do Rekordbox terminou com $count erro(s)';
+  }
+
+  @override
+  String get rekordboxImportAlreadyImported =>
+      'Biblioteca Rekordbox já importada';
+
+  @override
+  String get rekordboxImportNothing => 'Nada para importar do Rekordbox';
+
+  @override
+  String rekordboxImportUpdated(String updated, String missing) {
+    return 'Atualizado do Rekordbox: $updated$missing';
+  }
+
+  @override
+  String rekordboxImportImported(String parts, String missing) {
+    return 'Importado $parts do Rekordbox$missing';
+  }
+
+  @override
+  String rekordboxImportMissingSuffix(int count) {
+    return ' ($count ausentes)';
+  }
+
+  @override
+  String rekordboxCountTracks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count faixas',
+      one: '1 faixa',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rekordboxCountPlaylists(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count playlists',
+      one: '1 playlist',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rekordboxCountHotCues(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count hot cues',
+      one: '1 hot cue',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rekordboxCountLoops(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count loops',
+      one: '1 loop',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String rekordboxCountUpdated(int count) {
     return '$count atualizadas';
   }
 

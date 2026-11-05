@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/providers/library/deck_import_refresh.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
@@ -31,6 +32,7 @@ class MixxxImportPanel extends ConsumerStatefulWidget {
 
 class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
   var _busy = false;
+  var _importing = false;
 
   Future<void> _run(String path) async {
     setState(() => _busy = true);
@@ -72,6 +74,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
       if (confirmed != true || !mounted) {
         return;
       }
+      setState(() => _importing = true);
 
       final transport = await ref.read(libraryTransportProvider.future);
       final report = await transport.importMixxxLibrary(dbPath: path);
@@ -81,6 +84,11 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
       ref
         ..invalidate(collectionsProvider)
         ..invalidate(collectionTracksProvider);
+      // The import wrote cues and loops behind any track already on a deck.
+      await refreshLoadedDeckTracks(ref);
+      if (!mounted) {
+        return;
+      }
       _toastReport(report);
     } on Object catch (e) {
       if (mounted) {
@@ -88,7 +96,10 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
       }
     } finally {
       if (mounted) {
-        setState(() => _busy = false);
+        setState(() {
+          _busy = false;
+          _importing = false;
+        });
       }
     }
   }
@@ -143,7 +154,9 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
       trailing: AppButton(
         size: MixarButtonSize.sm,
         onPress: onPress,
-        child: Text(_busy ? l10n.mixxxImporting : l10n.mixxxImportButton),
+        child: Text(
+          (_importing ? l10n.mixxxImporting : l10n.mixxxImportButton),
+        ),
       ),
       child: Text(
         status,

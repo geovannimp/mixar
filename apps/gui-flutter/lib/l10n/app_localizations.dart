@@ -255,6 +255,12 @@ abstract class AppLocalizations {
   /// **'Library'**
   String get settingsSectionLibrary;
 
+  /// No description provided for @settingsSectionIntegrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Integrations'**
+  String get settingsSectionIntegrations;
+
   /// No description provided for @settingsSectionStorage.
   ///
   /// In en, this message translates to:
@@ -1134,8 +1140,14 @@ abstract class AppLocalizations {
   /// No description provided for @settingsLibraryDescription.
   ///
   /// In en, this message translates to:
-  /// **'Track import, offline analysis, and list display.'**
+  /// **'Offline analysis, metadata, and list display.'**
   String get settingsLibraryDescription;
+
+  /// No description provided for @settingsIntegrationsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Read another DJ application into your library.'**
+  String get settingsIntegrationsDescription;
 
   /// No description provided for @settingsLibraryAnalysisTitle.
   ///
@@ -1698,7 +1710,7 @@ abstract class AppLocalizations {
   /// No description provided for @mixxxImportDescription.
   ///
   /// In en, this message translates to:
-  /// **'Bring tracks, playlists, and crates from your Mixxx library into Mixar.'**
+  /// **'Bring your Mixxx library into Mixar.'**
   String get mixxxImportDescription;
 
   /// No description provided for @mixxxImportFound.
@@ -1833,6 +1845,153 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} updated'**
   String mixxxCountUpdated(int count);
+
+  /// No description provided for @rekordboxImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from Rekordbox'**
+  String get rekordboxImportTitle;
+
+  /// No description provided for @rekordboxImportDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Bring your Rekordbox library into Mixar.'**
+  String get rekordboxImportDescription;
+
+  /// No description provided for @rekordboxImportFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Found: {path}'**
+  String rekordboxImportFound(String path);
+
+  /// No description provided for @rekordboxImportCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check for a Rekordbox library.'**
+  String get rekordboxImportCheckFailed;
+
+  /// No description provided for @rekordboxImportLooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for a Rekordbox library…'**
+  String get rekordboxImportLooking;
+
+  /// No description provided for @rekordboxImportNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No Rekordbox library found on this computer.'**
+  String get rekordboxImportNotFound;
+
+  /// No description provided for @rekordboxImportButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from Rekordbox library…'**
+  String get rekordboxImportButton;
+
+  /// No description provided for @rekordboxImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get rekordboxImporting;
+
+  /// No description provided for @rekordboxImportConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from Rekordbox?'**
+  String get rekordboxImportConfirmTitle;
+
+  /// No description provided for @rekordboxImportConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This imports tracks, playlists, hot cues, and loops from:\n{path}\n\n{trackCount, plural, =1{1 track} other{{trackCount} tracks}} ({missingFileCount, plural, =1{1 missing} other{{missingFileCount} missing}}), {playlistCount, plural, =1{1 playlist} other{{playlistCount} playlists}} ({smartPlaylistCount, plural, =1{1 smart} other{{smartPlaylistCount} smart}}), {folderCount, plural, =1{1 folder} other{{folderCount} folders}}, {hotCueCount, plural, =1{1 hot cue} other{{hotCueCount} hot cues}}, {loopCount, plural, =1{1 loop} other{{loopCount} loops}}.\n\nMissing files are imported as unavailable tracks.'**
+  String rekordboxImportConfirmBody(
+    String path,
+    int trackCount,
+    int missingFileCount,
+    int playlistCount,
+    int smartPlaylistCount,
+    int folderCount,
+    int hotCueCount,
+    int loopCount,
+  );
+
+  /// No description provided for @rekordboxImportReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read Rekordbox library'**
+  String get rekordboxImportReadFailed;
+
+  /// No description provided for @rekordboxImportFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Rekordbox import failed'**
+  String get rekordboxImportFailed;
+
+  /// No description provided for @rekordboxImportFinishedWithErrors.
+  ///
+  /// In en, this message translates to:
+  /// **'Rekordbox import finished with {count} error(s)'**
+  String rekordboxImportFinishedWithErrors(int count);
+
+  /// No description provided for @rekordboxImportAlreadyImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Rekordbox library already imported'**
+  String get rekordboxImportAlreadyImported;
+
+  /// No description provided for @rekordboxImportNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to import from Rekordbox'**
+  String get rekordboxImportNothing;
+
+  /// No description provided for @rekordboxImportUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {updated} from Rekordbox{missing}'**
+  String rekordboxImportUpdated(String updated, String missing);
+
+  /// No description provided for @rekordboxImportImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {parts} from Rekordbox{missing}'**
+  String rekordboxImportImported(String parts, String missing);
+
+  /// No description provided for @rekordboxImportMissingSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **' ({count} missing)'**
+  String rekordboxImportMissingSuffix(int count);
+
+  /// No description provided for @rekordboxCountTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 track} other{{count} tracks}}'**
+  String rekordboxCountTracks(int count);
+
+  /// No description provided for @rekordboxCountPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 playlist} other{{count} playlists}}'**
+  String rekordboxCountPlaylists(int count);
+
+  /// No description provided for @rekordboxCountHotCues.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 hot cue} other{{count} hot cues}}'**
+  String rekordboxCountHotCues(int count);
+
+  /// No description provided for @rekordboxCountLoops.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 loop} other{{count} loops}}'**
+  String rekordboxCountLoops(int count);
+
+  /// No description provided for @rekordboxCountUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} updated'**
+  String rekordboxCountUpdated(int count);
 
   /// No description provided for @cdjExportTitle.
   ///

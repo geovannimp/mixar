@@ -3,7 +3,6 @@ import 'package:gui_flutter/core/utils/library_row_fields.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
@@ -279,7 +278,6 @@ class SettingsLibraryPanel extends StatelessWidget {
             ],
           ),
         ),
-        const MixxxImportPanel(),
       ],
     );
   }
