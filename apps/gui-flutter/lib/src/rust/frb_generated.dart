@@ -77,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 372575491;
+  int get rustContentHash => 1875930170;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -871,6 +871,8 @@ abstract class RustLibApi extends BaseApi {
   Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes();
 
   Future<List<OutputDevice>> crateApiEngineListOutputDevices();
+
+  Future<MixerMetersSetting> crateApiSettingsMixerMetersSettingDefault();
 
   Future<String?> crateApiLibraryMixxxDefaultDatabasePath();
 
@@ -6647,7 +6649,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_output_devices", argNames: []);
 
   @override
-  Future<String?> crateApiLibraryMixxxDefaultDatabasePath() {
+  Future<MixerMetersSetting> crateApiSettingsMixerMetersSettingDefault() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -6656,6 +6658,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 146,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_mixer_meters_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsMixerMetersSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsMixerMetersSettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "mixer_meters_setting_default",
+        argNames: [],
+      );
+
+  @override
+  Future<String?> crateApiLibraryMixxxDefaultDatabasePath() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6688,7 +6720,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 148,
             port: port_,
           );
         },
@@ -6718,7 +6750,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 149,
             port: port_,
           );
         },
@@ -6751,7 +6783,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 149,
+            funcId: 150,
             port: port_,
           );
         },
@@ -6781,7 +6813,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 150,
+            funcId: 151,
             port: port_,
           );
         },
@@ -6812,7 +6844,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 151,
+            funcId: 152,
             port: port_,
           );
         },
@@ -6839,7 +6871,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 152,
+            funcId: 153,
             port: port_,
           );
         },
@@ -6866,7 +6898,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 153,
+            funcId: 154,
             port: port_,
           );
         },
@@ -6897,7 +6929,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 154,
+            funcId: 155,
             port: port_,
           );
         },
@@ -7203,8 +7235,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 46)
-      throw Exception('unexpected arr length: expect 46 but see ${arr.length}');
+    if (arr.length != 48)
+      throw Exception('unexpected arr length: expect 48 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7237,21 +7269,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historyMinPlaySeconds: dco_decode_u_32(arr[28]),
       historyMinDeckVolume: dco_decode_f_32(arr[29]),
       showTooltips: dco_decode_bool(arr[30]),
-      showMixerMeters: dco_decode_bool(arr[31]),
-      mixerMetersMono: dco_decode_bool(arr[32]),
-      selectStyle: dco_decode_select_style_setting(arr[33]),
-      dimPlayedTracks: dco_decode_bool(arr[34]),
-      stemsFormat: dco_decode_String(arr[35]),
-      stemsModel: dco_decode_String(arr[36]),
-      realtimeStems: dco_decode_bool(arr[37]),
-      uiLanguage: dco_decode_ui_language_setting(arr[38]),
-      theme: dco_decode_theme_setting(arr[39]),
-      accentPalette: dco_decode_accent_palette_setting(arr[40]),
-      libraryDrawerEnabled: dco_decode_bool(arr[41]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[42]),
-      waveformPosition: dco_decode_waveform_position_setting(arr[43]),
-      showWaveform: dco_decode_bool(arr[44]),
-      analyticsEnabled: dco_decode_bool(arr[45]),
+      mixerMeters: dco_decode_mixer_meters_setting(arr[31]),
+      selectStyle: dco_decode_select_style_setting(arr[32]),
+      dimPlayedTracks: dco_decode_bool(arr[33]),
+      stemsFormat: dco_decode_String(arr[34]),
+      stemsModel: dco_decode_String(arr[35]),
+      realtimeStems: dco_decode_bool(arr[36]),
+      uiLanguage: dco_decode_ui_language_setting(arr[37]),
+      theme: dco_decode_theme_setting(arr[38]),
+      accentPalette: dco_decode_accent_palette_setting(arr[39]),
+      libraryDrawerEnabled: dco_decode_bool(arr[40]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[41]),
+      waveformPosition: dco_decode_waveform_position_setting(arr[42]),
+      showWaveform: dco_decode_bool(arr[43]),
+      showMixer: dco_decode_bool(arr[44]),
+      showFxBar: dco_decode_bool(arr[45]),
+      showCrossfader: dco_decode_bool(arr[46]),
+      analyticsEnabled: dco_decode_bool(arr[47]),
     );
   }
 
@@ -9494,6 +9528,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MixerMetersSetting dco_decode_mixer_meters_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return MixerMetersSetting.values[raw as int];
+  }
+
+  @protected
   MixxxImportPreview dco_decode_mixxx_import_preview(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -10911,8 +10951,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_historyMinPlaySeconds = sse_decode_u_32(deserializer);
     var var_historyMinDeckVolume = sse_decode_f_32(deserializer);
     var var_showTooltips = sse_decode_bool(deserializer);
-    var var_showMixerMeters = sse_decode_bool(deserializer);
-    var var_mixerMetersMono = sse_decode_bool(deserializer);
+    var var_mixerMeters = sse_decode_mixer_meters_setting(deserializer);
     var var_selectStyle = sse_decode_select_style_setting(deserializer);
     var var_dimPlayedTracks = sse_decode_bool(deserializer);
     var var_stemsFormat = sse_decode_String(deserializer);
@@ -10929,6 +10968,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_showWaveform = sse_decode_bool(deserializer);
+    var var_showMixer = sse_decode_bool(deserializer);
+    var var_showFxBar = sse_decode_bool(deserializer);
+    var var_showCrossfader = sse_decode_bool(deserializer);
     var var_analyticsEnabled = sse_decode_bool(deserializer);
     return AppSettings(
       bufferSize: var_bufferSize,
@@ -10962,8 +11004,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historyMinPlaySeconds: var_historyMinPlaySeconds,
       historyMinDeckVolume: var_historyMinDeckVolume,
       showTooltips: var_showTooltips,
-      showMixerMeters: var_showMixerMeters,
-      mixerMetersMono: var_mixerMetersMono,
+      mixerMeters: var_mixerMeters,
       selectStyle: var_selectStyle,
       dimPlayedTracks: var_dimPlayedTracks,
       stemsFormat: var_stemsFormat,
@@ -10976,6 +11017,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       libraryDrawerSide: var_libraryDrawerSide,
       waveformPosition: var_waveformPosition,
       showWaveform: var_showWaveform,
+      showMixer: var_showMixer,
+      showFxBar: var_showFxBar,
+      showCrossfader: var_showCrossfader,
       analyticsEnabled: var_analyticsEnabled,
     );
   }
@@ -13627,6 +13671,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MixerMetersSetting sse_decode_mixer_meters_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return MixerMetersSetting.values[inner];
+  }
+
+  @protected
   MixxxImportPreview sse_decode_mixxx_import_preview(
     SseDeserializer deserializer,
   ) {
@@ -15071,8 +15124,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.historyMinPlaySeconds, serializer);
     sse_encode_f_32(self.historyMinDeckVolume, serializer);
     sse_encode_bool(self.showTooltips, serializer);
-    sse_encode_bool(self.showMixerMeters, serializer);
-    sse_encode_bool(self.mixerMetersMono, serializer);
+    sse_encode_mixer_meters_setting(self.mixerMeters, serializer);
     sse_encode_select_style_setting(self.selectStyle, serializer);
     sse_encode_bool(self.dimPlayedTracks, serializer);
     sse_encode_String(self.stemsFormat, serializer);
@@ -15085,6 +15137,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_library_drawer_side_setting(self.libraryDrawerSide, serializer);
     sse_encode_waveform_position_setting(self.waveformPosition, serializer);
     sse_encode_bool(self.showWaveform, serializer);
+    sse_encode_bool(self.showMixer, serializer);
+    sse_encode_bool(self.showFxBar, serializer);
+    sse_encode_bool(self.showCrossfader, serializer);
     sse_encode_bool(self.analyticsEnabled, serializer);
   }
 
@@ -17534,6 +17589,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.deviceId, serializer);
     sse_encode_String(self.deviceName, serializer);
     sse_encode_String(self.portName, serializer);
+  }
+
+  @protected
+  void sse_encode_mixer_meters_setting(
+    MixerMetersSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

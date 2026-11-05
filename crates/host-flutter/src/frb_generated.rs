@@ -45,7 +45,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 372575491;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1875930170;
 
 // Section: executor
 
@@ -7613,6 +7613,39 @@ fn wire__crate__api__engine__list_output_devices_impl(
         },
     )
 }
+fn wire__crate__api__settings__mixer_meters_setting_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "mixer_meters_setting_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Ok::<_, ()>(crate::api::settings::MixerMetersSetting::default())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__library__mixxx_default_database_path_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -9197,8 +9230,8 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_historyMinPlaySeconds = <u32>::sse_decode(deserializer);
         let mut var_historyMinDeckVolume = <f32>::sse_decode(deserializer);
         let mut var_showTooltips = <bool>::sse_decode(deserializer);
-        let mut var_showMixerMeters = <bool>::sse_decode(deserializer);
-        let mut var_mixerMetersMono = <bool>::sse_decode(deserializer);
+        let mut var_mixerMeters =
+            <crate::api::settings::MixerMetersSetting>::sse_decode(deserializer);
         let mut var_selectStyle =
             <crate::api::settings::SelectStyleSetting>::sse_decode(deserializer);
         let mut var_dimPlayedTracks = <bool>::sse_decode(deserializer);
@@ -9216,6 +9249,9 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_waveformPosition =
             <crate::api::settings::WaveformPositionSetting>::sse_decode(deserializer);
         let mut var_showWaveform = <bool>::sse_decode(deserializer);
+        let mut var_showMixer = <bool>::sse_decode(deserializer);
+        let mut var_showFxBar = <bool>::sse_decode(deserializer);
+        let mut var_showCrossfader = <bool>::sse_decode(deserializer);
         let mut var_analyticsEnabled = <bool>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             buffer_size: var_bufferSize,
@@ -9249,8 +9285,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             history_min_play_seconds: var_historyMinPlaySeconds,
             history_min_deck_volume: var_historyMinDeckVolume,
             show_tooltips: var_showTooltips,
-            show_mixer_meters: var_showMixerMeters,
-            mixer_meters_mono: var_mixerMetersMono,
+            mixer_meters: var_mixerMeters,
             select_style: var_selectStyle,
             dim_played_tracks: var_dimPlayedTracks,
             stems_format: var_stemsFormat,
@@ -9263,6 +9298,9 @@ impl SseDecode for crate::api::settings::AppSettings {
             library_drawer_side: var_libraryDrawerSide,
             waveform_position: var_waveformPosition,
             show_waveform: var_showWaveform,
+            show_mixer: var_showMixer,
+            show_fx_bar: var_showFxBar,
+            show_crossfader: var_showCrossfader,
             analytics_enabled: var_analyticsEnabled,
         };
     }
@@ -11466,6 +11504,19 @@ impl SseDecode for crate::api::event_mirrors::MappingOffer {
     }
 }
 
+impl SseDecode for crate::api::settings::MixerMetersSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::MixerMetersSetting::None,
+            1 => crate::api::settings::MixerMetersSetting::Mono,
+            2 => crate::api::settings::MixerMetersSetting::Stereo,
+            _ => unreachable!("Invalid variant for MixerMetersSetting: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::library::MixxxImportPreview {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13604,47 +13655,53 @@ fn pde_ffi_dispatcher_primary_impl(
         145 => {
             wire__crate__api__engine__list_output_devices_impl(port, ptr, rust_vec_len, data_len)
         }
-        146 => wire__crate__api__library__mixxx_default_database_path_impl(
+        146 => wire__crate__api__settings__mixer_meters_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        147 => {
+        147 => wire__crate__api__library__mixxx_default_database_path_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        148 => {
             wire__crate__api__library__mixxx_import_preview_impl(port, ptr, rust_vec_len, data_len)
         }
-        148 => wire__crate__api__library__rekordbox_default_database_path_impl(
+        149 => wire__crate__api__library__rekordbox_default_database_path_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        149 => wire__crate__api__library__rekordbox_import_preview_impl(
+        150 => wire__crate__api__library__rekordbox_import_preview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        150 => wire__crate__api__settings__select_style_setting_default_impl(
+        151 => wire__crate__api__settings__select_style_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        151 => wire__crate__api__meta__set_app_support_dir_impl(port, ptr, rust_vec_len, data_len),
-        152 => wire__crate__api__settings__theme_setting_default_impl(
+        152 => wire__crate__api__meta__set_app_support_dir_impl(port, ptr, rust_vec_len, data_len),
+        153 => wire__crate__api__settings__theme_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        153 => wire__crate__api__settings__ui_language_setting_default_impl(
+        154 => wire__crate__api__settings__ui_language_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        154 => wire__crate__api__settings__waveform_position_setting_default_impl(
+        155 => wire__crate__api__settings__waveform_position_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -13918,8 +13975,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.history_min_play_seconds.into_into_dart().into_dart(),
             self.history_min_deck_volume.into_into_dart().into_dart(),
             self.show_tooltips.into_into_dart().into_dart(),
-            self.show_mixer_meters.into_into_dart().into_dart(),
-            self.mixer_meters_mono.into_into_dart().into_dart(),
+            self.mixer_meters.into_into_dart().into_dart(),
             self.select_style.into_into_dart().into_dart(),
             self.dim_played_tracks.into_into_dart().into_dart(),
             self.stems_format.into_into_dart().into_dart(),
@@ -13932,6 +13988,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.library_drawer_side.into_into_dart().into_dart(),
             self.waveform_position.into_into_dart().into_dart(),
             self.show_waveform.into_into_dart().into_dart(),
+            self.show_mixer.into_into_dart().into_dart(),
+            self.show_fx_bar.into_into_dart().into_dart(),
+            self.show_crossfader.into_into_dart().into_dart(),
             self.analytics_enabled.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -16079,6 +16138,28 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Map
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::MixerMetersSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::None => 0.into_dart(),
+            Self::Mono => 1.into_dart(),
+            Self::Stereo => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::MixerMetersSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::MixerMetersSetting>
+    for crate::api::settings::MixerMetersSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::MixerMetersSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::library::MixxxImportPreview {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -18036,8 +18117,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <u32>::sse_encode(self.history_min_play_seconds, serializer);
         <f32>::sse_encode(self.history_min_deck_volume, serializer);
         <bool>::sse_encode(self.show_tooltips, serializer);
-        <bool>::sse_encode(self.show_mixer_meters, serializer);
-        <bool>::sse_encode(self.mixer_meters_mono, serializer);
+        <crate::api::settings::MixerMetersSetting>::sse_encode(self.mixer_meters, serializer);
         <crate::api::settings::SelectStyleSetting>::sse_encode(self.select_style, serializer);
         <bool>::sse_encode(self.dim_played_tracks, serializer);
         <String>::sse_encode(self.stems_format, serializer);
@@ -18056,6 +18136,9 @@ impl SseEncode for crate::api::settings::AppSettings {
             serializer,
         );
         <bool>::sse_encode(self.show_waveform, serializer);
+        <bool>::sse_encode(self.show_mixer, serializer);
+        <bool>::sse_encode(self.show_fx_bar, serializer);
+        <bool>::sse_encode(self.show_crossfader, serializer);
         <bool>::sse_encode(self.analytics_enabled, serializer);
     }
 }
@@ -19721,6 +19804,23 @@ impl SseEncode for crate::api::event_mirrors::MappingOffer {
         <String>::sse_encode(self.device_id, serializer);
         <String>::sse_encode(self.device_name, serializer);
         <String>::sse_encode(self.port_name, serializer);
+    }
+}
+
+impl SseEncode for crate::api::settings::MixerMetersSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::MixerMetersSetting::None => 0,
+                crate::api::settings::MixerMetersSetting::Mono => 1,
+                crate::api::settings::MixerMetersSetting::Stereo => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

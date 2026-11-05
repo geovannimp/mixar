@@ -891,6 +891,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   MappingOffer dco_decode_mapping_offer(dynamic raw);
 
   @protected
+  MixerMetersSetting dco_decode_mixer_meters_setting(dynamic raw);
+
+  @protected
   MixxxImportPreview dco_decode_mixxx_import_preview(dynamic raw);
 
   @protected
@@ -2245,6 +2248,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   MappingOffer sse_decode_mapping_offer(SseDeserializer deserializer);
+
+  @protected
+  MixerMetersSetting sse_decode_mixer_meters_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   MixxxImportPreview sse_decode_mixxx_import_preview(
@@ -3916,6 +3924,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_mapping_offer(MappingOffer self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_mixer_meters_setting(
+    MixerMetersSetting self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_mixxx_import_preview(

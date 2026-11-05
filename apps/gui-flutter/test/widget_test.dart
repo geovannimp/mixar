@@ -741,7 +741,10 @@ void main() {
   testWidgets('hiding mixer meters narrows the strip', (tester) async {
     await pumpShell(
       tester,
-      settings: copyAppSettings(defaultAppSettings(), showMixerMeters: false),
+      settings: copyAppSettings(
+        defaultAppSettings(),
+        mixerMeters: MixerMetersSetting.none,
+      ),
     );
     expect(tester.getSize(find.byType(MixerStrip)).width, 168);
     expect(find.byKey(const ValueKey('master-meter')), findsOneWidget);

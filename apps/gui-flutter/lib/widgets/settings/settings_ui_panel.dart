@@ -5,7 +5,6 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
-import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
@@ -54,16 +53,6 @@ class SettingsUiPanel extends StatelessWidget {
     SelectStyleSetting.auto => l10n.settingsUiSelectStyleAutoSubtitle,
     SelectStyleSetting.desktop => l10n.settingsUiSelectStyleDesktopSubtitle,
     SelectStyleSetting.mobile => l10n.settingsUiSelectStyleMobileSubtitle,
-  };
-
-  static String _drawerSideLabel(
-    AppLocalizations l10n,
-    LibraryDrawerSideSetting side,
-  ) => switch (side) {
-    LibraryDrawerSideSetting.left => l10n.settingsUiLibraryDrawerLeft,
-    LibraryDrawerSideSetting.right => l10n.settingsUiLibraryDrawerRight,
-    LibraryDrawerSideSetting.top => l10n.settingsUiLibraryDrawerTop,
-    LibraryDrawerSideSetting.bottom => l10n.settingsUiLibraryDrawerBottom,
   };
 
   @override
@@ -143,59 +132,6 @@ class SettingsUiPanel extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        SettingsSectionCard(
-          title: l10n.settingsUiMixerMetersTitle,
-          subtitle: l10n.settingsUiMixerMetersDescription,
-          trailing: SettingsHeaderSwitch(
-            value: draft.showMixerMeters,
-            semanticsLabel: l10n.settingsUiShowMixerMeters,
-            onChanged: (v) =>
-                onChanged(copyAppSettings(draft, showMixerMeters: v)),
-          ),
-          child: draft.showMixerMeters
-              ? SettingsField(
-                  label: l10n.settingsUiMixerMetersMode,
-                  child: SettingsSelect<bool>(
-                    dialogTitle: l10n.settingsUiMixerMetersMode,
-                    value: draft.mixerMetersMono,
-                    options: const [true, false],
-                    labelBuilder: (mono) => mono
-                        ? l10n.settingsUiMixerMetersMono
-                        : l10n.settingsUiMixerMetersStereo,
-                    subtitleBuilder: (mono) => mono
-                        ? l10n.settingsUiMixerMetersMonoSubtitle
-                        : l10n.settingsUiMixerMetersStereoSubtitle,
-                    onChanged: (mono) => onChanged(
-                      copyAppSettings(draft, mixerMetersMono: mono),
-                    ),
-                  ),
-                )
-              : null,
-        ),
-        SettingsSectionCard(
-          title: l10n.settingsUiLibraryDrawerTitle,
-          subtitle: l10n.settingsUiLibraryDrawerDescription,
-          trailing: SettingsHeaderSwitch(
-            value: draft.libraryDrawerEnabled,
-            semanticsLabel: l10n.settingsUiLibraryDrawerEnable,
-            onChanged: (v) =>
-                onChanged(copyAppSettings(draft, libraryDrawerEnabled: v)),
-          ),
-          child: draft.libraryDrawerEnabled
-              ? SettingsField(
-                  label: l10n.settingsUiLibraryDrawerPosition,
-                  child: SettingsSelect<LibraryDrawerSideSetting>(
-                    dialogTitle: l10n.settingsUiLibraryDrawerPosition,
-                    value: draft.libraryDrawerSide,
-                    options: LibraryDrawerSideSetting.values,
-                    labelBuilder: (side) => _drawerSideLabel(l10n, side),
-                    onChanged: (side) => onChanged(
-                      copyAppSettings(draft, libraryDrawerSide: side),
-                    ),
-                  ),
-                )
-              : null,
         ),
       ],
     );

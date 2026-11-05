@@ -110,7 +110,108 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsLayoutDescription =>
-      'Onde a forma de onda fica em relação aos decks.';
+      'Quais painéis o mixer mostra, onde fica a forma de onda e como a biblioteca abre.';
+
+  @override
+  String get settingsLayoutPresetTitle => 'Predefinições';
+
+  @override
+  String get settingsLayoutPresetDescription =>
+      'Comece por um dispositivo e depois mostre ou oculte cada painel.';
+
+  @override
+  String get settingsLayoutPreset => 'Predefinição';
+
+  @override
+  String get settingsLayoutPresetDesktop => 'Desktop';
+
+  @override
+  String get settingsLayoutPresetDesktopSubtitle =>
+      'Forma de onda, faixa do mixer, barra de FX e biblioteca acoplada.';
+
+  @override
+  String get settingsLayoutPresetTablet => 'Tablet';
+
+  @override
+  String get settingsLayoutPresetTabletSubtitle =>
+      'Forma de onda, faixa do mixer, barra de FX e biblioteca numa gaveta.';
+
+  @override
+  String get settingsLayoutPresetMobile => 'Telemóvel';
+
+  @override
+  String get settingsLayoutPresetMobileSubtitle =>
+      'Decks com a forma de onda entre eles e a biblioteca numa gaveta. Sem faixa do mixer.';
+
+  @override
+  String get settingsLayoutPresetCustom => 'Personalizado';
+
+  @override
+  String get settingsLayoutPresetCustomSubtitle =>
+      'Nenhuma predefinição corresponde aos painéis visíveis abaixo.';
+
+  @override
+  String get settingsLayoutMixerTitle => 'Faixa do mixer';
+
+  @override
+  String get settingsLayoutMixerDescription =>
+      'Canais, faders, EQ, crossfader e medidores entre os decks. Desligar alarga os decks para uma fila única ou entrega a coluna à forma de onda centrada.';
+
+  @override
+  String get settingsLayoutMixerEnable => 'Mostrar faixa do mixer';
+
+  @override
+  String get settingsLayoutShowCrossfader => 'Crossfader';
+
+  @override
+  String get settingsLayoutMixerMeters => 'Medidores do mixer';
+
+  @override
+  String get settingsLayoutMixerMetersNone => 'Nenhum';
+
+  @override
+  String get settingsLayoutMixerMetersNoneSubtitle =>
+      'Sem medidores nos decks; as colunas de canal dispensam a faixa do medidor.';
+
+  @override
+  String get settingsLayoutMixerMetersMono => 'Mono';
+
+  @override
+  String get settingsLayoutMixerMetersStereo => 'Estéreo';
+
+  @override
+  String get settingsLayoutMixerMetersMonoSubtitle =>
+      'Uma escada por deck (máximo de esquerda/direita).';
+
+  @override
+  String get settingsLayoutMixerMetersStereoSubtitle =>
+      'Escadas esquerda e direita separadas por deck.';
+
+  @override
+  String get settingsLayoutFxBarTitle => 'Barra de FX';
+
+  @override
+  String get settingsLayoutFxBarDescription =>
+      'A unidade de efeitos partilhada e o medidor master no fundo do painel do mixer. Os níveis master e de auscultadores abrem a partir do medidor.';
+
+  @override
+  String get settingsLayoutFxBarEnable => 'Mostrar barra de FX';
+
+  @override
+  String get settingsLayoutDeckCount => 'Layout dos decks';
+
+  @override
+  String get settingsLayoutDeckCountDescription =>
+      'Quantos decks o mixer mostra. Alterar isso reinicia o mecanismo de áudio e recarrega as faixas.';
+
+  @override
+  String get settingsLayoutDeckCountDecks => 'Decks';
+
+  @override
+  String get settingsLayoutDeckCountTwo => '2 decks';
+
+  @override
+  String get settingsLayoutDeckCountFour => '4 decks';
 
   @override
   String get settingsLayoutWaveformTitle => 'Posição da forma de onda';
@@ -138,8 +239,33 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsLayoutWaveformBottom => 'Em baixo';
 
   @override
+  String get settingsLayoutLibraryDrawerTitle => 'Gaveta da biblioteca';
+
+  @override
+  String get settingsLayoutLibraryDrawerDescription =>
+      'Onde a biblioteca abre. O modo gaveta oculta a biblioteca fixa e a abre sobre o mixer.';
+
+  @override
+  String get settingsLayoutLibraryDrawerEnable => 'Biblioteca como gaveta';
+
+  @override
+  String get settingsLayoutLibraryDrawerPosition => 'Posição';
+
+  @override
+  String get settingsLayoutLibraryDrawerLeft => 'Esquerda';
+
+  @override
+  String get settingsLayoutLibraryDrawerRight => 'Direita';
+
+  @override
+  String get settingsLayoutLibraryDrawerTop => 'Topo';
+
+  @override
+  String get settingsLayoutLibraryDrawerBottom => 'Inferior';
+
+  @override
   String get settingsUiDescription =>
-      'Tema, idioma, dicas ao passar o mouse, apresentação dos controles, medidores do mixer e a gaveta da biblioteca.';
+      'Tema, idioma, dicas ao passar o mouse e apresentação dos controles.';
 
   @override
   String get settingsUiChromeTitle => 'Chrome e controles';
@@ -196,58 +322,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsShowTooltips => 'Mostrar dicas';
-
-  @override
-  String get settingsUiMixerMetersTitle => 'Medidores do mixer';
-
-  @override
-  String get settingsUiMixerMetersDescription =>
-      'VUs dos decks entre os faders de volume. O medidor master fica na barra de FX, embaixo.';
-
-  @override
-  String get settingsUiShowMixerMeters => 'Mostrar medidores do mixer';
-
-  @override
-  String get settingsUiMixerMetersMode => 'Modo do medidor';
-
-  @override
-  String get settingsUiMixerMetersMono => 'Mono';
-
-  @override
-  String get settingsUiMixerMetersStereo => 'Estéreo';
-
-  @override
-  String get settingsUiMixerMetersMonoSubtitle =>
-      'Uma escada por deck (máximo de esquerda/direita).';
-
-  @override
-  String get settingsUiMixerMetersStereoSubtitle =>
-      'Escadas esquerda e direita separadas por deck.';
-
-  @override
-  String get settingsUiLibraryDrawerTitle => 'Gaveta da biblioteca';
-
-  @override
-  String get settingsUiLibraryDrawerDescription =>
-      'Onde a biblioteca abre. O modo gaveta oculta a biblioteca fixa e a abre sobre o mixer.';
-
-  @override
-  String get settingsUiLibraryDrawerEnable => 'Biblioteca como gaveta';
-
-  @override
-  String get settingsUiLibraryDrawerPosition => 'Posição';
-
-  @override
-  String get settingsUiLibraryDrawerLeft => 'Esquerda';
-
-  @override
-  String get settingsUiLibraryDrawerRight => 'Direita';
-
-  @override
-  String get settingsUiLibraryDrawerTop => 'Topo';
-
-  @override
-  String get settingsUiLibraryDrawerBottom => 'Inferior';
 
   @override
   String get settingsUiSelectStyle => 'Estilo de seleção';
@@ -440,23 +514,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsDeckDescription =>
-      'Layout dos decks e comportamento padrão de jog, tempo e sampler para novos decks.';
-
-  @override
-  String get settingsDeckCount => 'Layout dos decks';
-
-  @override
-  String get settingsDeckLayoutDescription =>
-      'Quantos decks o mixer mostra. Alterar isso reinicia o mecanismo de áudio e recarrega as faixas.';
-
-  @override
-  String get settingsDeckLayoutDecks => 'Decks';
-
-  @override
-  String get settingsDeckCountTwo => '2 decks';
-
-  @override
-  String get settingsDeckCountFour => '4 decks';
+      'Comportamento padrão de jog, tempo, travão e sampler para novos decks.';
 
   @override
   String get settingsDeckJogTitle => 'Jog wheel';
@@ -563,14 +621,14 @@ class AppLocalizationsPt extends AppLocalizations {
       'Banco padrão do sampler no deck D';
 
   @override
-  String get settingsDeckCountRestartTitle => 'Alterar layout dos decks?';
+  String get settingsLayoutDeckCountRestartTitle => 'Alterar layout dos decks?';
 
   @override
-  String get settingsDeckCountRestartBody =>
+  String get settingsLayoutDeckCountRestartBody =>
       'Alterar a quantidade de decks reinicia o mecanismo de áudio e recarrega as faixas. Faixas em decks removidos ao mudar para 2 decks não serão restauradas.';
 
   @override
-  String get settingsDeckCountRestartConfirm => 'Reiniciar e aplicar';
+  String get settingsLayoutDeckCountRestartConfirm => 'Reiniciar e aplicar';
 
   @override
   String get settingsLibraryListTitle => 'Lista da biblioteca';
@@ -1371,6 +1429,29 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get settingsPrivacyDescription =>
       'Dados anônimos de uso do aplicativo.';
+
+  @override
+  String get settingsLayoutPresetDescription =>
+      'Comece com um dispositivo e depois mostre ou oculte cada painel.';
+
+  @override
+  String get settingsLayoutPresetMobile => 'Celular';
+
+  @override
+  String get settingsLayoutPresetMobileSubtitle =>
+      'Decks com a forma de onda entre eles e a biblioteca em uma gaveta. Sem faixa do mixer.';
+
+  @override
+  String get settingsLayoutMixerMetersNoneSubtitle =>
+      'Sem medidores nos decks; as colunas de canal dispensam a faixa do medidor.';
+
+  @override
+  String get settingsLayoutMixerMetersMonoSubtitle =>
+      'Uma escada por deck (máximo de esquerda/direita).';
+
+  @override
+  String get settingsLayoutFxBarDescription =>
+      'A unidade de efeitos compartilhada e o medidor master no fundo do painel do mixer. Os níveis master e de fones de ouvido abrem a partir do medidor.';
 
   @override
   String get settingsDeckVinylBrakePause => 'Freio de vinil no pause';

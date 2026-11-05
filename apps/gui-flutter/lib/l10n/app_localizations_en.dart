@@ -108,7 +108,108 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsLayoutDescription =>
-      'Where the waveform sits around the decks.';
+      'Which panels the mixer shows, where the waveform sits, and how the library opens.';
+
+  @override
+  String get settingsLayoutPresetTitle => 'Presets';
+
+  @override
+  String get settingsLayoutPresetDescription =>
+      'Start from a device, then show or hide individual panels.';
+
+  @override
+  String get settingsLayoutPreset => 'Preset';
+
+  @override
+  String get settingsLayoutPresetDesktop => 'Desktop';
+
+  @override
+  String get settingsLayoutPresetDesktopSubtitle =>
+      'Waveform, mixer strip, FX bar, and the docked library.';
+
+  @override
+  String get settingsLayoutPresetTablet => 'Tablet';
+
+  @override
+  String get settingsLayoutPresetTabletSubtitle =>
+      'Waveform, mixer strip, FX bar, and the library in a drawer.';
+
+  @override
+  String get settingsLayoutPresetMobile => 'Mobile';
+
+  @override
+  String get settingsLayoutPresetMobileSubtitle =>
+      'Decks with the waveform between them and the library in a drawer. No mixer strip.';
+
+  @override
+  String get settingsLayoutPresetCustom => 'Custom';
+
+  @override
+  String get settingsLayoutPresetCustomSubtitle =>
+      'No preset matches the visible panels below.';
+
+  @override
+  String get settingsLayoutMixerTitle => 'Mixer strip';
+
+  @override
+  String get settingsLayoutMixerDescription =>
+      'Channels, faders, EQ, crossfader, and meters between the decks. Turning it off widens the decks into a single row, or hands the column to the centered waveform.';
+
+  @override
+  String get settingsLayoutMixerEnable => 'Show mixer strip';
+
+  @override
+  String get settingsLayoutShowCrossfader => 'Crossfader';
+
+  @override
+  String get settingsLayoutMixerMeters => 'Mixer meters';
+
+  @override
+  String get settingsLayoutMixerMetersNone => 'None';
+
+  @override
+  String get settingsLayoutMixerMetersNoneSubtitle =>
+      'No deck meters; the channel columns drop the meter lane.';
+
+  @override
+  String get settingsLayoutMixerMetersMono => 'Mono';
+
+  @override
+  String get settingsLayoutMixerMetersStereo => 'Stereo';
+
+  @override
+  String get settingsLayoutMixerMetersMonoSubtitle =>
+      'One ladder per deck (max of left/right).';
+
+  @override
+  String get settingsLayoutMixerMetersStereoSubtitle =>
+      'Separate left and right ladders per deck.';
+
+  @override
+  String get settingsLayoutFxBarTitle => 'FX bar';
+
+  @override
+  String get settingsLayoutFxBarDescription =>
+      'The shared effect unit and master meter at the foot of the mixer pane. Master and headphone levels open from the meter.';
+
+  @override
+  String get settingsLayoutFxBarEnable => 'Show FX bar';
+
+  @override
+  String get settingsLayoutDeckCount => 'Deck layout';
+
+  @override
+  String get settingsLayoutDeckCountDescription =>
+      'How many decks the mixer shows. Changing it restarts the audio engine and reloads tracks.';
+
+  @override
+  String get settingsLayoutDeckCountDecks => 'Decks';
+
+  @override
+  String get settingsLayoutDeckCountTwo => '2 decks';
+
+  @override
+  String get settingsLayoutDeckCountFour => '4 decks';
 
   @override
   String get settingsLayoutWaveformTitle => 'Waveform position';
@@ -136,8 +237,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLayoutWaveformBottom => 'Bottom';
 
   @override
+  String get settingsLayoutLibraryDrawerTitle => 'Library drawer';
+
+  @override
+  String get settingsLayoutLibraryDrawerDescription =>
+      'Where the library opens. Drawer mode hides the docked library and opens it over the mixer.';
+
+  @override
+  String get settingsLayoutLibraryDrawerEnable => 'Library as a drawer';
+
+  @override
+  String get settingsLayoutLibraryDrawerPosition => 'Position';
+
+  @override
+  String get settingsLayoutLibraryDrawerLeft => 'Left';
+
+  @override
+  String get settingsLayoutLibraryDrawerRight => 'Right';
+
+  @override
+  String get settingsLayoutLibraryDrawerTop => 'Top';
+
+  @override
+  String get settingsLayoutLibraryDrawerBottom => 'Bottom';
+
+  @override
   String get settingsUiDescription =>
-      'Theme, language, hover tips, control presentation, mixer meters, and the library drawer.';
+      'Theme, language, hover tips, and control presentation.';
 
   @override
   String get settingsUiChromeTitle => 'Chrome and controls';
@@ -194,58 +320,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsShowTooltips => 'Show tooltips';
-
-  @override
-  String get settingsUiMixerMetersTitle => 'Mixer meters';
-
-  @override
-  String get settingsUiMixerMetersDescription =>
-      'Deck VU meters between the volume faders. Master meter sits in the FX bar at the bottom.';
-
-  @override
-  String get settingsUiShowMixerMeters => 'Show mixer meters';
-
-  @override
-  String get settingsUiMixerMetersMode => 'Meter mode';
-
-  @override
-  String get settingsUiMixerMetersMono => 'Mono';
-
-  @override
-  String get settingsUiMixerMetersStereo => 'Stereo';
-
-  @override
-  String get settingsUiMixerMetersMonoSubtitle =>
-      'One ladder per deck (max of left/right).';
-
-  @override
-  String get settingsUiMixerMetersStereoSubtitle =>
-      'Separate left and right ladders per deck.';
-
-  @override
-  String get settingsUiLibraryDrawerTitle => 'Library drawer';
-
-  @override
-  String get settingsUiLibraryDrawerDescription =>
-      'Where the library opens. Drawer mode hides the docked library and opens it over the mixer.';
-
-  @override
-  String get settingsUiLibraryDrawerEnable => 'Library as a drawer';
-
-  @override
-  String get settingsUiLibraryDrawerPosition => 'Position';
-
-  @override
-  String get settingsUiLibraryDrawerLeft => 'Left';
-
-  @override
-  String get settingsUiLibraryDrawerRight => 'Right';
-
-  @override
-  String get settingsUiLibraryDrawerTop => 'Top';
-
-  @override
-  String get settingsUiLibraryDrawerBottom => 'Bottom';
 
   @override
   String get settingsUiSelectStyle => 'Select style';
@@ -437,23 +511,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDeckDescription =>
-      'Deck layout, plus default jog, tempo, and sampler behavior for new decks.';
-
-  @override
-  String get settingsDeckCount => 'Deck layout';
-
-  @override
-  String get settingsDeckLayoutDescription =>
-      'How many decks the mixer shows. Changing it restarts the audio engine and reloads tracks.';
-
-  @override
-  String get settingsDeckLayoutDecks => 'Decks';
-
-  @override
-  String get settingsDeckCountTwo => '2 decks';
-
-  @override
-  String get settingsDeckCountFour => '4 decks';
+      'Default jog, tempo, brake, and sampler behavior for new decks.';
 
   @override
   String get settingsDeckJogTitle => 'Jog wheel';
@@ -556,14 +614,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDeckDefaultSamplerBankD => 'Deck D default sampler bank';
 
   @override
-  String get settingsDeckCountRestartTitle => 'Change deck layout?';
+  String get settingsLayoutDeckCountRestartTitle => 'Change deck layout?';
 
   @override
-  String get settingsDeckCountRestartBody =>
+  String get settingsLayoutDeckCountRestartBody =>
       'Changing the deck count restarts the audio engine and reloads tracks. Tracks on decks removed by switching to 2 decks will not be restored.';
 
   @override
-  String get settingsDeckCountRestartConfirm => 'Restart and apply';
+  String get settingsLayoutDeckCountRestartConfirm => 'Restart and apply';
 
   @override
   String get settingsLibraryListTitle => 'Library list';

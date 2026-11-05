@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -51,7 +52,8 @@ class MixerStrip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final settings = ref.watch(appSettingsProvider).value;
-    final showMeters = settings?.showMixerMeters ?? true;
+    final showMeters = showsDeckMeters(settings);
+    final showCrossfader = settings?.showCrossfader ?? true;
     final numDecks = settings?.numDecks ?? 2;
     final innerWidth = numDecks == 4
         ? _mixerInnerWidthFour
@@ -74,7 +76,8 @@ class MixerStrip extends ConsumerWidget {
               ),
             ),
             const Expanded(child: _MixerChannels()),
-            CrossfaderPanel(bleed: bleed),
+            // Settings → Layout → Crossfader: the foot goes with the rule.
+            if (showCrossfader) CrossfaderPanel(bleed: bleed),
           ],
         ),
       ),
@@ -153,8 +156,8 @@ class _MixerChannels extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(engineRunningProvider);
     final settings = ref.watch(appSettingsProvider).value;
-    final showMeters = settings?.showMixerMeters ?? true;
-    final mono = settings?.mixerMetersMono ?? true;
+    final showMeters = showsDeckMeters(settings);
+    final mono = deckMetersMono(settings);
     final numDecks = settings?.numDecks ?? 2;
     if (numDecks == 2) {
       return Row(

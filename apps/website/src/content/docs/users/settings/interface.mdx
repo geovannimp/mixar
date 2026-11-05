@@ -1,11 +1,63 @@
 ---
 title: "Interface"
-description: "Waveform mode and position, theme, language, tooltips, select style, meters, and library drawer."
+description: "Layout presets, visible panels, waveform position, theme, language, tooltips, select style, and meters."
 section: "Settings"
 order: 605
 ---
 
-**Layout** holds where the waveform sits. **Waveform** is a single card. **UI** holds the theme, language, control presentation, meter, and drawer cards.
+**Layout** holds the presets, the deck count, the panels the mixer shows, where the waveform sits, and how the library opens. **Waveform** is a single card. **UI** holds the theme, language, and control presentation cards.
+
+## Layout → Presets
+
+Section subtitle: "Which panels the mixer shows, where the waveform sits, and how the library opens." Card subtitle: "Start from a device, then show or hide individual panels."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Preset** | select | **Desktop** / **Tablet** / **Mobile** | Desktop |
+
+| Preset | Waveform | Mixer strip | FX bar | Library |
+| --- | --- | --- | --- | --- |
+| **Desktop** | on | on | on | docked |
+| **Tablet** | on | on | on | drawer |
+| **Mobile** | on (middle) | off | on | drawer |
+
+A preset is a shortcut, not a mode: it sets the switches below in one go. Change a switch afterwards and the select follows whatever the panels now are: **Custom** with "No preset matches the visible panels below", or another preset when the result happens to match one (flipping the drawer on Desktop lands on **Tablet**, and back). **Mobile** is the only preset that moves the waveform: it centers the lanes between the decks, and either middle position keeps it reading **Mobile**. No preset changes the deck count or the crossfader switch, and saving one does not restart the engine. The FX bar stays on in every preset: it is the only way into the **Levels** dialog, which holds the master and headphone levels.
+
+## Layout → Deck layout
+
+Card subtitle: "How many decks the mixer shows. Changing it restarts the audio engine and reloads tracks."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Decks** | select | **2 decks** / **4 decks** | 2 decks |
+
+Switching to 4 decks stacks A/C on the left and B/D on the right around the shared mixer. Changing it asks **Change deck layout?** with **Restart and apply**, restarts the engine, and does not restore tracks on decks removed by going back to 2 decks. This is the one control under **Layout** that is not cosmetic, because the engine is built for the deck count it starts with.
+
+## Layout → Mixer strip
+
+Card subtitle: "Channels, faders, EQ, crossfader, and meters between the decks. Turning it off widens the decks into a single row, or hands the column to the centered waveform."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Show mixer strip** | header switch | on / off | on |
+| **Crossfader** | checkbox | on / off | on |
+| **Mixer meters** | select | **None** / **Mono** / **Stereo** | Mono |
+
+The decks are not a switch: they always stay on screen. **Mixer strip** is the shared mixer between the decks — channels, faders, EQ, meters. With the switch off the decks widen into the freed space and meet on a single hairline, with the mixer's gutter closed; deck pads, transport, and the FX bar keep working.
+
+**Crossfader** hides the crossfader strip and its hairline at the foot of the mixer column, and the same strip under a **Middle horizontal** or **Middle vertical** waveform. The checkbox stays visible while either foot is on screen, so a mid-centered waveform with the strip off can still hide its crossfader.
+
+**Mixer meters** are the deck VU ladders between the volume faders; the master meter stays in the FX bar. One select covers showing and shaping them: **None** removes the meter lane, **Mono** draws one ladder per deck (max of left/right), **Stereo** draws separate left and right ladders. The meters only show while the strip is on screen, which a **Middle horizontal** or **Middle vertical** waveform prevents even with the switch on. The crossfader switch also shows when a middle waveform carries the column in the strip's place.
+
+## Layout → FX bar
+
+Card subtitle: "The shared effect unit and master meter at the foot of the mixer pane. Master and headphone levels open from the meter."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Show FX bar** | header switch | on / off | on |
+
+Hiding the bar also removes the **Levels** dialog opener with the master meter it sits in: master output level, master cue, headphone level, and the cue/master blend are reached from that meter, and the effect unit cannot replace them. Leave the bar on unless you only need the decks. The library has no switch here: **Layout → Library drawer** decides whether it is docked or drawn. The waveform has its own card below, because visibility and position belong together.
 
 ## Layout → Waveform position
 
@@ -16,13 +68,31 @@ Card subtitle: "Top keeps the waveform above the decks; bottom puts it between t
 | **Show waveform** | header switch | on / off | on |
 | **Position** | select | **Top** / **Middle horizontal** / **Middle vertical** / **Bottom** | Top |
 
-**Show waveform** off removes the lanes everywhere and hands the center column back to the mixer; the **Position** select hides with it.
+**Show waveform** off removes the lanes everywhere and hands the center column back to the mixer; the **Position** select hides with it. The **Mobile** preset turns the lanes back on and picks a middle position.
 
 **Top** is the full-width waveform pane above the deck row, with one horizontal lane per deck, and it is the only position with a draggable split. **Bottom** keeps horizontal lanes but moves them into a band between the deck row and the library (above the FX bar when the library drawer is on).
 
-**Middle horizontal** and **Middle vertical** replace the center mixer column with the lanes themselves, inside the deck row: horizontal lanes stacked, or one vertical lane per deck side by side. The vertical lanes run bottom to top and dragging a lane still scrubs. The mixer channels (faders, EQ, cue) are not shown while either middle position is selected, but the crossfader panel stays at the foot of the column; switch back to Top or Bottom for the whole mixer.
+**Middle horizontal** and **Middle vertical** replace the center mixer column with the lanes themselves, inside the deck row: horizontal lanes stacked, or one vertical lane per deck side by side. The vertical lanes run bottom to top and dragging a lane still scrubs. The mixer channels (faders, EQ, cue) are not shown while either middle position is selected, but the crossfader panel stays at the foot of the column; switch back to Top or Bottom for the whole mixer. A middle position wins over **Layout → Mixer strip**, which only decides between the mixer and no center column at those two positions.
 
 Changing this only moves chrome: saving does not restart the engine.
+
+## Layout → Library drawer
+
+Card subtitle: "Where the library opens. Drawer mode hides the docked library and opens it over the mixer."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Library as a drawer** | header switch | on / off | off |
+| **Position** | select | **Left** / **Right** / **Top** / **Bottom** | Bottom |
+
+With the drawer off, the library is docked under the decks. With it on, the docked library is gone and the library opens over the mixer from the edge you picked. **Position** is only shown when the drawer is enabled. The **Tablet** and **Mobile** presets turn the drawer on.
+
+- The drawer starts closed. It opens from its header toggle, and nothing reopens it on launch.
+- A dimming scrim covers the mixer behind it. The scrim does not block input: the mixer stays interactive, which is what lets you drag a track out of the drawer and drop it on a deck while the engine is running. A stopped engine installs no drop target, so the row drags but nothing accepts it.
+- A press outside the panel, the header toggle, or loading a track onto a deck closes it.
+- The inner edge carries a resize grip; drag it to change how much of the mixer the drawer covers. The size holds for the rest of the session.
+- Dragging a track out tucks the panel off its edge so the deck is never covered at drop time; the drag end closes the drawer.
+- The drawer sits below the app header, so it never covers the window controls.
 
 ## Waveform → Display
 
@@ -58,32 +128,3 @@ Card subtitle: "Language, hover tips, and how selects open."
 | **Select style** | select | **Auto**: "Platform default — desktop OS uses popovers, phones use dialogs." / **Desktop**: "Anchored popovers for selects and ⋯ menus." / **Mobile**: "Open selects and ⋯ menus in a dialog." | Auto |
 
 **Auto** resolves against the host: on desktop it behaves as **Desktop**, on a phone as **Mobile**.
-
-## UI → Mixer meters
-
-Card subtitle: "Deck VU meters between the volume faders. Master meter sits in the FX bar at the bottom."
-
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Show mixer meters** | header switch | on / off | on |
-| **Meter mode** | select | **Mono**: "One ladder per deck (max of left/right)." / **Stereo**: "Separate left and right ladders per deck." | Mono |
-
-Turning the meters off hides the mode select with them.
-
-## UI → Library drawer
-
-Card subtitle: "Where the library opens. Drawer mode hides the docked library and opens it over the mixer."
-
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Library as a drawer** | header switch | on / off | off |
-| **Position** | select | **Left** / **Right** / **Top** / **Bottom** | Bottom |
-
-With the drawer off, the library is docked under the decks. With it on, the docked library is gone and the library opens over the mixer from the edge you picked. **Position** is only shown when the drawer is enabled.
-
-- The drawer starts closed. It opens from its header toggle, and nothing reopens it on launch.
-- A dimming scrim covers the mixer behind it. The scrim does not block input: the mixer stays interactive, which is what lets you drag a track out of the drawer and drop it on a deck.
-- A press outside the panel, the header toggle, or loading a track onto a deck closes it.
-- The inner edge carries a resize grip; drag it to change how much of the mixer the drawer covers. The size holds for the rest of the session.
-- Dragging a track out tucks the panel off its edge so the deck is never covered at drop time; the drag end closes the drawer.
-- The drawer sits below the app header, so it never covers the window controls.

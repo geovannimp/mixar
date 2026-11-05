@@ -238,8 +238,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         final l10n = AppLocalizations.of(context)!;
         final confirmed = await showMixarConfirm<bool>(
           context: context,
-          title: l10n.settingsDeckCountRestartTitle,
-          body: l10n.settingsDeckCountRestartBody,
+          title: l10n.settingsLayoutDeckCountRestartTitle,
+          body: l10n.settingsLayoutDeckCountRestartBody,
           actions: [
             MixarDialogAction(
               label: l10n.settingsCancel,
@@ -247,7 +247,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               variant: MixarButtonVariant.outline,
             ),
             MixarDialogAction(
-              label: l10n.settingsDeckCountRestartConfirm,
+              label: l10n.settingsLayoutDeckCountRestartConfirm,
               value: true,
             ),
           ],

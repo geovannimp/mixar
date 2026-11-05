@@ -32,24 +32,6 @@ class SettingsDeckPanel extends ConsumerWidget {
       description: l10n.settingsDeckDescription,
       cards: [
         SettingsSectionCard(
-          title: l10n.settingsDeckCount,
-          subtitle: l10n.settingsDeckLayoutDescription,
-          child: SettingsField(
-            label: l10n.settingsDeckLayoutDecks,
-            child: SettingsSelect<int>(
-              dialogTitle: l10n.settingsDeckLayoutDecks,
-              value: draft.numDecks,
-              options: const [2, 4],
-              labelBuilder: (count) => count == 2
-                  ? l10n.settingsDeckCountTwo
-                  : l10n.settingsDeckCountFour,
-              onChanged: (count) => onChanged(
-                normalizeAppSettings(copyAppSettings(draft, numDecks: count)),
-              ),
-            ),
-          ),
-        ),
-        SettingsSectionCard(
           title: l10n.settingsDeckJogTitle,
           subtitle: l10n.settingsDeckJogDescription,
           child: Row(

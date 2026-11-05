@@ -28,5 +28,11 @@
   "settingsPrivacyDescription": "Dados anônimos de uso do aplicativo.",
   "settingsAnalyticsTitle": "Análises",
   "settingsAnalyticsSubtitle": "Compartilhe dados anônimos do aplicativo.",
-  "settingsAnalyticsToggle": "Enviar dados anônimos de uso"
+  "settingsAnalyticsToggle": "Enviar dados anônimos de uso",
+  "settingsLayoutPresetDescription": "Comece com um dispositivo e depois mostre ou oculte cada painel.",
+  "settingsLayoutPresetMobile": "Celular",
+  "settingsLayoutPresetMobileSubtitle": "Decks com a forma de onda entre eles e a biblioteca em uma gaveta. Sem faixa do mixer.",
+  "settingsLayoutFxBarDescription": "A unidade de efeitos compartilhada e o medidor master no fundo do painel do mixer. Os níveis master e de fones de ouvido abrem a partir do medidor.",
+  "settingsLayoutMixerMetersNoneSubtitle": "Sem medidores nos decks; as colunas de canal dispensam a faixa do medidor.",
+  "settingsLayoutMixerMetersMonoSubtitle": "Uma escada por deck (máximo de esquerda/direita)."
 }

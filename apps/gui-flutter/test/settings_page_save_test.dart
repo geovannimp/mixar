@@ -45,7 +45,7 @@ void main() {
 
     await tester.tap(find.widgetWithText(AppButton, l10n.settingsSave).last);
     await tester.pumpAndSettle();
-    expect(find.text(l10n.settingsDeckCountRestartTitle), findsOneWidget);
+    expect(find.text(l10n.settingsLayoutDeckCountRestartTitle), findsOneWidget);
     await tester.tap(find.widgetWithText(AppButton, l10n.settingsCancel));
     await tester.pumpAndSettle();
 

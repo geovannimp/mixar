@@ -56,12 +56,9 @@ void main() {
     ],
   );
 
-  Future<void> pumpUi(WidgetTester tester, {bool meters = true}) => pumpPanel(
+  Future<void> pumpUi(WidgetTester tester) => pumpPanel(
     tester,
-    SettingsUiPanel(
-      draft: copyAppSettings(defaultAppSettings(), showMixerMeters: meters),
-      onChanged: (_) {},
-    ),
+    SettingsUiPanel(draft: defaultAppSettings(), onChanged: (_) {}),
     // The UI panel's own tests drive animations frame by frame.
     settle: false,
   );
@@ -104,24 +101,18 @@ void main() {
     );
   }, semanticsEnabled: false);
 
-  testWidgets('UI panel keeps chrome, meters, and drawer only', (tester) async {
+  testWidgets('UI panel keeps theme and chrome only', (tester) async {
     await pumpUi(tester);
     expect(find.text('Chrome and controls'), findsOneWidget);
-    expect(find.text('Mixer meters'), findsOneWidget);
-    expect(find.text('METER MODE'), findsOneWidget);
-    expect(find.text('Library drawer'), findsOneWidget);
+    // The meters went inside Layout → Mixer strip with the rest of the strip.
+    expect(find.text('Mixer meters'), findsNothing);
+    expect(find.text('METER MODE'), findsNothing);
+    // Panel visibility and the library drawer moved to Layout.
+    expect(find.text('Library drawer'), findsNothing);
     expect(find.text('Library list'), findsNothing);
     expect(find.text('Dim played tracks'), findsNothing);
     expect(find.text('TRACK ROW LAYOUT'), findsNothing);
     expect(find.text('Analytics'), findsNothing);
-  }, semanticsEnabled: false);
-
-  testWidgets('UI panel hides meter mode when mixer meters off', (
-    tester,
-  ) async {
-    await pumpUi(tester, meters: false);
-    expect(find.text('Mixer meters'), findsOneWidget);
-    expect(find.text('METER MODE'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('section cards are full-bleed bands with top/bottom hairlines', (
