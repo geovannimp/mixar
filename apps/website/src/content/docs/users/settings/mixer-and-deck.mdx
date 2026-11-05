@@ -1,11 +1,11 @@
 ---
 title: "Mixer and deck"
-description: "Normalizer target, sampler routing, realtime stems, deck layout, jog, brake, tempo, and sampler defaults."
+description: "Normalizer target, sampler routing, realtime stems, jog, brake, tempo, and sampler defaults."
 section: "Settings"
 order: 603
 ---
 
-The **Deck** section is titled "Deck layout, plus default jog, tempo, and sampler behavior for new decks." Its defaults seed decks as they are created, so a track already loaded keeps what it was loaded with until you change it on the deck itself. **Deck layout** applies at once and restarts the engine; the rest of the section is defaults.
+Everything in the **Deck** section seeds new decks, so a track already loaded keeps what it was loaded with until you change it on the deck itself. The deck count and the on-screen panels now live under [**Layout**](/docs/users/settings/interface), because they shape the whole page rather than a deck's defaults.
 
 ## Mixer → Volume normalizer
 
@@ -37,14 +37,6 @@ Card description: "Separates tracks without cached stems while they play. Tracks
 | Realtime Stems | header switch | on / off | off |
 
 Offline stems always win, so turning this on never changes a track that already has a stem cache. What separation costs and where the files go: [Generate stems](/docs/users/stems/generate).
-
-## Deck → Deck layout
-
-Card subtitle: "How many decks the mixer shows. Changing it restarts the audio engine and reloads tracks."
-
-| Control | Type | Values | Default | Notes |
-| --- | --- | --- | --- | --- |
-| **Decks** | select | **2 decks** / **4 decks** | 2 decks | Changing it asks **Change deck layout?** with **Restart and apply**, restarts the engine, and does not restore tracks on decks removed by going to 2 decks. |
 
 ## Deck → Jog wheel
 

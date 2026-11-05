@@ -227,9 +227,9 @@ Future<SaveAppSettingsResult> saveAppSettings(
   final previous = await ref.read(appSettingsProvider.future);
   final normalized = normalizeAppSettings(draft);
   // A save that only changes how the list paints — the theme, the consent
-  // toggle, the visible row fields, where the waveform sits — must not restart
-  // the engine: audio would glitch for a cosmetic edit. Everything else goes
-  // through the apply path below.
+  // toggle, the visible row fields, which panels are on screen and where the
+  // waveform sits — must not restart the engine: audio would glitch for a
+  // cosmetic edit. Everything else goes through the apply path below.
   final viewOnly = !appSettingsDirty(
     copyAppSettings(
       normalized,
@@ -239,6 +239,12 @@ Future<SaveAppSettingsResult> saveAppSettings(
       accentPalette: previous.accentPalette,
       waveformPosition: previous.waveformPosition,
       showWaveform: previous.showWaveform,
+      showMixer: previous.showMixer,
+      showFxBar: previous.showFxBar,
+      showCrossfader: previous.showCrossfader,
+      libraryDrawerEnabled: previous.libraryDrawerEnabled,
+      libraryDrawerSide: previous.libraryDrawerSide,
+      mixerMeters: previous.mixerMeters,
     ),
     previous,
   );

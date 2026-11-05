@@ -294,8 +294,188 @@ abstract class AppLocalizations {
   /// No description provided for @settingsLayoutDescription.
   ///
   /// In en, this message translates to:
-  /// **'Where the waveform sits around the decks.'**
+  /// **'Which panels the mixer shows, where the waveform sits, and how the library opens.'**
   String get settingsLayoutDescription;
+
+  /// No description provided for @settingsLayoutPresetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Presets'**
+  String get settingsLayoutPresetTitle;
+
+  /// No description provided for @settingsLayoutPresetDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from a device, then show or hide individual panels.'**
+  String get settingsLayoutPresetDescription;
+
+  /// No description provided for @settingsLayoutPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset'**
+  String get settingsLayoutPreset;
+
+  /// No description provided for @settingsLayoutPresetDesktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop'**
+  String get settingsLayoutPresetDesktop;
+
+  /// No description provided for @settingsLayoutPresetDesktopSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform, mixer strip, FX bar, and the docked library.'**
+  String get settingsLayoutPresetDesktopSubtitle;
+
+  /// No description provided for @settingsLayoutPresetTablet.
+  ///
+  /// In en, this message translates to:
+  /// **'Tablet'**
+  String get settingsLayoutPresetTablet;
+
+  /// No description provided for @settingsLayoutPresetTabletSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Waveform, mixer strip, FX bar, and the library in a drawer.'**
+  String get settingsLayoutPresetTabletSubtitle;
+
+  /// No description provided for @settingsLayoutPresetMobile.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile'**
+  String get settingsLayoutPresetMobile;
+
+  /// No description provided for @settingsLayoutPresetMobileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Decks with the waveform between them and the library in a drawer. No mixer strip.'**
+  String get settingsLayoutPresetMobileSubtitle;
+
+  /// No description provided for @settingsLayoutPresetCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get settingsLayoutPresetCustom;
+
+  /// No description provided for @settingsLayoutPresetCustomSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No preset matches the visible panels below.'**
+  String get settingsLayoutPresetCustomSubtitle;
+
+  /// No description provided for @settingsLayoutMixerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixer strip'**
+  String get settingsLayoutMixerTitle;
+
+  /// No description provided for @settingsLayoutMixerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels, faders, EQ, crossfader, and meters between the decks. Turning it off widens the decks into a single row, or hands the column to the centered waveform.'**
+  String get settingsLayoutMixerDescription;
+
+  /// No description provided for @settingsLayoutMixerEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Show mixer strip'**
+  String get settingsLayoutMixerEnable;
+
+  /// No description provided for @settingsLayoutShowCrossfader.
+  ///
+  /// In en, this message translates to:
+  /// **'Crossfader'**
+  String get settingsLayoutShowCrossfader;
+
+  /// No description provided for @settingsLayoutMixerMeters.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixer meters'**
+  String get settingsLayoutMixerMeters;
+
+  /// No description provided for @settingsLayoutMixerMetersNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get settingsLayoutMixerMetersNone;
+
+  /// No description provided for @settingsLayoutMixerMetersNoneSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No deck meters; the channel columns drop the meter lane.'**
+  String get settingsLayoutMixerMetersNoneSubtitle;
+
+  /// No description provided for @settingsLayoutMixerMetersMono.
+  ///
+  /// In en, this message translates to:
+  /// **'Mono'**
+  String get settingsLayoutMixerMetersMono;
+
+  /// No description provided for @settingsLayoutMixerMetersStereo.
+  ///
+  /// In en, this message translates to:
+  /// **'Stereo'**
+  String get settingsLayoutMixerMetersStereo;
+
+  /// No description provided for @settingsLayoutMixerMetersMonoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'One ladder per deck (max of left/right).'**
+  String get settingsLayoutMixerMetersMonoSubtitle;
+
+  /// No description provided for @settingsLayoutMixerMetersStereoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate left and right ladders per deck.'**
+  String get settingsLayoutMixerMetersStereoSubtitle;
+
+  /// No description provided for @settingsLayoutFxBarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'FX bar'**
+  String get settingsLayoutFxBarTitle;
+
+  /// No description provided for @settingsLayoutFxBarDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The shared effect unit and master meter at the foot of the mixer pane. Master and headphone levels open from the meter.'**
+  String get settingsLayoutFxBarDescription;
+
+  /// No description provided for @settingsLayoutFxBarEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Show FX bar'**
+  String get settingsLayoutFxBarEnable;
+
+  /// No description provided for @settingsLayoutDeckCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck layout'**
+  String get settingsLayoutDeckCount;
+
+  /// No description provided for @settingsLayoutDeckCountDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'How many decks the mixer shows. Changing it restarts the audio engine and reloads tracks.'**
+  String get settingsLayoutDeckCountDescription;
+
+  /// No description provided for @settingsLayoutDeckCountDecks.
+  ///
+  /// In en, this message translates to:
+  /// **'Decks'**
+  String get settingsLayoutDeckCountDecks;
+
+  /// No description provided for @settingsLayoutDeckCountTwo.
+  ///
+  /// In en, this message translates to:
+  /// **'2 decks'**
+  String get settingsLayoutDeckCountTwo;
+
+  /// No description provided for @settingsLayoutDeckCountFour.
+  ///
+  /// In en, this message translates to:
+  /// **'4 decks'**
+  String get settingsLayoutDeckCountFour;
 
   /// No description provided for @settingsLayoutWaveformTitle.
   ///
@@ -345,10 +525,58 @@ abstract class AppLocalizations {
   /// **'Bottom'**
   String get settingsLayoutWaveformBottom;
 
+  /// No description provided for @settingsLayoutLibraryDrawerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Library drawer'**
+  String get settingsLayoutLibraryDrawerTitle;
+
+  /// No description provided for @settingsLayoutLibraryDrawerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Where the library opens. Drawer mode hides the docked library and opens it over the mixer.'**
+  String get settingsLayoutLibraryDrawerDescription;
+
+  /// No description provided for @settingsLayoutLibraryDrawerEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Library as a drawer'**
+  String get settingsLayoutLibraryDrawerEnable;
+
+  /// No description provided for @settingsLayoutLibraryDrawerPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Position'**
+  String get settingsLayoutLibraryDrawerPosition;
+
+  /// No description provided for @settingsLayoutLibraryDrawerLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Left'**
+  String get settingsLayoutLibraryDrawerLeft;
+
+  /// No description provided for @settingsLayoutLibraryDrawerRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Right'**
+  String get settingsLayoutLibraryDrawerRight;
+
+  /// No description provided for @settingsLayoutLibraryDrawerTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Top'**
+  String get settingsLayoutLibraryDrawerTop;
+
+  /// No description provided for @settingsLayoutLibraryDrawerBottom.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom'**
+  String get settingsLayoutLibraryDrawerBottom;
+
   /// No description provided for @settingsUiDescription.
   ///
   /// In en, this message translates to:
-  /// **'Theme, language, hover tips, control presentation, mixer meters, and the library drawer.'**
+  /// **'Theme, language, hover tips, and control presentation.'**
   String get settingsUiDescription;
 
   /// No description provided for @settingsUiChromeTitle.
@@ -458,102 +686,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show tooltips'**
   String get settingsShowTooltips;
-
-  /// No description provided for @settingsUiMixerMetersTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Mixer meters'**
-  String get settingsUiMixerMetersTitle;
-
-  /// No description provided for @settingsUiMixerMetersDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Deck VU meters between the volume faders. Master meter sits in the FX bar at the bottom.'**
-  String get settingsUiMixerMetersDescription;
-
-  /// No description provided for @settingsUiShowMixerMeters.
-  ///
-  /// In en, this message translates to:
-  /// **'Show mixer meters'**
-  String get settingsUiShowMixerMeters;
-
-  /// No description provided for @settingsUiMixerMetersMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Meter mode'**
-  String get settingsUiMixerMetersMode;
-
-  /// No description provided for @settingsUiMixerMetersMono.
-  ///
-  /// In en, this message translates to:
-  /// **'Mono'**
-  String get settingsUiMixerMetersMono;
-
-  /// No description provided for @settingsUiMixerMetersStereo.
-  ///
-  /// In en, this message translates to:
-  /// **'Stereo'**
-  String get settingsUiMixerMetersStereo;
-
-  /// No description provided for @settingsUiMixerMetersMonoSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'One ladder per deck (max of left/right).'**
-  String get settingsUiMixerMetersMonoSubtitle;
-
-  /// No description provided for @settingsUiMixerMetersStereoSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Separate left and right ladders per deck.'**
-  String get settingsUiMixerMetersStereoSubtitle;
-
-  /// No description provided for @settingsUiLibraryDrawerTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Library drawer'**
-  String get settingsUiLibraryDrawerTitle;
-
-  /// No description provided for @settingsUiLibraryDrawerDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Where the library opens. Drawer mode hides the docked library and opens it over the mixer.'**
-  String get settingsUiLibraryDrawerDescription;
-
-  /// No description provided for @settingsUiLibraryDrawerEnable.
-  ///
-  /// In en, this message translates to:
-  /// **'Library as a drawer'**
-  String get settingsUiLibraryDrawerEnable;
-
-  /// No description provided for @settingsUiLibraryDrawerPosition.
-  ///
-  /// In en, this message translates to:
-  /// **'Position'**
-  String get settingsUiLibraryDrawerPosition;
-
-  /// No description provided for @settingsUiLibraryDrawerLeft.
-  ///
-  /// In en, this message translates to:
-  /// **'Left'**
-  String get settingsUiLibraryDrawerLeft;
-
-  /// No description provided for @settingsUiLibraryDrawerRight.
-  ///
-  /// In en, this message translates to:
-  /// **'Right'**
-  String get settingsUiLibraryDrawerRight;
-
-  /// No description provided for @settingsUiLibraryDrawerTop.
-  ///
-  /// In en, this message translates to:
-  /// **'Top'**
-  String get settingsUiLibraryDrawerTop;
-
-  /// No description provided for @settingsUiLibraryDrawerBottom.
-  ///
-  /// In en, this message translates to:
-  /// **'Bottom'**
-  String get settingsUiLibraryDrawerBottom;
 
   /// No description provided for @settingsUiSelectStyle.
   ///
@@ -894,38 +1026,8 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDeckDescription.
   ///
   /// In en, this message translates to:
-  /// **'Deck layout, plus default jog, tempo, and sampler behavior for new decks.'**
+  /// **'Default jog, tempo, brake, and sampler behavior for new decks.'**
   String get settingsDeckDescription;
-
-  /// No description provided for @settingsDeckCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Deck layout'**
-  String get settingsDeckCount;
-
-  /// No description provided for @settingsDeckLayoutDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'How many decks the mixer shows. Changing it restarts the audio engine and reloads tracks.'**
-  String get settingsDeckLayoutDescription;
-
-  /// No description provided for @settingsDeckLayoutDecks.
-  ///
-  /// In en, this message translates to:
-  /// **'Decks'**
-  String get settingsDeckLayoutDecks;
-
-  /// No description provided for @settingsDeckCountTwo.
-  ///
-  /// In en, this message translates to:
-  /// **'2 decks'**
-  String get settingsDeckCountTwo;
-
-  /// No description provided for @settingsDeckCountFour.
-  ///
-  /// In en, this message translates to:
-  /// **'4 decks'**
-  String get settingsDeckCountFour;
 
   /// No description provided for @settingsDeckJogTitle.
   ///
@@ -1107,23 +1209,23 @@ abstract class AppLocalizations {
   /// **'Deck D default sampler bank'**
   String get settingsDeckDefaultSamplerBankD;
 
-  /// No description provided for @settingsDeckCountRestartTitle.
+  /// No description provided for @settingsLayoutDeckCountRestartTitle.
   ///
   /// In en, this message translates to:
   /// **'Change deck layout?'**
-  String get settingsDeckCountRestartTitle;
+  String get settingsLayoutDeckCountRestartTitle;
 
-  /// No description provided for @settingsDeckCountRestartBody.
+  /// No description provided for @settingsLayoutDeckCountRestartBody.
   ///
   /// In en, this message translates to:
   /// **'Changing the deck count restarts the audio engine and reloads tracks. Tracks on decks removed by switching to 2 decks will not be restored.'**
-  String get settingsDeckCountRestartBody;
+  String get settingsLayoutDeckCountRestartBody;
 
-  /// No description provided for @settingsDeckCountRestartConfirm.
+  /// No description provided for @settingsLayoutDeckCountRestartConfirm.
   ///
   /// In en, this message translates to:
   /// **'Restart and apply'**
-  String get settingsDeckCountRestartConfirm;
+  String get settingsLayoutDeckCountRestartConfirm;
 
   /// No description provided for @settingsLibraryListTitle.
   ///

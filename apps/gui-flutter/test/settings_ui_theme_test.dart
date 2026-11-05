@@ -108,9 +108,9 @@ void main() {
     final captureKey = GlobalKey();
     await pumpPanel(tester, captureKey: captureKey);
 
-    // The mixer meters mode select ends its card body, so the ring's bottom
+    // The select-style control ends its card body, so the ring's bottom
     // stroke falls below the body's own bottom edge -- the one the card clips.
-    final select = find.byType(MixarSelect<bool>);
+    final select = find.byType(MixarSelect<SelectStyleSetting>);
     expect(select, findsOneWidget);
     await _focusSelect(tester, select);
 

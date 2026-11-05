@@ -91,6 +91,10 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     final theme = context.theme;
     final settingsState = ref.watch(appSettingsProvider);
     final settings = settingsState.value ?? defaultAppSettings();
+    // Settings → Layout. The deck row is always there; these two switches only
+    // trim the panels around it. The library is never hidden: the drawer
+    // setting only decides whether it is docked or drawn.
+    final showFxBar = settings.showFxBar;
     final drawerMode = settings.libraryDrawerEnabled;
     final deckRowHeight = settings.numDecks == 4 ? 560.0 : 410.0;
     final waveformPosition = settings.waveformPosition;
@@ -133,6 +137,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     final decksAndLibrary = _decksAndLibrary(
       theme: theme,
       drawerMode: drawerMode,
+      showFxBar: showFxBar,
       deckRowHeight: deckRowHeight,
       bandHeight: bandHeight,
     );
@@ -171,10 +176,12 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   Widget _decksAndLibrary({
     required MixarThemeData theme,
     required bool drawerMode,
+    required bool showFxBar,
     required double deckRowHeight,
     required double bandHeight,
   }) {
     final band = bandHeight > 0;
+    final docked = !drawerMode;
     final border = MDivider(padding: .zero, color: theme.colors.border);
     return ColoredBox(
       color: theme.colors.card,
@@ -184,7 +191,7 @@ class _MixerPageState extends ConsumerState<MixerPage> {
               ? constraints.maxHeight
               : deckRowHeight +
                     bandHeight +
-                    FxBar.height +
+                    (showFxBar ? FxBar.height : 0) +
                     120 +
                     2 * theme.style.borderWidth;
           final height = constraints.maxHeight < minHeight
@@ -226,11 +233,12 @@ class _MixerPageState extends ConsumerState<MixerPage> {
                             child: WaveformSection(showFootDivider: false),
                           ),
                         ),
-                        // The band closes before the library; in drawer mode
-                        // the FX divider below does that job.
-                        if (!drawerMode) border,
+                        // The band closes before whatever follows it: the
+                        // docked library, or the FX bar. With the drawer on and
+                        // no FX bar, nothing follows, so the band ends the pane.
+                        if (docked) border,
                       ],
-                      if (!drawerMode) ...[
+                      if (docked) ...[
                         // Split the library from the mixer above it in the same
                         // border colour as the rest of the library chrome.
                         if (!band) border,
@@ -242,8 +250,10 @@ class _MixerPageState extends ConsumerState<MixerPage> {
                         ),
                       ],
                       // The FX bar rides at the pane's foot in both layouts.
-                      border,
-                      const SizedBox(height: FxBar.height, child: FxBar()),
+                      if (showFxBar) ...[
+                        border,
+                        const SizedBox(height: FxBar.height, child: FxBar()),
+                      ],
                     ],
                   ),
                 ),

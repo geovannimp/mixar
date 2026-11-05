@@ -5,7 +5,7 @@ section: "Mixer"
 order: 401
 ---
 
-The mixer screen is where you actually play: a waveform pane on top, the decks around the central channel strips, the library underneath, and a thin **Beat FX** strip pinned to the bottom. Choose a two- or four-deck layout under **Settings → Deck → Deck layout**; changing the layout restarts the audio engine and reloads tracks on decks that remain active. Four-deck mode gives the decks more vertical room and splits each stacked pair of decks with a hairline. On short windows, use the main scrollbar or mouse wheel to reach the docked library below the decks.
+The mixer screen is where you actually play: a waveform pane on top, the decks around the central channel strips, the library underneath, and a thin **Beat FX** strip pinned to the bottom. Choose a two- or four-deck layout under **Settings → Layout → Deck layout**; changing the layout restarts the audio engine and reloads tracks on decks that remain active. Four-deck mode gives the decks more vertical room and splits each stacked pair of decks with a hairline. On short windows, use the main scrollbar or mouse wheel to reach the docked library below the decks.
 
 ## Decks
 
@@ -36,6 +36,8 @@ Every deck owns a channel in the mixer columns between the decks:
 
 The strip runs **gain trim → EQ → filter → FX → meter and cue tap → fader**. That order is why the meter and the headphones already include the effect, while the channel fader still controls how loud the whole channel is.
 
+The whole strip can be taken off screen: **Settings → Layout → Mixer strip**. The decks stay and widen into the freed space; deck transport, pads, and the FX bar keep working. With a **Middle horizontal** or **Middle vertical** waveform the lanes already hold the center column, so this switch only changes the layout around them — returning to **Top** or **Bottom** brings the strip back.
+
 Knob ranges, the filter's cutoffs, fader travel, the column layout, and what the meters show: [Channels](/docs/users/mixer/channels).
 
 In four-deck mode, the controls run left to right as **EQ/filter A+B → gain/volumes A+B → meters → gain/volumes C+D → EQ/filter C+D**. Each gain knob sits directly above its volume fader.
@@ -45,6 +47,8 @@ In four-deck mode, the controls run left to right as **EQ/filter A+B → gain/vo
 Click **A** or **B** beside the crossfader to open that side's deck checklist. Check a deck to assign it to that side; assigning it to the other side moves it rather than routing it to both. Uncheck a deck to set it to **Thru**, so the crossfader no longer affects it. The checklist follows assignments made from hardware too. In a four-deck layout, the default assignments are A/C to side A and B/D to side B. The crossfader is applied after the channel faders, so it scales the effect exactly like the dry signal.
 
 Set history uses these assignments when deciding whether a playing deck is audible, including decks assigned to **Thru**.
+
+The crossfader and its hairline can be taken off screen: **Settings → Layout → Mixer strip → Crossfader**. The decks keep their assignments, so hardware and set history still follow them.
 
 ## Master levels
 

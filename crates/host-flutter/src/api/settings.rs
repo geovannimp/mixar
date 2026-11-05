@@ -376,10 +376,35 @@ pub enum WaveformPositionSetting {
     Bottom,
 }
 
+/// Deck VU meters between the mixer volume faders (Settings → Layout).
+///
+/// One value instead of a show flag plus a mono flag, so the Settings select can
+/// offer `None` beside the two widths.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MixerMetersSetting {
+    /// No deck meters; the channel columns drop the meter lane.
+    None,
+    /// One ladder per deck, max of left/right.
+    #[default]
+    Mono,
+    /// Separate left and right ladders per deck.
+    Stereo,
+}
+
 fn default_vinyl_brake_stop_secs() -> f32 {
     0.5
 }
 fn default_show_waveform() -> bool {
+    true
+}
+fn default_show_mixer() -> bool {
+    true
+}
+fn default_show_fx_bar() -> bool {
+    true
+}
+fn default_show_crossfader() -> bool {
     true
 }
 fn default_num_decks() -> u8 {
@@ -443,12 +468,9 @@ pub struct AppSettings {
     pub history_min_deck_volume: f32,
     #[serde(default = "default_show_tooltips")]
     pub show_tooltips: bool,
-    /// Show vertical deck VU meters between mixer volume faders.
-    #[serde(default = "default_show_mixer_meters")]
-    pub show_mixer_meters: bool,
-    /// When mixer meters are shown, use mono (max L/R) instead of stereo ladders.
-    #[serde(default = "default_mixer_meters_mono")]
-    pub mixer_meters_mono: bool,
+    /// Deck VU meters between the mixer volume faders.
+    #[serde(default)]
+    pub mixer_meters: MixerMetersSetting,
     #[serde(default)]
     pub select_style: SelectStyleSetting,
     #[serde(default = "default_dim_played_tracks")]
@@ -484,6 +506,16 @@ pub struct AppSettings {
     /// Draw the deck waveforms at all (Settings → Layout).
     #[serde(default = "default_show_waveform")]
     pub show_waveform: bool,
+    /// Show the channel strip between the decks (Settings → Layout). The decks
+    /// themselves stay visible either way.
+    #[serde(default = "default_show_mixer")]
+    pub show_mixer: bool,
+    /// Show the FX bar at the foot of the mixer pane (Settings → Layout).
+    #[serde(default = "default_show_fx_bar")]
+    pub show_fx_bar: bool,
+    /// Show the crossfader at the foot of the mixer strip (Settings → Layout).
+    #[serde(default = "default_show_crossfader")]
+    pub show_crossfader: bool,
     #[serde(default)]
     pub analytics_enabled: bool,
 }
@@ -513,8 +545,7 @@ struct SettingsHost {
     history_min_play_seconds: u32,
     history_min_deck_volume: f32,
     show_tooltips: bool,
-    show_mixer_meters: bool,
-    mixer_meters_mono: bool,
+    mixer_meters: MixerMetersSetting,
     select_style: SelectStyleSetting,
     dim_played_tracks: bool,
     stems_format: String,
@@ -527,6 +558,9 @@ struct SettingsHost {
     library_drawer_side: LibraryDrawerSideSetting,
     waveform_position: WaveformPositionSetting,
     show_waveform: bool,
+    show_mixer: bool,
+    show_fx_bar: bool,
+    show_crossfader: bool,
     analytics_enabled: bool,
 }
 
@@ -555,8 +589,7 @@ impl Default for SettingsHost {
             history_min_play_seconds: default_history_min_play_seconds(),
             history_min_deck_volume: default_history_min_deck_volume(),
             show_tooltips: default_show_tooltips(),
-            show_mixer_meters: default_show_mixer_meters(),
-            mixer_meters_mono: default_mixer_meters_mono(),
+            mixer_meters: MixerMetersSetting::default(),
             select_style: SelectStyleSetting::default(),
             dim_played_tracks: default_dim_played_tracks(),
             stems_format: default_stems_format(),
@@ -569,6 +602,9 @@ impl Default for SettingsHost {
             library_drawer_side: LibraryDrawerSideSetting::Bottom,
             waveform_position: WaveformPositionSetting::Top,
             show_waveform: default_show_waveform(),
+            show_mixer: default_show_mixer(),
+            show_fx_bar: default_show_fx_bar(),
+            show_crossfader: default_show_crossfader(),
             analytics_enabled: false,
         }
     }
@@ -591,14 +627,6 @@ fn default_history_min_deck_volume() -> f32 {
 }
 
 fn default_show_tooltips() -> bool {
-    true
-}
-
-fn default_show_mixer_meters() -> bool {
-    true
-}
-
-fn default_mixer_meters_mono() -> bool {
     true
 }
 
@@ -881,8 +909,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         history_min_play_seconds: host.history_min_play_seconds,
         history_min_deck_volume: host.history_min_deck_volume,
         show_tooltips: host.show_tooltips,
-        show_mixer_meters: host.show_mixer_meters,
-        mixer_meters_mono: host.mixer_meters_mono,
+        mixer_meters: host.mixer_meters,
         select_style: host.select_style,
         dim_played_tracks: host.dim_played_tracks,
         stems_format: host.stems_format.clone(),
@@ -895,6 +922,9 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         library_drawer_side: host.library_drawer_side,
         waveform_position: host.waveform_position,
         show_waveform: host.show_waveform,
+        show_mixer: host.show_mixer,
+        show_fx_bar: host.show_fx_bar,
+        show_crossfader: host.show_crossfader,
         analytics_enabled: host.analytics_enabled,
     }
 }
@@ -936,8 +966,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.history_min_play_seconds = settings.history_min_play_seconds;
     host.history_min_deck_volume = settings.history_min_deck_volume;
     host.show_tooltips = settings.show_tooltips;
-    host.show_mixer_meters = settings.show_mixer_meters;
-    host.mixer_meters_mono = settings.mixer_meters_mono;
+    host.mixer_meters = settings.mixer_meters;
     host.select_style = settings.select_style;
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
@@ -951,6 +980,9 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.library_drawer_side = settings.library_drawer_side;
     host.waveform_position = settings.waveform_position;
     host.show_waveform = settings.show_waveform;
+    host.show_mixer = settings.show_mixer;
+    host.show_fx_bar = settings.show_fx_bar;
+    host.show_crossfader = settings.show_crossfader;
     host.configured = true;
     Ok(())
 }
@@ -1000,7 +1032,28 @@ fn read_settings_file(path: &Path) -> Option<AppSettings> {
         .and_then(serde_json::Value::as_u64)
         .and_then(|rate| u32::try_from(rate).ok());
 
+    let has_meter_mode = value.get("mixer_meters").is_some();
+    let legacy_show_meters = value
+        .get("show_mixer_meters")
+        .and_then(serde_json::Value::as_bool);
+    let legacy_meters_mono = value
+        .get("mixer_meters_mono")
+        .and_then(serde_json::Value::as_bool);
+
     let mut settings: AppSettings = serde_json::from_value(value).ok()?;
+
+    // `show_mixer_meters` + `mixer_meters_mono` collapsed into one mode. Only a
+    // file written before the collapse carries the pair, so the new key wins.
+    if !has_meter_mode {
+        if let Some(show) = legacy_show_meters {
+            settings.mixer_meters = match (show, legacy_meters_mono) {
+                (false, _) => MixerMetersSetting::None,
+                (true, Some(false)) => MixerMetersSetting::Stereo,
+                (true, _) => MixerMetersSetting::Mono,
+            };
+        }
+    }
+
     if structured_buses {
         return Some(settings);
     }
@@ -1085,6 +1138,16 @@ mod tests {
         value
     }
 
+    /// A file from the two-flag era: no `mixer_meters`, but both legacy keys.
+    fn write_legacy_meter_file(path: &Path, show: bool, mono: bool) {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        object.remove("mixer_meters");
+        object.insert("show_mixer_meters".into(), show.into());
+        object.insert("mixer_meters_mono".into(), mono.into());
+        std::fs::write(path, serde_json::to_vec(&value).expect("write")).expect("disk");
+    }
+
     #[test]
     fn default_settings_round_trip() {
         let parsed = parse_settings(sample_settings()).expect("defaults parse");
@@ -1100,8 +1163,7 @@ mod tests {
         assert_eq!(parsed.key_color_mode, KeyColorModeSetting::Off);
         assert!(parsed.trusted_controller_device_ids.is_empty());
         assert!(parsed.show_tooltips);
-        assert!(parsed.show_mixer_meters);
-        assert!(parsed.mixer_meters_mono);
+        assert_eq!(parsed.mixer_meters, MixerMetersSetting::Mono);
         assert_eq!(parsed.stems_format, "opus");
         assert_eq!(parsed.stems_model, library::DEFAULT_STEMS_MODEL);
         assert!(!parsed.realtime_stems);
@@ -1493,33 +1555,52 @@ mod tests {
     }
 
     #[test]
-    fn missing_mixer_meter_settings_default_shown_mono() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join("settings.json");
-        let mut value = serde_json::to_value(sample_settings()).expect("json");
-        let obj = value.as_object_mut().expect("object");
-        obj.remove("show_mixer_meters");
-        obj.remove("mixer_meters_mono");
-        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
-        let host = load_host(&path);
-        let settings = settings_from_host(&host);
-        assert!(settings.show_mixer_meters);
-        assert!(settings.mixer_meters_mono);
+    fn missing_mixer_meters_defaults_mono() {
+        let settings: AppSettings =
+            serde_json::from_value(settings_without_key("mixer_meters")).expect("parse");
+        assert_eq!(settings.mixer_meters, MixerMetersSetting::Mono);
     }
 
     #[test]
-    fn mixer_meter_settings_round_trip_survives_reload() {
+    fn mixer_meters_round_trip_survives_reload() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
-        let mut settings = sample_settings();
-        settings.show_mixer_meters = false;
-        settings.mixer_meters_mono = false;
-        write_settings_file(&path, &settings).expect("write");
+        for mode in [
+            MixerMetersSetting::None,
+            MixerMetersSetting::Mono,
+            MixerMetersSetting::Stereo,
+        ] {
+            let mut settings = sample_settings();
+            settings.mixer_meters = mode;
+            write_settings_file(&path, &settings).expect("write");
 
-        let host = load_host(&path);
-        let restored = settings_from_host(&host);
-        assert!(!restored.show_mixer_meters);
-        assert!(!restored.mixer_meters_mono);
+            let host = load_host(&path);
+            assert_eq!(settings_from_host(&host).mixer_meters, mode);
+        }
+    }
+
+    #[test]
+    fn legacy_meter_flags_migrate_to_the_mode() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+
+        write_legacy_meter_file(&path, false, true);
+        assert_eq!(
+            settings_from_host(&load_host(&path)).mixer_meters,
+            MixerMetersSetting::None
+        );
+
+        write_legacy_meter_file(&path, true, false);
+        assert_eq!(
+            settings_from_host(&load_host(&path)).mixer_meters,
+            MixerMetersSetting::Stereo
+        );
+
+        write_legacy_meter_file(&path, true, true);
+        assert_eq!(
+            settings_from_host(&load_host(&path)).mixer_meters,
+            MixerMetersSetting::Mono
+        );
     }
 
     #[test]
@@ -1629,6 +1710,36 @@ mod tests {
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert!(!restored.show_waveform);
+    }
+
+    #[test]
+    fn missing_layout_panel_visibility_defaults_on() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        for key in ["show_mixer", "show_fx_bar", "show_crossfader"] {
+            object.remove(key);
+        }
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert!(settings.show_mixer);
+        assert!(settings.show_fx_bar);
+        assert!(settings.show_crossfader);
+    }
+
+    #[test]
+    fn layout_panel_visibility_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.show_mixer = false;
+        settings.show_fx_bar = false;
+        settings.show_crossfader = false;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.show_mixer);
+        assert!(!restored.show_fx_bar);
+        assert!(!restored.show_crossfader);
     }
 
     #[test]

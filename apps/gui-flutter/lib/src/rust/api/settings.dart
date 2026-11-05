@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_mixer_meters_mono`, `default_num_decks`, `default_preview_bus_route`, `default_show_mixer_meters`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
+// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_num_decks`, `default_preview_bus_route`, `default_show_crossfader`, `default_show_fx_bar`, `default_show_mixer`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsHost`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SettingsTransport>>
@@ -85,11 +85,8 @@ class AppSettings {
   final double historyMinDeckVolume;
   final bool showTooltips;
 
-  /// Show vertical deck VU meters between mixer volume faders.
-  final bool showMixerMeters;
-
-  /// When mixer meters are shown, use mono (max L/R) instead of stereo ladders.
-  final bool mixerMetersMono;
+  /// Deck VU meters between the mixer volume faders.
+  final MixerMetersSetting mixerMeters;
   final SelectStyleSetting selectStyle;
   final bool dimPlayedTracks;
 
@@ -122,6 +119,16 @@ class AppSettings {
 
   /// Draw the deck waveforms at all (Settings → Layout).
   final bool showWaveform;
+
+  /// Show the channel strip between the decks (Settings → Layout). The decks
+  /// themselves stay visible either way.
+  final bool showMixer;
+
+  /// Show the FX bar at the foot of the mixer pane (Settings → Layout).
+  final bool showFxBar;
+
+  /// Show the crossfader at the foot of the mixer strip (Settings → Layout).
+  final bool showCrossfader;
   final bool analyticsEnabled;
 
   const AppSettings({
@@ -156,8 +163,7 @@ class AppSettings {
     required this.historyMinPlaySeconds,
     required this.historyMinDeckVolume,
     required this.showTooltips,
-    required this.showMixerMeters,
-    required this.mixerMetersMono,
+    required this.mixerMeters,
     required this.selectStyle,
     required this.dimPlayedTracks,
     required this.stemsFormat,
@@ -170,6 +176,9 @@ class AppSettings {
     required this.libraryDrawerSide,
     required this.waveformPosition,
     required this.showWaveform,
+    required this.showMixer,
+    required this.showFxBar,
+    required this.showCrossfader,
     required this.analyticsEnabled,
   });
 
@@ -206,8 +215,7 @@ class AppSettings {
       historyMinPlaySeconds.hashCode ^
       historyMinDeckVolume.hashCode ^
       showTooltips.hashCode ^
-      showMixerMeters.hashCode ^
-      mixerMetersMono.hashCode ^
+      mixerMeters.hashCode ^
       selectStyle.hashCode ^
       dimPlayedTracks.hashCode ^
       stemsFormat.hashCode ^
@@ -220,6 +228,9 @@ class AppSettings {
       libraryDrawerSide.hashCode ^
       waveformPosition.hashCode ^
       showWaveform.hashCode ^
+      showMixer.hashCode ^
+      showFxBar.hashCode ^
+      showCrossfader.hashCode ^
       analyticsEnabled.hashCode;
 
   @override
@@ -258,8 +269,7 @@ class AppSettings {
           historyMinPlaySeconds == other.historyMinPlaySeconds &&
           historyMinDeckVolume == other.historyMinDeckVolume &&
           showTooltips == other.showTooltips &&
-          showMixerMeters == other.showMixerMeters &&
-          mixerMetersMono == other.mixerMetersMono &&
+          mixerMeters == other.mixerMeters &&
           selectStyle == other.selectStyle &&
           dimPlayedTracks == other.dimPlayedTracks &&
           stemsFormat == other.stemsFormat &&
@@ -272,6 +282,9 @@ class AppSettings {
           libraryDrawerSide == other.libraryDrawerSide &&
           waveformPosition == other.waveformPosition &&
           showWaveform == other.showWaveform &&
+          showMixer == other.showMixer &&
+          showFxBar == other.showFxBar &&
+          showCrossfader == other.showCrossfader &&
           analyticsEnabled == other.analyticsEnabled;
 }
 
@@ -394,6 +407,24 @@ enum LibraryRowFieldSetting {
   color,
   bpm,
   key,
+}
+
+/// Deck VU meters between the mixer volume faders (Settings → Layout).
+///
+/// One value instead of a show flag plus a mono flag, so the Settings select can
+/// offer `None` beside the two widths.
+enum MixerMetersSetting {
+  /// No deck meters; the channel columns drop the meter lane.
+  none,
+
+  /// One ladder per deck, max of left/right.
+  mono,
+
+  /// Separate left and right ladders per deck.
+  stereo;
+
+  static Future<MixerMetersSetting> default_() =>
+      RustLib.instance.api.crateApiSettingsMixerMetersSettingDefault();
 }
 
 /// Default sampler pad play mode.

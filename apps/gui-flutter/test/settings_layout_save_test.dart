@@ -27,14 +27,18 @@ class _FakeSettingsTransport implements SettingsTransport {
   }
 }
 
-void main() {
-  testWidgets('saving a waveform position does not restart the engine', (
-    tester,
-  ) async {
-    final baseline = defaultAppSettings();
-    final settings = _FakeSettingsTransport(baseline);
-    var engineReads = 0;
-    late WidgetRef ref;
+/// Widget-backed save harness: a [WidgetRef] plus a fake settings host and an
+/// engine provider that counts every read, so a view-only save can prove it
+/// never touched the engine.
+class _Harness {
+  _Harness(this.baseline) : settings = _FakeSettingsTransport(baseline);
+
+  final AppSettings baseline;
+  final _FakeSettingsTransport settings;
+  var engineReads = 0;
+  late WidgetRef ref;
+
+  Future<void> pump(WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -54,11 +58,20 @@ void main() {
       ),
     );
     await tester.pump();
+  }
+}
+
+void main() {
+  testWidgets('saving a waveform position does not restart the engine', (
+    tester,
+  ) async {
+    final harness = _Harness(defaultAppSettings());
+    await harness.pump(tester);
 
     final result = await saveAppSettings(
-      ref,
+      harness.ref,
       copyAppSettings(
-        baseline,
+        harness.baseline,
         waveformPosition: WaveformPositionSetting.middleHorizontal,
       ),
     );
@@ -68,9 +81,44 @@ void main() {
       WaveformPositionSetting.middleHorizontal,
     );
     expect(
-      settings.stored.waveformPosition,
+      harness.settings.stored.waveformPosition,
       WaveformPositionSetting.middleHorizontal,
     );
-    expect(engineReads, 0, reason: 'a layout move must not restart audio');
+    expect(
+      harness.engineReads,
+      0,
+      reason: 'a layout move must not restart audio',
+    );
+  });
+
+  testWidgets('saving panel visibility and the drawer stays view-only', (
+    tester,
+  ) async {
+    final harness = _Harness(defaultAppSettings());
+    await harness.pump(tester);
+
+    final result = await saveAppSettings(
+      harness.ref,
+      copyAppSettings(
+        harness.baseline,
+        showMixer: false,
+        showFxBar: false,
+        showCrossfader: false,
+        libraryDrawerEnabled: true,
+        libraryDrawerSide: LibraryDrawerSideSetting.left,
+        mixerMeters: MixerMetersSetting.none,
+      ),
+    );
+
+    expect(result.saved.showMixer, isFalse);
+    expect(result.saved.showFxBar, isFalse);
+    expect(result.saved.showCrossfader, isFalse);
+    expect(harness.settings.stored.libraryDrawerEnabled, isTrue);
+    expect(harness.settings.stored.mixerMeters, MixerMetersSetting.none);
+    expect(
+      harness.engineReads,
+      0,
+      reason: 'a cosmetic save must not restart audio',
+    );
   });
 }

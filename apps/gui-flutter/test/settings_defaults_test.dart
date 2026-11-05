@@ -411,6 +411,22 @@ void main() {
     );
   });
 
+  test('layout panels default visible and are dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.showMixer, isTrue);
+    expect(baseline.showFxBar, isTrue);
+    expect(baseline.showCrossfader, isTrue);
+    for (final draft in [
+      copyAppSettings(baseline, showMixer: false),
+      copyAppSettings(baseline, showFxBar: false),
+      copyAppSettings(baseline, showCrossfader: false),
+    ]) {
+      expect(appSettingsDirty(draft, baseline), isTrue);
+    }
+    // The decks are not a toggle, so no deck-row flag is carried.
+    expect(copyAppSettings(baseline, showMixer: false).numDecks, 2);
+  });
+
   test('effectiveSelectStyle maps auto from isDesktopWindow', () {
     addTearDown(() => debugOverrideDesktopWindow = null);
 

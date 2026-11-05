@@ -72,25 +72,22 @@ class DeckGrid extends ConsumerWidget {
   ///
   /// The middle layouts hide the mixer but keep its foot: the horizontal lanes
   /// stack (or one vertical lane per deck runs side by side) above the same
-  /// crossfader panel the mixer column carries under its channels.
+  /// crossfader panel the mixer column carries under its channels, unless the
+  /// crossfader is switched off in Settings → Layout.
   Widget _center(
     BuildContext context,
     WaveformPositionSetting position,
     double width,
-    int numDecks,
-  ) {
-    final theme = context.theme;
+    int numDecks, {
+    required bool showCrossfader,
+  }) {
     final vertical = position == WaveformPositionSetting.middleVertical;
     final content = vertical
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var deckId = 0; deckId < numDecks; deckId++) ...[
-                if (deckId > 0)
-                  SizedBox(
-                    width: theme.style.borderWidth,
-                    child: ColoredBox(color: theme.colors.border),
-                  ),
+                if (deckId > 0) _seam(context),
                 Expanded(child: _lane(deckId)),
               ],
             ],
@@ -105,13 +102,14 @@ class DeckGrid extends ConsumerWidget {
           // The mixer keeps its strip off the deck cards; the center column is
           // flush, so the crossfader re-adds that gutter and the same foot
           // spacing the mixer cell has.
-          CrossfaderPanel(
-            contentPadding: EdgeInsets.only(
-              left: rowSpacing + inset,
-              right: rowSpacing + inset,
-              bottom: MixerStrip.verticalInset,
+          if (showCrossfader)
+            const CrossfaderPanel(
+              contentPadding: EdgeInsets.only(
+                left: rowSpacing + inset,
+                right: rowSpacing + inset,
+                bottom: MixerStrip.verticalInset,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -123,19 +121,33 @@ class DeckGrid extends ConsumerWidget {
     final numDecks = settings?.numDecks ?? 2;
     final position = settings?.waveformPosition ?? WaveformPositionSetting.top;
     final showWaveform = settings?.showWaveform ?? true;
+    // The strip is the only part of the deck row the Mixer switch removes: the
+    // decks always stay, and a middle waveform already owns the center column.
+    final showMixer = settings?.showMixer ?? true;
+    final showCrossfader = settings?.showCrossfader ?? true;
     final middle =
         showWaveform &&
         (position == WaveformPositionSetting.middleHorizontal ||
             position == WaveformPositionSetting.middleVertical);
     final centerWidth = numDecks == 4 ? _centerWidthFour : _centerWidth;
     final center = middle
-        ? _center(context, position, centerWidth, numDecks)
-        : _mixer;
+        ? _center(
+            context,
+            position,
+            centerWidth,
+            numDecks,
+            showCrossfader: showCrossfader,
+          )
+        : (showMixer ? _mixer : null);
 
     // Middle layouts hand the mixer's gutters to the waveform: no row gap and
-    // no deck inset on the edge that faces the lanes.
-    final spacing = middle ? 0.0 : rowSpacing;
-    final innerInset = !middle;
+    // no deck inset on the edge that faces the lanes. An empty centre column
+    // gets the same treatment, so the decks meet on a single hairline instead
+    // of leaving the mixer's gutter behind as dead space.
+    final closed = center == null;
+    final spacing = middle || closed ? 0.0 : rowSpacing;
+    final innerInset = !middle && !closed;
+    final seam = closed ? _seam(context) : null;
 
     if (numDecks == 2) {
       return Row(
@@ -143,7 +155,8 @@ class DeckGrid extends ConsumerWidget {
         spacing: spacing,
         children: [
           Expanded(child: _panel(0, rightInset: innerInset)),
-          center,
+          ?seam,
+          ?center,
           Expanded(child: _panel(1, leftInset: innerInset)),
         ],
       );
@@ -164,7 +177,8 @@ class DeckGrid extends ConsumerWidget {
             dividerPadding: EdgeInsets.only(right: innerInset ? inset : 0),
           ),
         ),
-        center,
+        ?seam,
+        ?center,
         Expanded(
           child: _stacked(
             context,
@@ -178,6 +192,12 @@ class DeckGrid extends ConsumerWidget {
       ],
     );
   }
+
+  /// Hairline between the deck columns when no centre column sits between them.
+  Widget _seam(BuildContext context) => SizedBox(
+    width: context.theme.style.borderWidth,
+    child: ColoredBox(color: context.theme.colors.border),
+  );
 
   Widget _stacked(
     BuildContext context,

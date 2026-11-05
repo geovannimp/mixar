@@ -154,8 +154,7 @@ AppSettings defaultAppSettings() {
     historyMinPlaySeconds: 5,
     historyMinDeckVolume: 0.05,
     showTooltips: true,
-    showMixerMeters: true,
-    mixerMetersMono: true,
+    mixerMeters: MixerMetersSetting.mono,
     selectStyle: SelectStyleSetting.auto,
     dimPlayedTracks: true,
     stemsFormat: 'opus',
@@ -168,6 +167,9 @@ AppSettings defaultAppSettings() {
     libraryDrawerSide: LibraryDrawerSideSetting.bottom,
     waveformPosition: WaveformPositionSetting.top,
     showWaveform: true,
+    showMixer: true,
+    showFxBar: true,
+    showCrossfader: true,
     analyticsEnabled: false,
   );
 }
@@ -228,6 +230,19 @@ BusRouteSettings _normalizeBus(BusRouteSettings route) {
   );
 }
 
+/// Meter mode Settings → Layout asks for, with the default while the settings
+/// are still loading.
+MixerMetersSetting mixerMetersSetting(AppSettings? settings) =>
+    settings?.mixerMeters ?? MixerMetersSetting.mono;
+
+/// Whether the deck VU meters are drawn at all.
+bool showsDeckMeters(AppSettings? settings) =>
+    mixerMetersSetting(settings) != MixerMetersSetting.none;
+
+/// Whether a deck draws one ladder (max of left/right) instead of two.
+bool deckMetersMono(AppSettings? settings) =>
+    mixerMetersSetting(settings) != MixerMetersSetting.stereo;
+
 AppSettings copyAppSettings(
   AppSettings base, {
   int? bufferSize,
@@ -261,8 +276,7 @@ AppSettings copyAppSettings(
   int? historyMinPlaySeconds,
   double? historyMinDeckVolume,
   bool? showTooltips,
-  bool? showMixerMeters,
-  bool? mixerMetersMono,
+  MixerMetersSetting? mixerMeters,
   SelectStyleSetting? selectStyle,
   bool? dimPlayedTracks,
   String? stemsFormat,
@@ -275,6 +289,9 @@ AppSettings copyAppSettings(
   LibraryDrawerSideSetting? libraryDrawerSide,
   WaveformPositionSetting? waveformPosition,
   bool? showWaveform,
+  bool? showMixer,
+  bool? showFxBar,
+  bool? showCrossfader,
   bool? analyticsEnabled,
 }) {
   return AppSettings(
@@ -313,8 +330,7 @@ AppSettings copyAppSettings(
     historyMinPlaySeconds: historyMinPlaySeconds ?? base.historyMinPlaySeconds,
     historyMinDeckVolume: historyMinDeckVolume ?? base.historyMinDeckVolume,
     showTooltips: showTooltips ?? base.showTooltips,
-    showMixerMeters: showMixerMeters ?? base.showMixerMeters,
-    mixerMetersMono: mixerMetersMono ?? base.mixerMetersMono,
+    mixerMeters: mixerMeters ?? base.mixerMeters,
     selectStyle: selectStyle ?? base.selectStyle,
     dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
     stemsFormat: stemsFormat ?? base.stemsFormat,
@@ -327,6 +343,9 @@ AppSettings copyAppSettings(
     libraryDrawerSide: libraryDrawerSide ?? base.libraryDrawerSide,
     waveformPosition: waveformPosition ?? base.waveformPosition,
     showWaveform: showWaveform ?? base.showWaveform,
+    showMixer: showMixer ?? base.showMixer,
+    showFxBar: showFxBar ?? base.showFxBar,
+    showCrossfader: showCrossfader ?? base.showCrossfader,
     analyticsEnabled: analyticsEnabled ?? base.analyticsEnabled,
   );
 }
@@ -362,8 +381,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.historyMinPlaySeconds != baseline.historyMinPlaySeconds ||
       draft.historyMinDeckVolume != baseline.historyMinDeckVolume ||
       draft.showTooltips != baseline.showTooltips ||
-      draft.showMixerMeters != baseline.showMixerMeters ||
-      draft.mixerMetersMono != baseline.mixerMetersMono ||
+      draft.mixerMeters != baseline.mixerMeters ||
       draft.selectStyle != baseline.selectStyle ||
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       draft.stemsFormat != baseline.stemsFormat ||
@@ -376,6 +394,9 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.libraryDrawerSide != baseline.libraryDrawerSide ||
       draft.waveformPosition != baseline.waveformPosition ||
       draft.showWaveform != baseline.showWaveform ||
+      draft.showMixer != baseline.showMixer ||
+      draft.showFxBar != baseline.showFxBar ||
+      draft.showCrossfader != baseline.showCrossfader ||
       draft.analyticsEnabled != baseline.analyticsEnabled ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||
       !_sameList(draft.libraryRowFields, baseline.libraryRowFields) ||
