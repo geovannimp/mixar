@@ -15,7 +15,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsDeepLink {
-  const SettingsDeepLink({
+  const new({
     this.section = SettingsSection.ui,
     this.scrollToPreviewBus = false,
   });

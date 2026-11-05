@@ -145,7 +145,7 @@ class LibraryNavRow extends StatelessWidget {
 /// cursor, so it is already laid out and a single [Scrollable.ensureVisible]
 /// reaches it — no fixed row extent to keep in step with the two row layouts.
 class _ScrollFocusedIntoView extends StatefulWidget {
-  const _ScrollFocusedIntoView({required this.focused, required this.child});
+  const new({required this.focused, required this.child});
 
   final bool focused;
   final Widget child;

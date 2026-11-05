@@ -126,7 +126,7 @@ Future<bool?> showAnalyzeTrackDialog(
 }
 
 class _AnalyzeTrackDialogBody extends StatefulWidget {
-  const _AnalyzeTrackDialogBody({required this.trackName});
+  const new({required this.trackName});
 
   final String trackName;
 

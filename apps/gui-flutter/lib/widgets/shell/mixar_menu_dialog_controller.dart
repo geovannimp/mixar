@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
 
 class MenuDialogController extends MixarOverlayController {
-  MenuDialogController({required this.onOpen});
+  new({required this.onOpen});
 
   final Future<void> Function() onOpen;
   NavigatorState? _dialogNavigator;

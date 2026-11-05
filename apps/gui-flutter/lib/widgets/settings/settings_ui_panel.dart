@@ -10,11 +10,7 @@ import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 
 class SettingsUiPanel extends StatelessWidget {
-  const SettingsUiPanel({
-    required this.draft,
-    required this.onChanged,
-    super.key,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;

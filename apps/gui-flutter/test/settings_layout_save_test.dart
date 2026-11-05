@@ -31,7 +31,7 @@ class _FakeSettingsTransport implements SettingsTransport {
 /// engine provider that counts every read, so a view-only save can prove it
 /// never touched the engine.
 class _Harness {
-  _Harness(this.baseline) : settings = _FakeSettingsTransport(baseline);
+  new(this.baseline) : settings = _FakeSettingsTransport(baseline);
 
   final AppSettings baseline;
   final _FakeSettingsTransport settings;
