@@ -4,7 +4,7 @@ import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class SettingsNumericStepper extends StatelessWidget {
-  const SettingsNumericStepper({
+  const new({
     required this.value,
     required this.min,
     required this.max,

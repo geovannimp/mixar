@@ -25,7 +25,7 @@ class MixarThemeData {
 
   /// Palette-seeded theme. The teal palette returns the stock singleton, so
   /// existing `light()`/`dark()` call sites are unchanged.
-  factory MixarThemeData.of(MixarAccentPalette palette, Brightness brightness) {
+  factory of(MixarAccentPalette palette, Brightness brightness) {
     final base = MixarThemeData.forBrightness(brightness);
     return palette == MixarAccentPalette.teal
         ? base

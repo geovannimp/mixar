@@ -100,7 +100,7 @@ Future<void> main() async {
 /// Deliberately plain (no Mixar/Shad theme or providers): it renders before
 /// settings are loaded and only has to show why the app cannot continue.
 class StartupFailureApp extends StatelessWidget {
-  const StartupFailureApp({required this.message, super.key});
+  const new({required this.message, super.key});
 
   final String message;
 

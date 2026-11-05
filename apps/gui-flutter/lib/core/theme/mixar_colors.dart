@@ -13,7 +13,7 @@ import 'package:gui_flutter/core/theme/mixar_palette.dart';
 /// Mixar color tokens aligned with the website palette.
 @immutable
 class MixarColors {
-  const MixarColors({
+  const new({
     required this.brightness,
     required this.background,
     required this.foreground,

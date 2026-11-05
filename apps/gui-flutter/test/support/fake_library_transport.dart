@@ -49,7 +49,7 @@ typedef ExportCdjUsbHandler = Future<CdjExportReport> Function(
 /// `dispatchBusEvent(ref, event)` (the bus transport itself is opaque FRB and
 /// cannot be built from Dart).
 class FakeLibraryTransport implements LibraryTransport {
-  FakeLibraryTransport({
+  new({
     this.getTrackHandler,
     this.listCollectionEntriesHandler,
     this.exportCdjUsbHandler,

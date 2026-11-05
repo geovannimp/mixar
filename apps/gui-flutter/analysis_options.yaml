@@ -26,6 +26,12 @@ analyzer:
     - linux/**
     - rust_builder/**
     - lib/src/rust/**
+  errors:
+    # Unnamed constructors are declared as `new` so a class rename touches one
+    # line instead of every constructor. very_good_analysis ships
+    # `unnecessary_type_name_in_constructor` as an info, and the lint task runs
+    # with --no-fatal-infos, so promote it to warning to make it enforced.
+    unnecessary_type_name_in_constructor: warning
 
 linter:
   # Override rules from very_good_analysis here as needed.

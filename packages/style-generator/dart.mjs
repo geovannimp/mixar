@@ -223,7 +223,7 @@ export const dartColors = ({ dictionary }) => {
     '/// Mixar color tokens aligned with the website palette.',
     '@immutable',
     'class MixarColors {',
-    '  const MixarColors({',
+    '  const new({',
     '    required this.brightness,',
     ...names.map((name) => `    required this.${name},`),
     '    this.hoverLighten = 0.075,',

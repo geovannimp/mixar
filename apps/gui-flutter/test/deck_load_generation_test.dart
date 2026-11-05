@@ -20,7 +20,7 @@ TrackDragPayload _payload(String id) => TrackDragPayload(
 /// load is in flight — the track list and the deck picker both live in the
 /// drawer the load closes.
 class _DeckLoadRequester extends ConsumerStatefulWidget {
-  const _DeckLoadRequester(this.trackId);
+  const new(this.trackId);
 
   final String trackId;
 
@@ -75,7 +75,7 @@ class _ThrowingDeckLoadTransport implements DeckLoadTransport {
 }
 
 class _GatedThrowDeckLoadTransport implements DeckLoadTransport {
-  _GatedThrowDeckLoadTransport(this._gate);
+  new(this._gate);
 
   final Completer<void> _gate;
 

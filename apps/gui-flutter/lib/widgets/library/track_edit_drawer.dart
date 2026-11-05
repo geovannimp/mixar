@@ -54,7 +54,7 @@ enum TrackFormField implements FieldSchema<String> {
 
 /// An optional whole number inside `min..=max`; empty clears the field.
 class _IntegerRangeValidator extends FieldValidator<String> {
-  const _IntegerRangeValidator(this.min, this.max, this.failure)
+  const new(this.min, this.max, this.failure)
     : super(errorCode: 'invalid_integer');
 
   final int min;
@@ -210,7 +210,7 @@ Future<void> showTrackEditDrawer(
 /// `Clear` link is offered as well so clearing is discoverable without knowing
 /// the toggle.
 class _StarRating extends StatelessWidget {
-  const _StarRating({required this.value, required this.onChanged});
+  const new({required this.value, required this.onChanged});
 
   final int? value;
   final ValueChanged<int?> onChanged;
@@ -286,7 +286,7 @@ class _StarRating extends StatelessWidget {
 
 /// None + the eight device colours, as swatches of their stored label.
 class _ColorLabelPicker extends StatelessWidget {
-  const _ColorLabelPicker({required this.value, required this.onChanged});
+  const new({required this.value, required this.onChanged});
 
   final LibraryColorLabel? value;
   final ValueChanged<LibraryColorLabel?> onChanged;
@@ -329,7 +329,7 @@ class _ColorLabelPicker extends StatelessWidget {
 }
 
 class _Swatch extends StatelessWidget {
-  const _Swatch({
+  const new({
     required this.label,
     required this.color,
     required this.selected,

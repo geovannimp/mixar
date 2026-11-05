@@ -39,18 +39,17 @@ class MixerChannelUi {
   final CrossfaderAssign crossfaderAssign;
 
   /// Channel state from a full deck snapshot.
-  factory MixerChannelUi.fromDeckUpdate(bus.DeckUpdated update) =>
-      MixerChannelUi(
-        volume: update.volume,
-        eqLow: update.eq.low,
-        eqMid: update.eq.mid,
-        eqHigh: update.eq.high,
-        filter: update.filter,
-        gainTrim: update.gainTrim,
-        fxRouted: update.fxRouted,
-        headphoneCue: update.headphoneCue,
-        crossfaderAssign: update.crossfaderAssign,
-      );
+  factory fromDeckUpdate(bus.DeckUpdated update) => MixerChannelUi(
+    volume: update.volume,
+    eqLow: update.eq.low,
+    eqMid: update.eq.mid,
+    eqHigh: update.eq.high,
+    filter: update.filter,
+    gainTrim: update.gainTrim,
+    fxRouted: update.fxRouted,
+    headphoneCue: update.headphoneCue,
+    crossfaderAssign: update.crossfaderAssign,
+  );
 
   /// Optimistic write for the FX routing switch (engine evts supersede it).
   MixerChannelUi withFxRouted(bool value) => MixerChannelUi(

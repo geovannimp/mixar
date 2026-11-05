@@ -207,7 +207,7 @@ final collectionTracksProvider =
 /// track load.
 @visibleForTesting
 class SeededCollectionTracks extends CollectionTracks {
-  SeededCollectionTracks(this._load);
+  new(this._load);
 
   final Future<List<LibraryTrackSummary>> Function(Ref ref) _load;
 

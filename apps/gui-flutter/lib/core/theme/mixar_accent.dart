@@ -7,7 +7,7 @@ import 'package:gui_flutter/core/theme/mixar_palette.dart';
 /// one tone can serve a bright grip, a deep lane tint and a label.
 @immutable
 class MixarColorScale {
-  const MixarColorScale({
+  const new({
     required this.s50,
     required this.s100,
     required this.s200,
