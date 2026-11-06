@@ -127,6 +127,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required bool refreshFiles,
   });
 
+  /// Renders a session and writes it to `dest_path` on the Rust side.
   Future<void> exportHistorySession({
     required String sessionId,
     required HistoryExportFormatSetting format,
@@ -224,6 +225,13 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   Future<void> renameHistorySession({
     required String sessionId,
     required String title,
+  });
+
+  /// Renders a session as CSV, M3U8 or plain text without writing it, for
+  /// platforms whose save dialog returns a `content://` URI (Android).
+  Future<String> renderHistorySession({
+    required String sessionId,
+    required HistoryExportFormatSetting format,
   });
 
   /// Resolve library tracks for the given filesystem paths.

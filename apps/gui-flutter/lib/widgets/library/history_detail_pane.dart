@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
@@ -181,56 +185,90 @@ class HistoryDetailPane extends ConsumerWidget {
     String sessionId, {
     String? sessionTitle,
   }) async {
-    final format = await showMixarDialog<HistoryExportFormatSetting?>(
-      context: context,
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Export format'),
-              const SizedBox(height: 12),
-              for (final (label, value) in [
-                ('CSV', HistoryExportFormatSetting.csv),
-                ('M3U8', HistoryExportFormatSetting.m3U8),
-                ('Plain text', HistoryExportFormatSetting.txt),
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: AppButton(
-                    variant: .outline,
-                    onPress: () => Navigator.of(context).pop(value),
-                    child: Text(label),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-    if (format == null || !context.mounted) {
-      return;
-    }
-    final ext = switch (format) {
-      HistoryExportFormatSetting.csv => 'csv',
-      HistoryExportFormatSetting.m3U8 => 'm3u8',
-      HistoryExportFormatSetting.txt => 'txt',
-    };
-    final dest = await FilePicker.saveFile(
-      dialogTitle: 'Export history session',
-      fileName: _historyExportFileName(sessionTitle, ext),
-    );
-    if (dest == null) {
-      return;
-    }
     try {
+      // Read the transport before any await: `ref` may be gone once the
+      // dialogs return, and a disposed widget must not be touched again.
       final transport = await ref.read(libraryTransportProvider.future);
+      final format = await showMixarDialog<HistoryExportFormatSetting?>(
+        context: context,
+        builder: (context) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // The native save dialog cannot carry this title: GTK's is
+                // hardcoded by file_selector_linux, so name the action here.
+                const Text('Export history session'),
+                if (sessionTitle != null && sessionTitle.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    sessionTitle,
+                    style: context.theme.typography.body.sm.copyWith(
+                      color: context.theme.colors.mutedForeground,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                for (final (label, value) in [
+                  ('CSV', HistoryExportFormatSetting.csv),
+                  ('M3U8', HistoryExportFormatSetting.m3U8),
+                  ('Plain text', HistoryExportFormatSetting.txt),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: AppButton(
+                      variant: .outline,
+                      onPress: () => Navigator.of(context).pop(value),
+                      child: Text(label),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+      if (format == null || !context.mounted) {
+        return;
+      }
+      final (ext, mimeType) = switch (format) {
+        HistoryExportFormatSetting.csv => ('csv', 'text/csv'),
+        HistoryExportFormatSetting.m3U8 => ('m3u8', 'audio/x-mpegurl'),
+        HistoryExportFormatSetting.txt => ('txt', 'text/plain'),
+      };
+      final fileName = _historyExportFileName(sessionTitle, ext);
+      // The Rust side writes the file. Web and Android are the exceptions: web
+      // has no save-location dialog, and Android's Storage Access Framework
+      // hands back a `content://` URI that Rust cannot open, so the platform
+      // writes those bytes instead.
+      if (kIsWeb || defaultTargetPlatform == TargetPlatform.android) {
+        final body = await transport.renderHistorySession(
+          sessionId: sessionId,
+          format: format,
+        );
+        await FilePicker.saveFile(
+          dialogTitle: 'Export history session',
+          fileName: fileName,
+          bytes: utf8.encode(body),
+          mimeType: mimeType,
+        );
+        return;
+      }
+      final location = await getSaveLocation(
+        suggestedName: fileName,
+        confirmButtonText: 'Export',
+        acceptedTypeGroups: [
+          XTypeGroup(label: ext.toUpperCase(), extensions: [ext]),
+        ],
+      );
+      if (location == null) {
+        return;
+      }
       await transport.exportHistorySession(
         sessionId: sessionId,
         format: format,
-        destPath: dest,
+        destPath: location.path,
       );
     } catch (e) {
       ref.read(appNoticeProvider.notifier).setError('$e');
