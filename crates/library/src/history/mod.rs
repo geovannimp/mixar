@@ -3,7 +3,7 @@ mod recorder;
 pub mod store;
 pub mod xspf;
 
-pub use export::{export_document, HistoryExportFormat};
+pub use export::{export_document, render_document, HistoryExportFormat};
 pub use recorder::{
     crossfader_gain, DeckPlaySnapshot, HistoryRecorder, HistoryRestorePrompt, HistorySettings,
 };
@@ -110,19 +110,36 @@ impl LibraryManager {
         self.history.history_dir()
     }
 
+    /// Renders a session as CSV, M3U8 or plain text without writing it.
+    ///
+    /// Used by platforms whose save dialog hands back a `content://` URI
+    /// (Android), where only the platform can write the bytes.
+    pub fn render_history_session(
+        &self,
+        session_id: &str,
+        format: HistoryExportFormat,
+    ) -> Result<String> {
+        let doc = self.load_history_document(session_id)?;
+        Ok(render_document(&doc, format))
+    }
+
+    /// Renders a session and writes it to `dest`, creating missing parents.
     pub fn export_history_session(
         &self,
         session_id: &str,
         format: HistoryExportFormat,
         dest: &Path,
     ) -> Result<()> {
+        export_document(&self.load_history_document(session_id)?, format, dest)
+    }
+
+    fn load_history_document(&self, session_id: &str) -> Result<HistoryDocument> {
         let row = crate::history::store::get_session(&self.db, session_id)?.ok_or_else(|| {
             LibraryError::Backend {
                 backend: "history",
                 message: "session not found".into(),
             }
         })?;
-        let doc = crate::history::store::load_document(Path::new(&row.xspf_path))?;
-        export_document(&doc, format, dest)
+        crate::history::store::load_document(Path::new(&row.xspf_path))
     }
 }

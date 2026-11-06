@@ -1184,6 +1184,22 @@ impl LibraryTransport {
         lib.delete_history_session(&session_id).bridge()
     }
 
+    /// Renders a session as CSV, M3U8 or plain text without writing it, for
+    /// platforms whose save dialog returns a `content://` URI (Android).
+    pub fn render_history_session(
+        &self,
+        session_id: String,
+        format: HistoryExportFormatSetting,
+    ) -> Result<String, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.render_history_session(&session_id, format.into())
+            .bridge()
+    }
+
+    /// Renders a session and writes it to `dest_path` on the Rust side.
     pub fn export_history_session(
         &self,
         session_id: String,

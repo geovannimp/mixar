@@ -40,7 +40,13 @@ dependencies:
   path: ^1.9.1
   collection: ^1.19.1
   material_ui: ^1.6.0
-  file_picker: ^11.0.3
+  file_picker: ^13.3.2
+  # Desktop save dialog that returns the chosen path instead of writing the
+  # bytes, so the export itself is written by the Rust side.
+  file_selector: ^1.0.4
+  # Held at 0.8.4: 0.9.x (the release that stops applying KGP unconditionally)
+  # needs `cross_file` 0.4, which file_picker's platform packages pin to 0.3.x.
+  # Move once file_picker 14.0.0 lands (vicajilau/flutter_file_picker#2224).
   desktop_drop: ^0.8.4
   skeletonizer: ^3.0.0
   lucide_icons_flutter: ^3.1.17

@@ -14,20 +14,26 @@ pub enum HistoryExportFormat {
     Txt,
 }
 
+/// Renders a history session in [format] without touching the filesystem.
+pub fn render_document(doc: &HistoryDocument, format: HistoryExportFormat) -> String {
+    match format {
+        HistoryExportFormat::Csv => render_csv(doc),
+        HistoryExportFormat::M3u8 => render_m3u8(doc),
+        HistoryExportFormat::Txt => render_txt(doc),
+    }
+}
+
+/// Renders a history session in [format] and writes it to `dest`, creating the
+/// parent directory when it is missing.
 pub fn export_document(
     doc: &HistoryDocument,
     format: HistoryExportFormat,
     dest: &Path,
 ) -> Result<()> {
-    let body = match format {
-        HistoryExportFormat::Csv => render_csv(doc),
-        HistoryExportFormat::M3u8 => render_m3u8(doc),
-        HistoryExportFormat::Txt => render_txt(doc),
-    };
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent).map_err(io_err)?;
     }
-    fs::write(dest, body).map_err(io_err)
+    fs::write(dest, render_document(doc, format)).map_err(io_err)
 }
 
 fn render_csv(doc: &HistoryDocument) -> String {
@@ -190,10 +196,21 @@ mod tests {
     }
 
     #[test]
-    fn export_document_writes_file() {
+    fn render_document_matches_format() {
+        let doc = sample_document();
+        assert!(render_document(&doc, HistoryExportFormat::Csv).contains("Rock & Roll"));
+        assert!(render_document(&doc, HistoryExportFormat::M3u8).starts_with("#EXTM3U\n"));
+        assert_eq!(
+            render_document(&doc, HistoryExportFormat::Txt),
+            "1. Rock & Roll - Artist <live>\n2. =HYPERLINK\n"
+        );
+    }
+
+    #[test]
+    fn export_document_writes_file_and_creates_parent() {
         let doc = sample_document();
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("set.csv");
+        let path = dir.path().join("nested").join("set.csv");
         export_document(&doc, HistoryExportFormat::Csv, &path).unwrap();
         let read = fs::read_to_string(&path).unwrap();
         assert!(read.contains("Rock & Roll"));

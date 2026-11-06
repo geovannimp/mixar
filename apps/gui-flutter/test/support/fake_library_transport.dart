@@ -272,6 +272,12 @@ class FakeLibraryTransport implements LibraryTransport {
   }
 
   @override
+  Future<String> renderHistorySession({
+    required String sessionId,
+    required HistoryExportFormatSetting format,
+  }) async => '';
+
+  @override
   Future<void> exportHistorySession({
     required String sessionId,
     required HistoryExportFormatSetting format,
