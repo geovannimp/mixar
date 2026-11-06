@@ -7,17 +7,17 @@ type Idle = typeof import("./idle");
 let whenIdle: Idle["whenIdle"];
 let whenVisible: Idle["whenVisible"];
 
-type IdleHandle = { timeout?: number };
+type IdleOptions = { timeout?: number };
 
 /** Controllable `requestIdleCallback`, so the idle path is not a timing race. */
-let idleRuns: Array<() => void> = [];
+let idleCalls: Array<{ run: () => void; options?: IdleOptions }> = [];
 
 const installIdle = () => {
   Object.defineProperty(globalThis, "requestIdleCallback", {
     configurable: true,
-    value: (run: () => void, _options?: IdleHandle) => {
-      idleRuns.push(run);
-      return idleRuns.length;
+    value: (run: () => void, options?: IdleOptions) => {
+      idleCalls.push({ run, options });
+      return idleCalls.length;
     },
   });
 };
@@ -36,8 +36,19 @@ function fakeDocument(readyState: DocumentReadyState, withWindow = true) {
   return doc as unknown as Document;
 }
 
+/** Tracks whether a promise has settled, without awaiting it. */
+function trackResolved(promise: Promise<void>) {
+  const state = { resolved: false };
+  void promise.then(() => {
+    state.resolved = true;
+  });
+  return state;
+}
+
+const runIdle = (index = 0) => idleCalls[index]?.run();
+
 beforeEach(async () => {
-  idleRuns = [];
+  idleCalls = [];
   installIdle();
   vi.resetModules();
   ({ whenIdle, whenVisible } = await import("./idle"));
@@ -51,18 +62,27 @@ afterEach(() => {
 describe("whenIdle", () => {
   it("waits for an idle callback when the document is already complete", async () => {
     const doc = fakeDocument("complete");
-    let resolved = false;
-    const done = whenIdle(doc).then(() => {
-      resolved = true;
-    });
+    const state = trackResolved(whenIdle(doc));
 
     await Promise.resolve();
-    expect(resolved).toBe(false);
-    expect(idleRuns).toHaveLength(1);
+    expect(state.resolved).toBe(false);
+    expect(idleCalls).toHaveLength(1);
+    // The timeout is what keeps a busy main thread from starving the work.
+    expect(idleCalls[0]?.options).toEqual({ timeout: 2000 });
 
-    idleRuns[0]?.();
-    await done;
-    expect(resolved).toBe(true);
+    runIdle();
+    await vi.waitFor(() => expect(state.resolved).toBe(true));
+  });
+
+  it("schedules idle straight away for a document without a window", async () => {
+    const doc = fakeDocument("loading", false);
+    const state = trackResolved(whenIdle(doc));
+
+    await Promise.resolve();
+    expect(idleCalls).toHaveLength(1);
+
+    runIdle();
+    await vi.waitFor(() => expect(state.resolved).toBe(true));
   });
 
   it("resolves on the first intent event and detaches the others", async () => {
@@ -83,15 +103,15 @@ describe("whenIdle", () => {
 
   it("waits for the load event before scheduling idle", async () => {
     const doc = fakeDocument("loading");
-    const done = whenIdle(doc);
+    const state = trackResolved(whenIdle(doc));
 
     await Promise.resolve();
-    expect(idleRuns).toHaveLength(0);
+    expect(idleCalls).toHaveLength(0);
 
     (doc.defaultView as unknown as EventTarget).dispatchEvent(new Event("load"));
-    expect(idleRuns).toHaveLength(1);
-    idleRuns[0]?.();
-    await done;
+    expect(idleCalls).toHaveLength(1);
+    runIdle();
+    await vi.waitFor(() => expect(state.resolved).toBe(true));
   });
 
   it("falls back to a macrotask without requestIdleCallback", async () => {
@@ -102,16 +122,12 @@ describe("whenIdle", () => {
     whenIdle = (await import("./idle")).whenIdle;
     vi.useFakeTimers();
     const doc = fakeDocument("complete");
-    let resolved = false;
-    const done = whenIdle(doc).then(() => {
-      resolved = true;
-    });
+    const state = trackResolved(whenIdle(doc));
 
     await Promise.resolve();
-    expect(resolved).toBe(false);
+    expect(state.resolved).toBe(false);
     vi.runAllTimers();
-    await done;
-    expect(resolved).toBe(true);
+    await vi.waitFor(() => expect(state.resolved).toBe(true));
   });
 });
 
@@ -129,7 +145,7 @@ describe("whenVisible", () => {
         constructor(callback: (entries: Array<{ isIntersecting: boolean }>) => void) {
           callbacks.push(callback);
         }
-        observe() { }
+        observe() {}
         disconnect = disconnect;
       },
     });
@@ -140,19 +156,14 @@ describe("whenVisible", () => {
   });
 
   it("resolves when the element comes into range and stops observing", async () => {
-    const done = whenVisible(document.createElement("div"));
-    let resolved = false;
-    void done.then(() => {
-      resolved = true;
-    });
+    const state = trackResolved(whenVisible(document.createElement("div")));
 
     callbacks[0]?.([{ isIntersecting: false }]);
     await Promise.resolve();
-    expect(resolved).toBe(false);
+    expect(state.resolved).toBe(false);
 
     callbacks[0]?.([{ isIntersecting: true }]);
-    await done;
-    expect(resolved).toBe(true);
+    await vi.waitFor(() => expect(state.resolved).toBe(true));
     expect(disconnect).toHaveBeenCalledTimes(1);
   });
 
