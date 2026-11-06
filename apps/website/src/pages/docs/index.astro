@@ -3,13 +3,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import { docPath, getDocs } from "../../lib/docs";
 import { ArrowRight, BookOpen } from "@lucide/astro";
 
-const { docs, categories } = await getDocs();
-const total = docs.length;
+const { categories } = await getDocs();
 ---
 
 <BaseLayout
   title="Documentation"
-  description="Mixar documentation for developers and users: MIDI controller mappings, the mapping bundle format, and more."
+  description="Mixar documentation for users and developers: playing and organizing music, MIDI controller mappings, the mapping bundle format, and more."
   currentPage="docs"
 >
   <section class="mx-auto max-w-content px-section py-16 lg:py-20">
@@ -21,8 +20,8 @@ const total = docs.length;
         Documentation
       </h1>
       <p class="mt-4 text-[1.125rem] leading-relaxed text-muted lg:text-xl">
-        Guides for developers building with and extending Mixar, and for users playing with it.
-        {total} page{total === 1 ? "" : "s"} so far.
+        Guides for people playing and organizing music with Mixar and developers building
+        with and extending it.
       </p>
     </header>
 
