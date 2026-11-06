@@ -22,6 +22,8 @@ impl Engine {
             return Err(anyhow::anyhow!("Load a track before attaching stems."));
         }
         deck.attach_stems(stems);
+        drop(dsp);
+        self.push_deck_stem_eq_flag(deck_id);
         Ok(())
     }
 
@@ -43,6 +45,8 @@ impl Engine {
             return Err(anyhow::anyhow!("Load a track before attaching stems."));
         }
         deck.attach_live_stems(ring);
+        drop(dsp);
+        self.push_deck_stem_eq_flag(deck_id);
         Ok(())
     }
 

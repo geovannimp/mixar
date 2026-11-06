@@ -589,14 +589,10 @@ impl Engine {
         control.stem_eq_enabled = enabled;
         // The DSP ignores the stored band positions while the toggle is off, so
         // switching it back on restores the knob positions instead of losing them.
-        let dsp_engine = self
-            .dsp_engine
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
-        if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.set_stem_eq_enabled(enabled);
+        if self.dsp_engine.is_none() {
+            return Err(anyhow::anyhow!("Engine is not running"));
         }
+        self.push_deck_stem_eq_flag(deck_id);
         Ok(())
     }
 

@@ -871,7 +871,6 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
-        self.stem_eq_enabled = false;
         self.resampler = None;
         self.loop_region = None;
         self.slip_enabled = false;
@@ -1048,7 +1047,6 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
-        self.stem_eq_enabled = false;
         // Session-only key shift must not leak onto a newly loaded track.
         self.key_shift_semitones = 0.0;
         self.resampler = resampler;
@@ -1088,7 +1086,6 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
-        self.stem_eq_enabled = false;
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1104,7 +1101,6 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
-        self.stem_eq_enabled = false;
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1114,7 +1110,6 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
-        self.stem_eq_enabled = false;
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1290,9 +1285,9 @@ impl Deck {
         let coverage = match self.stems.as_ref() {
             Some(DeckStems::Live(ring)) => {
                 // Pacing only needs a forward position; reverse scratch reports 0.
-                let frame = self.live_frame(loaded, ring).max(0.0);
+                let frame = self.live_frame(loaded, ring);
                 if frame.is_finite() {
-                    ring.set_playhead(frame as u64);
+                    ring.set_playhead(frame.max(0.0) as u64);
                 }
                 ring.coverage()
             }

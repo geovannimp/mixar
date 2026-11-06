@@ -510,3 +510,30 @@ fn stem_eq_toggle_round_trips_and_keeps_band_positions() {
     assert!(engine.set_deck_stem_eq_enabled(9, true).is_err());
     assert_eq!(engine.deck_stem_eq_enabled(9), None);
 }
+
+#[test]
+fn unload_pushes_the_stem_eq_toggle_into_the_dsp_deck() {
+    let mut engine = started_null_engine();
+    engine
+        .load_track(
+            0,
+            AudioSource::File(FileAudioSource::from_path(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../samples/fixtures/short-tone.wav"),
+            )),
+        )
+        .unwrap();
+    engine.set_deck_stem_eq_enabled(0, true).unwrap();
+    assert_eq!(engine.deck_stem_eq_enabled(0), Some(true));
+    assert_eq!(engine.deck_stem_eq_armed(0), Some(true), "DSP mirror armed");
+
+    // Unload resets the toggle; the DSP mirror must follow, or the knobs and the
+    // ST key would claim stem EQ while the deck plays the plain mix.
+    engine.unload_deck(0).unwrap();
+    assert_eq!(engine.deck_stem_eq_enabled(0), Some(false));
+    assert_eq!(
+        engine.deck_stem_eq_armed(0),
+        Some(false),
+        "DSP mirror reset"
+    );
+}
