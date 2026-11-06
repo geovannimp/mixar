@@ -211,8 +211,10 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   /// Row height is constant per density, so the visible window is plain offset
   /// arithmetic. Scroll listeners and scroll-metrics notifications can fire
   /// many times per frame; coalesce to one emit with the latest window.
+  /// A list without an [TrackListView.onVisibleRange] hook (history) skips all
+  /// of it, so it never schedules a frame for a no-op emit.
   void _requestVisibleRange() {
-    if (_visibleRangeScheduled) {
+    if (widget.onVisibleRange == null || _visibleRangeScheduled) {
       return;
     }
     _visibleRangeScheduled = true;
@@ -236,9 +238,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   /// change without a scroll (that resize, a content-extent change), in a
   /// microtask after the layout that moved them.
   bool _onScrollMetricsNotification(ScrollMetricsNotification _) {
-    if (widget.onVisibleRange != null) {
-      _requestVisibleRange();
-    }
+    _requestVisibleRange();
     return false;
   }
 
