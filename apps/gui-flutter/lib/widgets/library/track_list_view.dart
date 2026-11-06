@@ -94,8 +94,8 @@ class TrackListView<T> extends ConsumerStatefulWidget {
   final bool Function(WidgetRef ref, T item)? dimmedOf;
 
   /// Called with the first/last visible index, for artwork prefetch. Emitted on
-  /// scroll, on new results, and when the viewport's size changes, so a window
-  /// resize prefetches the rows it newly reveals.
+  /// scroll, on new results, and when the scroll metrics change without a
+  /// scroll (a window resize), so a resize prefetches the rows it reveals.
   final void Function(int first, int last)? onVisibleRange;
 
   /// Error state; defaults to a destructive message.
@@ -209,13 +209,17 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   }
 
   /// Row height is constant per density, so the visible window is plain offset
-  /// arithmetic. Scroll listeners can fire many times per frame; coalesce to
-  /// one emit with the latest window.
+  /// arithmetic. Scroll listeners and scroll-metrics notifications can fire
+  /// many times per frame; coalesce to one emit with the latest window.
   void _requestVisibleRange() {
     if (_visibleRangeScheduled) {
       return;
     }
     _visibleRangeScheduled = true;
+    // A metrics-only change (window resize) schedules no frame of its own, so
+    // without this the post-frame callback below can wait for a frame that
+    // never comes. A no-op when a frame is already pending.
+    WidgetsBinding.instance.scheduleFrame();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _visibleRangeScheduled = false;
       if (!mounted) {
@@ -227,16 +231,13 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
 
   /// A window resize changes the viewport dimension without any scroll, so the
   /// scroll listener never fires and rows the taller window newly reveals would
-  /// keep their placeholder artwork forever. [ScrollMetricsNotification] is
-  /// dispatched exactly for those dimension-only changes, in a microtask after
-  /// the layout that moved the metrics.
-  ///
-  /// Emitted inline rather than through [_requestVisibleRange]: that one defers
-  /// to the next frame, and a metrics change does not itself schedule one, so
-  /// the deferred emit could wait for a frame that never comes.
+  /// keep their placeholder artwork forever.
+  /// [ScrollMetricsNotification] is dispatched whenever the scroll metrics
+  /// change without a scroll (that resize, a content-extent change), in a
+  /// microtask after the layout that moved them.
   bool _onScrollMetricsNotification(ScrollMetricsNotification _) {
     if (widget.onVisibleRange != null) {
-      _emitVisibleRange();
+      _requestVisibleRange();
     }
     return false;
   }
