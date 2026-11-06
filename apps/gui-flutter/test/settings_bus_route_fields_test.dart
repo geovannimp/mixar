@@ -55,6 +55,16 @@ void main() {
       sampleRateRanges: const [SampleRateRange(min: 44100, max: 48000)],
       mixSampleRate: 96000,
     ),
+    // A Bluetooth headset in call mode: voice rates only.
+    OutputDevice(
+      id: 'headset',
+      name: 'Headset',
+      isDefault: false,
+      maxChannels: 1,
+      defaultSampleRates: Uint32List.fromList([8000, 16000]),
+      sampleRateRanges: const [SampleRateRange(min: 8000, max: 16000)],
+      mixSampleRate: 16000,
+    ),
   ];
   const baseRoute = BusRouteSettings(
     deviceId: 'speakers',
@@ -101,6 +111,63 @@ void main() {
     await pumpFields(tester, onChanged: (_) {});
     expect(find.text('Device default (48000 Hz)'), findsOneWidget);
   }, semanticsEnabled: false);
+
+  testWidgets('a voice-only device is marked, not hidden', (tester) async {
+    await pumpFields(tester, onChanged: (_) {});
+
+    await tester.tap(find.text('System default'));
+    await tester.pumpAndSettle();
+
+    // Still selectable — it may be the only hardware the user has — but the
+    // picker says what it will do to the mix.
+    expect(find.text('Headset — low quality output'), findsOneWidget);
+    expect(find.text('Headphones'), findsOneWidget);
+  }, semanticsEnabled: false);
+
+  test('outputDeviceCarriesMixerRates reads spans, then endpoints', () {
+    OutputDevice device({
+      Uint32List? endpoints,
+      List<SampleRateRange>? ranges,
+    }) => OutputDevice(
+      id: 'x',
+      name: 'X',
+      isDefault: false,
+      maxChannels: 2,
+      defaultSampleRates: endpoints ?? Uint32List(0),
+      sampleRateRanges: ranges ?? const [],
+    );
+    void expectCarries({
+      required bool carries,
+      Uint32List? endpoints,
+      List<SampleRateRange>? ranges,
+    }) => expect(
+      outputDeviceCarriesMixerRates(
+        device(endpoints: endpoints, ranges: ranges),
+      ),
+      carries,
+      reason: 'endpoints=$endpoints ranges=$ranges',
+    );
+
+    expectCarries(carries: true, endpoints: Uint32List.fromList([44100]));
+    expectCarries(carries: true, endpoints: Uint32List.fromList([48000]));
+    // Voice endpoints cannot mix.
+    expectCarries(
+      carries: false,
+      endpoints: Uint32List.fromList([8000, 16000]),
+    );
+    // A span is authoritative: 44.1–192 kHz covers the floor even though only
+    // its edges are advertised as endpoints.
+    expectCarries(
+      carries: true,
+      ranges: const [SampleRateRange(min: 44100, max: 192000)],
+    );
+    // ...and it wins over the endpoint list.
+    expectCarries(
+      carries: false,
+      endpoints: Uint32List.fromList([48000]),
+      ranges: const [SampleRateRange(min: 8000, max: 16000)],
+    );
+  });
 
   testWidgets('choosing a rate reports it with the rest of the route', (
     tester,

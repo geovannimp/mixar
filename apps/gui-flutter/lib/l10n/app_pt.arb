@@ -203,6 +203,15 @@
   "settingsAudioPreviewBusDescription": "Saída de fones / cue quando a escuta está ativada.",
   "settingsAudioPreviewBus": "Ativar barramento de escuta",
   "settingsAudioDevice": "Dispositivo",
+  "settingsAudioDeviceLowQuality": "{device} — saída de baixa qualidade",
+  "@settingsAudioDeviceLowQuality": {
+    "description": "Device picker entry for an output that cannot reach 44.1 kHz.",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
   "settingsAudioChannelMode": "Modo de canal",
   "settingsAudioStereoPair": "Par stereo",
   "settingsAudioMonoFold": "Mono (somar L+R)",

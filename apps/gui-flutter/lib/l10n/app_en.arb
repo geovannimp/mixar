@@ -251,6 +251,15 @@
   "settingsAudioPreviewBusDescription": "Headphones / cue output when preview is enabled.",
   "settingsAudioPreviewBus": "Enable preview bus",
   "settingsAudioDevice": "Device",
+  "settingsAudioDeviceLowQuality": "{device} — low quality output",
+  "@settingsAudioDeviceLowQuality": {
+    "description": "Device picker entry for an output that cannot reach 44.1 kHz.",
+    "placeholders": {
+      "device": {
+        "type": "String"
+      }
+    }
+  },
   "settingsAudioChannelMode": "Channel mode",
   "settingsAudioStereoPair": "Stereo pair",
   "settingsAudioMonoFold": "Mono (fold L+R)",

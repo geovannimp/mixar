@@ -75,9 +75,15 @@ class SettingsBusRouteFields extends StatelessWidget {
             options: [for (final device in deviceOptions) device.id],
             labelBuilder: (id) {
               final device = deviceOptions.firstWhere((d) => d.id == id);
-              return device.isDefault
-                  ? l10n.settingsSystemDefault
-                  : device.name;
+              if (device.isDefault) {
+                return l10n.settingsSystemDefault;
+              }
+              // A sub-44.1 kHz sink (Bluetooth in call mode, a telephony
+              // interface) still works, it just runs the whole mix at voice
+              // grade: say so instead of hiding hardware the user may own.
+              return outputDeviceCarriesMixerRates(device)
+                  ? device.name
+                  : l10n.settingsAudioDeviceLowQuality(device.name);
             },
             onChanged: (deviceId) => onChanged(
               _clampRoute(
@@ -335,6 +341,26 @@ class _ChannelStepper extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Lowest rate a mixer output can carry. Mirrors `MIN_MIXER_OUTPUT_RATE` in
+/// `crates/backend-cpal`, which hides such devices on Android; on desktop they
+/// stay listed (a 32 kHz interface there is real hardware) and get marked
+/// instead, so the choice is visible rather than taken away.
+const _minMixerRate = 44100;
+
+/// Whether [device] can run the mix at a usable rate.
+///
+/// Spans are authoritative when the backend reports them — the advertised
+/// endpoints are only their edges — and the endpoint list is the fallback for a
+/// device that reports none.
+bool outputDeviceCarriesMixerRates(OutputDevice device) {
+  final highest = device.sampleRateRanges.isNotEmpty
+      ? device.sampleRateRanges
+            .map((range) => range.max)
+            .reduce((a, b) => a > b ? a : b)
+      : device.defaultSampleRates.fold<int>(0, (a, b) => a > b ? a : b);
+  return highest >= _minMixerRate;
 }
 
 OutputDevice? resolveAudioOutputDevice(

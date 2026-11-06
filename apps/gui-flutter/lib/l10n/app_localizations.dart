@@ -1275,6 +1275,12 @@ abstract class AppLocalizations {
   /// **'Device'**
   String get settingsAudioDevice;
 
+  /// Device picker entry for an output that cannot reach 44.1 kHz.
+  ///
+  /// In en, this message translates to:
+  /// **'{device} — low quality output'**
+  String settingsAudioDeviceLowQuality(String device);
+
   /// No description provided for @settingsAudioChannelMode.
   ///
   /// In en, this message translates to:

@@ -660,6 +660,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAudioDevice => 'Device';
 
   @override
+  String settingsAudioDeviceLowQuality(String device) {
+    return '$device — low quality output';
+  }
+
+  @override
   String get settingsAudioChannelMode => 'Channel mode';
 
   @override
