@@ -107,6 +107,20 @@ describe("createDeferredConnectorFlow", () => {
     expect(() => deferred.setAudible(0, true)).not.toThrow();
   });
 
+  // An aborted gate (route swap) must not fetch the chunk at all: that is the
+  // load the indirection exists to defer.
+  it("does not request the chunk when the page swaps first", async () => {
+    const load = vi.fn(async () => ({ initStemConnectorFlow }));
+    const root = attachedRoot();
+    createDeferredConnectorFlow(root, load);
+
+    root.ownerDocument.dispatchEvent(new Event("astro:before-swap"));
+    await settleTwice();
+
+    expect(load).not.toHaveBeenCalled();
+    expect(initStemConnectorFlow).not.toHaveBeenCalled();
+  });
+
   // The router can swap the document while the chunk is in flight; binding then
   // would animate a detached tree.
   it("does not bind a root the router already removed", async () => {

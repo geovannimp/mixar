@@ -20,7 +20,13 @@ const NO_FLOW: StemConnectorFlow = {
  * put the module in the entry chunk graph, and the browser would then fetch the
  * motion library with the initial load — the exact thing being avoided.
  */
-export function createDeferredConnectorFlow(root: ParentNode): StemConnectorFlow {
+export function createDeferredConnectorFlow(
+  root: ParentNode,
+  // Injected so a test can assert the chunk is never requested; the default is
+  // the dynamic import that keeps it out of the entry chunk graph.
+  load: () => Promise<typeof import("./stem-connector-flow")> = () =>
+    import("./stem-connector-flow"),
+): StemConnectorFlow {
   let real: StemConnectorFlow | undefined;
   // Last-write-wins state, not an event log: replaying it cannot grow with the
   // visitor's clicks and cannot apply a stale value after a newer one.
@@ -45,9 +51,15 @@ export function createDeferredConnectorFlow(root: ParentNode): StemConnectorFlow
 
   void near
     .then(async () => {
-      const { initStemConnectorFlow } = await import("./stem-connector-flow");
-      // The router can swap the document while this chunk is in flight; binding
-      // then would animate a detached tree nobody sees.
+      // The gate resolves on abort too, and an aborted page must not fetch the
+      // chunk at all — that is the load this indirection exists to defer.
+      if (gate.signal.aborted) {
+        real = NO_FLOW;
+        return;
+      }
+      const { initStemConnectorFlow } = await load();
+      // The router can also swap the document while the chunk is in flight;
+      // binding then would animate a detached tree nobody sees.
       if (anchor !== undefined && !anchor.isConnected) {
         real = NO_FLOW;
         return;

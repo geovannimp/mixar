@@ -47,10 +47,10 @@ function trackResolved(promise: Promise<void>) {
 
 const runIdle = (index = 0) => idleCalls[index]?.run();
 
-/** Run the queued idle callback and wait for the gate to resolve. */
-const settleIdle = async (index = 0) => {
+/** Run the queued idle callback and wait for the tracked gate to resolve. */
+const settleIdle = async (state: { resolved: boolean }, index = 0) => {
   runIdle(index);
-  await vi.waitFor(() => expect(idleCalls).toHaveLength(index + 1));
+  await vi.waitFor(() => expect(state.resolved).toBe(true));
 };
 
 beforeEach(async () => {
@@ -76,8 +76,7 @@ describe("whenIdle", () => {
     // The timeout is what keeps a busy main thread from starving the work.
     expect(idleCalls[0]?.options).toEqual({ timeout: 2000 });
 
-    await settleIdle();
-    expect(state.resolved).toBe(true);
+    await settleIdle(state);
   });
 
   it("schedules idle straight away for a document without a window", async () => {
@@ -87,8 +86,7 @@ describe("whenIdle", () => {
     await Promise.resolve();
     expect(idleCalls).toHaveLength(1);
 
-    await settleIdle();
-    expect(state.resolved).toBe(true);
+    await settleIdle(state);
   });
 
   it("resolves on the first intent event and detaches the others", async () => {
@@ -116,8 +114,7 @@ describe("whenIdle", () => {
 
     (doc.defaultView as unknown as EventTarget).dispatchEvent(new Event("load"));
     expect(idleCalls).toHaveLength(1);
-    await settleIdle();
-    expect(state.resolved).toBe(true);
+    await settleIdle(state);
   });
 
   it("falls back to a macrotask without requestIdleCallback", async () => {

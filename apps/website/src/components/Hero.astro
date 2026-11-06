@@ -193,44 +193,21 @@ const audioGlyphs = [
 </section>
 
 <script>
-  import { whenIdle, whenVisible } from "../scripts/idle";
+  import { createDeferredHeroTilt, type DisposeTilt } from "../scripts/deferred-hero-tilt";
 
-  let disposeTilt: (() => void) | undefined;
+  let disposeTilt: DisposeTilt | undefined;
 
-  // The tilt is decoration and pulls in the motion library (~22KB) plus its
-  // scroll driver. Dynamic import on purpose: a static import would fetch that
-  // chunk with the initial load. The import waits until the screenshot is close
-  // to the viewport (on a phone it starts below the fold) and then for idle, so
-  // neither the bytes nor the animation setup are on the critical path.
-  let generation = 0;
-  let gate: AbortController | undefined;
   const initTilt = () => {
-    const mine = ++generation;
+    disposeTilt?.();
     const tilt = document.querySelector(".hero-screenshot-tilt");
     if (!tilt) return;
-    gate?.abort();
-    gate = new AbortController();
-    void whenVisible(tilt, "300px 0px", gate.signal)
-      .then(() => whenIdle())
-      .then(async () => {
-        const { initHeroMobileTilt } = await import("../scripts/hero-mobile-tilt");
-        // A navigation can land while the chunk is still in flight; only the
-        // newest page may bind the tilt.
-        if (mine !== generation) return;
-        disposeTilt?.();
-        disposeTilt = initHeroMobileTilt();
-      })
-      // A stale page after a deploy can 404 the chunk; the tilt is decoration,
-      // so drop it quietly instead of raising an unhandled rejection.
-      .catch(() => {});
+    disposeTilt = createDeferredHeroTilt(tilt);
   };
 
-  // The router replaces the page without re-running bundled scripts: release
-  // the old tilt with the element it was bound to, and arm the new one.
+  // The router replaces the page without re-running bundled scripts: the
+  // disposer aborts the pending gates (so the tilt chunk is never fetched for a
+  // page that is gone) and releases a bound tilt.
   document.addEventListener("astro:before-swap", () => {
-    generation++;
-    gate?.abort();
-    gate = undefined;
     disposeTilt?.();
     disposeTilt = undefined;
   });
