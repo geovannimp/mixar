@@ -1,7 +1,7 @@
 import type { StemConnectorFlow } from "./stem-connector-flow";
 import { whenIdle, whenVisible } from "./idle";
 
-/** Stands in for a connector that failed to load, so later writes are no-ops. */
+/** Stands in for a connector that never bound, so later writes are no-ops. */
 const NO_FLOW: StemConnectorFlow = {
   setAudible: () => {},
   setPlaying: () => {},
@@ -38,7 +38,7 @@ export function createDeferredConnectorFlow(root: ParentNode): StemConnectorFlow
       : whenVisible(anchor, "300px 0px", gate.signal).then(() => whenIdle());
 
   // A swap can land while the section is still off-screen; release the observer
-  // and the idle listeners with the page they belong to.
+  // along with the page it was watching.
   if (anchor !== undefined) {
     anchor.ownerDocument.addEventListener("astro:before-swap", () => gate.abort(), { once: true });
   }
