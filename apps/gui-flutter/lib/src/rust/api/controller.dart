@@ -9,9 +9,16 @@ import 'event_mirrors.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_deck_feedback`, `apply_deck_vu`, `apply_engine_mirror`, `apply_fx_slots`, `apply_hot_cues`, `apply_key_shift_page`, `apply_key_shift`, `apply_keyboard_page`, `apply_keyboard_root`, `apply_library_mirror`, `apply_master_feedback`, `apply_position`, `device_info`, `hot_cue_slots_deck`, `hot_cue_slots_lib`, `loop_slots`, `mapping_info`, `mirror_engine_library_to_controller`, `publish_events`, `resolve_shipped_mappings`, `spawn_named`, `start_at`, `stop_and_join`
+// These functions are ignored because they are not marked as `pub`: `apply_deck_feedback`, `apply_deck_vu`, `apply_engine_mirror`, `apply_fx_slots`, `apply_hot_cues`, `apply_key_shift_page`, `apply_key_shift`, `apply_keyboard_page`, `apply_keyboard_root`, `apply_library_mirror`, `apply_master_feedback`, `apply_position`, `device_info`, `hot_cue_slots_deck`, `hot_cue_slots_lib`, `loop_slots`, `mapping_devices`, `mapping_info`, `match_port`, `mirror_engine_library_to_controller`, `publish_events`, `read_device_files`, `resolve_shipped_mappings`, `spawn_named`, `start_at`, `stop_and_join`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `HostPublish`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `publish_cmd`, `publish_evt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `publish_cmd`, `publish_evt`
+
+/// Enumerate MIDI inputs and match each against the mapping bundles Mixar has.
+///
+/// Enumeration only: no port is opened and no engine is required, so this is
+/// safe to call from the setup flow and again when the mixer starts.
+Future<List<DetectedController>> detectControllers() =>
+    RustLib.instance.api.crateApiControllerDetectControllers();
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<ControllerTransport>>
 abstract class ControllerTransport implements RustOpaqueInterface {
@@ -120,4 +127,38 @@ class ControllerMappingInfo {
           updateAvailable == other.updateAvailable &&
           midiNameContains == other.midiNameContains &&
           attached == other.attached;
+}
+
+/// One MIDI input the OS reports before the audio engine starts.
+///
+/// The first-run setup needs to know whether a controller is plugged in, and it
+/// runs before `ControllerTransport` (which needs the engine bus) exists.
+class DetectedController {
+  /// OS port name, e.g. `Pioneer DJ DDJ-400 MIDI 1`.
+  final String portName;
+
+  /// Display name of the mapping that would attach, when one matches.
+  final String? mappingName;
+
+  /// `device.toml` id — what `trustedControllerDeviceIds` holds.
+  final String? deviceId;
+
+  const DetectedController({
+    required this.portName,
+    this.mappingName,
+    this.deviceId,
+  });
+
+  @override
+  int get hashCode =>
+      portName.hashCode ^ mappingName.hashCode ^ deviceId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DetectedController &&
+          runtimeType == other.runtimeType &&
+          portName == other.portName &&
+          mappingName == other.mappingName &&
+          deviceId == other.deviceId;
 }

@@ -322,6 +322,241 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsShowTooltips => 'Show tooltips';
 
   @override
+  String get settingsUiOnboardingTitle => 'First-run setup';
+
+  @override
+  String get settingsUiOnboardingDescription =>
+      'Show the welcome steps again instead of the mixer. Saved with the rest of Settings.';
+
+  @override
+  String get settingsUiOnboardingReplay => 'Show setup again';
+
+  @override
+  String onboardingStepProgress(int index, int total) {
+    return 'Step $index of $total';
+  }
+
+  @override
+  String get onboardingSkip => 'Skip setup';
+
+  @override
+  String get onboardingBack => 'Back';
+
+  @override
+  String get onboardingNext => 'Continue';
+
+  @override
+  String get onboardingSaveFailedToast => 'Setup could not be saved';
+
+  @override
+  String get onboardingWelcomeTitle => 'Welcome to Mixar';
+
+  @override
+  String get onboardingWelcomeBody =>
+      'Just a few steps to get Mixar in your style.';
+
+  @override
+  String get onboardingAppearanceTitle => 'Make it yours';
+
+  @override
+  String get onboardingAppearanceBody =>
+      'Pick a theme and an accent color. Both repaint the app as you choose.';
+
+  @override
+  String get onboardingLibraryTitle => 'Bring your music';
+
+  @override
+  String get onboardingLibraryBody =>
+      'Point Mixar at a folder of tracks, or import a library from another DJ app. Audio files are never moved.';
+
+  @override
+  String get onboardingLibraryChooseFolder => 'Choose music folder';
+
+  @override
+  String get onboardingLibraryFolderAdded => 'Folder added';
+
+  @override
+  String get onboardingLibraryFolderFailed => 'Could not add that folder';
+
+  @override
+  String get onboardingPrivacyTitle => 'Your data stays here';
+
+  @override
+  String get onboardingPrivacyBody =>
+      'Off by default. Sends anonymous events and error reports; file paths are redacted and your music is never uploaded.';
+
+  @override
+  String get onboardingControllersTitle => 'Set up your controller';
+
+  @override
+  String get onboardingControllersTrusted =>
+      'Trusted devices connect automatically next launch.';
+
+  @override
+  String get onboardingControllersMappings =>
+      'Mappings live in Settings → Controllers.';
+
+  @override
+  String get onboardingKickerSetup => 'Setup';
+
+  @override
+  String get onboardingKickerAppearance => 'Appearance';
+
+  @override
+  String get onboardingKickerLibrary => 'Library';
+
+  @override
+  String get onboardingKickerPrivacy => 'Privacy';
+
+  @override
+  String get onboardingKickerControllers => 'Controllers';
+
+  @override
+  String get onboardingLibraryImportLabel => 'Or import an existing library';
+
+  @override
+  String get onboardingPrivacyOffTitle => 'Keep it private';
+
+  @override
+  String get onboardingPrivacyOffBody =>
+      'No analytics. Nothing leaves this machine.';
+
+  @override
+  String get onboardingPrivacyOnTitle => 'Share anonymous usage';
+
+  @override
+  String get onboardingPrivacyOnBody =>
+      'Anonymous events and error reports. No music, no file names.';
+
+  @override
+  String get onboardingLanguageFollowsOs => 'Follows the system language';
+
+  @override
+  String get onboardingLibraryFolderHint =>
+      'Mixar reads the files where they are. Nothing is moved or copied.';
+
+  @override
+  String onboardingLibraryFolderReady(String name) {
+    return 'Added “$name”. Pick another folder if you want more.';
+  }
+
+  @override
+  String get onboardingLibraryBrowse => 'Browse';
+
+  @override
+  String get onboardingReadyTitle => 'You\'re all set';
+
+  @override
+  String get onboardingReadyBody =>
+      'Save these choices and the mixer opens ready to play.';
+
+  @override
+  String get onboardingReadyFootnote =>
+      'Nothing here is permanent — every choice lives in Settings.';
+
+  @override
+  String get onboardingStart => 'Start mixing';
+
+  @override
+  String get onboardingTipLoadTitle => 'Load your first track';
+
+  @override
+  String get onboardingTipLoadBody =>
+      'Drag a file onto a deck, or double-click a row in the library.';
+
+  @override
+  String get onboardingTipAnalyzeTitle => 'Analysis runs itself';
+
+  @override
+  String get onboardingTipAnalyzeBody =>
+      'Beat grid, waveform, key and BPM are written as soon as a track lands in the library.';
+
+  @override
+  String get onboardingTipSettingsTitle => 'Tune it later';
+
+  @override
+  String get onboardingTipSettingsBody =>
+      'Audio, controllers, layout and waveform are all under Settings.';
+
+  @override
+  String get onboardingKickerReady => 'Ready';
+
+  @override
+  String onboardingControllersDetected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count controllers found. Trust the ones you want to connect automatically.',
+      one: 'One controller found. Trust it to connect automatically.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String onboardingControllersMapping(String name) {
+    return 'Mapping: $name';
+  }
+
+  @override
+  String get onboardingControllersTrust => 'Trust';
+
+  @override
+  String get onboardingControllersTrustedAction => 'Trusted';
+
+  @override
+  String get onboardingFloatDecks => 'Two decks';
+
+  @override
+  String get onboardingFloatWaveform => 'Waveform';
+
+  @override
+  String get onboardingFloatStems => 'Stems';
+
+  @override
+  String get onboardingFloatMixer => 'Mixer';
+
+  @override
+  String get onboardingFloatJog => 'Jog';
+
+  @override
+  String get onboardingFloatSync => 'Sync';
+
+  @override
+  String get onboardingFloatCue => 'Cue';
+
+  @override
+  String get onboardingFloatLoop => 'Loop';
+
+  @override
+  String get onboardingFloatFx => 'FX';
+
+  @override
+  String get onboardingFloatLibrary => 'Library';
+
+  @override
+  String get onboardingKickerLanguage => 'Language';
+
+  @override
+  String get onboardingLanguageTitle => 'Pick your language';
+
+  @override
+  String get onboardingLanguageBody =>
+      'Mixar follows the system language unless you choose one. The whole app switches as soon as you pick.';
+
+  @override
+  String get onboardingFloatBpm => 'BPM';
+
+  @override
+  String get onboardingFloatKeys => 'Keys';
+
+  @override
+  String get onboardingFloatCues => 'Hot cues';
+
+  @override
+  String get onboardingFloatAnalyze => 'Analyze';
+
+  @override
   String get settingsUiSelectStyle => 'Select style';
 
   @override
@@ -1400,4 +1635,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsLibraryFieldKey => 'Key';
+
+  @override
+  String onboardingLibraryNotFoundOne(String name) {
+    return 'No $name library found on this computer. You can import one later in Settings → Integrations.';
+  }
+
+  @override
+  String get onboardingLibraryNotFoundBoth =>
+      'No Mixxx or Rekordbox library found on this computer. You can import one later in Settings → Integrations.';
 }

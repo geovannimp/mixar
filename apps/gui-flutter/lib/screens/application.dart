@@ -6,8 +6,10 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/ui_language.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/l10n/kit_localizations.dart';
+import 'package:gui_flutter/providers/onboarding/onboarding_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/app_shell.dart';
+import 'package:gui_flutter/screens/onboarding_page.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/shell/desktop_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -34,6 +36,9 @@ ShadThemeData _shadTheme(MixarAccentPalette palette, Brightness brightness) =>
       brightness,
     ), () => shadThemeFromMixar(MixarThemeData.of(palette, brightness)));
 
+/// Fallback while settings are still loading. Never mutated.
+final AppSettings _fallbackSettings = defaultAppSettings();
+
 /// Root app: Mixar theme tokens + Shad bridge + mixer shell.
 class Application extends ConsumerWidget {
   const new({required this.appTitle, super.key});
@@ -42,29 +47,24 @@ class Application extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(appSettingsProvider);
-    final locale = settings.maybeWhen(
-      data: (settings) => localeFromUiLanguage(settings.uiLanguage),
-      orElse: () => null,
-    );
+    final settingsAsync = ref.watch(appSettingsProvider);
+    // A running first-run flow owns the theme, accent and locale: its draft
+    // previews step choices before Finish writes them.
+    final resolved =
+        ref.watch(onboardingDraftProvider) ??
+        settingsAsync.asData?.value ??
+        _fallbackSettings;
+    final locale = localeFromUiLanguage(resolved.uiLanguage);
     // `system` stays the default so an install without a saved theme keeps
     // following the OS light/dark preference.
-    final themeMode = switch (settings.maybeWhen(
-      data: (settings) => settings.theme,
-      orElse: () => ThemeSetting.system,
-    )) {
+    final themeMode = switch (resolved.theme) {
       ThemeSetting.system => ThemeMode.system,
       ThemeSetting.light => ThemeMode.light,
       ThemeSetting.dark => ThemeMode.dark,
     };
     // Accent palette is resolved once, then threaded through MaterialApp's
     // themes and the builder so both bridges stay on the same palette.
-    final palette = accentPaletteFromSettings(
-      settings.maybeWhen(
-        data: (settings) => settings.accentPalette,
-        orElse: () => AccentPaletteSetting.teal,
-      ),
-    );
+    final palette = accentPaletteFromSettings(resolved.accentPalette);
 
     return MaterialApp(
       title: appTitle,
@@ -90,7 +90,15 @@ class Application extends ConsumerWidget {
           ),
         );
       },
-      home: AppShell(appTitle: appTitle),
+      // Only resolved settings may route to setup: the fallback keeps the
+      // mixer, and `main.dart` preloads settings before `runApp` (falling back
+      // here only on the preload timeout).
+      home: settingsAsync.maybeWhen(
+        data: (settings) => settings.onboardingCompleted
+            ? AppShell(appTitle: appTitle)
+            : OnboardingPage(appTitle: appTitle),
+        orElse: () => AppShell(appTitle: appTitle),
+      ),
     );
   }
 }

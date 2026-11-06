@@ -1,13 +1,16 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
+import 'package:gui_flutter/widgets/settings/settings_labels.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
 
 class SettingsUiPanel extends StatelessWidget {
   const new({required this.draft, required this.onChanged, super.key});
@@ -17,15 +20,6 @@ class SettingsUiPanel extends StatelessWidget {
 
   static const List<UiLanguageSetting> _languages = UiLanguageSetting.values;
 
-  static String _languageLabel(
-    AppLocalizations l10n,
-    UiLanguageSetting value,
-  ) => switch (value) {
-    UiLanguageSetting.system => l10n.settingsSystemDefault,
-    UiLanguageSetting.en => l10n.settingsLanguageEn,
-    UiLanguageSetting.ptBr => l10n.settingsLanguagePtBr,
-  };
-
   static String _selectStyleLabel(
     AppLocalizations l10n,
     SelectStyleSetting value,
@@ -34,13 +28,6 @@ class SettingsUiPanel extends StatelessWidget {
     SelectStyleSetting.desktop => l10n.settingsUiSelectStyleDesktop,
     SelectStyleSetting.mobile => l10n.settingsUiSelectStyleMobile,
   };
-
-  static String _themeLabel(AppLocalizations l10n, ThemeSetting value) =>
-      switch (value) {
-        ThemeSetting.system => l10n.settingsSystemDefault,
-        ThemeSetting.light => l10n.settingsUiThemeLight,
-        ThemeSetting.dark => l10n.settingsUiThemeDark,
-      };
 
   static String _selectStyleSubtitle(
     AppLocalizations l10n,
@@ -71,7 +58,7 @@ class SettingsUiPanel extends StatelessWidget {
                   dialogTitle: l10n.settingsUiTheme,
                   value: draft.theme,
                   options: ThemeSetting.values,
-                  labelBuilder: (theme) => _themeLabel(l10n, theme),
+                  labelBuilder: (theme) => themeSettingLabel(l10n, theme),
                   onChanged: (theme) =>
                       onChanged(copyAppSettings(draft, theme: theme)),
                 ),
@@ -99,7 +86,7 @@ class SettingsUiPanel extends StatelessWidget {
                 child: SettingsSelect<UiLanguageSetting>(
                   value: draft.uiLanguage,
                   options: _languages,
-                  labelBuilder: (value) => _languageLabel(l10n, value),
+                  labelBuilder: (value) => uiLanguageSettingLabel(l10n, value),
                   onChanged: (language) =>
                       onChanged(copyAppSettings(draft, uiLanguage: language)),
                 ),
@@ -127,6 +114,17 @@ class SettingsUiPanel extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsUiOnboardingTitle,
+          subtitle: l10n.settingsUiOnboardingDescription,
+          trailing: AppButton(
+            size: MixarButtonSize.sm,
+            variant: MixarButtonVariant.outline,
+            onPress: () =>
+                onChanged(copyAppSettings(draft, onboardingCompleted: false)),
+            child: Text(l10n.settingsUiOnboardingReplay),
           ),
         ),
       ],

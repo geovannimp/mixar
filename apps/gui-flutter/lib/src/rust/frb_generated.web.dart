@@ -631,6 +631,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeleteTrackLoop dco_decode_delete_track_loop(dynamic raw);
 
   @protected
+  DetectedController dco_decode_detected_controller(dynamic raw);
+
+  @protected
   EndCueHold dco_decode_end_cue_hold(dynamic raw);
 
   @protected
@@ -793,6 +796,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeckSnapshot> dco_decode_list_deck_snapshot(dynamic raw);
+
+  @protected
+  List<DetectedController> dco_decode_list_detected_controller(dynamic raw);
 
   @protected
   List<Event> dco_decode_list_event(dynamic raw);
@@ -1942,6 +1948,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeleteTrackLoop sse_decode_delete_track_loop(SseDeserializer deserializer);
 
   @protected
+  DetectedController sse_decode_detected_controller(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EndCueHold sse_decode_end_cue_hold(SseDeserializer deserializer);
 
   @protected
@@ -2134,6 +2145,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeckSnapshot> sse_decode_list_deck_snapshot(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<DetectedController> sse_decode_list_detected_controller(
     SseDeserializer deserializer,
   );
 
@@ -3535,6 +3551,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_detected_controller(
+    DetectedController self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_end_cue_hold(EndCueHold self, SseSerializer serializer);
 
   @protected
@@ -3774,6 +3796,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_deck_snapshot(
     List<DeckSnapshot> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_detected_controller(
+    List<DetectedController> self,
     SseSerializer serializer,
   );
 

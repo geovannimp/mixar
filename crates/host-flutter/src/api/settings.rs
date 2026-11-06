@@ -518,6 +518,9 @@ pub struct AppSettings {
     pub show_crossfader: bool,
     #[serde(default)]
     pub analytics_enabled: bool,
+    /// First-run setup finished or skipped. Fresh installs start `false`.
+    #[serde(default)]
+    pub onboarding_completed: bool,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -562,6 +565,7 @@ struct SettingsHost {
     show_fx_bar: bool,
     show_crossfader: bool,
     analytics_enabled: bool,
+    onboarding_completed: bool,
 }
 
 impl Default for SettingsHost {
@@ -606,6 +610,7 @@ impl Default for SettingsHost {
             show_fx_bar: default_show_fx_bar(),
             show_crossfader: default_show_crossfader(),
             analytics_enabled: false,
+            onboarding_completed: false,
         }
     }
 }
@@ -926,6 +931,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         show_fx_bar: host.show_fx_bar,
         show_crossfader: host.show_crossfader,
         analytics_enabled: host.analytics_enabled,
+        onboarding_completed: host.onboarding_completed,
     }
 }
 
@@ -977,6 +983,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.accent_palette = settings.accent_palette;
     host.library_drawer_enabled = settings.library_drawer_enabled;
     host.analytics_enabled = settings.analytics_enabled;
+    host.onboarding_completed = settings.onboarding_completed;
     host.library_drawer_side = settings.library_drawer_side;
     host.waveform_position = settings.waveform_position;
     host.show_waveform = settings.show_waveform;
@@ -1933,6 +1940,27 @@ mod tests {
     }
 
     #[test]
+    fn apply_to_host_persists_onboarding_completed() {
+        let mut host = SettingsHost::default();
+        let mut settings = sample_settings();
+        settings.onboarding_completed = true;
+        apply_to_host(&mut host, settings).expect("settings apply");
+        assert!(settings_from_host(&host).onboarding_completed);
+    }
+
+    #[test]
+    fn onboarding_completed_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.onboarding_completed = true;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        assert!(settings_from_host(&host).onboarding_completed);
+    }
+
+    #[test]
     fn settings_file_round_trip_survives_reload() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
@@ -2119,12 +2147,24 @@ mod tests {
         assert!(!host.configured);
         assert_eq!(settings_from_host(&host).master_bus.sample_rate, None);
     }
+    /// [AppSettings] parsed from a settings file written before [key] existed.
+    fn legacy_settings_without(key: &str) -> AppSettings {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove(key)
+            .unwrap_or_else(|| panic!("{key} is not part of the settings"));
+        serde_json::from_value(value).expect("legacy settings")
+    }
+
     #[test]
     fn legacy_settings_default_analytics_opt_out() {
-        let mut value = serde_json::to_value(sample_settings()).expect("json");
-        let object = value.as_object_mut().expect("object");
-        object.remove("analytics_enabled");
-        let settings: AppSettings = serde_json::from_value(value).expect("legacy settings");
-        assert!(!settings.analytics_enabled);
+        assert!(!legacy_settings_without("analytics_enabled").analytics_enabled);
+    }
+
+    #[test]
+    fn legacy_settings_default_onboarding_incomplete() {
+        assert!(!legacy_settings_without("onboarding_completed").onboarding_completed);
     }
 }

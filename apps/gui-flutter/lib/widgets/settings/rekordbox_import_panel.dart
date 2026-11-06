@@ -26,7 +26,10 @@ final rekordboxDatabasePathProvider = FutureProvider<String?>((ref) async {
 /// The database is auto-detected; the action stays disabled until one is found.
 /// The database stays read-only: the host unlocks a private copy of it.
 class RekordboxImportPanel extends ConsumerStatefulWidget {
-  const new({super.key});
+  const new({this.decorated = true, super.key});
+
+  /// Band chrome; setup steps turn it off.
+  final bool decorated;
 
   @override
   ConsumerState<RekordboxImportPanel> createState() =>
@@ -157,6 +160,7 @@ class _RekordboxImportPanelState extends ConsumerState<RekordboxImportPanel> {
     final onPress = !_busy && dbPath != null ? () => _run(dbPath) : null;
 
     return SettingsSectionCard(
+      decorated: widget.decorated,
       title: l10n.rekordboxImportTitle,
       subtitle: l10n.rekordboxImportDescription,
       trailing: AppButton(

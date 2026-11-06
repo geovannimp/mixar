@@ -1,11 +1,11 @@
 ---
 title: "Interface"
-description: "Layout presets, visible panels, waveform position, theme, language, tooltips, select style, and meters."
+description: "Layout presets, visible panels, waveform position, theme, language, tooltips, select style, meters, and the first-run setup replay."
 section: "Settings"
 order: 605
 ---
 
-**Layout** holds the presets, the deck count, the panels the mixer shows, where the waveform sits, and how the library opens. **Waveform** is a single card. **UI** holds the theme, language, and control presentation cards.
+**Layout** holds the presets, the deck count, the panels the mixer shows, where the waveform sits, and how the library opens. **Waveform** is a single card. **UI** holds the theme, language, control presentation, and first-run setup cards.
 
 ## Layout → Presets
 
@@ -128,3 +128,15 @@ Card subtitle: "Language, hover tips, and how selects open."
 | **Select style** | select | **Auto**: "Platform default — desktop OS uses popovers, phones use dialogs." / **Desktop**: "Anchored popovers for selects and ⋯ menus." / **Mobile**: "Open selects and ⋯ menus in a dialog." | Auto |
 
 **Auto** resolves against the host: on desktop it behaves as **Desktop**, on a phone as **Mobile**.
+
+## UI → First-run setup
+
+Card subtitle: "Show the welcome steps again instead of the mixer. Saved with the rest of Settings."
+
+| Control | Type | Values | Default |
+| --- | --- | --- | --- |
+| **Show setup again** | button | — | — |
+
+The button clears the "setup done" flag in the settings draft. Nothing happens until you save: after Save, the app leaves the mixer and shows the setup stages again, exactly as on a fresh install (the controller stage appears only if a supported, mapped controller is detected). The stages are described in [First launch](/docs/users/getting-started#first-launch).
+
+This save is view-only — it does not restart the engine, so audio keeps playing while you are sent back to setup.

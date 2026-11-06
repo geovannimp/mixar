@@ -131,6 +131,9 @@ class AppSettings {
   final bool showCrossfader;
   final bool analyticsEnabled;
 
+  /// First-run setup finished or skipped. Fresh installs start `false`.
+  final bool onboardingCompleted;
+
   const AppSettings({
     required this.bufferSize,
     required this.resamplerQuality,
@@ -180,6 +183,7 @@ class AppSettings {
     required this.showFxBar,
     required this.showCrossfader,
     required this.analyticsEnabled,
+    required this.onboardingCompleted,
   });
 
   @override
@@ -231,7 +235,8 @@ class AppSettings {
       showMixer.hashCode ^
       showFxBar.hashCode ^
       showCrossfader.hashCode ^
-      analyticsEnabled.hashCode;
+      analyticsEnabled.hashCode ^
+      onboardingCompleted.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -285,7 +290,8 @@ class AppSettings {
           showMixer == other.showMixer &&
           showFxBar == other.showFxBar &&
           showCrossfader == other.showCrossfader &&
-          analyticsEnabled == other.analyticsEnabled;
+          analyticsEnabled == other.analyticsEnabled &&
+          onboardingCompleted == other.onboardingCompleted;
 }
 
 /// Bus channel routing mode.

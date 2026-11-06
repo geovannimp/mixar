@@ -9,6 +9,7 @@ mod engine;
 mod error;
 mod map_file;
 mod midi;
+mod ports;
 mod report;
 mod session;
 
@@ -22,7 +23,7 @@ pub use action_id::{
     bind_origin, format_bound_action, parse_action_id, ActionArgs, ArgValue, BoundOrigin,
     OriginTemplate,
 };
-pub use bundle::{load_bundle, MappingBundle};
+pub use bundle::{load_bundle, MappingBundle, DEVICE_FILE, MAP_FILE};
 pub use catalog::{
     is_closed_input_alias, is_known_action, is_known_signal, is_relative_action, ActionName,
     LOOP_SLOT_COUNT,
@@ -44,6 +45,7 @@ pub use midi::{
     decode_relative, match_device, norm_from_cc14, parse_short, CcField, Direction, MidiEndpoint,
     MidiIdentity, MidiMsgType, ParsedMidi, RelativeMode, ShortMsg,
 };
+pub use ports::list_midi_input_ports;
 pub use session::{
     ActionPublish, BusPublish, LedState, MappingSession, MidiOut, MidiPort, ScriptBindingFailure,
     BLINK_HALF_PERIOD,

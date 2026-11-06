@@ -24,7 +24,10 @@ final mixxxDatabasePathProvider = FutureProvider<String?>((ref) async {
 ///
 /// The database is auto-detected; the action stays disabled until one is found.
 class MixxxImportPanel extends ConsumerStatefulWidget {
-  const new({super.key});
+  const new({this.decorated = true, super.key});
+
+  /// Band chrome; setup steps turn it off.
+  final bool decorated;
 
   @override
   ConsumerState<MixxxImportPanel> createState() => _MixxxImportPanelState();
@@ -149,6 +152,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
     final onPress = !_busy && dbPath != null ? () => _run(dbPath) : null;
 
     return SettingsSectionCard(
+      decorated: widget.decorated,
       title: l10n.mixxxImportTitle,
       subtitle: l10n.mixxxImportDescription,
       trailing: AppButton(

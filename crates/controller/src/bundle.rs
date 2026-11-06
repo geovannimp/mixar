@@ -15,9 +15,15 @@ pub struct MappingBundle {
     pub root: PathBuf,
 }
 
+/// The manifest every bundle directory must carry.
+pub const DEVICE_FILE: &str = "device.toml";
+
+/// The binding table every bundle directory must carry.
+pub const MAP_FILE: &str = "map.toml";
+
 pub fn load_bundle(dir: &Path) -> Result<MappingBundle, LoadError> {
-    let device_path = dir.join("device.toml");
-    let map_path = dir.join("map.toml");
+    let device_path = dir.join(DEVICE_FILE);
+    let map_path = dir.join(MAP_FILE);
     if !device_path.is_file() {
         return Err(LoadError::MissingFile(device_path));
     }

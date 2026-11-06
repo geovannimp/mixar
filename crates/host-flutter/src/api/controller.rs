@@ -26,6 +26,91 @@ const PUMP_INTERVAL: Duration = Duration::from_millis(5);
 /// Hotplug / offer scan — MidiInput::new is expensive on Linux; own thread.
 const DEVICE_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
+/// One MIDI input the OS reports before the audio engine starts.
+///
+/// The first-run setup needs to know whether a controller is plugged in, and it
+/// runs before `ControllerTransport` (which needs the engine bus) exists.
+#[derive(Clone, Debug)]
+pub struct DetectedController {
+    /// OS port name, e.g. `Pioneer DJ DDJ-400 MIDI 1`.
+    pub port_name: String,
+    /// Display name of the mapping that would attach, when one matches.
+    pub mapping_name: Option<String>,
+    /// `device.toml` id — what `trustedControllerDeviceIds` holds.
+    pub device_id: Option<String>,
+}
+
+/// Enumerate MIDI inputs and match each against the mapping bundles Mixar has.
+///
+/// Enumeration only: no port is opened and no engine is required, so this is
+/// safe to call from the setup flow and again when the mixer starts.
+pub fn detect_controllers() -> Result<Vec<DetectedController>, String> {
+    let ports = controller::list_midi_input_ports(bus_api::APP_DISPLAY_NAME).bridge()?;
+    let devices = mapping_devices();
+    Ok(ports
+        .into_iter()
+        .map(|port_name| {
+            let matched = match_port(&port_name, &devices);
+            DetectedController {
+                mapping_name: matched.map(|device| device.display_name()),
+                device_id: matched.map(|device| device.id.clone()),
+                port_name,
+            }
+        })
+        .collect())
+}
+
+/// Device metadata from app-data mappings first, then the shipped bundles.
+///
+/// App data wins: a user who updated a bundle keeps their version's identity.
+fn mapping_devices() -> Vec<controller::DeviceFile> {
+    read_device_files(&[crate::app_paths::mappings_dir(), resolve_shipped_mappings()])
+}
+
+/// First bundle whose `midi_name_contains` / USB ids accept [port_name].
+fn match_port<'a>(
+    port_name: &str,
+    devices: &'a [controller::DeviceFile],
+) -> Option<&'a controller::DeviceFile> {
+    let identity = controller::MidiIdentity {
+        usb_vid: None,
+        usb_pid: None,
+        port_name: port_name.to_owned(),
+    };
+    devices.iter().find(|device| {
+        controller::match_device(
+            &identity,
+            device.usb_vid,
+            device.usb_pid,
+            &device.midi_name_contains,
+        )
+    })
+}
+
+/// Every `device.toml` under [dirs], first id wins.
+fn read_device_files(dirs: &[PathBuf]) -> Vec<controller::DeviceFile> {
+    let mut devices: Vec<controller::DeviceFile> = Vec::new();
+    for dir in dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let device_path = entry.path().join(controller::DEVICE_FILE);
+            let Ok(text) = std::fs::read_to_string(&device_path) else {
+                continue;
+            };
+            let Ok(device) = controller::DeviceFile::parse(&text, &device_path) else {
+                continue;
+            };
+            if devices.iter().any(|known| known.id == device.id) {
+                continue;
+            }
+            devices.push(device);
+        }
+    }
+    devices
+}
+
 /// Mapping row for Flutter settings (mirrors Tauri `ControllerMappingInfo`).
 #[derive(Clone, Debug)]
 pub struct ControllerMappingInfo {
@@ -567,6 +652,61 @@ fn resolve_shipped_mappings() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn write_bundle(dir: &Path, id: &str, product: &str, names: &[&str]) {
+        let bundle = dir.join(id);
+        std::fs::create_dir_all(&bundle).expect("bundle dir");
+        let quoted = names
+            .iter()
+            .map(|name| format!("\"{name}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        std::fs::write(
+            bundle.join(controller::DEVICE_FILE),
+            format!(
+                "schema_version = 1\nid = \"{id}\"\nvendor_name = \"Test\"\n\
+                 product_name = \"{product}\"\nmidi_name_contains = [{quoted}]\n"
+            ),
+        )
+        .expect("device.toml");
+    }
+
+    #[test]
+    fn a_port_name_matches_its_bundle_by_name_fragment() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        write_bundle(dir.path(), "test.ddj", "DDJ", &["DDJ-400"]);
+        let devices = read_device_files(&[dir.path().to_path_buf()]);
+
+        assert_eq!(devices.len(), 1);
+        let matched = match_port("Pioneer DJ DDJ-400 MIDI 1", &devices).expect("matched");
+        assert_eq!(matched.id, "test.ddj");
+        assert_eq!(matched.display_name(), "Test DDJ");
+        assert!(
+            match_port("Scarlett 2i2 MIDI", &devices).is_none(),
+            "an unrelated port must not borrow a mapping"
+        );
+    }
+
+    #[test]
+    fn app_data_bundles_win_over_shipped_ones() {
+        let app = tempfile::tempdir().expect("tempdir");
+        let shipped = tempfile::tempdir().expect("tempdir");
+        write_bundle(app.path(), "test.ddj", "DDJ (updated)", &["DDJ-400"]);
+        write_bundle(shipped.path(), "test.ddj", "DDJ (bundled)", &["DDJ-400"]);
+
+        let devices = read_device_files(&[app.path().to_path_buf(), shipped.path().to_path_buf()]);
+        assert_eq!(devices.len(), 1, "one bundle per device id");
+        assert_eq!(devices[0].display_name(), "Test DDJ (updated)");
+    }
+
+    #[test]
+    fn an_unmapped_port_matches_no_bundle() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let devices = read_device_files(&[dir.path().to_path_buf()]);
+        assert!(devices.is_empty());
+        // The setup step still lists the port, just without a mapping.
+        assert!(match_port("Nanokontrol2", &devices).is_none());
+    }
 
     #[test]
     fn stop_and_join_stops_spawned_thread() {
