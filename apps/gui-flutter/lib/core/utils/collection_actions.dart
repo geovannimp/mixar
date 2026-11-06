@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/core/utils/android_media_access.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -16,6 +17,33 @@ void refreshCollectionViews(WidgetRef ref) {
     ..invalidate(collectionTracksProvider);
 }
 
+/// Whether a folder scan matched anything at all. Drives both the notice and
+/// whether the new collection is worth selecting.
+bool folderImportFoundTracks(AddFolderCollectionResult result) =>
+    result.added + result.updated + result.skipped > 0;
+
+/// What to tell the user after a folder import: `null` when everything came in
+/// cleanly, otherwise the copy and whether it reads as an error. Unreadable
+/// files are named even when the rest of the import worked, so a permission or
+/// format problem is never swallowed; a folder whose files all matched
+/// something already scanned is not called empty.
+({String message, bool isError})? folderImportNotice(
+  AddFolderCollectionResult result,
+) {
+  final name = result.collection.name;
+  if (result.failed > 0) {
+    final files = result.failed == 1 ? 'file' : 'files';
+    return (
+      message: 'Could not read ${result.failed} $files in “$name”.',
+      isError: true,
+    );
+  }
+  if (folderImportFoundTracks(result)) {
+    return null;
+  }
+  return (message: 'No audio files found in “$name”.', isError: false);
+}
+
 Future<LibraryCollectionSummary?> createCollection(
   WidgetRef ref,
   CreateCollectionResult request, {
@@ -26,14 +54,34 @@ Future<LibraryCollectionSummary?> createCollection(
     final transport = await ref.read(libraryTransportProvider.future);
     final name = request.name.trim();
     final LibraryCollectionSummary collection;
+    // Folder only: whether the scan found anything. Playlist creation always
+    // yields a selectable collection, even when empty.
+    var imported = true;
     switch (request.type) {
       case CreateCollectionType.folder:
+        // The host scan reads paths with `std::fs`; without the Android media
+        // permission it sees no files, so stop with a reason instead of
+        // creating a collection that can only list nothing.
+        if (!await ensureAudioReadAccess()) {
+          ref.read(appNoticeProvider.notifier).setError(audioReadDeniedMessage);
+          return null;
+        }
         final result = await transport.addFolderCollection(
           folderPath: request.folderPath!,
           scanFolderTree: request.scanSubfolders,
           name: name.isEmpty ? null : name,
         );
         collection = result.collection;
+        imported = folderImportFoundTracks(result);
+        final notice = folderImportNotice(result);
+        if (notice != null) {
+          final notices = ref.read(appNoticeProvider.notifier);
+          if (notice.isError) {
+            notices.setError(notice.message);
+          } else {
+            notices.setNotice(notice.message);
+          }
+        }
       case CreateCollectionType.playlist:
         collection = historySessionId == null
             ? await transport.addPlaylistCollection(
@@ -47,7 +95,10 @@ Future<LibraryCollectionSummary?> createCollection(
               );
     }
     refreshCollectionViews(ref);
-    return collection;
+    // A folder that brought nothing in stays in the sidebar, but selecting it
+    // would show an empty list as if the import had worked; the notice above
+    // says why, and the caller stays where it was.
+    return imported ? collection : null;
   } catch (e) {
     ref.read(appNoticeProvider.notifier).setError('$e');
     return null;

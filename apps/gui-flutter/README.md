@@ -47,6 +47,8 @@ App data lands in the platform files dir (`/data/user/<id>/top.mixar.app/files/`
 
 MIDI needs one more piece of glue the Flutter embedding does not provide: `ndk-context`. midir's Android backend and cpal's AAudio host read the JavaVM and an Application context from it, and nothing initializes it here — a Flutter app has no `android_activity` glue crate. `MainActivity.onCreate` therefore loads `libhost_flutter.so` and calls `initAndroidContext(applicationContext)` before `super.onCreate` starts Dart; the JNI export lives in `crates/host-flutter/src/android.rs` (the package's `_` is `_1` in the mangled symbol, so renaming either side renames the function). Without it the first MIDI probe panics with "android context was not initialized", and the Dart future awaiting it never completes: first-run setup stays on its spinner with nothing in `mixar.log` but that one line.
 
+Folder imports scan with `std::fs` on the path `file_picker` returns, and Android's scoped storage hides other apps' audio from that read until the process holds the media permission: without it the picked folder lists no files, so the collection would import empty. The manifest declares `READ_MEDIA_AUDIO` (API 33+) and `READ_EXTERNAL_STORAGE` (`maxSdkVersion="32"`), and `MainActivity` hosts the `top.mixar.app/media_access` channel behind `ensureAudioReadAccess` (`lib/core/utils/android_media_access.dart`), which the library actions call before adding a folder. A refusal stops the import with an actionable message instead of creating a collection that can only list nothing; a folder that genuinely has no audio files reports that too. The permission is the OS one, so it survives restarts once granted.
+
 One-time host setup (SDK location can also come from `ANDROID_HOME`):
 
 ```sh
