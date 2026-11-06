@@ -216,12 +216,12 @@ void main() {
       ui.apply(
         deckUpdatedEvent(
           deck: 0,
-          update: deckUpdated(deck: 0, stemEq: const [0.25, 0.5, 0.75]),
+          update: deckUpdated(deck: 0, stemEq: const [0.25, 0.35, 0.75]),
         ),
       );
       final channel = container.read(engineUiProvider).channelFor(0);
       expect(channel.stemEqLow, closeTo(0.25, 1e-6));
-      expect(channel.stemEqMid, closeTo(0.5, 1e-6));
+      expect(channel.stemEqMid, closeTo(0.35, 1e-6));
       expect(channel.stemEqHigh, closeTo(0.75, 1e-6));
       // Channel EQ values are separate and untouched by the stem EQ.
       expect(channel.eqLow, closeTo(0.5, 1e-6));

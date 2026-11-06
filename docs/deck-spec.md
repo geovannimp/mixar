@@ -139,8 +139,9 @@ DeckState
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
 │   └── hot_cue mode → maps to persisted track_hot_cue rows
 ├── fx: filter, slots[3]
-├── stems: ready, audible, eq_enabled             -- deck-level fan-out state
-│   └── { drums, bass, other, vocals }: mute, isolate, eq_position[0..1]
+├── stems: { drums, bass, other, vocals } mute/isolate/eq_position[0..1]
+├── stems_ready, stems_audible, stems_live        -- deck-level fan-out state
+├── stem_eq: { low, mid, high }, stem_eq_enabled   -- mixer-knob routing
 ├── mixer: volume, eq{low,mid,high}, gain_trim_db, cue_enabled
 └── waveform: scroll_window_ms, zoom_level
 ```

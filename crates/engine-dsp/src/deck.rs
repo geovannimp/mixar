@@ -3629,6 +3629,15 @@ mod tests {
     }
 
     #[test]
+    fn stem_eq_extremes_on_two_knobs_stay_independent() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(0, 0.0); // drums out
+        deck.set_stem_eq_band(2, 0.0); // vocals out
+        let targets: Vec<f32> = (0..4).map(|i| deck.stem_target_gain(i)).collect();
+        assert_eq!(targets, vec![0.0, 1.0, 1.0, 0.0]);
+    }
+
+    #[test]
     fn stem_eq_multiplies_with_mute() {
         let mut deck = deck_with_four_stems();
         deck.set_stem_mute(0, true);

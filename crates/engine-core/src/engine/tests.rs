@@ -488,3 +488,25 @@ fn test_engine_producer_consumer_architecture() {
     assert!(engine.start().is_ok());
     assert!(engine.stop().is_ok());
 }
+
+#[test]
+fn stem_eq_toggle_round_trips_and_keeps_band_positions() {
+    let mut engine = started_null_engine();
+    engine.set_deck_stem_eq_enabled(0, true).unwrap();
+    assert_eq!(engine.deck_stem_eq_enabled(0), Some(true));
+    engine
+        .set_deck_stem_eq_band(0, bus_api::EqBand::Low, 0.0)
+        .unwrap();
+
+    // Off keeps the stored positions: the DSP ignores them, then restores them.
+    engine.set_deck_stem_eq_enabled(0, false).unwrap();
+    assert_eq!(engine.deck_stem_eq_enabled(0), Some(false));
+    assert_eq!(engine.deck_stem_eq(0), Some([0.0, 0.5, 0.5]));
+    engine.set_deck_stem_eq_enabled(0, true).unwrap();
+    assert_eq!(engine.deck_stem_eq_enabled(0), Some(true));
+    assert_eq!(engine.deck_stem_eq(0), Some([0.0, 0.5, 0.5]));
+
+    // Unknown deck ids are rejected instead of silently ignored.
+    assert!(engine.set_deck_stem_eq_enabled(9, true).is_err());
+    assert_eq!(engine.deck_stem_eq_enabled(9), None);
+}
