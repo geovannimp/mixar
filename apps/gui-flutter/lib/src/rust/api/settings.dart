@@ -7,26 +7,13 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_num_decks`, `default_preview_bus_route`, `default_show_crossfader`, `default_show_fx_bar`, `default_show_mixer`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `from_benchmark`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `stemgen_model_sha`, `store_realtime_capability`, `write_settings_file`
+// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_num_decks`, `default_preview_bus_route`, `default_show_crossfader`, `default_show_fx_bar`, `default_show_mixer`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsHost`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `allows_live`, `realtime_allows`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SettingsTransport>>
 abstract class SettingsTransport implements RustOpaqueInterface {
-  /// Measure this device's StemgenRT hop cost on the CPU EP.
-  ///
-  /// Ensures the model is on disk first (downloading it if needed), then runs
-  /// a warm-up plus `DEFAULT_BENCH_HOPS` timed hops on a private CPU session.
-  /// It never starts the live producer and never touches playback state, and
-  /// it runs on the FRB worker thread rather than the audio callback.
-  ///
-  /// `sink` receives hop progress; when the stream completes, the result is
-  /// available from [`Self::realtime_stems_capability`]. Nothing is persisted:
-  /// the gate is re-verified on request and lives for this session.
-  Stream<RealtimeStemsBenchmarkProgress> benchmarkRealtimeStems();
-
   /// Current session settings (schema-validated).
   Future<AppSettings> getSettings();
 
@@ -35,12 +22,6 @@ abstract class SettingsTransport implements RustOpaqueInterface {
   /// Persists `{app-support}/settings.json`, next to `library.db`.
   static Future<SettingsTransport> open() =>
       RustLib.instance.api.crateApiSettingsSettingsTransportOpen();
-
-  /// Latest device benchmark for this session.
-  ///
-  /// `None` until the probe has run; the result is not persisted, so every
-  /// launch starts unmeasured.
-  Future<RealtimeStemsCapability?> realtimeStemsCapability();
 
   /// Apply settings. Does not restart the engine or update the library —
   /// callers apply those separately (mirrors Flutter `saveAppSettings`).
@@ -98,6 +79,9 @@ class AppSettings {
   final KeyDisplayModeSetting keyDisplayMode;
   final KeyColorModeSetting keyColorMode;
   final List<String> trustedControllerDeviceIds;
+
+  /// Set while a controller mapping owns the output buses; restored on detach.
+  final ControllerAudioOverride? controllerAudioOverride;
   final bool historyEnabled;
   final int historySessionIdleMinutes;
   final int historyMinPlaySeconds;
@@ -117,9 +101,6 @@ class AppSettings {
 
   /// Live separation fallback for tracks without cached stems. Offline
   /// stems always take priority; quality is lower and it uses a CPU core.
-  ///
-  /// Gated by the session's CPU benchmark: it only stays `true` once this
-  /// device's measured hop cost reached realtime with margin.
   final bool realtimeStems;
   final UiLanguageSetting uiLanguage;
 
@@ -183,6 +164,7 @@ class AppSettings {
     required this.keyDisplayMode,
     required this.keyColorMode,
     required this.trustedControllerDeviceIds,
+    this.controllerAudioOverride,
     required this.historyEnabled,
     required this.historySessionIdleMinutes,
     required this.historyMinPlaySeconds,
@@ -236,6 +218,7 @@ class AppSettings {
       keyDisplayMode.hashCode ^
       keyColorMode.hashCode ^
       trustedControllerDeviceIds.hashCode ^
+      controllerAudioOverride.hashCode ^
       historyEnabled.hashCode ^
       historySessionIdleMinutes.hashCode ^
       historyMinPlaySeconds.hashCode ^
@@ -291,6 +274,7 @@ class AppSettings {
           keyDisplayMode == other.keyDisplayMode &&
           keyColorMode == other.keyColorMode &&
           trustedControllerDeviceIds == other.trustedControllerDeviceIds &&
+          controllerAudioOverride == other.controllerAudioOverride &&
           historyEnabled == other.historyEnabled &&
           historySessionIdleMinutes == other.historySessionIdleMinutes &&
           historyMinPlaySeconds == other.historyMinPlaySeconds &&
@@ -368,6 +352,63 @@ class BusRouteSettings {
           mode == other.mode &&
           sampleRate == other.sampleRate &&
           lowLatency == other.lowLatency;
+}
+
+/// A controller mapping moved the output buses onto its own audio interface.
+///
+/// Kept in settings so the buses can return to their pre-controller routes when
+/// the mapping detaches, even across a restart, and so Settings can mark the
+/// buses the mapping owns.
+class ControllerAudioOverride {
+  /// App-data mapping folder id that owns this override.
+  final String mappingId;
+
+  /// Controller label for the Settings badge (e.g. `DDJ-400`).
+  final String controllerLabel;
+
+  /// OS output device id the buses were moved to.
+  final String outputDeviceId;
+  final BusRouteSettings previousMasterBus;
+  final bool masterOverridden;
+  final bool previousPreviewEnabled;
+  final BusRouteSettings previousPreviewBus;
+  final bool previewOverridden;
+
+  const ControllerAudioOverride({
+    required this.mappingId,
+    required this.controllerLabel,
+    required this.outputDeviceId,
+    required this.previousMasterBus,
+    required this.masterOverridden,
+    required this.previousPreviewEnabled,
+    required this.previousPreviewBus,
+    required this.previewOverridden,
+  });
+
+  @override
+  int get hashCode =>
+      mappingId.hashCode ^
+      controllerLabel.hashCode ^
+      outputDeviceId.hashCode ^
+      previousMasterBus.hashCode ^
+      masterOverridden.hashCode ^
+      previousPreviewEnabled.hashCode ^
+      previousPreviewBus.hashCode ^
+      previewOverridden.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ControllerAudioOverride &&
+          runtimeType == other.runtimeType &&
+          mappingId == other.mappingId &&
+          controllerLabel == other.controllerLabel &&
+          outputDeviceId == other.outputDeviceId &&
+          previousMasterBus == other.previousMasterBus &&
+          masterOverridden == other.masterOverridden &&
+          previousPreviewEnabled == other.previousPreviewEnabled &&
+          previousPreviewBus == other.previousPreviewBus &&
+          previewOverridden == other.previewOverridden;
 }
 
 /// Jog platter policy (maps to [`JogMode`]).
@@ -453,77 +494,6 @@ enum MixerMetersSetting {
 
   static Future<MixerMetersSetting> default_() =>
       RustLib.instance.api.crateApiSettingsMixerMetersSettingDefault();
-}
-
-/// Progress event for a running benchmark (hop counts, warm-up included).
-class RealtimeStemsBenchmarkProgress {
-  final int completed;
-  final int total;
-
-  const RealtimeStemsBenchmarkProgress({
-    required this.completed,
-    required this.total,
-  });
-
-  @override
-  int get hashCode => completed.hashCode ^ total.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RealtimeStemsBenchmarkProgress &&
-          runtimeType == other.runtimeType &&
-          completed == other.completed &&
-          total == other.total;
-}
-
-/// Device benchmark result backing the Realtime Stems gate.
-///
-/// Session-only: the probe answers whether this machine keeps up right now, so
-/// the result is kept in memory and never written to settings or sent anywhere.
-class RealtimeStemsCapability {
-  /// Mean wall time of one 128-frame hop on the CPU EP.
-  final double avgHopMs;
-
-  /// `hop budget / avg_hop_ms`.
-  final double realtime;
-
-  /// Timed hops in the measurement (warm-up excluded).
-  final int hops;
-
-  /// SHA-256 of the model that was measured.
-  final String modelSha;
-
-  /// `realtime >= REALTIME_STEMS_MIN_MULTIPLE`; the UI shows the switch
-  /// only when true.
-  final bool allowed;
-
-  const RealtimeStemsCapability({
-    required this.avgHopMs,
-    required this.realtime,
-    required this.hops,
-    required this.modelSha,
-    required this.allowed,
-  });
-
-  @override
-  int get hashCode =>
-      avgHopMs.hashCode ^
-      realtime.hashCode ^
-      hops.hashCode ^
-      modelSha.hashCode ^
-      allowed.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RealtimeStemsCapability &&
-          runtimeType == other.runtimeType &&
-          avgHopMs == other.avgHopMs &&
-          realtime == other.realtime &&
-          hops == other.hops &&
-          modelSha == other.modelSha &&
-          allowed == other.allowed;
 }
 
 /// Default sampler pad play mode.

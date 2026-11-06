@@ -30,16 +30,35 @@ The UI offers a device as `"Vendor Product"`; `vendor_name` and `product_name` a
 
 ## `[audio]`
 
-Optional hints used to match the controller's own audio output interface.
+Optional hints used to match the controller's own audio output interface and to
+offer switching Mixar's output buses to it when the controller connects.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `output_name_contains` | array of strings | no | Substrings to match against the output device name. |
+| `output_name_contains` | array of strings | no | Substrings matched case-insensitively against output device names. |
+| `master_channels` | array of 2 integers | no | 1-based left/right channels for the master bus on that device. |
+| `headphone_channels` | array of 2 integers | no | 1-based left/right channels for the preview (headphone / cue) bus. |
+| `sample_rate` | integer | no | Rate to open the device at. Omit to follow the device default. |
+
+Declaring either channel pair makes Mixar prompt when the controller's output
+device is present. The prompt appears after the mapping attaches, and confirming
+it moves the master bus (and, when `headphone_channels` is set, the preview bus)
+onto the controller. The displaced routes are saved in
+`controller_audio_override` and restored when the mapping detaches. Settings
+marks the affected bus cards as overridden by the mapping. Declining leaves
+Settings → Audio untouched.
 
 ```toml
 [audio]
 output_name_contains = ["DDJ-400"]
+master_channels = [1, 2]
+headphone_channels = [3, 4]
 ```
+
+Channel numbers are validated when the bundle loads: they are 1-based, left and
+right must differ, and at least one `output_name_contains` entry is required to
+declare a route. A bundle that only names devices (no channels) is valid but does
+not offer an output switch.
 
 ## Sections
 
@@ -90,6 +109,8 @@ location = "../../schemas/device.tosd"
 
 [audio]                               # optional; hints for the controller's audio out
 output_name_contains = ["Product"]
+master_channels = [1, 2]              # 1-based pair for the master bus
+headphone_channels = [3, 4]           # 1-based pair for the preview / cue bus
 
 [deck_1]                              # alias = { endpoint }
 play_pause = { type = "note", channel = 1, note = 0x0B }

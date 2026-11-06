@@ -7462,8 +7462,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 49)
-      throw Exception('unexpected arr length: expect 49 but see ${arr.length}');
+    if (arr.length != 50)
+      throw Exception('unexpected arr length: expect 50 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7491,29 +7491,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       keyDisplayMode: dco_decode_key_display_mode_setting(arr[23]),
       keyColorMode: dco_decode_key_color_mode_setting(arr[24]),
       trustedControllerDeviceIds: dco_decode_list_String(arr[25]),
-      historyEnabled: dco_decode_bool(arr[26]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[27]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[28]),
-      historyMinDeckVolume: dco_decode_f_32(arr[29]),
-      showTooltips: dco_decode_bool(arr[30]),
-      mixerMeters: dco_decode_mixer_meters_setting(arr[31]),
-      selectStyle: dco_decode_select_style_setting(arr[32]),
-      dimPlayedTracks: dco_decode_bool(arr[33]),
-      stemsFormat: dco_decode_String(arr[34]),
-      stemsModel: dco_decode_String(arr[35]),
-      realtimeStems: dco_decode_bool(arr[36]),
-      uiLanguage: dco_decode_ui_language_setting(arr[37]),
-      theme: dco_decode_theme_setting(arr[38]),
-      accentPalette: dco_decode_accent_palette_setting(arr[39]),
-      libraryDrawerEnabled: dco_decode_bool(arr[40]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[41]),
-      waveformPosition: dco_decode_waveform_position_setting(arr[42]),
-      showWaveform: dco_decode_bool(arr[43]),
-      showMixer: dco_decode_bool(arr[44]),
-      showFxBar: dco_decode_bool(arr[45]),
-      showCrossfader: dco_decode_bool(arr[46]),
-      analyticsEnabled: dco_decode_bool(arr[47]),
-      onboardingCompleted: dco_decode_bool(arr[48]),
+      controllerAudioOverride:
+          dco_decode_opt_box_autoadd_controller_audio_override(arr[26]),
+      historyEnabled: dco_decode_bool(arr[27]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[28]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[29]),
+      historyMinDeckVolume: dco_decode_f_32(arr[30]),
+      showTooltips: dco_decode_bool(arr[31]),
+      mixerMeters: dco_decode_mixer_meters_setting(arr[32]),
+      selectStyle: dco_decode_select_style_setting(arr[33]),
+      dimPlayedTracks: dco_decode_bool(arr[34]),
+      stemsFormat: dco_decode_String(arr[35]),
+      stemsModel: dco_decode_String(arr[36]),
+      realtimeStems: dco_decode_bool(arr[37]),
+      uiLanguage: dco_decode_ui_language_setting(arr[38]),
+      theme: dco_decode_theme_setting(arr[39]),
+      accentPalette: dco_decode_accent_palette_setting(arr[40]),
+      libraryDrawerEnabled: dco_decode_bool(arr[41]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[42]),
+      waveformPosition: dco_decode_waveform_position_setting(arr[43]),
+      showWaveform: dco_decode_bool(arr[44]),
+      showMixer: dco_decode_bool(arr[45]),
+      showFxBar: dco_decode_bool(arr[46]),
+      showCrossfader: dco_decode_bool(arr[47]),
+      analyticsEnabled: dco_decode_bool(arr[48]),
+      onboardingCompleted: dco_decode_bool(arr[49]),
     );
   }
 
@@ -7714,6 +7716,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ClearSampler dco_decode_box_autoadd_clear_sampler(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_clear_sampler(raw);
+  }
+
+  @protected
+  ControllerAudioHints dco_decode_box_autoadd_controller_audio_hints(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_controller_audio_hints(raw);
+  }
+
+  @protected
+  ControllerAudioOverride dco_decode_box_autoadd_controller_audio_override(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_controller_audio_override(raw);
+  }
+
+  @protected
+  ControllerChannelPair dco_decode_box_autoadd_controller_channel_pair(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_controller_channel_pair(raw);
   }
 
   @protected
@@ -8422,6 +8448,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerAudioHints dco_decode_controller_audio_hints(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ControllerAudioHints(
+      outputNameContains: dco_decode_list_String(arr[0]),
+      masterChannels: dco_decode_opt_box_autoadd_controller_channel_pair(
+        arr[1],
+      ),
+      headphoneChannels: dco_decode_opt_box_autoadd_controller_channel_pair(
+        arr[2],
+      ),
+      sampleRate: dco_decode_opt_box_autoadd_u_32(arr[3]),
+    );
+  }
+
+  @protected
+  ControllerAudioOverride dco_decode_controller_audio_override(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return ControllerAudioOverride(
+      mappingId: dco_decode_String(arr[0]),
+      controllerLabel: dco_decode_String(arr[1]),
+      outputDeviceId: dco_decode_String(arr[2]),
+      previousMasterBus: dco_decode_bus_route_settings(arr[3]),
+      masterOverridden: dco_decode_bool(arr[4]),
+      previousPreviewEnabled: dco_decode_bool(arr[5]),
+      previousPreviewBus: dco_decode_bus_route_settings(arr[6]),
+      previewOverridden: dco_decode_bool(arr[7]),
+    );
+  }
+
+  @protected
+  ControllerChannelPair dco_decode_controller_channel_pair(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ControllerChannelPair(
+      left: dco_decode_u_16(arr[0]),
+      right: dco_decode_u_16(arr[1]),
+    );
+  }
+
+  @protected
   ControllerDeviceDirection dco_decode_controller_device_direction(
     dynamic raw,
   ) {
@@ -8446,8 +8520,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ControllerMappingInfo dco_decode_controller_mapping_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ControllerMappingInfo(
       id: dco_decode_String(arr[0]),
       deviceId: dco_decode_String(arr[1]),
@@ -8457,7 +8531,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       version: dco_decode_opt_String(arr[5]),
       updateAvailable: dco_decode_bool(arr[6]),
       midiNameContains: dco_decode_list_String(arr[7]),
-      attached: dco_decode_bool(arr[8]),
+      audio: dco_decode_opt_box_autoadd_controller_audio_hints(arr[8]),
+      attached: dco_decode_bool(arr[9]),
     );
   }
 
@@ -9887,6 +9962,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BeatGridData? dco_decode_opt_box_autoadd_beat_grid_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_beat_grid_data(raw);
+  }
+
+  @protected
+  ControllerAudioHints? dco_decode_opt_box_autoadd_controller_audio_hints(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_controller_audio_hints(raw);
+  }
+
+  @protected
+  ControllerAudioOverride? dco_decode_opt_box_autoadd_controller_audio_override(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_controller_audio_override(raw);
+  }
+
+  @protected
+  ControllerChannelPair? dco_decode_opt_box_autoadd_controller_channel_pair(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_controller_channel_pair(raw);
   }
 
   @protected
@@ -11320,6 +11425,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
     var var_keyColorMode = sse_decode_key_color_mode_setting(deserializer);
     var var_trustedControllerDeviceIds = sse_decode_list_String(deserializer);
+    var var_controllerAudioOverride =
+        sse_decode_opt_box_autoadd_controller_audio_override(deserializer);
     var var_historyEnabled = sse_decode_bool(deserializer);
     var var_historySessionIdleMinutes = sse_decode_u_32(deserializer);
     var var_historyMinPlaySeconds = sse_decode_u_32(deserializer);
@@ -11374,6 +11481,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       keyDisplayMode: var_keyDisplayMode,
       keyColorMode: var_keyColorMode,
       trustedControllerDeviceIds: var_trustedControllerDeviceIds,
+      controllerAudioOverride: var_controllerAudioOverride,
       historyEnabled: var_historyEnabled,
       historySessionIdleMinutes: var_historySessionIdleMinutes,
       historyMinPlaySeconds: var_historyMinPlaySeconds,
@@ -11595,6 +11703,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_clear_sampler(deserializer));
+  }
+
+  @protected
+  ControllerAudioHints sse_decode_box_autoadd_controller_audio_hints(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_controller_audio_hints(deserializer));
+  }
+
+  @protected
+  ControllerAudioOverride sse_decode_box_autoadd_controller_audio_override(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_controller_audio_override(deserializer));
+  }
+
+  @protected
+  ControllerChannelPair sse_decode_box_autoadd_controller_channel_pair(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_controller_channel_pair(deserializer));
   }
 
   @protected
@@ -12429,6 +12561,61 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerAudioHints sse_decode_controller_audio_hints(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_outputNameContains = sse_decode_list_String(deserializer);
+    var var_masterChannels = sse_decode_opt_box_autoadd_controller_channel_pair(
+      deserializer,
+    );
+    var var_headphoneChannels =
+        sse_decode_opt_box_autoadd_controller_channel_pair(deserializer);
+    var var_sampleRate = sse_decode_opt_box_autoadd_u_32(deserializer);
+    return ControllerAudioHints(
+      outputNameContains: var_outputNameContains,
+      masterChannels: var_masterChannels,
+      headphoneChannels: var_headphoneChannels,
+      sampleRate: var_sampleRate,
+    );
+  }
+
+  @protected
+  ControllerAudioOverride sse_decode_controller_audio_override(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mappingId = sse_decode_String(deserializer);
+    var var_controllerLabel = sse_decode_String(deserializer);
+    var var_outputDeviceId = sse_decode_String(deserializer);
+    var var_previousMasterBus = sse_decode_bus_route_settings(deserializer);
+    var var_masterOverridden = sse_decode_bool(deserializer);
+    var var_previousPreviewEnabled = sse_decode_bool(deserializer);
+    var var_previousPreviewBus = sse_decode_bus_route_settings(deserializer);
+    var var_previewOverridden = sse_decode_bool(deserializer);
+    return ControllerAudioOverride(
+      mappingId: var_mappingId,
+      controllerLabel: var_controllerLabel,
+      outputDeviceId: var_outputDeviceId,
+      previousMasterBus: var_previousMasterBus,
+      masterOverridden: var_masterOverridden,
+      previousPreviewEnabled: var_previousPreviewEnabled,
+      previousPreviewBus: var_previousPreviewBus,
+      previewOverridden: var_previewOverridden,
+    );
+  }
+
+  @protected
+  ControllerChannelPair sse_decode_controller_channel_pair(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_left = sse_decode_u_16(deserializer);
+    var var_right = sse_decode_u_16(deserializer);
+    return ControllerChannelPair(left: var_left, right: var_right);
+  }
+
+  @protected
   ControllerDeviceDirection sse_decode_controller_device_direction(
     SseDeserializer deserializer,
   ) {
@@ -12465,6 +12652,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_version = sse_decode_opt_String(deserializer);
     var var_updateAvailable = sse_decode_bool(deserializer);
     var var_midiNameContains = sse_decode_list_String(deserializer);
+    var var_audio = sse_decode_opt_box_autoadd_controller_audio_hints(
+      deserializer,
+    );
     var var_attached = sse_decode_bool(deserializer);
     return ControllerMappingInfo(
       id: var_id,
@@ -12475,6 +12665,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       version: var_version,
       updateAvailable: var_updateAvailable,
       midiNameContains: var_midiNameContains,
+      audio: var_audio,
       attached: var_attached,
     );
   }
@@ -14226,6 +14417,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerAudioHints? sse_decode_opt_box_autoadd_controller_audio_hints(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_controller_audio_hints(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ControllerAudioOverride? sse_decode_opt_box_autoadd_controller_audio_override(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_controller_audio_override(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ControllerChannelPair? sse_decode_opt_box_autoadd_controller_channel_pair(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_controller_channel_pair(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   double? sse_decode_opt_box_autoadd_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -15673,6 +15903,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
     sse_encode_key_color_mode_setting(self.keyColorMode, serializer);
     sse_encode_list_String(self.trustedControllerDeviceIds, serializer);
+    sse_encode_opt_box_autoadd_controller_audio_override(
+      self.controllerAudioOverride,
+      serializer,
+    );
     sse_encode_bool(self.historyEnabled, serializer);
     sse_encode_u_32(self.historySessionIdleMinutes, serializer);
     sse_encode_u_32(self.historyMinPlaySeconds, serializer);
@@ -15898,6 +16132,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_clear_sampler(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_controller_audio_hints(
+    ControllerAudioHints self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_controller_audio_hints(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_controller_audio_override(
+    ControllerAudioOverride self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_controller_audio_override(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_controller_channel_pair(
+    ControllerChannelPair self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_controller_channel_pair(self, serializer);
   }
 
   @protected
@@ -16849,6 +17110,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_controller_audio_hints(
+    ControllerAudioHints self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.outputNameContains, serializer);
+    sse_encode_opt_box_autoadd_controller_channel_pair(
+      self.masterChannels,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_controller_channel_pair(
+      self.headphoneChannels,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_u_32(self.sampleRate, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_audio_override(
+    ControllerAudioOverride self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.mappingId, serializer);
+    sse_encode_String(self.controllerLabel, serializer);
+    sse_encode_String(self.outputDeviceId, serializer);
+    sse_encode_bus_route_settings(self.previousMasterBus, serializer);
+    sse_encode_bool(self.masterOverridden, serializer);
+    sse_encode_bool(self.previousPreviewEnabled, serializer);
+    sse_encode_bus_route_settings(self.previousPreviewBus, serializer);
+    sse_encode_bool(self.previewOverridden, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_channel_pair(
+    ControllerChannelPair self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.left, serializer);
+    sse_encode_u_16(self.right, serializer);
+  }
+
+  @protected
   void sse_encode_controller_device_direction(
     ControllerDeviceDirection self,
     SseSerializer serializer,
@@ -16882,6 +17187,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.version, serializer);
     sse_encode_bool(self.updateAvailable, serializer);
     sse_encode_list_String(self.midiNameContains, serializer);
+    sse_encode_opt_box_autoadd_controller_audio_hints(self.audio, serializer);
     sse_encode_bool(self.attached, serializer);
   }
 
@@ -18292,6 +18598,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_beat_grid_data(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_audio_hints(
+    ControllerAudioHints? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_controller_audio_hints(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_audio_override(
+    ControllerAudioOverride? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_controller_audio_override(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_channel_pair(
+    ControllerChannelPair? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_controller_channel_pair(self, serializer);
     }
   }
 

@@ -250,6 +250,14 @@
   "settingsAudioPreviewBusTitle": "Preview bus",
   "settingsAudioPreviewBusDescription": "Headphones / cue output when preview is enabled.",
   "settingsAudioPreviewBus": "Enable preview bus",
+  "settingsAudioControllerOverride": "Overridden by {controller} mapping",
+  "@settingsAudioControllerOverride": {
+    "placeholders": {
+      "controller": {
+        "type": "String"
+      }
+    }
+  },
   "settingsAudioDevice": "Device",
   "settingsAudioDeviceLowQuality": "{device} — low quality output",
   "@settingsAudioDeviceLowQuality": {
