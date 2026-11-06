@@ -136,41 +136,36 @@ void main() {
       defaultSampleRates: endpoints ?? Uint32List(0),
       sampleRateRanges: ranges ?? const [],
     );
+    void expectCarries({
+      required bool carries,
+      Uint32List? endpoints,
+      List<SampleRateRange>? ranges,
+    }) => expect(
+      outputDeviceCarriesMixerRates(
+        device(endpoints: endpoints, ranges: ranges),
+      ),
+      carries,
+      reason: 'endpoints=$endpoints ranges=$ranges',
+    );
 
-    expect(
-      outputDeviceCarriesMixerRates(
-        device(endpoints: Uint32List.fromList([44100])),
-      ),
-      isTrue,
-    );
-    expect(
-      outputDeviceCarriesMixerRates(
-        device(endpoints: Uint32List.fromList([48000])),
-      ),
-      isTrue,
-    );
+    expectCarries(carries: true, endpoints: Uint32List.fromList([44100]));
+    expectCarries(carries: true, endpoints: Uint32List.fromList([48000]));
     // Voice endpoints cannot mix.
-    expect(
-      outputDeviceCarriesMixerRates(
-        device(endpoints: Uint32List.fromList([8000, 16000])),
-      ),
-      isFalse,
+    expectCarries(
+      carries: false,
+      endpoints: Uint32List.fromList([8000, 16000]),
     );
-    // A span is authoritative: 32 kHz sits inside 44.1–192 kHz.
-    expect(
-      outputDeviceCarriesMixerRates(
-        device(ranges: const [SampleRateRange(min: 44100, max: 192000)]),
-      ),
-      isTrue,
+    // A span is authoritative: 44.1–192 kHz covers the floor even though only
+    // its edges are advertised as endpoints.
+    expectCarries(
+      carries: true,
+      ranges: const [SampleRateRange(min: 44100, max: 192000)],
     );
-    expect(
-      outputDeviceCarriesMixerRates(
-        device(
-          endpoints: Uint32List.fromList([48000]),
-          ranges: const [SampleRateRange(min: 8000, max: 16000)],
-        ),
-      ),
-      isFalse,
+    // ...and it wins over the endpoint list.
+    expectCarries(
+      carries: false,
+      endpoints: Uint32List.fromList([48000]),
+      ranges: const [SampleRateRange(min: 8000, max: 16000)],
     );
   });
 

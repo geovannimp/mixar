@@ -26,4 +26,10 @@ bool get isAndroidHost =>
 /// over before Dart starts (see `initAndroidContext` in `android.rs`).
 bool get supportsAudioEngine =>
     debugOverrideDesktopWindow ??
-    (!kIsWeb && (platform.ioIsDesktop || isAndroidHost));
+    audioEngineHost(desktop: platform.ioIsDesktop, android: isAndroidHost);
+
+/// The rule behind [supportsAudioEngine], as a predicate over what the platform
+/// reports: Android is an engine host without being a desktop window, which is
+/// the arm a test has to check on a desktop machine.
+bool audioEngineHost({required bool desktop, required bool android}) =>
+    !kIsWeb && (desktop || android);
