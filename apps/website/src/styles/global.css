@@ -189,7 +189,11 @@
    each section's measured height after the first pass, so the scrollbar estimate
    self-corrects instead of pinning every section to the fallback. */
 @layer base {
-  main > section:not(#hero) {
+  /* #stems is excluded on purpose: its demo measures the waveform wrapper
+     synchronously on astro:page-load (stem-demo-ui.ts), and a skipped section
+     has no layout boxes to measure — clientWidth would read 0 and the peaks
+     layer would build at 0x0. */
+  main > section:not(#hero):not(#stems) {
     content-visibility: auto;
     contain-intrinsic-size: auto 900px;
   }

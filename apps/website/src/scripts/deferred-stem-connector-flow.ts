@@ -1,6 +1,12 @@
 import type { StemConnectorFlow } from "./stem-connector-flow";
 import { whenIdle, whenVisible } from "./idle";
 
+/** Stands in for a connector that failed to load, so later writes are no-ops. */
+const NO_FLOW: StemConnectorFlow = {
+  setAudible: () => {},
+  setPlaying: () => {},
+};
+
 /**
  * A `StemConnectorFlow` that exists before its module does.
  *
@@ -27,13 +33,19 @@ export function createDeferredConnectorFlow(root: ParentNode): StemConnectorFlow
   const anchor = root instanceof Element ? root : undefined;
   const near = anchor === undefined ? whenIdle() : whenVisible(anchor).then(() => whenIdle());
 
-  void near.then(async () => {
-    const { initStemConnectorFlow } = await import("./stem-connector-flow");
-    real = initStemConnectorFlow(root);
-    if (real === undefined) return;
-    if (playing !== undefined) real.setPlaying(playing);
-    for (const [index, isAudible] of audible) real.setAudible(index, isAudible);
-  });
+  void near
+    .then(async () => {
+      const { initStemConnectorFlow } = await import("./stem-connector-flow");
+      real = initStemConnectorFlow(root) ?? NO_FLOW;
+      if (playing !== undefined) real.setPlaying(playing);
+      for (const [index, isAudible] of audible) real.setAudible(index, isAudible);
+    })
+    .catch(() => {
+      // Decorative: a missing chunk or a throw inside the module must not
+      // surface as an unhandled rejection, and the buffered state has to stop
+      // growing, so bind the no-op instead of retrying forever.
+      real = NO_FLOW;
+    });
 
   return {
     setAudible: (index, isAudible) => {

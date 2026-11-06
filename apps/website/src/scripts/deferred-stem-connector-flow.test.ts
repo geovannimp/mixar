@@ -32,13 +32,19 @@ beforeEach(() => {
   initStemConnectorFlow.mockReset();
 });
 
+/** A bound flow stub, wired into the mocked module. */
+function bindFlow(): Flow {
+  const flow: Flow = { setAudible: vi.fn(), setPlaying: vi.fn() };
+  initStemConnectorFlow.mockReturnValue(flow);
+  return flow;
+}
+
 describe("createDeferredConnectorFlow", () => {
   // A mute pressed in the first second must survive the chunk arriving later,
   // and the newest value per lane must win — replaying the first call would
   // leave the lane in the opposite state to the pads.
   it("replays the latest state per lane once the flow binds", async () => {
-    const flow: Flow = { setAudible: vi.fn(), setPlaying: vi.fn() };
-    initStemConnectorFlow.mockReturnValue(flow);
+    const flow = bindFlow();
 
     const deferred = createDeferredConnectorFlow(document.createElement("div"));
     deferred.setAudible(2, false);
@@ -56,8 +62,7 @@ describe("createDeferredConnectorFlow", () => {
   });
 
   it("forwards straight through once the flow exists", async () => {
-    const flow: Flow = { setAudible: vi.fn(), setPlaying: vi.fn() };
-    initStemConnectorFlow.mockReturnValue(flow);
+    const flow = bindFlow();
 
     const deferred = createDeferredConnectorFlow(document.createElement("div"));
     await settle();
