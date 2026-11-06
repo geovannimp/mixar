@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Anonymous analytics and network library sources. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- MIDI controllers (USB/BLE, or virtual ports from another app). Optional:
+         Mixar runs without one, so the feature must not filter installs. -->
+    <uses-feature android:name="android.software.midi" android:required="false"/>
     <application
         android:label="Mixar"
         android:name="${applicationName}"
