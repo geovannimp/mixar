@@ -1,4 +1,5 @@
 import { resolveDestination } from "./analytics-events";
+import { whenIdle } from "./idle";
 
 /** Name of the `<meta>` element BaseLayout.astro renders when analytics is configured. */
 export const META_NAME = "mixar-analytics";
@@ -174,7 +175,18 @@ export function initAnalytics(doc: Document = document): Promise<void> {
   };
   const onClick = trackOutboundClicks(capture, doc);
 
-  return import("posthog-js")
+  // Nothing on screen needs the SDK, so the ~97KB chunk waits for the browser
+  // to be past the first paint (or for the visitor to show intent) instead of
+  // competing with it on a throttled phone.
+  //
+  // What that costs: clicks are buffered and flushed on arrival, but
+  // `capture_pageview` fires from `init` — a visit that ends before the chunk
+  // loads (bounce inside the first couple of seconds) keeps its clicks and
+  // records no pageview. That is the deliberate trade: a pageview is worth less
+  // than the paint it would delay, and the clicks it loses are the ones it
+  // exists to count.
+  return whenIdle(doc)
+    .then(() => import("posthog-js"))
     .then(({ default: posthog }) => {
       posthog.init(config.key, {
         api_host: config.host,

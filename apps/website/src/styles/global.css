@@ -82,6 +82,21 @@
   --radius: 0;
 }
 
+/* Stem waveform placeholder bars. There are hundreds of these in the Stems
+   demo (every stem × two responsive variants), so each one carrying its own
+   utility list and inline height was ~38KB of markup and a style attribute to
+   parse per node. The resting height comes from IDLE_BAR_HEIGHT as a custom
+   property set once per container; stem-demo-ui.ts overwrites it per bar once
+   peaks decode, and an inline height always wins over this rule. */
+@layer components {
+  .stem-bar {
+    min-width: 1px;
+    flex-grow: 1;
+    height: var(--stem-bar-idle, 5%);
+    background-color: var(--stem);
+  }
+}
+
 @layer base {
   html {
     @apply scroll-smooth font-sans;
@@ -167,7 +182,36 @@
   }
 }
 
+/* Off-screen sections skip style and layout until they approach the viewport.
+   Every page is DOM-heavy below the fold (stems demo bars, ghost words,
+   diagrams), and the browser otherwise styles and lays out all of it before the
+   hero can paint. `auto` in contain-intrinsic-size makes the browser remember
+   each section's measured height after the first pass, so the scrollbar estimate
+   self-corrects instead of pinning every section to the fallback. */
+@layer base {
+  /* #stems is excluded on purpose: its demo measures the waveform wrapper
+     synchronously on astro:page-load (stem-demo-ui.ts), and a skipped section
+     has no layout boxes to measure — clientWidth would read 0 and the peaks
+     layer would build at 0x0. */
+  main > section:not(#hero):not(#stems) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 900px;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  /* Above-the-fold groups opt out of the fade. An element painted at
+     `opacity: 0` is not a Largest Contentful Paint candidate, so fading the
+     hero in convinced the browser the header logo was the page's biggest
+     element and pushed LCP to whenever the reveal finished. Starting at full
+     opacity keeps the drop-in motion (transform only) while letting the hero
+     text count from first paint. */
+  [data-reveal-group][data-reveal-paint] [data-reveal],
+  [data-reveal-group][data-reveal-paint] [data-reveal-x],
+  [data-reveal-group][data-reveal-paint] [data-reveal-y] {
+    opacity: 1;
+  }
+
   [data-reveal-group] [data-reveal] {
     opacity: 0;
     transform: translateY(-1rem);

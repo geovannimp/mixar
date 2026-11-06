@@ -1,4 +1,7 @@
 ---
+import { getImage } from "astro:assets";
+import { resolveSiteUrl } from "../lib/site-url";
+import bannerImage from "../assets/mixar-banner.png";
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import Header from "../components/Header.astro";
@@ -10,7 +13,7 @@ interface Props {
   title: string;
   description: string;
   currentPage?: "home" | "developers" | "privacy" | "docs";
-  /** Absolute or site-root path; default `/mixar-banner.png` */
+  /** Site-root path to a social card; defaults to the site banner. */
   ogImage?: string;
 }
 
@@ -19,15 +22,16 @@ const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · 
 
 const siteURL = Astro.site ?? new URL("https://mixar.top");
 const canonicalURL = new URL(Astro.url.pathname, siteURL);
-// Only site-relative image paths are accepted (a full absolute URL would
-// bypass origin checking, which the OCR security review flagged as the one
-// value a future caller could poison). Absolute-ize via the site origin so
-// `og:image`, `twitter:image` and the JSON-LD `image` all share one value.
-const ogImagePath = ogImage ?? "/mixar-banner.png";
-if (ogImagePath.startsWith("//") || /^[a-z]+:/i.test(ogImagePath)) {
-  throw new Error(`BaseLayout ogImage must be a site-root path, got: ${ogImagePath}`);
-}
-const absOgImage = new URL(ogImagePath, siteURL).href;
+// Social cards are the *only* consumer of the full-size PNG now: the hero ships
+// a sized WebP built from the same file, so the 420KB original never crosses a
+// visitor's connection. Callers can still override with a site-root path.
+// JPEG rather than the source PNG: same picture at a fraction of the bytes, and
+// every card crawler (including the ones that still refuse WebP) renders it.
+const ogCard =
+  ogImage ?? (await getImage({ src: bannerImage, width: 1200, format: "jpg", quality: 82 })).src;
+// `resolveSiteUrl` throws for any override that lands off-origin (including the
+// `//`-prefixed and backslash forms a plain string check misses).
+const absOgImage = resolveSiteUrl(ogCard, siteURL).href;
 const siteOrigin = siteURL.href.endsWith("/") ? siteURL.href : `${siteURL.href}/`;
 
 const organization = {
