@@ -235,6 +235,47 @@ impl CpalBackend {
         rates
     }
 
+    /// Ranges the engine can plan a stream from.
+    ///
+    /// The callback renders `f32`, so a device's `f32` ranges are the answer
+    /// wherever they exist. Android is the exception: AAudio enumerates a device
+    /// with the encodings its Java audio profile advertises — a tablet speaker
+    /// reports PCM 16-bit at 48 kHz and nothing else — yet the stream itself is
+    /// opened as `PCM_Float` and AAudio converts on the way out. Dropping an
+    /// I16-only device there leaves the engine with no output at all, so its
+    /// advertised rates and channel counts are planned as `f32` instead.
+    fn output_ranges(supported: &[SupportedStreamConfigRange]) -> Vec<SupportedStreamConfigRange> {
+        Self::plan_ranges(supported, cfg!(target_os = "android"))
+    }
+
+    /// [Self::output_ranges] with the Android conversion as a parameter, so the
+    /// rule is covered by tests that run on the host.
+    fn plan_ranges(
+        supported: &[SupportedStreamConfigRange],
+        integer_devices_play_f32: bool,
+    ) -> Vec<SupportedStreamConfigRange> {
+        let f32_ranges: Vec<SupportedStreamConfigRange> = supported
+            .iter()
+            .filter(|config| config.sample_format() == SampleFormat::F32)
+            .copied()
+            .collect();
+        if !f32_ranges.is_empty() || !integer_devices_play_f32 {
+            return f32_ranges;
+        }
+        supported
+            .iter()
+            .map(|config| {
+                SupportedStreamConfigRange::new(
+                    config.channels(),
+                    config.min_sample_rate(),
+                    config.max_sample_rate(),
+                    *config.buffer_size(),
+                    SampleFormat::F32,
+                )
+            })
+            .collect()
+    }
+
     /// Pick the stream format for `params` from a device's supported ranges.
     ///
     /// Three constraints decide it, and getting any of them wrong makes
@@ -252,6 +293,7 @@ impl CpalBackend {
         requested_rate: u32,
         channels: u16,
     ) -> Result<DeviceFormat> {
+        let supported = Self::output_ranges(supported);
         let candidates: Vec<&SupportedStreamConfigRange> = supported
             .iter()
             .filter(|config| config.sample_format() == SampleFormat::F32)
@@ -418,17 +460,16 @@ impl AudioBackend for CpalBackend {
                 .as_ref()
                 .is_some_and(|d| d.as_str() == id.as_str());
 
-            let supported_configs: Vec<_> = match device.supported_output_configs() {
-                Ok(configs) => configs.collect(),
+            let supported_configs = match device.supported_output_configs() {
+                Ok(configs) => Self::output_ranges(&configs.collect::<Vec<_>>()),
                 Err(_) => continue,
             };
             if supported_configs.is_empty() {
                 continue;
             }
 
-            // The engine renders f32, so a rate or channel count the device only
-            // offers in another format cannot be opened. Advertise only what
-            // `pick_device_format` could accept.
+            // Advertise only what `pick_device_format` could accept: it plans
+            // from the same f32 ranges this list is built from.
             let max_channels = Self::max_output_channels(&supported_configs);
             if max_channels == 0 {
                 continue;
@@ -718,6 +759,38 @@ mod tests {
 
         let error = CpalBackend::pick_device_format(&configs, 48_000, 2).unwrap_err();
         assert!(error.to_string().contains("no f32 2-channel"), "{error}");
+    }
+
+    /// Android's AAudio hands our callback `PCM_Float` whatever the device's Java
+    /// profile advertises, so an I16-only speaker is still a usable output — the
+    /// tablet that reported "No output device available" advertised exactly that.
+    #[test]
+    fn plan_ranges_plans_an_integer_only_device_as_f32() {
+        let configs = [range(2, 48_000, 48_000, SampleFormat::I16)];
+
+        let planned = CpalBackend::plan_ranges(&configs, true);
+        assert_eq!(planned.len(), 1);
+        assert_eq!(planned[0].sample_format(), SampleFormat::F32);
+        assert_eq!(planned[0].channels(), 2);
+        assert_eq!(planned[0].min_sample_rate(), 48_000);
+
+        // The same device on a host whose backend cannot convert stays unlisted.
+        assert!(CpalBackend::plan_ranges(&configs, false).is_empty());
+    }
+
+    /// A device that advertises `f32` keeps its own ranges: the Android rule only
+    /// rescues devices that would otherwise be dropped.
+    #[test]
+    fn plan_ranges_keeps_advertised_f32_ranges() {
+        let configs = [
+            range(2, 44_100, 48_000, SampleFormat::I16),
+            range(2, 44_100, 96_000, SampleFormat::F32),
+        ];
+
+        let planned = CpalBackend::plan_ranges(&configs, true);
+        assert_eq!(planned.len(), 1);
+        assert_eq!(planned[0].sample_format(), SampleFormat::F32);
+        assert_eq!(planned[0].max_sample_rate(), 96_000);
     }
 
     #[test]

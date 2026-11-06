@@ -298,7 +298,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
       minDeckVolume: normalized.historyMinDeckVolume,
     );
     var engine = await read(engineTransportProvider.future);
-    if (engine == null && isDesktopWindow) {
+    if (engine == null && supportsAudioEngine) {
       // A failed engine start caches no transport, only a notice. Saving settings is the
       // user's way back: retry once the audio device configuration has been fixed.
       invalidate(engineTransportProvider);

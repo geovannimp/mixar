@@ -989,10 +989,11 @@ final masterCueProvider = Provider<bool>(
   (ref) => ref.watch(engineUiProvider.select((s) => s.masterCue)),
 );
 
-/// Starts once on desktop. Widget tests set [debugOverrideDesktopWindow] false
-/// so this stays null and skips native audio.
+/// Starts once on a host with an audio output (desktop and Android). Widget
+/// tests set [debugOverrideDesktopWindow] false so this stays null and skips
+/// native audio; web has no engine at all.
 final engineTransportProvider = FutureProvider<EngineTransport?>((ref) async {
-  if (!isDesktopWindow) {
+  if (!supportsAudioEngine) {
     return null;
   }
   final library = await ref.watch(libraryTransportProvider.future);
