@@ -67,13 +67,19 @@ const points = [
 
 <section id="stems" class="scroll-mt-20 border-y border-border bg-bg">
   <div class="relative h-[26vh] min-h-[200px] overflow-hidden border-b border-border">
+    <!-- Audio-only ambience for the demo: the .stem.mp4 holds five audio
+         streams and no picture, so nothing here is visible. `preload="none"`
+         matters — the file is 15MB, and `metadata` makes the browser pull the
+         whole thing (GitHub Pages ignores Range) before the visitor has asked
+         for anything. Stems.astro's script switches it back to `auto` only
+         when the demo actually starts. -->
     <video
       data-stems-band
       class="absolute inset-0 size-full object-cover"
       muted
       loop
       playsinline
-      preload="metadata"
+      preload="none"
       aria-hidden="true"
     >
       <source src="/demo/track.stem.mp4" type="video/mp4" />
@@ -339,13 +345,14 @@ const points = [
                       <span
                         data-stem-bars
                         data-variant={variant}
+                        style={`--stem-bar-idle: ${IDLE_BAR_HEIGHT}`}
                         class:list={[
                           "h-full min-w-0 grow items-center gap-[0.5px] motion-reduce:transition-none",
                           visibility,
                         ]}
                       >
                         {Array.from({ length: count }).map(() => (
-                          <i class="min-w-[1px] grow bg-(--stem)" style={`height: ${IDLE_BAR_HEIGHT}`} />
+                          <i class="stem-bar" />
                         ))}
                       </span>
                     ))}
@@ -375,10 +382,10 @@ const points = [
 </section>
 
 <script>
-  import {
-    initStemConnectorFlow,
-    type StemConnectorFlow,
-  } from "../scripts/stem-connector-flow";
+  import { createDeferredConnectorFlow } from "../scripts/deferred-stem-connector-flow";
+  // Type-only: erased at build, so naming the contract does not pull the
+  // motion-backed module into the entry chunk.
+  import type { StemConnectorFlow } from "../scripts/stem-connector-flow";
   import {
     initStemDemoPlayer,
     type StemDemoPlayerHandle,
@@ -460,7 +467,10 @@ const points = [
       // History restores `.muted` independently of the `muted` attribute.
       bandVideo.muted = true;
       bandVideo.pause();
-      bandVideo.currentTime = 0;
+      // Only touch the timeline once the element holds data: assigning
+      // `currentTime` on an unloaded element asks the browser for the media,
+      // which is exactly what `preload="none"` is there to avoid.
+      if (bandVideo.readyState > 0) bandVideo.currentTime = 0;
     }
     // Keep the backdrop drifting without re-looping the audio track: once it
     // creeps past the held frame, snap it back so only the ambient loop plays.
@@ -473,7 +483,9 @@ const points = [
     for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
       if (root.dataset.stemsInit !== undefined) continue;
       root.dataset.stemsInit = "";
-      const connectorFlow = initStemConnectorFlow(root);
+      // Bound immediately, animated once its module (and the motion library)
+      // has loaded after first paint.
+      const connectorFlow = createDeferredConnectorFlow(root);
       initStemsDemo(
         root,
         connectorFlow,
@@ -484,6 +496,12 @@ const points = [
               return;
             }
             if (!prefersReduced && playing) {
+              // `preload="none"` in the markup keeps the 15MB file off the
+              // initial load; the first play is what arms it.
+              if (bandVideo.preload !== "auto") {
+                bandVideo.preload = "auto";
+                bandVideo.load();
+              }
               bandVideo.addEventListener("timeupdate", frameFreeze);
               void bandVideo.play().catch(() => {});
             } else {

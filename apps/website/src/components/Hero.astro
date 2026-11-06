@@ -1,4 +1,6 @@
 ---
+import { Image } from "astro:assets";
+import banner from "../assets/mixar-banner.png";
 import { GITHUB_REPO, RELEASES_URL } from "../consts";
 import {
   ArrowDown,
@@ -102,7 +104,7 @@ const audioGlyphs = [
   <div
     class="relative z-10 mx-auto grid max-w-content gap-12 px-section pt-24 pb-16 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-20 lg:pt-32 lg:pb-24"
   >
-    <div class="relative z-10 lg:py-4" data-reveal-group>
+    <div class="relative z-10 lg:py-4" data-reveal-group data-reveal-paint>
       <h1
         data-reveal
         style="--reveal-delay: 0ms"
@@ -171,11 +173,14 @@ const audioGlyphs = [
         <div data-hero-screenshot-hover class="relative origin-center transform-3d -mt-4 pt-4">
           <figure class="hero-tablet hero-screenshot-tilt">
             <div class="hero-tablet-screen">
-              <img
-                src="/mixar-banner.png"
+              <Image
+                src={banner}
                 alt="Mixar DJ interface with dual decks, waveforms, and mixer"
-                width="1024"
-                height="733"
+                widths={[480, 720, 960, 1120]}
+                sizes="(min-width: 1024px) 46vw, 92vw"
+                format="webp"
+                quality={74}
+                loading="eager"
                 fetchpriority="high"
                 decoding="async"
               />
@@ -188,18 +193,36 @@ const audioGlyphs = [
 </section>
 
 <script>
-  import { initHeroMobileTilt } from "../scripts/hero-mobile-tilt";
+  import { whenIdle, whenVisible } from "../scripts/idle";
 
   let disposeTilt: (() => void) | undefined;
 
+  // The tilt is decoration and pulls in the motion library (~22KB) plus its
+  // scroll driver. Dynamic import on purpose: a static import would fetch that
+  // chunk with the initial load. The import waits until the screenshot is close
+  // to the viewport (on a phone it starts below the fold) and then for idle, so
+  // neither the bytes nor the animation setup are on the critical path.
+  let generation = 0;
   const initTilt = () => {
-    disposeTilt?.();
-    disposeTilt = initHeroMobileTilt();
+    const mine = ++generation;
+    const tilt = document.querySelector(".hero-screenshot-tilt");
+    if (!tilt) return;
+    void whenVisible(tilt)
+      .then(() => whenIdle())
+      .then(async () => {
+        const { initHeroMobileTilt } = await import("../scripts/hero-mobile-tilt");
+        // A navigation can land while the chunk is still in flight; only the
+        // newest page may bind the tilt.
+        if (mine !== generation) return;
+        disposeTilt?.();
+        disposeTilt = initHeroMobileTilt();
+      });
   };
 
   // The router replaces the page without re-running bundled scripts: release
   // the old tilt with the element it was bound to, and arm the new one.
   document.addEventListener("astro:before-swap", () => {
+    generation++;
     disposeTilt?.();
     disposeTilt = undefined;
   });

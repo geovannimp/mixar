@@ -23,6 +23,11 @@ export default defineConfig({
   // (old sitemap, bookmarks, inbound links) keep working.
   build: {
     format: "file",
+    // One file of ~60KB raw (12KB gzipped) instead of a render-blocking
+    // stylesheet request: the browser has every rule — including the
+    // @font-face srcs — while it is still parsing the document, so first paint
+    // and the font fetches no longer wait on a second round trip to Pages.
+    inlineStylesheets: "always",
   },
   outDir: "dist",
   integrations: [mdx(), sitemap(), trailingSlashRedirects()],
