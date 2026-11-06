@@ -11,12 +11,19 @@ order: 804
 | --- | --- | --- |
 | **Native NI Stem** | Your original `.stem.mp4` on disk | Opened in place; Mixar does not duplicate it into the stem cache. See [Native NI Stem files](/docs/users/stems/native-ni). |
 | **Generated stems** | Mixar app support → `stems/` | One `.stem.mp4` per track, managed by Mixar. Not written next to your music files. |
-| **Live stems** | Memory only (per loaded deck) | Generated on the fly when no cache exists; never written to disk. |
-| **Separation model** | Mixar app support → `models/` | Downloaded on first [Generate stems](/docs/users/stems/generate); shared by all generates. |
+| **Live stems** | Memory only (per loaded deck) | Generated on the fly only when **Settings → Mixer → Realtime Stems** is on, and the track has no cache and no native Stem layers; never written to disk. |
+| **Separation model** | Mixar app support → `models/` | Downloaded on first [Generate stems](/docs/users/stems/generate), plus the Realtime Stems model on first live use; shared by all jobs. |
 
-Your library tracks and music folders are never modified by generate or clear. Only Mixar’s cache directories (and library rows that point at generated stem files) change.
+Your library tracks and music folders are never modified by generate or clear. Only Mixar's cache directories (and library rows that point at generated stem files) change.
 
-**Stem model** (HTDemucs by default, or SCNet int8) and **Stem format** (Opus by default, or FLAC) are under **Settings → Library**. Both apply to **new** generated caches; changing either makes older generated files stale, so Mixar regenerates them the next time you generate. Existing caches stay playable until then. Live stem playback currently uses HTDemucs only.
+## Model and format
+
+| Setting | Values | Default | Applies to |
+| --- | --- | --- | --- |
+| **Stem model** | HTDemucs or SCNet int8 | HTDemucs | New generated caches |
+| **Stem format** | Opus or FLAC | Opus | New generated caches |
+
+Both settings are under **Settings → Library**. Changing either makes older generated files stale, so Mixar regenerates them the next time you generate. Existing caches stay playable until then. Live stems ignore these settings: Realtime Stems always uses the StemgenRT model.
 
 ## Clean stems and free space
 
@@ -27,10 +34,16 @@ Open **Settings → Storage**. The overview shows how much space Mixar is using,
 | **Stem cache** | Generated `.stem.mp4` files for library tracks | **Sync** and **Clear** |
 | **Stem model** | Downloaded separation model weights | **Clear** |
 
-**Clear stem cache**: deletes all generated stem files and their library links. Confirm in the dialog. Original audio and native NI Stem files in your music folders are left alone. Afterward, Stems pads stay disabled on those tracks until you [generate](/docs/users/stems/generate) again (or load a native Stem).
+| Action | Removes | Keeps |
+| --- | --- | --- |
+| **Clear stem cache** | All generated stem files and their library links | Original audio and native NI Stem files in your music folders |
+| **Sync stem cache** | Orphan cache files not listed in the library database; database rows whose files are missing | Referenced caches and original audio |
+| **Clear stem model** | Every downloaded model: HTDemucs and/or SCNet, plus the Realtime Stems model | Generated stem files |
 
-**Sync stem cache**: removes orphan cache files that are not listed in the library database, and drops database rows whose files are missing. Referenced caches and original audio stay. Use this if the cache and library got out of sync.
+**Clear stem cache** asks for confirmation in the dialog. Afterward, Stems pads stay disabled on those tracks until you [generate](/docs/users/stems/generate) again (or load a native Stem).
 
-**Clear stem model**: deletes every downloaded separation model (HTDemucs and/or SCNet). The next **Generate stems** downloads the selected one again. Clearing models does not delete already-generated stem files.
+**Sync stem cache** fixes a cache that got out of sync with the library.
+
+**Clear stem model** makes the next **Generate stems** download the selected model again. Realtime Stems also downloads its model again on the next deck load.
 
 Clear is best-effort if a deck still has stems attached: you may see a partial-failure toast. Reload the track or regenerate later if needed.

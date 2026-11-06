@@ -1,15 +1,23 @@
 ---
 title: "Install Mixar"
-description: "Download a build or run from source, what first launch shows, and where Mixar keeps your data."
+description: "Install and launch Mixar, get sound, and load a first track, plus source builds and where the app keeps your data."
 section: "Getting started"
 order: 101
 ---
 
-**Mixar** is a desktop DJ app: two or four decks, a mixer, an offline-analyzed library, stems, and a performance pad grid, on top of a Rust audio engine. It runs on Linux, macOS, and Windows. Linux is the primary development platform.
+**Mixar** is a desktop DJ app built on a Rust audio engine. It gives you two or four decks, a mixer, an offline-analyzed library, stems, and a performance pad grid. It runs on Linux, macOS, and Windows. Linux is the primary development platform.
 
 The app is under active development and is not a stable product yet, so settings can change between versions.
 
-## Get a build
+This page takes you from nothing to a track playing on a deck. Each step ends with something you can see on screen, and where a step can fail, it names the fix.
+
+## Before you start
+
+- **A supported computer**: Linux, macOS, or Windows.
+- **A working sound device**: the mixer runs inside the audio engine, so a working output device is what makes sound. Without one the app still opens, but it stays silent.
+- **A build**: a download from GitHub Releases. Downloading is the supported path for users.
+
+## 1. Get a build
 
 Prebuilt packages are attached to [GitHub Releases](https://github.com/geovannimp/mixar/releases):
 
@@ -19,31 +27,25 @@ Prebuilt packages are attached to [GitHub Releases](https://github.com/geovannim
 | macOS | `.dmg` |
 | Windows | `.exe` setup |
 
-The latest public build is a **pre-release**. Artefacts ship **unsigned** by default: on macOS you have to allow the app in System Settings after the first launch attempt (notarization is not wired yet), and on Windows you will see a SmartScreen warning. There is no auto-updater; getting a new version means downloading it again.
+The latest public build is a **pre-release**. Artefacts ship **unsigned** by default. On macOS you have to allow the app in System Settings after the first launch attempt, because notarization is not wired yet. On Windows you will see a SmartScreen warning. There is no auto-updater; getting a new version means downloading it again.
 
-## Run from source
+To build Mixar yourself, follow the Quick start in the repository README: [github.com/geovannimp/mixar#quick-start](https://github.com/geovannimp/mixar#quick-start). It lists the toolchain, the Linux headers, and the commands, and the first-launch checkpoint in step 2 applies unchanged to a source build.
 
-Prerequisites: [mise](https://mise.jdx.dev), Rust stable with `rustfmt` and `clippy`, Flutter (the version pinned in `mise.toml`), and a working sound device.
+## 2. Install and open it
 
-On Linux you also need the ALSA and PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu) plus the Flutter Linux desktop dependencies (GTK and friends).
+- **Linux**: mark the `.AppImage` executable and run it directly.
+- **macOS**: open the `.dmg` and launch the app. Allow it in System Settings after the first launch attempt; notarization is not wired yet.
+- **Windows**: run the `.exe` setup. The first run shows a SmartScreen warning.
 
-```bash
-git clone https://github.com/geovannimp/mixar.git
-cd mixar
-mise install
-npm install
-npm run flutter:dev
-```
-
-Sample tracks live in `samples/` if you want something to load on the first run.
+**Checkpoint**: a fresh install opens **setup** instead of the mixer. Finishing or skipping it opens the mixer, with two empty decks and an empty library, and the engine already started on your system default output device.
 
 ## First launch
 
-A fresh install opens **setup** instead of the mixer: six full-window steps (seven when Mixar detects a supported, mapped controller) that point Mixar at your music and set the app up the way you like it. Each step is its own stage — headline on the left, the choice on the right, and a numbered track beside the headline showing where you are.
+Setup is six full-window steps, or seven when Mixar detects a supported, mapped controller. They point Mixar at your music and set the app up the way you like it. Each step is its own stage: headline on the left, the choice on the right, and a numbered track beside the headline showing where you are.
 
 | Step | What it asks for |
 | --- | --- |
-| Welcome | Nothing — what the app is and what the steps cover |
+| Welcome | Nothing: what the app is and what the steps cover |
 | Language | The interface language, switched live as you pick |
 | Appearance | Theme and accent color, previewed live as you pick |
 | Controllers | Only shown when Mixar detects a supported, mapped MIDI controller: trust it to connect on its own |
@@ -51,7 +53,7 @@ A fresh install opens **setup** instead of the mixer: six full-window steps (sev
 | Privacy | Whether Mixar may send anonymous usage data, off by default |
 | Ready | Three tips, then into the mixer |
 
-**Start mixing** saves the settings draft and opens the mixer. **Skip setup** marks the flow as done while keeping what is already saved: it discards draft edits such as language, theme, accent, controller trust, and privacy, but a folder you added or a library you imported in the Library step has already happened and stays. Nothing is destructive either way — every option is in [Settings](/docs/users/settings) afterwards.
+**Start mixing** saves the settings draft and opens the mixer. **Skip setup** marks the flow as done while keeping what is already saved. It discards draft edits such as language, theme, accent, controller trust, and privacy, but a folder you added or a library you imported in the Library step has already happened and stays. Nothing is destructive either way, because every option is in [Settings](/docs/users/settings) afterwards.
 
 Audio is not part of setup: the engine starts on your system default output when the mixer opens. Change the device in [Audio settings](/docs/users/settings/audio).
 
@@ -72,9 +74,17 @@ The mixer itself opens on two empty decks and an empty library:
 
 Deck layout, jog behaviour, tempo range, and every other default are described in [Settings](/docs/users/settings). The two settings worth visiting before you play are **Settings → Audio** and **Settings → Library → Analysis quality**.
 
-## No output device means no sound
+### If the app shows an audio failure
 
-The mixer runs inside the audio engine, so a working output device is what makes sound. With no usable device the engine fails with **No output device available**: the app keeps running without audio and shows an *Audio engine failed to start* notice. Plug in or enable an output, then save settings in the Audio section (or relaunch) to bring audio back. See [Audio setup](/docs/users/getting-started/audio-setup).
+With no usable device the engine fails with **No output device available**. The app keeps running without audio and shows an *Audio engine failed to start* notice. Plug in or enable an output, then save settings in the Audio section (or relaunch) to bring audio back. See [Troubleshooting sound](/docs/users/getting-started/troubleshooting).
+
+## 3. Load a track
+
+Drag an audio file from your desktop onto a deck. You can also click the cover, which opens the library.
+
+**Checkpoint**: the deck's track info fills in, and **No track loaded** with **Drop a track or click the cover** disappears. **Play** starts the track.
+
+**Recovery**: with no collection selected, the Collections tab's track list reads **Select a collection**. Add a folder as described in [Library](/docs/users/library), then drop a track onto the deck.
 
 ## Where your data lives
 
@@ -96,10 +106,11 @@ Everything Mixar owns sits in one application-support directory: `top.mixar.app`
 
 Audio files are never moved or copied. A folder collection is a pointer to a directory you own. Backing up that folder backs up your whole Mixar setup; deleting it resets the app without touching your music.
 
-## Next
+## Where to go next
 
 | Task | Page |
 | --- | --- |
 | Get sound out, route the headphones | [Audio setup](/docs/users/getting-started/audio-setup) |
+| Fix silence, one side, or dropouts | [Troubleshooting sound](/docs/users/getting-started/troubleshooting) |
 | Add a folder of music and analyze it | [Library](/docs/users/library) |
 | Load a track and play it | [Decks](/docs/users/decks) |

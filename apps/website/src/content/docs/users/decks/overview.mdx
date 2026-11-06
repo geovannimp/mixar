@@ -1,11 +1,13 @@
 ---
 title: "Overview"
-description: "Deck anatomy: track info, header keys, the four performance tabs, and how a track gets loaded."
+description: "How a deck is built and how its parts relate: track info, header keys, performance tabs, and track loading."
 section: "Decks"
 order: 301
 ---
 
-A deck is one player: a track, a transport, a tempo column, and a performance surface. Mixar shows two or four of them, and a deck's identity colour (**A blue**, **B rose**, **C amber**, **D violet**) follows it through the header, the waveform, the mixer channel, and the library's load actions. [Mixer](/docs/users/mixer) covers how the decks sit around the channel strips.
+A deck is one player: a track, a transport, a tempo column, and a performance surface. Mixar shows two or four of them. A deck's identity colour (**A blue**, **B rose**, **C amber**, **D violet**) follows it through the header, the waveform, the mixer channel, and the library's load actions. [Mixer](/docs/users/mixer) covers how the decks sit around the channel strips.
+
+Each part of the card has one job. The header carries deck-wide switches. The track info carries the track and the cover that loads or ejects it. The panel carries the four performance surfaces, and the transport, the key pair under the panel, starts and stops. One beat grid per track sits behind all of them, and the deck's beat features read it. A wrong BPM or downbeat shows up across those features, so [Beat grid](/docs/users/decks/beat-grid) is where you correct it.
 
 ## The deck card
 
@@ -17,7 +19,7 @@ A deck is one player: a track, a transport, a tempo column, and a performance su
 | Tempo column | BPM, pitch, sync status, tempo fader, tempo range |
 | Transport | **Play** / **Pause** and **Cue** |
 
-The tempo column faces the mixer: it sits on the right edge of decks A and C, and on the left edge of B and D. It is a full-height rail with a hairline down each side, so it runs edge to edge between the waveform pane and the library divider instead of floating as a card. In four-deck mode a hairline splits each stacked pair of decks and stops at the deck edges, and the rails end on it.
+The tempo column faces the mixer: it sits on the right edge of decks A and C, and on the left edge of B and D. It is a full-height rail with a hairline down each side. It runs edge to edge between the waveform pane and the library divider instead of floating as a card. In four-deck mode a hairline splits each stacked pair of decks and stops at the deck edges, and the rails end on it.
 
 ## Track info
 
@@ -46,12 +48,12 @@ The gain popover is titled **Gain** and lists **Loudness**, **ReplayGain**, **Au
 
 Loading and unloading belong to the track, so they sit on the artwork instead of taking a header key:
 
-- **Empty deck — click the cover** to open the library. The cover is a ghost button filling the whole square: a plus that takes a ghost wash on hover. Pick the track in the library and drag it onto the deck.
-- **Loaded deck — hover or tab to the cover** and the eject chip in its corner grows until it fills the cover: the whole artwork becomes the unload button. Clicking it clears the deck. The library entry, cues, loops and beat grid stay; you are unloading the player, not the track.
-- **Playing deck — unload asks first.** Clearing a live deck is audible, so the click opens **Unload Deck A?** with **Cancel** and **Unload**; the track keeps playing until you confirm.
-- **Drag over the deck** to load without opening anything. While a library row or an audio file is over the deck, the card's border lights up and the cover shows a drop icon. Drops, like unload, need a running engine — a stopped engine installs no drop target.
+- **Empty deck**: click the cover to open the library. The cover is a ghost button filling the whole square: a plus that takes a ghost wash on hover. Pick the track in the library and drag it onto the deck.
+- **Loaded deck**: hover or tab to the cover. The eject chip in its corner grows until it fills the cover, so the whole artwork becomes the unload button. Clicking it clears the deck. The library entry, cues, loops and beat grid stay; you are unloading the player, not the track.
+- **Playing deck**: unload asks first. Clearing a live deck is audible, so the click opens **Unload Deck A?** with **Cancel** and **Unload**; the track keeps playing until you confirm.
+- **Drag over the deck**: load without opening anything. While a library row or an audio file is over the deck, the card's border lights up and the cover shows a drop icon. Drops, like unload, need a running engine: a stopped engine installs no drop target.
 
-With the library docked, opening it scrolls the library pane into view; in drawer mode it opens the drawer. Unload needs a running engine and dims while it is stopped or a load is in flight — opening the library never does.
+With the library docked, opening it scrolls the library pane into view; in drawer mode it opens the drawer. Unload needs a running engine and dims while it is stopped or a load is in flight; opening the library never does.
 
 ## Performance tabs
 
@@ -64,21 +66,21 @@ Four vertical icon tabs run down the panel. Each has a tooltip and a screen-read
 | **Grid** | [Beat grid](/docs/users/decks/beat-grid) |
 | **Jog** | [Jog and waveform](/docs/users/decks/jog-and-waveform) |
 
-The surfaces need a loaded track before their controls work, but the selected tab survives an empty deck, and the pad mode inside **Pads** stays selectable.
+The surfaces need a loaded track before their controls work. The selected tab survives an empty deck, and the pad mode inside **Pads** stays selectable.
 
 ## Loading a track
 
-Three ways, all landing on the same deck:
+Three routes land on the same deck:
 
 - Drag a row from the library onto the deck.
 - Click the cover to open the library, then drag a row onto the deck or use its **Load to deck** buttons.
-- Drop an audio file from the desktop onto the deck. The drop accepts the same formats the library imports: `mp3`, `flac`, `wav`, `aiff`, `aif`, `ogg`, `m4a`, `aac`, `opus`, `wma`, `alac`. This OS drop is switched off while the library drawer is open, so a file cannot land on a deck hidden under it; a drop with nothing playable reports "No supported audio files in drop".
+- Drop an audio file from the desktop onto the deck. The drop accepts the same formats the library imports: `mp3`, `flac`, `wav`, `aiff`, `aif`, `ogg`, `m4a`, `aac`, `opus`, `wma`, `alac`. This OS drop is switched off while the library drawer is open, so a file cannot land on a deck hidden under it. A drop with nothing playable reports "No supported audio files in drop".
 
 While a track loads, the track info shimmers, the BPM readout shows `000.00`, and the transport stays disabled.
 
 ## Deck layout
 
-**Settings → Layout → Deck layout** switches between **2 decks** and **4 decks**. Changing it restarts the audio engine and asks **Change deck layout?**; **Restart and apply** commits it. Tracks on the decks removed by going back to two decks are not restored.
+**Settings → Layout → Deck layout** switches between **2 decks** and **4 decks**. The change restarts the audio engine and asks **Change deck layout?**. **Restart and apply** commits it. Tracks on the decks removed by going back to two decks are not restored.
 
 ## In this section
 

@@ -1,19 +1,32 @@
 ---
 title: "Importing music"
-description: "Bring a Mixxx or Rekordbox library into Mixar and understand what is copied."
+description: "Copy tracks, playlists, and cues from a Mixxx or Rekordbox 6/7 library without moving your audio."
 section: "Library"
 order: 205
 ---
 
-Mixar reads an existing DJ library and copies its structure into yours: tracks, playlists, cues, and folders. Two sources ship today, **Mixxx** and **Rekordbox 6/7**, each with its own card in **Settings → Integrations**.
+Mixar reads an existing DJ library and copies its structure into yours: tracks, playlists, cues, and folders. Lists and track references are copied, never audio files, so your music stays where it is. The imported lists become [collections](/docs/users/library/collections).
 
-Lists and track references are copied, never audio files. Your music stays where it is; the imported lists become [collections](/docs/users/library/collections).
+Two sources ship today, **Mixxx** and **Rekordbox 6/7**, each with its own card in **Settings → Integrations**.
 
-Both imports are **idempotent**: a list whose name and kind already exist is skipped, and cues are written per slot, so running an import twice does not duplicate your library. Missing files are imported as unavailable tracks — rows with no playable audio — so a list does not silently lose entries when a drive is offline.
+Both imports are **idempotent**: a list whose name and kind already exist is skipped, and cues are written per slot. Running an import twice does not duplicate your library. Missing files are imported as unavailable tracks, which are rows with no playable audio. A list therefore does not silently lose entries when a drive is offline.
+
+## Before you start
+
+You need a Mixxx library, or a Rekordbox 6/7 install, on this computer.
 
 ## Import from Mixxx
 
-The Mixxx card is described as *Bring your Mixxx library into Mixar.* It checks the standard Mixxx database location on launch and reports one of four states:
+1. Open **Settings → Integrations** and find the Mixxx card. It is described as *Bring your Mixxx library into Mixar.*
+2. Read the card's state. The card checked the standard Mixxx database location at launch.
+3. Press **Import from Mixxx library…**. The button is enabled only when a database was found and no import is already running.
+4. Read the confirmation. It lists the source path, the track count with a missing-file count, and how many playlists, crates, and watched folders were found.
+5. Confirm the import.
+6. Wait for the import to finish and read the toast under [Result](#result).
+
+### Mixxx card states
+
+The card reports one of four states:
 
 | State | Meaning |
 | --- | --- |
@@ -22,7 +35,7 @@ The Mixxx card is described as *Bring your Mixxx library into Mixar.* It checks 
 | **No Mixxx library found on this computer.** | Nothing to import on this machine. |
 | **Could not check for a Mixxx library.** | The lookup itself failed; the error is in the log. |
 
-**Import from Mixxx library…** is enabled only when a database was found and no import is already running. The confirmation lists the source path, the track count with a missing-file count, and how many playlists, crates, and watched folders were found.
+### What Mixxx becomes
 
 | Mixxx | Becomes |
 | --- | --- |
@@ -36,11 +49,16 @@ Track metadata comes across where Mixxx stored it: title, artist, album, genre, 
 
 ## Import from Rekordbox
 
-The Rekordbox card reads the desktop library Rekordbox 6 and 7 keep in `master.db`, so nothing has to be exported by hand. The card is described as *Bring your Rekordbox library into Mixar* and reports the same four states, based on the path Rekordbox itself records in its settings file.
+1. Open the Rekordbox card. It is described as *Bring your Rekordbox library into Mixar*. It reads the desktop library Rekordbox 6 and 7 keep in `master.db`, so nothing has to be exported by hand.
+2. Check the card's state. The card reports the same four states as Mixxx, based on the path Rekordbox itself records in its settings file.
+3. Press **Import from Rekordbox library…**.
+4. Read the confirmation. It lists the source path, the track count with a missing-file count, and how many playlists, smart playlists, folders, hot cues, and loops were found.
+5. Confirm the import.
+6. Wait for the import to finish and read the toast under [Result](#result).
 
-Rekordbox encrypts that database. Mixar copies it (with its write-ahead log) into a **private** temp directory, unlocks the copy, and deletes it when the import finishes; the original files are only ever read. Rekordbox can keep running during the import.
+Rekordbox encrypts that database. Mixar copies it and its write-ahead log (`master.db-wal`) into a **private** temp directory, unlocks the copy, and deletes it when the import finishes. The shared-memory `-shm` file is scratch state and is not copied; SQLite rebuilds it from the log. The original files are only ever read. Rekordbox can keep running during the import.
 
-The confirmation lists the source path, the track count with a missing-file count, and how many playlists, smart playlists, folders, hot cues, and loops were found.
+### What Rekordbox becomes
 
 | Rekordbox | Becomes |
 | --- | --- |
@@ -53,7 +71,10 @@ The confirmation lists the source path, the track count with a missing-file coun
 
 Mixar creates an unsortable collection named **Rekordbox** holding every imported track.
 
-Track metadata comes across where Rekordbox stored it: title, artist, album, genre, colour label, comment, rating, year, track and disc numbers, ISRC, sample rate, bitrate, and BPM. Keys are normalized to Mixar's musical form. Two kinds of row are deliberately dropped: **memory cues that are not loops** (Mixar stores hot cues and loops only), and **beat grids and waveforms**, which Rekordbox keeps in separate analysis files rather than in the database.
+Track metadata comes across where Rekordbox stored it: title, artist, album, genre, colour label, comment, rating, year, track and disc numbers, ISRC, sample rate, bitrate, and BPM. Keys are normalized to Mixar's musical form. Two kinds of row are deliberately dropped:
+
+- **memory cues that are not loops** (Mixar stores hot cues and loops only)
+- **beat grids and waveforms**, which Rekordbox keeps in separate analysis files rather than in the database
 
 ## Result
 

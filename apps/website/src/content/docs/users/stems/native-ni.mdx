@@ -5,15 +5,23 @@ section: "Stems"
 order: 802
 ---
 
-Mixar plays **Native Instruments Stem** files natively. A Stem file is usually named like `My Track.stem.mp4` and already contains the [mixdown](/docs/users/stems#mixdown) plus the four layers: **Drums**, **Bass**, **Other**, and **Vocals**.
+Mixar plays **Native Instruments Stem** files natively, with no preparation. A Stem file is usually named like `My Track.stem.mp4` and already contains the [mixdown](/docs/users/stems#mixdown) plus the four layers: **Drums**, **Bass**, **Other**, and **Vocals**.
+
+## Before you start
+
+A `.stem.mp4` needs no separation model and no cache.
 
 ## How to use one
 
 1. Add the `.stem.mp4` to your library the same way you add any other track (folder collection, import, and so on).
 2. Load it onto a deck.
-3. Open the **Stems** pad tab: mute and isolate work immediately. No preparation step.
+3. Open the **Stems** pad tab.
 
-Mixar reads the layers straight from your file. It does **not** copy the Stem into a separate cache, and it does **not** run separation on it. The file stays where you put it on disk.
+Mute and isolate work immediately. No preparation step.
+
+## What Mixar does with the file
+
+Mixar reads the layers straight from your file. It does **not** copy the Stem into a separate cache, and it does **not** run separation on it. The file stays where you put it on disk. See [Storage](/docs/users/stems/storage) for how this compares with generated caches.
 
 ## Generate stems and NI files
 
@@ -21,6 +29,6 @@ Mixar reads the layers straight from your file. It does **not** copy the Stem in
 
 ## When something goes wrong
 
-If a Stem file is corrupt or unreadable, Mixar shows an error on prepare and will **not** try to re-separate it. Fix or replace the file, then load it again.
+If a Stem file is corrupt or unreadable, Mixar shows an error when you load it and will **not** try to re-separate it. Fix or replace the file, then load it again.
 
 For mute/isolate pad behavior, see [Stems pad mode](/docs/users/performance-pads/stems).

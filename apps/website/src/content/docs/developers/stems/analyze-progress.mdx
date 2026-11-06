@@ -1,19 +1,21 @@
 ---
 title: "Analyze & progress"
-description: "Separate analysis and stem jobs, TrackProgress phases, and when the STEMS GENERATING banner and pads go live."
+description: "How library analysis and stem generation report progress: the job split, TrackProgress phases, and pad flags."
 section: "Stems"
 order: 5
 ---
 
 Library analysis (BPM/key/loudness/waveform) and stem ensure are **separate jobs**. Analyzing… can finish when analysis finishes while stems continue independently. Both emit progress (phase + optional fraction) instead of a silent loader.
 
-## Decisions
+The two jobs decode independently. Analysis decodes the file itself, persists its results, and emits `TrackAnalyzed`. Stem ensure decodes the track through the playback decode cache, runs the model, and muxes a cache. A stem failure leaves the analysis results intact.
+
+## Job split
 
 | Topic | Choice |
 |-------|--------|
 | Analyze vs stems | Separate jobs; `TrackAnalyzed` after analysis persist only |
 | Stem failure | Does not undo BPM/key; `EvtBody::Error` with clear message |
-| Parallelism | After shared PCM ready: analysis thread + stem ensure thread; existing Demucs mutex stays |
+| Parallelism | Analysis on the library worker thread, stem ensure on the serial stems thread; existing Demucs mutex stays |
 | Progress | `EvtBody::TrackProgress { track_id, phase, fraction }` on library evt bus |
 | Pad banner | `stemsGenerating` true only between stem-job start and ready/failed |
 | Disk full | Map `ENOSPC` / quota / “No space” → “Stem cache write failed: disk full” (toast via existing error path) |
@@ -22,7 +24,7 @@ Library analysis (BPM/key/loudness/waveform) and stem ensure are **separate jobs
 
 | Phase | Job | Notes |
 |-------|-----|-------|
-| `decode` | shared / either | Loading PCM |
+| `decode` | stems | Loading PCM for the stem job |
 | `bpm` / `key` / `loudness` / `waveform` | analysis | Emit as each step starts (or completes); fraction optional |
 | `stems_model` | stems | Model ensure / download |
 | `stems_separate` | stems | Demucs windows; `fraction` = windows done / total |
@@ -30,9 +32,9 @@ Library analysis (BPM/key/loudness/waveform) and stem ensure are **separate jobs
 | `stems_ready` | stems | Terminal success |
 | `stems_failed` | stems | Terminal failure (also emit `Error`) |
 
-UI: library row / detail shows short phase label (+ % when fraction present). Analyzing… clears on `TrackAnalyzed` or analysis `Error` only.
+The library row and the detail panel show a short phase label, plus a percentage when a fraction is present. Analyzing… clears on `TrackAnalyzed` or an analysis `Error` only.
 
-## Pad / engine
+## Pad and deck flags
 
 - Deck `Updated` authors `stemsReady` and **`stemsGenerating`**.
 - Banner iff `stemsGenerating`; pads live iff `stemsReady`; else disabled, no banner (idle / failed / stems off).
@@ -59,4 +61,4 @@ decode PCM (progress: decode)
 
 Fired by the per-track `GenerateStems` action; no-op when a valid cache already exists. Runs on its own `stems-ensure-{track_id}` thread, so it never blocks analyze or playback.
 
-Stem ensure runs from the `GenerateStems` action only, never on deck load, which reads an existing cache and otherwise plays the original ([NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4)).
+Stem ensure runs from the `GenerateStems` action only, never on deck load. Deck load reads an existing cache and otherwise plays the original ([NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4)).

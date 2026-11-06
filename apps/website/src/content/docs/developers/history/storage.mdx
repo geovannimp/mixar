@@ -1,9 +1,11 @@
 ---
 title: "Storage & metadata"
-description: "XSPF canonical format, the session index in library.db, write durability, and ISRC track metadata."
+description: "The XSPF session format, the session index in library.db, write durability, the storage path, and ISRC track metadata."
 section: "Set History"
 order: 4
 ---
+
+XSPF is the source of truth for session entries. `library.db` holds an index for fast listing, writes go through a temporary file and an atomic rename, and ISRC lives on the track row.
 
 ## Canonical format (XSPF)
 

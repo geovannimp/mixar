@@ -1,13 +1,29 @@
 ---
 title: "Channels"
-description: "Knob ranges, fader behaviour, the column layout, and what the meters show."
+description: "Set a deck's gain, EQ, filter and level on its channel strip, and read the meter."
 section: "Mixer"
 order: 402
 ---
 
-Every deck owns a channel in the mixer columns between the decks. The [Mixer overview](/docs/users/mixer) covers what a channel contains and the order it processes in.
+Every deck owns a channel in the mixer columns between the decks. Setting a channel means trimming it, shaping its tone, and placing it in the mix with the fader. The [Mixer overview](/docs/users/mixer#signal-flow) covers where the strip sits in the signal path.
 
-## Knobs
+## Before you start
+
+The audio engine must be running. Every knob is dimmed and inert while it is stopped, and the fader is disabled too.
+
+## Set a channel
+
+1. **Trim the input.** Turn **GAIN** to set the pre-fader trim for the channel.
+2. **Shape the tone.** Turn **HI**, **MID** and **LOW** to cut or boost. The EQ is flat at the centre detent, and the knob steps in 0.1 dB increments.
+3. **Place the filter.** Leave **FLT** at the centre for a bypassed filter. Turn it left to fade in a low-pass, or right to fade in a high-pass.
+4. **Set the level.** Move the fader up from fully down, where the channel is silent.
+5. **Read the meter.** Watch the deck meter in the lane between the volume faders as the level rises. The lane is gone when **Mixer meters** is **None**.
+
+## Verify
+
+The meter lights segment by segment as the level rises, and the fader sets how loud the channel is. A cued channel still shows level with its fader down.
+
+## Control reference
 
 A channel has five rotary knobs: **GAIN** and the three EQ bands **HI**, **MID**, **LOW**, plus the filter **FLT**. They all share one travel: the knob position runs 0 to 1 with 0.5 at the centre, and 0.5 means no change. The arc covers 270°; drag vertically to turn.
 
@@ -19,19 +35,11 @@ A channel has five rotary knobs: **GAIN** and the three EQ bands **HI**, **MID**
 | **LOW** | ±24 dB | Low shelf at 180 Hz |
 | **FLT** | ±24 dB | One-knob DJ filter, centre = bypass |
 
-The EQ is flat at the centre detent; the knob steps in 0.1 dB increments.
-
 **FLT** is not a fixed crossover. Turned left it fades in a low-pass, turned right a high-pass. At full left the cutoff sits at 180 Hz, at full right at 1.8 kHz. The first steps away from the centre move the cutoff less: the low-pass starts around 7.6 kHz and the high-pass around 2.1 kHz, and both pull further out as you keep turning, so small moves colour the sound instead of gutting it.
-
-Every knob is dimmed and inert while the audio engine is not running.
 
 ## Volume fader
 
 The channel fader runs 0 to 100 with a marker every 10%; fully down silences the channel, and the cue and meter taps still work at that point because both sit before the fader. Like the knobs, it is disabled while the engine is stopped.
-
-## Layout
-
-The middle column is titled **Mixer** over the channel controls, and a rule separates them from the crossfader strip below. The rule runs the full width of the column and past it into the gaps on either side, so it meets the deck cards' borders rather than stopping short.
 
 ## Meters
 
@@ -44,3 +52,14 @@ The deck meters sit between the volume faders, chosen by **Settings → Layout �
 | **Stereo** | "Separate left and right ladders per deck." |
 
 A ladder has twelve segments, lit in order as the level rises. Segments 1–7 are teal, 8–9 amber and 10–12 red; the highest segment a signal reached stays lit as a peak hold. The tap is the same one the headphones use: after the EQ, filter and effect, before the channel fader.
+
+## Column layout
+
+The middle column is titled **Mixer** over the channel controls, and a rule separates them from the crossfader strip below. The rule runs the full width of the column and past it into the gaps on either side. It meets the deck cards' borders rather than stopping short.
+
+## If the channel is silent
+
+- **Knobs dimmed and the fader inert**: the audio engine is stopped. Start it before adjusting the channel.
+- **Meter lit but no sound**: the fader is fully down, or the deck is assigned to a crossfader side that is not passing it. See [Crossfader](/docs/users/mixer#crossfader).
+
+For the rest of the path, from the engine to the output route, see [Troubleshooting sound](/docs/users/getting-started/troubleshooting).

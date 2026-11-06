@@ -1,11 +1,18 @@
 ---
 title: "Beat Jump"
-description: "Nudge the playhead forward or back by whole beats without touching the waveform."
+description: "Move the playhead forward or back by whole beats from the pads, with nothing to hold."
 section: "Performance Pads"
 order: 504
 ---
 
-Select the **Jump** tab and each pad moves the playhead by a fixed number of beats. Pads 1–4 move forward, pads 5–8 move back:
+Select the **Jump** tab and each pad moves the playhead by a fixed number of beats. Pads 1–4 move forward, pads 5–8 move back.
+
+## Before you start
+
+- A track is loaded on the deck. With no track the pads are disabled: [Overview](/docs/users/performance-pads).
+- The track needs an analysed **BPM**, because jumps are measured in beats.
+
+## Jump sizes
 
 | Pad | Jump |
 | --- | --- |
@@ -18,10 +25,20 @@ Select the **Jump** tab and each pad moves the playhead by a fixed number of bea
 | 7 | −4 beats |
 | 8 | −8 beats |
 
-**Tap a pad** once to jump by that amount. Unlike Loop Roll, there is nothing to hold: the jump happens on press.
+## Jump
 
-This is a fast way to skip an intro, drop back a bar before a breakdown, or pull the track back in time when you have drifted out of a mix.
+1. Select the **Jump** tab.
+2. Tap a pad once. The jump happens on press, with nothing to hold, unlike [Loop Roll](/docs/users/performance-pads/loop-roll).
 
-## Requirements
+## Check the result
 
-Jumps are measured in beats, so the track needs an analysed **BPM**. With **Quantize** enabled the playhead lands on the beat rather than between beats.
+The playhead moves by the amount on the pad. With **Quantize** enabled, it lands on the beat rather than between beats.
+
+## If a jump goes wrong
+
+- **Overshot the target**: use the matching pad on the bottom row to jump back by the same amount.
+- **Landed between beats**: check that **Quantize** is on, then check the track's **BPM** in [Beat grid](/docs/users/decks/beat-grid).
+
+## When to use it
+
+Beat Jump is a fast way to skip an intro, or to drop back a bar before a breakdown. It also pulls the track back in time when you have drifted out of a mix.

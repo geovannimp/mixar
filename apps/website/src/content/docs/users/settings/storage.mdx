@@ -1,11 +1,11 @@
 ---
 title: "Storage"
-description: "See what Mixar caches on disk and clear or sync each cache safely."
+description: "What Mixar caches on disk, how much each cache uses, and what Sync and Clear do to it."
 section: "Settings"
 order: 607
 ---
 
-**Settings → Storage** ("Disk use for Mixar caches and library metadata under app support.") has a single card, **Mixar storage**, with the total used shown on the right and a stacked bar plus four rows under it. Nothing on this page waits for **Save**: every button acts immediately after its confirmation.
+**Settings → Storage** ("Disk use for Mixar caches and library metadata under app support.") has a single card, **Mixar storage**. The card shows the total used on the right, with a stacked bar and four rows under it. Nothing on this page waits for **Save**: every button acts immediately after its confirmation.
 
 ## What is counted
 
@@ -16,7 +16,7 @@ order: 607
 | **Waveform** | Cached waveform overviews | **Clear** |
 | **Track metadata** | Mixar's library database | none |
 
-**Track metadata** is size-only; there is no button for it, because the database is the library, not a cache.
+**Track metadata** is size-only. There is no button for it, because the database is the library, not a cache.
 
 ## Sync stem cache
 
@@ -28,11 +28,11 @@ The toast afterwards is "Stem cache already in sync" when nothing had to go, or 
 
 Each **Clear** confirms first, then acts:
 
-| Button | Dialog title | Body | Toast |
-| --- | --- | --- | --- |
-| Stem cache **Clear** | **Clear stem cache?** | "Deletes generated stem files for all tracks. Original library audio is not touched." | "Stem cache cleared" |
-| Stem model **Clear** | **Clear stem model cache?** | "Deletes downloaded stem separation models. They will re-download when needed." | "Stem model cleared" |
-| Waveform **Clear** | **Clear waveform cache?** | "Deletes cached waveform overviews. They regenerate when you open a track." | "Waveform cache cleared" |
+| Button | Dialog and body | Toast |
+| --- | --- | --- |
+| Stem cache **Clear** | **Clear stem cache?** "Deletes generated stem files for all tracks. Original library audio is not touched." | "Stem cache cleared" |
+| Stem model **Clear** | **Clear stem model cache?** "Deletes downloaded stem separation models. They will re-download when needed." | "Stem model cleared" |
+| Waveform **Clear** | **Clear waveform cache?** "Deletes cached waveform overviews. They regenerate when you open a track." | "Waveform cache cleared" |
 
 A failure reads "Clear failed" with the error. The buttons are disabled while a clear is running and until the usage figures have loaded.
 

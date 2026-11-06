@@ -1,53 +1,60 @@
 ---
 title: "Generate stems"
-description: "Separate any library track into drums, bass, other, and vocals from the track menu or collection analyze."
+description: "Separate a library track into drums, bass, other, and vocals, and keep the cache for later loads."
 section: "Stems"
 order: 803
 ---
 
-Every track that is not already a [native NI Stem file](/docs/users/stems/native-ni) (MP3, FLAC, WAV, and so on) can be separated on demand. Writing a **persistent cache** is opt-in; once the model is on disk, loading a deck can also separate live (below).
+Offline separation turns any library track that is not already a [native NI Stem file](/docs/users/stems/native-ni) into a persistent cache. The cache holds a mixdown plus drums, bass, other, and vocals. Mixar reuses it every time you load the track.
 
-Generation is **resource-intensive** and can take a while: often on the order of the track’s length, sometimes longer on slower machines. A **GPU is recommended** when one is available; Mixar will use it automatically. Without a GPU it still runs on **CPU**, just more slowly.
+Writing a persistent cache is opt-in. Once the model is on disk, loading a deck can also separate live instead (see [Realtime stems on deck load](#realtime-stems-on-deck-load)).
 
-Jobs run in the background and do not stop playback, but they still compete for CPU, GPU, and disk. **Generate stems before you perform**: prepare tracks in the library ahead of a set so separation does not affect live performance.
+## Before you start
 
-## Realtime stems on deck load
+- The track is in your library and is not a `.stem.mp4`. Native Stem files already contain the four layers.
+- Free disk space is available for one `.stem.mp4` per track.
+- You are not in the middle of a set. Jobs run in the background and do not stop playback, but they compete for CPU, GPU, and disk.
 
-With **Settings → Mixer → Realtime Stems** enabled, loading a track without a
-generated cache starts live StemgenRT separation for that deck. The track begins
-playing immediately; the Stems pads switch on when the first hop is covered, and
-the deck crossfades from the original mix. Live stems are never written to disk,
-so they add no duplicate files. If separation falls behind or you seek outside
-the prepared window, the deck keeps playing the original mix until it catches up.
+Generation is **resource-intensive** and can take a while: often on the order of the track's length, sometimes longer on slower machines. A **GPU is recommended** when one is available; Mixar will use it automatically. Without a GPU it still runs on **CPU**, just more slowly.
 
-Realtime stems run on the CPU and use roughly one core per deck; a GPU is not
-required. It is a fallback for tracks without offline stems, not a replacement
-for them: quality is lower, and **Generate stems** remains the way to get a
-persistent, instant-ready cache. The model downloads in the background on first
-use and is disabled by default.
+**Generate stems before you perform**: prepare tracks in the library ahead of a set so separation does not affect live performance.
 
-## One track
+## Generate one track
 
-1. In the library, open the track’s row menu (⋯).
+1. In the library, open the track's row menu (⋯).
 2. Choose **Generate stems**.
-3. Wait for the job to finish (or queue more tracks). Separation does not stop playback, but prefer to finish it before a live set.
+3. Repeat for any other tracks you want to prepare.
+4. Wait for the job to finish.
 
-While the job runs:
+## While the job runs
 
 - The menu item becomes **Generating stems…** and stays disabled until the job finishes.
 - The library row can show progress phases (model download, separate, encode).
 - If that track is on a deck, the Stems pads show **STEMS GENERATING…**.
+- Playback continues.
 
-When it finishes, the [Stems pads](/docs/users/performance-pads/stems) become available. Generation runs once per track; Mixar reuses the result in later sessions so the pads are ready as soon as you load the track again. Choosing **Generate stems** again is safe: Mixar skips the work if a valid cache already exists.
+When it finishes, the [Stems pads](/docs/users/performance-pads/stems) become available. Generation runs once per track. Mixar reuses the result in later sessions, so the pads are ready as soon as you load the track again. Choosing **Generate stems** again is safe: Mixar skips the work if a valid cache already exists.
 
-The first generate on a machine may download the separation **model** into Mixar’s app data. The model chosen in **Settings → Library → Stem model** (HTDemucs or SCNet int8) is used for new caches. That is a one-time download until you [clear the model cache](/docs/users/stems/storage#clean-stems-and-free-space). See [Storage](/docs/users/stems/storage) for where files land.
+The first generate on a machine may download the separation **model** into Mixar's app data. The model chosen in **Settings → Library → Stem model** (HTDemucs or SCNet int8) is used for new caches. That is a one-time download until you [clear the model cache](/docs/users/stems/storage#clean-stems-and-free-space). See [Storage](/docs/users/stems/storage) for where files land.
 
 ## Whole collection
 
-From a collection’s menu, open **Analyze**. In the dialog you can turn on **Also generate stems**. Mixar then queues stem generation for file tracks in that collection (one at a time). Tracks that already have a valid cache, and native `.stem.mp4` files, are skipped.
+1. From a collection's menu, open **Analyze**.
+2. Turn on **Also generate stems** in the dialog.
+3. Press **Start analysis**.
+
+Mixar queues stem generation for file tracks in that collection, one at a time. Tracks that already have a valid cache, and native `.stem.mp4` files, are skipped.
+
+## Realtime stems on deck load
+
+With **Settings → Mixer → Realtime Stems** enabled, loading a track without a generated cache or native Stem layers starts live StemgenRT separation for that deck. The track begins playing immediately; the Stems pads switch on when the first hop is covered, and the deck crossfades from the original mix. Live stems are never written to disk, so they add no duplicate files. If separation falls behind or you seek outside the prepared window, the deck keeps playing the original mix until it catches up.
+
+Realtime stems run on the CPU and use roughly one core per deck; a GPU is not required. They are a fallback for tracks without offline stems, not a replacement for them. Quality is lower, and **Generate stems** remains the way to get a persistent, instant-ready cache. The model downloads in the background on first use, and the setting is disabled by default.
 
 ## When something goes wrong
 
-- **Pads disabled, no banner**: the track has no cache and Realtime Stems is off or its model has not downloaded yet. Enable it in Settings → Mixer, wait for the download, or generate stems / load a [native NI Stem file](/docs/users/stems/native-ni).
-- **STEMS GENERATING…**: a job is in flight; wait for it to finish. Playback is unaffected.
+- **Pads disabled, no banner**: the track has no cache and Realtime Stems is off or its model has not downloaded yet. Enable it in Settings → Mixer, wait for the download, or generate stems or load a [native NI Stem file](/docs/users/stems/native-ni).
+- **STEMS GENERATING…**: a job is in flight. Wait for it to finish; playback is unaffected.
 - **Disk full**: Mixar stops the write and shows an error toast. Free space, then generate again. BPM/key analysis already done for the track is kept.
+
+To remove a cache and free the disk space, clear it in Settings → Storage: see [Storage](/docs/users/stems/storage#clean-stems-and-free-space).

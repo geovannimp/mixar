@@ -1,25 +1,26 @@
 ---
 title: "Live output & export"
-description: "Reading the live session from OBS or other tools, and the derived CSV, M3U8, and TXT export formats."
+description: "Reading the active session from OBS or a script while the set runs, and the CSV, M3U8, and TXT formats an export writes."
 section: "Set History"
 order: 6
 ---
 
-## Live output (OBS)
+You can get a set out of Mixar in two ways. Another tool reads the active session while it plays, or you export a copy afterwards. Live reading needs no extra file from Mixar, and export never changes the canonical XSPF.
 
-There is no separate now-playing file. External tools (OBS text source, scripts) watch the **active session XSPF**: the most recently modified `.xspf` in `{appSupport}/history/`, or the file referenced by the open `history_sessions` row where `closed = 0`.
+## Read the live session from another tool
 
-Recommended integration pattern:
+There is no separate now-playing file. External tools (OBS text source, scripts) watch the **active session XSPF**. That is the most recently modified `.xspf` in `{appSupport}/history/`, or the file referenced by the open `history_sessions` row where `closed = 0`.
 
-- Poll the active XSPF on an interval.
-- Parse the last `<track>` with a committed entry; display `creator - title`.
-- Optionally show elapsed time from `started_at`.
+1. Poll the active XSPF on an interval.
+2. Parse the last `<track>` with a committed entry.
+3. Display `creator - title`.
+4. Optionally show elapsed time from `started_at`.
 
 Document the path in user-facing help; no Mixar-specific OBS plugin is required for MVP.
 
 ## Export (derived formats)
 
-Export writes a **copy**; canonical XSPF is unchanged.
+Export writes a **copy**; canonical XSPF is unchanged. Start it from a session's **Export…** action (see [Session actions](/docs/developers/history/library-and-settings#session-actions)).
 
 | Format | Use case |
 |--------|----------|
@@ -33,3 +34,5 @@ CSV columns:
 ```text
 position, started_at, ended_at, played_duration_ms, deck, title, artist, album, bpm, key, isrc, file_path, track_id
 ```
+
+Verification: the session in History is unchanged after an export, because the canonical XSPF is not touched.

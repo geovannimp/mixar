@@ -1,19 +1,21 @@
 ---
 title: "Editing tracks"
-description: "Correct metadata in the library, refresh a track from its file, and know what gets overwritten."
+description: "Correct track metadata in the library, refresh a track from its file, and know what gets overwritten."
 section: "Library"
 order: 206
 ---
 
 Mixar stores track metadata in its own database, and you can edit it there without touching the audio file. Two actions on a row's three-dot menu do this work: **Refresh** and **Edit…**. Both need the row to be a library track. A raw file in the Drive tab has no library row to change.
 
-## Refresh
+## Edit a track
 
-**Refresh** re-reads that one track's tags from the file on disk and writes the result to the library row. Use it when you retagged a file in another application. It affects that track only; there is no collection-wide refresh.
+1. Open the track's three-dot menu and choose **Edit…**. A panel opens along the right edge with every user-editable field.
+2. Change the values you need.
+3. Press **Save**. It stays disabled until something changes: a form edit, a rating change, or a colour change.
 
-## Edit
+### What you can edit
 
-**Edit…** opens a panel along the right edge with every user-editable field:
+The panel holds these fields:
 
 | Field | Notes |
 | --- | --- |
@@ -27,9 +29,9 @@ Mixar stores track metadata in its own database, and you can edit it there witho
 | **Rating** | Five stars. Click the active star again, or use **Clear**, to remove the rating. |
 | **Colour label** | **None** plus pink, red, orange, yellow, green, aqua, blue, and purple. |
 
-**Save** stays disabled until something changes: a form edit, a rating change, or a colour change.
+Clearing a field and saving removes the value. Fields you leave alone keep their stored precision, so a detected `124.035` BPM survives an edit to the album name.
 
-## What the editor refuses
+## Correct invalid values
 
 Invalid input blocks the save with **Fix the highlighted fields**, and each field carries its own message:
 
@@ -41,14 +43,16 @@ Invalid input blocks the save with **Fix the highlighted fields**, and each fiel
 | **Track number must be a whole number** | Not a whole number in 1–65535. |
 | **Disc number must be a whole number** | Not a whole number in 1–65535. |
 
-Clearing a field and saving removes the value. Fields you leave alone keep their stored precision, so a detected `124.035` BPM survives an edit to the album name.
+## Refresh a track from its file
+
+**Refresh** re-reads that one track's tags from the file on disk and writes the result to the library row. Use it when you retagged a file in another application. It affects that track only; there is no collection-wide refresh.
 
 ## What an edit does not do
 
 The editor writes to Mixar's database only. Your file keeps its original tags unless **Write BPM and key to file tags** is on. See [Tag write-back](/docs/users/library/tag-write-back).
 
 <Callout type="warning" title="Edits do not survive a re-read from the file">
-A refresh or a folder re-scan rewrites every metadata column from the file's own tags, so an edit made here reverts unless the file's tags change too. Tag write-back is the way to make an edit durable across both.
+A refresh or a folder re-scan rewrites every metadata column from the file's own tags. An edit made here therefore reverts unless the file's tags change too. Tag write-back is the way to make an edit durable across both.
 </Callout>
 
 ## Related

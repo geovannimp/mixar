@@ -1,15 +1,19 @@
 ---
 title: "Loop Roll"
-description: "Hold a pad to loop the deck on the spot, release to drop straight back into the track."
+description: "Hold a pad to loop the deck in place, release to drop straight back into the track."
 section: "Performance Pads"
 order: 503
 ---
 
 Select the **Roll** tab and each pad is a temporary loop of a fixed length, starting from wherever the playhead is when you press it.
 
-## Using a pad
+## Before you start
 
-**Hold the pad** to start the loop and **release** it to end it. Each pad is labelled with its loop length:
+- A track is loaded on the deck. With no track the pads are disabled: [Overview](/docs/users/performance-pads).
+- The track needs an analysed **BPM**, because loop lengths are measured in beats.
+- With **Quantize** enabled the loop starts on the beat rather than mid-beat.
+
+## Loop lengths
 
 | Pad | Length |
 | --- | --- |
@@ -22,12 +26,22 @@ Select the **Roll** tab and each pad is a temporary loop of a fixed length, star
 | 7 | 2 beats |
 | 8 | 4 beats |
 
-Holding several pads at once re-triggers the loop from the current position at the length of the most recently pressed pad.
+## Roll
+
+1. Select the **Roll** tab.
+2. **Hold the pad** to start the loop at that pad's length.
+3. **Release** the pad to end the loop.
+
+Each pad is labelled with its loop length.
+
+Holding several pads at once re-triggers the loop from the current position, at the length of the most recently pressed pad.
 
 ## What happens when you release
 
 The loop ends and playback continues from the position the track would have reached if the loop had never started. If you had a loop set up before pressing the pad, that loop is restored.
 
-## Requirements
+## If the loop does not behave as expected
 
-The loop length is measured in beats, so the track needs an analysed **BPM**. With **Quantize** enabled the loop starts on the beat rather than mid-beat.
+- **Still looping**: release the pad; nothing latches.
+- **New loop length ignored**: press the pad you want last, since the most recent press sets the length.
+- **Loop starts off the beat**: check that **Quantize** is on, then check the track's **BPM** in [Beat grid](/docs/users/decks/beat-grid).

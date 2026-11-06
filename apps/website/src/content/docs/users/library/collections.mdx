@@ -1,15 +1,19 @@
 ---
 title: "Collections"
-description: "Folder collections, playlists, what each collection action does, and what deleting one removes."
+description: "Create a folder collection or playlist, and know what each collection action and deletion does."
 section: "Library"
 order: 203
 ---
 
-A collection is a named list in your library, and it comes in two kinds.
+A collection is a named list in your library, and it comes in two kinds. A **folder** points at a directory on disk, and a **playlist** is built in Mixar.
 
-## Create one
+## Create a collection
 
-Press **+** in the Collections sidebar (**Create collection**). The dialog asks for:
+1. In the Collections sidebar, press **+** (**Create collection**).
+2. Fill in the dialog.
+3. Press **Create**. It stays disabled until the name is filled and, for a folder, a path is set.
+
+### Dialog fields
 
 | Field | Applies to | Meaning |
 | --- | --- | --- |
@@ -18,8 +22,6 @@ Press **+** in the Collections sidebar (**Create collection**). The dialog asks 
 | **Folder path** + **Browse…** | Folder | The directory to import, hinted **Choose a folder on disk**. |
 | **Scan subfolders** | Folder | On by default. Off imports only the top level. |
 | **Sortable** | Playlist | On by default. Off makes the list an unordered set. |
-
-**Create** stays disabled until the name is filled and, for a folder, a path is set.
 
 ## Folder collections import once
 
@@ -37,6 +39,10 @@ If a folder has disappeared when the scan runs, the import reports `root not fou
 - **Import from Mixxx**, which imports playlists as sortable collections and crates as unsortable ones, and **Import from Rekordbox**, which imports playlists and smart-playlist snapshots as sortable collections. See [Importing music](/docs/users/library/import).
 - **History sessions**, where a recorded session offers **Create collection** and copies its tracks into a new playlist.
 
+## After creating a collection
+
+Analysis is not automatic. A new collection sits with empty BPM and key columns until you queue it. See [Analysis](/docs/users/library/analysis).
+
 ## Collection actions
 
 The three-dot menu in the list header acts on the collection you have open. Folder collections get **Browse in Drive**, then **Analyze tracks…**, **Export to CDJ USB…**, and **Delete**. Playlists get the same menu minus **Browse in Drive**.
@@ -48,6 +54,11 @@ The three-dot menu in the list header acts on the collection you have open. Fold
 | **Export to CDJ USB…** | Writes the collection to a USB drive Pioneer players read. See [Export to a CDJ USB drive](/docs/users/library/export-to-cdj-usb). |
 | **Delete** | Removes the collection from your library. |
 
-Deleting asks **Delete this collection?** and spells out the scope: *Tracks only used by this collection are removed too* and *Original audio files on disk are preserved*. A track that also belongs to another collection stays in the library.
+## Delete a collection
 
-Analysis is not automatic. A new collection sits with empty BPM and key columns until you queue it.
+Deleting asks **Delete this collection?** and spells out the scope:
+
+- *Tracks only used by this collection are removed too*
+- *Original audio files on disk are preserved*
+
+A track that also belongs to another collection stays in the library.

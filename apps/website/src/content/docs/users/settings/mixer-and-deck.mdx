@@ -1,40 +1,42 @@
 ---
 title: "Mixer and deck"
-description: "Normalizer target, sampler routing, realtime stems, jog, brake, tempo, and sampler defaults."
+description: "Volume normalizer, sampler routing, realtime stems, and the jog, brake, tempo, key lock, and sampler defaults for new decks."
 section: "Settings"
 order: 603
 ---
 
-Everything in the **Deck** section seeds new decks, so a track already loaded keeps what it was loaded with until you change it on the deck itself. The deck count and the on-screen panels now live under [**Layout**](/docs/users/settings/interface), because they shape the whole page rather than a deck's defaults.
+Everything in the **Deck** section seeds new decks. A track already loaded keeps what it was loaded with until you change it on the deck itself. **Save** writes these preferences and restarts the audio engine when it is running.
+
+The deck count and the on-screen panels live under [**Layout**](/docs/users/settings/interface), because they shape the whole page rather than a deck's defaults.
 
 ## Mixer → Volume normalizer
 
-Card subtitle: "Match analyzed tracks to a target loudness." The header switch (**Volume normalizer**) is on by default.
+Card subtitle: "Match analyzed tracks to a target loudness."
 
 | Control | Type | Values | Default | Effect |
 | --- | --- | --- | --- | --- |
 | **Volume normalizer** | header switch | on / off | on | Enables the loudness match for analyzed tracks. With it off, **Target LUFS** is hidden. |
-| **Target LUFS** | stepper | −24.0 to −9.0 in 0.5 steps | −18.0 | Perceived loudness the normalizer aims at. The gain it applies shows in the deck's **Gain** popover as **Auto gain**. |
+| **Target LUFS** | stepper | −24.0 to −9.0 in 0.5 steps | −18.0 | Perceived loudness the normalizer aims at. |
 
-Tracks without a loudness measurement are left alone, so analyze a track before you rely on it. See [Analysis](/docs/users/library/analysis).
+The gain it applies shows in the deck's **Gain** popover as **Auto gain**. Tracks without a loudness measurement are left alone, so analyze a track before you rely on it. See [Analysis](/docs/users/library/analysis).
 
 ## Mixer → Sampler routing
 
 Card subtitle: "Where sampler hits enter the signal path, relative to the channel strip."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Sampler strip route** | select | **Before channel strip** / **After channel strip** | Before channel strip |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Sampler strip route** | select | **Before channel strip** / **After channel strip** | Before channel strip | Whether the channel strip processes sampler hits. |
 
-**Before channel strip** mixes sampler hits into the deck's dry signal before EQ, filter and fader, so those act on the hits too. **After channel strip** sums them past that processing, so the channel's EQ, filter and fader leave them alone; the crossfader and master still apply.
+**Before channel strip** mixes sampler hits into the deck's dry signal before EQ, filter and fader, so those act on the hits too. **After channel strip** sums them past that processing, so the channel's EQ, filter and fader leave them alone. The crossfader and master still apply.
 
 ## Mixer → Realtime Stems
 
 Card description: "Separates tracks without cached stems while they play. Tracks with offline stems always take priority." Under it the card adds **Not recommended.** and "Quality is lower and it uses a CPU core."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| Realtime Stems | header switch | on / off | off |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Realtime Stems** | header switch | on / off | off | Separates tracks that have no stem cache while they play. |
 
 Offline stems always win, so turning this on never changes a track that already has a stem cache. What separation costs and where the files go: [Generate stems](/docs/users/stems/generate).
 
@@ -42,7 +44,7 @@ Offline stems always win, so turning this on never changes a track that already 
 
 Card subtitle: "Defaults for top (touch) and outer (freewheel) platter policy."
 
-| Control | Type | Values | Default | Notes |
+| Control | Type | Values | Default | Effect |
 | --- | --- | --- | --- | --- |
 | **Top jog mode** | select | **Vinyl (scratch)** / **Pitch bend** / **Ignore** | Vinyl (scratch) | Behaviour of the platter's top surface. **Ignore** makes that surface inert. |
 | **Outer jog mode** | select | **Vinyl (scratch)** / **Pitch bend** / **Ignore** | Pitch bend | Behaviour of the outer ring. An outer jog set to **Pitch bend** scratches while the deck is paused. |
@@ -51,7 +53,7 @@ Card subtitle: "Defaults for top (touch) and outer (freewheel) platter policy."
 
 Card subtitle: "Pause spins the deck down like a turntable instead of cutting instantly."
 
-| Control | Type | Values | Default | Notes |
+| Control | Type | Values | Default | Effect |
 | --- | --- | --- | --- | --- |
 | **Brake on pause** | header switch | on / off | off | Off means pause cuts. |
 | **Stop time** | stepper | 0.05–3.0 s in 0.05 steps | 0.50 s | Hidden while the brake is off. Hint: "How long the platter takes to stop after pause." |
@@ -60,20 +62,25 @@ Card subtitle: "Pause spins the deck down like a turntable instead of cutting in
 
 Card subtitle: "Default pitch-fader range and key lock for new decks."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Default tempo range** | select | ±6%, ±10%, ±16%, ±25% | ±6% |
-| **Default key lock** | checkbox (**Key lock**) | on / off | off |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Default tempo range** | select | ±6%, ±10%, ±16%, ±25% | ±6% | Pitch-fader range a freshly loaded deck starts with. |
+| **Default key lock** | checkbox (**Key lock**) | on / off | off | Key lock state a freshly loaded deck starts with. |
 
-The key lock hint is "Tempo-only pitch when on (time-stretch). Off = vinyl tempo." Both values are the ones a freshly loaded deck starts with; the tempo range key on the deck still cycles through the ladder.
+The key lock hint is "Tempo-only pitch when on (time-stretch). Off = vinyl tempo." Both values are the ones a freshly loaded deck starts with. The tempo range key on the deck still cycles through the ladder.
 
 ## Deck → Sampler
 
 Card subtitle: "Default play mode for inherit banks and default bank per deck."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Sampler play mode** | select | **Oneshot** / **Hold** / **Loop** | Oneshot |
-| **Deck A/B/C/D default sampler bank** | one select per active deck, options are your banks plus **None** | a bank, or none | None |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Sampler play mode** | select | **Oneshot** / **Hold** / **Loop** | Oneshot | Play mode for hits in inherit banks. |
+| **Deck A default sampler bank** | select | a bank, or **None** | None | Bank deck A's pads start on. |
+| **Deck B default sampler bank** | select | a bank, or **None** | None | Bank deck B's pads start on. |
+| **Deck C default sampler bank** | select | a bank, or **None** | None | Bank deck C's pads start on. Shown in a four-deck layout. |
+| **Deck D default sampler bank** | select | a bank, or **None** | None | Bank deck D's pads start on. Shown in a four-deck layout. |
 
-Sampler hits are routed by **Sampler strip route** in the Mixer section above. There is one default-bank select per deck that currently exists, so a four-deck layout shows four. The pads themselves are covered in [Sampler](/docs/users/performance-pads/sampler), and jog, tempo and brake behaviour on the deck in [Jog and waveform](/docs/users/decks/jog-and-waveform) and [Transport](/docs/users/decks/transport).
+The app shows one default-bank select per deck that currently exists, so a four-deck layout shows four. Options are your banks plus **None**.
+
+Sampler hits are routed by **Sampler strip route** in the Mixer section above. The pads themselves are covered in [Sampler](/docs/users/performance-pads/sampler). Jog, tempo and brake behaviour on the deck is covered in [Jog and waveform](/docs/users/decks/jog-and-waveform) and [Transport](/docs/users/decks/transport).

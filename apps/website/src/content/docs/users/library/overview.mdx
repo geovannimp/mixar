@@ -1,32 +1,26 @@
 ---
 title: "Overview"
-description: "What Mixar's library holds, how music gets into it, and what the settings change."
+description: "What Mixar's library holds, how folders and collections relate, and where the data lives."
 section: "Library"
 order: 201
 ---
 
-The **library** is Mixar's catalog of your music. It does not move or copy your files: it records where they are, what they are, and what Mixar has worked out about them (tempo, key, beat grid, waveform).
+The **library** is Mixar's catalog of your music. It does not move or copy your files. It records where they are, what they are, and what Mixar has worked out about them (tempo, key, beat grid, waveform).
 
-## Getting music in
+## Collections and sources
 
-Open the **Library** screen and press **+** in the Collections sidebar. A collection is either:
+A collection is a named list in the library, and it comes in two kinds:
 
 | Kind | What it is |
 | --- | --- |
 | **Folder** | A real directory on disk. Mixar scans it (optionally including subfolders) and lists every supported audio file it finds. |
 | **Playlist** | A list you build yourself: ordered, or a set with no meaningful order. |
 
-A track can sit in several playlists at once. Files stay where they are: the folder collection is a pointer to a directory, not a copy.
+A folder collection is a pointer to a directory, not a copy, so your files stay where you keep them. A track can sit in several playlists at once. [Collections](/docs/users/library/collections) covers creating one and what its menu does.
 
-## Importing from another DJ app
+**Settings → Integrations** reads a library from another DJ app and copies its structure into yours. **Import from Mixxx** brings tracks, playlists, and crates. **Import from Rekordbox** brings tracks, playlists, hot cues, and loops from a Rekordbox 6/7 install. Both copy lists and track references, not audio files. See [Importing music](/docs/users/library/import).
 
-**Settings → Integrations** reads an existing library and copies its structure into yours: **Import from Mixxx** brings tracks, playlists, and crates, and **Import from Rekordbox** brings tracks, playlists, hot cues, and loops from a Rekordbox 6/7 install. Both copy lists and track references, not audio files.
-
-## Taking music to a CDJ
-
-**Export to CDJ USB**, in a collection's three-dot menu, writes playlists and folder collections to a USB drive in the layout Pioneer CDJ/XDJ players read natively: audio, cover art, beat grids, waveforms and cues included, no rekordbox required. See [Export to a CDJ USB drive](/docs/users/library/export-to-cdj-usb).
-
-## What Mixar adds to a track
+## What analysis adds
 
 Analyzing a track works offline and fills in:
 
@@ -35,9 +29,9 @@ Analyzing a track works offline and fills in:
 - **Waveform**: the scrolling display on the deck.
 - **Loudness**: used when volume normalization is on.
 
-**Settings → Library → Analysis quality** decides how much of each track is examined: *Fast* previews, *Precise* balances speed and accuracy, *Complete* analyzes the whole file. You can analyze a whole collection from the collection's three-dot menu, or one track from the track list.
+**Settings → Library → Analysis quality** decides how much of each track is examined: *Fast*, *Precise*, or *Complete*. You can analyze a whole collection from the collection's three-dot menu, or one track from the track list. [Analysis](/docs/users/library/analysis) covers both routes and what each level decodes.
 
-Hot cues, saved loops, and beat grids live in Mixar's own database next to the library, not in your audio files. See [Tag write-back](/docs/users/library/tag-write-back) for the one exception, and what Mixar does and does not write back to a file.
+Hot cues, saved loops, and beat grids live in Mixar's own database next to the library, not in your audio files. [Tag write-back](/docs/users/library/tag-write-back) covers the one exception, and what Mixar does and does not write back to a file.
 
 ## Where the data lives
 
@@ -67,7 +61,7 @@ Hot cues, saved loops, and beat grids live in Mixar's own database next to the l
 | Find tracks: filter, sort, row actions, dragging to a deck | [Browsing](/docs/users/library/browsing) |
 | Folder collections, playlists, and the collection menu | [Collections](/docs/users/library/collections) |
 | Queue BPM, key, beat grid, waveform, and loudness analysis | [Analysis](/docs/users/library/analysis) |
-| Bring a Mixxx library across | [Importing music](/docs/users/library/import) |
+| Bring a Mixxx or Rekordbox library across | [Importing music](/docs/users/library/import) |
 | Fix metadata, refresh from file | [Editing tracks](/docs/users/library/track-editing) |
 | Write a collection to a USB drive for CDJs | [Export to a CDJ USB drive](/docs/users/library/export-to-cdj-usb) |
 | Mirror BPM and key into your audio files | [Tag write-back](/docs/users/library/tag-write-back) |

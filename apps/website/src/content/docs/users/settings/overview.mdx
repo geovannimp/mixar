@@ -1,43 +1,58 @@
 ---
 title: "Overview"
-description: "How saving works, what restarts the engine, and which page covers each settings section."
+description: "How Mixar stores and applies settings, which edits restart the audio engine, and where each settings section lives."
 section: "Settings"
 order: 601
 ---
 
 The **Settings** screen holds every preference that shapes the engine, the mixer, the decks, and the library. Its sidebar has twelve sections in this order: **UI**, **Layout**, **Audio**, **Mixer**, **Waveform**, **Deck**, **Library**, **Integrations**, **Storage**, **Session**, **Controllers**, **Privacy**.
 
-## Which page covers which section
-
-| Section | Page |
-| --- | --- |
-| **UI** | [Interface](/docs/users/settings/interface): theme, language, controls, first-run setup replay |
-| **Layout** | [Interface](/docs/users/settings/interface): presets, deck layout, mixer strip (with crossfader and meters), FX bar, waveform position, library drawer |
-| **Audio** | [Audio](/docs/users/settings/audio): engine, master bus, preview bus |
-| **Mixer** | [Mixer and deck](/docs/users/settings/mixer-and-deck): volume normalizer, sampler routing, realtime stems |
-| **Waveform** | [Interface](/docs/users/settings/interface): waveform display mode |
-| **Deck** | [Mixer and deck](/docs/users/settings/mixer-and-deck): deck layout, jog, tempo, brake, sampler |
-| **Library** | [Library](/docs/users/settings/library): analysis, file tags, keys, list appearance, visible fields, stems |
-| **Integrations** | [Integrations](/docs/users/settings/integrations): import a Mixxx or Rekordbox library |
-| **Storage** | [Storage](/docs/users/settings/storage): cache sizes, sync and clear |
-| **Session** | [Session](/docs/users/settings/session): performance history |
-| **Controllers** | [Controllers](/docs/users/settings/controllers): mappings and MIDI ports |
-| **Privacy** | [Privacy](/docs/users/settings/privacy): anonymous analytics consent |
-
-## Saving
-
-**Save** appears in the header once the page has an unsaved edit, and reads **Saving…** while it writes. The line under the title is literal: "Saving restarts the engine automatically if it's running."
-
-Closing with unsaved edits asks **Unsaved settings** / "Save changes before closing?" with **Cancel**, **Discard**, and **Save**. Discard throws the draft away; Save saves and only closes if the save applied.
-
-A normal save restarts the engine when it is running, then reloads the tracks that were on the decks that still exist. Some edits skip that restart because they only change how the app paints: the **Theme** and **Accent color** controls and the **Show setup again** button under **UI**, every **Layout** control except the deck count (presets, visible panels, the crossfader and meter mode, waveform position, and the **Library drawer** card), the **Analytics** switch under **Privacy**, and the **Visible fields** checkboxes under **Library**. Every other preference (including UI-only ones such as **Show tooltips**) takes the restart path.
-
-If the settings were written but the engine refused them, the toast reads "Settings saved, but not applied" with the error under it. If the write itself fails, the toast reads "Save failed" with the error.
-
-Changing **Layout → Deck layout** asks **Change deck layout?** with **Restart and apply**; the dialog warns that changing the deck count restarts the audio engine, reloads tracks, and does not restore tracks on decks removed by switching to 2 decks. It is the only control under **Layout** that is not cosmetic.
+## Where settings live
 
 Saved settings live in `settings.json` inside Mixar's app-support folder. See [Install Mixar](/docs/users/getting-started) for the per-platform paths.
 
+## Saving and applying
+
+**Save** appears in the header once the page has an unsaved edit, and reads **Saving…** while it writes. The line under the title reads: "Saving restarts the engine automatically if it's running."
+
+Closing with unsaved edits asks **Unsaved settings** / "Save changes before closing?" with **Cancel**, **Discard**, and **Save**. **Discard** throws the draft away. **Save** saves and only closes if the save applied.
+
+A normal save restarts the engine when it is running. It then reloads the tracks that were on the decks that still exist.
+
+Some edits skip the restart because they never reach the audio engine:
+
+- The **Theme** and **Accent color** controls, and the **Show setup again** button, under **UI**.
+- Every **Layout** control except the deck count: presets, visible panels, the crossfader and meter mode, waveform position, and the **Library drawer** card.
+- The **Analytics** switch under **Privacy**.
+- The **Visible fields** checkboxes under **Library**.
+
+Every other preference takes the restart path, including UI-only ones such as **Show tooltips**.
+
+If the settings were written but the engine refused them, the toast reads "Settings saved, but not applied" with the error under it. If the write itself fails, the toast reads "Save failed" with the error.
+
+## Changing the deck layout
+
+Changing **Layout → Deck layout** asks **Change deck layout?** with **Restart and apply**. The dialog warns that changing the deck count restarts the audio engine and reloads tracks. It also warns that tracks on decks removed by switching to 2 decks are not restored. It is the only control under **Layout** that is not cosmetic.
+
 ## Actions that skip Save
 
-**Storage** buttons and the **Controllers** mapping actions run the moment you confirm them; they never wait for **Save**. Everything you flip in **Controllers** (including **Trust**) is part of the draft and needs **Save** to stick.
+**Storage** buttons and the **Controllers** mapping actions run the moment you confirm them. They never wait for **Save**.
+
+Everything you flip in **Controllers** (including **Trust**) is part of the draft and needs **Save** to stick.
+
+## Which page covers which section
+
+| Section | Page | Restart on **Save** |
+| --- | --- | --- |
+| **UI** | [Interface](/docs/users/settings/interface): theme, language, controls, first-run setup replay | Yes, except **Theme**, **Accent color**, and **Show setup again** |
+| **Layout** | [Interface](/docs/users/settings/interface): presets, deck layout, mixer strip (with crossfader and meters), FX bar, waveform position, library drawer | No; **Deck layout** restarts |
+| **Audio** | [Audio](/docs/users/settings/audio): engine, master bus, preview bus | Yes |
+| **Mixer** | [Mixer and deck](/docs/users/settings/mixer-and-deck): volume normalizer, sampler routing, realtime stems | Yes |
+| **Waveform** | [Interface](/docs/users/settings/interface): waveform display mode | Yes |
+| **Deck** | [Mixer and deck](/docs/users/settings/mixer-and-deck): jog, tempo, brake, sampler defaults | Yes |
+| **Library** | [Library](/docs/users/settings/library): analysis, file tags, keys, list appearance, visible fields, stems | Yes, except **Visible fields** |
+| **Integrations** | [Integrations](/docs/users/settings/integrations): import a Mixxx or Rekordbox library | No **Save**; each import asks for confirmation |
+| **Storage** | [Storage](/docs/users/settings/storage): cache sizes, sync and clear | No **Save**; each action asks for confirmation |
+| **Session** | [Session](/docs/users/settings/session): performance history | Yes |
+| **Controllers** | [Controllers](/docs/users/settings/controllers): mappings and MIDI ports | Yes; **Attach** and **Update** act at once |
+| **Privacy** | [Privacy](/docs/users/settings/privacy): anonymous analytics consent | No |

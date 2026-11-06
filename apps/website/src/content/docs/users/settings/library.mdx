@@ -1,25 +1,37 @@
 ---
 title: "Library"
-description: "Analysis quality, file-tag write-back, key display, list appearance, visible fields, and stem model/format."
+description: "Analysis quality, tag write-back, key display and colour, list appearance, visible fields, and stem output."
 section: "Settings"
 order: 604
 ---
 
-**Settings → Library** ("Offline analysis, metadata, and list display.") holds the preferences that shape how tracks are analyzed, how their metadata reads in the table and on a deck, how the table itself is drawn, and what a generated stem cache looks like.
+**Settings → Library** ("Offline analysis, metadata, and list display.") holds the preferences that shape how tracks are analyzed. They also decide how metadata reads in the table and on a deck. The same preferences control how the table is drawn and what a generated stem cache looks like.
+
+**Save** writes these preferences and restarts the audio engine when it is running. The **Visible fields** checkboxes are the exception. They change the draft and take effect on **Save**, and a save that only changes them skips the restart.
 
 ## Analysis
 
 Card subtitle: "How thoroughly offline analysis scans each track."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Analysis quality** | select | **Fast**: "Analyze a short preview for quick library scans." / **Precise**: "Balanced analysis for most libraries." / **Complete**: "Analyze the full track (slowest, most accurate)." | Precise |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Analysis quality** | select | **Fast** / **Precise** / **Complete** | Precise | How much of each track the analyzer scans. |
+
+Each level, as the select describes it:
+
+- **Fast**: "Analyze a short preview for quick library scans."
+- **Precise**: "Balanced analysis for most libraries."
+- **Complete**: "Analyze the full track (slowest, most accurate)."
 
 What each level costs, how a queue is started, and what gets filled in: [Analysis](/docs/users/library/analysis).
 
 ## File tags
 
-The card's header switch is **Write BPM and key to file tags**, off by default. Its description spells out the rule: "Mixar keeps BPM and key in its own database. When enabled, it also writes them into each file's tags so other DJ software sees the same values. Off by default — Mixar never modifies your files while this is off."
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Write BPM and key to file tags** | header switch | on / off | off | Also writes BPM and key into each file's tags. |
+
+The card's description spells out the rule: "Mixar keeps BPM and key in its own database. When enabled, it also writes them into each file's tags so other DJ software sees the same values. Off by default — Mixar never modifies your files while this is off."
 
 Which tags are written pixel for pixel, and what forcing re-analysis does to your files: [Tag write-back](/docs/users/library/tag-write-back).
 
@@ -27,10 +39,18 @@ Which tags are written pixel for pixel, and what forcing re-analysis does to you
 
 Card subtitle: "How keys are labeled and color-coded in deck chrome and the library table."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Key display mode** | select | **Musical**: "Note names in deck chip and library key column — e.g. C, Am, F#m." / **Camelot**: "Mixed In Key codes — e.g. 8B (C major), 8A (A minor), 11B." | Musical |
-| **Key color mode** | select | **Off**: "Key labels use the default text color everywhere." / **Absolute (circle of fifths)**: "Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer)." / **Harmonic (playing deck)**: "Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow." | Off |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Key display mode** | select | **Musical** / **Camelot** | Musical | Notation used for key labels. |
+| **Key color mode** | select | **Off** / **Absolute (circle of fifths)** / **Harmonic (playing deck)** | Off | Colour applied to key labels. |
+
+The options, as the selects describe them:
+
+- **Musical**: "Note names in deck chip and library key column — e.g. C, Am, F#m."
+- **Camelot**: "Mixed In Key codes — e.g. 8B (C major), 8A (A minor), 11B."
+- **Off**: "Key labels use the default text color everywhere."
+- **Absolute (circle of fifths)**: "Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer)."
+- **Harmonic (playing deck)**: "Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow."
 
 Display mode changes the label only; the stored key is the same either way.
 
@@ -38,12 +58,15 @@ Display mode changes the label only; the stored key is the same either way.
 
 Card subtitle: "How tracks look in the library table."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Dim played tracks** | checkbox | on / off | on |
-| **Track row layout** | select | **Comfortable**: "Two lines per track: title above artist, BPM, key and length." / **Compact**: "One dense line per track — fits the most rows on screen." | Comfortable |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Dim played tracks** | checkbox | on / off | on | Dims rows for tracks that have already played. |
+| **Track row layout** | select | **Comfortable** / **Compact** | Comfortable | Row shape in the library table. |
 
-This is the saved default. The library toolbar has its own **Compact rows** / **Comfortable rows** toggle that overrides it for the current session only, without touching the setting. See [Browsing](/docs/users/library/browsing).
+- **Comfortable**: "Two lines per track: title above artist, BPM, key and length."
+- **Compact**: "One dense line per track — fits the most rows on screen."
+
+**Track row layout** is the saved default. The library toolbar has its own **Compact rows** / **Comfortable rows** toggle that overrides it for the current session only, without touching the setting. See [Browsing](/docs/users/library/browsing).
 
 ## Visible fields
 
@@ -72,13 +95,13 @@ How the row lays those chips out, and what the toolbar's density toggle does to 
 
 Card subtitle: "Model and codec used when writing separated stem caches."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Stem model** | select | **HTDemucs** / **SCNet (int8)** | HTDemucs |
-| **Stem format** | select | **Opus (160 kbps)** / **FLAC (lossless)** | Opus (160 kbps) |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Stem model** | select | **HTDemucs** / **SCNet (int8)** | HTDemucs | Separator used when writing a stem cache. |
+| **Stem format** | select | **Opus (160 kbps)** / **FLAC (lossless)** | Opus (160 kbps) | Codec of the cache file it writes. |
 
-The model is the separator used by [Generate stems](/docs/users/stems/generate); the format is the codec of the cache file it writes.
+The model is the separator used by [Generate stems](/docs/users/stems/generate). The format is the codec of the cache file it writes.
 
 ## Importing another library
 
-Bringing music in from Mixxx or Rekordbox lives in its own section, [Integrations](/docs/users/settings/integrations); nothing on this page imports tracks.
+Bringing music in from Mixxx or Rekordbox lives in its own section, [Integrations](/docs/users/settings/integrations). Nothing on this page imports tracks.

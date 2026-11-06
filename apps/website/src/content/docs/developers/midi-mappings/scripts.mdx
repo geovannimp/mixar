@@ -5,9 +5,11 @@ section: "MIDI Mappings"
 order: 8
 ---
 
+`script.rhai` is an optional Rhai file in a mapping bundle. It implements the lifecycle hooks named in `[lifecycle]` and any input binding that names a function instead of an action.
+
 ## When to script
 
-Most controls should use the declarative action catalog: a binding like `play_pause = "Deck(_)::toggle_play"` is validated, documented, and needs no code. Reach for a Rhai script only when the catalog cannot express what the hardware needs:
+Most controls should use the declarative action catalog: a binding like `play_pause = "Deck(_)::toggle_play"` is validated, documented, and needs no code. Use a Rhai script only when the catalog cannot express what the hardware needs:
 
 - **Raw SysEx handshakes / initialization.** Forcing a controller into a mode with a vendor SysEx message, or re-asserting it while idle.
 - **Controller-specific behavior.** Per-device quirks such as pad LEDs that only exist for a particular firmware.
@@ -17,25 +19,23 @@ Most controls should use the declarative action catalog: a binding like `play_pa
 If a declarative action exists for what you are doing, prefer it. Scripts run in a sandbox with CPU limits (see [Limits and error reporting](#limits-and-error-reporting)) and are harder to validate than the catalog.
 </Callout>
 
-## Adding `script.rhai` and `[lifecycle]`
+## Add a script
 
-`script.rhai` is optional. It becomes **required** the moment a `[lifecycle]` hook names a function, or an input binding uses `script`:
+1. Put `script.rhai` in the bundle directory. The file is optional until a `[lifecycle]` hook names a function or an input binding uses `script`.
+2. Name the functions you need. A `[lifecycle]` key is the event name, and its value is the function in `script.rhai`; the function names may be anything. An input binding uses `script = "<function>"`.
+3. Make every named function exist. A `[lifecycle]` block without a script file fails validation with `[lifecycle] requires script.rhai in the mapping bundle`. A binding that names a script without a file fails with `MissingScript`. A missing lifecycle function is a silent no-op at runtime; a missing input-binding function raises an error, logged as `script binding failed`.
+4. Run `map-check`. It compiles the script and verifies every named function is defined, so it is the step that catches a typo.
 
-- A `[lifecycle]` block without a `script.rhai` fails validation with `[lifecycle] requires script.rhai in the mapping bundle`.
-- An input binding that names a `script` without a script file fails with `MissingScript`.
-
-Whenever a hook or binding names a function, that function **must exist**. `map-check` compiles the script and verifies every named function is defined; a typo is reported as:
+A typo is reported as:
 
 ```text
 lifecycle.on_init: script function `on_init` not found in script.rhai
 inputs.deck_1.play_pause[0]: script function `foo` not found in script.rhai
 ```
 
-At runtime a missing hook is silently treated as a no-op.
+A bindings file that only uses the null-modifier form needs no script.
 
-A bindings file that only uses the null-modifier form needs no script. The `[lifecycle]` names are the function names to call; they may be anything.
-
-## Host function reference
+## Host functions
 
 The host functions are registered in a global module, so they are **called flat**: `midi_out([...])`, not `host.midi_out(...)`.
 
@@ -63,7 +63,7 @@ fn on_init() {
 
 `deck1` maps to deck index 0, so this calls `set_volume` on the first deck with `volume = 0.5`.
 
-## Lifecycle hooks and scheduling
+## Lifecycle hooks
 
 Lifecycle hook names are configured in `[lifecycle]`; each maps an event to a function name in `script.rhai`:
 
@@ -75,7 +75,7 @@ Lifecycle hook names are configured in `[lifecycle]`; each maps an event to a fu
 
 Hooks take **no arguments** (`fn on_init() { ... }`); they use the host functions for all I/O. A hook that is named but missing from the script is a no-op at runtime, so `map-check` is what catches typos.
 
-`idle_heartbeat` is driven from the MIDI pump, not a timer thread. It fires at most once per second (the first call fires immediately), and it is suppressed while any deck is playing; the host also refuses to schedule it when a deck is active. This makes it a keepalive for controllers that need periodic traffic, without stomping on normal play.
+`idle_heartbeat` is driven from the MIDI pump, not a timer thread. It fires at most once per second (the first call fires immediately). It is suppressed while any deck is playing, and the host also refuses to schedule it when a deck is active. That makes it a keepalive for controllers that need periodic traffic, without stomping on normal play.
 
 <Callout type="note" title="Hooks are optional">
 Even when `[lifecycle]` is present, only the hooks you actually name are invoked. An absent `[lifecycle]` block means no Rhai hook runs at all, even if `script.rhai` exists.
@@ -134,7 +134,7 @@ Compile errors are reported by `map-check` (`ScriptCompile`); runtime failures a
 
 ## Full DDJ-400 example
 
-The DDJ-400 needs a Pioneer SysEx at startup to stay in PC MIDI mode; every pad and mode LED is declarative (`[outputs.*]` in `map.toml`), so the script owns only the SysEx handshake and the two track-loaded lamps. Here is the shipped `script.rhai`, trimmed to the essentials:
+The DDJ-400 needs a Pioneer SysEx at startup to stay in PC MIDI mode. Every pad and mode LED is declarative (`[outputs.*]` in `map.toml`). The script owns only the SysEx handshake and the two track-loaded lamps. Here is the shipped `script.rhai`, trimmed to the essentials:
 
 `mappings/ddj-400/script.rhai`:
 
@@ -175,8 +175,15 @@ on_shutdown = "on_shutdown"
 Line by line:
 
 - `PC_MODE_SYSEX` is a top-level `const`, so both `on_init` and `idle_heartbeat` can send the identical message without duplicating it.
-- `on_init` lights the two track-loaded pads with note-on messages on the `0x9F` channel first, then sends the mode SysEx, which also queries the unit's current knob and fader positions (soft takeover uses the reply to adopt the first value).
-- `idle_heartbeat` re-asserts the same SysEx roughly once a second while the decks are stopped, so the unit does not fall out of PC MIDI mode. The host skips it while a deck is playing.
+- `on_init` lights the two track-loaded pads with note-on messages on the `0x9F` channel first. Then it sends the mode SysEx, which also queries the unit's current knob and fader positions. Soft takeover uses the reply to adopt the first value.
+- `idle_heartbeat` re-asserts the same SysEx roughly once a second while the decks are stopped. That keeps the unit from falling out of PC MIDI mode. The host skips it while a deck is playing.
 - `on_shutdown` clears the two LEDs with note-off (`0x00` velocity).
 
 For the action-catalog side of the same bundle, see [inputs](/docs/developers/midi-mappings/map-toml/inputs).
+
+## Related
+
+- [map.toml: lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle): the hook keys and the LED refresh around them.
+- [map.toml: inputs](/docs/developers/midi-mappings/map-toml/inputs): the `script` binding field and the rest of the binding options.
+- [Actions & aliases](/docs/developers/midi-mappings/actions): the declarative alternative to a script.
+- [Validation](/docs/developers/midi-mappings/validation): the `map-check` run that compiles the script.

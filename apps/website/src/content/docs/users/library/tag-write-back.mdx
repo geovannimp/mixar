@@ -1,17 +1,19 @@
 ---
 title: "Tag write-back"
-description: "Optionally write Mixar's BPM and key into your audio files so other DJ software sees the same values."
+description: "Write Mixar's BPM and key into your audio files so other DJ software shows the same values."
 section: "Library"
 order: 208
 ---
 
-Mixar keeps tempo, key, cues, and grids in its own database. **Tag write-back** is the one optional exception: it also writes the **BPM and key** Mixar determined into each audio file's own tags, so Rekordbox, Serato, Traktor, Mixxx, or Mixed In Key show the same numbers when you load that file there.
+Mixar keeps tempo, key, cues, and grids in its own database. **Tag write-back** is the one optional exception: it also writes the **BPM and key** Mixar determined into each audio file's own tags. Rekordbox, Serato, Traktor, Mixxx, or Mixed In Key then show the same numbers when you load that file there.
 
 It is **off by default**, and nothing is written to your files until you turn it on.
 
 ## Turning it on
 
-**Settings → Library → File tags**: flip the switch in the card header, then save.
+1. Open **Settings → Library → File tags**.
+2. Flip the switch in the card header.
+3. Save the change.
 
 With the switch off, Mixar never opens an audio file for writing, whatever else you do.
 
@@ -24,11 +26,17 @@ To update a library you analyzed earlier:
 1. Turn the setting on and save.
 2. Open a collection's three-dot menu and start analysis with **Force re-analysis** enabled. Without it, tracks that already have a BPM or key are skipped, and a skipped track is never written.
 
-Forcing re-analysis **replaces** Mixar's stored BPM and key with its own analysis result before writing it back, so your files' existing tags are overwritten too. Forcing is not the only way that can happen today: the confidence-based merge can also prefer the analysis result over a value that is already there, without asking. That is a known problem: [analysis must not replace existing BPM/key without explicit consent (#552)](https://github.com/geovannimp/mixar/issues/552). Until it is fixed, leave forcing off and leave files whose tags you trust out of the analysis run.
+Forcing re-analysis **replaces** Mixar's stored BPM and key with its own analysis result before writing it back. Your files' existing tags are overwritten too. Forcing is not the only way that can happen today. The confidence-based merge can also prefer the analysis result over a value that is already there, without asking. That is a known problem: [analysis must not replace existing BPM/key without explicit consent (#552)](https://github.com/geovannimp/mixar/issues/552). Until it is fixed, leave forcing off and leave files whose tags you trust out of the analysis run.
+
+## Checking that it worked
+
+1. Analyze a track in Mixar with write-back on.
+2. Open the same file in another player or DJ app.
+3. Its BPM and key should match what Mixar's library shows, except for the BPM rounding on MP3, WAV, and AIFF (see [One rounding caveat](#one-rounding-caveat)).
+
+If a file shows no values, it is most likely one of the skipped types below. It could also be a track analyzed before you turned the switch on (see [applying it to music you already analyzed](#applying-it-to-music-you-already-analyzed)).
 
 ## What gets written
-
-These values:
 
 | Value | Where it goes |
 | --- | --- |
@@ -37,7 +45,7 @@ These values:
 | **Rating** | The file's star-rating field (1–5) |
 | **Comment**, **year**, **track/disc number**, **colour label** | The matching tag field |
 
-Nothing else is touched. Mixar does not write title, artist, album, or genre, and it does not write hot cues, saved loops, or beat grids: those stay in Mixar's database, and everything else already in the file (cover art, ReplayGain, other apps' data) is left exactly as it was.
+Nothing else is touched. Mixar does not write title, artist, album, or genre. It does not write hot cues, saved loops, or beat grids either: those stay in Mixar's database. Everything else already in the file (cover art, ReplayGain, other apps' data) is left exactly as it was.
 
 ## Which files it can write
 
@@ -51,23 +59,20 @@ Nothing else is touched. Mixar does not write title, artist, album, or genre, an
 
 A skipped file is left exactly as it was. Mixar logs the reason instead of guessing.
 
-**Why `.stem.mp4` files are skipped.** They are MP4 files, but not ordinary ones: a Stem container holds four audio tracks plus a `stem` manifest that lists each layer's name and color, and Traktor and Mixxx read that manifest when they load the file. Rewriting a tag means rewriting the file's metadata section, which is exactly where that manifest lives, and a mistake there loses the layer names (or breaks playback) in the other app. Mixar therefore leaves every Stem file alone and writes nothing into it.
+### Why `.stem.mp4` files are skipped
+
+They are MP4 files, but not ordinary ones. A Stem container holds four audio tracks plus a `stem` manifest that lists each layer's name and color. Traktor and Mixxx read that manifest when they load the file. Rewriting a tag means rewriting the file's metadata section, which is exactly where that manifest lives. A mistake there loses the layer names (or breaks playback) in the other app. Mixar therefore leaves every Stem file alone and writes nothing into it.
 
 ## What it does to your files
 
-- **Only differences are written.** Write-back compares what Mixar stored against what the file already carries, and writes nothing when they match, so analyzing a library whose BPM and key do not change leaves every file untouched. (A re-analysis that concludes a *different* value is a real difference and is written; see the consent note above.)
+- **Only differences are written.** Write-back compares what Mixar stored against what the file already carries, and writes nothing when they match. Analyzing a library whose BPM and key do not change therefore leaves every file untouched. (A re-analysis that concludes a *different* value is a real difference and is written; see the consent note above.)
 - **Audio is never re-encoded.** Write-back edits metadata only; the sound data is copied through untouched.
 - **Nothing partial.** If a file cannot be written safely, Mixar skips it and leaves it byte-for-byte identical.
-- **Your database is still the source of truth.** Mixar's table and decks use the values it stored; the file tags are a copy for other software.
+- **Your database is still the source of truth.** Mixar's table and decks use the values it stored. The file tags are a copy for other software.
 
 ### Rating on MP3
 
-ID3 keeps star ratings in a `POPM` frame that is keyed by the app that wrote it,
-so there is no single frame every reader agrees on. Mixar writes one frame per
-reader it mirrors — Traktor, MusicBrainz Picard, MusicBee and Windows Media
-Player — so they all show the same star count. A rating frame another app owns
-is re-written on the stepped scale those apps use, so its star count is kept.
-FLAC, OGG, Opus, M4A and MP4 carry the rating in their formats' own field.
+ID3 keeps star ratings in a `POPM` frame that is keyed by the app that wrote it. There is no single frame every reader agrees on. Mixar writes one frame per reader it mirrors, namely Traktor, MusicBrainz Picard, MusicBee and Windows Media Player, so they all show the same star count. A rating frame another app owns is re-written on the stepped scale those apps use, so its star count is kept. FLAC, OGG, Opus, M4A and MP4 carry the rating in their formats' own field.
 
 ### One rounding caveat
 
@@ -76,14 +81,6 @@ MP3, WAV, and AIFF store BPM as a whole number. If Mixar measured `127.98`, the 
 ## Turning it off again
 
 Flip the switch off and Mixar stops writing. Tags already written **stay in your files**: they are normal metadata now. To remove them, clear the BPM and key fields in a tag editor or in whichever DJ app you use.
-
-## Checking that it worked
-
-1. Analyze a track in Mixar with write-back on.
-2. Open the same file in another player or DJ app.
-3. Its BPM and key should match what Mixar's library shows.
-
-If a file shows no values, it is most likely one of the skipped types above, or the track was analyzed before you turned the switch on (see [applying it to music you already analyzed](#applying-it-to-music-you-already-analyzed)).
 
 ## Related
 
