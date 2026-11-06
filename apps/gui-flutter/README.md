@@ -39,11 +39,13 @@ Desktop uses [`window_manager`](https://pub.dev/packages/window_manager) with `T
 
 ### Android
 
-The engine and MIDI transports are desktop-only (`isDesktopWindow` in `lib/core/utils/desktop.dart`), so Android boots the library shell without audio playback.
+The engine and the controller transport are desktop-only (`isDesktopWindow` in `lib/core/utils/desktop.dart`), so Android boots the library shell without audio playback and without a mapped controller session. First-run setup still probes MIDI once (`detectControllers`), because the setup step is built from what the OS reports.
 
 Android runs landscape-only and full-screen: the manifest pins `screenOrientation="sensorLandscape"` and `main.dart` switches to `SystemUiMode.immersiveSticky` before the first frame. Android 16+ ignores the orientation lock on large screens (≥600 dp), where the windowing system wins.
 
 App data lands in the platform files dir (`/data/user/<id>/top.mixar.app/files/` → `library.db`, `settings.json`, `mixar.log`). Rust cannot derive it — Android app processes have no `HOME`/`XDG_DATA_HOME`, which used to resolve to `/` and fail with `I/O error: Read-only file system` — so `main.dart` passes `path_provider`'s application support directory to `setAppSupportDir` before any transport opens; `init_app` skips log attachment on Android and `setAppSupportDir` attaches it.
+
+MIDI needs one more piece of glue the Flutter embedding does not provide: `ndk-context`. midir's Android backend and cpal's AAudio host read the JavaVM and an Application context from it, and nothing initializes it here — a Flutter app has no `android_activity` glue crate. `MainActivity.onCreate` therefore loads `libhost_flutter.so` and calls `initAndroidContext(applicationContext)` before `super.onCreate` starts Dart; the JNI export lives in `crates/host-flutter/src/android.rs` (the package's `_` is `_1` in the mangled symbol, so renaming either side renames the function). Without it the first MIDI probe panics with "android context was not initialized", and the Dart future awaiting it never completes: first-run setup stays on its spinner with nothing in `mixar.log` but that one line.
 
 One-time host setup (SDK location can also come from `ANDROID_HOME`):
 

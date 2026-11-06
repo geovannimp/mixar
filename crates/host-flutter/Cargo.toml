@@ -28,6 +28,15 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-log = { workspace = true }
 
+# Android: `MainActivity` hands the JavaVM and the Application context to
+# `ndk-context`, which midir's Android MIDI backend and cpal's AAudio host read.
+# A Flutter app has no `android_activity` glue crate to initialize it, so the
+# first MIDI/audio call would panic with "android context was not initialized".
+# `jni` is pinned to midir's version so the two share one build of the crate.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+ndk-context = "0.1"
+
 [features]
 # Offline + live stem separation. ONNX Runtime ships no binary for 32-bit
 # Android or Android x86_64, so the Android build passes

@@ -38,6 +38,10 @@ pub fn init_app() {
 pub fn set_app_support_dir(path: String) -> Result<(), String> {
     crate::app_paths::set_support_dir(std::path::PathBuf::from(path))?;
     attach_app_log();
+    // `MainActivity` initialized the JNI context before Dart started, so its
+    // outcome was recorded while no log existed; report it now that one does.
+    #[cfg(target_os = "android")]
+    crate::android::log_init_outcome();
     Ok(())
 }
 
