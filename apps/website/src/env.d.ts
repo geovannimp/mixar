@@ -18,3 +18,15 @@ interface ImportMetaEnv {
  /** `"true"` makes the SDK narrate itself in the console. */
  readonly PUBLIC_POSTHOG_DEBUG?: string;
 }
+
+/**
+ * `.astro` modules are typed by the Astro language server / `astro check`, which
+ * `tsc --noEmit` does not run, so a `.ts` file importing one has no type at all.
+ * The container-based render tests (`scripts/font-preloads.test.ts`) do exactly
+ * that; this gives them Astro's own component type instead of `any`.
+ */
+declare module "*.astro" {
+ import type { AstroComponentFactory } from "astro/runtime/server/index.js";
+ const component: AstroComponentFactory;
+ export default component;
+}

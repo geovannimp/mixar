@@ -1,7 +1,5 @@
 @import "tailwindcss";
-@import "@fontsource-variable/outfit";
-@import "@fontsource-variable/space-grotesk";
-@import "@fontsource-variable/noto-sans-mono";
+@import "./fonts.css";
 @import "./view-transitions.css";
 @import "./tokens.css";
 

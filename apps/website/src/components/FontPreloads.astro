@@ -1,0 +1,22 @@
+---
+// `font-display: optional` (styles/fonts.css) only applies a face that is
+// already loaded when text first paints — otherwise the fallback stays for the
+// whole page view, with no swap. Preloading the latin files makes the brand font
+// the normal case on a cold load; they are the faces the hero copy, the body and
+// the mono spec labels render in.
+//
+// `?url` yields the same content-hashed asset the inlined `@font-face` rules
+// point at, so a preload and its face cannot drift apart; the
+// latin-ext/cyrillic/greek/vietnamese subsets stay lazy in fonts.css.
+import outfitLatin from "@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url";
+import spaceGroteskLatin from "@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2?url";
+import notoSansMonoLatin from "@fontsource-variable/noto-sans-mono/files/noto-sans-mono-latin-wght-normal.woff2?url";
+
+const fonts = [outfitLatin, spaceGroteskLatin, notoSansMonoLatin];
+---
+
+{
+  fonts.map((href) => (
+    <link rel="preload" href={href} as="font" type="font/woff2" crossorigin="anonymous" />
+  ))
+}

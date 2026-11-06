@@ -1,6 +1,11 @@
-import { defineConfig } from "vitest/config";
+/// <reference types="vitest/config" />
+import { getViteConfig } from "astro/config";
 
-export default defineConfig({
+// `getViteConfig` rather than `vitest/config`'s `defineConfig`: it is the same
+// options object, but it wires Astro's Vite plugins in, which is what lets a
+// test import a `.astro` component and render it through `astro/container`
+// (`scripts/font-preloads.test.ts`). Plain Vitest cannot parse `.astro` at all.
+export default getViteConfig({
   test: {
     // The analytics module is DOM-only, so the whole suite runs against jsdom.
     // The pure `resolveDestination` tests are happy there too and need no special case.
