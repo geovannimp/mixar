@@ -211,7 +211,7 @@ void main() {
               stemsAudible: true,
               stemEqEnabled: true,
               eq: const DeckEq(low: 0.1, mid: 0.2, high: 0.3),
-              stemEq: const [0.2, 0.5, 0.8],
+              stemEq: const [0.2, 0.35, 0.8],
             ),
           ),
         );
@@ -228,7 +228,7 @@ void main() {
         .value;
 
     expect(knobValue('VOC'), closeTo(0.8, 1e-6));
-    expect(knobValue('B/O'), closeTo(0.5, 1e-6));
+    expect(knobValue('B/O'), closeTo(0.35, 1e-6));
     expect(knobValue('DRM'), closeTo(0.2, 1e-6));
     // Deck 0 is the only stems deck; the other three keep the channel EQ.
     expect(find.text('HI'), findsNWidgets(3));

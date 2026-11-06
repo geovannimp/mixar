@@ -103,7 +103,7 @@ Typical deck layout:
 | Slip mode | Yes |
 | Jog / scratch | Yes |
 | FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems | Yes → four-stem mix, HTDemucs or SCNet offline cache, opt-in live CPU separation fallback for uncached tracks (pre-EQ; offline stems prioritized), non-blocking attach, pad mute/isolate, per-stem EQ behind `SetStemEqEnabled` (routing keys off `stems_audible`: attached buffers always are, live stems only while the producer's coverage covers the playhead, so starved live separation leaves the knobs on the channel EQ; the producer buffers up to 20 s ahead because the model runs at ~0.9–1.0x realtime) ([#46](https://github.com/geovannimp/mixar/issues/46), [#567](https://github.com/geovannimp/mixar/issues/567)) |
+| Stems | Yes → four-stem mix, HTDemucs or SCNet offline cache, opt-in live CPU separation fallback for uncached tracks (pre-EQ; offline stems prioritized), non-blocking attach, pad mute/isolate, per-stem EQ behind `SetStemEqEnabled` (routing keys off `stems_audible`: attached buffers always are, live stems only while the producer's coverage covers the playhead, so starved live separation leaves the knobs on the channel EQ; the producer buffers up to 12 s ahead — or half the ring window, whichever is smaller — because the model runs at ~0.9–1.0x realtime) ([#46](https://github.com/geovannimp/mixar/issues/46), [#567](https://github.com/geovannimp/mixar/issues/567)) |
 
 ### Library metadata
 
@@ -139,7 +139,8 @@ DeckState
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
 │   └── hot_cue mode → maps to persisted track_hot_cue rows
 ├── fx: filter, slots[3]
-├── stems: { drums, bass, other, vocals } ready, audible, mute/isolate/eq, eq_enabled
+├── stems: ready, audible, eq_enabled             -- deck-level fan-out state
+│   └── { drums, bass, other, vocals }: mute, isolate, eq_position[0..1]
 ├── mixer: volume, eq{low,mid,high}, gain_trim_db, cue_enabled
 └── waveform: scroll_window_ms, zoom_level
 ```

@@ -1146,23 +1146,26 @@ impl Deck {
                     return false;
                 };
                 let frame = self.live_frame(loaded, ring);
-                let Some(playhead) = frame.filter(|f| f.is_finite() && *f >= 0.0) else {
+                if !(frame.is_finite() && frame >= 0.0) {
                     return false;
-                };
-                live_coverage_contains(self.live_coverage, playhead as u64)
+                }
+                live_coverage_contains(self.live_coverage, frame as u64)
             }
             None => false,
         }
     }
 
     /// Deck playhead in live-ring frames (the ring may run at the model rate).
-    fn live_frame(&self, loaded: &LoadedAudio, ring: &LiveStemRing) -> Option<f64> {
-        let pos = self.position_frac.max(0.0);
-        Some(if loaded.sample_rate == ring.rate() {
+    ///
+    /// Not clamped: a negative playhead (reverse scratch before the track start)
+    /// is outside every coverage window, and callers need that to stay visible.
+    fn live_frame(&self, loaded: &LoadedAudio, ring: &LiveStemRing) -> f64 {
+        let pos = self.position_frac;
+        if loaded.sample_rate == ring.rate() {
             pos
         } else {
             pos * f64::from(ring.rate()) / f64::from(loaded.sample_rate.max(1))
-        })
+        }
     }
 
     /// True once stem audio is attached (live: the first window has been published).
@@ -1284,15 +1287,11 @@ impl Deck {
             self.live_coverage = None;
             return;
         };
-        let pos = self.position_frac.max(0.0);
         let coverage = match self.stems.as_ref() {
             Some(DeckStems::Live(ring)) => {
-                let frame = if loaded.sample_rate == ring.rate() {
-                    pos
-                } else {
-                    pos * f64::from(ring.rate()) / f64::from(loaded.sample_rate.max(1))
-                };
-                if frame.is_finite() && frame >= 0.0 {
+                // Pacing only needs a forward position; reverse scratch reports 0.
+                let frame = self.live_frame(loaded, ring).max(0.0);
+                if frame.is_finite() {
                     ring.set_playhead(frame as u64);
                 }
                 ring.coverage()
@@ -3587,6 +3586,13 @@ mod tests {
         ring.reset(100_000);
         deck.process(CHUNK).unwrap();
         assert!(!deck.stems_audible(), "playhead behind the epoch");
+
+        // Reverse scratch before the start: the renderer interpolates outside the
+        // window, so routing must not claim stems are audible.
+        ring.publish(0, 4096, &[&window, &window, &window, &window]);
+        deck.position_frac = -2.0;
+        deck.process(CHUNK).unwrap();
+        assert!(!deck.stems_audible(), "negative playhead is never covered");
     }
 
     #[test]
