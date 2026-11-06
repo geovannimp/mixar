@@ -1,5 +1,6 @@
 ---
 import { getImage } from "astro:assets";
+import { resolveSiteUrl } from "../lib/site-url";
 import bannerImage from "../assets/mixar-banner.png";
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
@@ -28,15 +29,9 @@ const canonicalURL = new URL(Astro.url.pathname, siteURL);
 // every card crawler (including the ones that still refuse WebP) renders it.
 const ogCard =
   ogImage ?? (await getImage({ src: bannerImage, width: 1200, format: "jpg", quality: 82 })).src;
-// The override is the one value a future caller could point elsewhere, and
-// string checks miss the forms the URL parser accepts: `/\\evil.com/x.png` and
-// `/\\t/evil.com/x.png` fail a `//` test but resolve to https://evil.com. Compare
-// origins after parsing, which is the only form that holds.
-const ogURL = new URL(ogCard, siteURL);
-if (ogURL.origin !== siteURL.origin) {
-  throw new Error(`BaseLayout ogImage must stay on ${siteURL.origin}, got: ${ogURL.href}`);
-}
-const absOgImage = ogURL.href;
+// `resolveSiteUrl` throws for any override that lands off-origin (including the
+// `//`-prefixed and backslash forms a plain string check misses).
+const absOgImage = resolveSiteUrl(ogCard, siteURL).href;
 const siteOrigin = siteURL.href.endsWith("/") ? siteURL.href : `${siteURL.href}/`;
 
 const organization = {

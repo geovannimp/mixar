@@ -62,18 +62,38 @@ export function whenIdle(doc: Document = document): Promise<void> {
  * the fold, so their animation library does not need to exist until the visitor
  * can see them. `rootMargin` buys the import enough lead time that the animation
  * is ready by the time the element scrolls in.
+ *
+ * `signal` releases the observer when the caller's page goes away: a route swap
+ * can happen while the element is still off-screen, and an un-abortable observer
+ * would keep both itself and the deferred import alive. Aborting resolves rather
+ * than rejects, so the caller's chain runs and its own checks decide what to do.
  */
-export function whenVisible(el: Element, rootMargin = "300px 0px"): Promise<void> {
+export function whenVisible(
+  el: Element,
+  rootMargin = "300px 0px",
+  signal?: AbortSignal,
+): Promise<void> {
   if (typeof IntersectionObserver !== "function") return Promise.resolve();
   return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      observer.disconnect();
+      signal?.removeEventListener("abort", finish);
+      resolve();
+    };
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        observer.disconnect();
-        resolve();
+        if (entries.some((entry) => entry.isIntersecting)) finish();
       },
       { rootMargin },
     );
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    signal?.addEventListener("abort", finish, { once: true });
     observer.observe(el);
   });
 }

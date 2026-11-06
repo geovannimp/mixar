@@ -29,6 +29,12 @@ const waitForBind = () => vi.waitFor(() => expect(initStemConnectorFlow).toHaveB
 /** For the case where the module binds to nothing: give it a turn, then assert. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+/** Two turns is what the deferred import needs before "nothing happened" holds. */
+const settleTwice = async () => {
+  await settle();
+  await settle();
+};
+
 /** Roots live in the document: a detached one is skipped on purpose. */
 const roots: HTMLElement[] = [];
 const attachedRoot = () => {
@@ -109,26 +115,26 @@ describe("createDeferredConnectorFlow", () => {
     const root = attachedRoot();
     const deferred = createDeferredConnectorFlow(root);
     root.remove();
-    await settle();
-    await settle();
+    await settleTwice();
 
     expect(initStemConnectorFlow).not.toHaveBeenCalled();
     expect(() => deferred.setPlaying(true)).not.toThrow();
   });
 
-  // A chunk that fails to load must degrade to the same no-op instead of
-  // raising an unhandled rejection and buffering state forever.
-  it("falls back to a no-op when the chunk fails", async () => {
+  // A bind that throws must degrade to the no-op instead of raising an unhandled
+  // rejection — and later writes must not reach any flow.
+  it("falls back to a no-op when binding throws", async () => {
     initStemConnectorFlow.mockImplementation(() => {
-      throw new Error("chunk failed");
+      throw new Error("connector init failed");
     });
 
     const deferred = createDeferredConnectorFlow(attachedRoot());
     deferred.setAudible(0, true);
-    await settle();
-    await settle();
+    await settleTwice();
 
     expect(initStemConnectorFlow).toHaveBeenCalledTimes(1);
-    expect(() => deferred.setPlaying(true)).not.toThrow();
+    deferred.setPlaying(true);
+    deferred.setAudible(1, false);
+    expect(initStemConnectorFlow).toHaveBeenCalledTimes(1);
   });
 });

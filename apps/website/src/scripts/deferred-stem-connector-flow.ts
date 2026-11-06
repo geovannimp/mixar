@@ -31,7 +31,17 @@ export function createDeferredConnectorFlow(root: ParentNode): StemConnectorFlow
   // screens down: nothing is fetched until that section is close to the
   // viewport, and then only once the page is idle.
   const anchor = root instanceof Element ? root : undefined;
-  const near = anchor === undefined ? whenIdle() : whenVisible(anchor).then(() => whenIdle());
+  const gate = new AbortController();
+  const near =
+    anchor === undefined
+      ? whenIdle()
+      : whenVisible(anchor, "300px 0px", gate.signal).then(() => whenIdle());
+
+  // A swap can land while the section is still off-screen; release the observer
+  // and the idle listeners with the page they belong to.
+  if (anchor !== undefined) {
+    anchor.ownerDocument.addEventListener("astro:before-swap", () => gate.abort(), { once: true });
+  }
 
   void near
     .then(async () => {

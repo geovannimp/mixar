@@ -47,6 +47,12 @@ function trackResolved(promise: Promise<void>) {
 
 const runIdle = (index = 0) => idleCalls[index]?.run();
 
+/** Run the queued idle callback and wait for the gate to resolve. */
+const settleIdle = async (index = 0) => {
+  runIdle(index);
+  await vi.waitFor(() => expect(idleCalls).toHaveLength(index + 1));
+};
+
 beforeEach(async () => {
   idleCalls = [];
   installIdle();
@@ -70,8 +76,8 @@ describe("whenIdle", () => {
     // The timeout is what keeps a busy main thread from starving the work.
     expect(idleCalls[0]?.options).toEqual({ timeout: 2000 });
 
-    runIdle();
-    await vi.waitFor(() => expect(state.resolved).toBe(true));
+    await settleIdle();
+    expect(state.resolved).toBe(true);
   });
 
   it("schedules idle straight away for a document without a window", async () => {
@@ -81,8 +87,8 @@ describe("whenIdle", () => {
     await Promise.resolve();
     expect(idleCalls).toHaveLength(1);
 
-    runIdle();
-    await vi.waitFor(() => expect(state.resolved).toBe(true));
+    await settleIdle();
+    expect(state.resolved).toBe(true);
   });
 
   it("resolves on the first intent event and detaches the others", async () => {
@@ -110,8 +116,8 @@ describe("whenIdle", () => {
 
     (doc.defaultView as unknown as EventTarget).dispatchEvent(new Event("load"));
     expect(idleCalls).toHaveLength(1);
-    runIdle();
-    await vi.waitFor(() => expect(state.resolved).toBe(true));
+    await settleIdle();
+    expect(state.resolved).toBe(true);
   });
 
   it("falls back to a macrotask without requestIdleCallback", async () => {
@@ -165,6 +171,26 @@ describe("whenVisible", () => {
     callbacks[0]?.([{ isIntersecting: true }]);
     await vi.waitFor(() => expect(state.resolved).toBe(true));
     expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  // A route swap while the element is still off-screen has to release the
+  // observer; resolving (not rejecting) lets the caller's chain continue.
+  it("stops observing when the caller aborts", async () => {
+    const gate = new AbortController();
+    const state = trackResolved(whenVisible(document.createElement("div"), "0px", gate.signal));
+
+    gate.abort();
+    await vi.waitFor(() => expect(state.resolved).toBe(true));
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves straight away for an already-aborted signal", async () => {
+    const gate = new AbortController();
+    gate.abort();
+    await expect(
+      whenVisible(document.createElement("div"), "0px", gate.signal),
+    ).resolves.toBeUndefined();
+    expect(disconnect).not.toHaveBeenCalled();
   });
 
   // Anything without IntersectionObserver (very old engines) must not stall —

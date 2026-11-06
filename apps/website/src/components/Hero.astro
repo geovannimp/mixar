@@ -203,11 +203,14 @@ const audioGlyphs = [
   // to the viewport (on a phone it starts below the fold) and then for idle, so
   // neither the bytes nor the animation setup are on the critical path.
   let generation = 0;
+  let gate: AbortController | undefined;
   const initTilt = () => {
     const mine = ++generation;
     const tilt = document.querySelector(".hero-screenshot-tilt");
     if (!tilt) return;
-    void whenVisible(tilt)
+    gate?.abort();
+    gate = new AbortController();
+    void whenVisible(tilt, "300px 0px", gate.signal)
       .then(() => whenIdle())
       .then(async () => {
         const { initHeroMobileTilt } = await import("../scripts/hero-mobile-tilt");
@@ -226,6 +229,8 @@ const audioGlyphs = [
   // the old tilt with the element it was bound to, and arm the new one.
   document.addEventListener("astro:before-swap", () => {
     generation++;
+    gate?.abort();
+    gate = undefined;
     disposeTilt?.();
     disposeTilt = undefined;
   });
