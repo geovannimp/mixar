@@ -160,7 +160,11 @@ fn stem_eq_toggle_without_stems_leaves_eq_on_the_channel() -> Result<()> {
         gain: 1.0,
         soft_takeover: false,
     }))?;
-    let update = recv_updated_where(&mut evt, |update| update.stem_eq_enabled);
+    // Sync on the outcome: the publisher republishes on state edges, so only a
+    // predicate on the payload identifies this command's update.
+    let update = recv_updated_where(&mut evt, |update| {
+        update.stem_eq_enabled && (update.eq.low - 1.0).abs() < 0.01
+    });
     assert!(
         (update.eq.low - 1.0).abs() < 0.01,
         "channel low follows the knob: {:?}",
@@ -187,7 +191,9 @@ fn stem_eq_toggle_routes_eq_band_to_stem_eq() -> Result<()> {
         gain: 0.2,
         soft_takeover: false,
     }))?;
-    let update = recv_updated_where(&mut evt, |update| update.stem_eq_enabled);
+    let update = recv_updated_where(&mut evt, |update| {
+        update.stem_eq_enabled && (update.stem_eq[0] - 0.2).abs() < 0.01
+    });
     assert!(
         (update.stem_eq[0] - 0.2).abs() < 0.01,
         "stem low: {:?}",
@@ -222,7 +228,9 @@ fn stem_eq_routes_to_the_stem_eq_while_live_coverage_covers_the_playhead() -> Re
         gain: 0.2,
         soft_takeover: false,
     }))?;
-    let update = recv_updated_where(&mut evt, |update| update.stem_eq_enabled);
+    let update = recv_updated_where(&mut evt, |update| {
+        update.stem_eq_enabled && (update.stem_eq[0] - 0.2).abs() < 0.01
+    });
     assert!(
         (update.stem_eq[0] - 0.2).abs() < 0.01,
         "stem low: {:?}",
@@ -248,15 +256,22 @@ fn stem_eq_falls_back_to_the_channel_while_live_stems_are_starved() -> Result<()
     }))?;
     recv_updated_where(&mut evt, |update| update.stem_eq_enabled);
 
-    // Producer re-epochs / drops coverage: the deck now plays the dry mix.
+    // Producer re-epochs / drops coverage: the deck now plays the dry mix. The
+    // engine republishes on that edge; consume it so the assertion below cannot
+    // read that snapshot instead of the band command's.
     ring.reset(0);
+    recv_updated_where(&mut evt, |update| {
+        update.stem_eq_enabled && !update.stems_audible
+    });
     session.publish_cmd(Event::SetEqBand(SetEqBand {
         deck: 0,
         band: EqBand::Mid,
         gain: 0.1,
         soft_takeover: false,
     }))?;
-    let update = recv_updated_where(&mut evt, |update| update.stem_eq_enabled);
+    let update = recv_updated_where(&mut evt, |update| {
+        update.stem_eq_enabled && (update.eq.mid - 0.1).abs() < 0.01
+    });
     assert!(
         (update.eq.mid - 0.1).abs() < 0.01,
         "channel mid follows the knob while starved: {:?}",
