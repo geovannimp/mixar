@@ -1,6 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Anonymous analytics and network library sources. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Folder imports scan audio by path. Scoped storage hides other apps'
+         media from that read until the app holds the media permission;
+         `MainActivity` requests it when a folder is added. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
     <!-- MIDI controllers (USB/BLE, or virtual ports from another app). Optional:
          Mixar runs without one, so the feature must not filter installs. -->
     <uses-feature android:name="android.software.midi" android:required="false"/>

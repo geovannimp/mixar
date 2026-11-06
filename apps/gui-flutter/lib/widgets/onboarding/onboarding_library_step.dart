@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/android_media_access.dart';
 import 'package:gui_flutter/core/utils/collection_actions.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
@@ -28,15 +29,26 @@ class _OnboardingLibraryStepState extends ConsumerState<OnboardingLibraryStep> {
   String? _added;
 
   Future<void> _chooseFolder() async {
-    final l10n = AppLocalizations.of(context)!;
-    final path = await FilePicker.getDirectoryPath(
-      dialogTitle: l10n.onboardingLibraryChooseFolder,
-    );
-    if (path == null || !mounted) {
+    // One import at a time: permission prompt and picker are both async, and a
+    // second tap would open a second permission request the host rejects.
+    if (_busy) {
       return;
     }
     setState(() => _busy = true);
+    final l10n = AppLocalizations.of(context)!;
     try {
+      // Ask before the picker: without the Android media permission the host
+      // scan cannot see the files, so the folder would import as empty.
+      if (!await ensureAudioReadAccess()) {
+        _showAddFolderFailure(const Text(audioReadDeniedMessage));
+        return;
+      }
+      final path = await FilePicker.getDirectoryPath(
+        dialogTitle: l10n.onboardingLibraryChooseFolder,
+      );
+      if (path == null || !mounted) {
+        return;
+      }
       final library = await ref.read(libraryTransportProvider.future);
       // No name: the host derives the collection name from the folder.
       final result = await library.addFolderCollection(
@@ -51,25 +63,45 @@ class _OnboardingLibraryStepState extends ConsumerState<OnboardingLibraryStep> {
       // On a replay the mixer's providers are already alive, so the sidebar
       // would keep showing the old counts without this.
       refreshCollectionViews(ref);
-      setState(() => _added = result.collection.name);
+      // Only a folder that brought tracks in counts as added: calling an empty
+      // or unreadable folder "added" would report failure as success.
+      final notice = folderImportNotice(result);
+      final imported = result.added + result.updated > 0;
+      if (imported) {
+        setState(() => _added = result.collection.name);
+      }
       showMixarToast(
         context: context,
-        title: Text(l10n.onboardingLibraryFolderAdded),
+        title: Text(
+          imported
+              ? l10n.onboardingLibraryFolderAdded
+              : l10n.onboardingLibraryFolderFailed,
+        ),
+        description: notice == null ? null : Text(notice.message),
+        variant: imported && notice == null
+            ? MixarToastVariant.primary
+            : MixarToastVariant.destructive,
       );
     } on Object catch (e) {
-      if (mounted) {
-        showMixarToast(
-          context: context,
-          title: Text(l10n.onboardingLibraryFolderFailed),
-          description: Text('$e'),
-          variant: MixarToastVariant.destructive,
-        );
-      }
+      _showAddFolderFailure(Text('$e'));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
       }
     }
+  }
+
+  /// Destructive toast for anything that kept a folder from being added.
+  void _showAddFolderFailure(Widget description) {
+    if (!mounted) {
+      return;
+    }
+    showMixarToast(
+      context: context,
+      title: Text(AppLocalizations.of(context)!.onboardingLibraryFolderFailed),
+      description: description,
+      variant: MixarToastVariant.destructive,
+    );
   }
 
   @override
