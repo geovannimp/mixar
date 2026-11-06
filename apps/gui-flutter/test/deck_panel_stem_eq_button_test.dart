@@ -1,4 +1,3 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
@@ -16,7 +15,7 @@ import 'support/mixar_material_app.dart';
 
 /// Engine mirror seeded with the deck states the header button reacts to.
 class _SeedEngineUi extends EngineUi {
-  _SeedEngineUi(this.seed);
+  new(this.seed);
 
   final EngineUiSnapshot seed;
 
