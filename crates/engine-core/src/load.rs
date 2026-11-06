@@ -61,6 +61,7 @@ impl Engine {
             control.apply_loaded_metadata(track_id, track_path, &metadata);
         }
         drop(dsp);
+        self.push_deck_stem_eq_flag(deck_id);
         self.hydrate_hot_cues(deck_id)?;
         self.hydrate_beat_grid(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
@@ -121,6 +122,7 @@ impl Engine {
             control.apply_source_load(&prepared.source, track_id);
         }
         drop(dsp);
+        self.push_deck_stem_eq_flag(deck_id);
         self.hydrate_hot_cues(deck_id)?;
         self.hydrate_beat_grid(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
@@ -184,9 +186,11 @@ impl Engine {
             .channel_mut(deck_id)
             .expect("validated above")
             .set_loudness_lufs(None);
+        drop(dsp);
         if let Some(control) = self.deck_control.get_mut(deck_id) {
             control.clear_loaded_track();
         }
+        self.push_deck_stem_eq_flag(deck_id);
         Ok(())
     }
 

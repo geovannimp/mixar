@@ -120,6 +120,12 @@ pub struct Deck {
     stem_mute: [bool; 4],
     /// When set, only this stem index is audible.
     stem_isolate: Option<u8>,
+    /// Stem EQ band positions `0..1` (center `0.5` = neutral): `[low, mid, high]`.
+    /// Mapping: low → drums, mid → bass + other, high → vocals.
+    stem_eq: [f32; 3],
+    /// When false the stored `stem_eq` positions are ignored, so switching the
+    /// toggle off restores the plain stem mix without losing the knob positions.
+    stem_eq_enabled: bool,
     /// Smoothed gains applied in the mix (ramps toward mute/isolate targets).
     stem_gain_current: [f32; 4],
     /// Resampler quality preset (`low`, `medium`, or `high`).
@@ -158,6 +164,27 @@ pub struct Deck {
     cue_hold_return: Option<(i32, bool)>,
     /// Events to deliver to the engine notifier after processing.
     pending_transport: Vec<DeckTransportEvent>,
+}
+
+/// Band index per NI stem order (drums, bass, other, vocals).
+const STEM_EQ_BAND: [usize; 4] = [0, 1, 1, 2];
+
+/// True when `playhead` (ring frames) is inside a published coverage window.
+///
+/// Both the live mix and [`Deck::stems_audible`] answer "is the deck playing
+/// stems right now?" with this, so routing can never disagree with the audio.
+fn live_coverage_contains(coverage: Option<(u64, u64)>, playhead: u64) -> bool {
+    coverage.is_some_and(|(start, end)| playhead >= start && playhead.saturating_add(1) < end)
+}
+
+/// One band's contribution: `own` = the band itself, otherwise "every other group".
+fn stem_eq_band_gain(norm: f32, own: bool) -> f32 {
+    let n = norm.clamp(0.0, 1.0);
+    if own {
+        (2.0 * n).min(1.0)
+    } else {
+        (2.0 * (1.0 - n)).min(1.0)
+    }
 }
 
 impl fmt::Debug for Deck {
@@ -206,6 +233,8 @@ impl Deck {
             live_coverage: None,
             stem_mute: [false; 4],
             stem_isolate: None,
+            stem_eq: [0.5; 3],
+            stem_eq_enabled: false,
             stem_gain_current: [1.0; 4],
             resampler_quality: resampler_quality.to_string(),
             resampler: None,
@@ -841,6 +870,7 @@ impl Deck {
         self.release_stems();
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        self.stem_eq = [0.5; 3];
         self.resampler = None;
         self.loop_region = None;
         self.slip_enabled = false;
@@ -1016,6 +1046,7 @@ impl Deck {
         self.release_stems();
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        self.stem_eq = [0.5; 3];
         // Session-only key shift must not leak onto a newly loaded track.
         self.key_shift_semitones = 0.0;
         self.resampler = resampler;
@@ -1054,6 +1085,7 @@ impl Deck {
         self.live_blend = 1.0;
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        self.stem_eq = [0.5; 3];
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1068,6 +1100,7 @@ impl Deck {
         self.live_coverage = None;
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        self.stem_eq = [0.5; 3];
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1076,6 +1109,7 @@ impl Deck {
         self.release_stems();
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        self.stem_eq = [0.5; 3];
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1093,6 +1127,42 @@ impl Deck {
         matches!(self.stems.as_ref(), Some(DeckStems::Live(_)))
     }
 
+    /// True while the deck is actually playing stem audio.
+    ///
+    /// Attached buffers always are. Live stems are not: the producer runs at
+    /// roughly realtime, so once the playhead leaves the published coverage the
+    /// deck falls back to the dry mix and per-stem controls stop being audible.
+    /// Routing and the mixer labels key on this, never on mere attachment.
+    pub fn stems_audible(&self) -> bool {
+        match self.stems.as_ref() {
+            Some(DeckStems::Buffers(_)) => true,
+            Some(DeckStems::Live(ring)) => {
+                let Some(loaded) = self.loaded.as_ref() else {
+                    return false;
+                };
+                let frame = self.live_frame(loaded, ring);
+                if !(frame.is_finite() && frame >= 0.0) {
+                    return false;
+                }
+                live_coverage_contains(self.live_coverage, frame as u64)
+            }
+            None => false,
+        }
+    }
+
+    /// Deck playhead in live-ring frames (the ring may run at the model rate).
+    ///
+    /// Not clamped: a negative playhead (reverse scratch before the track start)
+    /// is outside every coverage window, and callers need that to stay visible.
+    fn live_frame(&self, loaded: &LoadedAudio, ring: &LiveStemRing) -> f64 {
+        let pos = self.position_frac;
+        if loaded.sample_rate == ring.rate() {
+            pos
+        } else {
+            pos * f64::from(ring.rate()) / f64::from(loaded.sample_rate.max(1))
+        }
+    }
+
     /// True once stem audio is attached (live: the first window has been published).
     pub fn stems_ready(&self) -> bool {
         match self.stems.as_ref() {
@@ -1108,6 +1178,28 @@ impl Deck {
 
     pub fn stem_isolate(&self) -> Option<u8> {
         self.stem_isolate
+    }
+
+    pub fn stem_eq(&self) -> [f32; 3] {
+        self.stem_eq
+    }
+
+    /// Route the mixer EQ knobs to the stem EQ (the deck header toggle).
+    pub fn set_stem_eq_enabled(&mut self, enabled: bool) {
+        self.stem_eq_enabled = enabled;
+    }
+
+    pub fn stem_eq_enabled(&self) -> bool {
+        self.stem_eq_enabled
+    }
+
+    /// Set one stem-EQ band position; band index `0` = low, `1` = mid, `2` = high.
+    /// Non-finite or out-of-range values are clamped to `0..=1`; out-of-range
+    /// indices are ignored (audio callback safety: no panic, no allocation).
+    pub fn set_stem_eq_band(&mut self, band: usize, gain: f32) {
+        if band < 3 && gain.is_finite() {
+            self.stem_eq[band] = gain.clamp(0.0, 1.0);
+        }
     }
 
     pub fn set_stem_mute(&mut self, index: usize, muted: bool) {
@@ -1133,16 +1225,37 @@ impl Deck {
         };
     }
 
-    /// Steady-state gain for a stem from mute/isolate (before smoothing).
+    /// Steady-state gain for a stem from mute/isolate and the stem EQ (before smoothing).
     fn stem_target_gain(&self, index: usize) -> f32 {
-        if let Some(iso) = self.stem_isolate {
-            return if usize::from(iso) == index { 1.0 } else { 0.0 };
-        }
-        if self.stem_mute.get(index).copied().unwrap_or(false) {
+        let mute_gain = if let Some(iso) = self.stem_isolate {
+            if usize::from(iso) == index {
+                1.0
+            } else {
+                0.0
+            }
+        } else if self.stem_mute.get(index).copied().unwrap_or(false) {
             0.0
         } else {
             1.0
+        };
+        mute_gain * self.stem_eq_gain(index)
+    }
+
+    /// Steady-state stem gain from the three knobs: its own group's knob plus the
+    /// isolation each *other* knob applies (deepest isolation wins, so two knobs
+    /// turned right never double-attenuate).
+    fn stem_eq_gain(&self, index: usize) -> f32 {
+        if !self.stem_eq_enabled {
+            return 1.0;
         }
+        let own = STEM_EQ_BAND.get(index).copied().unwrap_or(0);
+        let mut gain = stem_eq_band_gain(self.stem_eq[own], true);
+        for band in 0..3 {
+            if band != own {
+                gain = gain.min(stem_eq_band_gain(self.stem_eq[band], false));
+            }
+        }
+        gain
     }
 
     /// Advance smoothed stem gains one output sample toward their targets (~5 ms).
@@ -1169,16 +1282,12 @@ impl Deck {
             self.live_coverage = None;
             return;
         };
-        let pos = self.position_frac.max(0.0);
         let coverage = match self.stems.as_ref() {
             Some(DeckStems::Live(ring)) => {
-                let frame = if loaded.sample_rate == ring.rate() {
-                    pos
-                } else {
-                    pos * f64::from(ring.rate()) / f64::from(loaded.sample_rate.max(1))
-                };
-                if frame.is_finite() && frame >= 0.0 {
-                    ring.set_playhead(frame as u64);
+                // Pacing only needs a forward position; reverse scratch reports 0.
+                let frame = self.live_frame(loaded, ring);
+                if frame.is_finite() {
+                    ring.set_playhead(frame.max(0.0) as u64);
                 }
                 ring.coverage()
             }
@@ -1227,12 +1336,7 @@ impl Deck {
                 let frame_f = stem_pos.floor();
                 let frame = frame_f as u64;
                 let frac = (stem_pos - frame_f) as f32;
-                let covered = match self.live_coverage {
-                    Some((start, end)) => {
-                        stem_pos >= 0.0 && frame >= start && frame.saturating_add(1) < end
-                    }
-                    None => false,
-                };
+                let covered = stem_pos >= 0.0 && live_coverage_contains(self.live_coverage, frame);
                 // 5 ms crossfade between the main mix and the stems; the stems
                 // sum back to the mix, so the transition is nearly transparent.
                 let target = if covered { 1.0 } else { 0.0 };
@@ -3411,6 +3515,172 @@ mod tests {
             Arc::clone(&stem),
         ]);
         deck.set_stem_mute(0, true);
+        assert_eq!(deck.stem_target_gain(0), 0.0);
+        assert_eq!(deck.stem_gain_current[0], 1.0);
+        deck.ramp_stem_gains_one_sample();
+        assert!(
+            deck.stem_gain_current[0] < 1.0 && deck.stem_gain_current[0] > 0.0,
+            "gain should be mid-ramp, got {}",
+            deck.stem_gain_current[0]
+        );
+    }
+
+    /// Fresh deck with four identical stems attached, stem EQ armed.
+    fn deck_with_four_stems() -> Deck {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![1.0f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        let stem = Arc::new(LoadedAudio {
+            samples: vec![1.0f32; CHUNK * 2 * 8_000],
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+        deck.set_stem_eq_enabled(true);
+        deck
+    }
+
+    #[test]
+    fn stems_audible_follows_what_the_deck_plays() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.0; CHUNK * 2 * 8_000], ENGINE_RATE);
+        assert!(!deck.stems_audible(), "no stems attached");
+
+        // Attached buffers are always what plays.
+        let stem = Arc::new(LoadedAudio {
+            samples: vec![0.0; CHUNK * 2 * 8_000],
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+        assert!(deck.stems_audible());
+        deck.clear_stems();
+        assert!(!deck.stems_audible(), "cleared stems");
+
+        // Live stems only when the coverage window covers the playhead.
+        let ring = Arc::new(LiveStemRing::new(ENGINE_RATE, 1 << 19));
+        deck.attach_live_stems(Arc::clone(&ring));
+        assert!(!deck.stems_audible(), "no coverage yet");
+        let window = vec![0.1f32; 4096 * 2];
+        ring.publish(0, 4096, &[&window, &window, &window, &window]);
+        // Audibility rides the per-block coverage snapshot (what the mixer
+        // reads), so one rendered block is what makes it visible.
+        deck.process(CHUNK).unwrap();
+        assert!(deck.stems_audible(), "playhead 0 inside coverage");
+        ring.reset(100_000);
+        deck.process(CHUNK).unwrap();
+        assert!(!deck.stems_audible(), "playhead behind the epoch");
+
+        // Reverse scratch before the start: the renderer interpolates outside the
+        // window, so routing must not claim stems are audible.
+        ring.publish(0, 4096, &[&window, &window, &window, &window]);
+        deck.position_frac = -2.0;
+        deck.process(CHUNK).unwrap();
+        assert!(!deck.stems_audible(), "negative playhead is never covered");
+    }
+
+    #[test]
+    fn stem_eq_center_keeps_unity_gain() {
+        let deck = deck_with_four_stems();
+        assert_eq!(deck.stem_eq(), [0.5; 3]);
+        for i in 0..4 {
+            assert_eq!(deck.stem_target_gain(i), 1.0, "stem {i} at center");
+        }
+    }
+
+    #[test]
+    fn stem_eq_low_left_silences_drums_only() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(0, 0.0);
+        let targets: Vec<f32> = (0..4).map(|i| deck.stem_target_gain(i)).collect();
+        assert_eq!(targets, vec![0.0, 1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn stem_eq_high_right_isolates_vocals() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(2, 1.0);
+        let targets: Vec<f32> = (0..4).map(|i| deck.stem_target_gain(i)).collect();
+        assert_eq!(targets, vec![0.0, 0.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn stem_eq_mid_half_left_attenuates_bass_and_other() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(1, 0.25);
+        let targets: Vec<f32> = (0..4).map(|i| deck.stem_target_gain(i)).collect();
+        assert_eq!(targets, vec![1.0, 0.5, 0.5, 1.0]);
+    }
+
+    #[test]
+    fn stem_eq_extremes_on_two_knobs_stay_independent() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(0, 0.0); // drums out
+        deck.set_stem_eq_band(2, 0.0); // vocals out
+        let targets: Vec<f32> = (0..4).map(|i| deck.stem_target_gain(i)).collect();
+        assert_eq!(targets, vec![0.0, 1.0, 1.0, 0.0]);
+    }
+
+    #[test]
+    fn stem_eq_multiplies_with_mute() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_mute(0, true);
+        deck.set_stem_eq_band(0, 0.0);
+        assert_eq!(deck.stem_target_gain(0), 0.0, "mute and EQ both silence");
+
+        deck.set_stem_mute(0, false);
+        deck.set_stem_mute(1, true);
+        deck.set_stem_eq_band(2, 1.0);
+        assert_eq!(deck.stem_target_gain(1), 0.0, "bass muted");
+        assert_eq!(deck.stem_target_gain(3), 1.0, "vocals isolated");
+    }
+
+    #[test]
+    fn stem_eq_out_of_range_is_clamped_and_ignored() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(3, 0.0);
+        deck.set_stem_eq_band(0, f32::NAN);
+        assert_eq!(deck.stem_eq(), [0.5; 3]);
+
+        deck.set_stem_eq_band(1, 5.0);
+        assert_eq!(deck.stem_eq()[1], 1.0);
+        deck.set_stem_eq_band(1, -5.0);
+        assert_eq!(deck.stem_eq()[1], 0.0);
+    }
+
+    #[test]
+    fn stem_eq_is_ignored_while_the_toggle_is_off() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(0, 0.0);
+        assert_eq!(deck.stem_target_gain(0), 0.0, "armed: drums muted by EQ");
+
+        deck.set_stem_eq_enabled(false);
+        assert_eq!(
+            deck.stem_target_gain(0),
+            1.0,
+            "disarmed: plain stem mix, stored positions kept"
+        );
+        assert_eq!(deck.stem_eq()[0], 0.0, "positions survive the toggle");
+
+        deck.set_stem_eq_enabled(true);
+        assert_eq!(deck.stem_target_gain(0), 0.0, "re-armed restores the EQ");
+    }
+
+    #[test]
+    fn stem_eq_ramps_gain_instead_of_stepping() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(0, 0.0);
         assert_eq!(deck.stem_target_gain(0), 0.0);
         assert_eq!(deck.stem_gain_current[0], 1.0);
         deck.ramp_stem_gains_one_sample();

@@ -183,6 +183,51 @@ void main() {
       expect(ui.channelFor(2).crossfaderAssign, CrossfaderAssign.a);
     });
 
+    test('updated stem EQ toggle and band positions reach the deck', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+
+      expect(container.read(engineUiProvider).stemEqEnabledFor(0), isFalse);
+      ui.apply(
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(deck: 0, durationMs: 1000, stemEqEnabled: true),
+        ),
+      );
+      expect(container.read(engineUiProvider).stemEqEnabledFor(0), isTrue);
+      // Per deck: another deck stays off.
+      expect(container.read(engineUiProvider).stemEqEnabledFor(1), isFalse);
+
+      ui.apply(
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(deck: 0, durationMs: 1000, stemEqEnabled: false),
+        ),
+      );
+      expect(container.read(engineUiProvider).stemEqEnabledFor(0), isFalse);
+    });
+
+    test('updated stem EQ lands on the deck channel', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+
+      ui.apply(
+        deckUpdatedEvent(
+          deck: 0,
+          update: deckUpdated(deck: 0, stemEq: const [0.25, 0.35, 0.75]),
+        ),
+      );
+      final channel = container.read(engineUiProvider).channelFor(0);
+      expect(channel.stemEqLow, closeTo(0.25, 1e-6));
+      expect(channel.stemEqMid, closeTo(0.35, 1e-6));
+      expect(channel.stemEqHigh, closeTo(0.75, 1e-6));
+      // Channel EQ values are separate and untouched by the stem EQ.
+      expect(channel.eqLow, closeTo(0.5, 1e-6));
+      expect(channel.eqHigh, closeTo(0.5, 1e-6));
+    });
+
     test(
       'updated unload removes playhead and slip even when positionMs is 0',
       () {

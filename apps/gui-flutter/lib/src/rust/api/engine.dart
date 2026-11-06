@@ -228,6 +228,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Tempo fader position `0..1`.
   Future<void> setSpeed({required int deckId, required double speed});
 
+  /// Route this deck's EQ knobs to the stem EQ (deck header toggle).
+  Future<void> setStemEqEnabled({required int deckId, required bool enabled});
+
   /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
   Future<void> setTempoRange({required int deckId, required double tempoRange});
 

@@ -42,6 +42,8 @@ pub(crate) struct DeckControlState {
     pub first_beat_ms: f64,
     pub quantize: bool,
     pub pad_mode: PadMode,
+    /// Route the deck's EQ knobs to the stem EQ instead of the channel EQ.
+    pub stem_eq_enabled: bool,
     pub loop_roll_restore: Option<LoopRegion>,
     /// Pending manual Loop In (ms) before Loop Out completes the region.
     pub pending_loop_in_ms: Option<i32>,
@@ -70,6 +72,7 @@ impl Default for DeckControlState {
             first_beat_ms: 0.0,
             quantize: false,
             pad_mode: PadMode::HotCue,
+            stem_eq_enabled: false,
             loop_roll_restore: None,
             pending_loop_in_ms: None,
             track_id: None,
@@ -97,6 +100,9 @@ impl DeckControlState {
     }
 
     pub fn clear_loaded_track(&mut self) {
+        // Stem EQ is a per-track mix decision: an unloaded deck starts neutral,
+        // matching the host mirror that clears it on the same update.
+        self.stem_eq_enabled = false;
         self.bpm = None;
         self.first_beat_ms = 0.0;
         self.sync_mode = SyncMode::Off;
@@ -123,6 +129,9 @@ impl DeckControlState {
         track_path: String,
         metadata: &library_core::TrackMetadata,
     ) {
+        // A track replacement (drop onto a loaded deck) starts with channel EQ,
+        // like an unload does: stem EQ never leaks onto the next track.
+        self.stem_eq_enabled = false;
         self.bpm = metadata.bpm.filter(|b| b.is_finite() && *b > 0.0);
         self.first_beat_ms = 0.0;
         self.sync_mode = SyncMode::Off;
@@ -569,6 +578,28 @@ impl Engine {
 
     pub fn deck_quantize(&self, deck_id: usize) -> Option<bool> {
         self.deck_control.get(deck_id).map(|c| c.quantize)
+    }
+
+    /// Route the deck's EQ knobs to the stem EQ (deck header toggle).
+    pub fn set_deck_stem_eq_enabled(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        // Fail before mutating: a rejected command must not leave control state
+        // claiming a toggle the DSP never received.
+        if self.dsp_engine.is_none() {
+            return Err(anyhow::anyhow!("Engine is not running"));
+        }
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
+        control.stem_eq_enabled = enabled;
+        // The DSP ignores the stored band positions while the toggle is off, so
+        // switching it back on restores the knob positions instead of losing them.
+        self.push_deck_stem_eq_flag(deck_id);
+        Ok(())
+    }
+
+    pub fn deck_stem_eq_enabled(&self, deck_id: usize) -> Option<bool> {
+        self.deck_control.get(deck_id).map(|c| c.stem_eq_enabled)
     }
 
     pub(crate) fn deck_quantize_params(&self, deck_id: usize) -> Result<(Option<f64>, f64, bool)> {

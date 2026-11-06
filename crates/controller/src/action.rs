@@ -53,12 +53,14 @@ use bus_api::SetGainTrim;
 use bus_api::SetMasterVolume;
 use bus_api::SetPadMode;
 use bus_api::SetSpeed;
+use bus_api::SetStemEqBand;
 use bus_api::SetTempoRange;
 use bus_api::SetVolume;
 use bus_api::ToggleHeadphoneCue;
 use bus_api::ToggleMasterCue;
 use bus_api::TogglePlay;
 use bus_api::ToggleQuantize;
+use bus_api::ToggleStemEq;
 use bus_api::ToggleSync;
 use bus_api::TriggerHotCue;
 use bus_api::DEFAULT_PITCH_PAGE;
@@ -109,6 +111,8 @@ pub struct ControlSnapshot {
     pub eq_high: [f32; 4],
     pub headphone_cue: [bool; 4],
     pub quantize: [bool; 4],
+    /// Deck header **ST** state: the EQ knobs drive the stem EQ.
+    pub stem_eq_enabled: [bool; 4],
     pub pad_mode: [PadMode; 4],
     /// Session key-shift offset in semitones (Keyboard / Key Shift pad modes).
     pub key_shift: [f32; 4],
@@ -146,6 +150,8 @@ pub struct DeckFeedback {
     pub playing: bool,
     pub sync: bool,
     pub quantize: bool,
+    /// Deck header **ST** state: the EQ knobs drive the stem EQ.
+    pub stem_eq_enabled: bool,
     pub headphone_cue: bool,
     pub loop_active: bool,
     /// True when a Loop In marker exists (pending) or a loop is active.
@@ -170,6 +176,7 @@ impl Default for ControlSnapshot {
             eq_high: [0.5; 4],
             headphone_cue: [false; 4],
             quantize: [false; 4],
+            stem_eq_enabled: [false; 4],
             cue_hold: [false; 4],
             sync: [false; 4],
             loop_active: [false; 4],
@@ -220,6 +227,7 @@ impl ControlSnapshot {
                     "playing" => self.playing[i] = value > 0.5,
                     "headphone_cue" => self.headphone_cue[i] = value > 0.5,
                     "quantize" => self.quantize[i] = value > 0.5,
+                    "stem_eq_enabled" => self.stem_eq_enabled[i] = value > 0.5,
                     "sync" => self.sync[i] = value > 0.5,
                     "cue_hold" => self.cue_hold[i] = value > 0.5,
                     "loop_active" => self.loop_active[i] = value > 0.5,
@@ -259,6 +267,7 @@ impl ControlSnapshot {
             "cue_hold" => self.cue_hold[i],
             "sync" => self.sync[i],
             "quantize" => self.quantize[i],
+            "stem_eq_enabled" => self.stem_eq_enabled[i],
             "headphone_cue" => self.headphone_cue[i],
             "track_loaded" => self.track_loaded[i],
             "loop_active" => self.loop_active[i],
@@ -435,6 +444,19 @@ impl ControlValue {
 }
 
 /// Resolve qualified action to a routable cmd/evt.
+/// EQ band a `set_eq_*` or `set_stem_eq_*` leaf addresses.
+///
+/// Both families share the band names on purpose: the channel EQ and the stem EQ
+/// must never disagree about what `low`, `mid` and `high` mean.
+fn eq_band_from_leaf(leaf: &str) -> Option<EqBand> {
+    match leaf {
+        "set_eq_low" | "set_stem_eq_low" => Some(EqBand::Low),
+        "set_eq_mid" | "set_stem_eq_mid" => Some(EqBand::Mid),
+        "set_eq_high" | "set_stem_eq_high" => Some(EqBand::High),
+        _ => None,
+    }
+}
+
 pub fn resolve_action(
     action: &str,
     section: &str,
@@ -541,6 +563,9 @@ pub fn resolve_action(
         "set_quantize" => deck_press(active, scope, |deck| {
             Event::ToggleQuantize(ToggleQuantize { deck })
         }),
+        "toggle_stem_eq" => deck_press(active, scope, |deck| {
+            Event::ToggleStemEq(ToggleStemEq { deck })
+        }),
         "set_volume" => deck_cmd(scope, |deck| {
             Event::SetVolume(SetVolume {
                 deck,
@@ -586,14 +611,20 @@ pub fn resolve_action(
             })
         }
         "set_eq_low" | "set_eq_mid" | "set_eq_high" => {
-            let band = match leaf {
-                "set_eq_low" => EqBand::Low,
-                "set_eq_mid" => EqBand::Mid,
-                "set_eq_high" => EqBand::High,
-                _ => return None,
-            };
+            let band = eq_band_from_leaf(leaf)?;
             deck_cmd(scope, |deck| {
                 Event::SetEqBand(SetEqBand {
+                    deck,
+                    band,
+                    gain: norm.clamp(0.0, 1.0),
+                    soft_takeover,
+                })
+            })
+        }
+        "set_stem_eq_low" | "set_stem_eq_mid" | "set_stem_eq_high" => {
+            let band = eq_band_from_leaf(leaf)?;
+            deck_cmd(scope, |deck| {
+                Event::SetStemEqBand(SetStemEqBand {
                     deck,
                     band,
                     gain: norm.clamp(0.0, 1.0),
@@ -1017,6 +1048,29 @@ mod tests {
                 gain,
                 soft_takeover: false,
             })) => assert!((gain - 0.5).abs() < 1e-5, "gain={gain}"),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn stem_eq_knob_routes_to_set_stem_eq_band() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action(
+            "Deck(_)::set_stem_eq_high",
+            "deck_1",
+            ControlValue::Absolute(0.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match routed {
+            RoutedAction::Cmd(Event::SetStemEqBand(SetStemEqBand {
+                deck: 0,
+                band: EqBand::High,
+                gain,
+                soft_takeover: false,
+            })) => assert!((gain - 0.0).abs() < 1e-5, "gain={gain}"),
             other => panic!("unexpected {other:?}"),
         }
     }

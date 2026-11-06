@@ -19,6 +19,9 @@ class MixerChannelUi {
     this.eqLow = 0.5,
     this.eqMid = 0.5,
     this.eqHigh = 0.5,
+    this.stemEqLow = 0.5,
+    this.stemEqMid = 0.5,
+    this.stemEqHigh = 0.5,
     this.filter = 0.5,
     this.gainTrim = 0.5,
     this.fxRouted = false,
@@ -32,6 +35,13 @@ class MixerChannelUi {
   final double eqLow;
   final double eqMid;
   final double eqHigh;
+
+  /// Stem EQ positions, shown instead of the channel EQ while the deck's stem
+  /// EQ toggle is on and it is really playing stems.
+  final double stemEqLow;
+  final double stemEqMid;
+  final double stemEqHigh;
+
   final double filter;
   final double gainTrim;
   final bool fxRouted;
@@ -39,17 +49,24 @@ class MixerChannelUi {
   final CrossfaderAssign crossfaderAssign;
 
   /// Channel state from a full deck snapshot.
-  factory fromDeckUpdate(bus.DeckUpdated update) => MixerChannelUi(
-    volume: update.volume,
-    eqLow: update.eq.low,
-    eqMid: update.eq.mid,
-    eqHigh: update.eq.high,
-    filter: update.filter,
-    gainTrim: update.gainTrim,
-    fxRouted: update.fxRouted,
-    headphoneCue: update.headphoneCue,
-    crossfaderAssign: update.crossfaderAssign,
-  );
+  factory fromDeckUpdate(bus.DeckUpdated update) {
+    final stemEq = update.stemEq;
+    final hasStemEq = stemEq.length == 3;
+    return MixerChannelUi(
+      volume: update.volume,
+      eqLow: update.eq.low,
+      eqMid: update.eq.mid,
+      eqHigh: update.eq.high,
+      stemEqLow: hasStemEq ? stemEq[0] : 0.5,
+      stemEqMid: hasStemEq ? stemEq[1] : 0.5,
+      stemEqHigh: hasStemEq ? stemEq[2] : 0.5,
+      filter: update.filter,
+      gainTrim: update.gainTrim,
+      fxRouted: update.fxRouted,
+      headphoneCue: update.headphoneCue,
+      crossfaderAssign: update.crossfaderAssign,
+    );
+  }
 
   /// Optimistic write for the FX routing switch (engine evts supersede it).
   MixerChannelUi withFxRouted(bool value) => MixerChannelUi(
@@ -57,6 +74,9 @@ class MixerChannelUi {
     eqLow: eqLow,
     eqMid: eqMid,
     eqHigh: eqHigh,
+    stemEqLow: stemEqLow,
+    stemEqMid: stemEqMid,
+    stemEqHigh: stemEqHigh,
     filter: filter,
     gainTrim: gainTrim,
     fxRouted: value,
@@ -72,6 +92,9 @@ class MixerChannelUi {
           eqLow == other.eqLow &&
           eqMid == other.eqMid &&
           eqHigh == other.eqHigh &&
+          stemEqLow == other.stemEqLow &&
+          stemEqMid == other.stemEqMid &&
+          stemEqHigh == other.stemEqHigh &&
           filter == other.filter &&
           gainTrim == other.gainTrim &&
           fxRouted == other.fxRouted &&
@@ -84,6 +107,9 @@ class MixerChannelUi {
     eqLow,
     eqMid,
     eqHigh,
+    stemEqLow,
+    stemEqMid,
+    stemEqHigh,
     filter,
     gainTrim,
     fxRouted,
@@ -111,10 +137,12 @@ class EngineUiSnapshot {
     this.keyShiftPages = const {},
     this.keyboardRoots = const {},
     this.padModes = const {},
+    this.stemsAudible = const {},
     this.stemsReady = const {},
     this.stemsLive = const {},
     this.stemMute = const {},
     this.stemIsolate = const {},
+    this.stemEqEnabled = const {},
     this.syncModes = const {},
     this.activeLoops = const {},
     this.pendingLoopInMs = const {},
@@ -156,6 +184,10 @@ class EngineUiSnapshot {
   final Map<int, int> keyShiftPages;
   final Map<int, int> keyboardRoots;
   final Map<int, PadMode> padModes;
+
+  /// Per-deck: the deck is really playing stem audio (live stems fall back to
+  /// the dry mix when the producer falls behind).
+  final Map<int, bool> stemsAudible;
   final Map<int, bool> stemsReady;
   final Map<int, bool> stemsLive;
   final Map<int, List<bool>> stemMute;
@@ -165,6 +197,9 @@ class EngineUiSnapshot {
   final Map<int, int> pendingLoopInMs;
   final Map<int, bool> quantize;
   final Map<int, bool> slipEnabled;
+
+  /// Per-deck: the EQ knobs drive the stem EQ (deck header toggle).
+  final Map<int, bool> stemEqEnabled;
   final Map<int, bool> jogTouching;
   final Map<int, double> loudnessLufs;
   final Map<int, double> autoGainDb;
@@ -197,6 +232,8 @@ class EngineUiSnapshot {
 
   PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
 
+  bool stemsAudibleFor(int deckId) => stemsAudible[deckId] ?? false;
+
   bool stemsReadyFor(int deckId) => stemsReady[deckId] ?? false;
 
   bool stemsLiveFor(int deckId) => stemsLive[deckId] ?? false;
@@ -215,6 +252,8 @@ class EngineUiSnapshot {
   bool quantizeFor(int deckId) => quantize[deckId] ?? true;
 
   bool slipEnabledFor(int deckId) => slipEnabled[deckId] ?? false;
+
+  bool stemEqEnabledFor(int deckId) => stemEqEnabled[deckId] ?? false;
 
   bool jogTouchingFor(int deckId) => jogTouching[deckId] ?? false;
 
@@ -252,6 +291,7 @@ class EngineUiSnapshot {
     Map<int, int>? keyShiftPages,
     Map<int, int>? keyboardRoots,
     Map<int, PadMode>? padModes,
+    Map<int, bool>? stemsAudible,
     Map<int, bool>? stemsReady,
     Map<int, bool>? stemsLive,
     Map<int, List<bool>>? stemMute,
@@ -261,6 +301,7 @@ class EngineUiSnapshot {
     Map<int, int>? pendingLoopInMs,
     Map<int, bool>? quantize,
     Map<int, bool>? slipEnabled,
+    Map<int, bool>? stemEqEnabled,
     Map<int, bool>? jogTouching,
     Map<int, double>? loudnessLufs,
     Map<int, double>? autoGainDb,
@@ -290,6 +331,7 @@ class EngineUiSnapshot {
     keyShiftPages: keyShiftPages ?? this.keyShiftPages,
     keyboardRoots: keyboardRoots ?? this.keyboardRoots,
     padModes: padModes ?? this.padModes,
+    stemsAudible: stemsAudible ?? this.stemsAudible,
     stemsReady: stemsReady ?? this.stemsReady,
     stemsLive: stemsLive ?? this.stemsLive,
     stemMute: stemMute ?? this.stemMute,
@@ -299,6 +341,7 @@ class EngineUiSnapshot {
     pendingLoopInMs: pendingLoopInMs ?? this.pendingLoopInMs,
     quantize: quantize ?? this.quantize,
     slipEnabled: slipEnabled ?? this.slipEnabled,
+    stemEqEnabled: stemEqEnabled ?? this.stemEqEnabled,
     jogTouching: jogTouching ?? this.jogTouching,
     loudnessLufs: loudnessLufs ?? this.loudnessLufs,
     autoGainDb: autoGainDb ?? this.autoGainDb,
@@ -357,11 +400,13 @@ EngineUiSnapshot _applyDeckUpdate(
   final pendingLoopInMs = Map<int, int>.from(prev.pendingLoopInMs);
   final quantize = Map<int, bool>.from(prev.quantize);
   final slipEnabled = Map<int, bool>.from(prev.slipEnabled);
+  final stemEqEnabled = Map<int, bool>.from(prev.stemEqEnabled);
   final jogTouching = Map<int, bool>.from(prev.jogTouching);
   final loudnessLufs = Map<int, double>.from(prev.loudnessLufs);
   final autoGainDb = Map<int, double>.from(prev.autoGainDb);
   final activeSamplerBankIds = Map<int, String>.from(prev.activeSamplerBankIds);
   final samplerSlots = Map<int, List<SamplerSlotInfo>>.from(prev.samplerSlots);
+  final stemsAudible = Map<int, bool>.from(prev.stemsAudible);
   final stemsReady = Map<int, bool>.from(prev.stemsReady);
   final stemsLive = Map<int, bool>.from(prev.stemsLive);
   final stemMute = Map<int, List<bool>>.from(prev.stemMute);
@@ -374,6 +419,7 @@ EngineUiSnapshot _applyDeckUpdate(
   keyLocks[id] = update.keyLock;
   quantize[id] = update.quantize;
   slipEnabled[id] = update.slipEnabled;
+  stemEqEnabled[id] = update.stemEqEnabled;
   jogTouching[id] = update.jogTouching;
   padModes[id] = update.padMode;
   syncModes[id] = update.syncMode;
@@ -389,6 +435,8 @@ EngineUiSnapshot _applyDeckUpdate(
     autoGainDb.remove(id);
     activeSamplerBankIds.remove(id);
     samplerSlots[id] = const [];
+    stemEqEnabled.remove(id);
+    stemsAudible.remove(id);
     stemsReady.remove(id);
     stemsLive.remove(id);
     stemMute.remove(id);
@@ -428,6 +476,7 @@ EngineUiSnapshot _applyDeckUpdate(
       activeSamplerBankIds[id] = bankId;
     }
     samplerSlots[id] = List<SamplerSlotInfo>.from(update.samplerSlots);
+    stemsAudible[id] = update.stemsAudible;
     stemsReady[id] = update.stemsReady;
     stemsLive[id] = update.stemsLive;
     final mute = update.stemMute;
@@ -469,11 +518,13 @@ EngineUiSnapshot _applyDeckUpdate(
     pendingLoopInMs: pendingLoopInMs,
     quantize: quantize,
     slipEnabled: slipEnabled,
+    stemEqEnabled: stemEqEnabled,
     jogTouching: jogTouching,
     loudnessLufs: loudnessLufs,
     autoGainDb: autoGainDb,
     activeSamplerBankIds: activeSamplerBankIds,
     samplerSlots: samplerSlots,
+    stemsAudible: stemsAudible,
     stemsReady: stemsReady,
     stemsLive: stemsLive,
     stemMute: stemMute,
@@ -579,12 +630,15 @@ bus.DeckUpdated _updateFromSnapshot(
   activeLoop: deck.activeLoop,
   pendingLoopInMs: deck.pendingLoopInMs,
   slipEnabled: deck.slipEnabled,
+  stemEqEnabled: deck.stemEqEnabled,
   slipShadowPositionMs: deck.slipShadowPositionMs,
   padMode: deck.padMode,
+  stemsAudible: deck.stemsAudible,
   stemsReady: deck.stemsReady,
   stemsLive: deck.stemsLive,
   stemMute: deck.stemMute,
   stemIsolate: deck.stemIsolate,
+  stemEq: deck.stemEq,
   positionMs: deck.positionMs,
   durationMs: deck.durationMs,
   hotCues: deck.hotCues,

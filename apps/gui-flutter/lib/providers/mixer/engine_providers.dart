@@ -32,6 +32,7 @@ enum OptimisticField {
   playing,
   quantize,
   slip,
+  stemEq,
   keyLock,
   fxRouted,
   fxArmed,
@@ -122,6 +123,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     _invalidateOptimistic(OptimisticField.playing, id);
     _invalidateOptimistic(OptimisticField.quantize, id);
     _invalidateOptimistic(OptimisticField.slip, id);
+    _invalidateOptimistic(OptimisticField.stemEq, id);
     _invalidateOptimistic(OptimisticField.keyLock, id);
     _invalidateOptimistic(OptimisticField.fxRouted, id);
 
@@ -305,7 +307,13 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       loudnessLufs: loudness,
       autoGainDb: autoGain,
       levels: levels,
+      // An unloaded deck plays no stems, so the ST key must not stay armed
+      // until the engine's own DeckUpdated lands.
+      stemsAudible: Map<int, bool>.from(state.stemsAudible)..remove(deckId),
+      stemEqEnabled: Map<int, bool>.from(state.stemEqEnabled)..remove(deckId),
     );
+    // An ST tap in flight must not resurrect the flag on the unloaded deck.
+    _invalidateOptimistic(OptimisticField.stemEq, deckId);
   }
 
   void setJogTouching(int deckId, bool touching) {
@@ -347,6 +355,16 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     state = state.copyWith(slipEnabled: next);
   }
 
+  /// Optimistic mirror before absolute setStemEqEnabled; a bus event reconciles.
+  void setStemEqEnabled(int deckId, bool enabled) {
+    if (state.stemEqEnabledFor(deckId) == enabled) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.stemEqEnabled);
+    next[deckId] = enabled;
+    state = state.copyWith(stemEqEnabled: next);
+  }
+
   /// Optimistic mirror before absolute setKeyLock; A bus event reconciles.
   void setKeyLock(int deckId, bool enabled) {
     if (state.keyLockFor(deckId) == enabled) {
@@ -377,6 +395,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       keyShiftPages: withoutDeck(state.keyShiftPages),
       keyboardRoots: withoutDeck(state.keyboardRoots),
       padModes: withoutDeck(state.padModes),
+      stemsAudible: withoutDeck(state.stemsAudible),
       stemsReady: withoutDeck(state.stemsReady),
       stemsLive: withoutDeck(state.stemsLive),
       stemMute: withoutDeck(state.stemMute),
@@ -386,6 +405,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       pendingLoopInMs: withoutDeck(state.pendingLoopInMs),
       quantize: withoutDeck(state.quantize),
       slipEnabled: withoutDeck(state.slipEnabled),
+      stemEqEnabled: withoutDeck(state.stemEqEnabled),
       jogTouching: withoutDeck(state.jogTouching),
       loudnessLufs: withoutDeck(state.loudnessLufs),
       autoGainDb: withoutDeck(state.autoGainDb),
@@ -397,6 +417,7 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       OptimisticField.playing,
       OptimisticField.quantize,
       OptimisticField.slip,
+      OptimisticField.stemEq,
       OptimisticField.keyLock,
       OptimisticField.fxRouted,
     ]) {
@@ -657,6 +678,14 @@ final ProviderFamily<PadMode, int> deckPadModeProvider =
           ref.watch(engineUiProvider.select((s) => s.padModeFor(deckId))),
     );
 
+/// True while the deck is really playing stems (live stems fall back to the dry
+/// mix once the producer falls behind).
+final ProviderFamily<bool, int> deckStemsAudibleProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.stemsAudibleFor(deckId))),
+    );
+
 final ProviderFamily<bool, int> deckStemsReadyProvider =
     Provider.family<bool, int>(
       (ref, deckId) =>
@@ -767,6 +796,13 @@ final ProviderFamily<bool, int> deckSlipEnabledProvider =
     Provider.family<bool, int>(
       (ref, deckId) =>
           ref.watch(engineUiProvider.select((s) => s.slipEnabledFor(deckId))),
+    );
+
+/// True while the deck's EQ knobs drive the stem EQ (deck header toggle).
+final ProviderFamily<bool, int> deckStemEqEnabledProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.stemEqEnabledFor(deckId))),
     );
 
 final ProviderFamily<int?, int> deckSlipShadowMsProvider =
@@ -1302,6 +1338,22 @@ Future<void> setDeckSlip(WidgetRef ref, int deckId, bool enabled) async {
     read: (snap) => snap.slipEnabledFor(deckId),
     write: (ui, value) => ui.setSlipEnabled(deckId, value),
     send: (engine) => engine.setSlip(deckId: deckId, enabled: enabled),
+  );
+}
+
+Future<void> setDeckStemEqEnabled(
+  WidgetRef ref,
+  int deckId,
+  bool enabled,
+) async {
+  await _withOptimisticDeckBool(
+    ref: ref,
+    deckId: deckId,
+    field: OptimisticField.stemEq,
+    desired: enabled,
+    read: (snap) => snap.stemEqEnabledFor(deckId),
+    write: (ui, value) => ui.setStemEqEnabled(deckId, value),
+    send: (engine) => engine.setStemEqEnabled(deckId: deckId, enabled: enabled),
   );
 }
 

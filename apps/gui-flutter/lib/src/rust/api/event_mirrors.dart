@@ -412,9 +412,12 @@ class DeckSnapshot {
   final int? slipShadowPositionMs;
   final PadMode padMode;
   final bool stemsReady;
+  final bool stemsAudible;
   final bool stemsLive;
   final List<bool> stemMute;
   final int? stemIsolate;
+  final Float32List stemEq;
+  final bool stemEqEnabled;
   final int? positionMs;
   final int? durationMs;
   final List<DeckHotCue> hotCues;
@@ -461,9 +464,12 @@ class DeckSnapshot {
     this.slipShadowPositionMs,
     required this.padMode,
     required this.stemsReady,
+    required this.stemsAudible,
     required this.stemsLive,
     required this.stemMute,
     this.stemIsolate,
+    required this.stemEq,
+    required this.stemEqEnabled,
     this.positionMs,
     this.durationMs,
     required this.hotCues,
@@ -512,9 +518,12 @@ class DeckSnapshot {
       slipShadowPositionMs.hashCode ^
       padMode.hashCode ^
       stemsReady.hashCode ^
+      stemsAudible.hashCode ^
       stemsLive.hashCode ^
       stemMute.hashCode ^
       stemIsolate.hashCode ^
+      stemEq.hashCode ^
+      stemEqEnabled.hashCode ^
       positionMs.hashCode ^
       durationMs.hashCode ^
       hotCues.hashCode ^
@@ -565,9 +574,12 @@ class DeckSnapshot {
           slipShadowPositionMs == other.slipShadowPositionMs &&
           padMode == other.padMode &&
           stemsReady == other.stemsReady &&
+          stemsAudible == other.stemsAudible &&
           stemsLive == other.stemsLive &&
           stemMute == other.stemMute &&
           stemIsolate == other.stemIsolate &&
+          stemEq == other.stemEq &&
+          stemEqEnabled == other.stemEqEnabled &&
           positionMs == other.positionMs &&
           durationMs == other.durationMs &&
           hotCues == other.hotCues &&
@@ -615,9 +627,12 @@ class DeckUpdated {
   final int? slipShadowPositionMs;
   final PadMode padMode;
   final bool stemsReady;
+  final bool stemsAudible;
   final bool stemsLive;
   final List<bool> stemMute;
   final int? stemIsolate;
+  final Float32List stemEq;
+  final bool stemEqEnabled;
   final int? positionMs;
   final int? durationMs;
   final List<DeckHotCue> hotCues;
@@ -665,9 +680,12 @@ class DeckUpdated {
     this.slipShadowPositionMs,
     required this.padMode,
     required this.stemsReady,
+    required this.stemsAudible,
     required this.stemsLive,
     required this.stemMute,
     this.stemIsolate,
+    required this.stemEq,
+    required this.stemEqEnabled,
     this.positionMs,
     this.durationMs,
     required this.hotCues,
@@ -717,9 +735,12 @@ class DeckUpdated {
       slipShadowPositionMs.hashCode ^
       padMode.hashCode ^
       stemsReady.hashCode ^
+      stemsAudible.hashCode ^
       stemsLive.hashCode ^
       stemMute.hashCode ^
       stemIsolate.hashCode ^
+      stemEq.hashCode ^
+      stemEqEnabled.hashCode ^
       positionMs.hashCode ^
       durationMs.hashCode ^
       hotCues.hashCode ^
@@ -771,9 +792,12 @@ class DeckUpdated {
           slipShadowPositionMs == other.slipShadowPositionMs &&
           padMode == other.padMode &&
           stemsReady == other.stemsReady &&
+          stemsAudible == other.stemsAudible &&
           stemsLive == other.stemsLive &&
           stemMute == other.stemMute &&
           stemIsolate == other.stemIsolate &&
+          stemEq == other.stemEq &&
+          stemEqEnabled == other.stemEqEnabled &&
           positionMs == other.positionMs &&
           durationMs == other.durationMs &&
           hotCues == other.hotCues &&
@@ -974,6 +998,10 @@ sealed class Event with _$Event {
   const factory Event.setVolume(SetVolume field0) = Event_SetVolume;
   const factory Event.setEq(SetEq field0) = Event_SetEq;
   const factory Event.setEqBand(SetEqBand field0) = Event_SetEqBand;
+  const factory Event.setStemEqBand(SetStemEqBand field0) = Event_SetStemEqBand;
+  const factory Event.setStemEqEnabled(SetStemEqEnabled field0) =
+      Event_SetStemEqEnabled;
+  const factory Event.toggleStemEq(ToggleStemEq field0) = Event_ToggleStemEq;
   const factory Event.setFilter(SetFilter field0) = Event_SetFilter;
   const factory Event.setGainTrim(SetGainTrim field0) = Event_SetGainTrim;
   const factory Event.setHeadphoneCue(SetHeadphoneCue field0) =
@@ -2560,6 +2588,52 @@ class SetSpeed {
           softTakeover == other.softTakeover;
 }
 
+class SetStemEqBand {
+  final int deck;
+  final EqBand band;
+  final double gain;
+  final bool softTakeover;
+
+  const SetStemEqBand({
+    required this.deck,
+    required this.band,
+    required this.gain,
+    required this.softTakeover,
+  });
+
+  @override
+  int get hashCode =>
+      deck.hashCode ^ band.hashCode ^ gain.hashCode ^ softTakeover.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetStemEqBand &&
+          runtimeType == other.runtimeType &&
+          deck == other.deck &&
+          band == other.band &&
+          gain == other.gain &&
+          softTakeover == other.softTakeover;
+}
+
+class SetStemEqEnabled {
+  final int deck;
+  final bool enabled;
+
+  const SetStemEqEnabled({required this.deck, required this.enabled});
+
+  @override
+  int get hashCode => deck.hashCode ^ enabled.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetStemEqEnabled &&
+          runtimeType == other.runtimeType &&
+          deck == other.deck &&
+          enabled == other.enabled;
+}
+
 class SetTempoRange {
   final int deck;
   final double tempoRange;
@@ -2676,6 +2750,22 @@ class ToggleSlip {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ToggleSlip &&
+          runtimeType == other.runtimeType &&
+          deck == other.deck;
+}
+
+class ToggleStemEq {
+  final int deck;
+
+  const ToggleStemEq({required this.deck});
+
+  @override
+  int get hashCode => deck.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ToggleStemEq &&
           runtimeType == other.runtimeType &&
           deck == other.deck;
 }

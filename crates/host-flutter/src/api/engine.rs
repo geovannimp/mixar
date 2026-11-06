@@ -66,6 +66,7 @@ use bus_api::SetPadMode;
 use bus_api::SetQuantize;
 use bus_api::SetSlip;
 use bus_api::SetSpeed;
+use bus_api::SetStemEqEnabled;
 use bus_api::SetTempoRange;
 use bus_api::SetVolume;
 use bus_api::ToggleSync;
@@ -701,6 +702,14 @@ impl EngineTransport {
 
     pub fn set_slip(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
         self.publish_cmd(Event::SetSlip(SetSlip {
+            deck: deck_id,
+            enabled,
+        }))
+    }
+
+    /// Route this deck's EQ knobs to the stem EQ (deck header toggle).
+    pub fn set_stem_eq_enabled(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
+        self.publish_cmd(Event::SetStemEqEnabled(SetStemEqEnabled {
             deck: deck_id,
             enabled,
         }))

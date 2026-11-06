@@ -86,7 +86,7 @@ That helps every control whose position is shared with (or unknown to) the scree
 
 It is enabled by default only for the absolute leaves that consume a continuous `0..1` value:
 
-`set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed`.
+`set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_stem_eq_high`, `set_stem_eq_mid`, `set_stem_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed`.
 
 Every other leaf defaults to soft takeover off. An explicit `soft_takeover = true/false` always wins, so you can opt an absolute control out or opt a non-absolute control in.
 

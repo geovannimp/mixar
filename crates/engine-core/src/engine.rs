@@ -42,6 +42,9 @@ pub struct Engine {
     /// Last published `stems_ready` per deck, so the tick emits one `Updated`
     /// when a live producer's first window lands.
     pub(crate) stems_ready_seen: Vec<bool>,
+    /// Audibility edge per deck: live stems start (and stop) being what the
+    /// deck plays without a command to trigger a republish.
+    pub(crate) stems_audible_seen: Vec<bool>,
     pub(crate) soft_takeover: crate::soft_takeover::SoftTakeoverState,
 }
 
@@ -109,6 +112,7 @@ impl Engine {
                 })
                 .collect(),
             stems_ready_seen: vec![false; num_decks],
+            stems_audible_seen: vec![false; num_decks],
             soft_takeover: crate::soft_takeover::SoftTakeoverState::default(),
         })
     }

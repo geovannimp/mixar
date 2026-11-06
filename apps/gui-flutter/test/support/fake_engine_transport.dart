@@ -24,6 +24,7 @@ class FakeEngineTransport implements EngineTransport {
   final List<(int deckId, PadMode mode)> padModes = [];
   final List<(int deckId, int slot)> loopRollPresses = [];
   final List<int> unloads = [];
+  final List<(int deckId, bool enabled)> stemEqEnabled = [];
 
   @override
   void dispose() {}
@@ -343,6 +344,14 @@ class FakeEngineTransport implements EngineTransport {
 
   @override
   Future<void> setSlip({required int deckId, required bool enabled}) async {}
+
+  @override
+  Future<void> setStemEqEnabled({
+    required int deckId,
+    required bool enabled,
+  }) async {
+    stemEqEnabled.add((deckId, enabled));
+  }
 
   @override
   Future<void> setSpeed({required int deckId, required double speed}) async {}

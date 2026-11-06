@@ -21,6 +21,31 @@ impl Engine {
         Some(read(deck))
     }
 
+    /// Run `write` against one deck under the DSP lock.
+    ///
+    /// Mirrors [`Self::with_dsp_deck`] so setters do not repeat the lock and
+    /// range-check dance (and cannot drift from it when the locking changes).
+    pub(crate) fn with_dsp_deck_mut<R>(
+        &self,
+        deck_id: usize,
+        write: impl FnOnce(&mut engine_dsp::Deck) -> R,
+    ) -> Option<R> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let mut dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck_mut(deck_id)?;
+        Some(write(deck))
+    }
+
+    /// Re-apply the control-state stem-EQ toggle to a deck whose stem state was
+    /// just reloaded, attached or cleared. `DeckControlState` owns the toggle;
+    /// the DSP only mirrors it, so it must be pushed after every reset.
+    pub(crate) fn push_deck_stem_eq_flag(&self, deck_id: usize) {
+        let Some(enabled) = self.deck_control.get(deck_id).map(|c| c.stem_eq_enabled) else {
+            return;
+        };
+        self.with_dsp_deck_mut(deck_id, |deck| deck.set_stem_eq_enabled(enabled));
+    }
+
     /// Snapshot playback positions for all decks that currently have loaded audio.
     pub fn deck_playback_snapshot(&self) -> Vec<(usize, i32, i32)> {
         let Some(dsp_engine) = self.dsp_engine.as_ref() else {
@@ -58,6 +83,17 @@ impl Engine {
         self.with_dsp_deck(deck_id, |deck| {
             matches!(deck.state(), engine_dsp::DeckState::Playing)
         })
+    }
+
+    /// The DSP deck's copy of the stem-EQ toggle (diagnostics and tests).
+    pub fn deck_stem_eq_armed(&self, deck_id: usize) -> Option<bool> {
+        self.with_dsp_deck(deck_id, |deck| deck.stem_eq_enabled())
+    }
+
+    /// Whether the deck is really playing stem audio right now (live stems
+    /// fall back to the dry mix once the producer falls behind).
+    pub fn deck_stems_audible(&self, deck_id: usize) -> Option<bool> {
+        self.with_dsp_deck(deck_id, |deck| deck.stems_audible())
     }
 
     /// Whether stem audio is attached and usable (live: first window published).
@@ -180,9 +216,12 @@ fn deck_snapshot_from_dsp(
         slip_shadow_position_ms: deck.shadow_position_ms(),
         pad_mode: control.pad_mode,
         stems_ready: deck.stems_ready(),
+        stems_audible: deck.stems_audible(),
         stems_live: deck.stems_live(),
         stem_mute: deck.stem_mute().to_vec(),
         stem_isolate: deck.stem_isolate(),
+        stem_eq: deck.stem_eq().to_vec(),
+        stem_eq_enabled: control.stem_eq_enabled,
         position_ms,
         duration_ms,
         hot_cues: control_hot_cues(control),

@@ -4,8 +4,10 @@ import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show DeckEq;
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
+import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -192,6 +194,68 @@ void main() {
     expect(find.text('Deck B'), findsNothing);
     expect(engine.assignments, isEmpty);
     expect(container.read(crossfaderProvider), 0.35);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Stem EQ on swaps the EQ knobs to the stem EQ', (tester) async {
+    final (:container, engine: _) = await _pumpStrip(tester);
+    container
+        .read(engineUiProvider.notifier)
+        .apply(
+          deckUpdatedEvent(
+            deck: 0,
+            update: deckUpdated(
+              deck: 0,
+              trackPath: '/song.wav',
+              durationMs: 180000,
+              stemsAudible: true,
+              stemEqEnabled: true,
+              eq: const DeckEq(low: 0.1, mid: 0.2, high: 0.3),
+              stemEq: const [0.2, 0.35, 0.8],
+            ),
+          ),
+        );
+    await tester.pumpAndSettle();
+
+    double knobValue(String label) => tester
+        .widget<RotaryKnob>(
+          find
+              .byWidgetPredicate(
+                (widget) => widget is RotaryKnob && widget.label == label,
+              )
+              .first,
+        )
+        .value;
+
+    expect(knobValue('VOC'), closeTo(0.8, 1e-6));
+    expect(knobValue('B/O'), closeTo(0.35, 1e-6));
+    expect(knobValue('DRM'), closeTo(0.2, 1e-6));
+    // Deck 0 is the only stems deck; the other three keep the channel EQ.
+    expect(find.text('HI'), findsNWidgets(3));
+    expect(find.text('LOW'), findsNWidgets(3));
+
+    container
+        .read(engineUiProvider.notifier)
+        .apply(
+          deckUpdatedEvent(
+            deck: 0,
+            update: deckUpdated(
+              deck: 0,
+              trackPath: '/song.wav',
+              durationMs: 180000,
+              stemEqEnabled: false,
+              eq: const DeckEq(low: 0.1, mid: 0.2, high: 0.3),
+            ),
+          ),
+        );
+    await tester.pumpAndSettle();
+
+    expect(knobValue('HI'), closeTo(0.3, 1e-6));
+    expect(knobValue('MID'), closeTo(0.2, 1e-6));
+    expect(knobValue('LOW'), closeTo(0.1, 1e-6));
+    expect(find.text('VOC'), findsNothing);
+    expect(find.text('B/O'), findsNothing);
+    expect(find.text('DRM'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

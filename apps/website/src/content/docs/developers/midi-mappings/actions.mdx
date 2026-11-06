@@ -91,8 +91,14 @@ Deck leaves apply to `Deck(_)` or `Deck(n)` origins. The **button** leaves fire 
 | `set_eq_high` | – | Absolute high EQ `0..1`. |
 | `set_eq_mid` | – | Absolute mid EQ `0..1`. |
 | `set_eq_low` | – | Absolute low EQ `0..1`. |
+| `set_stem_eq_high` | – | Absolute stem EQ `0..1` (`0.5` = neutral); high = vocals. Always targets the stem EQ. |
+| `set_stem_eq_mid` | – | Absolute stem EQ `0..1` (`0.5` = neutral); mid = bass + other. Always targets the stem EQ. |
+| `set_stem_eq_low` | – | Absolute stem EQ `0..1` (`0.5` = neutral); low = drums. Always targets the stem EQ. |
+| `toggle_stem_eq` | – | Toggle the deck's stem-EQ routing (the deck header **ST** key). |
 | `set_speed` | – | Absolute speed/tempo `0..1`. |
 | `set_headphone_cue` | – | Toggle headphone cue (PFL) for the deck. |
+
+The `set_eq_*` leaves follow the deck's **ST** toggle: with stem EQ on and the deck really playing stems they drive the stem EQ, otherwise the channel EQ, so one EQ knob mapping covers both without a second binding.
 
 ### Jog
 
@@ -207,7 +213,7 @@ Most leaves are **buttons** (edge-triggered on press, or press/release pairs suc
 
 | Category | Leaves | Wire value |
 | --- | --- | --- |
-| Absolute | `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed` | Normalized `0..1`, clamped. |
+| Absolute | `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_stem_eq_high`, `set_stem_eq_mid`, `set_stem_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed` | Normalized `0..1`, clamped. |
 | Relative | `jog_turn`, `navigate` | A decoded tick delta from the device's `relative` mode. |
 
 Absolute leaves default to soft-takeover behavior (and can opt out per binding). They are the ones you typically pair with `soft_takeover = true` in `map.toml`. What soft takeover does and why it is useful is [explained on the inputs page](/docs/developers/midi-mappings/map-toml/inputs#soft-takeover--invert):
