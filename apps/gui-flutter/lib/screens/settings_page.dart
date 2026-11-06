@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
@@ -70,6 +71,57 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
 
+  /// Adopt settings saved outside this page, such as the controller audio
+  /// prompt switching the output buses.
+  ///
+  /// A clean draft is replaced outright. A dirty draft keeps its edits, but the
+  /// audio-routing fields the user did not touch follow the new saved value, so
+  /// the Audio panel never shows a device Mixar is no longer using.
+  void _adoptSavedSettings(AppSettings saved) {
+    final draft = _draft;
+    final baseline = _baseline;
+    if (draft == null || baseline == null) {
+      setState(() {
+        _draft = saved;
+        _baseline = saved;
+      });
+      return;
+    }
+    if (saved == baseline) {
+      return;
+    }
+    setState(() {
+      if (draft == baseline) {
+        _draft = saved;
+      } else {
+        _draft = copyAppSettings(
+          draft,
+          masterBus: draft.masterBus == baseline.masterBus
+              ? saved.masterBus
+              : draft.masterBus,
+          previewEnabled: draft.previewEnabled == baseline.previewEnabled
+              ? saved.previewEnabled
+              : draft.previewEnabled,
+          previewBus: draft.previewBus == baseline.previewBus
+              ? saved.previewBus
+              : draft.previewBus,
+          controllerAudioOverride:
+              draft.controllerAudioOverride == baseline.controllerAudioOverride
+              ? saved.controllerAudioOverride
+              : draft.controllerAudioOverride,
+          trustedControllerDeviceIds:
+              listEquals(
+                draft.trustedControllerDeviceIds,
+                baseline.trustedControllerDeviceIds,
+              )
+              ? saved.trustedControllerDeviceIds
+              : draft.trustedControllerDeviceIds,
+        );
+      }
+      _baseline = saved;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -110,6 +162,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     final settingsAsync = ref.watch(appSettingsProvider);
+    ref.listen(appSettingsProvider, (previous, next) {
+      final saved = next.asData?.value;
+      if (saved != null) {
+        _adoptSavedSettings(saved);
+      }
+    });
 
     return settingsAsync.when(
       loading: () => Center(

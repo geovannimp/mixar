@@ -657,6 +657,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAudioPreviewBus => 'Enable preview bus';
 
   @override
+  String settingsAudioControllerOverride(String controller) {
+    return 'Overridden by $controller mapping';
+  }
+
+  @override
   String get settingsAudioDevice => 'Device';
 
   @override

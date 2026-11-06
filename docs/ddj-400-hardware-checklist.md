@@ -115,6 +115,23 @@ Shift banks. This checklist is about what the unit *does* with them.
       polarity: swap the `on`/`off` targets for `beat_fx_on` and
       `beat_fx_on_shift` in `[outputs.master]`.
 
+## Audio outputs
+
+- [ ] With another output selected in Settings → Audio, attach the unit: a
+      toast offers **Switch audio outputs to DDJ-400?** and lists master
+      channels 1–2 and headphones 3–4.
+- [ ] **Switch outputs** moves the master bus to the DDJ-400 and enables the
+      preview bus on channels 3–4; the engine restarts once and audio continues
+      from the unit's master and headphone jacks.
+- [ ] **Keep current** leaves Settings → Audio untouched. Re-plugging offers
+      again; once the master bus already uses the DDJ-400, no prompt appears.
+- [ ] While overridden, Settings → Audio marks the master and preview cards
+      **Overridden by DDJ-400 mapping**.
+- [ ] Unplug the unit (or detach the mapping): the previous master and preview
+      devices come back and the badge disappears.
+- [ ] Declining the controller offer keeps the mapping unattached, shows no
+      audio prompt, and restores any override left by a previous session.
+
 ## Robustness
 
 - [ ] With the unit attached but the app's MIDI output unavailable, input still

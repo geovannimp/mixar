@@ -51,6 +51,9 @@ pub struct MappingInfo {
     /// Shipped catalog ships a strictly newer `mapping_version` than app data.
     pub update_available: bool,
     pub midi_name_contains: Vec<String>,
+    /// Output-device / channel hints for switching audio to the controller.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio: Option<crate::device::AudioHints>,
     pub attached: bool,
 }
 
@@ -265,6 +268,7 @@ struct CatalogEntry {
     usb_vid: Option<u16>,
     usb_pid: Option<u16>,
     midi_name_contains: Vec<String>,
+    audio: crate::device::AudioHints,
 }
 
 impl CatalogEntry {
@@ -479,6 +483,7 @@ impl ControllerEngine {
                             usb_vid: bundle.device.usb_vid,
                             usb_pid: bundle.device.usb_pid,
                             midi_name_contains: bundle.device.midi_name_contains,
+                            audio: bundle.device.audio,
                         },
                     );
                 }
@@ -544,6 +549,7 @@ impl ControllerEngine {
                 version: entry.mapping_version().map(str::to_owned),
                 update_available: self.is_update_available(id, entry.mapping_version()),
                 midi_name_contains: entry.midi_name_contains.clone(),
+                audio: (!entry.audio.is_empty()).then(|| entry.audio.clone()),
                 attached: self.attached.values().any(|a| a.mapping_id == *id),
             })
             .collect();

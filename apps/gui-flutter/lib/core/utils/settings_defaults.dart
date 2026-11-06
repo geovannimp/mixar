@@ -272,6 +272,8 @@ AppSettings copyAppSettings(
   KeyDisplayModeSetting? keyDisplayMode,
   KeyColorModeSetting? keyColorMode,
   List<String>? trustedControllerDeviceIds,
+  ControllerAudioOverride? controllerAudioOverride,
+  bool clearControllerAudioOverride = false,
   bool? historyEnabled,
   int? historySessionIdleMinutes,
   int? historyMinPlaySeconds,
@@ -326,6 +328,9 @@ AppSettings copyAppSettings(
     keyColorMode: keyColorMode ?? base.keyColorMode,
     trustedControllerDeviceIds:
         trustedControllerDeviceIds ?? base.trustedControllerDeviceIds,
+    controllerAudioOverride: clearControllerAudioOverride
+        ? null
+        : controllerAudioOverride ?? base.controllerAudioOverride,
     historyEnabled: historyEnabled ?? base.historyEnabled,
     historySessionIdleMinutes:
         historySessionIdleMinutes ?? base.historySessionIdleMinutes,
@@ -413,7 +418,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       !_sameList(
         draft.trustedControllerDeviceIds,
         baseline.trustedControllerDeviceIds,
-      );
+      ) ||
+      draft.controllerAudioOverride != baseline.controllerAudioOverride;
 }
 
 /// Stop secs crosses the Rust f32 boundary, so the host baseline and a stepper

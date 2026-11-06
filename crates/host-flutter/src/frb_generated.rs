@@ -9399,6 +9399,8 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_keyColorMode =
             <crate::api::settings::KeyColorModeSetting>::sse_decode(deserializer);
         let mut var_trustedControllerDeviceIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_controllerAudioOverride =
+            <Option<crate::api::settings::ControllerAudioOverride>>::sse_decode(deserializer);
         let mut var_historyEnabled = <bool>::sse_decode(deserializer);
         let mut var_historySessionIdleMinutes = <u32>::sse_decode(deserializer);
         let mut var_historyMinPlaySeconds = <u32>::sse_decode(deserializer);
@@ -9455,6 +9457,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             key_display_mode: var_keyDisplayMode,
             key_color_mode: var_keyColorMode,
             trusted_controller_device_ids: var_trustedControllerDeviceIds,
+            controller_audio_override: var_controllerAudioOverride,
             history_enabled: var_historyEnabled,
             history_session_idle_minutes: var_historySessionIdleMinutes,
             history_min_play_seconds: var_historyMinPlaySeconds,
@@ -9679,6 +9682,62 @@ impl SseDecode for crate::api::event_mirrors::ClearSampler {
     }
 }
 
+impl SseDecode for crate::api::controller::ControllerAudioHints {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_outputNameContains = <Vec<String>>::sse_decode(deserializer);
+        let mut var_masterChannels =
+            <Option<crate::api::controller::ControllerChannelPair>>::sse_decode(deserializer);
+        let mut var_headphoneChannels =
+            <Option<crate::api::controller::ControllerChannelPair>>::sse_decode(deserializer);
+        let mut var_sampleRate = <Option<u32>>::sse_decode(deserializer);
+        return crate::api::controller::ControllerAudioHints {
+            output_name_contains: var_outputNameContains,
+            master_channels: var_masterChannels,
+            headphone_channels: var_headphoneChannels,
+            sample_rate: var_sampleRate,
+        };
+    }
+}
+
+impl SseDecode for crate::api::settings::ControllerAudioOverride {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_mappingId = <String>::sse_decode(deserializer);
+        let mut var_controllerLabel = <String>::sse_decode(deserializer);
+        let mut var_outputDeviceId = <String>::sse_decode(deserializer);
+        let mut var_previousMasterBus =
+            <crate::api::settings::BusRouteSettings>::sse_decode(deserializer);
+        let mut var_masterOverridden = <bool>::sse_decode(deserializer);
+        let mut var_previousPreviewEnabled = <bool>::sse_decode(deserializer);
+        let mut var_previousPreviewBus =
+            <crate::api::settings::BusRouteSettings>::sse_decode(deserializer);
+        let mut var_previewOverridden = <bool>::sse_decode(deserializer);
+        return crate::api::settings::ControllerAudioOverride {
+            mapping_id: var_mappingId,
+            controller_label: var_controllerLabel,
+            output_device_id: var_outputDeviceId,
+            previous_master_bus: var_previousMasterBus,
+            master_overridden: var_masterOverridden,
+            previous_preview_enabled: var_previousPreviewEnabled,
+            previous_preview_bus: var_previousPreviewBus,
+            preview_overridden: var_previewOverridden,
+        };
+    }
+}
+
+impl SseDecode for crate::api::controller::ControllerChannelPair {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_left = <u16>::sse_decode(deserializer);
+        let mut var_right = <u16>::sse_decode(deserializer);
+        return crate::api::controller::ControllerChannelPair {
+            left: var_left,
+            right: var_right,
+        };
+    }
+}
+
 impl SseDecode for crate::api::controller::ControllerDeviceDirection {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9717,6 +9776,8 @@ impl SseDecode for crate::api::controller::ControllerMappingInfo {
         let mut var_version = <Option<String>>::sse_decode(deserializer);
         let mut var_updateAvailable = <bool>::sse_decode(deserializer);
         let mut var_midiNameContains = <Vec<String>>::sse_decode(deserializer);
+        let mut var_audio =
+            <Option<crate::api::controller::ControllerAudioHints>>::sse_decode(deserializer);
         let mut var_attached = <bool>::sse_decode(deserializer);
         return crate::api::controller::ControllerMappingInfo {
             id: var_id,
@@ -9727,6 +9788,7 @@ impl SseDecode for crate::api::controller::ControllerMappingInfo {
             version: var_version,
             update_available: var_updateAvailable,
             midi_name_contains: var_midiNameContains,
+            audio: var_audio,
             attached: var_attached,
         };
     }
@@ -11828,6 +11890,45 @@ impl SseDecode for Option<crate::api::library::BeatGridData> {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::api::library::BeatGridData>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::controller::ControllerAudioHints> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::controller::ControllerAudioHints>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::settings::ControllerAudioOverride> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::settings::ControllerAudioOverride>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::controller::ControllerChannelPair> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::controller::ControllerChannelPair>::sse_decode(
                 deserializer,
             ));
         } else {
@@ -14250,6 +14351,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.trusted_controller_device_ids
                 .into_into_dart()
                 .into_dart(),
+            self.controller_audio_override.into_into_dart().into_dart(),
             self.history_enabled.into_into_dart().into_dart(),
             self.history_session_idle_minutes
                 .into_into_dart()
@@ -14594,6 +14696,77 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Cle
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::controller::ControllerAudioHints {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.output_name_contains.into_into_dart().into_dart(),
+            self.master_channels.into_into_dart().into_dart(),
+            self.headphone_channels.into_into_dart().into_dart(),
+            self.sample_rate.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::controller::ControllerAudioHints
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::controller::ControllerAudioHints>
+    for crate::api::controller::ControllerAudioHints
+{
+    fn into_into_dart(self) -> crate::api::controller::ControllerAudioHints {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::ControllerAudioOverride {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.mapping_id.into_into_dart().into_dart(),
+            self.controller_label.into_into_dart().into_dart(),
+            self.output_device_id.into_into_dart().into_dart(),
+            self.previous_master_bus.into_into_dart().into_dart(),
+            self.master_overridden.into_into_dart().into_dart(),
+            self.previous_preview_enabled.into_into_dart().into_dart(),
+            self.previous_preview_bus.into_into_dart().into_dart(),
+            self.preview_overridden.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::ControllerAudioOverride
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::ControllerAudioOverride>
+    for crate::api::settings::ControllerAudioOverride
+{
+    fn into_into_dart(self) -> crate::api::settings::ControllerAudioOverride {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::controller::ControllerChannelPair {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.left.into_into_dart().into_dart(),
+            self.right.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::controller::ControllerChannelPair
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::controller::ControllerChannelPair>
+    for crate::api::controller::ControllerChannelPair
+{
+    fn into_into_dart(self) -> crate::api::controller::ControllerChannelPair {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::controller::ControllerDeviceDirection {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -14648,6 +14821,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::controller::ControllerMapping
             self.version.into_into_dart().into_dart(),
             self.update_available.into_into_dart().into_dart(),
             self.midi_name_contains.into_into_dart().into_dart(),
+            self.audio.into_into_dart().into_dart(),
             self.attached.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -18493,6 +18667,10 @@ impl SseEncode for crate::api::settings::AppSettings {
         );
         <crate::api::settings::KeyColorModeSetting>::sse_encode(self.key_color_mode, serializer);
         <Vec<String>>::sse_encode(self.trusted_controller_device_ids, serializer);
+        <Option<crate::api::settings::ControllerAudioOverride>>::sse_encode(
+            self.controller_audio_override,
+            serializer,
+        );
         <bool>::sse_encode(self.history_enabled, serializer);
         <u32>::sse_encode(self.history_session_idle_minutes, serializer);
         <u32>::sse_encode(self.history_min_play_seconds, serializer);
@@ -18664,6 +18842,44 @@ impl SseEncode for crate::api::event_mirrors::ClearSampler {
     }
 }
 
+impl SseEncode for crate::api::controller::ControllerAudioHints {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<String>>::sse_encode(self.output_name_contains, serializer);
+        <Option<crate::api::controller::ControllerChannelPair>>::sse_encode(
+            self.master_channels,
+            serializer,
+        );
+        <Option<crate::api::controller::ControllerChannelPair>>::sse_encode(
+            self.headphone_channels,
+            serializer,
+        );
+        <Option<u32>>::sse_encode(self.sample_rate, serializer);
+    }
+}
+
+impl SseEncode for crate::api::settings::ControllerAudioOverride {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.mapping_id, serializer);
+        <String>::sse_encode(self.controller_label, serializer);
+        <String>::sse_encode(self.output_device_id, serializer);
+        <crate::api::settings::BusRouteSettings>::sse_encode(self.previous_master_bus, serializer);
+        <bool>::sse_encode(self.master_overridden, serializer);
+        <bool>::sse_encode(self.previous_preview_enabled, serializer);
+        <crate::api::settings::BusRouteSettings>::sse_encode(self.previous_preview_bus, serializer);
+        <bool>::sse_encode(self.preview_overridden, serializer);
+    }
+}
+
+impl SseEncode for crate::api::controller::ControllerChannelPair {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u16>::sse_encode(self.left, serializer);
+        <u16>::sse_encode(self.right, serializer);
+    }
+}
+
 impl SseEncode for crate::api::controller::ControllerDeviceDirection {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -18700,6 +18916,7 @@ impl SseEncode for crate::api::controller::ControllerMappingInfo {
         <Option<String>>::sse_encode(self.version, serializer);
         <bool>::sse_encode(self.update_available, serializer);
         <Vec<String>>::sse_encode(self.midi_name_contains, serializer);
+        <Option<crate::api::controller::ControllerAudioHints>>::sse_encode(self.audio, serializer);
         <bool>::sse_encode(self.attached, serializer);
     }
 }
@@ -20300,6 +20517,36 @@ impl SseEncode for Option<crate::api::library::BeatGridData> {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::library::BeatGridData>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::controller::ControllerAudioHints> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::controller::ControllerAudioHints>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::settings::ControllerAudioOverride> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::settings::ControllerAudioOverride>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::controller::ControllerChannelPair> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::controller::ControllerChannelPair>::sse_encode(value, serializer);
         }
     }
 }

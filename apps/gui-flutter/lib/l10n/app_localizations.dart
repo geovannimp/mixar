@@ -1269,6 +1269,12 @@ abstract class AppLocalizations {
   /// **'Enable preview bus'**
   String get settingsAudioPreviewBus;
 
+  /// No description provided for @settingsAudioControllerOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'Overridden by {controller} mapping'**
+  String settingsAudioControllerOverride(String controller);
+
   /// No description provided for @settingsAudioDevice.
   ///
   /// In en, this message translates to:

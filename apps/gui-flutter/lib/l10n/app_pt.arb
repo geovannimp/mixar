@@ -202,6 +202,14 @@
   "settingsAudioPreviewBusTitle": "Barramento de escuta",
   "settingsAudioPreviewBusDescription": "Saída de fones / cue quando a escuta está ativada.",
   "settingsAudioPreviewBus": "Ativar barramento de escuta",
+  "settingsAudioControllerOverride": "Substituído pelo mapeamento {controller}",
+  "@settingsAudioControllerOverride": {
+    "placeholders": {
+      "controller": {
+        "type": "String"
+      }
+    }
+  },
   "settingsAudioDevice": "Dispositivo",
   "settingsAudioChannelMode": "Modo de canal",
   "settingsAudioStereoPair": "Par stereo",

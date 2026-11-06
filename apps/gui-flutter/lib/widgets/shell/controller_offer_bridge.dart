@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/controller_audio.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/providers/shell/bus_providers.dart';
+import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/bus.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_checkbox.dart';
@@ -28,6 +30,10 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   StreamSubscription<Event>? _events;
   Timer? _retry;
   final _shownPorts = <String>{};
+
+  /// Ports already asked about switching audio, and those being resolved.
+  final _audioAskedPorts = <String>{};
+  final _audioPendingPorts = <String>{};
 
   @override
   void initState() {
@@ -62,6 +68,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       );
     });
     _hydrate(transport);
+    unawaited(_hydrateAttachedAudio(transport));
   }
 
   void _hydrate(ControllerTransport transport) {
@@ -114,12 +121,17 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     switch (event) {
       case Event_MappingOffer(:final field0):
         _showOffer(field0);
-      case Event_MappingAttached():
+      case Event_MappingAttached(:final field0):
         unawaited(syncAttachedMappingIds(ref));
         ref.invalidate(controllerDevicesProvider);
+        unawaited(_maybeOfferAudioSwitch(field0.mappingId, field0.portName));
       case Event_MappingDetached(:final field0):
         _shownPorts.remove(field0.portName);
+        _audioAskedPorts.remove(field0.portName);
+        _audioPendingPorts.remove(field0.portName);
         dismissMixarToast(context, id: _offerToastId(field0.portName));
+        dismissMixarToast(context, id: _audioToastId(field0.portName));
+        unawaited(_restoreAudioOutputs(field0.mappingId));
         unawaited(syncAttachedMappingIds(ref));
         ref.invalidate(controllerDevicesProvider);
       default:
@@ -128,6 +140,363 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   }
 
   static String _offerToastId(String port) => 'controller-offer:$port';
+
+  static String _audioToastId(String port) => 'controller-audio:$port';
+
+  /// Covers mappings that were already attached when this widget bound (a
+  /// trusted controller plugged in before the shell subscribed). Also restores
+  /// the saved buses when a controller that owned them is gone.
+  Future<void> _hydrateAttachedAudio(ControllerTransport transport) async {
+    try {
+      final rows = await transport.listMappings();
+      final attached = <String, ControllerAudioHints>{};
+      for (final row in rows) {
+        final audio = row.audio;
+        if (row.attached && audio != null) {
+          attached[row.id] = audio;
+        }
+      }
+      final devices = await transport.listDevices();
+      for (final device in devices) {
+        final mappingId = device.matchedMappingId;
+        if (device.direction == ControllerDeviceDirection.input &&
+            mappingId != null &&
+            attached.containsKey(mappingId)) {
+          unawaited(_maybeOfferAudioSwitch(mappingId, device.portName));
+        }
+      }
+
+      final settingsTransport = await ref.read(
+        settingsTransportProvider.future,
+      );
+      final override =
+          (await settingsTransport.getSettings()).controllerAudioOverride;
+      if (override == null || !mounted) {
+        return;
+      }
+      if (rows.any((row) => row.id == override.mappingId && row.attached)) {
+        return;
+      }
+      var midiHints = const <String>[];
+      for (final row in rows) {
+        if (row.id == override.mappingId) {
+          midiHints = row.midiNameContains;
+          break;
+        }
+      }
+      final portPresent = devices.any(
+        (device) =>
+            device.direction == ControllerDeviceDirection.input &&
+            _portMatches(device.portName, midiHints),
+      );
+      if (!portPresent) {
+        unawaited(_restoreIfControllerGone(override.mappingId, midiHints));
+      }
+    } catch (e, st) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: e,
+          stack: st,
+          context: ErrorDescription('controller attached audio hydrate'),
+        ),
+      );
+    }
+  }
+
+  static bool _portMatches(String portName, List<String> hints) {
+    final name = portName.toLowerCase();
+    return hints.any((hint) {
+      final needle = hint.trim().toLowerCase();
+      return needle.isNotEmpty && name.contains(needle);
+    });
+  }
+
+  /// Startup recovery: a controller unplugged while the app was closed leaves
+  /// an override pointing at a device that is no longer present. Wait one poll
+  /// so a trusted controller can auto-attach before restoring.
+  Future<void> _restoreIfControllerGone(
+    String mappingId,
+    List<String> midiHints,
+  ) async {
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted) {
+      return;
+    }
+    try {
+      final transport = ref.read(controllerTransportProvider).value;
+      if (transport == null) {
+        return;
+      }
+      for (final row in await transport.listMappings()) {
+        if (row.id == mappingId && row.attached) {
+          return;
+        }
+      }
+      final devices = await transport.listDevices();
+      final portPresent = devices.any(
+        (device) =>
+            device.direction == ControllerDeviceDirection.input &&
+            _portMatches(device.portName, midiHints),
+      );
+      if (!portPresent) {
+        await _restoreAudioOutputs(mappingId);
+      }
+    } catch (e, st) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: e,
+          stack: st,
+          context: ErrorDescription('controller audio output recovery'),
+        ),
+      );
+    }
+  }
+
+  /// Asks once per port whether to move Mixar's output buses onto the
+  /// controller's own audio interface.
+  Future<void> _maybeOfferAudioSwitch(String mappingId, String portName) async {
+    if (!mounted ||
+        _audioAskedPorts.contains(portName) ||
+        _audioPendingPorts.contains(portName)) {
+      return;
+    }
+    _audioPendingPorts.add(portName);
+    try {
+      final transport = ref.read(controllerTransportProvider).value;
+      if (transport == null) {
+        return;
+      }
+      ControllerMappingInfo? mapping;
+      for (final row in await transport.listMappings()) {
+        if (row.id == mappingId) {
+          mapping = row;
+          break;
+        }
+      }
+      final hints = mapping?.audio;
+      if (hints == null ||
+          (hints.masterChannels == null && hints.headphoneChannels == null)) {
+        return;
+      }
+      // Hot-plug: the audio device can appear a beat after the MIDI port.
+      OutputDevice? device;
+      for (var attempt = 0; attempt < 4; attempt++) {
+        if (attempt > 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 350));
+        }
+        if (!mounted) {
+          return;
+        }
+        ref.invalidate(audioDevicesProvider);
+        final devices = await ref.read(audioDevicesProvider.future);
+        device = matchControllerAudioOutput(devices, hints);
+        if (device != null) {
+          break;
+        }
+      }
+      if (device == null) {
+        return;
+      }
+      final settingsTransport = await ref.read(
+        settingsTransportProvider.future,
+      );
+      final current = await settingsTransport.getSettings();
+      if (controllerAudioAlreadyRouted(current, hints, device)) {
+        return;
+      }
+      if (!mounted) {
+        return;
+      }
+      final productName = mapping?.productName.trim() ?? '';
+      _audioAskedPorts.add(portName);
+      _showAudioOffer(
+        portName: portName,
+        mappingId: mappingId,
+        label: productName.isEmpty ? device.name : productName,
+        hints: hints,
+        device: device,
+      );
+    } catch (e, st) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: e,
+          stack: st,
+          context: ErrorDescription('controller audio output offer'),
+        ),
+      );
+    } finally {
+      _audioPendingPorts.remove(portName);
+    }
+  }
+
+  void _showAudioOffer({
+    required String portName,
+    required String mappingId,
+    required String label,
+    required ControllerAudioHints hints,
+    required OutputDevice device,
+  }) {
+    final master = hints.masterChannels;
+    final headphones = hints.headphoneChannels;
+    showMixarToast(
+      context: context,
+      id: _audioToastId(portName),
+      duration: null,
+      title: Text('Switch audio outputs to $label?'),
+      description: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (master != null)
+            Text('Master → $label (channels ${master.left}–${master.right})'),
+          if (headphones != null)
+            Text(
+              'Headphones → $label '
+              '(channels ${headphones.left}–${headphones.right})',
+            ),
+          const SizedBox(height: 4),
+          const Text('Mixar will restart the audio engine.'),
+        ],
+      ),
+      suffixBuilder: (context, dismiss) => Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: 8,
+        children: [
+          AppButton(
+            size: .sm,
+            mainAxisSize: .min,
+            variant: .outline,
+            onPress: dismiss,
+            child: const Text('Keep current'),
+          ),
+          AppButton(
+            size: .sm,
+            mainAxisSize: .min,
+            onPress: () {
+              dismiss();
+              unawaited(
+                _switchAudioOutputs(
+                  portName: portName,
+                  mappingId: mappingId,
+                  label: label,
+                  hints: hints,
+                  device: device,
+                ),
+              );
+            },
+            child: const Text('Switch outputs'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _switchAudioOutputs({
+    required String portName,
+    required String mappingId,
+    required String label,
+    required ControllerAudioHints hints,
+    required OutputDevice device,
+  }) async {
+    try {
+      final settingsTransport = await ref.read(
+        settingsTransportProvider.future,
+      );
+      final current = await settingsTransport.getSettings();
+      final updated = applyControllerAudioOutputs(
+        current,
+        hints,
+        device,
+        mappingId: mappingId,
+        controllerLabel: label,
+      );
+      if (updated == null) {
+        return;
+      }
+      final result = await saveAppSettings(ref, updated);
+      if (!mounted) {
+        return;
+      }
+      if (result.applyError != null) {
+        _audioAskedPorts.remove(portName);
+        showMixarToast(
+          context: context,
+          variant: MixarToastVariant.destructive,
+          title: const Text('Could not switch audio outputs'),
+          description: Text(result.applyError!),
+        );
+        return;
+      }
+      showMixarToast(
+        context: context,
+        title: Text('Audio outputs switched to $label'),
+      );
+    } catch (e, st) {
+      _audioAskedPorts.remove(portName);
+      if (!mounted) {
+        return;
+      }
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: e,
+          stack: st,
+          context: ErrorDescription('controller audio output switch'),
+        ),
+      );
+      showMixarToast(
+        context: context,
+        variant: MixarToastVariant.destructive,
+        title: const Text('Could not switch audio outputs'),
+        description: Text('$e'),
+      );
+    }
+  }
+
+  /// Puts the pre-controller buses back when its mapping detaches.
+  Future<void> _restoreAudioOutputs(String mappingId) async {
+    try {
+      final settingsTransport = await ref.read(
+        settingsTransportProvider.future,
+      );
+      final current = await settingsTransport.getSettings();
+      final restored = restoreControllerAudioOutputs(current, mappingId);
+      if (restored == null || !mounted) {
+        return;
+      }
+      if (restored.routesRestored) {
+        await saveAppSettings(ref, restored.settings);
+      } else {
+        // The user moved the buses by hand; only drop the stale marker so no
+        // engine restart is needed for a route that did not change.
+        await settingsTransport.saveSettings(settings: restored.settings);
+        ref.invalidate(appSettingsProvider);
+      }
+      if (!mounted) {
+        return;
+      }
+      showMixarToast(
+        context: context,
+        title: const Text('Audio outputs restored'),
+      );
+    } catch (e, st) {
+      if (!mounted) {
+        return;
+      }
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: e,
+          stack: st,
+          context: ErrorDescription('controller audio output restore'),
+        ),
+      );
+      showMixarToast(
+        context: context,
+        variant: MixarToastVariant.destructive,
+        title: const Text('Could not restore audio outputs'),
+        description: Text('$e'),
+      );
+    }
+  }
 
   void _showOffer(MappingOffer offer) {
     final port = offer.portName;
@@ -187,6 +556,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
             onPress: () {
               clearPortOnDismiss = false;
               dismiss();
+              unawaited(_restoreAudioOutputs(mappingId));
             },
             child: const Text('Cancel'),
           ),

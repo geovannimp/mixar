@@ -85,7 +85,7 @@ pub enum BusChannelMode {
 }
 
 /// Output bus route (device + channels + rate).
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BusRouteSettings {
     pub device_id: String,
     pub left_channel: u16,
@@ -99,6 +99,26 @@ pub struct BusRouteSettings {
     /// Ask the backend for a shorter path on this bus's device.
     #[serde(default)]
     pub low_latency: bool,
+}
+
+/// A controller mapping moved the output buses onto its own audio interface.
+///
+/// Kept in settings so the buses can return to their pre-controller routes when
+/// the mapping detaches, even across a restart, and so Settings can mark the
+/// buses the mapping owns.
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ControllerAudioOverride {
+    /// App-data mapping folder id that owns this override.
+    pub mapping_id: String,
+    /// Controller label for the Settings badge (e.g. `DDJ-400`).
+    pub controller_label: String,
+    /// OS output device id the buses were moved to.
+    pub output_device_id: String,
+    pub previous_master_bus: BusRouteSettings,
+    pub master_overridden: bool,
+    pub previous_preview_enabled: bool,
+    pub previous_preview_bus: BusRouteSettings,
+    pub preview_overridden: bool,
 }
 
 /// Jog platter policy (maps to [`JogMode`]).
@@ -458,6 +478,9 @@ pub struct AppSettings {
     pub key_color_mode: KeyColorModeSetting,
     #[serde(default)]
     pub trusted_controller_device_ids: Vec<String>,
+    /// Set while a controller mapping owns the output buses; restored on detach.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub controller_audio_override: Option<ControllerAudioOverride>,
     #[serde(default = "default_history_enabled")]
     pub history_enabled: bool,
     #[serde(default = "default_history_session_idle_minutes")]
@@ -543,6 +566,7 @@ struct SettingsHost {
     key_display_mode: KeyDisplayModeSetting,
     key_color_mode: KeyColorModeSetting,
     trusted_controller_device_ids: Vec<String>,
+    controller_audio_override: Option<ControllerAudioOverride>,
     history_enabled: bool,
     history_session_idle_minutes: u32,
     history_min_play_seconds: u32,
@@ -588,6 +612,7 @@ impl Default for SettingsHost {
             key_display_mode: KeyDisplayModeSetting::Musical,
             key_color_mode: KeyColorModeSetting::Off,
             trusted_controller_device_ids: Vec::new(),
+            controller_audio_override: None,
             history_enabled: default_history_enabled(),
             history_session_idle_minutes: default_history_session_idle_minutes(),
             history_min_play_seconds: default_history_min_play_seconds(),
@@ -728,6 +753,26 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     }
     if let Err(e) = parse_bus("preview_bus", &settings.preview_bus) {
         errors.push(e);
+    }
+    if let Some(override_settings) = &settings.controller_audio_override {
+        if override_settings.mapping_id.trim().is_empty() {
+            errors.push("controller_audio_override.mapping_id must be non-empty".into());
+        }
+        if override_settings.output_device_id.trim().is_empty() {
+            errors.push("controller_audio_override.output_device_id must be non-empty".into());
+        }
+        if let Err(e) = parse_bus(
+            "controller_audio_override.previous_master_bus",
+            &override_settings.previous_master_bus,
+        ) {
+            errors.push(e);
+        }
+        if let Err(e) = parse_bus(
+            "controller_audio_override.previous_preview_bus",
+            &override_settings.previous_preview_bus,
+        ) {
+            errors.push(e);
+        }
     }
 
     if !settings.target_lufs.is_finite() {
@@ -909,6 +954,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         key_display_mode: host.key_display_mode,
         key_color_mode: host.key_color_mode,
         trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
+        controller_audio_override: host.controller_audio_override.clone(),
         history_enabled: host.history_enabled,
         history_session_idle_minutes: host.history_session_idle_minutes,
         history_min_play_seconds: host.history_min_play_seconds,
@@ -967,6 +1013,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.key_display_mode = settings.key_display_mode;
     host.key_color_mode = settings.key_color_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
+    host.controller_audio_override = settings.controller_audio_override;
     host.history_enabled = settings.history_enabled;
     host.history_session_idle_minutes = settings.history_session_idle_minutes;
     host.history_min_play_seconds = settings.history_min_play_seconds;
@@ -1174,6 +1221,62 @@ mod tests {
         assert_eq!(parsed.stems_format, "opus");
         assert_eq!(parsed.stems_model, library::DEFAULT_STEMS_MODEL);
         assert!(!parsed.realtime_stems);
+    }
+
+    #[test]
+    fn controller_audio_override_round_trips_through_disk() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        let previous_master = settings.master_bus.clone();
+        let previous_preview = settings.preview_bus.clone();
+        settings.master_bus.device_id = "cpal:ddj".into();
+        settings.master_bus.left_channel = 1;
+        settings.master_bus.right_channel = 2;
+        settings.preview_enabled = true;
+        settings.preview_bus.device_id = "cpal:ddj".into();
+        settings.preview_bus.left_channel = 3;
+        settings.preview_bus.right_channel = 4;
+        settings.controller_audio_override = Some(ControllerAudioOverride {
+            mapping_id: "ddj-400".into(),
+            controller_label: "DDJ-400".into(),
+            output_device_id: "cpal:ddj".into(),
+            previous_master_bus: previous_master.clone(),
+            master_overridden: true,
+            previous_preview_enabled: false,
+            previous_preview_bus: previous_preview.clone(),
+            preview_overridden: true,
+        });
+
+        write_settings_file(&path, &settings).expect("write");
+        let restored = settings_from_host(&load_host(&path));
+        let override_settings = restored
+            .controller_audio_override
+            .expect("override survives disk");
+        assert_eq!(override_settings.mapping_id, "ddj-400");
+        assert_eq!(override_settings.previous_master_bus, previous_master);
+        assert_eq!(override_settings.previous_preview_bus, previous_preview);
+        assert!(override_settings.master_overridden);
+        assert!(override_settings.preview_overridden);
+        assert_eq!(restored.master_bus.device_id, "cpal:ddj");
+    }
+
+    #[test]
+    fn controller_audio_override_rejects_empty_mapping_id() {
+        let mut settings = sample_settings();
+        let previous_master = settings.master_bus.clone();
+        let previous_preview = settings.preview_bus.clone();
+        settings.controller_audio_override = Some(ControllerAudioOverride {
+            mapping_id: " ".into(),
+            controller_label: "DDJ-400".into(),
+            output_device_id: "cpal:ddj".into(),
+            previous_master_bus: previous_master,
+            master_overridden: true,
+            previous_preview_enabled: false,
+            previous_preview_bus: previous_preview,
+            preview_overridden: false,
+        });
+        assert!(parse_settings(settings).is_err());
     }
 
     #[test]
