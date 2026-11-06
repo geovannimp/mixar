@@ -83,7 +83,7 @@ class SettingsBusRouteFields extends StatelessWidget {
               // grade: say so instead of hiding hardware the user may own.
               return outputDeviceCarriesMixerRates(device)
                   ? device.name
-                  : '${device.name} — ${l10n.settingsAudioDeviceLowQuality}';
+                  : l10n.settingsAudioDeviceLowQuality(device.name);
             },
             onChanged: (deviceId) => onChanged(
               _clampRoute(
