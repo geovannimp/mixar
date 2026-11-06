@@ -21,6 +21,11 @@ use std::time::Duration;
 /// that a driver reporting a single digit of frames cannot wedge the callback.
 const LOW_LATENCY_MIN_FRAMES: u32 = 16;
 
+/// Lowest rate that can carry a mixer output. Android's voice-call endpoints
+/// (8 kHz / 16 kHz) enumerate as outputs but cannot play a deck; see
+/// [`CpalBackend::has_mixer_rates`].
+const MIN_MIXER_OUTPUT_RATE: u32 = 44_100;
+
 fn id_ends_with_segment(id: &str, segment: &str) -> bool {
     id == segment || id.ends_with(&format!(":{segment}")) || id.ends_with(&format!("/{segment}"))
 }
@@ -107,7 +112,29 @@ impl CpalBackend {
         !Self::is_pipewire_sink_default(id, name) && !Self::is_unnamed_stream_output(id, name)
     }
 
+    /// Whether a device's advertised rates can carry a deck.
+    ///
+    /// This is not a capability check — the engine opens whatever rate a device
+    /// advertises (`resolve_plan_rate`). It keeps Android's telephony endpoints
+    /// out of the picker: the voice-call sink advertises 8 kHz and 16 kHz, and
+    /// choosing it would quietly drag the whole mix down to voice grade. Every
+    /// real output on a phone or tablet — speaker, headset, USB interface —
+    /// advertises at least 44.1 kHz. Applied on Android only: a 32 kHz interface
+    /// on a desktop is a genuine output there, and the engine runs it at its own
+    /// rate.
+    fn has_mixer_rates(rates: &[u32]) -> bool {
+        rates.iter().copied().max().unwrap_or(0) >= MIN_MIXER_OUTPUT_RATE
+    }
+
     /// Find device by stable id (from DeviceId).
+    ///
+    /// `Host::device_by_id` is the fast path, but not every host implements it —
+    /// cpal's AAudio backend enumerates devices from Java and resolves none — so
+    /// the ids this backend hands out in [Self::list_output_devices] must still
+    /// resolve back to a device. Without that every Android start plans the
+    /// speaker and then silently opens the default route instead (logging
+    /// "requested device unavailable"), and a selected USB interface could never
+    /// be opened by id.
     fn find_device_by_id(&self, device_id: &DeviceId) -> Result<cpal::Device> {
         let id_str = device_id.as_str();
         let suffix = id_str
@@ -116,9 +143,26 @@ impl CpalBackend {
         let cpal_id: cpal::DeviceId = suffix
             .parse()
             .map_err(|e| anyhow::anyhow!("Invalid CPAL device ID: {} ({e})", suffix))?;
-        self.host
-            .device_by_id(&cpal_id)
-            .ok_or_else(|| anyhow::anyhow!("Device not found: {}", id_str))
+        if let Some(device) = self.host.device_by_id(&cpal_id) {
+            return Ok(device);
+        }
+
+        let matches =
+            |device: &cpal::Device| Self::device_id(device).is_ok_and(|id| id.as_str() == id_str);
+        // The host's default is a device of its own on backends that expose it
+        // as an alias (`Device(None)` on AAudio), so it is not in the
+        // enumeration and has to be compared directly.
+        if let Some(device) = self.host.default_output_device() {
+            if matches(&device) {
+                return Ok(device);
+            }
+        }
+        for device in self.host.output_devices()? {
+            if matches(&device) {
+                return Ok(device);
+            }
+        }
+        Err(anyhow::anyhow!("Device not found: {}", id_str))
     }
 
     /// Frames to request from a device for a configured buffer size.
@@ -441,17 +485,32 @@ impl AudioBackend for CpalBackend {
     fn list_output_devices(&self) -> Result<Vec<DeviceInfo>> {
         let mut devices = Vec::new();
 
-        let default_id = self
-            .host
-            .default_output_device()
-            .and_then(|d| Self::device_id(&d).ok());
+        let default_device = self.host.default_output_device();
+        let default_id = default_device
+            .as_ref()
+            .and_then(|d| Self::device_id(d).ok());
 
-        let output_devices = self.host.output_devices()?;
-        for device in output_devices {
+        // The default goes first, and on some backends that is the only way it
+        // appears at all: AAudio hands out a `Device(None)` alias (the route the
+        // OS picks — speaker, headphones or Bluetooth) that never shows up in
+        // `output_devices()`. Listing it marks a device as default, which is
+        // what stops the engine from planning `devices.first()` and then opening
+        // a different one than it planned.
+        let mut candidates: Vec<cpal::Device> = Vec::new();
+        if let Some(device) = default_device {
+            candidates.push(device);
+        }
+        candidates.extend(self.host.output_devices()?);
+
+        let mut seen = HashSet::new();
+        for device in candidates {
             let id = match Self::device_id(&device) {
                 Ok(i) => i,
                 Err(_) => continue,
             };
+            if !seen.insert(id.as_str().to_string()) {
+                continue;
+            }
             let device_name = Self::device_name(&device);
             if !Self::should_list_output_device(id.as_str(), &device_name) {
                 continue;
@@ -476,6 +535,13 @@ impl AudioBackend for CpalBackend {
             }
             let sample_rates = Self::advertised_rates(&supported_configs);
             if sample_rates.is_empty() {
+                continue;
+            }
+            // Android lists voice-call endpoints as outputs; a device that tops
+            // out below 44.1 kHz would run the whole engine at that rate. Other
+            // hosts keep their low-rate devices: a 32 kHz interface is a real
+            // output there, and the engine can run the rate it advertises.
+            if cfg!(target_os = "android") && !Self::has_mixer_rates(&sample_rates) {
                 continue;
             }
 
@@ -875,6 +941,16 @@ mod tests {
     }
 
     #[test]
+    fn mixer_rates_exclude_voice_endpoints_only() {
+        // Android's voice-call sink advertises 8 kHz / 16 kHz and nothing else.
+        assert!(!CpalBackend::has_mixer_rates(&[8_000, 16_000]));
+        assert!(!CpalBackend::has_mixer_rates(&[]));
+        // Any device that reaches 44.1 kHz can carry a deck.
+        assert!(CpalBackend::has_mixer_rates(&[44_100]));
+        assert!(CpalBackend::has_mixer_rates(&[8_000, 48_000]));
+    }
+
+    #[test]
     fn test_cpal_backend_creation() {
         let backend = CpalBackend::new();
         assert!(backend.is_ok());
@@ -894,7 +970,6 @@ mod tests {
 
         let devices = devices.unwrap();
         if !devices.is_empty() {
-            let host = create_host().unwrap();
             for device in &devices {
                 assert!(
                     !device.name.eq_ignore_ascii_case("sink_default"),
@@ -915,9 +990,12 @@ mod tests {
                     device.name
                 );
 
-                let suffix = device.id.as_str().strip_prefix("cpal:").unwrap();
-                let cpal_id: cpal::DeviceId = suffix.parse().unwrap();
-                let cpal_device = host.device_by_id(&cpal_id).unwrap();
+                let cpal_device = backend.find_device_by_id(&device.id).unwrap_or_else(|e| {
+                    panic!(
+                        "listed device '{}' must resolve by id: {e}",
+                        device.id.as_str()
+                    )
+                });
                 let expected = cpal_device
                     .supported_output_configs()
                     .ok()
@@ -940,6 +1018,67 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The engine plans a device by the ids this backend lists and then opens it
+    /// by that same id. A backend whose ids do not resolve back to a device (cpal's
+    /// AAudio host enumerates from Java but answers no `device_by_id`) makes the
+    /// engine plan one device and open another — the "requested device unavailable"
+    /// warning — and no device selection can work.
+    #[test]
+    fn every_listed_device_resolves_back_by_id() {
+        let backend = CpalBackend::new().unwrap();
+        let devices = backend.list_output_devices().unwrap();
+        for device in &devices {
+            let resolved = backend.find_device_by_id(&device.id);
+            assert!(
+                resolved.is_ok(),
+                "listed device '{}' ({}) must resolve by id: {:?}",
+                device.name,
+                device.id.as_str(),
+                resolved.err()
+            );
+        }
+    }
+
+    /// Exactly the host's default device is marked, and it is listed first: the
+    /// engine falls back to `devices.first()` when nothing claims `is_default`,
+    /// which on Android planned the speaker while the stream opened the OS route.
+    #[test]
+    fn lists_the_default_device_first_and_marks_only_it() {
+        let backend = CpalBackend::new().unwrap();
+        let devices = backend.list_output_devices().unwrap();
+        let defaults: Vec<&DeviceInfo> = devices.iter().filter(|d| d.is_default).collect();
+        assert!(
+            defaults.len() <= 1,
+            "at most one device can be the default, got {:?}",
+            defaults.iter().map(|d| d.name.clone()).collect::<Vec<_>>()
+        );
+        if backend.host.default_output_device().is_some() {
+            if let Some(first) = devices.first() {
+                if devices.iter().any(|d| d.is_default) {
+                    assert!(
+                        first.is_default,
+                        "the default device '{}' must be listed first",
+                        first.name
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_device_ids_are_an_error() {
+        let backend = CpalBackend::new().unwrap();
+        // Either stage may reject it — a suffix the host cannot parse, or an id
+        // nothing answers — but it must never resolve to some other device.
+        let error = backend
+            .find_device_by_id(&DeviceId::new("cpal:no-such-device"))
+            .unwrap_err();
+        assert!(
+            error.to_string().contains("no-such-device"),
+            "the error must name the id: {error}"
+        );
     }
 
     #[test]
