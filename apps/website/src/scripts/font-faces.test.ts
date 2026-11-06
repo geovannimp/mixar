@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,11 +7,14 @@ import { describe, expect, it } from "vitest";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const STYLES = join(HERE, "..", "styles");
-// `apps/website/node_modules` and the workspace root both hold the packages;
-// resolving through the repo root covers either layout.
-const FONTSOURCE = join(HERE, "..", "..", "..", "..", "node_modules", "@fontsource-variable");
+const GLOBAL_CSS = readFileSync(join(STYLES, "global.css"), "utf8");
 
 const PACKAGES = ["outfit", "space-grotesk", "noto-sans-mono"] as const;
+
+// Resolved through Node instead of a hand-built `node_modules` path: the
+// workspace hoists the packages today, but a nested install or a pnpm layout
+// still resolves here, and a hardcoded path would not.
+const require = createRequire(import.meta.url);
 
 type Face = {
  family: string;
@@ -56,7 +60,7 @@ describe("self-hosted font faces", () => {
   const key = ({ family, weight, file, unicodeRange }: Face) =>
    `${family}|${weight}|${file}|${unicodeRange}`;
   const upstream = PACKAGES.flatMap((pkg) =>
-   parseFaces(readFileSync(join(FONTSOURCE, pkg, "index.css"), "utf8")),
+   parseFaces(readFileSync(require.resolve(`@fontsource-variable/${pkg}/index.css`), "utf8")),
   );
 
   // Exact set equality both ways: a face the packages dropped would 404 at
@@ -68,17 +72,15 @@ describe("self-hosted font faces", () => {
  });
 
  it("is the only font source global.css pulls in", () => {
-  const global = readFileSync(join(STYLES, "global.css"), "utf8");
-  expect(global).toContain('@import "./fonts.css";');
-  expect(global).not.toMatch(/@import\s+"@fontsource-variable/);
+  expect(GLOBAL_CSS).toContain('@import "./fonts.css";');
+  expect(GLOBAL_CSS).not.toMatch(/@import\s+"@fontsource-variable/);
  });
 
  it("declares every family the Tailwind theme asks for", () => {
-  const global = readFileSync(join(STYLES, "global.css"), "utf8");
-  // A renamed family in `@theme` would not error: it would silently render
-  // the fallback stack, which is exactly the CLS-free but off-brand state
+  // A renamed family in `@theme` would not error: it would silently render the
+  // fallback stack, which is exactly the CLS-free but off-brand state
   // `optional` makes permanent for a page view.
-  const wanted = [...global.matchAll(/--font-(?:sans|serif|mono):\s*"([^"]+)"/g)].map(
+  const wanted = [...GLOBAL_CSS.matchAll(/--font-(?:sans|serif|mono):\s*"([^"]+)"/g)].map(
    ([, family]) => family,
   );
   const declared = new Set(local.map((face) => face.family));
