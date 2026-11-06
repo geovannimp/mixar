@@ -1,11 +1,11 @@
 ---
 title: "FX chain"
-description: "The pre-fader FX insert in engine-dsp: the Fx trait, echo and reverb DSP, the shared-unit wire contract, and how to add an effect."
+description: "The pre-fader insert chain in engine-dsp: module layout, gating, tempo sync, the wire contract, and adding an effect."
 section: "Mixer"
 order: 2
 ---
 
-The FX unit is a per-deck **pre-fader insert chain** in `engine-dsp`, configured as one **shared** unit: every deck's chain always holds the same configuration, and a per-deck gate decides whether that deck's signal runs through it. Today the [Beat FX strip](/docs/users/mixer/beat-fx) drives one slot; the chain capacity is the slot model a preset editor will program.
+The FX unit is a per-deck **pre-fader insert chain** in `engine-dsp`, configured as one **shared** unit. Every deck's chain always holds the same configuration. A per-deck gate then decides whether that deck's signal runs through it. Today the [Beat FX strip](/docs/users/mixer/beat-fx) drives one slot; the chain capacity is the slot model a preset editor will program.
 
 ## Module layout
 
@@ -17,17 +17,17 @@ The FX unit is a per-deck **pre-fader insert chain** in `engine-dsp`, configured
 | `Echo` | Beat-synced delay line |
 | `Reverb` | Freeverb-style reverb |
 
-`FX_SLOT_COUNT = 3` (`bus-api` mirrors it) is chain capacity, not three visible units: slot `0` is the Beat FX unit and the rest is headroom for preset chains. `FX_PARAM_COUNT = 3` is the knob bound per effect.
+`FX_SLOT_COUNT = 3` (`bus-api` mirrors it) is chain capacity, not three visible units. Slot `0` is the Beat FX unit and the rest is headroom for preset chains. `FX_PARAM_COUNT = 3` is the knob bound per effect.
 
-## Processing and gating
+## Signal placement and gating
 
 `MixerChannel::process_with_stereo_input` calls `FxChain::process_buffer` **after** the DJ filter and **before** the peak/PFL capture, and only when the channel's `fx_routed` flag is set. `MixerChannel::fx_routed` is off by default, so a deck is dry until it is routed.
 
-- `FxChain::process_buffer` returns immediately when no slot is active, so an idle unit costs one predicate per buffer.
-- Each active slot blends dry/wet: `out = dry * (1 - wet) + fx * wet`, with `wet = 0` bit-identical to the input.
-- `FxSlot::set_kind` loads the effect's default knobs, drops the previous effect's state and **never** arms the slot; `Off` clears the knobs and forces it off. Re-selecting the current kind is a no-op.
-- `FxSlot::set_enabled(false)` calls `reset()` on the effect, so switching off (or changing the effect) clears the tail instead of leaking it back in later.
-- `set_param` clamps to `0..=1` and returns `Err("Invalid FX parameter: N")` past `param_count()`, which propagates out as a wire error.
+- **Idle chain**: `FxChain::process_buffer` returns immediately when no slot is active, so an idle unit costs one predicate per buffer.
+- **Wet blend**: each active slot blends dry/wet as `out = dry * (1 - wet) + fx * wet`, with `wet = 0` bit-identical to the input.
+- **Kind change**: `FxSlot::set_kind` loads the effect's default knobs, drops the previous effect's state and **never** arms the slot. `Off` clears the knobs and forces it off. Re-selecting the current kind is a no-op.
+- **Switch off**: `FxSlot::set_enabled(false)` calls `reset()` on the effect, so switching off clears the tail instead of leaking it back in later. A kind change clears it by replacing the effect instance, not by calling `reset()`.
+- **Param range**: `set_param` clamps to `0..=1` and returns `Err("Invalid FX parameter: N")` past `param_count()`, which propagates out as a wire error.
 
 Nothing is allocated, locked or blocked inside the audio callback: delay lines, comb/allpass buffers and parameter state are built in the constructors.
 
@@ -43,7 +43,7 @@ Mixer::fx_sync_bpm()   = master lane's effective_bpm, else DEFAULT_FX_BPM (120)
 MixerLane::set_fx_tempo(bpm) → FxChain::set_tempo → FxSlot::set_tempo → Fx::set_tempo
 ```
 
-Because the master index is kept in step with engine-core (`Engine::set_master_deck` and the DSP startup path both push it), moving the master's tempo fader or loading a new track bends the repeats without any extra wiring.
+The master index is kept in step with engine-core: `Engine::set_master_deck` and the DSP startup path both push it. Moving the master's tempo fader or loading a new track therefore bends the repeats without any extra wiring.
 
 ## Echo
 
@@ -62,11 +62,13 @@ A stereo delay line with two read taps, so a large delay jump crossfades instead
 
 ## Reverb
 
-Freeverb topology scaled to the engine sample rate: 8 parallel combs (tunings `1116 … 1617`) and 4 series allpasses (`556, 441, 341, 225`), with a `23`-sample stereo spread on the right channel.
+Freeverb topology scaled to the engine sample rate. It has 8 parallel combs (tunings `1116 … 1617`) and 4 series allpasses (`556, 441, 341, 225`), with a `23`-sample stereo spread on the right channel.
 
 `param 0` is size (comb feedback `0.70 + 0.28 × value`), `param 1` is damping (`0.4 × value`). Input gain `0.015`, wet scale `3.0`, allpass feedback `0.5`. Reverb is not beat-synced, so it ignores `set_tempo` and the UI hides the BEAT stepper for it.
 
 ## Wire contract
+
+The four configuration commands fan out to **every** deck inside `Engine::for_each_fx_slot`, so the shared unit cannot drift between channels. They answer with `CmdOutcome::DecksUpdated`. Routing is deck-scoped and answers with `CmdOutcome::DeckUpdated`.
 
 | Kind | Origin | `CmdBody` | Result |
 |------|--------|-----------|--------|
@@ -75,8 +77,6 @@ Freeverb topology scaled to the engine sample rate: 8 parallel combs (tunings `1
 | `SetFxUnitWet` | `Mixer` | `{ slot, wet }` | one `Updated` per deck |
 | `SetFxUnitParam` | `Mixer` | `{ slot, param, value }` | one `Updated` per deck |
 | `SetDeckFxRouted` | `Deck(i)` | `{ routed }` | that deck's `Updated` |
-
-The four configuration commands fan out to **every** deck inside `Engine::for_each_fx_slot`, so the shared unit cannot drift between channels. They answer with `CmdOutcome::DecksUpdated`. Routing is deck-scoped and answers with `CmdOutcome::DeckUpdated`.
 
 Published state:
 
@@ -89,17 +89,19 @@ DeckSnapshot {
 FxSlotState { kind: FxKind, enabled: bool, wet: f32, params: [f32; FX_PARAM_COUNT] }
 ```
 
-`DeckUpdated` carries the same two fields, `status::fx_slot_state` maps DSP → wire, and `FxKind::Off` survives as the empty-slot state even though the selector does not offer it. A fresh `FxChain` loads **Echo in slot 0, unarmed** (`FxChain::new`), which matches what the strip shows before the first snapshot.
+`DeckUpdated` carries the same two fields, and `status::fx_slot_state` maps DSP → wire. `FxKind::Off` survives as the empty-slot state even though the selector does not offer it. A fresh `FxChain` loads **Echo in slot 0, unarmed** (`FxChain::new`), which matches what the strip shows before the first snapshot.
 
-The configuration commands carry no `soft_takeover` flag: FX knobs are UI-only today (no action leaf exists in `crates/controller/src/catalog.rs`), so there is no hardware takeover to resolve. Adding the field later is backward compatible under `#[serde(default)]`.
+The configuration commands carry no `soft_takeover` flag. FX knobs are UI-only today (no action leaf exists in `crates/controller/src/catalog.rs`), so there is no hardware takeover to resolve. Adding the field later is backward compatible under `#[serde(default)]`.
 
 ## Host and UI plumbing
 
 - `crates/host-flutter/src/api/engine.rs` mirrors the wire types (`FxKind`, `FxSlotChrome`) and exposes `set_fx_unit_slot`, `set_fx_unit_slot_enabled`, `set_fx_unit_wet`, `set_fx_unit_param`, `set_deck_fx_routed`. Regenerate FRB (`scripts/ensure-frb-codegen.sh`) after changing them.
-- `EngineEvt` carries `fx` / `fx_routed`; `applyEngineEvt` stores the shared slots on `EngineUiSnapshot.fxSlots` and the deck flag on `MixerChannelUi.fxRouted`, and keeps the previous list when the payload is unchanged so FX listeners do not rebuild on unrelated events (the FRB-generated `FxSlotChrome.==` compares `Float32List` by identity, so `engine_ui.dart` compares fields itself).
-- `fxSlotsProvider` / `deckFxRoutedProvider` feed the strip and the deck-header button; the strip drives `kBeatFxSlot` (index `0`), and `core/utils/fx_params.dart` owns the effect labels, the beat-division table and the default division.
+- `EngineEvt` carries `fx` / `fx_routed`; `applyEngineEvt` stores the shared slots on `EngineUiSnapshot.fxSlots` and the deck flag on `MixerChannelUi.fxRouted`. It keeps the previous list when the payload is unchanged, so FX listeners do not rebuild on unrelated events. The FRB-generated `FxSlotChrome.==` compares `Float32List` by identity, so `engine_ui.dart` compares fields itself.
+- `fxSlotsProvider` / `deckFxRoutedProvider` feed the strip and the deck-header button. The strip drives `kBeatFxSlot` (index `0`), and `core/utils/fx_params.dart` owns the effect labels, the beat-division table and the default division.
 
 ## Adding an effect
+
+Add a new effect kind across the DSP, wire, host and UI layers, then cover it with tests.
 
 1. Add `crates/engine-dsp/src/fx/<effect>.rs` implementing `Fx`, and register it from `fx/mod.rs`.
 2. Add the `FxKind` variant in `engine-dsp` **and** `bus-api` (plus both `map_fx_kind*` arms in `engine-core/src/status.rs`, and the `From` impls in `host-flutter`).

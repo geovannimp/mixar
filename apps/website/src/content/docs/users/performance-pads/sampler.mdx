@@ -1,29 +1,49 @@
 ---
 title: "Sampler"
-description: "Assign tracks to pads and fire them as one-shots, held samples, or loops."
+description: "Assign tracks to the eight sampler pads, manage banks, choose a play mode, and clear a pad."
 section: "Performance Pads"
 order: 505
 ---
 
-Select the **Sample** tab and the eight pads trigger short pieces of audio (a vocal stab, a drum hit, an acapella) from the deck's sampler, alongside the track that is playing.
+Select the **Sample** tab and the eight pads trigger short pieces of audio from the deck's sampler, alongside the track that is playing. The audio can be a vocal stab, a drum hit, or an acapella.
 
-## Assigning a sample
+## Before you start
 
-**Drag a track from the library onto a pad** to assign it. The pad then shows the sample's name and length. Assigned pads can be dragged again to replace the sample.
+- A track is loaded on the deck. With no track the pads are disabled: [Overview](/docs/users/performance-pads).
+- The sample you want is in the library, ready to drag.
+
+## Assign a sample
+
+1. Select the **Sample** tab.
+2. **Drag a track from the library onto a pad.**
+3. Drag another track onto an assigned pad to replace the sample.
 
 ## Banks
 
-Samples are organised in **banks** of eight slots. The arrows below the pads move through the available banks, and the bank name is shown between them. The settings button opens the bank settings:
+Samples are organised in **banks** of eight slots. The settings button lists the available banks, and the active bank's name is shown in the pads header.
+
+That menu also opens the bank settings:
 
 - **Name**: rename the bank.
-- **Play mode**: how the pads in this bank trigger:
-  - **One-shot**: starts a single, non-looping play that runs to the end of the sample; release does not stop it.
-  - **Hold**: plays while the pad is held and stops on release.
-  - **Loop**: repeats while the pad is held and stops on release.
-  - **Default**: use the bank's default play mode (One-shot).
+- **Play mode**: how the pads in this bank trigger.
 
-The active play mode is shown next to the bank name whenever it is not the default.
+| Play mode | Behaviour |
+| --- | --- |
+| **Oneshot** | Starts a single, non-looping play that runs to the end of the sample; release does not stop it |
+| **Hold** | Plays while the pad is held and stops on release |
+| **Loop** | Repeats while the pad is held and stops on release |
+| **Default** | Follows **Sampler play mode** in Settings → Deck, which is **Oneshot** unless you change it |
 
-## Clearing a sample
+## Check the result
+
+- An assigned pad shows the sample's name and length.
+- The pads header shows the active bank's name.
+
+## Clear a sample
 
 Hold **Shift** while pressing an assigned pad to **clear** the sample, leaving the pad empty.
+
+## If a pad does not fire
+
+- **The pad is empty**: drag a library track onto it.
+- **The sample stops on release**: the bank is in **Hold** or **Loop**. A bank on **Default** follows the **Sampler play mode** in Settings → Deck, which can also be **Hold** or **Loop**. Set the bank's play mode to **Oneshot** if it should run to the end.

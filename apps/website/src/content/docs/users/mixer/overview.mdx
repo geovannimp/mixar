@@ -1,17 +1,33 @@
 ---
 title: "Overview"
-description: "How the mixer screen is laid out: decks, channel strips, crossfader, master levels, library, and the Beat FX strip."
+description: "How the mixer screen is wired: channel strips and their processing order, the crossfader, the master output, the headphone cue bus, and Beat FX."
 section: "Mixer"
 order: 401
 ---
 
-The mixer screen is where you actually play: a waveform pane on top, the decks around the central channel strips, the library underneath, and a thin **Beat FX** strip pinned to the bottom. Choose a two- or four-deck layout under **Settings → Layout → Deck layout**; changing the layout restarts the audio engine and reloads tracks on decks that remain active. Four-deck mode gives the decks more vertical room and splits each stacked pair of decks with a hairline. On short windows, use the main scrollbar or mouse wheel to reach the docked library below the decks.
+The mixer screen is where you play: a waveform pane on top, the decks around the central channel strips, the library underneath, and a thin **Beat FX** strip pinned to the bottom. Every deck feeds one channel strip, and the strips are what reach the master output and the headphones.
 
-## Decks
+## Signal flow
+
+A channel crosses its strip in a fixed order: **gain trim → EQ → filter → FX → meter and cue tap → fader**. After the fader the crossfader scales the channel, and the scaled channels reach the master output.
+
+That order decides what the controls do to what you hear:
+
+- The meter and the headphones already include the effect, because the tap sits after FX.
+- The channel fader still controls how loud the whole channel is, because it comes after the tap.
+- The crossfader scales the effect exactly like the dry signal, because it is applied after the channel faders.
+- Cueing a deck does not add it to the master, because the tap feeds a separate bus. See [Cueing](/docs/users/mixer/cueing).
+- The FX stage is shared: a deck runs through it only while its header **FX** key is on. See [Beat FX](/docs/users/mixer/beat-fx).
+
+## The screen
+
+Choose a two- or four-deck layout under **Settings → Layout → Deck layout**. Changing the layout restarts the audio engine and reloads tracks on decks that remain active.
+
+Four-deck mode gives the decks more vertical room and splits each stacked pair of decks with a hairline. On short windows, use the main scrollbar or mouse wheel to reach the docked library below the decks.
+
+## Deck cards
 
 Deck identity colors stay consistent across headers, waveforms, tempo controls, mixer channels, and library load actions: **A blue**, **B rose**, **C amber**, and **D violet**.
-
-In compact layouts, scroll the deck header to reach its remaining buttons. Use the mouse wheel or the pads' scrollbar to reach both rows without shrinking them to unusable sizes; dragging a pad remains a performance gesture.
 
 Each deck card holds the track info, the performance pads, the tempo column, the transport (**Cue** / **Play**), and a row of header buttons:
 
@@ -23,7 +39,9 @@ Each deck card holds the track info, the performance pads, the tempo column, the
 
 Loading and ejecting sit on the deck's track cover, not in this row; see [Cover actions](/docs/users/decks#cover-actions).
 
-## Channel strip
+In compact layouts, scroll the deck header to reach its remaining buttons. Use the mouse wheel or the pads' scrollbar to reach both rows without shrinking them to unusable sizes. Dragging a pad remains a performance gesture.
+
+## Channel strips
 
 Every deck owns a channel in the mixer columns between the decks:
 
@@ -34,23 +52,25 @@ Every deck owns a channel in the mixer columns between the decks:
 | **Fader** | Channel volume |
 | **Cue** | Sends the deck to the headphone bus |
 
-The strip runs **gain trim → EQ → filter → FX → meter and cue tap → fader**. That order is why the meter and the headphones already include the effect, while the channel fader still controls how loud the whole channel is.
-
-The whole strip can be taken off screen: **Settings → Layout → Mixer strip**. The decks stay and widen into the freed space; deck transport, pads, and the FX bar keep working. With a **Middle horizontal** or **Middle vertical** waveform the lanes already hold the center column, so this switch only changes the layout around them — returning to **Top** or **Bottom** brings the strip back.
-
 Knob ranges, the filter's cutoffs, fader travel, the column layout, and what the meters show: [Channels](/docs/users/mixer/channels).
+
+The whole strip can be taken off screen: **Settings → Layout → Mixer strip**. The decks stay and widen into the freed space; deck transport, pads, and the FX bar keep working.
+
+With a **Middle horizontal** or **Middle vertical** waveform, the lanes already hold the center column. This switch then only changes the layout around them, and returning to **Top** or **Bottom** brings the strip back.
 
 In four-deck mode, the controls run left to right as **EQ/filter A+B → gain/volumes A+B → meters → gain/volumes C+D → EQ/filter C+D**. Each gain knob sits directly above its volume fader.
 
 ## Crossfader
 
-Click **A** or **B** beside the crossfader to open that side's deck checklist. Check a deck to assign it to that side; assigning it to the other side moves it rather than routing it to both. Uncheck a deck to set it to **Thru**, so the crossfader no longer affects it. The checklist follows assignments made from hardware too. In a four-deck layout, the default assignments are A/C to side A and B/D to side B. The crossfader is applied after the channel faders, so it scales the effect exactly like the dry signal.
+Click **A** or **B** beside the crossfader to open that side's deck checklist. Check a deck to assign it to that side; assigning it to the other side moves it rather than routing it to both. Uncheck a deck to set it to **Thru**, so the crossfader no longer affects it. The checklist follows assignments made from hardware too.
+
+In a four-deck layout, the default assignments are A/C to side A and B/D to side B.
 
 Set history uses these assignments when deciding whether a playing deck is audible, including decks assigned to **Thru**.
 
 The crossfader and its hairline can be taken off screen: **Settings → Layout → Mixer strip → Crossfader**. The decks keep their assignments, so hardware and set history still follow them.
 
-## Master levels
+## Master output
 
 The **master meter** sits at the left of the FX bar under the library. Click it to open **Levels**, which holds the master output level, the master cue toggle, the headphone level, and the cue/master blend for the headphones. See [Cueing](/docs/users/mixer/cueing) for how the headphone bus is built and what each control does.
 

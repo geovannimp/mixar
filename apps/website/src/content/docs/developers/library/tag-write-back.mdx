@@ -1,22 +1,34 @@
 ---
 title: "Tag write-back"
-description: "The opt-in mirror of track information into file tags: which fields each container gets, what is lossy, and what Mixar refuses to touch."
+description: "The opt-in mirror of app-managed track data into file tags: what each container gets, what is lossy, and how to verify a change."
 section: "Library"
 order: 2
 ---
 
-`library.db` is the source of truth for track information. Write-back is the optional second half: when the user turns on **Settings → Library → File tags**, Mixar also writes values into each file's own tags so other software (Rekordbox, Serato, Traktor, Mixxx, Mixed In Key) sees the same ones.
+`library.db` is the source of truth for track information. Write-back is the optional second half. When the user turns on **Settings → Library → File tags**, Mixar also writes values into each file's own tags. Other software (Rekordbox, Serato, Traktor, Mixxx, Mixed In Key) then sees those values where the container has a mapping for them; see [Lossiness and conflicts](#lossiness-and-conflicts).
 
 It is the only place Mixar modifies a music file, so it is opt-in, field-scoped, idempotent, and best-effort.
 
 User-facing manual: [Tag write-back](/docs/users/library/tag-write-back) (in [Library](/docs/users/library)). This page covers internals, the field matrix, and the known limits.
 
-- Opt-in: `LibraryConfig::tag_write_back` (`Off` by default; `TagWriteBack::On` from the setting). With it off, no analysis path ever opens a file for writing.
-- Field-scoped: `TrackTags` is a patch, not a rewrite. Only the fields the caller sets are touched; pictures, ReplayGain, Serato frames, and foreign keys survive untouched. A blank string or a non-finite BPM is reported `Absent` and written nowhere.
-- Idempotent: a field already carrying the wanted value is left alone, and a file with nothing to change is never rewritten (no mtime churn, no re-padding on every analyze).
-- Best-effort: an unwritable file is logged and skipped; the library row is already committed.
+## Before you enable it
 
-Implementation: `codec::write_track_tags` (lofty) for the format matrix, called by `library::tags::write_back_track_tags` from `LibraryManager::persist_file_analysis` and the `SaveBeatGrid` worker handler. Neither runs on the audio callback; the beat-grid path plans the write while holding the library lock and performs the file I/O after releasing it.
+- **Opt-in**: `LibraryConfig::tag_write_back` (`Off` by default; `TagWriteBack::On` from the setting). With it off, no analysis path ever opens a file for writing.
+- **Field-scoped**: `TrackTags` is a patch, not a rewrite. Only the fields the caller sets are touched; pictures, ReplayGain, Serato frames, and foreign keys survive untouched. A blank string or a non-finite BPM is reported `Absent` and written nowhere.
+- **Idempotent**: a field already carrying the wanted value is left alone. A file with nothing to change is never rewritten (no mtime churn, no re-padding on every analyze).
+- **Best-effort**: an unwritable file is logged and skipped; the library row is already committed.
+- **Refused shape** (`FieldWrite::Refused`, file left byte-identical): native `.stem.mp4` containers, multi-track MP4s whose `stem` manifest Mixar does not own.
+- **Clearing a tag is not expressible yet**: `TrackTags` uses `None` for "leave alone", so removing a field needs that added to the patch type first.
+
+## Run a write
+
+Implementation: `codec::write_track_tags` (lofty) for the format matrix, called by `library::tags::write_back_track_tags` from `LibraryManager::persist_file_analysis` and the `SaveBeatGrid` worker handler.
+
+1. Turn on **Settings → Library → File tags** (`LibraryConfig::tag_write_back`, `TagWriteBack::On`).
+2. Analyze a track, or save its beat grid. These are the two paths that reach the writer; the values come from `library::tags::app_managed_tags`, listed below. The beat-grid path then replaces the BPM with the grid's own value.
+3. Check the file in another reader against the library row, allowing for the lossy cases below (a fractional BPM on ID3v2, BPM and key on APE). Because the write is idempotent, a field already at the wanted value is left alone and a second run changes nothing.
+
+Neither write path runs on the audio callback. The beat-grid path plans the write while holding the library lock, then performs the file I/O after releasing it.
 
 ## Fields per container
 
@@ -38,7 +50,7 @@ Implementation: `codec::write_track_tags` (lofty) for the format matrix, called 
 ¹ ID3v2 keeps the rating in a binary `POPM` frame keyed by the email of the app
 that wrote it. Multiple frames are legal, so Mixar writes one per writer:
 MusicBrainz Picard's frame goes through lofty's provider
-(`round(star * 51)` — `51/102/153/204/255`), and Traktor, MusicBee and Windows
+(`round(star * 51)`, giving `51/102/153/204/255`), and Traktor, MusicBee and Windows
 Media Player get the stepped `1/64/128/196/255` set. Each app reads the frame
 carrying its own email, so the same star count reaches all of them at once. A
 frame owned by a reader Mixar does not mirror is re-emitted on the stepped set:
@@ -84,20 +96,18 @@ one function; the writer already handles them. Derived fields (duration, sample
 rate, channels, bitrate) are never written: they describe the audio, not user
 intent.
 
-## Lossiness
+## Lossiness and conflicts
 
 - **ID3v2 `TBPM` is an integer frame**, so a fractional BPM is rounded (`FieldWrite::Rounded`). Mixxx and Mixed In Key round too. `library.db` keeps the exact value, so a rescan that prefers the tag can land up to 0.5 BPM away from the stored beat grid.
-- **MP4 gets the freeform `BPM` atom, not `tmpo`.** The freeform field is what Mixed In Key, Serato, and Traktor write and what Mixxx reads first; `tmpo` is an integer atom, which lofty cannot emit from a text tag. Readers that look only at `tmpo` will not see Mixar's BPM.
-- **APE tags have no BPM/key mapping** in the TagLib/lofty table, so those two fields are reported `Unsupported` on `.ape`, `.wv`, and `.mpc` (the text fields work).
-- **Refused shape** (`FieldWrite::Refused`, file left byte-identical): native `.stem.mp4` containers, multi-track MP4s whose `stem` manifest Mixar does not own.
-- **Legacy aliases are not updated.** Only the recommended keys in the table above are written. A Vorbis file that carries the older `KEY` (or `TEMPO`) alias keeps its stale value, and the same goes for MP4's `----:com.apple.iTunes:KEY`; a reader that prefers the alias over `INITIALKEY`/`BPM` will see the old number. Mixxx additionally updates `KEY` when it is present. Aliases in the wild: Vorbis key `INITIALKEY` (Rekordbox, Serato, Traktor, Mixxx) vs `KEY` (VirtualDJ, Denon Engine DJ); Vorbis BPM `BPM` (MusicBrainz) vs `TEMPO` (Mixxx ≤ 2.0); MP4 key `----:com.apple.iTunes:initialkey` vs `----:com.apple.iTunes:KEY` (Rapid Evolution); MP4 BPM `----:com.apple.iTunes:BPM` vs the integer `tmpo` atom. Mixar *reads* either key alias, but has no mapping for the older Vorbis `TEMPO`, so a file whose BPM lives only there reads as unknown and is re-analyzed.
-- **Clearing a tag is not expressible yet**: `TrackTags` uses `None` for "leave alone", so removing a field needs that added to the patch type first.
+- **MP4 gets the freeform `BPM` atom, not `tmpo`.** The freeform field is what Mixed In Key, Serato, and Traktor write and what Mixxx reads first. `tmpo` is an integer atom, which lofty cannot emit from a text tag. Readers that look only at `tmpo` will not see Mixar's BPM.
+- **APE tags have no BPM/key mapping** in the TagLib/lofty table. Those two fields are reported `Unsupported` on `.ape`, `.wv`, and `.mpc` (the text fields work).
+- **Legacy aliases are not updated.** Only the recommended keys in the table above are written. A Vorbis file that carries the older `KEY` (or `TEMPO`) alias keeps its stale value, and the same goes for MP4's `----:com.apple.iTunes:KEY`. A reader that prefers the alias over `INITIALKEY`/`BPM` will see the old number. Mixxx additionally updates `KEY` when it is present. Aliases in the wild: Vorbis key `INITIALKEY` (Rekordbox, Serato, Traktor, Mixxx) vs `KEY` (VirtualDJ, Denon Engine DJ), and Vorbis BPM `BPM` (MusicBrainz) vs `TEMPO` (Mixxx ≤ 2.0). MP4 key `----:com.apple.iTunes:initialkey` vs `----:com.apple.iTunes:KEY` (Rapid Evolution), and MP4 BPM `----:com.apple.iTunes:BPM` vs the integer `tmpo` atom. Mixar *reads* either key alias, but has no mapping for the older Vorbis `TEMPO`. A file whose BPM lives only there reads as unknown and is re-analyzed.
 
 ## Cues, loops, and beat grids
 
-Cues, loops, and grids are not written to tags: there is no *standardized* tag representation. Serato's proprietary, reverse-engineered field set is the de-facto one, and it is per-format: ID3v2.4 GEOB frames on MP3/AIFF, `SERATO_MARKERS_V2` Vorbis comments on FLAC, `----:com.serato.dj:markersv2` atoms on MP4/M4A, its own layout on Ogg Vorbis, sidecar XML for AAC. Mixxx preserves it (it re-emits the frames it parsed, never authors cues). Mixar keeps cues/loops/grids in `library.db`, as Rekordbox and Traktor do; Rekordbox's route out of the database is USB export (ANLZ files), tracked in [#452](https://github.com/geovannimp/mixar/issues/452); writing Serato's frames is tracked in [#548](https://github.com/geovannimp/mixar/issues/548).
+Cues, loops, and grids are not written to tags: there is no *standardized* tag representation. Serato's proprietary, reverse-engineered field set is the de-facto one, and it is per-format: ID3v2.4 GEOB frames on MP3/AIFF, `SERATO_MARKERS_V2` Vorbis comments on FLAC, `----:com.serato.dj:markersv2` atoms on MP4/M4A, its own layout on Ogg Vorbis, sidecar XML for AAC. Mixxx preserves it (it re-emits the frames it parsed, never authors cues). Mixar keeps cues/loops/grids in `library.db`, as Rekordbox and Traktor do. Rekordbox's route out of the database is USB export (ANLZ files), tracked in [#452](https://github.com/geovannimp/mixar/issues/452). Writing Serato's frames is tracked in [#548](https://github.com/geovannimp/mixar/issues/548).
 
-## Verifying a change
+## Verification
 
 - `cargo test -p codec tag_write`: the per-container matrix (text fields, BPM rounding, APE's missing BPM/key), the `POPM` frame per writer with its byte scale, foreign-frame reads, ID3v2/Vorbis/MP4 round trips, idempotency, and the Stem refusal.
 - `cargo test -p library --all-features write`: analysis and beat-grid write-back against a real WAV, plus the untouched-file case with the setting off.

@@ -1,13 +1,15 @@
 ---
 title: "Overview"
-description: "How the mixer subsystem is put together: the lane graph, the channel strip order, the buses, and where FX sits in the chain."
+description: "The lane graph, the channel strip order, the buses, and where FX sits in the mixer signal path."
 section: "Mixer"
 order: 1
 ---
 
-The mixer is a `dasp_graph` graph of one node per deck. Each node owns that deck's playback, its sampler, and its channel strip, so the whole path from PCM to bus lives in `engine-dsp` with no I/O.
+The mixer is a `dasp_graph` graph of one node per deck. Each node owns that deck's playback, its sampler, and its channel strip. The whole path from PCM to bus therefore lives in `engine-dsp` with no I/O.
 
-User-facing docs: [Mixer overview](/docs/users/mixer) and [Beat FX](/docs/users/mixer/beat-fx). This topic covers the implementation; the FX unit has its own page: [FX chain](/docs/developers/mixer/fx-chain).
+The per-deck side is a lane: `crates/engine-dsp/src/mixer_lane.rs` joins the deck, its sampler and one strip into a graph node. The mixer-wide side, `crates/engine-dsp/src/mixer.rs`, renders the lanes, sums the crossfader, routes the buses, and owns master peaks and FX tempo. FX sits inside the strip, but its configuration is one shared unit across decks; see [FX chain](/docs/developers/mixer/fx-chain).
+
+User-facing docs: [Mixer overview](/docs/users/mixer) and [Beat FX](/docs/users/mixer/beat-fx).
 
 ## Signal path
 
@@ -33,11 +35,11 @@ crossfader gains (equal power)  ──►  master mix  ──►  master bus
         └─► cue bus (pre-fader taps of cue-enabled channels + optional master tap)
 ```
 
-The pre-fader tap is captured **after** EQ, filter and FX, which is why headphones and the channel meter carry the wet signal while the fader still scales both dry and wet.
+The pre-fader tap is captured **after** EQ, filter and FX. Headphones and the channel meter therefore carry the wet signal, while the fader still scales both dry and wet.
 
 ## Chunking
 
-`Mixer::process` requires the frame count to be a positive multiple of `Buffer::LEN` (64 samples) and renders that many chunks per callback. Everything inside the callback is allocation-free: buffers, scratch space and level state are allocated in constructors and reused, and no lock is taken on the audio thread.
+`Mixer::process` requires the frame count to be a positive multiple of `Buffer::LEN` (64 samples) and renders that many chunks per callback. Everything inside the callback is allocation-free. Buffers, scratch space and level state are allocated in constructors and reused, and no lock is taken on the audio thread.
 
 ## File map
 
@@ -56,4 +58,9 @@ The pre-fader tap is captured **after** EQ, filter and FX, which is why headphon
 
 ## Command shape
 
-Mixer-wide commands are published with `Origin::Mixer` and answered with a `DeckUpdated` per deck (`CmdOutcome::DecksUpdated`) because the value lives on every channel: crossfader, master and cue volumes, and the FX unit's shared configuration all work that way. Deck-scoped commands use `Origin::Deck(i)` and answer with a single `DeckUpdated` (`CmdOutcome::DeckUpdated`): volume, EQ, filter, gain trim, cue, and the FX routing switch.
+- **Mixer-wide**: published with `Origin::Mixer` and answered with `CmdOutcome::DecksUpdated`, one `DeckUpdated` per deck. Applies to the crossfader, master and cue volumes, and the FX unit's shared configuration, because the value lives on every channel.
+- **Deck-scoped**: published with `Origin::Deck(i)` and answered with a single `DeckUpdated` (`CmdOutcome::DeckUpdated`). Applies to volume, EQ, filter, gain trim, cue, and the FX routing switch.
+
+## Pages in this topic
+
+- [FX chain](/docs/developers/mixer/fx-chain): the `Fx` trait, echo and reverb DSP, the shared-unit wire contract, and how to add an effect.

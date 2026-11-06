@@ -1,39 +1,48 @@
 ---
 title: "Transport"
-description: "Play/pause, the cue button's tap-vs-hold behaviour, ejecting, and the vinyl brake."
+description: "Start, stop, cue, audition, and unload a deck, with the vinyl brake."
 section: "Decks"
 order: 302
 ---
 
-The transport is the pair of keys under the performance panel:
+The transport starts, stops, and cues the loaded track. Its keys sit under the performance panel: **Play** reads **Pause** while a track plays, and **Cue** sets or auditions the cue point. The click that unloads the deck sits on the track cover instead, and [Unload the deck](#unload-the-deck) covers it.
 
 | Key | Label |
 | --- | --- |
 | Play / pause | **Play** while stopped, **Pause** while playing |
 | Cue | **Cue** |
 
-Both keys use the same deck-wide enable rule: they are dead (and drawn at half opacity) when the engine is not running, while a track is loading, or when the deck holds no track.
+Both keys use the same deck-wide enable rule. They are dead (and drawn at half opacity) in three cases: the engine is not running, a track is loading, or the deck holds no track.
 
 ## Play and pause
 
-**Play** starts playback from the playhead and becomes **Pause**; pressing it again stops where the playhead is. Nothing is re-cued when you pause and play again.
+1. Load a track onto the deck, by dragging a library row onto it or by clicking the cover ([Decks overview](/docs/users/decks#loading-a-track)). The drag needs a running engine; the cover opens the library either way.
+2. Press **Play**. Playback starts from the playhead and the key becomes **Pause**.
+3. Press **Pause** to stop where the playhead is.
 
-## Cue
+Nothing is re-cued when you pause and play again.
 
-The **Cue** key has two behaviours decided by how long you hold it:
+## Set a cue point
 
-- **Tap**: release under 180 ms sets the cue point at the playhead. With **Q** on, the point snaps to the beat grid.
-- **Hold**: keep it down past 180 ms and the deck auditions from the cue point, playing forwards. Releasing returns the deck to where it was before the hold, in the state it was in. Playing stays playing, paused stays paused.
+1. Park the playhead where the cue belongs, by clicking the overview strip or scrubbing the waveform ([Jog and waveform](/docs/users/decks/jog-and-waveform)).
+2. **Tap**: release **Cue** under 180 ms. The cue point is set at the playhead.
 
-A deck with no cue point yet auditions from its current position on the first hold.
+With **Q** on, the point snaps to the beat grid. The key lights up while you press it.
 
-The key lights up while you press it, and stays lit through an audition.
+## Audition from the cue point
 
-## Vinyl brake
+1. **Hold**: keep **Cue** down past 180 ms. The deck plays forwards from the cue point.
+2. Release. The deck returns to where it was before the hold, in the state it was in.
 
-Off by default. **Settings → Deck → Vinyl brake pause** is the card, its switch is **Brake on pause**, and its description reads "Pause spins the deck down like a turntable instead of cutting instantly."
+Playing stays playing, and paused stays paused. The key stays lit through an audition. A deck with no cue point yet auditions from its current position on the first hold.
 
-With it on, pausing ramps the platter to a stop instead of muting:
+## Turn on the vinyl brake
+
+The brake is off by default.
+
+1. Open **Settings → Deck → Vinyl brake pause**.
+2. Turn on **Brake on pause**. Its description reads "Pause spins the deck down like a turntable instead of cutting instantly."
+3. Set **Stop time** if the default is not right.
 
 | Setting | Range | Default |
 | --- | --- | --- |
@@ -41,17 +50,17 @@ With it on, pausing ramps the platter to a stop instead of muting:
 
 The hint under it: "How long the platter takes to stop after pause."
 
-The brake is suppressed while your finger is on the jog and starts when you lift off a paused platter. Pressing play or loading a track cancels a brake in progress, so the ramp never rides into new audio.
+With the brake on, pausing ramps the platter to a stop instead of muting. The brake is suppressed while your finger is on the jog and starts when you lift off a paused platter. Pressing play or loading a track cancels a brake in progress, so the ramp never rides into new audio.
 
-## Eject and load
+## Unload the deck
 
-Both actions live on the track cover, next to the title, rather than in the header:
+Loading and unloading live on the track cover, next to the title, rather than in the header. The state of the deck decides which action the cover offers:
 
 - **Empty deck**: click the cover to open the library and pick the track there.
-- **Loaded deck**: hovering or focusing the cover grows its eject chip until it fills the cover, so the artwork itself is the unload button. Clicking it clears the deck. The library entry, cues, loops and beat grid stay; you are unloading the player, not the track.
-- **Playing deck**: the same click asks **Unload Deck A?** — **Cancel** keeps the track playing, **Unload** clears it.
+- **Loaded deck**: hover or focus the cover and click the eject chip once it fills the cover. The deck clears.
+- **Playing deck**: the same click asks **Unload Deck A?**. **Cancel** keeps the track playing, and **Unload** clears it.
 
-The eject chip dims while the engine is stopped and while a load is in flight, so it cannot race the deck. [Decks overview](/docs/users/decks#cover-actions) has the full set of cover states.
+The library entry, cues, loops and beat grid stay; you are unloading the player, not the track. The eject chip dims while the engine is stopped and while a load is in flight, so it cannot race the deck. [Decks overview](/docs/users/decks#cover-actions) has the full set of cover states.
 
 ## Time readouts
 

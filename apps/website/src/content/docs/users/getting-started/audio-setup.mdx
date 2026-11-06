@@ -1,28 +1,41 @@
 ---
 title: "Audio setup"
-description: "Point Mixar at the right output device, set the engine buffer, and route the headphone bus."
+description: "Get sound out of Mixar: choose the output device for the master bus, then route the headphone preview bus."
 section: "Getting started"
 order: 102
 ---
 
 Mixar makes sound through a master bus and, optionally, a separate **preview bus** for headphones. Both live under **Settings → Audio**, whose description is *Engine output and buses*.
 
-For every field on that screen with its range and default, see [Settings → Audio](/docs/users/settings/audio).
+This page routes both buses and checks that sound leaves the device you picked. For every field on that screen with its range and default, see [Settings → Audio](/docs/users/settings/audio).
 
-## Send audio to a device
+## Before you start
+
+- **Mixar installed and open**: see [Install Mixar](/docs/users/getting-started) if you have not launched it yet.
+- **An output device your system can use**: with none, the engine fails to start with **No output device available** and the app stays open without sound.
+- **A track on a deck**: you need something to play while you check the route.
+- **A spare channel pair for cueing**: the preview bus defaults assume a four-channel interface where channels 1 and 2 carry master.
+
+## Send the master to a device
 
 1. Open **Settings → Audio → Master bus**.
 2. Pick the output under **Device**. The first entry is **System default**, which follows your operating system's current default output.
-3. Confirm the channel layout: **Channel mode** is either **Stereo pair** or **Mono (fold L+R)**, and **Left channel** / **Right channel** are 1-based channel numbers clamped to what the device reports. **Right channel** is disabled in Mono.
+3. Confirm the channel layout. **Channel mode** is either **Stereo pair** or **Mono (fold L+R)**. **Left channel** and **Right channel** are 1-based channel numbers clamped to what the device reports. **Right channel** is disabled in Mono.
 4. Press **Save**.
 
-Saving restarts the engine whenever it is running, then reloads the tracks that were already on the decks. A restart also happens if you change **Resampler quality** or **Buffer size** in the **Engine** card, or a bus **Sample rate**. Closing the page with unsaved edits asks **Unsaved settings** / *Save changes before closing?*, so you can Save, Discard, or Cancel.
+**Checkpoint**: saving restarts the engine whenever it is running, then reloads the tracks that were already on the decks. The new route is live.
 
-Each bus has its own **Sample rate**. **Device default** follows the rate the device itself mixes at, which is what a fresh install uses. Buses on different devices may run at different rates; the engine graph runs at the master rate and the preview stream is resampled, so both stay aligned. Two buses on the same device share one stream and therefore one rate.
+A restart also happens if you change **Resampler quality** or **Buffer size** in the **Engine** card, or a bus **Sample rate**. Closing the page with unsaved edits asks **Unsaved settings** / *Save changes before closing?*, so you can Save, Discard, or Cancel.
+
+The **System default** entry reports two channels, so the master bus defaults to channels 1 and 2.
+
+## Check that sound comes out
+
+With the master route saved, play the deck and watch the mixer levels. The sound leaves the device you chose.
 
 If the settings were written but the engine refused them, the toast reads **Settings saved, but not applied** and carries the error. **Save failed** means the file on disk could not be written at all.
 
-The **System default** entry reports two channels, so the master bus defaults to channels 1 and 2.
+If you hear nothing, or only one side, work through [Troubleshooting sound](/docs/users/getting-started/troubleshooting).
 
 ## Route the headphones
 
@@ -33,18 +46,41 @@ Cueing needs its own output path, so it is off until you enable it:
 3. Pick the **Device** and its channels. The defaults are the system default device on channels **3 and 4**, which assumes a four-channel interface where channels 1 and 2 carry master.
 4. Press **Save**.
 
-The channel numbers are clamped when you switch devices. If a stereo pair would collide on a device with fewer channels, Mixar moves the right channel over by one; on a single-channel device it switches to Mono.
+**Checkpoint**: with the preview bus on and saved, cueing has an output path. What reaches it is decided in the mixer; see [Cueing](/docs/users/mixer/cueing).
 
-The mixer's **Levels** popover shows an **Enable** button on its **Headphone** card while the preview bus is off. Pressing it opens Settings on the preview bus card so you can turn it on. See [Cueing](/docs/users/mixer/cueing).
+The channel numbers are clamped when you switch devices. If a stereo pair would collide on a device with fewer channels, Mixar moves the right channel over by one. On a single-channel device it switches to Mono.
 
-## When nothing is audible
+The mixer's **Levels** popover shows an **Enable** button on its **Headphone** card while the preview bus is off. Pressing it opens Settings on the preview bus card so you can turn it on.
 
-| Symptom | Cause |
+## Two buses, one or two devices
+
+Both buses can sit on the same device or on two different ones.
+
+**Sample rate** is how many times per second Mixar sends audio to a device. Leave it on **Device default** unless a device refuses to start: that entry asks the device for the rate it already uses. Picking an explicit rate asks for exactly that rate, and the engine does not start if the device refuses it. Some backends cannot report the rate a device mixes at, and the engine then needs an explicit rate.
+
+If the two buses use different devices at different rates, Mixar converts the headphone stream so both stay in time. On a shared device the buses use one stream and one rate. A bus left on **Device default** takes the explicit rate the other bus sets. Two different explicit rates on one device are rejected with *one stream runs at one rate*.
+
+## Buffer size and latency
+
+The **Buffer size** is how much audio the mixer renders per chunk before handing it to the device streams. Each device has its own queue: the engine fills a ring buffer, and the device reads from it at its own callback period. That period can differ from the buffer size.
+
+| Buffer size | You get | You pay |
+| --- | --- | --- |
+| Small (64 to 256 frames) | A snappier response: a jog, pad, or fader is heard sooner | Less headroom, so a busy machine starts to click and drop out |
+| Default (512 frames) | About 11 ms at 48 kHz, which suits most machines | A small, usually inaudible delay |
+| Large (1024 to 2048 frames) | Very stable playback on a slow machine or a busy USB bus | More delay between your action and what you hear |
+
+The slider runs from 64 to 2048 frames in steps of 64, and the value must stay a multiple of 64. Raise it if you hear clicks, crackle, or dropouts. Lower it if the controls feel late.
+
+**Buffer size** is one setting for the whole engine, not a per-device one. Each device still runs at its own pace, and Mixar absorbs the difference.
+
+**Low latency** is a per-bus checkbox. It applies when the driver reports a buffer-size range: Mixar then asks for the device's smallest period. That request is floored at 16 frames unless the whole range is smaller. Without a range the configured size stays in use. Leave it off if the sound breaks up.
+
+## Where to go next
+
+| Task | Page |
 | --- | --- |
-| The app does not start | No output device was enumerated. The engine reports **No output device available** and startup aborts. Enable an output and relaunch. |
-| Deck levels move, no sound | Master bus points at the wrong device, or at a channel pair the device does not drive. Recheck **Device** and **Channel mode**. |
-| Only one side is audible | **Channel mode** is set to **Mono (fold L+R)**, which folds both sides into one channel by design. |
-| Cueing is silent, master is fine | **Enable preview bus** is off, or the preview bus sits on a channel pair the interface does not own. |
-| Clicks, dropouts, or a refusal to start | **Buffer size** is not a multiple of 64 frames. The hint states the rule: *Must be a multiple of 64 frames (mixer graph chunk size).* |
-
-**Low latency** is per bus: where the driver reports a buffer-size range, Mixar requests the device's *smallest* callback period for that bus's stream (floored at 16 frames unless the whole range is smaller; the engine still renders its own mixer chunk); a driver that reports no range keeps the configured size. Buses that share a device share the request. The **Buffer size** stays global. It is the mixer chunk the engine renders in one go, and it also sets the callback size Mixar requests from the backend, which may clamp it to what the device supports. It is not a per-device setting, because the callback period the driver actually runs at can differ and the engine absorbs that with a per-device buffer. Lower it on a solid driver for a snappier response, and raise it if you hear dropouts.
+| Fix silence, one side, or dropouts | [Troubleshooting sound](/docs/users/getting-started/troubleshooting) |
+| Add a folder of music and analyze it | [Library](/docs/users/library) |
+| Load tracks, play them, and unload a deck | [Decks](/docs/users/decks) |
+| Send a channel to the headphones | [Cueing](/docs/users/mixer/cueing) |

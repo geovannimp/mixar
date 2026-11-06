@@ -1,13 +1,15 @@
 ---
 title: "map.toml: [outputs]"
-description: "Signal-driven LED and meter outputs: binding fields, the signal catalog, LED modes (on/off/blink), caching and refresh rules."
+description: "Signal-driven LED and meter outputs: binding fields, the signal catalog, LED modes, and caching rules."
 section: "MIDI Mappings"
 order: 5
 ---
 
-`[outputs.<section>]` is the **app → hardware** direction of a mapping: it watches a closed-catalog signal for the section and emits MIDI when it turns on or off, which is how the app lights LEDs and drives callbacks on the controller. This page is the reference for the table; [map.toml](/docs/developers/midi-mappings/map-toml) is its overview, [inputs](/docs/developers/midi-mappings/map-toml/inputs) is the opposite (hardware → app) direction, and the control declarations these targets point at live in [device.toml](/docs/developers/midi-mappings/device-toml).
+`[outputs.<section>]` is the app-to-hardware direction of a mapping. It watches a closed-catalog signal for the section and emits MIDI when that signal turns on or off. That is how the app lights LEDs and drives callbacks on the controller. [map.toml](/docs/developers/midi-mappings/map-toml) is the overview, [inputs](/docs/developers/midi-mappings/map-toml/inputs) covers the opposite direction, and the control declarations these targets point at live in [device.toml](/docs/developers/midi-mappings/device-toml).
 
-Sections are `deck_1` through `deck_4`, `master`, `sampler`, and `custom`. Only `deck_*` sections resolve signals, and `master` resolves `master_cue` and `fx_armed`; `sampler` and `custom` are host-driven only.
+## Sections
+
+Sections are `deck_1` through `deck_4`, `master`, `sampler`, and `custom`. Only `deck_*` sections resolve signals, and `master` resolves `master_cue` and `fx_armed`. `sampler` and `custom` are host-driven only.
 
 ## Binding fields
 
@@ -69,7 +71,7 @@ Signals are a closed catalog per section: a name outside the list fails load wit
 | `pad_loop_<n>` | `n` = 1..=8 | Mode-gated: the slot is backed by a saved loop only on the Loop Roll page. |
 | `pad_beat_jump_<n>`, `pad_sampler_<n>`, `pad_stems_<n>` | `n` = 1..=8 | Mode-gated, but always resolve false: there is no engine slot LED state for these pages yet. Bind them anyway so attach forces the bank off. |
 
-Because a pad bank is mode-gated, only the deck's active page can light; the previous page's bank goes dark as soon as the mode changes. `pad_keyboard_*` / `pad_key_shift_*` are not advertised: those banks are host-driven (see [Host-driven outputs](#host-driven-signal-less-outputs) below).
+Because a pad bank is mode-gated, only the deck's active page can light. The previous page's bank goes dark as soon as the mode changes. `pad_keyboard_*` / `pad_key_shift_*` are not advertised: those banks are host-driven (see [Host-driven outputs](#host-driven-signal-less-outputs) below).
 
 ### Master signals
 
@@ -97,20 +99,20 @@ pad_mode_loop_roll_shift = { signal = "shift_held", blink = "pad_mode_loop_roll_
 ```
 
 <Callout type="warning" title="Don't blink a shared address">
-In the DDJ-400, notes `0x69`/`0x6F` belong to the Keyboard / Key Shift mode lamps, the same physical LEDs as SHIFT+HOT CUE / SHIFT+SAMPLER. Blinking `shift_held` on those addresses fights the solid mode `On` and flickers. One output per physical LED.
+In the DDJ-400, notes `0x69`/`0x6F` belong to the Keyboard / Key Shift mode lamps. They are the same physical LEDs as SHIFT+HOT CUE / SHIFT+SAMPLER. Blinking `shift_held` on those addresses fights the solid mode `On` and flickers. One output per physical LED.
 </Callout>
 
 ## Caching and refresh
 
-- The last state per binding is cached as `section.alias`, so the same state is never re-sent: an `on` is followed by an `off`, not by repeated `on` messages.
-- State is **forced** to re-send after a pad-mode switch (`set_deck_pad_mode` → `refresh_deck_leds`), since hardware often clears pad LEDs when the page changes: the session drops the cached value and replays the hot-cue LED state.
-- On attach, the `[lifecycle]` `on_init` script runs first, then a forced sweep (`refresh_all_leds`) re-asserts every lamp, since the unit may still hold state from a previous run.
-- On shutdown and detach, every mapped lamp's `off` bytes are sent (`clear_leds`); the cache is dropped first so a failure mid-sweep cannot leave a stale lit entry.
+- The last state per binding is cached as `section.alias`, so the same state is never re-sent. An `on` is followed by an `off`, not by repeated `on` messages.
+- State is **forced** to re-send after a pad-mode switch (`set_deck_pad_mode` → `refresh_deck_leds`), since hardware often clears pad LEDs when the page changes. The session drops the cached value and replays the hot-cue LED state.
+- On attach, the `[lifecycle]` `on_init` script runs first. Then a forced sweep (`refresh_all_leds`) re-asserts every lamp, since the unit may still hold state from a previous run.
+- On shutdown and detach, every mapped lamp's `off` bytes are sent (`clear_leds`). The cache is dropped first so a failure mid-sweep cannot leave a stale lit entry.
 - Continuous-value commands (jog, EQ, volume, …) skip the per-deck LED resolve.
 
 ## Host-driven (signal-less) outputs
 
-Without `signal`, the binding key doubles as the watch name and must be a closed input alias for that section, except in `custom`, where any snake_case key is allowed. The host lights these via `apply_output_signal`.
+Without `signal`, the binding key doubles as the watch name. It must be a closed input alias for that section, except in `custom`, where any snake_case key is allowed. The host lights these via `apply_output_signal`.
 
 The DDJ-400's Keyboard and Key Shift pad banks are signal-less:
 
@@ -120,7 +122,7 @@ keyboard_pad_1 = { on = "keyboard_pad_1_led", off = { type = "note", channel = 8
 
 The host re-drives them whenever the deck enters a keyboard or key-shift page (`refresh_key_shift_leds`), following the key-shift state, the keyboard page, and the root cue. These are host-owned lamps, unlike the declarative signals above: `[lifecycle]` scripts cannot read or write them.
 
-VU meters are not `[outputs]` bindings. The host drives the `vu_meter` endpoint declared in `device.toml` (`set_deck_vu`), sending CC value `level × 150` clamped to 127 (the Mixxx scale) and skipping duplicate values.
+VU meters are not `[outputs]` bindings. The host drives the `vu_meter` endpoint declared in `device.toml` (`set_deck_vu`). It sends CC value `level × 150` clamped to 127 (the Mixxx scale) and skips duplicate values.
 
 ## DDJ-400 worked examples
 
@@ -144,7 +146,7 @@ VU meters are not `[outputs]` bindings. The host drives the `vu_meter` endpoint 
 | `outputs.<section>.<alias>: unknown signal 'x' for 'deck_1'` | Use a signal from this page's catalog for that section. |
 | `outputs.<section>.<alias>.on: alias '<name>' missing from device.toml` | Declare the alias in `device.toml`, or switch to an inline endpoint. |
 
-## Where to go next
+## Related
 
 - [inputs](/docs/developers/midi-mappings/map-toml/inputs): binding forms, fields, modifiers, soft takeover, absolute vs relative inputs, rate limiting.
 - [lifecycle](/docs/developers/midi-mappings/map-toml/lifecycle): the three script hooks and when the session calls them.

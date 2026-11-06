@@ -1,21 +1,35 @@
 ---
 title: "Validation & errors"
-description: "Validate mapping bundles with map-check, understand common errors, and contribute a mapping."
+description: "Validate a mapping bundle with map-check, read its exit codes and errors, and contribute a mapping."
 section: "MIDI Mappings"
 order: 9
 ---
 
-`map-check` is the controller crate's static validator. It loads and checks a mapping bundle **without any hardware**, so you can catch a bad `device.toml` / `map.toml` / `script.rhai` before launching the app. The same checks run in CI over every shipped bundle.
+`map-check` is the controller crate's static validator. It loads and checks a mapping bundle with no hardware. A bad `device.toml`, `map.toml`, or `script.rhai` shows up before you launch the app. The same checks run in CI over every shipped bundle.
 
-## Run map-check
+## Validate a bundle
 
-Run it from `crates/` with Cargo:
+Run `map-check` from `crates/`:
 
 ```bash
 cargo run -p controller --bin map-check -- --all ../mappings
 ```
 
-Other accepted forms:
+1. Choose what to check. `--all` checks every bundle; a directory or an id checks one.
+2. Fix every failure. The failure lines go to stderr and the process exits non-zero.
+3. Rerun until the bundle prints `ok`, then keep it green.
+
+A failure looks like this:
+
+```text
+ERR ddj-400: inputs.deck_1.volume: no matching endpoint in device.toml
+```
+
+| Invocation | Checks |
+| --- | --- |
+| `--all [root]` | Every immediate subdirectory of `root`. The root defaults to `../mappings` when omitted. |
+| `<bundle-dir>` | A single directory. |
+| `<id>` | Resolved as `../mappings/<id>`, falling back to `mappings/<id>`. |
 
 ```bash
 # One bundle directory
@@ -24,10 +38,6 @@ cargo run -p controller --bin map-check -- ../mappings/ddj-400
 # A bundle id, resolved under ../mappings/ (then mappings/)
 cargo run -p controller --bin map-check -- ddj-400
 ```
-
-- `--all [root]` checks every immediate subdirectory of `root`. The root defaults to `../mappings` when omitted.
-- `<bundle-dir>` checks a single directory.
-- `<id>` is resolved as `../mappings/<id>`, falling back to `mappings/<id>`.
 
 On success each bundle prints one `ok` line, followed by a count:
 
@@ -42,28 +52,48 @@ A single-directory run prints the path instead of the id:
 ok  ../mappings/ddj-400
 ```
 
-On failure the failure lines go to stderr and the process exits non-zero:
+| Exit code | Meaning |
+| --- | --- |
+| `0` | Everything passes. |
+| `1` | Any bundle fails. |
+| `2` | Usage error (no arguments prints the usage text). |
 
-```text
-ERR ddj-400: inputs.deck_1.volume: no matching endpoint in device.toml
-```
-
-- Exit `0` when everything passes, `1` when any bundle fails, `2` for a usage error (no arguments prints the usage text).
-- With `--all`, a failure prints `ERR <id>: <reason>` for each bad bundle and nothing is reported as `ok`.
+With `--all`, a failure prints `ERR <id>: <reason>` for each bad bundle, and nothing is reported as `ok`.
 
 <Callout type="tip" title="Run it first">
 `map-check` needs no controller and no running engine. Make it the first thing you run after editing a bundle, and keep it green before opening a pull request.
 </Callout>
 
-## What it validates
+## Contribute a mapping
+
+Start from the **Controller mapping** issue template (label `enhancement`, title `controller: …`). Fill in:
+
+- **Device**: Product; Vendor / model; MIDI name / USB VID:PID (if known).
+- **References**: the official MIDI chart, manufacturer page, and any Mixxx or other mapping you used.
+- **What's wanted**: transport, mixer, jog, pads, LEDs, relative CC, and which parts are must-haves versus nice-to-haves.
+
+Then add the bundle:
+
+```text
+mappings/<id>/
+  device.toml     # required — identity + endpoints
+  map.toml        # required — inputs, outputs, lifecycle
+  script.rhai     # optional — only if hooks or script bindings are used
+```
+
+Keep `map-check` green. CI runs `check_all_mappings` over `mappings/`, so any bundle that fails validation fails the build. The shipped [`mappings/ddj-400/`](https://github.com/geovannimp/mixar/tree/main/mappings/ddj-400) bundle is the reference to study. It shows note and `cc14` endpoints, relative jog CCs, per-bank pad aliases, LED outputs, and a `script.rhai` with lifecycle hooks. The older `example-generic` template has been retired in favor of these docs.
+
+## What map-check validates
 
 The checks span the whole bundle.
 
 **Bundle layout**
+
 - Both `device.toml` and `map.toml` must exist. A missing file is reported as `missing required file ...` with its full path.
 - Both files must parse as TOML and declare `schema_version = 1`. Any other version fails with `unsupported schema_version <n> (expected 1)`.
 
 **`device.toml`**
+
 - Section names must be one of `master`, `sampler`, `custom`, or `deck_N`.
 - A `deck_N` index must be in the v1 range `1..=4`.
 - Every alias must be snake_case.
@@ -71,6 +101,7 @@ The checks span the whole bundle.
 - Two input-eligible endpoints may not claim the same MIDI identity. Overlap is rejected as an `input MIDI clash`.
 
 **`map.toml` inputs**
+
 - Each alias must be in the closed input catalog for its section.
 - Each alias must have a matching endpoint in `device.toml`.
 - Each binding must name exactly one of `action` or `script`.
@@ -80,16 +111,20 @@ The checks span the whole bundle.
 - A `script` binding requires `script.rhai` to be present.
 
 **`map.toml` outputs**
+
 - A watch key must be in the closed catalog for its section (except under `custom`).
 - Each `on` / `off` target must either resolve to an alias in `device.toml` or be a valid inline endpoint.
 
 **Lifecycle and `script.rhai`**
+
 - Declaring any `[lifecycle]` hook requires a `script.rhai` in the bundle.
 - Every function named by a lifecycle hook (`on_init`, `on_shutdown`, `idle_heartbeat`) must be defined in `script.rhai`.
 - Every function named by an input binding's `script` must be defined in `script.rhai`.
 - `script.rhai` must compile; a syntax error is reported as `script compile error: ...`.
 
-Endpoint shape rules, applied to device endpoints, inline output targets, and alias/inline output resolution:
+## Endpoint shape rules
+
+The rules apply to device endpoints, inline output targets, and alias/inline output resolution:
 
 | Rule | Error when violated |
 | --- | --- |
@@ -146,29 +181,10 @@ Messages below use the real shapes, with `...` standing in for a path or bundle 
 | `failed to read '...'` | I/O error (missing root, permissions) | fix the path or permissions |
 
 <Callout type="note" title="Extra output-only names are allowed">
-`device.toml` may define extra snake_case aliases beyond the closed input catalog (for example `play_led`, `vu_meter`). Only names used as `[inputs.*]` keys are restricted to the catalog; output targets just have to resolve.
+`device.toml` may define extra snake_case aliases beyond the closed input catalog (for example `play_led`, `vu_meter`). Only names used as `[inputs.*]` keys are restricted to the catalog; output targets only have to resolve.
 </Callout>
 
-## Contributing a mapping
-
-Start from the **Controller mapping** issue template (label `enhancement`, title `controller: …`). Fill in:
-
-- **Device**: Product; Vendor / model; MIDI name / USB VID:PID (if known).
-- **References**: the official MIDI chart, manufacturer page, and any Mixxx or other mapping you used.
-- **What's wanted**: transport, mixer, jog, pads, LEDs, relative CC, and which parts are must-haves versus nice-to-haves.
-
-Then add the bundle:
-
-```text
-mappings/<id>/
-  device.toml     # required — identity + endpoints
-  map.toml        # required — inputs, outputs, lifecycle
-  script.rhai     # optional — only if hooks or script bindings are used
-```
-
-Keep `map-check` green; CI runs `check_all_mappings` over `mappings/`, so any bundle that fails validation fails the build. The shipped [`mappings/ddj-400/`](https://github.com/geovannimp/mixar/tree/main/mappings/ddj-400) bundle is the reference to study: it shows note and `cc14` endpoints, relative jog CCs, per-bank pad aliases, LED outputs, and a `script.rhai` with lifecycle hooks. The older `example-generic` template has been retired in favor of these docs.
-
-## Where to look next
+## Related
 
 - [device.toml](/docs/developers/midi-mappings/device-toml): identity, sections, and endpoint shape.
 - [inputs](/docs/developers/midi-mappings/map-toml/inputs): `[inputs]` binding forms, fields, modifiers, soft takeover.

@@ -5,7 +5,7 @@ section: "MIDI Mappings"
 order: 7
 ---
 
-This page is the reference for the two vocabularies a mapping uses: **action ids** (the value you assign in `map.toml`) and **input aliases** (the keys of an `[inputs.<section>]` table). They are validated against a closed catalog, so anything not listed here is rejected at load time.
+A mapping uses two closed vocabularies: **action ids**, the values you assign in `map.toml`, and **input aliases**, the keys of an `[inputs.<section>]` table. A name that is not listed here is rejected at load time.
 
 ## Action id grammar
 
@@ -108,7 +108,7 @@ Deck leaves apply to `Deck(_)` or `Deck(n)` origins. The **button** leaves fire 
 | `trigger_hot_cue` | `slot:1+` | Trigger the stored cue in `slot`; if the slot is empty, save one there. |
 | `delete_hot_cue` | `slot:1+` | Delete the cue in `slot`. |
 
-Hot-cue slots are counted from 1. The engine keeps 16 slots per deck, and `slot` is the 1-based index into them.
+Hot-cue slots are counted from 1. The engine keeps 16 slots per deck, and `slot` is the 1-based index into them. `trigger_hot_cue(slot:1+)` is stateful. If the slot already holds a cue it triggers it; if the slot is empty it saves the current position there instead.
 
 ### Loops / beat jump
 
@@ -134,14 +134,12 @@ Hot-cue slots are counted from 1. The engine keeps 16 slots per deck, and `slot`
 
 `pad(n)` and the named `*_pad(n)` leaves differ in intent:
 
-- `pad(n)` publishes the generic pad press/release pair and lets the engine apply whatever pad mode the deck is currently in. Use this for controllers whose pad notes stay the same across hardware modes.
-- `hot_cue_pad(n)`, `loop_roll_pad(n)`, `beat_jump_pad(n)` and `sampler_pad(n)` publish the pad event for a **specific** mode. Use these for controllers (e.g. Pioneer) whose pad note banks differ per hardware page, where the note itself already encodes the mode.
+| Form | Publishes | Use for |
+| --- | --- | --- |
+| `pad(n)` | The generic pad press/release pair; the engine applies whatever pad mode the deck is currently in. | Controllers whose pad notes stay the same across hardware modes. |
+| `hot_cue_pad(n)`, `loop_roll_pad(n)`, `beat_jump_pad(n)`, `sampler_pad(n)` | The pad event for one specific mode. | Controllers (e.g. Pioneer) whose pad note banks differ per hardware page, where the note itself already encodes the mode. |
 
-The `n` argument is not capped at eight: any `n:1+` is accepted, and numbered aliases (`pad_<n>`, `hot_cue_<n>`, …) likewise accept any `n ≥ 1`.
-
-### Trigger vs. save
-
-`trigger_hot_cue(slot:1+)` is stateful: if the slot already holds a cue it triggers it, and if the slot is empty it saves the current position there instead.
+The `n` argument is not capped at eight. Any `n:1+` is accepted, and numbered aliases (`pad_<n>`, `hot_cue_<n>`, …) likewise accept any `n ≥ 1`.
 
 ## Mixer, Engine and Library leaves
 
@@ -176,12 +174,7 @@ The `n` argument is not capped at eight: any `n:1+` is accepted, and numbered al
 | `focus_prev` | – | Step browser focus back to the previous pane (track list → sidebar). |
 | `load_to_deck` | `deck:1+` | Load the focused track into deck `deck` (1-based; deck 1 → index 0). |
 
-`navigate` acts on whichever pane owns browser focus. In the track list it moves
-the focused row; in the sidebar it moves the focused row of the active tab: the
-selected collection, the selected history session, or the Drive tree row (a tree
-row's selection is the folder it opens, so the listing follows the focus). The
-two panes flip between each other, so `focus_next` and `focus_prev` are the same
-move on a browser with two panes.
+`navigate` acts on whichever pane owns browser focus. In the track list it moves the focused row. In the sidebar it moves the focused row of the active tab: the selected collection, the selected history session, or the Drive tree row. A tree row's selection is the folder it opens, so the listing follows the focus. The two panes flip between each other, so `focus_next` and `focus_prev` are the same move on a browser with two panes.
 
 ```toml
 [inputs.master]
@@ -192,9 +185,7 @@ load_deck_1 = "LibraryNavigation::load_to_deck(deck:1)"
 load_deck_2 = "LibraryNavigation::load_to_deck(deck:2)"
 ```
 
-The DDJ-400 binds its rotary selector to exactly this: `browse` is the encoder,
-and pressing it (`focus_next`, note 0x41 on channel 7) or SHIFT + pressing it
-(`focus_prev`, note 0x42 on channel 7) hands the browser between the panes.
+The DDJ-400 binds its rotary selector to exactly this: `browse` is the encoder. Pressing it (`focus_next`, note 0x41 on channel 7) or SHIFT + pressing it (`focus_prev`, note 0x42 on channel 7) hands the browser between the panes.
 
 ## Named-arg rules
 
@@ -219,7 +210,7 @@ Most leaves are **buttons** (edge-triggered on press, or press/release pairs suc
 | Absolute | `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed` | Normalized `0..1`, clamped. |
 | Relative | `jog_turn`, `navigate` | A decoded tick delta from the device's `relative` mode. |
 
-Absolute leaves default to soft-takeover behavior (and can opt out per binding), so they are the ones you typically pair with `soft_takeover = true` in `map.toml`. What soft takeover does and why it is useful is [explained on the inputs page](/docs/developers/midi-mappings/map-toml/inputs#soft-takeover--invert):
+Absolute leaves default to soft-takeover behavior (and can opt out per binding). They are the ones you typically pair with `soft_takeover = true` in `map.toml`. What soft takeover does and why it is useful is [explained on the inputs page](/docs/developers/midi-mappings/map-toml/inputs#soft-takeover--invert):
 
 ```toml
 [inputs.deck_1]
@@ -280,7 +271,7 @@ Aliases are closed per section: only the names below are accepted in `[inputs.<s
 | `pad_mode_sampler` | |
 | `pad_mode_stems` | |
 
-The numbered aliases (`hot_cue_<n>`, `delete_hot_cue_<n>`, `pad_<n>`, `loop_pad_<n>`, `jump_pad_<n>`, `sampler_pad_<n>`) accept any `n ≥ 1`, not just the values shown.
+The numbered aliases (`hot_cue_<n>`, `delete_hot_cue_<n>`, `pad_<n>`, `loop_pad_<n>`, `jump_pad_<n>`, `sampler_pad_<n>`) accept any `n ≥ 1`, not only the values shown.
 
 ### `master`
 
@@ -334,3 +325,10 @@ pad_mode_sampler = "Deck(_)::pad_mode(mode:sampler)"
 ```
 
 A `pad_mode` value outside these five is rejected. For the pad-note strategy that pairs with these modes, see the deck leaves above and [Binding inputs to actions](/docs/developers/midi-mappings/map-toml/inputs).
+
+## Related
+
+- [device.toml](/docs/developers/midi-mappings/device-toml): the endpoint declarations these aliases name.
+- [map.toml: inputs](/docs/developers/midi-mappings/map-toml/inputs): binding forms and per-binding options.
+- [Scripts](/docs/developers/midi-mappings/scripts): bind a function instead of an action.
+- [Validation](/docs/developers/midi-mappings/validation): the load-time errors for an unknown name.

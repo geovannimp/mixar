@@ -1,6 +1,6 @@
 ---
 title: "Privacy"
-description: "Anonymous analytics consent and what it changes."
+description: "The analytics consent switch, the events Mixar sends while it is on, and what happens to the identifier."
 section: "Settings"
 order: 610
 ---
@@ -11,9 +11,9 @@ order: 610
 
 The card is **Analytics**, subtitle "Share anonymous app data."
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Send anonymous usage data** | header switch | on / off | off |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Send anonymous usage data** | header switch | on / off | off | Sends the events listed below while it is on. |
 
 There is no prompt at any point. The switch saves without restarting the engine, like the **Theme** select and the **Visible fields** checkboxes.
 
@@ -26,8 +26,12 @@ With the switch on, the app sends two kinds of event to the same EU-hosted PostH
 | `app launched` | once per launch, after the engine starts | app version, OS, OS version, CPU architecture, build mode |
 | `$exception` | each framework or uncaught asynchronous error the app reports at runtime | error type, message, stack trace when available, plus the same build fields |
 
-Reports begin once the engine has started and analytics is armed; an error raised earlier in start-up is not sent. Identical reports (same type and message) are collapsed for a minute, so a widget that throws every frame sends one event, not thousands.
+Reports begin once the engine has started and analytics is armed. An error raised earlier in start-up is not sent. Identical reports (same type and message) are collapsed for a minute, so a widget that throws every frame sends one event, not thousands.
 
-Before an event is queued, absolute file paths in messages and stack frames are replaced with `<path>`. A message can still name a single file; a relative path written by the failing code stays as written, and your library's paths are absolute, so they never survive.
+## What is removed from a report
+
+Before an event is queued, an absolute file path is replaced with `<path>`, and everything after it on that line goes with it. Text before the path survives. A message can still name a single file. A relative path written by the failing code stays as written, and your library's paths are absolute, so they never survive.
+
+## Identifier
 
 Both events carry the random identifier created when you first turn the switch on. That identifier is deleted when you turn the switch off, and turning it off also drops anything already queued.

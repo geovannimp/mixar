@@ -1,0 +1,94 @@
+---
+title: "Troubleshooting sound"
+description: "Find why Mixar is silent, one-sided, or breaking up: check the engine, the deck, its channel, the crossfader, the master output, and the routes in order."
+section: "Getting started"
+order: 103
+---
+
+Sound leaves Mixar through one path: the deck, its channel strip, the crossfader, the master output, and the device that bus is routed to. Headphones take a separate tap of the same signal. A missing sound is almost always one control on that path, so check them in order and stop at the first one that fails.
+
+[Audio setup](/docs/users/getting-started/audio-setup) routes the buses. This page assumes the routes were already saved at least once.
+
+## Follow the path
+
+### 1. Is the engine running?
+
+The mixer runs inside the audio engine, so nothing makes sound without it. With no usable output device the engine fails with **No output device available**, the app shows an *Audio engine failed to start* notice, and it keeps running silently.
+
+- Plug in or enable an output device, then save **Settings → Audio** or relaunch. Saving restarts the engine and reloads the tracks that were on the decks.
+- While the engine is stopped, the channel knobs are dimmed, the faders are inert, and a deck cannot be loaded or unloaded.
+
+### 2. Is the deck playing?
+
+A deck holds a track when its cover shows artwork and its title replaces **No track loaded**. Press **Play**; the key reads **Pause** while the deck moves.
+
+A paused deck, or a deck with no track, produces no level at all. If the deck's meter moves but you hear nothing, the deck is fine and the problem is downstream.
+
+### 3. Is the channel passing?
+
+The channel strip runs **gain trim → EQ → filter → effect → meter and cue tap → fader**. The controls below can mute a channel:
+
+- **GAIN** (pre-fader trim, ±24 dB) sets the overall level, and **HI**, **MID** and **LOW** (each ±24 dB) cut or boost their band.
+- **FLT** left of centre is a low-pass and right of centre is a high-pass, so a filter parked at either end keeps only part of the track.
+- The **fader** fully down silences the channel. The meter still shows level at that point, because it sits before the fader.
+
+### 4. Is the crossfader passing this deck?
+
+The crossfader only scales the channels assigned to the side it is on. A deck assigned to side B is silent while the crossfader sits at **A**, even though its meter moves.
+
+- Click **A** or **B** beside the crossfader to see that side's deck checklist, and either move the crossfader to the deck's side or assign the deck to the live side.
+- Uncheck a deck to set it to **Thru**, which keeps it audible across the whole crossfader travel.
+
+### 5. Is the master output up?
+
+Click the master meter at the left of the **Beat FX** strip to open **Levels**. Its **Master** card holds the master output fader. With that fader down, every channel is silent no matter where its strip sits.
+
+### 6. Is the route right?
+
+In **Settings → Audio → Master bus**, check **Device**, **Channel mode**, and the two channel numbers. A channel pair the interface does not drive is silent even though the meters move. **System default** follows the operating system's current output, so unplugging headphones can move your sound to another device.
+
+## Symptom table
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| The app opens, shows an audio notice, no sound | No usable output device | Enable an output, then save **Settings → Audio** or relaunch |
+| Deck meter moves, master is silent | Channel fader down, crossfader on the other side, or master level down | Check steps 3 to 5 |
+| Deck meter does not move | Deck paused, no track loaded, or engine stopped | Press **Play**, load a track, or restart the engine |
+| Only one side is audible | **Channel mode** set to **Mono (fold L+R)**, or a channel pair the interface does not own | Switch to **Stereo pair**, or fix the channel numbers |
+| Master is fine, headphones are silent | Preview bus off, no channel cued, headphone level down, or blend at the master end with **Master cue** off | See [Cueing](/docs/users/mixer/cueing), then check the preview bus |
+| Clicks, crackle, or dropouts | **Buffer size** too small for the machine or the driver | Raise **Buffer size** in **Settings → Audio → Engine** |
+| Controls feel late | **Buffer size** too large | Lower it, or turn on **Low latency** for that bus |
+| Mixar will not start, or a save reports **Settings saved, but not applied** | Refused sample rate, or a **Buffer size** that is not a multiple of 64 | Pick **Device default** for the rate (or an explicit rate when the device reports none), and a multiple of 64 for the buffer |
+
+## Nothing in the headphones
+
+The headphone bus is a separate route, so it can fail on its own:
+
+1. **Preview bus enabled**: **Settings → Audio → Preview bus → Enable preview bus**. Without it, cueing has no output at all.
+2. **A deck is cued**: the headphones icon in that deck's volume column is lit.
+3. **Headphone level**: the top fader of the **Headphone** card in **Levels**.
+4. **Blend position**: the **Cue** / **Mst** fader at the **Mst** end plays the master tap, and that side is silent while **Master cue** is off.
+5. **Preview channels**: the preview bus must use channels the interface actually has. The defaults assume channels 3 and 4.
+
+The cue tap sits before the channel fader, so a cued deck is audible in the headphones with its fader fully down. If headphones work and the master does not, the problem is in steps 3 to 6 of the path, not in cueing.
+
+## Sound breaks up
+
+Clicks, crackle, and dropouts mean the engine ran out of time, not that a control is wrong.
+
+1. Raise **Buffer size** in **Settings → Audio → Engine**. A larger block gives the machine more room, at the cost of a little extra delay.
+2. Turn **Low latency** off for the bus that breaks up. When the driver reports a buffer-size range, it asks the device for its smallest block, which leaves the least headroom.
+3. Keep the value a multiple of 64 frames. The hint under the slider states the rule: *Must be a multiple of 64 frames (mixer graph chunk size).*
+4. If only one device breaks up, check whether other software is holding it. Two buses on one device share a single stream.
+
+For what the buffer actually does and what each size range buys you, see [Audio setup](/docs/users/getting-started/audio-setup#buffer-size-and-latency).
+
+## Where to go next
+
+| Task | Page |
+| --- | --- |
+| Route the master bus and the headphones | [Audio setup](/docs/users/getting-started/audio-setup) |
+| Every audio control, range, and default | [Settings → Audio](/docs/users/settings/audio) |
+| Channel strip controls and meters | [Channels](/docs/users/mixer/channels) |
+| Crossfader sides and the master meter | [Mixer](/docs/users/mixer) |
+| Cueing and the headphone blend | [Cueing](/docs/users/mixer/cueing) |

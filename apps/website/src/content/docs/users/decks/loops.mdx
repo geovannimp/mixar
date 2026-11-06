@@ -1,11 +1,11 @@
 ---
 title: "Loops"
-description: "Set an auto loop, drag in and out points, and save loops to the track."
+description: "Run an auto loop, mark one by hand, and save loops to the track."
 section: "Decks"
 order: 304
 ---
 
-The **Loop** tab holds one panel:
+A loop repeats a span of the loaded track until you exit it. Start one from the **Loop** key, reshape it by hand, and save it to the track. The **Loop** tab holds one panel:
 
 ```
 Loop
@@ -17,7 +17,7 @@ Loops work on the loaded track's playhead, so the panel needs a track. Anything 
 
 ## The Loop key
 
-**Loop** behaves differently depending on what is already there. One press does whichever of these applies first:
+One press does whichever of these applies first:
 
 | Situation | What happens |
 | --- | --- |
@@ -25,9 +25,15 @@ Loops work on the loaded track's playhead, so the panel needs a track. Anything 
 | A saved loop sits under the playhead | Recalls it: seeks to its in point, activates it, and plays |
 | A loop is already active | Exits the loop; playback carries on from wherever the playhead is |
 
+## Start and stop a loop
+
+1. Open the **Loop** tab.
+2. Press **Loop**: an auto loop starts, or a saved loop under the playhead is recalled instead.
+3. Press **Loop** again while a loop runs to exit it.
+
 The key is lit while a loop is active.
 
-## The length chip
+## Change the loop length
 
 The chip between **‹** and **›** holds the loop length in beats: **1**, **2**, **4**, **8**, **16**, **32**.
 
@@ -36,28 +42,30 @@ The chip between **‹** and **›** holds the loop length in beats: **1**, **2*
 | **‹** | Halve the length (tooltip "Halve loop length") | At **1** |
 | **›** | Double the length (tooltip "Double loop length") | At **32** |
 
-Changing the length while a loop is active resizes the running loop from the playhead. The chip is lit whenever a saved loop exists for that length.
+1. Press **‹** or **›** to step the length.
+2. Watch the running loop: changing the length while a loop is active resizes it from the playhead.
 
-## IN and OUT
+The chip is lit whenever a saved loop exists for that length.
 
-**IN** and **OUT** mark the region by hand, always at the playhead:
+## Mark a loop by hand
 
-- **IN** with no loop drops a pending in-point, marked on the waveform with a flag.
-- **OUT** completes the region from that pending point.
-- With a loop already active, **IN** and **OUT** move that region's ends instead of starting a new one.
+**IN** and **OUT** mark the region by hand, always at the playhead.
+
+1. Press **IN** with no loop. A pending in-point drops, marked on the waveform with a flag.
+2. Press **OUT**. The region completes from that pending point.
+
+With a loop already active, **IN** and **OUT** move that region's ends instead of starting a new one.
 
 The panel reports these mistakes rather than acting on a half-valid region:
 
 - **OUT** with nothing pending and no active loop: "Set Loop In before Loop Out, or edit an active loop."
 - **OUT** before the pending in-point: "Loop out must be after loop in."
 
-## Quantize
+## Quantize loop boundaries
 
-Loop boundaries respect the deck's **Q** setting (on by default): with it on, hand-set in and out points snap to the beat grid; with it off they land exactly where the playhead is. An auto loop always snaps its start to the nearest beat, whichever way **Q** is set.
+Loop boundaries respect the deck's **Q** setting (on by default). With it on, hand-set in and out points snap to the beat grid. With it off they land exactly where the playhead is. An auto loop always snaps its start to the nearest beat, whichever way **Q** is set.
 
-## Saving and recalling loops
-
-Saved loops are per track and per length slot, stored in the library database next to the cues.
+## Save, recall, and delete loops
 
 | Gesture | Effect |
 | --- | --- |
@@ -65,8 +73,8 @@ Saved loops are per track and per length slot, stored in the library database ne
 | Click the length chip when its slot holds a loop | Recalls that loop: seek to in, activate, play |
 | Shift+click the length chip | Deletes the saved loop in that slot |
 
-The chip is only clickable when a loop is saved for that length, which makes it a compact indicator as well as a control. Saved loops show as blocks on the waveform.
+Saved loops are per track and per length slot, stored in the library database next to the cues. The chip is only clickable when a loop is saved for that length, which makes it a compact indicator as well as a control. Saved loops show as blocks on the waveform.
 
-## Held rolls are a pad mode
+## Held rolls
 
 Rolls that you hold are a pad mode: see [Loop Roll](/docs/users/performance-pads/loop-roll). Loop points get snapped to the beat grid, so a wrong BPM or downbeat moves them; fix that in [Beat grid](/docs/users/decks/beat-grid).

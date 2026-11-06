@@ -1,11 +1,11 @@
 ---
 title: "Beat grid"
-description: "Fix the BPM and first downbeat so sync, quantize, and beat jump land on the beat."
+description: "Correct the BPM and first downbeat so sync, quantize, and beat jump land on the beat."
 section: "Decks"
 order: 305
 ---
 
-The **Grid** tab corrects the two numbers everything beat-related depends on: the tempo, and where beat one falls. Analysis guesses both.
+Fix the BPM and the first downbeat so sync, quantize, and beat jump land on the beat. The **Grid** tab holds both numbers, and analysis guesses both, so a track can arrive with a grid that needs work.
 
 ```
 Grid
@@ -15,7 +15,7 @@ Downbeat
 ⇤  Now  ⇥
 ```
 
-## Tempo
+## Correct the tempo
 
 | Control | Action |
 | --- | --- |
@@ -23,17 +23,24 @@ Downbeat
 | BPM field | Type a value; digits and `.` only, hint **BPM** |
 | **+** | Increase BPM (tooltip "Increase BPM"), 0.01 per press |
 
+1. Press **−** or **+** to step the BPM by 0.01.
+2. To type a value instead, enter it in the BPM field and press Enter, or click away from the field.
+
 Typing commits on Enter or when the field loses focus. A value that does not parse (or that falls outside 20 to 400) is thrown away and the field reverts. Accepted values are clamped to `20.01…399.99`.
 
 The field also takes the wheel: one notch is the fine step, **Shift** with the wheel takes the coarse step of `1`.
 
-## Downbeat
+## Set the downbeat
 
 | Control | Action |
 | --- | --- |
-| Left arrow | **Nudge grid back**: shifts the grid 10 ms earlier |
+| Left arrow button | **Nudge grid back**: shifts the grid 10 ms earlier |
 | **Now** | Sets the downbeat to the playhead |
-| Right arrow | **Nudge grid forward**: shifts the grid 10 ms later |
+| Right arrow button | **Nudge grid forward**: shifts the grid 10 ms later |
+
+1. Park the playhead on a kick where beat one should fall.
+2. Press **Now**. The downbeat moves to the playhead.
+3. Click the left or right arrow button to shift it 10 ms at a time.
 
 Nudge a few times to hear the grid slide against the track; the painted beat lines follow as you go.
 
@@ -56,5 +63,7 @@ Edits are queued one at a time, so clicking **+** several times in a row writes 
 | Cues and loops land consistently off the beat | Nudge the downbeat until the lines sit on the kicks |
 | The grid drifts against a live drummer | This grid is constant-tempo. A track that changes tempo cannot be grid-locked. |
 | Typed BPM keeps reverting | The value was outside 20 to 400 |
+
+## Empty and inert states
 
 The panel stays inert until a track is loaded and the library connection is ready. A track with no stored grid opens with an empty BPM field; the **−** and **+** keys then step from `128` until you type a value.

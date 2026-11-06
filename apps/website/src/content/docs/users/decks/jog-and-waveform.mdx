@@ -1,11 +1,11 @@
 ---
 title: "Jog and waveform"
-description: "Read the waveform, jump by clicking it, scrub by dragging, and use the jog platter."
+description: "Read the waveform, seek and scrub the playhead, and drive the platter."
 section: "Decks"
 order: 306
 ---
 
-Two displays show the same track at different scales.
+Seek, scrub, and scratch a deck from the waveform and the platter. The waveform has two displays, and both show the same track at different scales.
 
 | Display | Where | Shows |
 | --- | --- | --- |
@@ -21,7 +21,10 @@ With no tracks loaded, the waveform pane reads **Load tracks to see waveforms.**
 | Click or tap | Overview strip | Seeks to that point in the track |
 | Drag | Scrolling lane | Scrubs; the view follows your finger and the audio follows the drag |
 
-Dragging the lane sends seeks while you move, throttled so a fast drag does not flood the engine, and a final seek on release. Between gestures the playhead eases back onto the engine's position rather than jumping: small drift is corrected gradually, and only a real jump (180 ms or more, or any pause) snaps it.
+1. Click or tap the overview strip to jump. The whole track is in the bar.
+2. Or drag the scrolling lane to scrub. Watch the lane follow your finger.
+
+Dragging the lane sends seeks while you move, throttled so a fast drag does not flood the engine. A final seek follows on release. Between gestures the playhead eases back onto the engine's position rather than jumping. Small drift is corrected gradually; only a real jump (180 ms or more, or any pause) snaps it.
 
 ## Colours
 
@@ -54,9 +57,12 @@ Drawn on top of the waveform, in the lane and on the overview:
 
 ## The jog
 
-The **Jog** tab holds a platter with a progress ring around its rim and a marker that turns with the audio. Drag anywhere on it to turn the platter.
+The **Jog** tab holds a platter with a progress ring around its rim and a marker that turns with the audio. Dragging holds the platter, so with the default top mode the deck treats it as a hand on the record.
 
-Dragging holds the platter, so with the default top mode the deck treats it as a hand on the record: turn it while playing and the audio scratches, let go and the motor picks the platter back up with a short ramp. The progress ring tracks how far into the track you are.
+1. Open the **Jog** tab.
+2. Drag anywhere on the platter to turn it. The progress ring tracks how far into the track you are.
+3. Turn it while playing to scratch.
+4. Let go. The motor picks the platter back up with a short ramp.
 
 How the platter responds is set under **Settings → Deck → Jog wheel**:
 
@@ -65,7 +71,7 @@ How the platter responds is set under **Settings → Deck → Jog wheel**:
 | **Top jog mode** | Vinyl (scratch), Pitch bend, Ignore | Vinyl (scratch) |
 | **Outer jog mode** | Vinyl (scratch), Pitch bend, Ignore | Pitch bend |
 
-**Ignore** makes that surface inert. On a paused deck a **Pitch bend** surface scrubs instead: there is no tempo to bend when nothing is playing, so the platter moves the playhead.
+**Ignore** makes that surface inert. On a paused deck a **Pitch bend** surface scrubs instead. There is no tempo to bend when nothing is playing, so the platter moves the playhead.
 
 The card's description reads "Defaults for top (touch) and outer (freewheel) platter policy." The on-screen platter counts as the top surface, so **Top jog mode** is what it follows.
 

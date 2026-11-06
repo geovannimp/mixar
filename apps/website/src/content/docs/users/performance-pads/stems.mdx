@@ -1,11 +1,16 @@
 ---
 title: "Stems"
-description: "Mute or isolate individual layers of a track: drums, bass, other, and vocals."
+description: "Mute or isolate the drums, bass, other, and vocals layers of a loaded track from the pads."
 section: "Performance Pads"
 order: 506
 ---
 
 Select the **Stems** tab and the pads control the separated layers of the loaded track: **Drums**, **Bass**, **Other**, and **Vocals**.
+
+## Before you start
+
+- A track is loaded on the deck. With no track the pads are disabled: [Overview](/docs/users/performance-pads).
+- The track has stems: an [NI Stem file](/docs/users/stems/native-ni) already loaded, stems [generated](/docs/users/stems/generate) for it, or **Settings → Mixer → Realtime Stems** enabled so Mixar separates it live. Realtime pads switch on once the first window is covered.
 
 ## The pads
 
@@ -18,12 +23,27 @@ The top row mutes and unmutes, the bottom row isolates:
 | `mute` other | `solo` other |
 | `mute` vocals | `solo` vocals |
 
-**Mute**: press to silence that layer, press again to bring it back. The pad lights while the layer is muted.
+## Mute
 
-**Isolate**: press to hear only that layer with the other three silenced. Press the same pad again to clear the isolation and return to the mix of muted and unmuted layers.
+1. Select the **Stems** tab.
+2. Press a pad in the top row to silence that layer.
+3. Press the same pad again to bring the layer back.
 
-If the loaded track has no stems yet, the pads stay disabled and do nothing. The track still plays normally. While Mixar is separating a track, the pads show **STEMS GENERATING…**.
+## Isolate
+
+1. Press a pad in the bottom row to hear only that layer, with the other three silenced.
+2. Press the same pad again to clear the isolation and return to the mix of muted and unmuted layers.
+
+## Check the result
+
+The pad lights while the layer is muted.
+
+## If the pads are disabled
+
+If the loaded track has no stems yet, the pads stay disabled and do nothing. The track still plays normally.
+
+While Mixar is separating a track, the pads show **STEMS GENERATING…**.
 
 ## More about stems
 
-More about stems: [Overview](/docs/users/stems), [Native NI Stem files](/docs/users/stems/native-ni), [Generate stems](/docs/users/stems/generate), and [Storage](/docs/users/stems/storage).
+[Overview](/docs/users/stems), [Native NI Stem files](/docs/users/stems/native-ni), [Generate stems](/docs/users/stems/generate), and [Storage](/docs/users/stems/storage).

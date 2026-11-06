@@ -1,11 +1,29 @@
 ---
 title: "Beat FX"
-description: "Use the shared Beat FX unit: pick Echo or Reverb, set the beat division and level, arm it, and route decks through it."
+description: "Route a deck through the shared Beat FX unit and set a beat-synced Echo or Reverb."
 section: "Mixer"
 order: 404
 ---
 
 **Beat FX** is one effect unit shared by both decks, driven from the thin strip pinned to the bottom of the mixer screen. It works like the Beat FX section of a DDJ-400: a single effect at a time, one level knob, and an on/off key. The difference is that you choose which decks feed it from the deck header.
+
+## Before you start
+
+The audio engine must be running. The effect select, **BEAT ◀ ▶**, **LEVEL**, **BEAT FX**, and each deck's **FX** key are inert while it is stopped.
+
+For echo, the beat division follows the master deck's tempo. Press **Master** (the crown) on the deck that should own the tempo before you set the division.
+
+## Add an effect to a deck
+
+1. Pick **Echo** or **Reverb** in the effect select.
+2. For **Echo**, step **BEAT ◀ ▶** to the division you want: `1/4` for a short slap, `1/2` or `3/4` for a wider trail. The pair is not shown for **Reverb**.
+3. Press **FX** in the header of the deck you want effecting.
+4. Set **LEVEL** to taste.
+5. Press **BEAT FX** to arm the unit.
+
+## Verify
+
+The **BEAT FX** label lights while the unit is on, and the deck's **FX** key lights while that deck is routed. With **Echo** armed, the repeats you hear sit on the beat.
 
 ## The strip
 
@@ -20,10 +38,7 @@ The select has no "off" entry: the unit always holds an effect, and the **BEAT F
 
 ## Routing a deck
 
-The unit is shared, but a deck only runs through it when you ask:
-
-1. Press **FX** in the deck header. The key lights while that deck is routed.
-2. Press it again to send the deck back to a dry signal.
+The unit is shared, but a deck only runs through it when you ask. Press **FX** in the deck header to route the deck; the key lights while that deck is routed. Press it again to send the deck back to a dry signal.
 
 Both decks run the **same** effect and settings: routing is what differs. Each deck keeps its own delay or reverb state, so tails never bleed from one deck into the other.
 
@@ -33,7 +48,7 @@ The echo's delay is a **beat division**, not a time in milliseconds, so it alway
 
 `1/16 · 1/8 · 1/4 · 1/2 · 3/4 · 1/1 · 2/1`
 
-The division is measured against the **master deck's** tempo, including its tempo fader, so nudging the master's pitch bends the repeats with it. Press **Master** (the crown) on the deck that should own the tempo. While the master deck has no analysed BPM, the unit falls back to **120 BPM**.
+The division is measured against the **master deck's** tempo, including its tempo fader, so nudging the master's pitch bends the repeats with it. While the master deck has no analysed BPM, the unit falls back to **120 BPM**.
 
 Reverb has no beat time, so the **BEAT ◀ ▶** pair disappears when you select it.
 
@@ -45,12 +60,14 @@ The unit is an **insert on the channel**, after the EQ and filter and before the
 - The channel fader and the crossfader scale the effect exactly like the dry signal.
 - Changing the effect, switching the unit off, or unrouting a deck clears its stored tail; the next hit starts clean.
 
-## Quick start
+## If you hear no effect
 
-1. Pick **Echo** in the select.
-2. Step **BEAT** to the division you want: `1/4` for a short slap, `1/2` or `3/4` for a wider trail.
-3. Press **FX** in the header of the deck you want effecting.
-4. Set **LEVEL** to taste, then press **BEAT FX** to arm it.
+- **One deck is dry**: press **FX** in that deck's header. The key must be lit for the deck to run through the unit.
+- **Both decks are dry**: press **BEAT FX**, light **FX** in each deck's header, and raise **LEVEL** above zero. The select always holds an effect; **BEAT FX** arms the unit, and each deck's **FX** key decides whether that deck feeds it.
+- **The repeats drift off the grid**: check which deck owns the tempo, and that the master deck has an analysed BPM. Without one the unit falls back to **120 BPM**.
+- **A tail cuts out after a change**: changing the effect, switching the unit off, or unrouting a deck clears the stored tail. Hit the sound again to start clean.
+
+For the rest of the audio path, from the engine to the output route, see [Troubleshooting sound](/docs/users/getting-started/troubleshooting).
 
 ## Not there yet
 

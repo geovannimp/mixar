@@ -1,6 +1,6 @@
 ---
 title: "Inference"
-description: "Stem separation with pykeio/ort and a single-file HTDemucs ONNX: execution providers, model cache, and the split pipeline."
+description: "Stem separation with pykeio/ort and single-file ONNX models: execution-provider cascade, model cache, and split pipeline."
 section: "Stems"
 order: 3
 ---
@@ -14,7 +14,7 @@ Burn wgpu was too slow for DJ workflow (~1× realtime on a 3060 Ti). StemSplit�
 Register EPs in preference order; failed register / unsupported ops → next; always end on **CPU**. Log the EP that actually ran. Optional force: `MIXAR_STEMS_ORT_EP=<name>`.
 
 | Platform | Order |
-|----------|--------|
+|----------|-------|
 | **Linux** | TensorRT RTX → TensorRT → CUDA → WebGPU → (OpenVINO if enabled on Intel builds) → CPU |
 | **Windows** | TensorRT RTX → TensorRT → CUDA → DirectML → WebGPU → CPU |
 | **macOS** | CoreML → WebGPU → CPU (Apple Silicon only) |
@@ -28,7 +28,7 @@ Notes:
 
 See [ort execution providers](https://ort.pyke.io/perf/execution-providers).
 
-## Architecture
+## Module and API
 
 Lives in **`crates/analyzer-stems`**: resolve/download ONNX → cached `ort::Session` per model path → chunked overlap-add infer → hand interleaved PCM to `codec` for `.stem.mp4` mux.
 
@@ -38,16 +38,17 @@ Lives in **`crates/analyzer-stems`**: resolve/download ONNX → cached `ort::Ses
 
 - Default model id follows the Mixxx / StemSplit artifact Mixar pins (`htdemucs_mixxx_v1` / equivalent ORT artifact).
 - `StemSplitResult.backend` → `{model}/{ep}` (e.g. `htdemucs_mixxx_v1/cuda`).
+- Library cache match uses model-id-before-`/` so EP changes do not force regen.
 
-Library cache match uses model-id-before-`/` so EP changes do not force regen.
+## Models
 
-## Model weights
+### HTDemucs
 
 - **Artifact:** HTDemucs ONNX under Mixar `{app_support}/models/` (download + sha verify via manifest). See [Storage & models](/docs/developers/stems/storage-and-models).
 - **I/O:** stereo mix in → four stereo stems out in NI order: **drums, bass, other, vocals** (same as engine / `.stem.mp4` streams 1–4).
 - Old Burn / SSC backend ids miss on model id and regenerate.
 
-## Inference pipeline
+Inference pipeline:
 
 1. Resample interleaved stereo → model rate (typically 44.1 kHz).
 2. Chunk with overlap / triangular fade (Demucs apply_model math; segment length per model).
@@ -56,39 +57,21 @@ Library cache match uses model-id-before-`/` so EP changes do not force regen.
 
 ### SCNet (int8)
 
-`scnet_int8_v1` (12.9 MB, MIT) is a spectrogram model, so it does **not** share
-HTDemucs's waveform chunking. `analyzer-stems/src/scnet.rs` mirrors MSST's
-`demix()`:
+`scnet_int8_v1` (12.9 MB, MIT) is a spectrogram model, so it does **not** share HTDemucs's waveform chunking. `analyzer-stems/src/scnet.rs` mirrors MSST's `demix()`:
 
 - whole-track mean/std normalize, optional reflect border (`BORDER = 363825`),
-- 11 s segments every 2.75 s (75 % overlap), 10 % linear fade, per-sample
-  counter normalization,
-- rectangular centered STFT (4096/1024, `1/sqrt(4096)`), model input
-  `mix_spec [1,4,2049,476]`, output `stems_spec [1,16,2049,476]`,
+- 11 s segments every 2.75 s (75 % overlap), 10 % linear fade, per-sample counter normalization,
+- rectangular centered STFT (4096/1024, `1/sqrt(4096)`), model input `mix_spec [1,4,2049,476]`, output `stems_spec [1,16,2049,476]`,
 - iSTFT with frame-count normalization and per-stem denormalization.
 
-The output order is drums, bass, other, vocals (NI order). The graph includes
-LSTM nodes, so WebGPU may partition parts of it to CPU; measured on a 3060 Ti,
-one 11 s segment is ~1.0 s and 120 s of audio takes ~60 s (2.0× RT) because of
-the 75 % overlap. HTDemucs remains the faster offline model; SCNet is the
-quality option with a much smaller download. The SCNet code and weights are
-MIT; its MUSDB18-HQ training corpus is educational-use, the same unresolved
-caveat that applies to other MUSDB-trained artifacts. The adapter is covered by STFT round-trip
-and padding tests, an ignored real-model smoke test, and a frame-level
-comparison against an independent Python/MSST reference.
+The output order is drums, bass, other, vocals (NI order). The graph includes LSTM nodes, so WebGPU may partition parts of it to CPU. Measured on a 3060 Ti, one 11 s segment is ~1.0 s. The same card takes ~60 s for 120 s of audio (2.0× RT), because of the 75 % overlap.
 
-### Live pipeline
+HTDemucs remains the faster offline model; SCNet is the quality option with a much smaller download. The SCNet code and weights are MIT; its MUSDB18-HQ training corpus is educational-use, the same unresolved caveat that applies to other MUSDB-trained artifacts. The adapter is covered by STFT round-trip and padding tests, an ignored real-model smoke test, and a frame-level comparison against an independent Python/MSST reference.
 
-`start_live_separator` runs the same chunk/window loop ahead of a deck playhead
-and publishes each finalized stride window to `audio_core::LiveStemRing` instead
-of accumulating a full-track buffer. The window finalizer is shared with the
-offline path, so output is bit-identical; `tests/live_split_matches_offline.rs`
-(ignored, needs the model) asserts that frame by frame.
+## Live pipeline
 
-- Producer: 10 ms pacing poll, two-stride lookahead, re-epoch on backward/forward
-  seeks, closes on track unload.
-- Consumer: `Deck::mix_at_position` reads up to four covered frames lock-free and
-  crossfades from the main mix over 5 ms; outside coverage it returns the main
-  mix verbatim.
-- No disk I/O, no per-load model download, and no second decode: the producer
-  borrows the deck's decoded `LoadedAudio`.
+`start_live_separator` runs the same chunk/window loop ahead of a deck playhead. It publishes each finalized stride window to `audio_core::LiveStemRing` instead of accumulating a full-track buffer. The window finalizer is shared with the offline path, so output is bit-identical; `tests/live_split_matches_offline.rs` (ignored, needs the model) asserts that frame by frame.
+
+- Producer: 10 ms pacing poll, two-stride lookahead, re-epoch on backward/forward seeks, closes on track unload.
+- Consumer: `Deck::mix_at_position` reads up to four covered frames lock-free and crossfades from the main mix over 5 ms. Outside coverage it returns the main mix verbatim.
+- No disk I/O, no per-load model download, and no second decode: the producer borrows the deck's decoded `LoadedAudio`.

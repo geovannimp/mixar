@@ -1,6 +1,6 @@
 ---
 title: "Session"
-description: "Control when Mixar records a performance session and what counts as a play."
+description: "When Mixar records a performance session, what counts as a play, and where the XSPF files are written."
 section: "Settings"
 order: 608
 ---
@@ -9,12 +9,14 @@ order: 608
 
 ## Controls
 
-| Control | Type | Values | Default |
-| --- | --- | --- | --- |
-| **Record performance history** | header switch | on / off | on |
-| **Session idle timeout** | number field, suffix "minutes" | whole number greater than 0 | 5 |
-| **Minimum play duration** | number field, suffix "seconds" | whole number greater than 0 | 5 |
-| **Minimum effective deck volume** | slider | 0–100% | 5% |
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Record performance history** | header switch | on / off | on | Logs deck playback to session files. |
+| **Session idle timeout** | number field, suffix "minutes" | whole number greater than 0 | 5 | Closes a session after a quiet period. |
+| **Minimum play duration** | number field, suffix "seconds" | whole number greater than 0 | 5 | Playback needed before an entry is written. |
+| **Minimum effective deck volume** | slider | 0–100% | 5% | Level below which a deck does not count as playing. |
+
+**Save** writes these preferences and restarts the audio engine when it is running.
 
 The two other fields and their hints are hidden while **Record performance history** is off:
 
@@ -26,4 +28,6 @@ Typed values are taken as you type. Entering something that is not a whole numbe
 
 ## Where the sessions go
 
-Recorded sessions show up in the library's **History** tab, and the files live in the app-support folder alongside `library.db`. See [Install Mixar](/docs/users/getting-started) for the paths. The exact rules for what opens, splits, and closes a session, and what an exported session contains, are developer reference: [History](/docs/developers/history).
+Recorded sessions show up in the library's **History** tab, and the files live in the app-support folder alongside `library.db`. See [Install Mixar](/docs/users/getting-started) for the paths.
+
+The exact rules for what opens, splits, and closes a session, and what an exported session contains, are developer reference: [History](/docs/developers/history).
