@@ -41,6 +41,10 @@ The pre-fader tap is captured **after** EQ, filter and FX. Headphones and the ch
 
 `Mixer::process` requires the frame count to be a positive multiple of `Buffer::LEN` (64 samples) and renders that many chunks per callback. Everything inside the callback is allocation-free. Buffers, scratch space and level state are allocated in constructors and reused, and no lock is taken on the audio thread.
 
+## Filter smoothing
+
+The FLT knob changes a cutoff on every step, so `DjFilter` never applies one abruptly. It keeps the commanded position (`filter_db()`, which the UI and soft takeover read back) and glides an internal copy toward it inside `process_buffer`, re-deriving the biquad coefficients every 16 frames across a full-range 0.02 s sweep. Coefficients are swapped in place with `Biquad::set_coeffs` rather than rebuilt, because a rebuilt biquad starts with an empty delay line and each step becomes an audible click. While the knob is off centre a low-pass and a high-pass both run, blended by a weight that reaches zero at the centre, so the LP→HP swap there is continuous as well.
+
 ## File map
 
 | Path | Responsibility |
