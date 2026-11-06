@@ -3,6 +3,12 @@ import { getImage } from "astro:assets";
 import { resolveSiteUrl } from "../lib/site-url";
 import bannerImage from "../assets/mixar-banner.png";
 import "../styles/global.css";
+// Latin files of the three variable families, preloaded below. `?url` gives the
+// same content-hashed asset the inlined `@font-face` rules point at, so the two
+// cannot drift; the latin-ext/cyrillic/greek/vietnamese subsets stay lazy.
+import outfitLatin from "@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2?url";
+import spaceGroteskLatin from "@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2?url";
+import notoSansMonoLatin from "@fontsource-variable/noto-sans-mono/files/noto-sans-mono-latin-wght-normal.woff2?url";
 import { ClientRouter } from "astro:transitions";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
@@ -100,12 +106,27 @@ const posthogHost = resolvePosthogHost();
 const posthogDebug =
   import.meta.env.DEV && import.meta.env.PUBLIC_POSTHOG_DEBUG === "true";
 const analyticsEnabled = posthogKey !== "";
+
+// `font-display: optional` (styles/fonts.css) only applies a face that is
+// already loaded when text first paints — otherwise the fallback stays for the
+// whole page view, with no swap. Preloading the latin files makes the brand font
+// the normal case on a cold load; they are the faces the hero copy, the body and
+// the mono spec labels render in.
+const preloadedFonts = [outfitLatin, spaceGroteskLatin, notoSansMonoLatin];
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    {
+      // First in <head> so the preload scanner starts the three font fetches
+      // before it reaches the inline scripts below — they are on the critical
+      // path for the hero's first paint.
+      preloadedFonts.map((href) => (
+        <link rel="preload" href={href} as="font" type="font/woff2" crossorigin="anonymous" />
+      ))
+    }
     <ClientRouter />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
