@@ -93,7 +93,9 @@ class TrackListView<T> extends ConsumerStatefulWidget {
   /// Whether a row is dimmed.
   final bool Function(WidgetRef ref, T item)? dimmedOf;
 
-  /// Called with the first/last visible index, for artwork prefetch.
+  /// Called with the first/last visible index, for artwork prefetch. Emitted on
+  /// scroll, on new results, and when the viewport's size changes, so a window
+  /// resize prefetches the rows it newly reveals.
   final void Function(int first, int last)? onVisibleRange;
 
   /// Error state; defaults to a destructive message.
@@ -221,6 +223,22 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
       }
       _emitVisibleRange();
     });
+  }
+
+  /// A window resize changes the viewport dimension without any scroll, so the
+  /// scroll listener never fires and rows the taller window newly reveals would
+  /// keep their placeholder artwork forever. [ScrollMetricsNotification] is
+  /// dispatched exactly for those dimension-only changes, in a microtask after
+  /// the layout that moved the metrics.
+  ///
+  /// Emitted inline rather than through [_requestVisibleRange]: that one defers
+  /// to the next frame, and a metrics change does not itself schedule one, so
+  /// the deferred emit could wait for a frame that never comes.
+  bool _onScrollMetricsNotification(ScrollMetricsNotification _) {
+    if (widget.onVisibleRange != null) {
+      _emitVisibleRange();
+    }
+    return false;
   }
 
   void _emitVisibleRange() {
@@ -463,43 +481,47 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
                   // the cue. Focus is requested on row press rather than via
                   // autofocus, so typing in the filter box does not steal the
                   // arrow keys.
-                  child: ListView.builder(
-                    controller: _scroll,
-                    itemExtent: density.height,
-                    padding: EdgeInsets.zero,
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return TrackListRow(
-                        key: ValueKey(widget.idOf(item)),
-                        index: index,
-                        payloadOf: (ref) => widget.payloadOf(ref, item),
-                        menuBuilder: (context, ref, dismiss) =>
-                            _menuBody(context, ref, item, dismiss),
-                        contentBuilder: (context, ref, actionsSlot) =>
-                            widget.rowBuilder(
-                              context,
-                              ref,
-                              index,
-                              item,
-                              density,
-                              actionsSlot,
-                            ),
-                        overlay: widget.overlayBuilder?.call(item),
-                        dimmedOf: widget.dimmedOf == null
-                            ? null
-                            : (ref) => widget.dimmedOf!(ref, item),
-                        onSelect: () {
-                          // Clicking a row also grants the list keyboard focus,
-                          // so the arrow keys keep working after a press.
-                          _focusNode.requestFocus();
-                          ref
-                              .read(libraryFocusZoneProvider.notifier)
-                              .set(LibraryFocusZone.trackList);
-                          _select(index);
-                        },
-                      );
-                    },
+                  child: NotificationListener<ScrollMetricsNotification>(
+                    onNotification: _onScrollMetricsNotification,
+                    child: ListView.builder(
+                      controller: _scroll,
+                      itemExtent: density.height,
+                      padding: EdgeInsets.zero,
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        return TrackListRow(
+                          key: ValueKey(widget.idOf(item)),
+                          index: index,
+                          payloadOf: (ref) => widget.payloadOf(ref, item),
+                          menuBuilder: (context, ref, dismiss) =>
+                              _menuBody(context, ref, item, dismiss),
+                          contentBuilder: (context, ref, actionsSlot) =>
+                              widget.rowBuilder(
+                                context,
+                                ref,
+                                index,
+                                item,
+                                density,
+                                actionsSlot,
+                              ),
+                          overlay: widget.overlayBuilder?.call(item),
+                          dimmedOf: widget.dimmedOf == null
+                              ? null
+                              : (ref) => widget.dimmedOf!(ref, item),
+                          onSelect: () {
+                            // Clicking a row also grants the list keyboard
+                            // focus, so the arrow keys keep working after a
+                            // press.
+                            _focusNode.requestFocus();
+                            ref
+                                .read(libraryFocusZoneProvider.notifier)
+                                .set(LibraryFocusZone.trackList);
+                            _select(index);
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),

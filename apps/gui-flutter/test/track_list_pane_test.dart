@@ -30,6 +30,7 @@ import 'package:material_ui/material_ui.dart';
 import 'helpers/collection_tracks_override.dart';
 
 import 'support/border_helpers.dart';
+import 'support/fake_library_transport.dart';
 import 'support/mixar_material_app.dart';
 
 /// The row element whose text is [label], for the row-height assertions.
@@ -2143,6 +2144,61 @@ void main() {
       reason:
           'expected the list to have no bordered/rounded surface, found '
           '${wrapping.length}',
+    );
+  });
+
+  testWidgets('a taller window prefetches artwork for newly visible rows', (
+    tester,
+  ) async {
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
+    final theme = MixarThemeData.light();
+    tester.view.physicalSize = const Size(900, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final tracks = [
+      for (var i = 0; i < 40; i++)
+        LibraryTrackSummary(
+          id: 't$i',
+          displayName: 'Track $i',
+          title: 'Track $i',
+          path: '/tmp/samples/t$i.flac',
+        ),
+    ];
+    final transport = FakeLibraryTransport();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          collectionsProvider.overrideWith((ref) async => [collection]),
+          overrideCollectionTracksValue(tracks),
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+          libraryTransportProvider.overrideWith((ref) async => transport),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
+          home: const Scaffold(body: TrackListPane()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final shortWindow = {...transport.getTrackCalls};
+    expect(shortWindow, isNotEmpty, reason: 'no artwork prefetched at all');
+
+    // No scroll: only the window (and so the viewport) grows, so the scroll
+    // listener never fires.
+    tester.view.physicalSize = const Size(900, 1200);
+    await tester.pumpAndSettle();
+
+    final revealed = transport.getTrackCalls.toSet().difference(shortWindow);
+    expect(
+      revealed,
+      isNotEmpty,
+      reason: 'growing the viewport did not prefetch the rows it revealed',
     );
   });
 }
