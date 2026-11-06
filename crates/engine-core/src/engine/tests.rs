@@ -509,6 +509,7 @@ fn stem_eq_toggle_round_trips_and_keeps_band_positions() {
     // Unknown deck ids are rejected instead of silently ignored.
     assert!(engine.set_deck_stem_eq_enabled(9, true).is_err());
     assert_eq!(engine.deck_stem_eq_enabled(9), None);
+    engine.stop().unwrap();
 }
 
 #[test]

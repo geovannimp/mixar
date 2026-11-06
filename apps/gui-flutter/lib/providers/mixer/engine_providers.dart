@@ -312,6 +312,8 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       stemsAudible: Map<int, bool>.from(state.stemsAudible)..remove(deckId),
       stemEqEnabled: Map<int, bool>.from(state.stemEqEnabled)..remove(deckId),
     );
+    // An ST tap in flight must not resurrect the flag on the unloaded deck.
+    _invalidateOptimistic(OptimisticField.stemEq, deckId);
   }
 
   void setJogTouching(int deckId, bool touching) {

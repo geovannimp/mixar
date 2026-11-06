@@ -582,6 +582,11 @@ impl Engine {
 
     /// Route the deck's EQ knobs to the stem EQ (deck header toggle).
     pub fn set_deck_stem_eq_enabled(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        // Fail before mutating: a rejected command must not leave control state
+        // claiming a toggle the DSP never received.
+        if self.dsp_engine.is_none() {
+            return Err(anyhow::anyhow!("Engine is not running"));
+        }
         let control = self
             .deck_control
             .get_mut(deck_id)
@@ -589,9 +594,6 @@ impl Engine {
         control.stem_eq_enabled = enabled;
         // The DSP ignores the stored band positions while the toggle is off, so
         // switching it back on restores the knob positions instead of losing them.
-        if self.dsp_engine.is_none() {
-            return Err(anyhow::anyhow!("Engine is not running"));
-        }
         self.push_deck_stem_eq_flag(deck_id);
         Ok(())
     }

@@ -122,6 +122,7 @@ impl Engine {
             control.apply_source_load(&prepared.source, track_id);
         }
         drop(dsp);
+        self.push_deck_stem_eq_flag(deck_id);
         self.hydrate_hot_cues(deck_id)?;
         self.hydrate_beat_grid(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
