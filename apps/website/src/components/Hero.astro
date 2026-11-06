@@ -216,7 +216,10 @@ const audioGlyphs = [
         if (mine !== generation) return;
         disposeTilt?.();
         disposeTilt = initHeroMobileTilt();
-      });
+      })
+      // A stale page after a deploy can 404 the chunk; the tilt is decoration,
+      // so drop it quietly instead of raising an unhandled rejection.
+      .catch(() => {});
   };
 
   // The router replaces the page without re-running bundled scripts: release

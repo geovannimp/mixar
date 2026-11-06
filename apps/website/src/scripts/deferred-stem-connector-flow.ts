@@ -36,6 +36,12 @@ export function createDeferredConnectorFlow(root: ParentNode): StemConnectorFlow
   void near
     .then(async () => {
       const { initStemConnectorFlow } = await import("./stem-connector-flow");
+      // The router can swap the document while this chunk is in flight; binding
+      // then would animate a detached tree nobody sees.
+      if (anchor !== undefined && !anchor.isConnected) {
+        real = NO_FLOW;
+        return;
+      }
       real = initStemConnectorFlow(root) ?? NO_FLOW;
       if (playing !== undefined) real.setPlaying(playing);
       for (const [index, isAudible] of audible) real.setAudible(index, isAudible);

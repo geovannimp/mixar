@@ -27,6 +27,11 @@ export default defineConfig({
     // stylesheet request: the browser has every rule — including the
     // @font-face srcs — while it is still parsing the document, so first paint
     // and the font fetches no longer wait on a second round trip to Pages.
+    // The cost is the cross-page cache: each page now carries the CSS instead of
+    // reusing one shared file. That is the right trade here because every
+    // navigation after the first is client-side (ClientRouter keeps the
+    // document, so the CSS is not re-fetched at all), and a first-time visitor
+    // pays an extra ~3KB gzipped per direct landing.
     inlineStylesheets: "always",
   },
   outDir: "dist",

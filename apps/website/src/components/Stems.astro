@@ -467,9 +467,9 @@ const points = [
       // History restores `.muted` independently of the `muted` attribute.
       bandVideo.muted = true;
       bandVideo.pause();
-      // Only touch the timeline once the element holds data: assigning
-      // `currentTime` on an unloaded element asks the browser for the media,
-      // which is exactly what `preload="none"` is there to avoid.
+      // Nothing to reset until the element holds data: with `preload="none"` it
+      // is already at zero, and this keeps the reset tied to the case that
+      // matters (a history restore of an element that had been playing).
       if (bandVideo.readyState > 0) bandVideo.currentTime = 0;
     }
     // Keep the backdrop drifting without re-looping the audio track: once it

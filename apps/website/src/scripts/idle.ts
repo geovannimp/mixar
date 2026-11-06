@@ -29,27 +29,30 @@ function scheduleIdle(run: () => void): void {
 }
 
 export function whenIdle(doc: Document = document): Promise<void> {
-  const { promise, resolve } = Promise.withResolvers<void>();
-  let settled = false;
-  const done = () => {
-    if (settled) return;
-    settled = true;
-    for (const type of INTENT_EVENTS) doc.removeEventListener(type, done, true);
-    resolve();
-  };
+  // Plain executors rather than `Promise.withResolvers`: that landed in Chrome
+  // 119 / Safari 17.4 / Firefox 121, and a synchronous throw here would abort
+  // the caller's wiring (the stems demo, analytics) on an older browser.
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      for (const type of INTENT_EVENTS) doc.removeEventListener(type, done, true);
+      resolve();
+    };
 
-  for (const type of INTENT_EVENTS) {
-    doc.addEventListener(type, done, { capture: true, once: true, passive: true });
-  }
+    for (const type of INTENT_EVENTS) {
+      doc.addEventListener(type, done, { capture: true, once: true, passive: true });
+    }
 
-  if (doc.readyState === "complete" || doc.defaultView === null) {
-    scheduleIdle(done);
-    return promise;
-  }
-  // `load` is the point after which the main thread is ours to spend; the idle
-  // callback then keeps the work out of the load event's own critical path.
-  doc.defaultView.addEventListener("load", () => scheduleIdle(done), { once: true });
-  return promise;
+    if (doc.readyState === "complete" || doc.defaultView === null) {
+      scheduleIdle(done);
+      return;
+    }
+    // `load` is the point after which the main thread is ours to spend; the idle
+    // callback then keeps the work out of the load event's own critical path.
+    doc.defaultView.addEventListener("load", () => scheduleIdle(done), { once: true });
+  });
 }
 
 /**
@@ -61,19 +64,16 @@ export function whenIdle(doc: Document = document): Promise<void> {
  * is ready by the time the element scrolls in.
  */
 export function whenVisible(el: Element, rootMargin = "300px 0px"): Promise<void> {
-  const { promise, resolve } = Promise.withResolvers<void>();
-  if (typeof IntersectionObserver !== "function") {
-    resolve();
-    return promise;
-  }
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return;
-      observer.disconnect();
-      resolve();
-    },
-    { rootMargin },
-  );
-  observer.observe(el);
-  return promise;
+  if (typeof IntersectionObserver !== "function") return Promise.resolve();
+  return new Promise((resolve) => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observer.disconnect();
+        resolve();
+      },
+      { rootMargin },
+    );
+    observer.observe(el);
+  });
 }
