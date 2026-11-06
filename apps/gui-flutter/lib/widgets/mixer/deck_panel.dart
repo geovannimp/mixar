@@ -65,6 +65,8 @@ class DeckPanel extends ConsumerWidget {
     final quantize = ref.watch(deckQuantizeProvider(deckId));
     final fxRouted = ref.watch(deckFxRoutedProvider(deckId));
     final slip = ref.watch(deckSlipEnabledProvider(deckId));
+    final stemsAudible = ref.watch(deckStemsAudibleProvider(deckId));
+    final stemEqEnabled = ref.watch(deckStemEqEnabledProvider(deckId));
     final settings = ref.watch(appSettingsProvider).value;
     final loadDisabled = loading || !engineRunning;
     final transportDisabled = loadDisabled || !hasTrack;
@@ -162,6 +164,22 @@ class DeckPanel extends ConsumerWidget {
                           _engineCmd(
                             context,
                             () => setDeckSlip(ref, deckId, enabled),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    _StemEqButton(
+                      stemsAudible: stemsAudible,
+                      stemEqOn: stemEqEnabled,
+                      disabled: !engineRunning,
+                      onPress: () {
+                        // Capture the desired state before the async command.
+                        final enabled = !stemEqEnabled;
+                        unawaited(
+                          _engineCmd(
+                            context,
+                            () => setDeckStemEqEnabled(ref, deckId, enabled),
                           ),
                         );
                       },
@@ -524,6 +542,60 @@ class _SlipButton extends StatelessWidget {
           style: TextStyle(
             fontWeight: .w600,
             color: on ? slipOn : theme.colors.mutedForeground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StemEqButton extends StatelessWidget {
+  const new({
+    required this.onPress,
+    required this.stemsAudible,
+    this.stemEqOn = false,
+    this.disabled = false,
+  });
+
+  final VoidCallback onPress;
+
+  /// The deck is really playing stems, so routing the knobs is meaningful.
+  final bool stemsAudible;
+
+  /// Current stem-EQ routing; lit while the EQ knobs drive the stems.
+  final bool stemEqOn;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final on = stemEqOn && !disabled;
+    final tip = !stemsAudible
+        ? 'Stem EQ unavailable'
+        : stemEqOn
+        ? 'Stem EQ on'
+        : 'Stem EQ off';
+    return AppTooltip(
+      tip: tip,
+      description: stemsAudible
+          ? 'Route the mixer EQ knobs to the stems instead of the channel: '
+                'VOC, B/O, DRM.'
+          : 'The deck is not playing stems right now, so the knobs stay on the '
+                'channel EQ.',
+      child: MixerButton(
+        variant: .outline,
+        size: .xs,
+        mainAxisSize: .min,
+        selected: on,
+        onPress: disabled || !stemsAudible ? null : onPress,
+        semanticsLabel: tip,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        backgroundColor: on ? theme.colors.primaryTint : null,
+        child: Text(
+          'ST',
+          style: TextStyle(
+            fontWeight: .w600,
+            color: on ? theme.colors.primary : theme.colors.mutedForeground,
           ),
         ),
       ),

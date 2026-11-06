@@ -53,12 +53,14 @@ use bus_api::SetGainTrim;
 use bus_api::SetMasterVolume;
 use bus_api::SetPadMode;
 use bus_api::SetSpeed;
+use bus_api::SetStemEqBand;
 use bus_api::SetTempoRange;
 use bus_api::SetVolume;
 use bus_api::ToggleHeadphoneCue;
 use bus_api::ToggleMasterCue;
 use bus_api::TogglePlay;
 use bus_api::ToggleQuantize;
+use bus_api::ToggleStemEq;
 use bus_api::ToggleSync;
 use bus_api::TriggerHotCue;
 use bus_api::DEFAULT_PITCH_PAGE;
@@ -541,6 +543,9 @@ pub fn resolve_action(
         "set_quantize" => deck_press(active, scope, |deck| {
             Event::ToggleQuantize(ToggleQuantize { deck })
         }),
+        "toggle_stem_eq" => deck_press(active, scope, |deck| {
+            Event::ToggleStemEq(ToggleStemEq { deck })
+        }),
         "set_volume" => deck_cmd(scope, |deck| {
             Event::SetVolume(SetVolume {
                 deck,
@@ -594,6 +599,22 @@ pub fn resolve_action(
             };
             deck_cmd(scope, |deck| {
                 Event::SetEqBand(SetEqBand {
+                    deck,
+                    band,
+                    gain: norm.clamp(0.0, 1.0),
+                    soft_takeover,
+                })
+            })
+        }
+        "set_stem_eq_low" | "set_stem_eq_mid" | "set_stem_eq_high" => {
+            let band = match leaf {
+                "set_stem_eq_low" => EqBand::Low,
+                "set_stem_eq_mid" => EqBand::Mid,
+                "set_stem_eq_high" => EqBand::High,
+                _ => return None,
+            };
+            deck_cmd(scope, |deck| {
+                Event::SetStemEqBand(SetStemEqBand {
                     deck,
                     band,
                     gain: norm.clamp(0.0, 1.0),
@@ -1017,6 +1038,29 @@ mod tests {
                 gain,
                 soft_takeover: false,
             })) => assert!((gain - 0.5).abs() < 1e-5, "gain={gain}"),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn stem_eq_knob_routes_to_set_stem_eq_band() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action(
+            "Deck(_)::set_stem_eq_high",
+            "deck_1",
+            ControlValue::Absolute(0.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match routed {
+            RoutedAction::Cmd(Event::SetStemEqBand(SetStemEqBand {
+                deck: 0,
+                band: EqBand::High,
+                gain,
+                soft_takeover: false,
+            })) => assert!((gain - 0.0).abs() < 1e-5, "gain={gain}"),
             other => panic!("unexpected {other:?}"),
         }
     }

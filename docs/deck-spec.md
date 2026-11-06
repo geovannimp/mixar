@@ -82,7 +82,7 @@ Typical deck layout:
 | State sync | Partial | FRB `EngineTransport.subscribeEvents` → Riverpod; MIDI host → [#49](https://github.com/geovannimp/mixar/issues/49) |
 | Library UI | Implemented | FRB `LibraryTransport` for tracks / artwork / waveform peaks |
 | FX slots UI | Not implemented | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems pad mode | Implemented | Offline HTDemucs, opt-in live separation fallback for uncached tracks (offline stems prioritized), pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46), [#568](https://github.com/geovannimp/mixar/issues/568)); Stem EQ still open |
+| Stems pad mode | Implemented | Offline HTDemucs, opt-in live separation fallback for uncached tracks (offline stems prioritized), pad mute/isolate, stem EQ routed from the mixer knobs by the deck header **ST** toggle ([#46](https://github.com/geovannimp/mixar/issues/46), [#568](https://github.com/geovannimp/mixar/issues/568), [#567](https://github.com/geovannimp/mixar/issues/567)) |
 | Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
 | Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
@@ -103,7 +103,7 @@ Typical deck layout:
 | Slip mode | Yes |
 | Jog / scratch | Yes |
 | FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems | Yes → four-stem mix, HTDemucs or SCNet offline cache, opt-in live CPU separation fallback for uncached tracks (pre-EQ; offline stems prioritized), non-blocking attach, pad mute/isolate; Stem EQ remains open — [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stems | Yes → four-stem mix, HTDemucs or SCNet offline cache, opt-in live CPU separation fallback for uncached tracks (pre-EQ; offline stems prioritized), non-blocking attach, pad mute/isolate, per-stem EQ behind `SetStemEqEnabled` (routing keys off `stems_audible`: attached buffers always are, live stems only while the producer's coverage covers the playhead, so starved live separation leaves the knobs on the channel EQ; the producer buffers up to 20 s ahead because the model runs at ~0.9–1.0x realtime) ([#46](https://github.com/geovannimp/mixar/issues/46), [#567](https://github.com/geovannimp/mixar/issues/567)) |
 
 ### Library metadata
 
@@ -139,7 +139,7 @@ DeckState
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
 │   └── hot_cue mode → maps to persisted track_hot_cue rows
 ├── fx: filter, slots[3]
-├── stems: { drums, bass, other, vocals } mute/isolate
+├── stems: { drums, bass, other, vocals } ready, audible, mute/isolate/eq, eq_enabled
 ├── mixer: volume, eq{low,mid,high}, gain_trim_db, cue_enabled
 └── waveform: scroll_window_ms, zoom_level
 ```
@@ -316,7 +316,7 @@ Current pad-mode controls are documented in the [user guide](https://mixar.top/d
 
 | Follow-up | Status |
 |-----------|--------|
-| Stem EQ | Open — [#567](https://github.com/geovannimp/mixar/issues/567) |
+| Stem EQ | Shipped — [#567](https://github.com/geovannimp/mixar/issues/567) |
 | Slicer pad mode | Not implemented — [#60](https://github.com/geovannimp/mixar/issues/60) |
 
 Keyboard and Key Shift pad modes are shipped ([#298](https://github.com/geovannimp/mixar/issues/298)); their page tables, root selection, and session-only key shift are specified in [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md) and described for users in the [user guide](https://mixar.top/docs/users/performance-pads).

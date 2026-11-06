@@ -23,9 +23,9 @@ pub use pads::{
     KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
 };
 pub use payload::{
-    default_pitch_page, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot, EngineStatus, EqBand,
-    FxKind, FxSlotState, JogMode, LoopRegion, PadMode, SamplerSlotInfo, SyncMode,
-    FX_DIVISION_COUNT, FX_PARAM_COUNT, FX_SLOT_COUNT,
+    default_pitch_page, default_stem_eq, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot,
+    EngineStatus, EqBand, FxKind, FxSlotState, JogMode, LoopRegion, PadMode, SamplerSlotInfo,
+    SyncMode, FX_DIVISION_COUNT, FX_PARAM_COUNT, FX_SLOT_COUNT,
 };
 
 pub use events::Event;
@@ -44,7 +44,8 @@ pub use events::{
     SetDeckFxRouted, SetEq, SetEqBand, SetFilter, SetFxUnitParam, SetFxUnitSlot,
     SetFxUnitSlotEnabled, SetFxUnitWet, SetGainTrim, SetHeadphoneCue, SetJogMode, SetKeyLock,
     SetKeyShift, SetKeyShiftPage, SetKeyboardPage, SetKeyboardRoot, SetMasterCue, SetMasterDeck,
-    SetMasterVolume, SetPadMode, SetQuantize, SetSlip, SetSpeed, SetTempoRange, SetVolume,
-    ToggleHeadphoneCue, ToggleMasterCue, TogglePlay, ToggleQuantize, ToggleSlip, ToggleSync,
-    TrackAnalyzed, TrackProgress, TrackUpdated, TriggerHotCue, Unload,
+    SetMasterVolume, SetPadMode, SetQuantize, SetSlip, SetSpeed, SetStemEqBand, SetStemEqEnabled,
+    SetTempoRange, SetVolume, ToggleHeadphoneCue, ToggleMasterCue, TogglePlay, ToggleQuantize,
+    ToggleSlip, ToggleStemEq, ToggleSync, TrackAnalyzed, TrackProgress, TrackUpdated,
+    TriggerHotCue, Unload,
 };

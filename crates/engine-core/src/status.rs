@@ -60,6 +60,12 @@ impl Engine {
         })
     }
 
+    /// Whether the deck is really playing stem audio right now (live stems
+    /// fall back to the dry mix once the producer falls behind).
+    pub fn deck_stems_audible(&self, deck_id: usize) -> Option<bool> {
+        self.with_dsp_deck(deck_id, |deck| deck.stems_audible())
+    }
+
     /// Whether stem audio is attached and usable (live: first window published).
     pub fn deck_stems_ready(&self, deck_id: usize) -> Option<bool> {
         self.with_dsp_deck(deck_id, |deck| deck.stems_ready())
@@ -180,9 +186,12 @@ fn deck_snapshot_from_dsp(
         slip_shadow_position_ms: deck.shadow_position_ms(),
         pad_mode: control.pad_mode,
         stems_ready: deck.stems_ready(),
+        stems_audible: deck.stems_audible(),
         stems_live: deck.stems_live(),
         stem_mute: deck.stem_mute().to_vec(),
         stem_isolate: deck.stem_isolate(),
+        stem_eq: deck.stem_eq().to_vec(),
+        stem_eq_enabled: control.stem_eq_enabled,
         position_ms,
         duration_ms,
         hot_cues: control_hot_cues(control),

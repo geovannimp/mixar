@@ -77,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1443024690;
+  int get rustContentHash => 1168951825;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -517,6 +517,12 @@ abstract class RustLibApi extends BaseApi {
     required EngineTransport that,
     required int deckId,
     required double speed,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetStemEqEnabled({
+    required EngineTransport that,
+    required int deckId,
+    required bool enabled,
   });
 
   Future<void> crateApiEngineEngineTransportSetTempoRange({
@@ -3958,6 +3964,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportSetStemEqEnabled({
+    required EngineTransport that,
+    required int deckId,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 77,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetStemEqEnabledConstMeta,
+        argValues: [that, deckId, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetStemEqEnabledConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_stem_eq_enabled",
+        argNames: ["that", "deckId", "enabled"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportSetTempoRange({
     required EngineTransport that,
     required int deckId,
@@ -3976,7 +4022,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 77,
+            funcId: 78,
             port: port_,
           );
         },
@@ -4016,7 +4062,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 78,
+            funcId: 79,
             port: port_,
           );
         },
@@ -4057,7 +4103,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 79,
+            funcId: 80,
             port: port_,
           );
         },
@@ -4094,7 +4140,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 80,
+            funcId: 81,
             port: port_,
           );
         },
@@ -4134,7 +4180,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 81,
+            funcId: 82,
             port: port_,
           );
         },
@@ -4172,7 +4218,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 82,
+            funcId: 83,
             port: port_,
           );
         },
@@ -4214,7 +4260,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 83,
+            funcId: 84,
             port: port_,
           );
         },
@@ -4256,7 +4302,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 84,
+            funcId: 85,
             port: port_,
           );
         },
@@ -4300,7 +4346,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 85,
+            funcId: 86,
             port: port_,
           );
         },
@@ -4342,7 +4388,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 86,
+            funcId: 87,
             port: port_,
           );
         },
@@ -4387,7 +4433,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 87,
+            funcId: 88,
             port: port_,
           );
         },
@@ -4428,7 +4474,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 88,
+            funcId: 89,
             port: port_,
           );
         },
@@ -4472,7 +4518,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 89,
+            funcId: 90,
             port: port_,
           );
         },
@@ -4533,7 +4579,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 90,
+            funcId: 91,
             port: port_,
           );
         },
@@ -4583,7 +4629,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 91,
+            funcId: 92,
             port: port_,
           );
         },
@@ -4619,7 +4665,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 92,
+            funcId: 93,
             port: port_,
           );
         },
@@ -4655,7 +4701,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 93,
+            funcId: 94,
             port: port_,
           );
         },
@@ -4696,7 +4742,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 94,
+            funcId: 95,
             port: port_,
           );
         },
@@ -4735,7 +4781,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 95,
+            funcId: 96,
             port: port_,
           );
         },
@@ -4773,7 +4819,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 96,
+            funcId: 97,
             port: port_,
           );
         },
@@ -4815,7 +4861,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 97,
+            funcId: 98,
             port: port_,
           );
         },
@@ -4859,7 +4905,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 98,
+            funcId: 99,
             port: port_,
           );
         },
@@ -4907,7 +4953,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 99,
+            funcId: 100,
             port: port_,
           );
         },
@@ -4947,7 +4993,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 100,
+            funcId: 101,
             port: port_,
           );
         },
@@ -4985,7 +5031,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 101,
+            funcId: 102,
             port: port_,
           );
         },
@@ -5023,7 +5069,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 102,
+            funcId: 103,
             port: port_,
           );
         },
@@ -5061,7 +5107,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 103,
+            funcId: 104,
             port: port_,
           );
         },
@@ -5106,7 +5152,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 104,
+            funcId: 105,
             port: port_,
           );
         },
@@ -5143,7 +5189,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 105,
+            funcId: 106,
             port: port_,
           );
         },
@@ -5179,7 +5225,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 106,
+            funcId: 107,
             port: port_,
           );
         },
@@ -5217,7 +5263,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 107,
+            funcId: 108,
             port: port_,
           );
         },
@@ -5253,7 +5299,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 108,
+            funcId: 109,
             port: port_,
           );
         },
@@ -5291,7 +5337,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 109,
+            funcId: 110,
             port: port_,
           );
         },
@@ -5332,7 +5378,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 110,
+            funcId: 111,
             port: port_,
           );
         },
@@ -5370,7 +5416,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 111,
+            funcId: 112,
             port: port_,
           );
         },
@@ -5411,7 +5457,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 112,
+            funcId: 113,
             port: port_,
           );
         },
@@ -5451,7 +5497,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 113,
+            funcId: 114,
             port: port_,
           );
         },
@@ -5491,7 +5537,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 114,
+            funcId: 115,
             port: port_,
           );
         },
@@ -5532,7 +5578,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 115,
+            funcId: 116,
             port: port_,
           );
         },
@@ -5571,7 +5617,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 116,
+            funcId: 117,
             port: port_,
           );
         },
@@ -5608,7 +5654,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 117,
+            funcId: 118,
             port: port_,
           );
         },
@@ -5646,7 +5692,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 118,
+            funcId: 119,
             port: port_,
           );
         },
@@ -5682,7 +5728,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 119,
+            funcId: 120,
             port: port_,
           );
         },
@@ -5719,7 +5765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 120,
+            funcId: 121,
             port: port_,
           );
         },
@@ -5758,7 +5804,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 121,
+            funcId: 122,
             port: port_,
           );
         },
@@ -5798,7 +5844,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 122,
+            funcId: 123,
             port: port_,
           );
         },
@@ -5839,7 +5885,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 123,
+            funcId: 124,
             port: port_,
           );
         },
@@ -5877,7 +5923,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 124,
+            funcId: 125,
             port: port_,
           );
         },
@@ -5920,7 +5966,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 125,
+            funcId: 126,
             port: port_,
           );
         },
@@ -5963,7 +6009,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 126,
+            funcId: 127,
             port: port_,
           );
         },
@@ -6009,7 +6055,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 127,
+            funcId: 128,
             port: port_,
           );
         },
@@ -6045,7 +6091,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 128,
+            funcId: 129,
             port: port_,
           );
         },
@@ -6081,7 +6127,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 129,
+            funcId: 130,
             port: port_,
           );
         },
@@ -6148,7 +6194,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 130,
+            funcId: 131,
             port: port_,
           );
         },
@@ -6217,7 +6263,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 131,
+            funcId: 132,
             port: port_,
           );
         },
@@ -6247,7 +6293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 132,
+            funcId: 133,
             port: port_,
           );
         },
@@ -6283,7 +6329,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 133,
+            funcId: 134,
             port: port_,
           );
         },
@@ -6313,7 +6359,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 134,
+            funcId: 135,
             port: port_,
           );
         },
@@ -6343,7 +6389,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 135,
+            funcId: 136,
           )!;
         },
         codec: SseCodec(
@@ -6372,7 +6418,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 137,
             port: port_,
           );
         },
@@ -6399,7 +6445,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 138,
             port: port_,
           );
         },
@@ -6426,7 +6472,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 138,
+            funcId: 139,
             port: port_,
           );
         },
@@ -6453,7 +6499,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 139,
+            funcId: 140,
             port: port_,
           );
         },
@@ -6480,7 +6526,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 140,
+            funcId: 141,
             port: port_,
           );
         },
@@ -6510,7 +6556,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 141,
+            funcId: 142,
             port: port_,
           );
         },
@@ -6541,7 +6587,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 142,
+            funcId: 143,
             port: port_,
           );
         },
@@ -6572,7 +6618,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 143,
+            funcId: 144,
             port: port_,
           );
         },
@@ -6602,7 +6648,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 144,
+            funcId: 145,
             port: port_,
           );
         },
@@ -6632,7 +6678,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 145,
+            funcId: 146,
             port: port_,
           );
         },
@@ -6659,7 +6705,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 146,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6686,7 +6732,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 148,
             port: port_,
           );
         },
@@ -6716,7 +6762,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 149,
             port: port_,
           );
         },
@@ -6749,7 +6795,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 149,
+            funcId: 150,
             port: port_,
           );
         },
@@ -6779,7 +6825,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 150,
+            funcId: 151,
             port: port_,
           );
         },
@@ -6812,7 +6858,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 151,
+            funcId: 152,
             port: port_,
           );
         },
@@ -6842,7 +6888,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 152,
+            funcId: 153,
             port: port_,
           );
         },
@@ -6873,7 +6919,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 153,
+            funcId: 154,
             port: port_,
           );
         },
@@ -6900,7 +6946,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 154,
+            funcId: 155,
             port: port_,
           );
         },
@@ -6927,7 +6973,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 155,
+            funcId: 156,
             port: port_,
           );
         },
@@ -6958,7 +7004,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 156,
+            funcId: 157,
             port: port_,
           );
         },
@@ -8045,6 +8091,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetStemEqBand dco_decode_box_autoadd_set_stem_eq_band(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_stem_eq_band(raw);
+  }
+
+  @protected
+  SetStemEqEnabled dco_decode_box_autoadd_set_stem_eq_enabled(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_stem_eq_enabled(raw);
+  }
+
+  @protected
   SetTempoRange dco_decode_box_autoadd_set_tempo_range(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_set_tempo_range(raw);
@@ -8084,6 +8142,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ToggleSlip dco_decode_box_autoadd_toggle_slip(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_toggle_slip(raw);
+  }
+
+  @protected
+  ToggleStemEq dco_decode_box_autoadd_toggle_stem_eq(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_toggle_stem_eq(raw);
   }
 
   @protected
@@ -8318,8 +8382,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DeckSnapshot dco_decode_deck_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 47)
-      throw Exception('unexpected arr length: expect 47 but see ${arr.length}');
+    if (arr.length != 50)
+      throw Exception('unexpected arr length: expect 50 but see ${arr.length}');
     return DeckSnapshot(
       id: dco_decode_u_16(arr[0]),
       track: dco_decode_opt_String(arr[1]),
@@ -8355,19 +8419,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       slipShadowPositionMs: dco_decode_opt_box_autoadd_i_32(arr[31]),
       padMode: dco_decode_pad_mode(arr[32]),
       stemsReady: dco_decode_bool(arr[33]),
-      stemsLive: dco_decode_bool(arr[34]),
-      stemMute: dco_decode_list_bool(arr[35]),
-      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[36]),
-      positionMs: dco_decode_opt_box_autoadd_i_32(arr[37]),
-      durationMs: dco_decode_opt_box_autoadd_i_32(arr[38]),
-      hotCues: dco_decode_list_deck_hot_cue(arr[39]),
-      savedLoops: dco_decode_list_deck_saved_loop(arr[40]),
-      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[41]),
-      autoGainDb: dco_decode_f_32(arr[42]),
-      activeSamplerBankId: dco_decode_opt_String(arr[43]),
-      topJogMode: dco_decode_jog_mode(arr[44]),
-      outerJogMode: dco_decode_jog_mode(arr[45]),
-      jogTouching: dco_decode_bool(arr[46]),
+      stemsAudible: dco_decode_bool(arr[34]),
+      stemsLive: dco_decode_bool(arr[35]),
+      stemMute: dco_decode_list_bool(arr[36]),
+      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[37]),
+      stemEq: dco_decode_list_prim_f_32_strict(arr[38]),
+      stemEqEnabled: dco_decode_bool(arr[39]),
+      positionMs: dco_decode_opt_box_autoadd_i_32(arr[40]),
+      durationMs: dco_decode_opt_box_autoadd_i_32(arr[41]),
+      hotCues: dco_decode_list_deck_hot_cue(arr[42]),
+      savedLoops: dco_decode_list_deck_saved_loop(arr[43]),
+      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[44]),
+      autoGainDb: dco_decode_f_32(arr[45]),
+      activeSamplerBankId: dco_decode_opt_String(arr[46]),
+      topJogMode: dco_decode_jog_mode(arr[47]),
+      outerJogMode: dco_decode_jog_mode(arr[48]),
+      jogTouching: dco_decode_bool(arr[49]),
     );
   }
 
@@ -8375,8 +8442,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DeckUpdated dco_decode_deck_updated(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 48)
-      throw Exception('unexpected arr length: expect 48 but see ${arr.length}');
+    if (arr.length != 51)
+      throw Exception('unexpected arr length: expect 51 but see ${arr.length}');
     return DeckUpdated(
       deck: dco_decode_u_16(arr[0]),
       track: dco_decode_opt_String(arr[1]),
@@ -8412,20 +8479,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       slipShadowPositionMs: dco_decode_opt_box_autoadd_i_32(arr[31]),
       padMode: dco_decode_pad_mode(arr[32]),
       stemsReady: dco_decode_bool(arr[33]),
-      stemsLive: dco_decode_bool(arr[34]),
-      stemMute: dco_decode_list_bool(arr[35]),
-      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[36]),
-      positionMs: dco_decode_opt_box_autoadd_i_32(arr[37]),
-      durationMs: dco_decode_opt_box_autoadd_i_32(arr[38]),
-      hotCues: dco_decode_list_deck_hot_cue(arr[39]),
-      savedLoops: dco_decode_list_deck_saved_loop(arr[40]),
-      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[41]),
-      autoGainDb: dco_decode_f_32(arr[42]),
-      activeSamplerBankId: dco_decode_opt_String(arr[43]),
-      topJogMode: dco_decode_jog_mode(arr[44]),
-      outerJogMode: dco_decode_jog_mode(arr[45]),
-      jogTouching: dco_decode_bool(arr[46]),
-      samplerSlots: dco_decode_list_sampler_slot_info(arr[47]),
+      stemsAudible: dco_decode_bool(arr[34]),
+      stemsLive: dco_decode_bool(arr[35]),
+      stemMute: dco_decode_list_bool(arr[36]),
+      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[37]),
+      stemEq: dco_decode_list_prim_f_32_strict(arr[38]),
+      stemEqEnabled: dco_decode_bool(arr[39]),
+      positionMs: dco_decode_opt_box_autoadd_i_32(arr[40]),
+      durationMs: dco_decode_opt_box_autoadd_i_32(arr[41]),
+      hotCues: dco_decode_list_deck_hot_cue(arr[42]),
+      savedLoops: dco_decode_list_deck_saved_loop(arr[43]),
+      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[44]),
+      autoGainDb: dco_decode_f_32(arr[45]),
+      activeSamplerBankId: dco_decode_opt_String(arr[46]),
+      topJogMode: dco_decode_jog_mode(arr[47]),
+      outerJogMode: dco_decode_jog_mode(arr[48]),
+      jogTouching: dco_decode_bool(arr[49]),
+      samplerSlots: dco_decode_list_sampler_slot_info(arr[50]),
     );
   }
 
@@ -8564,290 +8634,302 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 7:
         return Event_SetEqBand(dco_decode_box_autoadd_set_eq_band(raw[1]));
       case 8:
-        return Event_SetFilter(dco_decode_box_autoadd_set_filter(raw[1]));
+        return Event_SetStemEqBand(
+          dco_decode_box_autoadd_set_stem_eq_band(raw[1]),
+        );
       case 9:
-        return Event_SetGainTrim(dco_decode_box_autoadd_set_gain_trim(raw[1]));
+        return Event_SetStemEqEnabled(
+          dco_decode_box_autoadd_set_stem_eq_enabled(raw[1]),
+        );
       case 10:
+        return Event_ToggleStemEq(
+          dco_decode_box_autoadd_toggle_stem_eq(raw[1]),
+        );
+      case 11:
+        return Event_SetFilter(dco_decode_box_autoadd_set_filter(raw[1]));
+      case 12:
+        return Event_SetGainTrim(dco_decode_box_autoadd_set_gain_trim(raw[1]));
+      case 13:
         return Event_SetHeadphoneCue(
           dco_decode_box_autoadd_set_headphone_cue(raw[1]),
         );
-      case 11:
+      case 14:
         return Event_ToggleHeadphoneCue(
           dco_decode_box_autoadd_toggle_headphone_cue(raw[1]),
         );
-      case 12:
+      case 15:
         return Event_SetCrossfaderAssign(
           dco_decode_box_autoadd_set_crossfader_assign(raw[1]),
         );
-      case 13:
+      case 16:
         return Event_SetSpeed(dco_decode_box_autoadd_set_speed(raw[1]));
-      case 14:
+      case 17:
         return Event_SetTempoRange(
           dco_decode_box_autoadd_set_tempo_range(raw[1]),
         );
-      case 15:
+      case 18:
         return Event_SetKeyLock(dco_decode_box_autoadd_set_key_lock(raw[1]));
-      case 16:
+      case 19:
         return Event_SetKeyShift(dco_decode_box_autoadd_set_key_shift(raw[1]));
-      case 17:
+      case 20:
         return Event_SetKeyboardRoot(
           dco_decode_box_autoadd_set_keyboard_root(raw[1]),
         );
-      case 18:
+      case 21:
         return Event_SetKeyboardPage(
           dco_decode_box_autoadd_set_keyboard_page(raw[1]),
         );
-      case 19:
+      case 22:
         return Event_SetKeyShiftPage(
           dco_decode_box_autoadd_set_key_shift_page(raw[1]),
         );
-      case 20:
+      case 23:
         return Event_ToggleSync(dco_decode_box_autoadd_toggle_sync(raw[1]));
-      case 21:
+      case 24:
         return Event_SetMasterDeck(
           dco_decode_box_autoadd_set_master_deck(raw[1]),
         );
-      case 22:
+      case 25:
         return Event_SetCuePoint(dco_decode_box_autoadd_set_cue_point(raw[1]));
-      case 23:
+      case 26:
         return Event_BeginCueHold(
           dco_decode_box_autoadd_begin_cue_hold(raw[1]),
         );
-      case 24:
+      case 27:
         return Event_EndCueHold(dco_decode_box_autoadd_end_cue_hold(raw[1]));
-      case 25:
+      case 28:
         return Event_SetQuantize(dco_decode_box_autoadd_set_quantize(raw[1]));
-      case 26:
+      case 29:
         return Event_ToggleQuantize(
           dco_decode_box_autoadd_toggle_quantize(raw[1]),
         );
-      case 27:
-        return Event_SetSlip(dco_decode_box_autoadd_set_slip(raw[1]));
-      case 28:
-        return Event_ToggleSlip(dco_decode_box_autoadd_toggle_slip(raw[1]));
-      case 29:
-        return Event_SetAutoLoop(dco_decode_box_autoadd_set_auto_loop(raw[1]));
       case 30:
-        return Event_LoopIn(dco_decode_box_autoadd_loop_in(raw[1]));
+        return Event_SetSlip(dco_decode_box_autoadd_set_slip(raw[1]));
       case 31:
-        return Event_LoopOut(dco_decode_box_autoadd_loop_out(raw[1]));
+        return Event_ToggleSlip(dco_decode_box_autoadd_toggle_slip(raw[1]));
       case 32:
-        return Event_ExitLoop(dco_decode_box_autoadd_exit_loop(raw[1]));
+        return Event_SetAutoLoop(dco_decode_box_autoadd_set_auto_loop(raw[1]));
       case 33:
+        return Event_LoopIn(dco_decode_box_autoadd_loop_in(raw[1]));
+      case 34:
+        return Event_LoopOut(dco_decode_box_autoadd_loop_out(raw[1]));
+      case 35:
+        return Event_ExitLoop(dco_decode_box_autoadd_exit_loop(raw[1]));
+      case 36:
         return Event_RecallSavedLoop(
           dco_decode_box_autoadd_recall_saved_loop(raw[1]),
         );
-      case 34:
+      case 37:
         return Event_BeginLoopRoll(
           dco_decode_box_autoadd_begin_loop_roll(raw[1]),
         );
-      case 35:
-        return Event_EndLoopRoll(dco_decode_box_autoadd_end_loop_roll(raw[1]));
-      case 36:
-        return Event_BeatJump(dco_decode_box_autoadd_beat_jump(raw[1]));
-      case 37:
-        return Event_SetPadMode(dco_decode_box_autoadd_set_pad_mode(raw[1]));
       case 38:
-        return Event_PadPress(dco_decode_box_autoadd_pad_press(raw[1]));
+        return Event_EndLoopRoll(dco_decode_box_autoadd_end_loop_roll(raw[1]));
       case 39:
-        return Event_PadRelease(dco_decode_box_autoadd_pad_release(raw[1]));
+        return Event_BeatJump(dco_decode_box_autoadd_beat_jump(raw[1]));
       case 40:
+        return Event_SetPadMode(dco_decode_box_autoadd_set_pad_mode(raw[1]));
+      case 41:
+        return Event_PadPress(dco_decode_box_autoadd_pad_press(raw[1]));
+      case 42:
+        return Event_PadRelease(dco_decode_box_autoadd_pad_release(raw[1]));
+      case 43:
         return Event_HotCuePadPress(
           dco_decode_box_autoadd_hot_cue_pad_press(raw[1]),
         );
-      case 41:
+      case 44:
         return Event_HotCuePadRelease(
           dco_decode_box_autoadd_hot_cue_pad_release(raw[1]),
         );
-      case 42:
+      case 45:
         return Event_LoopRollPadPress(
           dco_decode_box_autoadd_loop_roll_pad_press(raw[1]),
         );
-      case 43:
+      case 46:
         return Event_LoopRollPadRelease(
           dco_decode_box_autoadd_loop_roll_pad_release(raw[1]),
         );
-      case 44:
+      case 47:
         return Event_BeatJumpPadPress(
           dco_decode_box_autoadd_beat_jump_pad_press(raw[1]),
         );
-      case 45:
+      case 48:
         return Event_BeatJumpPadRelease(
           dco_decode_box_autoadd_beat_jump_pad_release(raw[1]),
         );
-      case 46:
+      case 49:
         return Event_SamplerPadPress(
           dco_decode_box_autoadd_sampler_pad_press(raw[1]),
         );
-      case 47:
+      case 50:
         return Event_SamplerPadRelease(
           dco_decode_box_autoadd_sampler_pad_release(raw[1]),
         );
-      case 48:
+      case 51:
         return Event_KeyboardPadPress(
           dco_decode_box_autoadd_keyboard_pad_press(raw[1]),
         );
-      case 49:
+      case 52:
         return Event_KeyboardPadRelease(
           dco_decode_box_autoadd_keyboard_pad_release(raw[1]),
         );
-      case 50:
+      case 53:
         return Event_KeyShiftPadPress(
           dco_decode_box_autoadd_key_shift_pad_press(raw[1]),
         );
-      case 51:
+      case 54:
         return Event_KeyShiftPadRelease(
           dco_decode_box_autoadd_key_shift_pad_release(raw[1]),
         );
-      case 52:
+      case 55:
         return Event_TriggerHotCue(
           dco_decode_box_autoadd_trigger_hot_cue(raw[1]),
         );
-      case 53:
+      case 56:
         return Event_SaveDeckHotCue(
           dco_decode_box_autoadd_save_deck_hot_cue(raw[1]),
         );
-      case 54:
+      case 57:
         return Event_DeleteDeckHotCue(
           dco_decode_box_autoadd_delete_deck_hot_cue(raw[1]),
         );
-      case 55:
+      case 58:
         return Event_AssignSampler(
           dco_decode_box_autoadd_assign_sampler(raw[1]),
         );
-      case 56:
+      case 59:
         return Event_AssignSamplerTrack(
           dco_decode_box_autoadd_assign_sampler_track(raw[1]),
         );
-      case 57:
-        return Event_ClearSampler(dco_decode_box_autoadd_clear_sampler(raw[1]));
-      case 58:
-        return Event_JogTouch(dco_decode_box_autoadd_jog_touch(raw[1]));
-      case 59:
-        return Event_JogTurn(dco_decode_box_autoadd_jog_turn(raw[1]));
       case 60:
-        return Event_SetJogMode(dco_decode_box_autoadd_set_jog_mode(raw[1]));
+        return Event_ClearSampler(dco_decode_box_autoadd_clear_sampler(raw[1]));
       case 61:
+        return Event_JogTouch(dco_decode_box_autoadd_jog_touch(raw[1]));
+      case 62:
+        return Event_JogTurn(dco_decode_box_autoadd_jog_turn(raw[1]));
+      case 63:
+        return Event_SetJogMode(dco_decode_box_autoadd_set_jog_mode(raw[1]));
+      case 64:
         return Event_SetCrossfader(
           dco_decode_box_autoadd_set_crossfader(raw[1]),
         );
-      case 62:
+      case 65:
         return Event_SetMasterVolume(
           dco_decode_box_autoadd_set_master_volume(raw[1]),
         );
-      case 63:
+      case 66:
         return Event_SetCueVolume(
           dco_decode_box_autoadd_set_cue_volume(raw[1]),
         );
-      case 64:
+      case 67:
         return Event_SetCueMix(dco_decode_box_autoadd_set_cue_mix(raw[1]));
-      case 65:
+      case 68:
         return Event_SetMasterCue(
           dco_decode_box_autoadd_set_master_cue(raw[1]),
         );
-      case 66:
+      case 69:
         return Event_ToggleMasterCue(
           dco_decode_box_autoadd_toggle_master_cue(raw[1]),
         );
-      case 67:
+      case 70:
         return Event_SetFxUnitSlot(
           dco_decode_box_autoadd_set_fx_unit_slot(raw[1]),
         );
-      case 68:
+      case 71:
         return Event_SetFxUnitSlotEnabled(
           dco_decode_box_autoadd_set_fx_unit_slot_enabled(raw[1]),
         );
-      case 69:
+      case 72:
         return Event_SetFxUnitWet(
           dco_decode_box_autoadd_set_fx_unit_wet(raw[1]),
         );
-      case 70:
+      case 73:
         return Event_SetFxUnitParam(
           dco_decode_box_autoadd_set_fx_unit_param(raw[1]),
         );
-      case 71:
+      case 74:
         return Event_SetDeckFxRouted(
           dco_decode_box_autoadd_set_deck_fx_routed(raw[1]),
         );
-      case 72:
-        return Event_DeckUpdated(dco_decode_box_autoadd_deck_updated(raw[1]));
-      case 73:
-        return Event_DeckPosition(dco_decode_box_autoadd_deck_position(raw[1]));
-      case 74:
-        return Event_DeckLevels(dco_decode_box_autoadd_deck_levels(raw[1]));
       case 75:
+        return Event_DeckUpdated(dco_decode_box_autoadd_deck_updated(raw[1]));
+      case 76:
+        return Event_DeckPosition(dco_decode_box_autoadd_deck_position(raw[1]));
+      case 77:
+        return Event_DeckLevels(dco_decode_box_autoadd_deck_levels(raw[1]));
+      case 78:
         return Event_EngineSnapshot(
           dco_decode_box_autoadd_engine_snapshot(raw[1]),
         );
-      case 76:
-        return Event_Error(dco_decode_box_autoadd_error(raw[1]));
-      case 77:
-        return Event_Notice(dco_decode_box_autoadd_notice(raw[1]));
-      case 78:
-        return Event_AnalyzeTrack(dco_decode_box_autoadd_analyze_track(raw[1]));
       case 79:
+        return Event_Error(dco_decode_box_autoadd_error(raw[1]));
+      case 80:
+        return Event_Notice(dco_decode_box_autoadd_notice(raw[1]));
+      case 81:
+        return Event_AnalyzeTrack(dco_decode_box_autoadd_analyze_track(raw[1]));
+      case 82:
         return Event_GenerateStems(
           dco_decode_box_autoadd_generate_stems(raw[1]),
         );
-      case 80:
+      case 83:
         return Event_RefreshTrack(dco_decode_box_autoadd_refresh_track(raw[1]));
-      case 81:
+      case 84:
         return Event_SaveBeatGrid(
           dco_decode_box_autoadd_save_beat_grid(raw[1]),
         );
-      case 82:
+      case 85:
         return Event_SaveTrackHotCue(
           dco_decode_box_autoadd_save_track_hot_cue(raw[1]),
         );
-      case 83:
+      case 86:
         return Event_DeleteTrackHotCue(
           dco_decode_box_autoadd_delete_track_hot_cue(raw[1]),
         );
-      case 84:
+      case 87:
         return Event_SaveTrackLoop(
           dco_decode_box_autoadd_save_track_loop(raw[1]),
         );
-      case 85:
+      case 88:
         return Event_DeleteTrackLoop(
           dco_decode_box_autoadd_delete_track_loop(raw[1]),
         );
-      case 86:
+      case 89:
         return Event_TrackAnalyzed(
           dco_decode_box_autoadd_track_analyzed(raw[1]),
         );
-      case 87:
+      case 90:
         return Event_TrackUpdated(dco_decode_box_autoadd_track_updated(raw[1]));
-      case 88:
+      case 91:
         return Event_TrackProgress(
           dco_decode_box_autoadd_track_progress(raw[1]),
         );
-      case 89:
+      case 92:
         return Event_HotCuesChanged(
           dco_decode_box_autoadd_hot_cues_changed(raw[1]),
         );
-      case 90:
+      case 93:
         return Event_LoopsChanged(dco_decode_box_autoadd_loops_changed(raw[1]));
-      case 91:
+      case 94:
         return Event_BeatGridChanged(
           dco_decode_box_autoadd_beat_grid_changed(raw[1]),
         );
-      case 92:
+      case 95:
         return Event_HistorySessionUpdated(
           dco_decode_box_autoadd_history_session_updated(raw[1]),
         );
-      case 93:
-        return Event_Navigate(dco_decode_box_autoadd_navigate(raw[1]));
-      case 94:
-        return Event_Focus(dco_decode_box_autoadd_focus(raw[1]));
-      case 95:
-        return Event_Load(dco_decode_box_autoadd_load(raw[1]));
       case 96:
-        return Event_MappingOffer(dco_decode_box_autoadd_mapping_offer(raw[1]));
+        return Event_Navigate(dco_decode_box_autoadd_navigate(raw[1]));
       case 97:
+        return Event_Focus(dco_decode_box_autoadd_focus(raw[1]));
+      case 98:
+        return Event_Load(dco_decode_box_autoadd_load(raw[1]));
+      case 99:
+        return Event_MappingOffer(dco_decode_box_autoadd_mapping_offer(raw[1]));
+      case 100:
         return Event_MappingAttached(
           dco_decode_box_autoadd_mapping_attached(raw[1]),
         );
-      case 98:
+      case 101:
         return Event_MappingDetached(
           dco_decode_box_autoadd_mapping_detached(raw[1]),
         );
@@ -10402,6 +10484,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetStemEqBand dco_decode_set_stem_eq_band(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SetStemEqBand(
+      deck: dco_decode_u_16(arr[0]),
+      band: dco_decode_eq_band(arr[1]),
+      gain: dco_decode_f_32(arr[2]),
+      softTakeover: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
+  SetStemEqEnabled dco_decode_set_stem_eq_enabled(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SetStemEqEnabled(
+      deck: dco_decode_u_16(arr[0]),
+      enabled: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
   SetTempoRange dco_decode_set_tempo_range(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -10495,6 +10603,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return ToggleSlip(deck: dco_decode_u_16(arr[0]));
+  }
+
+  @protected
+  ToggleStemEq dco_decode_toggle_stem_eq(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return ToggleStemEq(deck: dco_decode_u_16(arr[0]));
   }
 
   @protected
@@ -11897,6 +12014,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetStemEqBand sse_decode_box_autoadd_set_stem_eq_band(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_stem_eq_band(deserializer));
+  }
+
+  @protected
+  SetStemEqEnabled sse_decode_box_autoadd_set_stem_eq_enabled(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_stem_eq_enabled(deserializer));
+  }
+
+  @protected
   SetTempoRange sse_decode_box_autoadd_set_tempo_range(
     SseDeserializer deserializer,
   ) {
@@ -11944,6 +12077,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ToggleSlip sse_decode_box_autoadd_toggle_slip(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_toggle_slip(deserializer));
+  }
+
+  @protected
+  ToggleStemEq sse_decode_box_autoadd_toggle_stem_eq(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_toggle_stem_eq(deserializer));
   }
 
   @protected
@@ -12243,9 +12384,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
     var var_padMode = sse_decode_pad_mode(deserializer);
     var var_stemsReady = sse_decode_bool(deserializer);
+    var var_stemsAudible = sse_decode_bool(deserializer);
     var var_stemsLive = sse_decode_bool(deserializer);
     var var_stemMute = sse_decode_list_bool(deserializer);
     var var_stemIsolate = sse_decode_opt_box_autoadd_u_8(deserializer);
+    var var_stemEq = sse_decode_list_prim_f_32_strict(deserializer);
+    var var_stemEqEnabled = sse_decode_bool(deserializer);
     var var_positionMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_durationMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_hotCues = sse_decode_list_deck_hot_cue(deserializer);
@@ -12291,9 +12435,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       slipShadowPositionMs: var_slipShadowPositionMs,
       padMode: var_padMode,
       stemsReady: var_stemsReady,
+      stemsAudible: var_stemsAudible,
       stemsLive: var_stemsLive,
       stemMute: var_stemMute,
       stemIsolate: var_stemIsolate,
+      stemEq: var_stemEq,
+      stemEqEnabled: var_stemEqEnabled,
       positionMs: var_positionMs,
       durationMs: var_durationMs,
       hotCues: var_hotCues,
@@ -12346,9 +12493,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
     var var_padMode = sse_decode_pad_mode(deserializer);
     var var_stemsReady = sse_decode_bool(deserializer);
+    var var_stemsAudible = sse_decode_bool(deserializer);
     var var_stemsLive = sse_decode_bool(deserializer);
     var var_stemMute = sse_decode_list_bool(deserializer);
     var var_stemIsolate = sse_decode_opt_box_autoadd_u_8(deserializer);
+    var var_stemEq = sse_decode_list_prim_f_32_strict(deserializer);
+    var var_stemEqEnabled = sse_decode_bool(deserializer);
     var var_positionMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_durationMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_hotCues = sse_decode_list_deck_hot_cue(deserializer);
@@ -12395,9 +12545,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       slipShadowPositionMs: var_slipShadowPositionMs,
       padMode: var_padMode,
       stemsReady: var_stemsReady,
+      stemsAudible: var_stemsAudible,
       stemsLive: var_stemsLive,
       stemMute: var_stemMute,
       stemIsolate: var_stemIsolate,
+      stemEq: var_stemEq,
+      stemEqEnabled: var_stemEqEnabled,
       positionMs: var_positionMs,
       durationMs: var_durationMs,
       hotCues: var_hotCues,
@@ -12548,316 +12701,327 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_field0 = sse_decode_box_autoadd_set_eq_band(deserializer);
         return Event_SetEqBand(var_field0);
       case 8:
+        var var_field0 = sse_decode_box_autoadd_set_stem_eq_band(deserializer);
+        return Event_SetStemEqBand(var_field0);
+      case 9:
+        var var_field0 = sse_decode_box_autoadd_set_stem_eq_enabled(
+          deserializer,
+        );
+        return Event_SetStemEqEnabled(var_field0);
+      case 10:
+        var var_field0 = sse_decode_box_autoadd_toggle_stem_eq(deserializer);
+        return Event_ToggleStemEq(var_field0);
+      case 11:
         var var_field0 = sse_decode_box_autoadd_set_filter(deserializer);
         return Event_SetFilter(var_field0);
-      case 9:
+      case 12:
         var var_field0 = sse_decode_box_autoadd_set_gain_trim(deserializer);
         return Event_SetGainTrim(var_field0);
-      case 10:
+      case 13:
         var var_field0 = sse_decode_box_autoadd_set_headphone_cue(deserializer);
         return Event_SetHeadphoneCue(var_field0);
-      case 11:
+      case 14:
         var var_field0 = sse_decode_box_autoadd_toggle_headphone_cue(
           deserializer,
         );
         return Event_ToggleHeadphoneCue(var_field0);
-      case 12:
+      case 15:
         var var_field0 = sse_decode_box_autoadd_set_crossfader_assign(
           deserializer,
         );
         return Event_SetCrossfaderAssign(var_field0);
-      case 13:
+      case 16:
         var var_field0 = sse_decode_box_autoadd_set_speed(deserializer);
         return Event_SetSpeed(var_field0);
-      case 14:
+      case 17:
         var var_field0 = sse_decode_box_autoadd_set_tempo_range(deserializer);
         return Event_SetTempoRange(var_field0);
-      case 15:
+      case 18:
         var var_field0 = sse_decode_box_autoadd_set_key_lock(deserializer);
         return Event_SetKeyLock(var_field0);
-      case 16:
+      case 19:
         var var_field0 = sse_decode_box_autoadd_set_key_shift(deserializer);
         return Event_SetKeyShift(var_field0);
-      case 17:
+      case 20:
         var var_field0 = sse_decode_box_autoadd_set_keyboard_root(deserializer);
         return Event_SetKeyboardRoot(var_field0);
-      case 18:
+      case 21:
         var var_field0 = sse_decode_box_autoadd_set_keyboard_page(deserializer);
         return Event_SetKeyboardPage(var_field0);
-      case 19:
+      case 22:
         var var_field0 = sse_decode_box_autoadd_set_key_shift_page(
           deserializer,
         );
         return Event_SetKeyShiftPage(var_field0);
-      case 20:
+      case 23:
         var var_field0 = sse_decode_box_autoadd_toggle_sync(deserializer);
         return Event_ToggleSync(var_field0);
-      case 21:
+      case 24:
         var var_field0 = sse_decode_box_autoadd_set_master_deck(deserializer);
         return Event_SetMasterDeck(var_field0);
-      case 22:
+      case 25:
         var var_field0 = sse_decode_box_autoadd_set_cue_point(deserializer);
         return Event_SetCuePoint(var_field0);
-      case 23:
+      case 26:
         var var_field0 = sse_decode_box_autoadd_begin_cue_hold(deserializer);
         return Event_BeginCueHold(var_field0);
-      case 24:
+      case 27:
         var var_field0 = sse_decode_box_autoadd_end_cue_hold(deserializer);
         return Event_EndCueHold(var_field0);
-      case 25:
+      case 28:
         var var_field0 = sse_decode_box_autoadd_set_quantize(deserializer);
         return Event_SetQuantize(var_field0);
-      case 26:
+      case 29:
         var var_field0 = sse_decode_box_autoadd_toggle_quantize(deserializer);
         return Event_ToggleQuantize(var_field0);
-      case 27:
+      case 30:
         var var_field0 = sse_decode_box_autoadd_set_slip(deserializer);
         return Event_SetSlip(var_field0);
-      case 28:
+      case 31:
         var var_field0 = sse_decode_box_autoadd_toggle_slip(deserializer);
         return Event_ToggleSlip(var_field0);
-      case 29:
+      case 32:
         var var_field0 = sse_decode_box_autoadd_set_auto_loop(deserializer);
         return Event_SetAutoLoop(var_field0);
-      case 30:
+      case 33:
         var var_field0 = sse_decode_box_autoadd_loop_in(deserializer);
         return Event_LoopIn(var_field0);
-      case 31:
+      case 34:
         var var_field0 = sse_decode_box_autoadd_loop_out(deserializer);
         return Event_LoopOut(var_field0);
-      case 32:
+      case 35:
         var var_field0 = sse_decode_box_autoadd_exit_loop(deserializer);
         return Event_ExitLoop(var_field0);
-      case 33:
+      case 36:
         var var_field0 = sse_decode_box_autoadd_recall_saved_loop(deserializer);
         return Event_RecallSavedLoop(var_field0);
-      case 34:
+      case 37:
         var var_field0 = sse_decode_box_autoadd_begin_loop_roll(deserializer);
         return Event_BeginLoopRoll(var_field0);
-      case 35:
+      case 38:
         var var_field0 = sse_decode_box_autoadd_end_loop_roll(deserializer);
         return Event_EndLoopRoll(var_field0);
-      case 36:
+      case 39:
         var var_field0 = sse_decode_box_autoadd_beat_jump(deserializer);
         return Event_BeatJump(var_field0);
-      case 37:
+      case 40:
         var var_field0 = sse_decode_box_autoadd_set_pad_mode(deserializer);
         return Event_SetPadMode(var_field0);
-      case 38:
+      case 41:
         var var_field0 = sse_decode_box_autoadd_pad_press(deserializer);
         return Event_PadPress(var_field0);
-      case 39:
+      case 42:
         var var_field0 = sse_decode_box_autoadd_pad_release(deserializer);
         return Event_PadRelease(var_field0);
-      case 40:
+      case 43:
         var var_field0 = sse_decode_box_autoadd_hot_cue_pad_press(deserializer);
         return Event_HotCuePadPress(var_field0);
-      case 41:
+      case 44:
         var var_field0 = sse_decode_box_autoadd_hot_cue_pad_release(
           deserializer,
         );
         return Event_HotCuePadRelease(var_field0);
-      case 42:
+      case 45:
         var var_field0 = sse_decode_box_autoadd_loop_roll_pad_press(
           deserializer,
         );
         return Event_LoopRollPadPress(var_field0);
-      case 43:
+      case 46:
         var var_field0 = sse_decode_box_autoadd_loop_roll_pad_release(
           deserializer,
         );
         return Event_LoopRollPadRelease(var_field0);
-      case 44:
+      case 47:
         var var_field0 = sse_decode_box_autoadd_beat_jump_pad_press(
           deserializer,
         );
         return Event_BeatJumpPadPress(var_field0);
-      case 45:
+      case 48:
         var var_field0 = sse_decode_box_autoadd_beat_jump_pad_release(
           deserializer,
         );
         return Event_BeatJumpPadRelease(var_field0);
-      case 46:
+      case 49:
         var var_field0 = sse_decode_box_autoadd_sampler_pad_press(deserializer);
         return Event_SamplerPadPress(var_field0);
-      case 47:
+      case 50:
         var var_field0 = sse_decode_box_autoadd_sampler_pad_release(
           deserializer,
         );
         return Event_SamplerPadRelease(var_field0);
-      case 48:
+      case 51:
         var var_field0 = sse_decode_box_autoadd_keyboard_pad_press(
           deserializer,
         );
         return Event_KeyboardPadPress(var_field0);
-      case 49:
+      case 52:
         var var_field0 = sse_decode_box_autoadd_keyboard_pad_release(
           deserializer,
         );
         return Event_KeyboardPadRelease(var_field0);
-      case 50:
+      case 53:
         var var_field0 = sse_decode_box_autoadd_key_shift_pad_press(
           deserializer,
         );
         return Event_KeyShiftPadPress(var_field0);
-      case 51:
+      case 54:
         var var_field0 = sse_decode_box_autoadd_key_shift_pad_release(
           deserializer,
         );
         return Event_KeyShiftPadRelease(var_field0);
-      case 52:
+      case 55:
         var var_field0 = sse_decode_box_autoadd_trigger_hot_cue(deserializer);
         return Event_TriggerHotCue(var_field0);
-      case 53:
+      case 56:
         var var_field0 = sse_decode_box_autoadd_save_deck_hot_cue(deserializer);
         return Event_SaveDeckHotCue(var_field0);
-      case 54:
+      case 57:
         var var_field0 = sse_decode_box_autoadd_delete_deck_hot_cue(
           deserializer,
         );
         return Event_DeleteDeckHotCue(var_field0);
-      case 55:
+      case 58:
         var var_field0 = sse_decode_box_autoadd_assign_sampler(deserializer);
         return Event_AssignSampler(var_field0);
-      case 56:
+      case 59:
         var var_field0 = sse_decode_box_autoadd_assign_sampler_track(
           deserializer,
         );
         return Event_AssignSamplerTrack(var_field0);
-      case 57:
+      case 60:
         var var_field0 = sse_decode_box_autoadd_clear_sampler(deserializer);
         return Event_ClearSampler(var_field0);
-      case 58:
+      case 61:
         var var_field0 = sse_decode_box_autoadd_jog_touch(deserializer);
         return Event_JogTouch(var_field0);
-      case 59:
+      case 62:
         var var_field0 = sse_decode_box_autoadd_jog_turn(deserializer);
         return Event_JogTurn(var_field0);
-      case 60:
+      case 63:
         var var_field0 = sse_decode_box_autoadd_set_jog_mode(deserializer);
         return Event_SetJogMode(var_field0);
-      case 61:
+      case 64:
         var var_field0 = sse_decode_box_autoadd_set_crossfader(deserializer);
         return Event_SetCrossfader(var_field0);
-      case 62:
+      case 65:
         var var_field0 = sse_decode_box_autoadd_set_master_volume(deserializer);
         return Event_SetMasterVolume(var_field0);
-      case 63:
+      case 66:
         var var_field0 = sse_decode_box_autoadd_set_cue_volume(deserializer);
         return Event_SetCueVolume(var_field0);
-      case 64:
+      case 67:
         var var_field0 = sse_decode_box_autoadd_set_cue_mix(deserializer);
         return Event_SetCueMix(var_field0);
-      case 65:
+      case 68:
         var var_field0 = sse_decode_box_autoadd_set_master_cue(deserializer);
         return Event_SetMasterCue(var_field0);
-      case 66:
+      case 69:
         var var_field0 = sse_decode_box_autoadd_toggle_master_cue(deserializer);
         return Event_ToggleMasterCue(var_field0);
-      case 67:
+      case 70:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_slot(deserializer);
         return Event_SetFxUnitSlot(var_field0);
-      case 68:
+      case 71:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_slot_enabled(
           deserializer,
         );
         return Event_SetFxUnitSlotEnabled(var_field0);
-      case 69:
+      case 72:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_wet(deserializer);
         return Event_SetFxUnitWet(var_field0);
-      case 70:
+      case 73:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_param(deserializer);
         return Event_SetFxUnitParam(var_field0);
-      case 71:
+      case 74:
         var var_field0 = sse_decode_box_autoadd_set_deck_fx_routed(
           deserializer,
         );
         return Event_SetDeckFxRouted(var_field0);
-      case 72:
+      case 75:
         var var_field0 = sse_decode_box_autoadd_deck_updated(deserializer);
         return Event_DeckUpdated(var_field0);
-      case 73:
+      case 76:
         var var_field0 = sse_decode_box_autoadd_deck_position(deserializer);
         return Event_DeckPosition(var_field0);
-      case 74:
+      case 77:
         var var_field0 = sse_decode_box_autoadd_deck_levels(deserializer);
         return Event_DeckLevels(var_field0);
-      case 75:
+      case 78:
         var var_field0 = sse_decode_box_autoadd_engine_snapshot(deserializer);
         return Event_EngineSnapshot(var_field0);
-      case 76:
+      case 79:
         var var_field0 = sse_decode_box_autoadd_error(deserializer);
         return Event_Error(var_field0);
-      case 77:
+      case 80:
         var var_field0 = sse_decode_box_autoadd_notice(deserializer);
         return Event_Notice(var_field0);
-      case 78:
+      case 81:
         var var_field0 = sse_decode_box_autoadd_analyze_track(deserializer);
         return Event_AnalyzeTrack(var_field0);
-      case 79:
+      case 82:
         var var_field0 = sse_decode_box_autoadd_generate_stems(deserializer);
         return Event_GenerateStems(var_field0);
-      case 80:
+      case 83:
         var var_field0 = sse_decode_box_autoadd_refresh_track(deserializer);
         return Event_RefreshTrack(var_field0);
-      case 81:
+      case 84:
         var var_field0 = sse_decode_box_autoadd_save_beat_grid(deserializer);
         return Event_SaveBeatGrid(var_field0);
-      case 82:
+      case 85:
         var var_field0 = sse_decode_box_autoadd_save_track_hot_cue(
           deserializer,
         );
         return Event_SaveTrackHotCue(var_field0);
-      case 83:
+      case 86:
         var var_field0 = sse_decode_box_autoadd_delete_track_hot_cue(
           deserializer,
         );
         return Event_DeleteTrackHotCue(var_field0);
-      case 84:
+      case 87:
         var var_field0 = sse_decode_box_autoadd_save_track_loop(deserializer);
         return Event_SaveTrackLoop(var_field0);
-      case 85:
+      case 88:
         var var_field0 = sse_decode_box_autoadd_delete_track_loop(deserializer);
         return Event_DeleteTrackLoop(var_field0);
-      case 86:
+      case 89:
         var var_field0 = sse_decode_box_autoadd_track_analyzed(deserializer);
         return Event_TrackAnalyzed(var_field0);
-      case 87:
+      case 90:
         var var_field0 = sse_decode_box_autoadd_track_updated(deserializer);
         return Event_TrackUpdated(var_field0);
-      case 88:
+      case 91:
         var var_field0 = sse_decode_box_autoadd_track_progress(deserializer);
         return Event_TrackProgress(var_field0);
-      case 89:
+      case 92:
         var var_field0 = sse_decode_box_autoadd_hot_cues_changed(deserializer);
         return Event_HotCuesChanged(var_field0);
-      case 90:
+      case 93:
         var var_field0 = sse_decode_box_autoadd_loops_changed(deserializer);
         return Event_LoopsChanged(var_field0);
-      case 91:
+      case 94:
         var var_field0 = sse_decode_box_autoadd_beat_grid_changed(deserializer);
         return Event_BeatGridChanged(var_field0);
-      case 92:
+      case 95:
         var var_field0 = sse_decode_box_autoadd_history_session_updated(
           deserializer,
         );
         return Event_HistorySessionUpdated(var_field0);
-      case 93:
+      case 96:
         var var_field0 = sse_decode_box_autoadd_navigate(deserializer);
         return Event_Navigate(var_field0);
-      case 94:
+      case 97:
         var var_field0 = sse_decode_box_autoadd_focus(deserializer);
         return Event_Focus(var_field0);
-      case 95:
+      case 98:
         var var_field0 = sse_decode_box_autoadd_load(deserializer);
         return Event_Load(var_field0);
-      case 96:
+      case 99:
         var var_field0 = sse_decode_box_autoadd_mapping_offer(deserializer);
         return Event_MappingOffer(var_field0);
-      case 97:
+      case 100:
         var var_field0 = sse_decode_box_autoadd_mapping_attached(deserializer);
         return Event_MappingAttached(var_field0);
-      case 98:
+      case 101:
         var var_field0 = sse_decode_box_autoadd_mapping_detached(deserializer);
         return Event_MappingDetached(var_field0);
       default:
@@ -14594,6 +14758,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetStemEqBand sse_decode_set_stem_eq_band(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deck = sse_decode_u_16(deserializer);
+    var var_band = sse_decode_eq_band(deserializer);
+    var var_gain = sse_decode_f_32(deserializer);
+    var var_softTakeover = sse_decode_bool(deserializer);
+    return SetStemEqBand(
+      deck: var_deck,
+      band: var_band,
+      gain: var_gain,
+      softTakeover: var_softTakeover,
+    );
+  }
+
+  @protected
+  SetStemEqEnabled sse_decode_set_stem_eq_enabled(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deck = sse_decode_u_16(deserializer);
+    var var_enabled = sse_decode_bool(deserializer);
+    return SetStemEqEnabled(deck: var_deck, enabled: var_enabled);
+  }
+
+  @protected
   SetTempoRange sse_decode_set_tempo_range(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_deck = sse_decode_u_16(deserializer);
@@ -14677,6 +14866,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_deck = sse_decode_u_16(deserializer);
     return ToggleSlip(deck: var_deck);
+  }
+
+  @protected
+  ToggleStemEq sse_decode_toggle_stem_eq(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deck = sse_decode_u_16(deserializer);
+    return ToggleStemEq(deck: var_deck);
   }
 
   @protected
@@ -16153,6 +16349,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_set_stem_eq_band(
+    SetStemEqBand self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_stem_eq_band(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_stem_eq_enabled(
+    SetStemEqEnabled self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_stem_eq_enabled(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_set_tempo_range(
     SetTempoRange self,
     SseSerializer serializer,
@@ -16213,6 +16427,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_toggle_slip(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_toggle_stem_eq(
+    ToggleStemEq self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_toggle_stem_eq(self, serializer);
   }
 
   @protected
@@ -16470,9 +16693,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_i_32(self.slipShadowPositionMs, serializer);
     sse_encode_pad_mode(self.padMode, serializer);
     sse_encode_bool(self.stemsReady, serializer);
+    sse_encode_bool(self.stemsAudible, serializer);
     sse_encode_bool(self.stemsLive, serializer);
     sse_encode_list_bool(self.stemMute, serializer);
     sse_encode_opt_box_autoadd_u_8(self.stemIsolate, serializer);
+    sse_encode_list_prim_f_32_strict(self.stemEq, serializer);
+    sse_encode_bool(self.stemEqEnabled, serializer);
     sse_encode_opt_box_autoadd_i_32(self.positionMs, serializer);
     sse_encode_opt_box_autoadd_i_32(self.durationMs, serializer);
     sse_encode_list_deck_hot_cue(self.hotCues, serializer);
@@ -16522,9 +16748,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_i_32(self.slipShadowPositionMs, serializer);
     sse_encode_pad_mode(self.padMode, serializer);
     sse_encode_bool(self.stemsReady, serializer);
+    sse_encode_bool(self.stemsAudible, serializer);
     sse_encode_bool(self.stemsLive, serializer);
     sse_encode_list_bool(self.stemMute, serializer);
     sse_encode_opt_box_autoadd_u_8(self.stemIsolate, serializer);
+    sse_encode_list_prim_f_32_strict(self.stemEq, serializer);
+    sse_encode_bool(self.stemEqEnabled, serializer);
     sse_encode_opt_box_autoadd_i_32(self.positionMs, serializer);
     sse_encode_opt_box_autoadd_i_32(self.durationMs, serializer);
     sse_encode_list_deck_hot_cue(self.hotCues, serializer);
@@ -16656,278 +16885,287 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case Event_SetEqBand(field0: final field0):
         sse_encode_i_32(7, serializer);
         sse_encode_box_autoadd_set_eq_band(field0, serializer);
-      case Event_SetFilter(field0: final field0):
+      case Event_SetStemEqBand(field0: final field0):
         sse_encode_i_32(8, serializer);
+        sse_encode_box_autoadd_set_stem_eq_band(field0, serializer);
+      case Event_SetStemEqEnabled(field0: final field0):
+        sse_encode_i_32(9, serializer);
+        sse_encode_box_autoadd_set_stem_eq_enabled(field0, serializer);
+      case Event_ToggleStemEq(field0: final field0):
+        sse_encode_i_32(10, serializer);
+        sse_encode_box_autoadd_toggle_stem_eq(field0, serializer);
+      case Event_SetFilter(field0: final field0):
+        sse_encode_i_32(11, serializer);
         sse_encode_box_autoadd_set_filter(field0, serializer);
       case Event_SetGainTrim(field0: final field0):
-        sse_encode_i_32(9, serializer);
+        sse_encode_i_32(12, serializer);
         sse_encode_box_autoadd_set_gain_trim(field0, serializer);
       case Event_SetHeadphoneCue(field0: final field0):
-        sse_encode_i_32(10, serializer);
+        sse_encode_i_32(13, serializer);
         sse_encode_box_autoadd_set_headphone_cue(field0, serializer);
       case Event_ToggleHeadphoneCue(field0: final field0):
-        sse_encode_i_32(11, serializer);
+        sse_encode_i_32(14, serializer);
         sse_encode_box_autoadd_toggle_headphone_cue(field0, serializer);
       case Event_SetCrossfaderAssign(field0: final field0):
-        sse_encode_i_32(12, serializer);
+        sse_encode_i_32(15, serializer);
         sse_encode_box_autoadd_set_crossfader_assign(field0, serializer);
       case Event_SetSpeed(field0: final field0):
-        sse_encode_i_32(13, serializer);
+        sse_encode_i_32(16, serializer);
         sse_encode_box_autoadd_set_speed(field0, serializer);
       case Event_SetTempoRange(field0: final field0):
-        sse_encode_i_32(14, serializer);
+        sse_encode_i_32(17, serializer);
         sse_encode_box_autoadd_set_tempo_range(field0, serializer);
       case Event_SetKeyLock(field0: final field0):
-        sse_encode_i_32(15, serializer);
+        sse_encode_i_32(18, serializer);
         sse_encode_box_autoadd_set_key_lock(field0, serializer);
       case Event_SetKeyShift(field0: final field0):
-        sse_encode_i_32(16, serializer);
+        sse_encode_i_32(19, serializer);
         sse_encode_box_autoadd_set_key_shift(field0, serializer);
       case Event_SetKeyboardRoot(field0: final field0):
-        sse_encode_i_32(17, serializer);
+        sse_encode_i_32(20, serializer);
         sse_encode_box_autoadd_set_keyboard_root(field0, serializer);
       case Event_SetKeyboardPage(field0: final field0):
-        sse_encode_i_32(18, serializer);
+        sse_encode_i_32(21, serializer);
         sse_encode_box_autoadd_set_keyboard_page(field0, serializer);
       case Event_SetKeyShiftPage(field0: final field0):
-        sse_encode_i_32(19, serializer);
+        sse_encode_i_32(22, serializer);
         sse_encode_box_autoadd_set_key_shift_page(field0, serializer);
       case Event_ToggleSync(field0: final field0):
-        sse_encode_i_32(20, serializer);
+        sse_encode_i_32(23, serializer);
         sse_encode_box_autoadd_toggle_sync(field0, serializer);
       case Event_SetMasterDeck(field0: final field0):
-        sse_encode_i_32(21, serializer);
+        sse_encode_i_32(24, serializer);
         sse_encode_box_autoadd_set_master_deck(field0, serializer);
       case Event_SetCuePoint(field0: final field0):
-        sse_encode_i_32(22, serializer);
+        sse_encode_i_32(25, serializer);
         sse_encode_box_autoadd_set_cue_point(field0, serializer);
       case Event_BeginCueHold(field0: final field0):
-        sse_encode_i_32(23, serializer);
+        sse_encode_i_32(26, serializer);
         sse_encode_box_autoadd_begin_cue_hold(field0, serializer);
       case Event_EndCueHold(field0: final field0):
-        sse_encode_i_32(24, serializer);
+        sse_encode_i_32(27, serializer);
         sse_encode_box_autoadd_end_cue_hold(field0, serializer);
       case Event_SetQuantize(field0: final field0):
-        sse_encode_i_32(25, serializer);
+        sse_encode_i_32(28, serializer);
         sse_encode_box_autoadd_set_quantize(field0, serializer);
       case Event_ToggleQuantize(field0: final field0):
-        sse_encode_i_32(26, serializer);
+        sse_encode_i_32(29, serializer);
         sse_encode_box_autoadd_toggle_quantize(field0, serializer);
       case Event_SetSlip(field0: final field0):
-        sse_encode_i_32(27, serializer);
+        sse_encode_i_32(30, serializer);
         sse_encode_box_autoadd_set_slip(field0, serializer);
       case Event_ToggleSlip(field0: final field0):
-        sse_encode_i_32(28, serializer);
+        sse_encode_i_32(31, serializer);
         sse_encode_box_autoadd_toggle_slip(field0, serializer);
       case Event_SetAutoLoop(field0: final field0):
-        sse_encode_i_32(29, serializer);
+        sse_encode_i_32(32, serializer);
         sse_encode_box_autoadd_set_auto_loop(field0, serializer);
       case Event_LoopIn(field0: final field0):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(33, serializer);
         sse_encode_box_autoadd_loop_in(field0, serializer);
       case Event_LoopOut(field0: final field0):
-        sse_encode_i_32(31, serializer);
+        sse_encode_i_32(34, serializer);
         sse_encode_box_autoadd_loop_out(field0, serializer);
       case Event_ExitLoop(field0: final field0):
-        sse_encode_i_32(32, serializer);
+        sse_encode_i_32(35, serializer);
         sse_encode_box_autoadd_exit_loop(field0, serializer);
       case Event_RecallSavedLoop(field0: final field0):
-        sse_encode_i_32(33, serializer);
+        sse_encode_i_32(36, serializer);
         sse_encode_box_autoadd_recall_saved_loop(field0, serializer);
       case Event_BeginLoopRoll(field0: final field0):
-        sse_encode_i_32(34, serializer);
+        sse_encode_i_32(37, serializer);
         sse_encode_box_autoadd_begin_loop_roll(field0, serializer);
       case Event_EndLoopRoll(field0: final field0):
-        sse_encode_i_32(35, serializer);
+        sse_encode_i_32(38, serializer);
         sse_encode_box_autoadd_end_loop_roll(field0, serializer);
       case Event_BeatJump(field0: final field0):
-        sse_encode_i_32(36, serializer);
+        sse_encode_i_32(39, serializer);
         sse_encode_box_autoadd_beat_jump(field0, serializer);
       case Event_SetPadMode(field0: final field0):
-        sse_encode_i_32(37, serializer);
+        sse_encode_i_32(40, serializer);
         sse_encode_box_autoadd_set_pad_mode(field0, serializer);
       case Event_PadPress(field0: final field0):
-        sse_encode_i_32(38, serializer);
+        sse_encode_i_32(41, serializer);
         sse_encode_box_autoadd_pad_press(field0, serializer);
       case Event_PadRelease(field0: final field0):
-        sse_encode_i_32(39, serializer);
+        sse_encode_i_32(42, serializer);
         sse_encode_box_autoadd_pad_release(field0, serializer);
       case Event_HotCuePadPress(field0: final field0):
-        sse_encode_i_32(40, serializer);
+        sse_encode_i_32(43, serializer);
         sse_encode_box_autoadd_hot_cue_pad_press(field0, serializer);
       case Event_HotCuePadRelease(field0: final field0):
-        sse_encode_i_32(41, serializer);
+        sse_encode_i_32(44, serializer);
         sse_encode_box_autoadd_hot_cue_pad_release(field0, serializer);
       case Event_LoopRollPadPress(field0: final field0):
-        sse_encode_i_32(42, serializer);
+        sse_encode_i_32(45, serializer);
         sse_encode_box_autoadd_loop_roll_pad_press(field0, serializer);
       case Event_LoopRollPadRelease(field0: final field0):
-        sse_encode_i_32(43, serializer);
+        sse_encode_i_32(46, serializer);
         sse_encode_box_autoadd_loop_roll_pad_release(field0, serializer);
       case Event_BeatJumpPadPress(field0: final field0):
-        sse_encode_i_32(44, serializer);
+        sse_encode_i_32(47, serializer);
         sse_encode_box_autoadd_beat_jump_pad_press(field0, serializer);
       case Event_BeatJumpPadRelease(field0: final field0):
-        sse_encode_i_32(45, serializer);
+        sse_encode_i_32(48, serializer);
         sse_encode_box_autoadd_beat_jump_pad_release(field0, serializer);
       case Event_SamplerPadPress(field0: final field0):
-        sse_encode_i_32(46, serializer);
+        sse_encode_i_32(49, serializer);
         sse_encode_box_autoadd_sampler_pad_press(field0, serializer);
       case Event_SamplerPadRelease(field0: final field0):
-        sse_encode_i_32(47, serializer);
+        sse_encode_i_32(50, serializer);
         sse_encode_box_autoadd_sampler_pad_release(field0, serializer);
       case Event_KeyboardPadPress(field0: final field0):
-        sse_encode_i_32(48, serializer);
+        sse_encode_i_32(51, serializer);
         sse_encode_box_autoadd_keyboard_pad_press(field0, serializer);
       case Event_KeyboardPadRelease(field0: final field0):
-        sse_encode_i_32(49, serializer);
+        sse_encode_i_32(52, serializer);
         sse_encode_box_autoadd_keyboard_pad_release(field0, serializer);
       case Event_KeyShiftPadPress(field0: final field0):
-        sse_encode_i_32(50, serializer);
+        sse_encode_i_32(53, serializer);
         sse_encode_box_autoadd_key_shift_pad_press(field0, serializer);
       case Event_KeyShiftPadRelease(field0: final field0):
-        sse_encode_i_32(51, serializer);
+        sse_encode_i_32(54, serializer);
         sse_encode_box_autoadd_key_shift_pad_release(field0, serializer);
       case Event_TriggerHotCue(field0: final field0):
-        sse_encode_i_32(52, serializer);
+        sse_encode_i_32(55, serializer);
         sse_encode_box_autoadd_trigger_hot_cue(field0, serializer);
       case Event_SaveDeckHotCue(field0: final field0):
-        sse_encode_i_32(53, serializer);
+        sse_encode_i_32(56, serializer);
         sse_encode_box_autoadd_save_deck_hot_cue(field0, serializer);
       case Event_DeleteDeckHotCue(field0: final field0):
-        sse_encode_i_32(54, serializer);
+        sse_encode_i_32(57, serializer);
         sse_encode_box_autoadd_delete_deck_hot_cue(field0, serializer);
       case Event_AssignSampler(field0: final field0):
-        sse_encode_i_32(55, serializer);
+        sse_encode_i_32(58, serializer);
         sse_encode_box_autoadd_assign_sampler(field0, serializer);
       case Event_AssignSamplerTrack(field0: final field0):
-        sse_encode_i_32(56, serializer);
+        sse_encode_i_32(59, serializer);
         sse_encode_box_autoadd_assign_sampler_track(field0, serializer);
       case Event_ClearSampler(field0: final field0):
-        sse_encode_i_32(57, serializer);
+        sse_encode_i_32(60, serializer);
         sse_encode_box_autoadd_clear_sampler(field0, serializer);
       case Event_JogTouch(field0: final field0):
-        sse_encode_i_32(58, serializer);
+        sse_encode_i_32(61, serializer);
         sse_encode_box_autoadd_jog_touch(field0, serializer);
       case Event_JogTurn(field0: final field0):
-        sse_encode_i_32(59, serializer);
+        sse_encode_i_32(62, serializer);
         sse_encode_box_autoadd_jog_turn(field0, serializer);
       case Event_SetJogMode(field0: final field0):
-        sse_encode_i_32(60, serializer);
+        sse_encode_i_32(63, serializer);
         sse_encode_box_autoadd_set_jog_mode(field0, serializer);
       case Event_SetCrossfader(field0: final field0):
-        sse_encode_i_32(61, serializer);
+        sse_encode_i_32(64, serializer);
         sse_encode_box_autoadd_set_crossfader(field0, serializer);
       case Event_SetMasterVolume(field0: final field0):
-        sse_encode_i_32(62, serializer);
+        sse_encode_i_32(65, serializer);
         sse_encode_box_autoadd_set_master_volume(field0, serializer);
       case Event_SetCueVolume(field0: final field0):
-        sse_encode_i_32(63, serializer);
+        sse_encode_i_32(66, serializer);
         sse_encode_box_autoadd_set_cue_volume(field0, serializer);
       case Event_SetCueMix(field0: final field0):
-        sse_encode_i_32(64, serializer);
+        sse_encode_i_32(67, serializer);
         sse_encode_box_autoadd_set_cue_mix(field0, serializer);
       case Event_SetMasterCue(field0: final field0):
-        sse_encode_i_32(65, serializer);
+        sse_encode_i_32(68, serializer);
         sse_encode_box_autoadd_set_master_cue(field0, serializer);
       case Event_ToggleMasterCue(field0: final field0):
-        sse_encode_i_32(66, serializer);
+        sse_encode_i_32(69, serializer);
         sse_encode_box_autoadd_toggle_master_cue(field0, serializer);
       case Event_SetFxUnitSlot(field0: final field0):
-        sse_encode_i_32(67, serializer);
+        sse_encode_i_32(70, serializer);
         sse_encode_box_autoadd_set_fx_unit_slot(field0, serializer);
       case Event_SetFxUnitSlotEnabled(field0: final field0):
-        sse_encode_i_32(68, serializer);
+        sse_encode_i_32(71, serializer);
         sse_encode_box_autoadd_set_fx_unit_slot_enabled(field0, serializer);
       case Event_SetFxUnitWet(field0: final field0):
-        sse_encode_i_32(69, serializer);
+        sse_encode_i_32(72, serializer);
         sse_encode_box_autoadd_set_fx_unit_wet(field0, serializer);
       case Event_SetFxUnitParam(field0: final field0):
-        sse_encode_i_32(70, serializer);
+        sse_encode_i_32(73, serializer);
         sse_encode_box_autoadd_set_fx_unit_param(field0, serializer);
       case Event_SetDeckFxRouted(field0: final field0):
-        sse_encode_i_32(71, serializer);
+        sse_encode_i_32(74, serializer);
         sse_encode_box_autoadd_set_deck_fx_routed(field0, serializer);
       case Event_DeckUpdated(field0: final field0):
-        sse_encode_i_32(72, serializer);
+        sse_encode_i_32(75, serializer);
         sse_encode_box_autoadd_deck_updated(field0, serializer);
       case Event_DeckPosition(field0: final field0):
-        sse_encode_i_32(73, serializer);
+        sse_encode_i_32(76, serializer);
         sse_encode_box_autoadd_deck_position(field0, serializer);
       case Event_DeckLevels(field0: final field0):
-        sse_encode_i_32(74, serializer);
+        sse_encode_i_32(77, serializer);
         sse_encode_box_autoadd_deck_levels(field0, serializer);
       case Event_EngineSnapshot(field0: final field0):
-        sse_encode_i_32(75, serializer);
+        sse_encode_i_32(78, serializer);
         sse_encode_box_autoadd_engine_snapshot(field0, serializer);
       case Event_Error(field0: final field0):
-        sse_encode_i_32(76, serializer);
+        sse_encode_i_32(79, serializer);
         sse_encode_box_autoadd_error(field0, serializer);
       case Event_Notice(field0: final field0):
-        sse_encode_i_32(77, serializer);
+        sse_encode_i_32(80, serializer);
         sse_encode_box_autoadd_notice(field0, serializer);
       case Event_AnalyzeTrack(field0: final field0):
-        sse_encode_i_32(78, serializer);
+        sse_encode_i_32(81, serializer);
         sse_encode_box_autoadd_analyze_track(field0, serializer);
       case Event_GenerateStems(field0: final field0):
-        sse_encode_i_32(79, serializer);
+        sse_encode_i_32(82, serializer);
         sse_encode_box_autoadd_generate_stems(field0, serializer);
       case Event_RefreshTrack(field0: final field0):
-        sse_encode_i_32(80, serializer);
+        sse_encode_i_32(83, serializer);
         sse_encode_box_autoadd_refresh_track(field0, serializer);
       case Event_SaveBeatGrid(field0: final field0):
-        sse_encode_i_32(81, serializer);
+        sse_encode_i_32(84, serializer);
         sse_encode_box_autoadd_save_beat_grid(field0, serializer);
       case Event_SaveTrackHotCue(field0: final field0):
-        sse_encode_i_32(82, serializer);
+        sse_encode_i_32(85, serializer);
         sse_encode_box_autoadd_save_track_hot_cue(field0, serializer);
       case Event_DeleteTrackHotCue(field0: final field0):
-        sse_encode_i_32(83, serializer);
+        sse_encode_i_32(86, serializer);
         sse_encode_box_autoadd_delete_track_hot_cue(field0, serializer);
       case Event_SaveTrackLoop(field0: final field0):
-        sse_encode_i_32(84, serializer);
+        sse_encode_i_32(87, serializer);
         sse_encode_box_autoadd_save_track_loop(field0, serializer);
       case Event_DeleteTrackLoop(field0: final field0):
-        sse_encode_i_32(85, serializer);
+        sse_encode_i_32(88, serializer);
         sse_encode_box_autoadd_delete_track_loop(field0, serializer);
       case Event_TrackAnalyzed(field0: final field0):
-        sse_encode_i_32(86, serializer);
+        sse_encode_i_32(89, serializer);
         sse_encode_box_autoadd_track_analyzed(field0, serializer);
       case Event_TrackUpdated(field0: final field0):
-        sse_encode_i_32(87, serializer);
+        sse_encode_i_32(90, serializer);
         sse_encode_box_autoadd_track_updated(field0, serializer);
       case Event_TrackProgress(field0: final field0):
-        sse_encode_i_32(88, serializer);
+        sse_encode_i_32(91, serializer);
         sse_encode_box_autoadd_track_progress(field0, serializer);
       case Event_HotCuesChanged(field0: final field0):
-        sse_encode_i_32(89, serializer);
+        sse_encode_i_32(92, serializer);
         sse_encode_box_autoadd_hot_cues_changed(field0, serializer);
       case Event_LoopsChanged(field0: final field0):
-        sse_encode_i_32(90, serializer);
+        sse_encode_i_32(93, serializer);
         sse_encode_box_autoadd_loops_changed(field0, serializer);
       case Event_BeatGridChanged(field0: final field0):
-        sse_encode_i_32(91, serializer);
+        sse_encode_i_32(94, serializer);
         sse_encode_box_autoadd_beat_grid_changed(field0, serializer);
       case Event_HistorySessionUpdated(field0: final field0):
-        sse_encode_i_32(92, serializer);
+        sse_encode_i_32(95, serializer);
         sse_encode_box_autoadd_history_session_updated(field0, serializer);
       case Event_Navigate(field0: final field0):
-        sse_encode_i_32(93, serializer);
+        sse_encode_i_32(96, serializer);
         sse_encode_box_autoadd_navigate(field0, serializer);
       case Event_Focus(field0: final field0):
-        sse_encode_i_32(94, serializer);
+        sse_encode_i_32(97, serializer);
         sse_encode_box_autoadd_focus(field0, serializer);
       case Event_Load(field0: final field0):
-        sse_encode_i_32(95, serializer);
+        sse_encode_i_32(98, serializer);
         sse_encode_box_autoadd_load(field0, serializer);
       case Event_MappingOffer(field0: final field0):
-        sse_encode_i_32(96, serializer);
+        sse_encode_i_32(99, serializer);
         sse_encode_box_autoadd_mapping_offer(field0, serializer);
       case Event_MappingAttached(field0: final field0):
-        sse_encode_i_32(97, serializer);
+        sse_encode_i_32(100, serializer);
         sse_encode_box_autoadd_mapping_attached(field0, serializer);
       case Event_MappingDetached(field0: final field0):
-        sse_encode_i_32(98, serializer);
+        sse_encode_i_32(101, serializer);
         sse_encode_box_autoadd_mapping_detached(field0, serializer);
     }
   }
@@ -18437,6 +18675,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_set_stem_eq_band(
+    SetStemEqBand self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.deck, serializer);
+    sse_encode_eq_band(self.band, serializer);
+    sse_encode_f_32(self.gain, serializer);
+    sse_encode_bool(self.softTakeover, serializer);
+  }
+
+  @protected
+  void sse_encode_set_stem_eq_enabled(
+    SetStemEqEnabled self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.deck, serializer);
+    sse_encode_bool(self.enabled, serializer);
+  }
+
+  @protected
   void sse_encode_set_tempo_range(
     SetTempoRange self,
     SseSerializer serializer,
@@ -18509,6 +18769,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void sse_encode_toggle_slip(ToggleSlip self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.deck, serializer);
+  }
+
+  @protected
+  void sse_encode_toggle_stem_eq(ToggleStemEq self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self.deck, serializer);
   }
@@ -19260,6 +19526,14 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         that: this,
         deckId: deckId,
         speed: speed,
+      );
+
+  /// Route this deck's EQ knobs to the stem EQ (deck header toggle).
+  Future<void> setStemEqEnabled({required int deckId, required bool enabled}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportSetStemEqEnabled(
+        that: this,
+        deckId: deckId,
+        enabled: enabled,
       );
 
   /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).

@@ -52,6 +52,14 @@ bus_events! {
         { deck: u16, low: f32, mid: f32, high: f32 };
     SetEqBand: Update, Entity::Deck(*deck), Part::Index(*band as u8),
         { deck: u16, band: EqBand, gain: f32, soft_takeover: bool };
+    /// Stem EQ band, independent of the deck's pad mode (low = drums, mid = bass + other, high = vocals).
+    SetStemEqBand: Update, Entity::Deck(*deck), Part::Index(*band as u8),
+        { deck: u16, band: EqBand, gain: f32, soft_takeover: bool };
+    /// Route the deck's EQ knobs to the stem EQ.
+    SetStemEqEnabled: Update, Entity::Deck(*deck), Part::Whole,
+        { deck: u16, enabled: bool };
+    ToggleStemEq: Toggle, Entity::Deck(*deck), Part::Whole,
+        { deck: u16 };
     SetFilter: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16, filter: f32, soft_takeover: bool };
     SetGainTrim: Update, Entity::Deck(*deck), Part::Whole,
@@ -214,8 +222,9 @@ bus_events! {
           quantize: bool, active_loop: Option<LoopRegion>,
           pending_loop_in_ms: Option<i32>, slip_enabled: bool,
           slip_shadow_position_ms: Option<i32>, pad_mode: PadMode,
-          stems_ready: bool, stems_live: bool, stem_mute: Vec<bool>,
-          stem_isolate: Option<u8>, position_ms: Option<i32>,
+          stems_ready: bool, stems_audible: bool, stems_live: bool, stem_mute: Vec<bool>,
+          stem_isolate: Option<u8>, stem_eq: Vec<f32>, stem_eq_enabled: bool,
+          position_ms: Option<i32>,
           duration_ms: Option<i32>, hot_cues: Vec<DeckHotCue>,
           saved_loops: Vec<DeckSavedLoop>, loudness_lufs: Option<f64>,
           auto_gain_db: f32, active_sampler_bank_id: Option<String>,
@@ -335,9 +344,12 @@ impl From<DeckSnapshot> for DeckUpdated {
             slip_shadow_position_ms: snap.slip_shadow_position_ms,
             pad_mode: snap.pad_mode,
             stems_ready: snap.stems_ready,
+            stems_audible: snap.stems_audible,
             stems_live: snap.stems_live,
             stem_mute: snap.stem_mute,
             stem_isolate: snap.stem_isolate,
+            stem_eq: snap.stem_eq,
+            stem_eq_enabled: snap.stem_eq_enabled,
             position_ms: snap.position_ms,
             duration_ms: snap.duration_ms,
             hot_cues: snap.hot_cues,

@@ -91,9 +91,12 @@ pub struct _DeckSnapshot {
     pub slip_shadow_position_ms: Option<i32>,
     pub pad_mode: PadMode,
     pub stems_ready: bool,
+    pub stems_audible: bool,
     pub stems_live: bool,
     pub stem_mute: Vec<bool>,
     pub stem_isolate: Option<u8>,
+    pub stem_eq: Vec<f32>,
+    pub stem_eq_enabled: bool,
     pub position_ms: Option<i32>,
     pub duration_ms: Option<i32>,
     pub hot_cues: Vec<DeckHotCue>,
@@ -258,6 +261,25 @@ pub struct _SetEqBand {
     pub band: EqBand,
     pub gain: f32,
     pub soft_takeover: bool,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetStemEqBand))]
+pub struct _SetStemEqBand {
+    pub deck: u16,
+    pub band: EqBand,
+    pub gain: f32,
+    pub soft_takeover: bool,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetStemEqEnabled))]
+pub struct _SetStemEqEnabled {
+    pub deck: u16,
+    pub enabled: bool,
+}
+
+#[flutter_rust_bridge::frb(mirror(ToggleStemEq))]
+pub struct _ToggleStemEq {
+    pub deck: u16,
 }
 
 #[flutter_rust_bridge::frb(mirror(SetFilter))]
@@ -681,9 +703,12 @@ pub struct _DeckUpdated {
     pub slip_shadow_position_ms: Option<i32>,
     pub pad_mode: PadMode,
     pub stems_ready: bool,
+    pub stems_audible: bool,
     pub stems_live: bool,
     pub stem_mute: Vec<bool>,
     pub stem_isolate: Option<u8>,
+    pub stem_eq: Vec<f32>,
+    pub stem_eq_enabled: bool,
     pub position_ms: Option<i32>,
     pub duration_ms: Option<i32>,
     pub hot_cues: Vec<DeckHotCue>,
@@ -870,6 +895,9 @@ pub enum _Event {
     SetVolume(SetVolume),
     SetEq(SetEq),
     SetEqBand(SetEqBand),
+    SetStemEqBand(SetStemEqBand),
+    SetStemEqEnabled(SetStemEqEnabled),
+    ToggleStemEq(ToggleStemEq),
     SetFilter(SetFilter),
     SetGainTrim(SetGainTrim),
     SetHeadphoneCue(SetHeadphoneCue),
@@ -973,6 +1001,9 @@ pub enum _Topic {
     SetVolume,
     SetEq,
     SetEqBand,
+    SetStemEqBand,
+    SetStemEqEnabled,
+    ToggleStemEq,
     SetFilter,
     SetGainTrim,
     SetHeadphoneCue,

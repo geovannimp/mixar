@@ -33,7 +33,14 @@ const HOP: usize = 128;
 /// Four output stems.
 const STEMS: usize = 4;
 /// Producer may run this far ahead of the deck before sleeping.
-const MAX_AHEAD: u64 = 2 * SAMPLE_RATE as u64;
+///
+/// The model runs at roughly 0.9–1.0× realtime, so a short lookahead starves
+/// within seconds of playback and the deck stays on its dry mix for the rest of
+/// the track. Buffering ahead while the deck is idle turns that cliff into a
+/// couple of minutes of stems. `DEFAULT_LIVE_STEM_CAPACITY` (23.8 s) bounds it:
+/// 12 s ahead still leaves ~11.8 s behind the playhead, so small rewinds stay
+/// inside the window instead of forcing a re-epoch.
+const MAX_AHEAD: u64 = 12 * SAMPLE_RATE as u64;
 /// Analysis context before a seek epoch. Long enough to refill the model's
 /// audio histories and most of its recurrent state; exact offline parity is
 /// only guaranteed from a track start.
@@ -130,7 +137,14 @@ fn load_session(weights: &Path) -> Result<(Session, Vec<State>)> {
         .context("StemgenRT ort Session::builder")?
         .with_optimization_level(GraphOptimizationLevel::Level3)
         .map_err(|e| anyhow::anyhow!("StemgenRT ort optimization level: {e}"))?
-        .with_intra_threads(1)
+        // The graph is mostly sequential, so threads barely help (measured
+        // 0.88x one thread, 1.00x four), but four is free on a desktop and
+        // keeps more of the lookahead produced while the deck is idle.
+        .with_intra_threads(
+            std::thread::available_parallelism()
+                .map(|n| (n.get() / 2).clamp(1, 4))
+                .unwrap_or(1),
+        )
         .map_err(|e| anyhow::anyhow!("StemgenRT ort intra threads: {e}"))?
         .with_inter_threads(1)
         .map_err(|e| anyhow::anyhow!("StemgenRT ort inter threads: {e}"))?;

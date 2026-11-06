@@ -524,6 +524,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetSpeed dco_decode_box_autoadd_set_speed(dynamic raw);
 
   @protected
+  SetStemEqBand dco_decode_box_autoadd_set_stem_eq_band(dynamic raw);
+
+  @protected
+  SetStemEqEnabled dco_decode_box_autoadd_set_stem_eq_enabled(dynamic raw);
+
+  @protected
   SetTempoRange dco_decode_box_autoadd_set_tempo_range(dynamic raw);
 
   @protected
@@ -543,6 +549,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ToggleSlip dco_decode_box_autoadd_toggle_slip(dynamic raw);
+
+  @protected
+  ToggleStemEq dco_decode_box_autoadd_toggle_stem_eq(dynamic raw);
 
   @protected
   ToggleSync dco_decode_box_autoadd_toggle_sync(dynamic raw);
@@ -1132,6 +1141,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetSpeed dco_decode_set_speed(dynamic raw);
 
   @protected
+  SetStemEqBand dco_decode_set_stem_eq_band(dynamic raw);
+
+  @protected
+  SetStemEqEnabled dco_decode_set_stem_eq_enabled(dynamic raw);
+
+  @protected
   SetTempoRange dco_decode_set_tempo_range(dynamic raw);
 
   @protected
@@ -1160,6 +1175,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ToggleSlip dco_decode_toggle_slip(dynamic raw);
+
+  @protected
+  ToggleStemEq dco_decode_toggle_stem_eq(dynamic raw);
 
   @protected
   ToggleSync dco_decode_toggle_sync(dynamic raw);
@@ -1815,6 +1833,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetSpeed sse_decode_box_autoadd_set_speed(SseDeserializer deserializer);
 
   @protected
+  SetStemEqBand sse_decode_box_autoadd_set_stem_eq_band(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetStemEqEnabled sse_decode_box_autoadd_set_stem_eq_enabled(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SetTempoRange sse_decode_box_autoadd_set_tempo_range(
     SseDeserializer deserializer,
   );
@@ -1842,6 +1870,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ToggleSlip sse_decode_box_autoadd_toggle_slip(SseDeserializer deserializer);
+
+  @protected
+  ToggleStemEq sse_decode_box_autoadd_toggle_stem_eq(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ToggleSync sse_decode_box_autoadd_toggle_sync(SseDeserializer deserializer);
@@ -2533,6 +2566,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetSpeed sse_decode_set_speed(SseDeserializer deserializer);
 
   @protected
+  SetStemEqBand sse_decode_set_stem_eq_band(SseDeserializer deserializer);
+
+  @protected
+  SetStemEqEnabled sse_decode_set_stem_eq_enabled(SseDeserializer deserializer);
+
+  @protected
   SetTempoRange sse_decode_set_tempo_range(SseDeserializer deserializer);
 
   @protected
@@ -2563,6 +2602,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ToggleSlip sse_decode_toggle_slip(SseDeserializer deserializer);
+
+  @protected
+  ToggleStemEq sse_decode_toggle_stem_eq(SseDeserializer deserializer);
 
   @protected
   ToggleSync sse_decode_toggle_sync(SseDeserializer deserializer);
@@ -3375,6 +3417,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_set_stem_eq_band(
+    SetStemEqBand self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_stem_eq_enabled(
+    SetStemEqEnabled self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_set_tempo_range(
     SetTempoRange self,
     SseSerializer serializer,
@@ -3413,6 +3467,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_toggle_slip(
     ToggleSlip self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_toggle_stem_eq(
+    ToggleStemEq self,
     SseSerializer serializer,
   );
 
@@ -4293,6 +4353,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_set_speed(SetSpeed self, SseSerializer serializer);
 
   @protected
+  void sse_encode_set_stem_eq_band(
+    SetStemEqBand self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_stem_eq_enabled(
+    SetStemEqEnabled self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_set_tempo_range(SetTempoRange self, SseSerializer serializer);
 
   @protected
@@ -4330,6 +4402,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_toggle_slip(ToggleSlip self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_toggle_stem_eq(ToggleStemEq self, SseSerializer serializer);
 
   @protected
   void sse_encode_toggle_sync(ToggleSync self, SseSerializer serializer);

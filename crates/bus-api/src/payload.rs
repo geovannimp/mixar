@@ -154,6 +154,11 @@ fn default_crossfader_assign() -> CrossfaderAssign {
     CrossfaderAssign::A
 }
 
+/// Neutral stem-EQ positions (`[low, mid, high]`).
+pub fn default_stem_eq() -> Vec<f32> {
+    vec![0.5; 3]
+}
+
 /// Deck state for status patches and full engine snapshots.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckSnapshot {
@@ -217,9 +222,13 @@ pub struct DeckSnapshot {
     #[serde(default)]
     pub slip_shadow_position_ms: Option<i32>,
     pub pad_mode: PadMode,
-    /// True when four stem layers are attached for playback.
+    /// True when four stem layers are attached and usable.
     #[serde(default)]
     pub stems_ready: bool,
+    /// True while the deck really plays stem audio (live stems: coverage covers
+    /// the playhead, otherwise the deck is on its dry mix).
+    #[serde(default)]
+    pub stems_audible: bool,
     /// True when the attached stems come from the live StemgenRT ring
     /// (false for cached/offline stems).
     #[serde(default)]
@@ -230,6 +239,12 @@ pub struct DeckSnapshot {
     /// When set, only this stem index is audible (isolate).
     #[serde(default)]
     pub stem_isolate: Option<u8>,
+    /// Stem EQ band positions `[low, mid, high]` as `0..1` (center `0.5`).
+    #[serde(default = "default_stem_eq")]
+    pub stem_eq: Vec<f32>,
+    /// True when the deck's EQ knobs drive the stem EQ instead of the channel EQ.
+    #[serde(default)]
+    pub stem_eq_enabled: bool,
     pub position_ms: Option<i32>,
     pub duration_ms: Option<i32>,
     pub hot_cues: Vec<DeckHotCue>,

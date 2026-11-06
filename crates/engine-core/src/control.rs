@@ -301,6 +301,9 @@ fn deck_of(event: &Event) -> Option<u16> {
         Event::SetVolume(e) => Some(e.deck),
         Event::SetEq(e) => Some(e.deck),
         Event::SetEqBand(e) => Some(e.deck),
+        Event::SetStemEqBand(e) => Some(e.deck),
+        Event::SetStemEqEnabled(e) => Some(e.deck),
+        Event::ToggleStemEq(e) => Some(e.deck),
         Event::SetFilter(e) => Some(e.deck),
         Event::SetGainTrim(e) => Some(e.deck),
         Event::SetHeadphoneCue(e) => Some(e.deck),
@@ -417,6 +420,31 @@ fn deck_cmd(
     with_engine_mut(engine, |eng| f(eng, usize::from(deck)))
 }
 
+/// Apply one stem-EQ band with soft-takeover gating; `Ok(false)` = gated out.
+fn apply_stem_eq_band(
+    eng: &mut Engine,
+    deck_id: usize,
+    band: EqBand,
+    gain: f32,
+    soft_takeover: bool,
+) -> Result<bool> {
+    let current = eng.deck_stem_eq(deck_id).unwrap_or([0.5; 3]);
+    let (ctrl, current) = match band {
+        EqBand::Low => ("stem_eq_low", current[0]),
+        EqBand::Mid => ("stem_eq_mid", current[1]),
+        EqBand::High => ("stem_eq_high", current[2]),
+    };
+    let key = soft_takeover::key_deck(deck_id, ctrl);
+    if !eng
+        .soft_takeover_mut()
+        .allow(&key, soft_takeover, current, gain.clamp(0.0, 1.0))
+    {
+        return Ok(false);
+    }
+    eng.set_deck_stem_eq_band(deck_id, band, gain)?;
+    Ok(true)
+}
+
 fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
     match event {
         // ── deck transport ───────────────────────────────────────────────────
@@ -485,6 +513,18 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             gain,
             soft_takeover,
         }) => deck_cmd(*deck, engine, |eng, id| {
+            // Audible, not merely attached: while live separation is behind, the
+            // deck plays its dry mix and stem gains would do nothing — the knobs
+            // must drive the channel EQ instead of a silent path.
+            if eng.deck_stem_eq_enabled(id).unwrap_or(false)
+                && eng.deck_stems_audible(id).unwrap_or(false)
+            {
+                return if apply_stem_eq_band(eng, id, *band, *gain, *soft_takeover)? {
+                    Ok(CmdOutcome::DeckUpdated(id))
+                } else {
+                    Ok(CmdOutcome::Silent)
+                };
+            }
             let strip = eng.deck_strip_norms(id);
             let (ctrl, current, low, mid, high) = match (band, strip) {
                 (EqBand::Low, Some(s)) => ("eq_low", s.eq_low, *gain, s.eq_mid, s.eq_high),
@@ -509,6 +549,30 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             )?;
             Ok(CmdOutcome::DeckUpdated(id))
         }),
+        Event::SetStemEqBand(bus_api::SetStemEqBand {
+            deck,
+            band,
+            gain,
+            soft_takeover,
+        }) => deck_cmd(*deck, engine, |eng, id| {
+            if !apply_stem_eq_band(eng, id, *band, *gain, *soft_takeover)? {
+                return Ok(CmdOutcome::Silent);
+            }
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetStemEqEnabled(bus_api::SetStemEqEnabled { deck, enabled }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                eng.set_deck_stem_eq_enabled(id, *enabled)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
+        Event::ToggleStemEq(bus_api::ToggleStemEq { deck }) => {
+            deck_cmd(*deck, engine, |eng, id| {
+                let enabled = !eng.deck_stem_eq_enabled(id).unwrap_or(false);
+                eng.set_deck_stem_eq_enabled(id, enabled)?;
+                Ok(CmdOutcome::DeckUpdated(id))
+            })
+        }
         Event::SetFilter(bus_api::SetFilter {
             deck,
             filter,
@@ -1081,12 +1145,17 @@ fn tick(engine: &EngineHandle, bus: &EventBus<Event>, peak_hold: &mut PeakHoldSt
         let _ = publish_deck_updated(bus, eng, deck_id);
     }
 
-    // A live stem producer publishes its first window asynchronously; emit one
-    // Updated so pads/banner reflect readiness without waiting for another cmd.
+    // A live stem producer publishes its first window asynchronously and loses
+    // coverage whenever it falls behind; emit one Updated on either edge so
+    // pads/banner/stem-EQ state reflect what the deck is really playing.
     for deck_id in 0..eng.config.num_decks {
         let ready = eng.deck_stems_ready(deck_id).unwrap_or(false);
-        if ready != eng.stems_ready_seen[deck_id] {
+        let audible = eng.deck_stems_audible(deck_id).unwrap_or(false);
+        let changed =
+            ready != eng.stems_ready_seen[deck_id] || audible != eng.stems_audible_seen[deck_id];
+        if changed {
             eng.stems_ready_seen[deck_id] = ready;
+            eng.stems_audible_seen[deck_id] = audible;
             let _ = publish_deck_updated(bus, eng, deck_id);
         }
     }

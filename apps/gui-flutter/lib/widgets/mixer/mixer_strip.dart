@@ -398,6 +398,17 @@ class _EqColumn extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accentColor = deckInk(accent, context.theme.colors.brightness);
     final ch = ref.watch(deckMixerChannelProvider(deckId));
+    // Stem EQ on and the deck is really playing stems: the same three knobs
+    // edit the stem EQ (VOC = vocals, B/O = bass + other, DRM = drums); the
+    // engine routes SetEqBand to the stem EQ, so no extra send path is needed.
+    // Otherwise the knobs stay on the channel EQ — same gate as the engine, so
+    // live separation falling behind never shows stem labels over a dry mix.
+    final stemsMode =
+        ref.watch(deckStemEqEnabledProvider(deckId)) &&
+        ref.watch(deckStemsAudibleProvider(deckId));
+    final high = stemsMode ? ch.stemEqHigh : ch.eqHigh;
+    final mid = stemsMode ? ch.stemEqMid : ch.eqMid;
+    final low = stemsMode ? ch.stemEqLow : ch.eqLow;
 
     Widget knob(
       String label,
@@ -423,20 +434,20 @@ class _EqColumn extends ConsumerWidget {
         mainAxisSize: .min,
         children: [
           knob(
-            'HI',
-            ch.eqHigh,
+            stemsMode ? 'VOC' : 'HI',
+            high,
             send: (v) => setDeckEqBand(ref, deckId, EqBand.high, v),
           ),
           const SizedBox(height: 4),
           knob(
-            'MID',
-            ch.eqMid,
+            stemsMode ? 'B/O' : 'MID',
+            mid,
             send: (v) => setDeckEqBand(ref, deckId, EqBand.mid, v),
           ),
           const SizedBox(height: 4),
           knob(
-            'LOW',
-            ch.eqLow,
+            stemsMode ? 'DRM' : 'LOW',
+            low,
             send: (v) => setDeckEqBand(ref, deckId, EqBand.low, v),
           ),
           const SizedBox(height: 4),
