@@ -307,6 +307,10 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       loudnessLufs: loudness,
       autoGainDb: autoGain,
       levels: levels,
+      // An unloaded deck plays no stems, so the ST key must not stay armed
+      // until the engine's own DeckUpdated lands.
+      stemsAudible: Map<int, bool>.from(state.stemsAudible)..remove(deckId),
+      stemEqEnabled: Map<int, bool>.from(state.stemEqEnabled)..remove(deckId),
     );
   }
 

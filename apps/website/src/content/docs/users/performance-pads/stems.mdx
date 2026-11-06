@@ -38,7 +38,7 @@ Center is the normal stem mix. Turning a knob left fades that group out; turning
 
 The toggle is per deck: it works with any pad mode selected, and pressing **ST** again returns the knobs to the channel EQ. **ST** is only available while the deck actually plays stems, so a track without stems still plays normally and the knobs stay on the channel EQ.
 
-Live separation runs at about real time on a CPU. When it falls behind, the deck keeps playing the normal mix, and **ST** turns off with it: the knobs return to the channel EQ until stems catch up, instead of moving controls you cannot hear. Cached stems (generated ahead of time and stored with the track) have no such limit.
+Live separation runs at about real time on a CPU. When it falls behind, the deck keeps playing the normal mix: the knobs temporarily return to the channel EQ, and **ST** goes unlit until stems catch up — the toggle itself stays on, so the routing resumes on its own. Cached stems (generated ahead of time and stored with the track) have no such limit.
 
 The same command is available to controller mappings, see [`toggle_stem_eq`](/docs/developers/midi-mappings/actions).
 

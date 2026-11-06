@@ -228,6 +228,7 @@ const DECK_SIGNALS: &[&str] = &[
     "cue_hold",
     "sync",
     "quantize",
+    "stem_eq_enabled",
     "headphone_cue",
     "track_loaded",
     "loop_active",

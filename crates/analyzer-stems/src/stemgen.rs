@@ -37,10 +37,19 @@ const STEMS: usize = 4;
 /// The model runs at roughly 0.9–1.0× realtime, so a short lookahead starves
 /// within seconds of playback and the deck stays on its dry mix for the rest of
 /// the track. Buffering ahead while the deck is idle turns that cliff into a
-/// couple of minutes of stems. `DEFAULT_LIVE_STEM_CAPACITY` (23.8 s) bounds it:
-/// 12 s ahead still leaves ~11.8 s behind the playhead, so small rewinds stay
-/// inside the window instead of forcing a re-epoch.
+/// couple of minutes of stems. The ring bounds it: see [`pacing_ahead`].
 const MAX_AHEAD: u64 = 12 * SAMPLE_RATE as u64;
+
+/// Frames the producer may stay ahead of the playhead, bounded by the ring.
+///
+/// `MAX_AHEAD` alone would evict the track start on a smaller ring, so leave a
+/// full window behind the playhead: coverage stays usable for rewinds instead of
+/// dropping the frames the deck still has to play.
+fn pacing_ahead(ring: &LiveStemRing) -> u64 {
+    let capacity = ring.capacity_frames() as u64;
+    let window = capacity.saturating_sub(2 * HOP as u64) / 2;
+    MAX_AHEAD.min(window.max(HOP as u64))
+}
 /// Analysis context before a seek epoch. Long enough to refill the model's
 /// audio histories and most of its recurrent state; exact offline parity is
 /// only guaranteed from a track start.
@@ -420,7 +429,7 @@ fn pump(
             continue;
         }
 
-        if publish_at.saturating_sub(playhead) >= MAX_AHEAD {
+        if publish_at.saturating_sub(playhead) >= pacing_ahead(ring) {
             thread::sleep(POLL);
             continue;
         }

@@ -85,6 +85,28 @@ fn stem_session(frame_amp: f32) -> Result<(EngineSession, Subscriber<Event>)> {
     Ok((session, evt))
 }
 
+/// Wait until the deck reports `stems_audible == expected`.
+///
+/// Audibility rides the per-block coverage snapshot (the same one the mixer
+/// uses), so tests must let one block run instead of assuming it is immediate.
+fn wait_stems_audible(session: &EngineSession, expected: bool) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        let audible = session
+            .with_engine(|engine| Ok(engine.deck_stems_audible(0)))
+            .expect("engine")
+            .unwrap_or(false);
+        if audible == expected {
+            return;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "stems_audible never became {expected}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+}
+
 /// Engine with live (ring-fed) stems attached on deck 0, coverage published.
 fn live_session() -> Result<(
     EngineSession,
@@ -103,6 +125,7 @@ fn live_session() -> Result<(
     let stems = vec![vec![0.0f32; 4096 * 2]; 4];
     ring.publish(0, 4096, &[&stems[0], &stems[1], &stems[2], &stems[3]]);
     session.with_engine(|engine| engine.attach_live_deck_stems(0, Arc::clone(&ring)))?;
+    wait_stems_audible(&session, true);
     Ok((session, ring, evt))
 }
 
@@ -256,13 +279,9 @@ fn stem_eq_falls_back_to_the_channel_while_live_stems_are_starved() -> Result<()
     }))?;
     recv_updated_where(&mut evt, |update| update.stem_eq_enabled);
 
-    // Producer re-epochs / drops coverage: the deck now plays the dry mix. The
-    // engine republishes on that edge; consume it so the assertion below cannot
-    // read that snapshot instead of the band command's.
+    // Producer re-epochs / drops coverage: the deck now plays the dry mix.
     ring.reset(0);
-    recv_updated_where(&mut evt, |update| {
-        update.stem_eq_enabled && !update.stems_audible
-    });
+    wait_stems_audible(&session, false);
     session.publish_cmd(Event::SetEqBand(SetEqBand {
         deck: 0,
         band: EqBand::Mid,

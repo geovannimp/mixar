@@ -123,6 +123,9 @@ pub struct Deck {
     /// Stem EQ band positions `0..1` (center `0.5` = neutral): `[low, mid, high]`.
     /// Mapping: low → drums, mid → bass + other, high → vocals.
     stem_eq: [f32; 3],
+    /// When false the stored `stem_eq` positions are ignored, so switching the
+    /// toggle off restores the plain stem mix without losing the knob positions.
+    stem_eq_enabled: bool,
     /// Smoothed gains applied in the mix (ramps toward mute/isolate targets).
     stem_gain_current: [f32; 4],
     /// Resampler quality preset (`low`, `medium`, or `high`).
@@ -231,6 +234,7 @@ impl Deck {
             stem_mute: [false; 4],
             stem_isolate: None,
             stem_eq: [0.5; 3],
+            stem_eq_enabled: false,
             stem_gain_current: [1.0; 4],
             resampler_quality: resampler_quality.to_string(),
             resampler: None,
@@ -867,6 +871,7 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
+        self.stem_eq_enabled = false;
         self.resampler = None;
         self.loop_region = None;
         self.slip_enabled = false;
@@ -1043,6 +1048,7 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
+        self.stem_eq_enabled = false;
         // Session-only key shift must not leak onto a newly loaded track.
         self.key_shift_semitones = 0.0;
         self.resampler = resampler;
@@ -1082,6 +1088,7 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
+        self.stem_eq_enabled = false;
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1097,6 +1104,7 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
+        self.stem_eq_enabled = false;
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1106,6 +1114,7 @@ impl Deck {
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
         self.stem_eq = [0.5; 3];
+        self.stem_eq_enabled = false;
         self.stem_gain_current = [1.0; 4];
     }
 
@@ -1140,7 +1149,7 @@ impl Deck {
                 let Some(playhead) = frame.filter(|f| f.is_finite() && *f >= 0.0) else {
                     return false;
                 };
-                live_coverage_contains(ring.coverage(), playhead as u64)
+                live_coverage_contains(self.live_coverage, playhead as u64)
             }
             None => false,
         }
@@ -1175,6 +1184,15 @@ impl Deck {
 
     pub fn stem_eq(&self) -> [f32; 3] {
         self.stem_eq
+    }
+
+    /// Route the mixer EQ knobs to the stem EQ (the deck header toggle).
+    pub fn set_stem_eq_enabled(&mut self, enabled: bool) {
+        self.stem_eq_enabled = enabled;
+    }
+
+    pub fn stem_eq_enabled(&self) -> bool {
+        self.stem_eq_enabled
     }
 
     /// Set one stem-EQ band position; band index `0` = low, `1` = mid, `2` = high.
@@ -1229,6 +1247,9 @@ impl Deck {
     /// isolation each *other* knob applies (deepest isolation wins, so two knobs
     /// turned right never double-attenuate).
     fn stem_eq_gain(&self, index: usize) -> f32 {
+        if !self.stem_eq_enabled {
+            return 1.0;
+        }
         let own = STEM_EQ_BAND.get(index).copied().unwrap_or(0);
         let mut gain = stem_eq_band_gain(self.stem_eq[own], true);
         for band in 0..3 {
@@ -3510,7 +3531,7 @@ mod tests {
         );
     }
 
-    /// Fresh deck with four identical stems attached (EQ at center).
+    /// Fresh deck with four identical stems attached, stem EQ armed.
     fn deck_with_four_stems() -> Deck {
         let mut deck = new_deck(CHUNK);
         load_test_samples(&mut deck, vec![1.0f32; CHUNK * 2 * 8_000], ENGINE_RATE);
@@ -3526,6 +3547,7 @@ mod tests {
             Arc::clone(&stem),
             Arc::clone(&stem),
         ]);
+        deck.set_stem_eq_enabled(true);
         deck
     }
 
@@ -3558,8 +3580,12 @@ mod tests {
         assert!(!deck.stems_audible(), "no coverage yet");
         let window = vec![0.1f32; 4096 * 2];
         ring.publish(0, 4096, &[&window, &window, &window, &window]);
+        // Audibility rides the per-block coverage snapshot (what the mixer
+        // reads), so one rendered block is what makes it visible.
+        deck.process(CHUNK).unwrap();
         assert!(deck.stems_audible(), "playhead 0 inside coverage");
         ring.reset(100_000);
+        deck.process(CHUNK).unwrap();
         assert!(!deck.stems_audible(), "playhead behind the epoch");
     }
 
@@ -3621,6 +3647,24 @@ mod tests {
         assert_eq!(deck.stem_eq()[1], 1.0);
         deck.set_stem_eq_band(1, -5.0);
         assert_eq!(deck.stem_eq()[1], 0.0);
+    }
+
+    #[test]
+    fn stem_eq_is_ignored_while_the_toggle_is_off() {
+        let mut deck = deck_with_four_stems();
+        deck.set_stem_eq_band(0, 0.0);
+        assert_eq!(deck.stem_target_gain(0), 0.0, "armed: drums muted by EQ");
+
+        deck.set_stem_eq_enabled(false);
+        assert_eq!(
+            deck.stem_target_gain(0),
+            1.0,
+            "disarmed: plain stem mix, stored positions kept"
+        );
+        assert_eq!(deck.stem_eq()[0], 0.0, "positions survive the toggle");
+
+        deck.set_stem_eq_enabled(true);
+        assert_eq!(deck.stem_target_gain(0), 0.0, "re-armed restores the EQ");
     }
 
     #[test]

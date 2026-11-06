@@ -548,6 +548,7 @@ fn apply_engine_mirror(
                     // Master decks keep SyncMode::Off; still light SYNC like the UI.
                     sync: update.sync_mode != SyncMode::Off || *master_deck == Some(deck),
                     quantize: update.quantize,
+                    stem_eq_enabled: update.stem_eq_enabled,
                     headphone_cue: update.headphone_cue,
                     loop_active,
                     loop_in_set: update.pending_loop_in_ms.is_some() || loop_active,
@@ -590,6 +591,7 @@ fn apply_engine_mirror(
                         playing: deck.playing,
                         sync: deck.sync_mode != SyncMode::Off || *master_deck == Some(deck.id),
                         quantize: deck.quantize,
+                        stem_eq_enabled: deck.stem_eq_enabled,
                         headphone_cue: deck.headphone_cue,
                         loop_active,
                         loop_in_set: deck.pending_loop_in_ms.is_some() || loop_active,

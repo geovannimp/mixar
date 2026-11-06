@@ -28,10 +28,12 @@ use bus_api::SetKeyboardPage;
 use bus_api::SetKeyboardRoot;
 use bus_api::SetMasterCue;
 use bus_api::SetPadMode;
+use bus_api::SetStemEqEnabled;
 use bus_api::SetTempoRange;
 use bus_api::ToggleHeadphoneCue;
 use bus_api::ToggleMasterCue;
 use bus_api::ToggleQuantize;
+use bus_api::ToggleStemEq;
 use bus_api::ToggleSync;
 use bus_api::TriggerHotCue;
 use bus_api::KEYBOARD_PAGE_COUNT;
@@ -217,6 +219,7 @@ impl MappingSession {
         self.snapshot.playing[i] = fb.playing;
         self.snapshot.sync[i] = fb.sync;
         self.snapshot.quantize[i] = fb.quantize;
+        self.snapshot.stem_eq_enabled[i] = fb.stem_eq_enabled;
         self.snapshot.headphone_cue[i] = fb.headphone_cue;
         self.snapshot.loop_active[i] = fb.loop_active;
         // Host already ORs pending-loop-in with active; mirror verbatim.
@@ -779,6 +782,15 @@ impl MappingSession {
             Event::ToggleQuantize(ToggleQuantize { deck }) => {
                 let i = deck_slot(*deck);
                 self.snapshot.quantize[i] = !self.snapshot.quantize[i];
+                self.refresh_deck_cmd_leds(*deck, midi);
+            }
+            Event::SetStemEqEnabled(SetStemEqEnabled { deck, enabled }) => {
+                self.snapshot.stem_eq_enabled[deck_slot(*deck)] = *enabled;
+                self.refresh_deck_cmd_leds(*deck, midi);
+            }
+            Event::ToggleStemEq(ToggleStemEq { deck }) => {
+                let i = deck_slot(*deck);
+                self.snapshot.stem_eq_enabled[i] = !self.snapshot.stem_eq_enabled[i];
                 self.refresh_deck_cmd_leds(*deck, midi);
             }
             Event::BeginCueHold(BeginCueHold { deck }) => {

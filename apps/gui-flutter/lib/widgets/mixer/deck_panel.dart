@@ -569,7 +569,8 @@ class _StemEqButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final on = stemEqOn && !disabled;
+    // Lit only while it is real: stems can drop out underneath a stored "on".
+    final on = stemEqOn && stemsAudible && !disabled;
     final tip = !stemsAudible
         ? 'Stem EQ unavailable'
         : stemEqOn

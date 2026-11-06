@@ -129,6 +129,9 @@ impl DeckControlState {
         track_path: String,
         metadata: &library_core::TrackMetadata,
     ) {
+        // A track replacement (drop onto a loaded deck) starts with channel EQ,
+        // like an unload does: stem EQ never leaks onto the next track.
+        self.stem_eq_enabled = false;
         self.bpm = metadata.bpm.filter(|b| b.is_finite() && *b > 0.0);
         self.first_beat_ms = 0.0;
         self.sync_mode = SyncMode::Off;
@@ -584,6 +587,16 @@ impl Engine {
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
         control.stem_eq_enabled = enabled;
+        // The DSP ignores the stored band positions while the toggle is off, so
+        // switching it back on restores the knob positions instead of losing them.
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_stem_eq_enabled(enabled);
+        }
         Ok(())
     }
 
