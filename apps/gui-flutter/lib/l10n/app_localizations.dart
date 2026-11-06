@@ -1275,6 +1275,12 @@ abstract class AppLocalizations {
   /// **'Device'**
   String get settingsAudioDevice;
 
+  /// No description provided for @settingsAudioDeviceLowQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'low quality output'**
+  String get settingsAudioDeviceLowQuality;
+
   /// No description provided for @settingsAudioChannelMode.
   ///
   /// In en, this message translates to:

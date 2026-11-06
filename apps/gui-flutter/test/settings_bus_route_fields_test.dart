@@ -55,6 +55,16 @@ void main() {
       sampleRateRanges: const [SampleRateRange(min: 44100, max: 48000)],
       mixSampleRate: 96000,
     ),
+    // A Bluetooth headset in call mode: voice rates only.
+    OutputDevice(
+      id: 'headset',
+      name: 'Headset',
+      isDefault: false,
+      maxChannels: 1,
+      defaultSampleRates: Uint32List.fromList([8000, 16000]),
+      sampleRateRanges: const [SampleRateRange(min: 8000, max: 16000)],
+      mixSampleRate: 16000,
+    ),
   ];
   const baseRoute = BusRouteSettings(
     deviceId: 'speakers',
@@ -101,6 +111,68 @@ void main() {
     await pumpFields(tester, onChanged: (_) {});
     expect(find.text('Device default (48000 Hz)'), findsOneWidget);
   }, semanticsEnabled: false);
+
+  testWidgets('a voice-only device is marked, not hidden', (tester) async {
+    await pumpFields(tester, onChanged: (_) {});
+
+    await tester.tap(find.text('System default'));
+    await tester.pumpAndSettle();
+
+    // Still selectable — it may be the only hardware the user has — but the
+    // picker says what it will do to the mix.
+    expect(find.text('Headset — low quality output'), findsOneWidget);
+    expect(find.text('Headphones'), findsOneWidget);
+  }, semanticsEnabled: false);
+
+  test('outputDeviceCarriesMixerRates reads spans, then endpoints', () {
+    OutputDevice device({
+      Uint32List? endpoints,
+      List<SampleRateRange>? ranges,
+    }) => OutputDevice(
+      id: 'x',
+      name: 'X',
+      isDefault: false,
+      maxChannels: 2,
+      defaultSampleRates: endpoints ?? Uint32List(0),
+      sampleRateRanges: ranges ?? const [],
+    );
+
+    expect(
+      outputDeviceCarriesMixerRates(
+        device(endpoints: Uint32List.fromList([44100])),
+      ),
+      isTrue,
+    );
+    expect(
+      outputDeviceCarriesMixerRates(
+        device(endpoints: Uint32List.fromList([48000])),
+      ),
+      isTrue,
+    );
+    // Voice endpoints cannot mix.
+    expect(
+      outputDeviceCarriesMixerRates(
+        device(endpoints: Uint32List.fromList([8000, 16000])),
+      ),
+      isFalse,
+    );
+    // A span is authoritative: 32 kHz sits inside 44.1–192 kHz.
+    expect(
+      outputDeviceCarriesMixerRates(
+        device(ranges: const [SampleRateRange(min: 44100, max: 192000)]),
+      ),
+      isTrue,
+    );
+    expect(
+      outputDeviceCarriesMixerRates(
+        device(
+          endpoints: Uint32List.fromList([48000]),
+          ranges: const [SampleRateRange(min: 8000, max: 16000)],
+        ),
+      ),
+      isFalse,
+    );
+  });
 
   testWidgets('choosing a rate reports it with the rest of the route', (
     tester,

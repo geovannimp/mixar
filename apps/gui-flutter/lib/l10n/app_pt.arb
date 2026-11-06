@@ -203,6 +203,7 @@
   "settingsAudioPreviewBusDescription": "Saída de fones / cue quando a escuta está ativada.",
   "settingsAudioPreviewBus": "Ativar barramento de escuta",
   "settingsAudioDevice": "Dispositivo",
+  "settingsAudioDeviceLowQuality": "saída de baixa qualidade",
   "settingsAudioChannelMode": "Modo de canal",
   "settingsAudioStereoPair": "Par stereo",
   "settingsAudioMonoFold": "Mono (somar L+R)",

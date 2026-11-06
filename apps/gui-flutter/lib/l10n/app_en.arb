@@ -251,6 +251,7 @@
   "settingsAudioPreviewBusDescription": "Headphones / cue output when preview is enabled.",
   "settingsAudioPreviewBus": "Enable preview bus",
   "settingsAudioDevice": "Device",
+  "settingsAudioDeviceLowQuality": "low quality output",
   "settingsAudioChannelMode": "Channel mode",
   "settingsAudioStereoPair": "Stereo pair",
   "settingsAudioMonoFold": "Mono (fold L+R)",

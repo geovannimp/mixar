@@ -666,6 +666,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioDevice => 'Dispositivo';
 
   @override
+  String get settingsAudioDeviceLowQuality => 'saída de baixa qualidade';
+
+  @override
   String get settingsAudioChannelMode => 'Modo de canal';
 
   @override
