@@ -8,6 +8,9 @@ icons_launcher:
       enable: true
       image_path: "assets/mixar-icon.png"
       adaptive_background_image: "assets/mixar-icon-background.png"
+      # Resized 1:1 onto the 108dp adaptive layer — no padding is added. Keep the
+      # mark inside the centred 66dp safe-zone circle (<= 33dp radius) or masks
+      # will crop it.
       adaptive_foreground_image: "assets/mixar-icon-foreground.png"
       adaptive_round_image: "assets/mixar-icon.png"
     macos:
