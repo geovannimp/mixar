@@ -708,14 +708,22 @@ mod tests {
         .expect("device.toml");
     }
 
+    fn audio_hints(
+        master_channels: Option<[u16; 2]>,
+        headphone_channels: Option<[u16; 2]>,
+        sample_rate: Option<u32>,
+    ) -> controller::AudioHints {
+        controller::AudioHints {
+            output_name_contains: vec!["DDJ-400".into()],
+            master_channels,
+            headphone_channels,
+            sample_rate,
+        }
+    }
+
     #[test]
     fn audio_hints_convert_to_channel_pairs() {
-        let hints = controller::AudioHints {
-            output_name_contains: vec!["DDJ-400".into()],
-            master_channels: Some([1, 2]),
-            headphone_channels: Some([3, 4]),
-            sample_rate: Some(48_000),
-        };
+        let hints = audio_hints(Some([1, 2]), Some([3, 4]), Some(48_000));
         let out = controller_audio_hints(hints);
         assert_eq!(out.output_name_contains, ["DDJ-400"]);
         let master = out.master_channels.expect("master channels");
@@ -727,12 +735,7 @@ mod tests {
 
     #[test]
     fn audio_hints_pass_through_absent_routes() {
-        let out = controller_audio_hints(controller::AudioHints {
-            output_name_contains: vec!["DDJ-400".into()],
-            master_channels: None,
-            headphone_channels: None,
-            sample_rate: None,
-        });
+        let out = controller_audio_hints(audio_hints(None, None, None));
         assert_eq!(out.output_name_contains, ["DDJ-400"]);
         assert!(out.master_channels.is_none());
         assert!(out.headphone_channels.is_none());

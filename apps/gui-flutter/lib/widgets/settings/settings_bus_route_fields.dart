@@ -237,8 +237,6 @@ List<OutputDevice> selectableAudioDevices(
 ) {
   final hiddenNames = {
     'system default',
-    'output_default',
-    'sink_default',
     systemDefaultLabel.trim().toLowerCase(),
   };
   return devices.where((device) {
