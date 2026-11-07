@@ -127,7 +127,7 @@ Shift banks. This checklist is about what the unit *does* with them.
       again; only a live override (or the **Audio** preference) skips the offer.
 - [ ] While overridden, Settings → Audio marks the master and preview cards
       **Overridden by DDJ-400 mapping** and shows the controller route in the
-      fields (read-only).
+      fields. Editing a field removes that card's badge; Save applies it.
 - [ ] Tick **Always switch audio to this controller** before **Switch outputs**
       (or enable the mapping row's **Audio** toggle and Save): later attaches
       switch without the prompt.

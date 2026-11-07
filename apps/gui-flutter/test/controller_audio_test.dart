@@ -123,6 +123,71 @@ void main() {
     });
   });
 
+  group('editControllerAudioBus', () {
+    test('clears only the edited bus override', () {
+      final override = _build(
+        defaultAppSettings(),
+        _hints,
+        _device('ddj', 'DDJ-400'),
+      )!;
+      final settings = copyAppSettings(
+        defaultAppSettings(),
+        controllerAudioOverride: override,
+      );
+      final edited = editControllerAudioBus(
+        settings,
+        const BusRouteSettings(
+          deviceId: 'usb',
+          leftChannel: 5,
+          rightChannel: 6,
+          mode: BusChannelMode.stereo,
+          lowLatency: false,
+        ),
+        master: true,
+      );
+      expect(edited.masterBus.deviceId, 'usb');
+      expect(edited.controllerAudioOverride?.masterOverridden, isFalse);
+      expect(edited.controllerAudioOverride?.previewOverridden, isTrue);
+      expect(controllerAudioOverridesBus(edited, master: true), isFalse);
+      expect(controllerAudioOverridesBus(edited, master: false), isTrue);
+    });
+
+    test('clears the whole override when both buses are edited', () {
+      final override = _build(
+        defaultAppSettings(),
+        _hints,
+        _device('ddj', 'DDJ-400'),
+      )!;
+      var settings = copyAppSettings(
+        defaultAppSettings(),
+        controllerAudioOverride: override,
+      );
+      settings = editControllerAudioBus(
+        settings,
+        const BusRouteSettings(
+          deviceId: 'usb',
+          leftChannel: 5,
+          rightChannel: 6,
+          mode: BusChannelMode.stereo,
+          lowLatency: false,
+        ),
+        master: true,
+      );
+      settings = editControllerAudioBus(
+        settings,
+        const BusRouteSettings(
+          deviceId: 'usb',
+          leftChannel: 3,
+          rightChannel: 4,
+          mode: BusChannelMode.stereo,
+          lowLatency: false,
+        ),
+        master: false,
+      );
+      expect(settings.controllerAudioOverride, isNull);
+    });
+  });
+
   group('buildControllerAudioOverride', () {
     test('routes master and headphone buses', () {
       final override = _build(

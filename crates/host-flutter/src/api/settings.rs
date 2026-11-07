@@ -1208,8 +1208,10 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.key_color_mode = settings.key_color_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
     host.always_switch_audio_device_ids = settings.always_switch_audio_device_ids;
-    // `controller_audio_override` is runtime state; settings saves must not
-    // replace or persist it.
+    // The Flutter draft carries the live override, including buses the user
+    // edited back to their saved route; applying it keeps the engine and the
+    // badge in step. The field itself is never serialized.
+    host.controller_audio_override = settings.controller_audio_override;
     host.history_enabled = settings.history_enabled;
     host.history_session_idle_minutes = settings.history_session_idle_minutes;
     host.history_min_play_seconds = settings.history_min_play_seconds;
@@ -1558,6 +1560,27 @@ mod tests {
             .find(|bus| bus.id.as_str() == MASTER_BUS_ID)
             .expect("saved master bus");
         assert_eq!(saved_master.device.as_str(), "default");
+    }
+
+    #[test]
+    fn settings_save_can_clear_the_runtime_override() {
+        let mut host = SettingsHost {
+            controller_audio_override: Some(ControllerAudioOverride {
+                mapping_id: "ddj-400".into(),
+                controller_label: "DDJ-400".into(),
+                output_device_id: "cpal:ddj".into(),
+                master_overridden: true,
+                master_bus: default_master_bus_route(),
+                preview_overridden: true,
+                preview_bus: default_preview_bus_route(),
+            }),
+            ..Default::default()
+        };
+        let mut settings = settings_from_host(&host);
+        assert!(settings.controller_audio_override.is_some());
+        settings.controller_audio_override = None;
+        apply_to_host(&mut host, settings).expect("clear override");
+        assert!(host.controller_audio_override.is_none());
     }
 
     #[test]
