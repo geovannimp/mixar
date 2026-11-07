@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::bridge::BridgeResult;
+use crate::frb_generated::StreamSink;
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use bus_api::JogMode;
 use engine_core::{
@@ -19,6 +20,109 @@ const TARGET_LUFS_MAX: f32 = -9.0;
 const TARGET_LUFS_DEFAULT: f32 = -18.0;
 /// Sample rate `EngineConfig::default()` used before rates moved onto the buses.
 const LEGACY_DEFAULT_SAMPLE_RATE: u32 = 48_000;
+
+/// Realtime multiple a device must reach before Realtime Stems can be enabled.
+///
+/// `1.0` means the CPU keeps up exactly; the margin absorbs scheduler jitter and
+/// the deck's own per-hop work, so a device reported at 0.97× is not offered the
+/// feature even though it is close.
+pub const REALTIME_STEMS_MIN_MULTIPLE: f64 = 1.1;
+
+/// Device benchmark result backing the Realtime Stems gate.
+///
+/// Session-only: the probe answers whether this machine keeps up right now, so
+/// the result is kept in memory and never written to settings or sent anywhere.
+#[derive(Clone, Debug)]
+pub struct RealtimeStemsCapability {
+    /// Mean wall time of one 128-frame hop on the CPU EP.
+    pub avg_hop_ms: f64,
+    /// `hop budget / avg_hop_ms`.
+    pub realtime: f64,
+    /// Timed hops in the measurement (warm-up excluded).
+    pub hops: u32,
+    /// SHA-256 of the model that was measured.
+    pub model_sha: String,
+    /// `realtime >= REALTIME_STEMS_MIN_MULTIPLE`; the UI shows the switch
+    /// only when true.
+    pub allowed: bool,
+}
+
+/// Progress event for a running benchmark (hop counts, warm-up included).
+#[derive(Clone, Debug)]
+pub struct RealtimeStemsBenchmarkProgress {
+    pub completed: u32,
+    pub total: u32,
+}
+
+/// Whether an enable request may be honoured.
+///
+/// Only a *new* enable needs evidence: a preference already on (loaded from
+/// settings) and a disable are always allowed, so a restart never re-prompts.
+fn enable_allowed(
+    was_enabled: bool,
+    now_enabled: bool,
+    capability: Option<&RealtimeStemsCapability>,
+) -> bool {
+    !now_enabled || was_enabled || capability.is_some_and(RealtimeStemsCapability::allows_live)
+}
+
+impl RealtimeStemsCapability {
+    /// Whether a measured realtime multiple passes the gate.
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn realtime_allows(realtime: f64) -> bool {
+        realtime.is_finite() && realtime >= REALTIME_STEMS_MIN_MULTIPLE
+    }
+
+    /// Whether this measured device may enable Realtime Stems.
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn allows_live(&self) -> bool {
+        Self::realtime_allows(self.realtime)
+    }
+
+    #[cfg(feature = "stems")]
+    fn from_benchmark(benchmark: analyzer_stems::HopBenchmark, model_sha: String) -> Self {
+        Self {
+            avg_hop_ms: benchmark.avg_hop_ms,
+            realtime: benchmark.realtime,
+            hops: benchmark.hops,
+            model_sha,
+            allowed: Self::realtime_allows(benchmark.realtime),
+        }
+    }
+}
+
+/// SHA-256 of the StemgenRT artifact this build measures.
+#[cfg(feature = "stems")]
+fn stemgen_model_sha() -> Option<String> {
+    let manifest = analyzer_stems::builtin_manifest(analyzer_stems::STEMGEN_MODEL).ok()?;
+    let artifact = manifest.resolve_primary_artifact().ok()?;
+    Some(artifact.sha256.clone())
+}
+
+/// Ensure the model, time the hops, and store the verdict for this session.
+#[cfg(feature = "stems")]
+fn run_realtime_probe(
+    models_root: &Path,
+    on_progress: Option<&dyn Fn(u32, u32)>,
+) -> Result<RealtimeStemsCapability, String> {
+    analyzer_stems::ensure_model(models_root, analyzer_stems::STEMGEN_MODEL).bridge()?;
+    let model_sha =
+        stemgen_model_sha().ok_or_else(|| "StemgenRT manifest has no artifact".to_string())?;
+    let handle = analyzer_stems::cached_model(models_root, analyzer_stems::STEMGEN_MODEL)
+        .bridge()?
+        .ok_or_else(|| "StemgenRT model is missing after download".to_string())?;
+
+    let benchmark = analyzer_stems::benchmark_stemgen(
+        &handle.local_path,
+        analyzer_stems::DEFAULT_BENCH_HOPS,
+        analyzer_stems::WARMUP_HOPS,
+        on_progress,
+    )
+    .bridge()?;
+    let capability = RealtimeStemsCapability::from_benchmark(benchmark, model_sha);
+    store_realtime_capability(capability.clone())?;
+    Ok(capability)
+}
 
 static SETTINGS: OnceLock<Arc<Mutex<SettingsHost>>> = OnceLock::new();
 
@@ -64,6 +168,18 @@ impl SettingsTransport {
     /// callers apply those separately (mirrors Flutter `saveAppSettings`).
     pub fn save_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
         let mut host = self.host.lock().bridge()?;
+        // Turning the live filter on is the gated action. Once enabled it stays
+        // enabled across launches without re-benchmarking; the dry-mix fallback
+        // covers a machine that cannot keep up later.
+        if !enable_allowed(
+            host.realtime_stems,
+            settings.realtime_stems,
+            host.realtime_capability.as_ref(),
+        ) {
+            return Err(
+                "Realtime Stems needs a passing benchmark before it can be enabled.".to_string(),
+            );
+        }
         let mut candidate = host.clone();
         apply_to_host(&mut candidate, settings)?;
         let saved = parse_settings(settings_from_host(&candidate))?;
@@ -72,6 +188,54 @@ impl SettingsTransport {
         }
         *host = candidate;
         Ok(saved)
+    }
+
+    /// Latest device benchmark for this session.
+    ///
+    /// `None` until the probe has run; the result is not persisted, so every
+    /// launch starts unmeasured.
+    pub fn realtime_stems_capability(&self) -> Result<Option<RealtimeStemsCapability>, String> {
+        let host = self.host.lock().bridge()?;
+        Ok(host.realtime_capability.clone())
+    }
+
+    /// Measure this device's StemgenRT hop cost on the CPU EP.
+    ///
+    /// Ensures the model is on disk first (downloading it if needed), then runs
+    /// a warm-up plus `DEFAULT_BENCH_HOPS` timed hops on a private CPU session.
+    /// It never starts the live producer and never touches playback state, and
+    /// it runs on the FRB worker thread rather than the audio callback.
+    ///
+    /// `sink` receives hop progress; when the stream completes, the result is
+    /// available from [`Self::realtime_stems_capability`]. Nothing is persisted:
+    /// the verdict lives for this session, and a newer run replaces it.
+    #[cfg(feature = "stems")]
+    pub fn benchmark_realtime_stems(
+        &self,
+        sink: StreamSink<RealtimeStemsBenchmarkProgress>,
+    ) -> Result<(), String> {
+        let models_root = crate::app_paths::ensure().join("models");
+        run_realtime_probe(
+            &models_root,
+            Some(&|completed, total| {
+                // A hop costs a few milliseconds; a message per hop would flood
+                // the FFI channel. Report in tenths and always finish on the
+                // last hop so the bar lands at 100%.
+                if completed == total || completed % 10 == 0 {
+                    let _ = sink.add(RealtimeStemsBenchmarkProgress { completed, total });
+                }
+            }),
+        )?;
+        Ok(())
+    }
+
+    /// Realtime Stems is CPU-only and built without ONNX Runtime on this target.
+    #[cfg(not(feature = "stems"))]
+    pub fn benchmark_realtime_stems(
+        &self,
+        _sink: StreamSink<RealtimeStemsBenchmarkProgress>,
+    ) -> Result<(), String> {
+        Err("Realtime Stems is not available in this build (no ONNX Runtime)".to_string())
     }
 }
 
@@ -483,6 +647,10 @@ pub struct AppSettings {
     pub stems_model: String,
     /// Live separation fallback for tracks without cached stems. Offline
     /// stems always take priority; quality is lower and it uses a CPU core.
+    ///
+    /// Gated when it is turned on: enabling requires a session benchmark at
+    /// realtime with margin. A saved opt-in is honoured on later launches
+    /// without re-running the probe.
     #[serde(default)]
     pub realtime_stems: bool,
     #[serde(default)]
@@ -554,6 +722,8 @@ struct SettingsHost {
     stems_format: String,
     stems_model: String,
     realtime_stems: bool,
+    /// Last CPU benchmark backing the Realtime Stems gate.
+    realtime_capability: Option<RealtimeStemsCapability>,
     ui_language: UiLanguageSetting,
     theme: ThemeSetting,
     accent_palette: AccentPaletteSetting,
@@ -599,6 +769,7 @@ impl Default for SettingsHost {
             stems_format: default_stems_format(),
             stems_model: default_stems_model(),
             realtime_stems: false,
+            realtime_capability: None,
             ui_language: UiLanguageSetting::default(),
             theme: ThemeSetting::default(),
             accent_palette: AccentPaletteSetting::default(),
@@ -977,6 +1148,9 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
     host.stems_model = settings.stems_model;
+    // The opt-in is a preference. It is gated when it is turned on
+    // (`save_settings`), not on every load, so a restart keeps the feature on
+    // without prompting for another benchmark.
     host.realtime_stems = settings.realtime_stems;
     host.ui_language = settings.ui_language;
     host.theme = settings.theme;
@@ -1107,16 +1281,31 @@ pub(crate) fn settings_engine_config() -> Result<EngineConfig, String> {
     Ok(host.engine_config.clone())
 }
 
-/// Whether the opt-in live StemgenRT filter is enabled for this session.
+/// Whether the opt-in live StemgenRT filter is on for this session.
 ///
 /// Defaults to `false`; a poisoned host lock is treated as disabled so the
-/// audio/load path never starts live separation unexpectedly.
+/// audio/load path never starts live separation unexpectedly. The opt-in is
+/// gated when it is turned on (`save_settings`); once saved it is honoured on
+/// later launches without re-running the benchmark.
 #[cfg(feature = "stems")]
 pub(crate) fn settings_realtime_stems_enabled() -> bool {
     let host = shared_host();
     host.lock()
         .map(|guard| guard.realtime_stems)
         .unwrap_or(false)
+}
+
+/// Keep a fresh benchmark for this session.
+///
+/// The saved preference is left alone: `settings_realtime_stems_enabled` reads
+/// the verdict at the live path, so a failing run stops production without
+/// silently turning the user's switch off.
+#[cfg(feature = "stems")]
+fn store_realtime_capability(capability: RealtimeStemsCapability) -> Result<(), String> {
+    let host = shared_host();
+    let mut guard = host.lock().bridge()?;
+    guard.realtime_capability = Some(capability);
+    Ok(())
 }
 
 pub(crate) fn settings_host_runtime() -> Result<(Option<f32>, JogMode, JogMode), String> {
@@ -2166,5 +2355,82 @@ mod tests {
     #[test]
     fn legacy_settings_default_onboarding_incomplete() {
         assert!(!legacy_settings_without("onboarding_completed").onboarding_completed);
+    }
+
+    #[test]
+    fn realtime_stems_needs_a_margin_over_exact_realtime() {
+        assert!(
+            !RealtimeStemsCapability::realtime_allows(1.0),
+            "1.0x is exact realtime and has no headroom"
+        );
+        assert!(!RealtimeStemsCapability::realtime_allows(1.099));
+        assert!(RealtimeStemsCapability::realtime_allows(
+            REALTIME_STEMS_MIN_MULTIPLE
+        ));
+        assert!(RealtimeStemsCapability::realtime_allows(1.5));
+        assert!(!RealtimeStemsCapability::realtime_allows(f64::NAN));
+    }
+
+    /// A measured result for this session; `allowed` derives from `realtime`.
+    #[cfg(feature = "stems")]
+    fn capability_with(realtime: f64) -> RealtimeStemsCapability {
+        RealtimeStemsCapability {
+            avg_hop_ms: analyzer_stems::HOP_BUDGET_MS / realtime,
+            realtime,
+            hops: analyzer_stems::DEFAULT_BENCH_HOPS,
+            model_sha: stemgen_model_sha().expect("builtin StemgenRT manifest"),
+            allowed: RealtimeStemsCapability::realtime_allows(realtime),
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "stems")]
+    fn enabling_realtime_stems_requires_a_passing_benchmark() {
+        let too_slow = capability_with(0.97);
+        let fast_enough = capability_with(1.4);
+
+        assert!(
+            !enable_allowed(false, true, None),
+            "enabling cannot skip the benchmark"
+        );
+        assert!(
+            !enable_allowed(false, true, Some(&too_slow)),
+            "0.97x is below the 1.1x margin"
+        );
+        assert!(enable_allowed(false, true, Some(&fast_enough)));
+        assert!(
+            enable_allowed(true, true, None),
+            "an opt-in loaded from settings must not need a fresh probe"
+        );
+        assert!(
+            enable_allowed(true, false, Some(&fast_enough)),
+            "disabling is always allowed"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "stems")]
+    fn saved_opt_in_survives_reload_without_a_stored_measurement() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut host = SettingsHost::default();
+        let mut requested = sample_settings();
+        requested.realtime_stems = true;
+        apply_to_host(&mut host, requested).expect("apply");
+        write_settings_file(&path, &settings_from_host(&host)).expect("write");
+
+        let bytes = std::fs::read(&path).expect("read");
+        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("json");
+        assert!(
+            value.get("realtime_stems_capability").is_none(),
+            "the benchmark stays in memory, not in settings"
+        );
+
+        let loaded = load_host(&path);
+        assert!(loaded.realtime_capability.is_none());
+        assert!(
+            loaded.realtime_stems,
+            "the opt-in survives the launch; no re-benchmark prompt"
+        );
     }
 }

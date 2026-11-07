@@ -3,6 +3,7 @@
 //! Mixar-owned ort Session + Mixxx HTDemucs ONNX on already-decoded
 //! interleaved stereo PCM (no second file decode).
 
+mod bench;
 mod ep;
 mod format;
 mod infer;
@@ -14,6 +15,10 @@ mod session;
 mod split;
 mod stemgen;
 mod window;
+
+pub use bench::{
+    benchmark_stemgen, HopBenchmark, DEFAULT_BENCH_HOPS, HOP_BUDGET_MS, HOP_FRAMES, WARMUP_HOPS,
+};
 
 pub use ep::{
     ep_label, execution_provider, force_ep_from_env, preferred_ep_labels,

@@ -1401,6 +1401,42 @@ abstract class AppLocalizations {
   /// **'Quality is lower and it uses a CPU core.'**
   String get settingsMixerRealtimeStemsWarning;
 
+  /// No description provided for @settingsMixerRealtimeStemsDeviceReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device is fast enough for this feature, free to enable.'**
+  String get settingsMixerRealtimeStemsDeviceReady;
+
+  /// No description provided for @settingsMixerRealtimeStemsDeviceTooSlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Your device is too slow for this feature, enabling it would not work.'**
+  String get settingsMixerRealtimeStemsDeviceTooSlow;
+
+  /// No description provided for @settingsMixerRealtimeStemsRunBenchmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Run benchmark'**
+  String get settingsMixerRealtimeStemsRunBenchmark;
+
+  /// No description provided for @settingsMixerRealtimeStemsRerunBenchmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-run benchmark'**
+  String get settingsMixerRealtimeStemsRerunBenchmark;
+
+  /// No description provided for @settingsMixerRealtimeStemsBenchmarking.
+  ///
+  /// In en, this message translates to:
+  /// **'Benchmarking…'**
+  String get settingsMixerRealtimeStemsBenchmarking;
+
+  /// No description provided for @settingsMixerRealtimeStemsBenchmarkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Benchmark failed: {error}'**
+  String settingsMixerRealtimeStemsBenchmarkFailed(String error);
+
   /// No description provided for @settingsWaveformDescription.
   ///
   /// In en, this message translates to:

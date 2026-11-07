@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/core/theme/mixar_colors.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -8,16 +10,61 @@ import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsMixerPanel extends StatelessWidget {
-  const new({required this.draft, required this.onChanged, super.key});
+  const new({
+    required this.draft,
+    required this.onChanged,
+    this.capability,
+    this.benchmarkRunning = false,
+    this.benchmarkFraction,
+    this.benchmarkError,
+    this.onRunBenchmark,
+    super.key,
+  });
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
 
+  /// Last measured CPU capability; `null` until this device has run a probe.
+  final RealtimeStemsCapability? capability;
+  final bool benchmarkRunning;
+
+  /// 0…1 while [benchmarkRunning]; `null` hides the percentage.
+  final double? benchmarkFraction;
+  final String? benchmarkError;
+
+  /// Runs the probe. When omitted the capability gate is inactive (widgets
+  /// mounted without the settings page, e.g. focused panel tests).
+  final VoidCallback? onRunBenchmark;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final theme = context.theme;
+    final capability = this.capability;
+    // Live stems stay gated on the measurement whenever the probe is wired:
+    // the switch replaces the benchmark action only after a passing run.
+    final gated = onRunBenchmark != null;
+    final passed = !benchmarkRunning && (capability?.allowed ?? false);
+    // Once the feature is on there is nothing left to verify: keep the switch
+    // and drop both the benchmark action and every status badge. Enabling is
+    // gated when the switch is turned on, not on every launch.
+    final enabled = draft.realtimeStems;
+
+    final status = enabled
+        ? null
+        : _status(
+            l10n: l10n,
+            capability: capability,
+            running: benchmarkRunning,
+            error: benchmarkError,
+            theme: theme,
+          );
+
     return SettingsSectionBody(
       title: l10n.settingsSectionMixer,
       description: l10n.settingsMixerDescription,
@@ -79,14 +126,179 @@ class SettingsMixerPanel extends StatelessWidget {
             ),
             style: style,
           ),
-          trailing: SettingsHeaderSwitch(
-            value: draft.realtimeStems,
-            semanticsLabel: l10n.settingsMixerRealtimeStemsTitle,
-            onChanged: (enabled) =>
-                onChanged(copyAppSettings(draft, realtimeStems: enabled)),
-          ),
+          trailing: !gated || passed || enabled
+              ? SettingsHeaderSwitch(
+                  value: draft.realtimeStems,
+                  semanticsLabel: l10n.settingsMixerRealtimeStemsTitle,
+                  onChanged: (next) =>
+                      onChanged(copyAppSettings(draft, realtimeStems: next)),
+                )
+              : _BenchmarkAction(
+                  l10n: l10n,
+                  capability: capability,
+                  running: benchmarkRunning,
+                  fraction: benchmarkFraction,
+                  onRun: onRunBenchmark,
+                ),
+          child: status == null ? null : _CapabilityBadge(status: status),
         ),
       ],
+    );
+  }
+
+  _CapabilityStatus? _status({
+    required AppLocalizations l10n,
+    required RealtimeStemsCapability? capability,
+    required bool running,
+    required String? error,
+    required MixarThemeData theme,
+  }) {
+    if (running) {
+      // The action carries the progress; no second status line while it runs.
+      return null;
+    }
+    final colors = theme.colors;
+    if (error != null) {
+      return _blockedStatus(
+        colors: colors,
+        icon: LucideIcons.circleAlert,
+        text: l10n.settingsMixerRealtimeStemsBenchmarkFailed(error),
+      );
+    }
+    final measured = capability;
+    if (measured == null) {
+      // No benchmark result yet: the action button is the whole message.
+      return null;
+    }
+    if (measured.allowed) {
+      final dark = colors.brightness == Brightness.dark;
+      return _CapabilityStatus(
+        icon: LucideIcons.badgeCheck,
+        text: l10n.settingsMixerRealtimeStemsDeviceReady,
+        color: dark ? _readyDark : _readyLight,
+        fill: dark ? _readyDarkFill : _readyLightFill,
+        border: dark ? _readyDarkBorder : _readyLightBorder,
+      );
+    }
+    return _blockedStatus(
+      colors: colors,
+      icon: LucideIcons.ban,
+      text: l10n.settingsMixerRealtimeStemsDeviceTooSlow,
+    );
+  }
+
+  /// Shared red verdict for a failed probe or a below-margin result.
+  _CapabilityStatus _blockedStatus({
+    required MixarColors colors,
+    required IconData icon,
+    required String text,
+  }) {
+    return _CapabilityStatus(
+      icon: icon,
+      text: text,
+      color: colors.destructive,
+      fill: colors.destructive.withValues(alpha: 0.12),
+      border: colors.destructive.withValues(alpha: 0.4),
+    );
+  }
+}
+
+/// Replaces the switch until the device has a passing measurement.
+///
+/// While the probe runs the button stays disabled and carries its progress, so
+/// the action and its feedback live in the same slot.
+class _BenchmarkAction extends StatelessWidget {
+  const new({
+    required this.l10n,
+    required this.capability,
+    required this.running,
+    required this.fraction,
+    required this.onRun,
+  });
+
+  final AppLocalizations l10n;
+  final RealtimeStemsCapability? capability;
+  final bool running;
+  final double? fraction;
+  final VoidCallback? onRun;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = fraction == null ? null : (fraction! * 100).round();
+    final label = running
+        ? (percent == null
+              ? l10n.settingsMixerRealtimeStemsBenchmarking
+              : '${l10n.settingsMixerRealtimeStemsBenchmarking} $percent%')
+        : (capability == null
+              ? l10n.settingsMixerRealtimeStemsRunBenchmark
+              : l10n.settingsMixerRealtimeStemsRerunBenchmark);
+    return AppButton(
+      size: MixarButtonSize.sm,
+      mainAxisSize: MainAxisSize.min,
+      onPress: running ? null : onRun,
+      child: Text(label),
+    );
+  }
+}
+
+/// Semantic success green for the capability verdict.
+///
+/// The palette's brand signal is teal and it intentionally ships no green
+/// ladder, so this status colour stays local (like the library's live dot).
+const _readyLight = Color(0xFF15803D);
+const _readyLightFill = Color(0xFFF0FDF4);
+const _readyLightBorder = Color(0xFFBBF7D0);
+const _readyDark = Color(0xFF4ADE80);
+const _readyDarkFill = Color(0xFF052E16);
+const _readyDarkBorder = Color(0xFF166534);
+
+class _CapabilityStatus {
+  const new({
+    required this.icon,
+    required this.text,
+    required this.color,
+    required this.fill,
+    required this.border,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+  final Color fill;
+  final Color border;
+}
+
+/// Pill verdict: verified (green), blocked (red), or a neutral hint.
+class _CapabilityBadge extends StatelessWidget {
+  const new({required this.status});
+
+  final _CapabilityStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: status.fill,
+        border: Border.all(color: status.border),
+        borderRadius: theme.style.borderRadius.pill,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 6,
+          children: [
+            Icon(status.icon, size: 14, color: status.color),
+            Flexible(
+              child: Text(
+                status.text,
+                style: theme.typography.body.sm.copyWith(color: status.color),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

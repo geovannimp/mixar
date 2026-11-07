@@ -19,6 +19,13 @@ class FakeSettingsTransport implements SettingsTransport {
   Future<AppSettings> getSettings() async => stored;
 
   @override
+  Stream<RealtimeStemsBenchmarkProgress> benchmarkRealtimeStems() =>
+      const Stream<RealtimeStemsBenchmarkProgress>.empty();
+
+  @override
+  Future<RealtimeStemsCapability?> realtimeStemsCapability() async => null;
+
+  @override
   Future<AppSettings> saveSettings({required AppSettings settings}) async {
     final error = saveError;
     if (error != null) {
