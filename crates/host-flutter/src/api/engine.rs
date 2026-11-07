@@ -328,7 +328,6 @@ impl EngineTransport {
         if let Ok((target, top, outer)) = settings_host_runtime() {
             let _ = transport.apply_host_settings(target, top, outer);
         }
-
         Ok(transport)
     }
 

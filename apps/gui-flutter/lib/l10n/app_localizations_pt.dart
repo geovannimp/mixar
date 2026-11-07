@@ -736,6 +736,29 @@ class AppLocalizationsPt extends AppLocalizations {
       'A qualidade é menor e usa um núcleo de CPU.';
 
   @override
+  String get settingsMixerRealtimeStemsDeviceReady =>
+      'Seu dispositivo é rápido o suficiente para este recurso, pode ativar.';
+
+  @override
+  String get settingsMixerRealtimeStemsDeviceTooSlow =>
+      'Seu dispositivo é lento demais para este recurso; ativar não funcionaria.';
+
+  @override
+  String get settingsMixerRealtimeStemsRunBenchmark => 'Executar teste';
+
+  @override
+  String get settingsMixerRealtimeStemsRerunBenchmark =>
+      'Executar teste novamente';
+
+  @override
+  String get settingsMixerRealtimeStemsBenchmarking => 'Testando…';
+
+  @override
+  String settingsMixerRealtimeStemsBenchmarkFailed(String error) {
+    return 'Teste falhou: $error';
+  }
+
+  @override
   String get settingsWaveformDescription =>
       'RGB mistura grave/médio/agudo em uma cor. Filtrado empilha as três bandas.';
 

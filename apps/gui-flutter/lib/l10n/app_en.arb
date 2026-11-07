@@ -280,6 +280,19 @@
   "settingsMixerRealtimeStemsDescription": "Separates tracks without cached stems while they play. Tracks with offline stems always take priority.",
   "settingsMixerRealtimeStemsNotRecommended": "Not recommended.",
   "settingsMixerRealtimeStemsWarning": "Quality is lower and it uses a CPU core.",
+  "settingsMixerRealtimeStemsDeviceReady": "Your device is fast enough for this feature, free to enable.",
+  "settingsMixerRealtimeStemsDeviceTooSlow": "Your device is too slow for this feature, enabling it would not work.",
+  "settingsMixerRealtimeStemsRunBenchmark": "Run benchmark",
+  "settingsMixerRealtimeStemsRerunBenchmark": "Re-run benchmark",
+  "settingsMixerRealtimeStemsBenchmarking": "Benchmarking…",
+  "settingsMixerRealtimeStemsBenchmarkFailed": "Benchmark failed: {error}",
+  "@settingsMixerRealtimeStemsBenchmarkFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "settingsWaveformDescription": "RGB mixes low/mid/high into one color. Filtered stacks the three bands.",
   "settingsWaveformDisplayTitle": "Display",
   "settingsWaveformDisplayDescription": "RGB mixes low/mid/high into one color. Filtered stacks the three bands.",
