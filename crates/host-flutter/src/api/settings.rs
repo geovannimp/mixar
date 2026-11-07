@@ -1487,6 +1487,17 @@ pub(crate) fn settings_host_runtime() -> Result<(Option<f32>, JogMode, JogMode),
 mod tests {
     use super::*;
 
+    fn controller_route(left: u16, right: u16) -> BusRouteSettings {
+        BusRouteSettings {
+            device_id: "cpal:ddj".into(),
+            left_channel: left,
+            right_channel: right,
+            mode: BusChannelMode::Stereo,
+            sample_rate: None,
+            low_latency: false,
+        }
+    }
+
     fn sample_settings() -> AppSettings {
         settings_from_host(&SettingsHost::default())
     }
@@ -1541,23 +1552,9 @@ mod tests {
             controller_label: "DDJ-400".into(),
             output_device_id: "cpal:ddj".into(),
             master_overridden: true,
-            master_bus: BusRouteSettings {
-                device_id: "cpal:ddj".into(),
-                left_channel: 1,
-                right_channel: 2,
-                mode: BusChannelMode::Stereo,
-                sample_rate: None,
-                low_latency: false,
-            },
+            master_bus: controller_route(1, 2),
             preview_overridden: true,
-            preview_bus: BusRouteSettings {
-                device_id: "cpal:ddj".into(),
-                left_channel: 3,
-                right_channel: 4,
-                mode: BusChannelMode::Stereo,
-                sample_rate: None,
-                low_latency: false,
-            },
+            preview_bus: controller_route(3, 4),
         });
 
         write_settings_file(&path, &settings).expect("write");
@@ -1582,14 +1579,7 @@ mod tests {
                 controller_label: "DDJ-400".into(),
                 output_device_id: "cpal:ddj".into(),
                 master_overridden: true,
-                master_bus: BusRouteSettings {
-                    device_id: "cpal:ddj".into(),
-                    left_channel: 1,
-                    right_channel: 2,
-                    mode: BusChannelMode::Stereo,
-                    sample_rate: None,
-                    low_latency: false,
-                },
+                master_bus: controller_route(1, 2),
                 preview_overridden: false,
                 preview_bus: default_preview_bus_route(),
             }),
@@ -1620,23 +1610,9 @@ mod tests {
                 controller_label: "DDJ-400".into(),
                 output_device_id: "cpal:ddj".into(),
                 master_overridden: true,
-                master_bus: BusRouteSettings {
-                    device_id: "cpal:ddj".into(),
-                    left_channel: 1,
-                    right_channel: 2,
-                    mode: BusChannelMode::Stereo,
-                    sample_rate: None,
-                    low_latency: false,
-                },
+                master_bus: controller_route(1, 2),
                 preview_overridden: true,
-                preview_bus: BusRouteSettings {
-                    device_id: "cpal:ddj".into(),
-                    left_channel: 3,
-                    right_channel: 4,
-                    mode: BusChannelMode::Stereo,
-                    sample_rate: None,
-                    low_latency: false,
-                },
+                preview_bus: controller_route(3, 4),
             }),
             ..Default::default()
         };
@@ -1657,14 +1633,7 @@ mod tests {
                 master_overridden: false,
                 master_bus: default_master_bus_route(),
                 preview_overridden: true,
-                preview_bus: BusRouteSettings {
-                    device_id: "cpal:ddj".into(),
-                    left_channel: 3,
-                    right_channel: 4,
-                    mode: BusChannelMode::Stereo,
-                    sample_rate: None,
-                    low_latency: false,
-                },
+                preview_bus: controller_route(3, 4),
             }),
             ..Default::default()
         };
@@ -1703,14 +1672,7 @@ mod tests {
             controller_label: "DDJ-400".into(),
             output_device_id: "cpal:ddj".into(),
             master_overridden: true,
-            master_bus: BusRouteSettings {
-                device_id: "cpal:ddj".into(),
-                left_channel: 1,
-                right_channel: 2,
-                mode: BusChannelMode::Stereo,
-                sample_rate: None,
-                low_latency: false,
-            },
+            master_bus: controller_route(1, 2),
             preview_overridden: false,
             preview_bus: default_preview_bus_route(),
         };
