@@ -1,22 +1,20 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
-import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/bus_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 
-/// Starts once on desktop after engine+library buses exist.
-/// MIDI is optional: start failure is reported and the rest of the shell keeps running.
-/// Rebuilt when app settings (trusted controllers) change via invalidate.
+/// Starts once on desktop after the bus exists.
+///
+/// MIDI is optional: start failure is reported and the rest of the shell keeps
+/// running. Controllers do not wait for the audio engine: when a saved
+/// controller audio override points at a missing device, the controller path is
+/// what restores the previous outputs and retries the engine.
 final controllerTransportProvider = FutureProvider<ControllerTransport?>((
   ref,
 ) async {
   if (!isDesktopWindow) {
-    return null;
-  }
-  final engine = await ref.watch(engineTransportProvider.future);
-  if (engine == null) {
     return null;
   }
   // Read once per (re)start — invalidate this provider when trusts change.

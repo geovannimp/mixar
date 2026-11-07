@@ -17,8 +17,11 @@ class ControllerMappingRow extends StatelessWidget {
     required this.trusted,
     required this.attachBusy,
     required this.trustBusy,
+    required this.audioBusy,
+    required this.alwaysSwitchAudio,
     required this.onToggleAttach,
     required this.onToggleTrust,
+    required this.onToggleAudio,
     required this.onUpdate,
     super.key,
   });
@@ -26,10 +29,13 @@ class ControllerMappingRow extends StatelessWidget {
   final ControllerMappingInfo mapping;
   final bool attached;
   final bool trusted;
+  final bool alwaysSwitchAudio;
   final bool attachBusy;
   final bool trustBusy;
+  final bool audioBusy;
   final ValueChanged<bool> onToggleAttach;
   final ValueChanged<bool> onToggleTrust;
+  final ValueChanged<bool> onToggleAudio;
   final VoidCallback onUpdate;
 
   @override
@@ -41,6 +47,9 @@ class ControllerMappingRow extends StatelessWidget {
       mapping.productName,
     ].where((s) => s.isNotEmpty).join(' ');
     final version = mapping.version;
+    final audio = mapping.audio;
+    final hasAudioRoutes =
+        audio?.masterChannels != null || audio?.headphoneChannels != null;
     // Metadata as the library track row's chips: id, device id, version, and
     // an accent "Attached" state. The pill's default fill is the row surface
     // (`card`), which is invisible on this settings card, so use the page
@@ -111,6 +120,14 @@ class ControllerMappingRow extends StatelessWidget {
           semanticsLabel: l10n.settingsControllersTrustSemantics(name),
           onPress: () => onToggleTrust(!trusted),
         ),
+        if (hasAudioRoutes)
+          _ToggleButton(
+            label: l10n.settingsControllersAudio,
+            on: alwaysSwitchAudio,
+            enabled: !audioBusy,
+            semanticsLabel: l10n.settingsControllersAudioSemantics(name),
+            onPress: () => onToggleAudio(!alwaysSwitchAudio),
+          ),
         _ToggleButton(
           label: l10n.settingsControllersAttach,
           on: attached,

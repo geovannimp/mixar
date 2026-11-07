@@ -9521,6 +9521,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_keyColorMode =
             <crate::api::settings::KeyColorModeSetting>::sse_decode(deserializer);
         let mut var_trustedControllerDeviceIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_alwaysSwitchAudioDeviceIds = <Vec<String>>::sse_decode(deserializer);
         let mut var_controllerAudioOverride =
             <Option<crate::api::settings::ControllerAudioOverride>>::sse_decode(deserializer);
         let mut var_historyEnabled = <bool>::sse_decode(deserializer);
@@ -9579,6 +9580,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             key_display_mode: var_keyDisplayMode,
             key_color_mode: var_keyColorMode,
             trusted_controller_device_ids: var_trustedControllerDeviceIds,
+            always_switch_audio_device_ids: var_alwaysSwitchAudioDeviceIds,
             controller_audio_override: var_controllerAudioOverride,
             history_enabled: var_historyEnabled,
             history_session_idle_minutes: var_historySessionIdleMinutes,
@@ -14528,6 +14530,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.trusted_controller_device_ids
                 .into_into_dart()
                 .into_dart(),
+            self.always_switch_audio_device_ids
+                .into_into_dart()
+                .into_dart(),
             self.controller_audio_override.into_into_dart().into_dart(),
             self.history_enabled.into_into_dart().into_dart(),
             self.history_session_idle_minutes
@@ -18901,6 +18906,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         );
         <crate::api::settings::KeyColorModeSetting>::sse_encode(self.key_color_mode, serializer);
         <Vec<String>>::sse_encode(self.trusted_controller_device_ids, serializer);
+        <Vec<String>>::sse_encode(self.always_switch_audio_device_ids, serializer);
         <Option<crate::api::settings::ControllerAudioOverride>>::sse_encode(
             self.controller_audio_override,
             serializer,

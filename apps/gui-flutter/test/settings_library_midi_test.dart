@@ -171,6 +171,49 @@ void main() {
     expect(changed?.trustedControllerDeviceIds, ['pioneer.ddj-400']);
   }, semanticsEnabled: false);
 
+  testWidgets('controllers audio toggle updates draft always-switch ids', (
+    tester,
+  ) async {
+    const mapping = ControllerMappingInfo(
+      id: 'ddj-400',
+      deviceId: 'pioneer.ddj-400',
+      vendorName: 'Pioneer',
+      productName: 'DDJ-400',
+      updateAvailable: false,
+      midiNameContains: ['DDJ-400'],
+      audio: ControllerAudioHints(
+        outputNameContains: ['DDJ-400'],
+        masterChannels: ControllerChannelPair(left: 1, right: 2),
+      ),
+      attached: false,
+    );
+    AppSettings? changed;
+    final theme = MixarThemeData.dark();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          controllerTransportProvider.overrideWith((ref) async => null),
+          controllerMappingsProvider.overrideWith((ref) async => [mapping]),
+          controllerDevicesProvider.overrideWith((ref) async => const []),
+        ],
+        child: mixarTestMaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: SettingsControllersPanel(
+              draft: defaultAppSettings(),
+              onChanged: (next) => changed = next,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Audio'), findsOneWidget);
+    await tester.tap(find.text('Audio'));
+    await tester.pumpAndSettle();
+    expect(changed?.alwaysSwitchAudioDeviceIds, ['pioneer.ddj-400']);
+  }, semanticsEnabled: false);
+
   testWidgets('controllers mapping row shows version and update badge', (
     tester,
   ) async {
@@ -207,6 +250,7 @@ void main() {
     expect(find.text('Update available'), findsOneWidget);
     expect(find.text('Update'), findsOneWidget);
     expect(find.text('Trust'), findsOneWidget);
+    expect(find.text('Audio'), findsNothing);
     expect(find.text('Attach'), findsOneWidget);
     expect(find.textContaining('v1.0.0'), findsOneWidget);
   }, semanticsEnabled: false);
