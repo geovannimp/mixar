@@ -82,7 +82,10 @@ class ControllerAudioHints {
           sampleRate == other.sampleRate;
 }
 
-/// Stereo output channels on the controller's audio device (1-based).
+/// Stereo output channels on the controller's audio device.
+///
+/// Values are 1-based physical channel numbers, matching Settings → Audio and
+/// DJ mixer convention: `[1, 2]` is the first stereo pair.
 class ControllerChannelPair {
   final int left;
   final int right;

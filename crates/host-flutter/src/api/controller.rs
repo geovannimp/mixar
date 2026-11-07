@@ -127,7 +127,10 @@ pub struct ControllerMappingInfo {
     pub attached: bool,
 }
 
-/// Stereo output channels on the controller's audio device (1-based).
+/// Stereo output channels on the controller's audio device.
+///
+/// Values are 1-based physical channel numbers, matching Settings → Audio and
+/// DJ mixer convention: `[1, 2]` is the first stereo pair.
 #[derive(Clone, Copy, Debug)]
 pub struct ControllerChannelPair {
     pub left: u16,
@@ -720,6 +723,20 @@ mod tests {
         let headphones = out.headphone_channels.expect("headphone channels");
         assert_eq!((headphones.left, headphones.right), (3, 4));
         assert_eq!(out.sample_rate, Some(48_000));
+    }
+
+    #[test]
+    fn audio_hints_pass_through_absent_routes() {
+        let out = controller_audio_hints(controller::AudioHints {
+            output_name_contains: vec!["DDJ-400".into()],
+            master_channels: None,
+            headphone_channels: None,
+            sample_rate: None,
+        });
+        assert_eq!(out.output_name_contains, ["DDJ-400"]);
+        assert!(out.master_channels.is_none());
+        assert!(out.headphone_channels.is_none());
+        assert!(out.sample_rate.is_none());
     }
 
     #[test]
