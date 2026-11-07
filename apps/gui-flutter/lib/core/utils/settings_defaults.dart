@@ -295,6 +295,7 @@ AppSettings copyAppSettings(
   bool? showCrossfader,
   bool? analyticsEnabled,
   bool? onboardingCompleted,
+  RealtimeStemsCapability? realtimeStemsCapability,
 }) {
   return AppSettings(
     numDecks: numDecks ?? base.numDecks,
@@ -350,6 +351,8 @@ AppSettings copyAppSettings(
     showCrossfader: showCrossfader ?? base.showCrossfader,
     analyticsEnabled: analyticsEnabled ?? base.analyticsEnabled,
     onboardingCompleted: onboardingCompleted ?? base.onboardingCompleted,
+    realtimeStemsCapability:
+        realtimeStemsCapability ?? base.realtimeStemsCapability,
   );
 }
 

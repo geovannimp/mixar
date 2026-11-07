@@ -12,11 +12,15 @@ class SettingsHeaderSwitch extends StatelessWidget {
     required this.onChanged,
     super.key,
     this.semanticsLabel,
+    this.enabled = true,
   });
 
   final bool value;
   final ValueChanged<bool> onChanged;
   final String? semanticsLabel;
+
+  /// Keep the visual switch but refuse interaction (a gated capability).
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +30,7 @@ class SettingsHeaderSwitch extends StatelessWidget {
         child: MixarSwitch(
           value: value,
           onChanged: onChanged,
+          enabled: enabled,
           semanticsLabel: semanticsLabel,
         ),
       ),

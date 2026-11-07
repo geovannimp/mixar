@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use audio_core::{LiveStemRing, LoadedAudio};
@@ -23,13 +23,14 @@ use ort::session::Session;
 use ort::value::{Tensor, ValueType};
 use tracing::{info, warn};
 
+use crate::bench::HopBenchmark;
 use crate::live::LiveSeparator;
 use crate::resample_pcm::resample_interleaved_stereo;
 
 /// Model sample rate.
 pub(crate) const SAMPLE_RATE: u32 = 44_100;
 /// One model hop (samples per channel).
-const HOP: usize = 128;
+pub(crate) const HOP: usize = 128;
 /// Four output stems.
 const STEMS: usize = 4;
 /// Producer may run this far ahead of the deck before sleeping.
@@ -290,6 +291,62 @@ fn run_hop(
     Ok(out)
 }
 
+/// Benchmark a StemgenRT artifact: load a private CPU session, run a warm-up,
+/// then time `hops` forward passes.
+///
+/// This never touches the live ring, the producer, or playback state, so it is
+/// safe to run while the engine plays (but never from the audio callback).
+pub(crate) fn benchmark(
+    weights: &Path,
+    hops: u32,
+    warmup: u32,
+    on_progress: Option<&dyn Fn(u32, u32)>,
+) -> Result<HopBenchmark> {
+    if hops == 0 {
+        bail!("StemgenRT benchmark needs at least one timed hop");
+    }
+    // `..` keeps this working with the three-tuple (session, states, ep) that
+    // the Android/ORT-1.31 branch introduced.
+    let (session, states, ..) = load_session(weights)?;
+    let mut runner = OnnxRunner { session, states };
+    measure_hops(&mut runner, hops, warmup, on_progress)
+}
+
+/// Time `hops` forward passes after `warmup` discarded ones.
+///
+/// Generic over the hop runner so tests drive it with the same stub as the
+/// producer tests instead of the 32 MB artifact.
+fn measure_hops(
+    runner: &mut impl HopRunner,
+    hops: u32,
+    warmup: u32,
+    on_progress: Option<&dyn Fn(u32, u32)>,
+) -> Result<HopBenchmark> {
+    let total = hops.saturating_add(warmup);
+    // A deterministic ramp keeps every hop's input non-constant, so the graph
+    // cannot take a short-circuit and the recurrent states carry real values.
+    let mut audio = vec![0.0f32; 2 * HOP];
+    for (index, sample) in audio.iter_mut().enumerate() {
+        *sample = (index as f32 / (2 * HOP) as f32) * 0.02 - 0.01;
+    }
+
+    for done in 0..warmup {
+        runner.run(&audio)?;
+        if let Some(progress) = on_progress {
+            progress(done + 1, total);
+        }
+    }
+
+    let start = Instant::now();
+    for done in 0..hops {
+        runner.run(&audio)?;
+        if let Some(progress) = on_progress {
+            progress(warmup + done + 1, total);
+        }
+    }
+    Ok(HopBenchmark::from_elapsed(start.elapsed(), hops))
+}
+
 /// Publish one hop's stems and advance the published end.
 ///
 /// Returns the new published end; the caller owns the epoch state.
@@ -506,6 +563,38 @@ mod tests {
         fn reset(&mut self) {
             self.resets += 1;
         }
+    }
+
+    #[test]
+    fn benchmark_times_only_the_timed_hops_and_reports_progress() {
+        let mut runner = StubRunner {
+            calls: 0,
+            resets: 0,
+        };
+        let progress = std::cell::RefCell::new(Vec::new());
+        let benchmark = measure_hops(
+            &mut runner,
+            5,
+            3,
+            Some(&|completed, total| {
+                progress.borrow_mut().push((completed, total));
+            }),
+        )
+        .expect("stub hops succeed");
+        let progress = progress.into_inner();
+
+        // Warm-up is discarded from the measurement but still runs the model.
+        assert_eq!(runner.calls, 8);
+        assert_eq!(benchmark.hops, 5);
+        assert!(
+            benchmark.avg_hop_ms >= 0.0,
+            "average hop must be non-negative"
+        );
+        assert!(
+            progress.len() == 8 && progress.iter().all(|(_, total)| *total == 8),
+            "progress covers warm-up and timed hops: {progress:?}"
+        );
+        assert_eq!(progress.last(), Some(&(8, 8)));
     }
 
     #[test]

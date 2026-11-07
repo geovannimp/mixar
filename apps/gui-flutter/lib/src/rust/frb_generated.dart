@@ -77,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1569110571;
+  int get rustContentHash => -448550076;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -845,11 +845,22 @@ abstract class RustLibApi extends BaseApi {
     LibraryColorLabel? colorLabel,
   });
 
+  Stream<RealtimeStemsBenchmarkProgress>
+  crateApiSettingsSettingsTransportBenchmarkRealtimeStems({
+    required SettingsTransport that,
+    required bool force,
+  });
+
   Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
     required SettingsTransport that,
   });
 
   Future<SettingsTransport> crateApiSettingsSettingsTransportOpen();
+
+  Future<RealtimeStemsCapability?>
+  crateApiSettingsSettingsTransportRealtimeStemsCapability({
+    required SettingsTransport that,
+  });
 
   Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
     required SettingsTransport that,
@@ -6297,6 +6308,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Stream<RealtimeStemsBenchmarkProgress>
+  crateApiSettingsSettingsTransportBenchmarkRealtimeStems({
+    required SettingsTransport that,
+    required bool force,
+  }) {
+    final sink = RustStreamSink<RealtimeStemsBenchmarkProgress>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+              that,
+              serializer,
+            );
+            sse_encode_bool(force, serializer);
+            sse_encode_StreamSink_realtime_stems_benchmark_progress_Sse(
+              sink,
+              serializer,
+            );
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 133,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: sse_decode_String,
+          ),
+          constMeta:
+              kCrateApiSettingsSettingsTransportBenchmarkRealtimeStemsConstMeta,
+          argValues: [that, force, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta
+  get kCrateApiSettingsSettingsTransportBenchmarkRealtimeStemsConstMeta =>
+      const TaskConstMeta(
+        debugName: "SettingsTransport_benchmark_realtime_stems",
+        argNames: ["that", "force", "sink"],
+      );
+
+  @override
   Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
     required SettingsTransport that,
   }) {
@@ -6311,7 +6371,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 133,
+            funcId: 134,
             port: port_,
           );
         },
@@ -6341,7 +6401,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 134,
+            funcId: 135,
             port: port_,
           );
         },
@@ -6361,6 +6421,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "SettingsTransport_open", argNames: []);
 
   @override
+  Future<RealtimeStemsCapability?>
+  crateApiSettingsSettingsTransportRealtimeStemsCapability({
+    required SettingsTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 136,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_opt_box_autoadd_realtime_stems_capability,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiSettingsSettingsTransportRealtimeStemsCapabilityConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSettingsSettingsTransportRealtimeStemsCapabilityConstMeta =>
+      const TaskConstMeta(
+        debugName: "SettingsTransport_realtime_stems_capability",
+        argNames: ["that"],
+      );
+
+  @override
   Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
     required SettingsTransport that,
     required AppSettings settings,
@@ -6377,7 +6477,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 135,
+            funcId: 137,
             port: port_,
           );
         },
@@ -6407,7 +6507,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 138,
             port: port_,
           );
         },
@@ -6437,7 +6537,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 139,
           )!;
         },
         codec: SseCodec(
@@ -6466,7 +6566,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 138,
+            funcId: 140,
             port: port_,
           );
         },
@@ -6493,7 +6593,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 139,
+            funcId: 141,
             port: port_,
           );
         },
@@ -6520,7 +6620,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 140,
+            funcId: 142,
             port: port_,
           );
         },
@@ -6547,7 +6647,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 141,
+            funcId: 143,
             port: port_,
           );
         },
@@ -6574,7 +6674,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 142,
+            funcId: 144,
             port: port_,
           );
         },
@@ -6604,7 +6704,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 143,
+            funcId: 145,
             port: port_,
           );
         },
@@ -6635,7 +6735,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 144,
+            funcId: 146,
             port: port_,
           );
         },
@@ -6666,7 +6766,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 145,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6696,7 +6796,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 146,
+            funcId: 148,
             port: port_,
           );
         },
@@ -6726,7 +6826,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 149,
             port: port_,
           );
         },
@@ -6753,7 +6853,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 150,
             port: port_,
           );
         },
@@ -6780,7 +6880,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 149,
+            funcId: 151,
             port: port_,
           );
         },
@@ -6810,7 +6910,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 150,
+            funcId: 152,
             port: port_,
           );
         },
@@ -6843,7 +6943,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 151,
+            funcId: 153,
             port: port_,
           );
         },
@@ -6873,7 +6973,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 152,
+            funcId: 154,
             port: port_,
           );
         },
@@ -6906,7 +7006,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 153,
+            funcId: 155,
             port: port_,
           );
         },
@@ -6936,7 +7036,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 154,
+            funcId: 156,
             port: port_,
           );
         },
@@ -6967,7 +7067,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 155,
+            funcId: 157,
             port: port_,
           );
         },
@@ -6994,7 +7094,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 156,
+            funcId: 158,
             port: port_,
           );
         },
@@ -7021,7 +7121,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 157,
+            funcId: 159,
             port: port_,
           );
         },
@@ -7052,7 +7152,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 158,
+            funcId: 160,
             port: port_,
           );
         },
@@ -7296,6 +7396,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<RealtimeStemsBenchmarkProgress>
+  dco_decode_StreamSink_realtime_stems_benchmark_progress_Sse(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
@@ -7358,8 +7465,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 49)
-      throw Exception('unexpected arr length: expect 49 but see ${arr.length}');
+    if (arr.length != 50)
+      throw Exception('unexpected arr length: expect 50 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7410,6 +7517,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       showCrossfader: dco_decode_bool(arr[46]),
       analyticsEnabled: dco_decode_bool(arr[47]),
       onboardingCompleted: dco_decode_bool(arr[48]),
+      realtimeStemsCapability:
+          dco_decode_opt_box_autoadd_realtime_stems_capability(arr[49]),
     );
   }
 
@@ -7898,6 +8007,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Play dco_decode_box_autoadd_play(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_play(raw);
+  }
+
+  @protected
+  RealtimeStemsCapability dco_decode_box_autoadd_realtime_stems_capability(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_realtime_stems_capability(raw);
   }
 
   @protected
@@ -9835,6 +9952,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RealtimeStemsCapability? dco_decode_opt_box_autoadd_realtime_stems_capability(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_realtime_stems_capability(raw);
+  }
+
+  @protected
   SamplerPlayMode? dco_decode_opt_box_autoadd_sampler_play_mode(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_sampler_play_mode(raw);
@@ -9934,6 +10061,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return Play(deck: dco_decode_u_16(arr[0]));
+  }
+
+  @protected
+  RealtimeStemsBenchmarkProgress dco_decode_realtime_stems_benchmark_progress(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return RealtimeStemsBenchmarkProgress(
+      completed: dco_decode_u_32(arr[0]),
+      total: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
+  RealtimeStemsCapability dco_decode_realtime_stems_capability(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return RealtimeStemsCapability(
+      avgHopMs: dco_decode_f_64(arr[0]),
+      realtime: dco_decode_f_64(arr[1]),
+      hops: dco_decode_u_32(arr[2]),
+      modelSha: dco_decode_String(arr[3]),
+      os: dco_decode_String(arr[4]),
+      arch: dco_decode_String(arr[5]),
+      cpuModel: dco_decode_opt_String(arr[6]),
+      cores: dco_decode_u_32(arr[7]),
+      minRealtime: dco_decode_f_64(arr[8]),
+      allowed: dco_decode_bool(arr[9]),
+    );
   }
 
   @protected
@@ -11055,6 +11216,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<RealtimeStemsBenchmarkProgress>
+  sse_decode_StreamSink_realtime_stems_benchmark_progress_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
@@ -11187,6 +11357,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_showCrossfader = sse_decode_bool(deserializer);
     var var_analyticsEnabled = sse_decode_bool(deserializer);
     var var_onboardingCompleted = sse_decode_bool(deserializer);
+    var var_realtimeStemsCapability =
+        sse_decode_opt_box_autoadd_realtime_stems_capability(deserializer);
     return AppSettings(
       bufferSize: var_bufferSize,
       resamplerQuality: var_resamplerQuality,
@@ -11237,6 +11409,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       showCrossfader: var_showCrossfader,
       analyticsEnabled: var_analyticsEnabled,
       onboardingCompleted: var_onboardingCompleted,
+      realtimeStemsCapability: var_realtimeStemsCapability,
     );
   }
 
@@ -11767,6 +11940,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Play sse_decode_box_autoadd_play(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_play(deserializer));
+  }
+
+  @protected
+  RealtimeStemsCapability sse_decode_box_autoadd_realtime_stems_capability(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_realtime_stems_capability(deserializer));
   }
 
   @protected
@@ -14155,6 +14336,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RealtimeStemsCapability? sse_decode_opt_box_autoadd_realtime_stems_capability(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_realtime_stems_capability(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SamplerPlayMode? sse_decode_opt_box_autoadd_sampler_play_mode(
     SseDeserializer deserializer,
   ) {
@@ -14281,6 +14475,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_deck = sse_decode_u_16(deserializer);
     return Play(deck: var_deck);
+  }
+
+  @protected
+  RealtimeStemsBenchmarkProgress sse_decode_realtime_stems_benchmark_progress(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_completed = sse_decode_u_32(deserializer);
+    var var_total = sse_decode_u_32(deserializer);
+    return RealtimeStemsBenchmarkProgress(
+      completed: var_completed,
+      total: var_total,
+    );
+  }
+
+  @protected
+  RealtimeStemsCapability sse_decode_realtime_stems_capability(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_avgHopMs = sse_decode_f_64(deserializer);
+    var var_realtime = sse_decode_f_64(deserializer);
+    var var_hops = sse_decode_u_32(deserializer);
+    var var_modelSha = sse_decode_String(deserializer);
+    var var_os = sse_decode_String(deserializer);
+    var var_arch = sse_decode_String(deserializer);
+    var var_cpuModel = sse_decode_opt_String(deserializer);
+    var var_cores = sse_decode_u_32(deserializer);
+    var var_minRealtime = sse_decode_f_64(deserializer);
+    var var_allowed = sse_decode_bool(deserializer);
+    return RealtimeStemsCapability(
+      avgHopMs: var_avgHopMs,
+      realtime: var_realtime,
+      hops: var_hops,
+      modelSha: var_modelSha,
+      os: var_os,
+      arch: var_arch,
+      cpuModel: var_cpuModel,
+      cores: var_cores,
+      minRealtime: var_minRealtime,
+      allowed: var_allowed,
+    );
   }
 
   @protected
@@ -15352,6 +15588,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_StreamSink_realtime_stems_benchmark_progress_Sse(
+    RustStreamSink<RealtimeStemsBenchmarkProgress> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_realtime_stems_benchmark_progress,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
@@ -15466,6 +15719,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.showCrossfader, serializer);
     sse_encode_bool(self.analyticsEnabled, serializer);
     sse_encode_bool(self.onboardingCompleted, serializer);
+    sse_encode_opt_box_autoadd_realtime_stems_capability(
+      self.realtimeStemsCapability,
+      serializer,
+    );
   }
 
   @protected
@@ -16052,6 +16309,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_play(Play self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_play(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_realtime_stems_capability(
+    RealtimeStemsCapability self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_realtime_stems_capability(self, serializer);
   }
 
   @protected
@@ -18152,6 +18418,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_realtime_stems_capability(
+    RealtimeStemsCapability? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_realtime_stems_capability(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_sampler_play_mode(
     SamplerPlayMode? self,
     SseSerializer serializer,
@@ -18263,6 +18542,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_play(Play self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self.deck, serializer);
+  }
+
+  @protected
+  void sse_encode_realtime_stems_benchmark_progress(
+    RealtimeStemsBenchmarkProgress self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.completed, serializer);
+    sse_encode_u_32(self.total, serializer);
+  }
+
+  @protected
+  void sse_encode_realtime_stems_capability(
+    RealtimeStemsCapability self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.avgHopMs, serializer);
+    sse_encode_f_64(self.realtime, serializer);
+    sse_encode_u_32(self.hops, serializer);
+    sse_encode_String(self.modelSha, serializer);
+    sse_encode_String(self.os, serializer);
+    sse_encode_String(self.arch, serializer);
+    sse_encode_opt_String(self.cpuModel, serializer);
+    sse_encode_u_32(self.cores, serializer);
+    sse_encode_f_64(self.minRealtime, serializer);
+    sse_encode_bool(self.allowed, serializer);
   }
 
   @protected
@@ -20100,9 +20407,37 @@ class SettingsTransportImpl extends RustOpaque implements SettingsTransport {
         .rust_arc_decrement_strong_count_SettingsTransportPtr,
   );
 
+  /// Measure this device's StemgenRT hop cost on the CPU EP.
+  ///
+  /// Ensures the model is on disk first (downloading it if needed), then runs
+  /// a warm-up plus `DEFAULT_BENCH_HOPS` timed hops on a private CPU session.
+  /// It never starts the live producer and never touches playback state, and
+  /// it runs on the FRB worker thread rather than the audio callback.
+  ///
+  /// `sink` receives hop progress; when the stream completes, the result is
+  /// available from [`Self::realtime_stems_capability`]. Returns without
+  /// measuring when the cached result still matches this device and model,
+  /// unless `force`.
+  Stream<RealtimeStemsBenchmarkProgress> benchmarkRealtimeStems({
+    required bool force,
+  }) => RustLib.instance.api
+      .crateApiSettingsSettingsTransportBenchmarkRealtimeStems(
+        that: this,
+        force: force,
+      );
+
   /// Current session settings (schema-validated).
   Future<AppSettings> getSettings() => RustLib.instance.api
       .crateApiSettingsSettingsTransportGetSettings(that: this);
+
+  /// Cached device benchmark backing the Realtime Stems gate.
+  ///
+  /// `None` means this device/model has not been measured yet (or the cached
+  /// result was for a different model or machine and was dropped).
+  Future<RealtimeStemsCapability?> realtimeStemsCapability() => RustLib
+      .instance
+      .api
+      .crateApiSettingsSettingsTransportRealtimeStemsCapability(that: this);
 
   /// Apply settings. Does not restart the engine or update the library —
   /// callers apply those separately (mirrors Flutter `saveAppSettings`).

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::bridge::BridgeResult;
+use crate::frb_generated::StreamSink;
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use bus_api::JogMode;
 use engine_core::{
@@ -19,6 +20,199 @@ const TARGET_LUFS_MAX: f32 = -9.0;
 const TARGET_LUFS_DEFAULT: f32 = -18.0;
 /// Sample rate `EngineConfig::default()` used before rates moved onto the buses.
 const LEGACY_DEFAULT_SAMPLE_RATE: u32 = 48_000;
+
+/// Realtime multiple a device must reach before Realtime Stems can be enabled.
+///
+/// `1.0` means the CPU keeps up exactly; the margin absorbs scheduler jitter and
+/// the deck's own per-hop work, so a device reported at 0.97× is not offered the
+/// feature even though it is close.
+pub const REALTIME_STEMS_MIN_MULTIPLE: f64 = 1.1;
+
+/// Key holding the benchmark cache alongside `AppSettings` in `settings.json`.
+const REALTIME_CAPABILITY_KEY: &str = "realtime_stems_capability";
+
+/// Device benchmark result backing the Realtime Stems gate.
+///
+/// Persisted next to the settings (local only, never sent anywhere) and
+/// invalidated when the StemgenRT model sha or the device fingerprint changes.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct RealtimeStemsCapability {
+    /// Mean wall time of one 128-frame hop on the CPU EP.
+    pub avg_hop_ms: f64,
+    /// `hop budget / avg_hop_ms`.
+    pub realtime: f64,
+    /// Timed hops in the measurement (warm-up excluded).
+    pub hops: u32,
+    /// SHA-256 of the model that was measured.
+    pub model_sha: String,
+    pub os: String,
+    pub arch: String,
+    /// CPU brand string when the platform exposes one.
+    pub cpu_model: Option<String>,
+    pub cores: u32,
+    /// Multiple this build requires; mirrors [`REALTIME_STEMS_MIN_MULTIPLE`]
+    /// so the UI can show the requirement without hardcoding it.
+    pub min_realtime: f64,
+    /// `realtime >= min_realtime`; the UI gates the switch on it.
+    pub allowed: bool,
+}
+
+/// Progress event for a running benchmark (hop counts, warm-up included).
+#[derive(Clone, Debug)]
+pub struct RealtimeStemsBenchmarkProgress {
+    pub completed: u32,
+    pub total: u32,
+}
+
+/// Everything that must match for a cached benchmark to stay valid.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+struct DeviceFingerprint {
+    os: String,
+    arch: String,
+    cpu_model: Option<String>,
+    cores: u32,
+}
+
+impl DeviceFingerprint {
+    fn current() -> Self {
+        Self {
+            os: std::env::consts::OS.to_owned(),
+            arch: std::env::consts::ARCH.to_owned(),
+            cpu_model: cpu_model(),
+            cores: std::thread::available_parallelism()
+                .map(|cores| u32::try_from(cores.get()).unwrap_or(u32::MAX))
+                .unwrap_or(0),
+        }
+    }
+}
+
+/// CPU brand string, when the host exposes one.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn cpu_model() -> Option<String> {
+    let text = std::fs::read_to_string("/proc/cpuinfo").ok()?;
+    for line in text.lines() {
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
+        let key = key.trim();
+        if !matches!(key, "model name" | "Hardware" | "Processor") {
+            continue;
+        }
+        let value = value.trim();
+        if !value.is_empty() {
+            return Some(value.to_owned());
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn cpu_model() -> Option<String> {
+    let output = std::process::Command::new("sysctl")
+        .args(["-n", "machdep.cpu.brand_string"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(output.stdout).ok()?;
+    let text = text.trim();
+    (!text.is_empty()).then(|| text.to_owned())
+}
+
+#[cfg(target_os = "windows")]
+fn cpu_model() -> Option<String> {
+    std::env::var("PROCESSOR_IDENTIFIER")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+}
+
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "macos",
+    target_os = "windows"
+)))]
+fn cpu_model() -> Option<String> {
+    None
+}
+
+impl RealtimeStemsCapability {
+    /// Whether a measured realtime multiple passes the gate.
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn realtime_allows(realtime: f64) -> bool {
+        realtime.is_finite() && realtime >= REALTIME_STEMS_MIN_MULTIPLE
+    }
+
+    /// Whether this measured device may enable Realtime Stems.
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn allows_live(&self) -> bool {
+        Self::realtime_allows(self.realtime)
+    }
+
+    fn fingerprint(&self) -> DeviceFingerprint {
+        DeviceFingerprint {
+            os: self.os.clone(),
+            arch: self.arch.clone(),
+            cpu_model: self.cpu_model.clone(),
+            cores: self.cores,
+        }
+    }
+
+    /// Cached result still describes this device and model.
+    fn is_current(&self, model_sha: &str, device: &DeviceFingerprint) -> bool {
+        self.model_sha == model_sha && self.fingerprint() == *device
+    }
+
+    /// Recompute the derived gate fields (after loading from disk).
+    fn refresh_derived(mut self) -> Self {
+        self.min_realtime = REALTIME_STEMS_MIN_MULTIPLE;
+        self.allowed = Self::realtime_allows(self.realtime);
+        self
+    }
+
+    #[cfg(feature = "stems")]
+    fn from_benchmark(
+        benchmark: analyzer_stems::HopBenchmark,
+        model_sha: String,
+        device: DeviceFingerprint,
+    ) -> Self {
+        Self {
+            avg_hop_ms: benchmark.avg_hop_ms,
+            realtime: benchmark.realtime,
+            hops: benchmark.hops,
+            model_sha,
+            os: device.os,
+            arch: device.arch,
+            cpu_model: device.cpu_model,
+            cores: device.cores,
+            min_realtime: REALTIME_STEMS_MIN_MULTIPLE,
+            allowed: Self::realtime_allows(benchmark.realtime),
+        }
+    }
+}
+
+/// SHA-256 of the StemgenRT artifact this build expects.
+///
+/// A cached benchmark from a different model is stale: the graph changed, so
+/// the hop cost did too.
+#[cfg(feature = "stems")]
+fn current_stemgen_sha() -> Option<String> {
+    let manifest = analyzer_stems::builtin_manifest(analyzer_stems::STEMGEN_MODEL).ok()?;
+    let artifact = manifest.resolve_primary_artifact().ok()?;
+    Some(artifact.sha256.clone())
+}
+
+#[cfg(not(feature = "stems"))]
+fn current_stemgen_sha() -> Option<String> {
+    None
+}
+
+/// A cached result is valid only for the same model and device.
+fn capability_matches_current(capability: &RealtimeStemsCapability) -> bool {
+    current_stemgen_sha()
+        .is_some_and(|sha| capability.is_current(&sha, &DeviceFingerprint::current()))
+}
 
 static SETTINGS: OnceLock<Arc<Mutex<SettingsHost>>> = OnceLock::new();
 
@@ -72,6 +266,87 @@ impl SettingsTransport {
         }
         *host = candidate;
         Ok(saved)
+    }
+
+    /// Cached device benchmark backing the Realtime Stems gate.
+    ///
+    /// `None` means this device/model has not been measured yet (or the cached
+    /// result was for a different model or machine and was dropped).
+    pub fn realtime_stems_capability(&self) -> Result<Option<RealtimeStemsCapability>, String> {
+        let host = self.host.lock().bridge()?;
+        Ok(host.realtime_capability.clone())
+    }
+
+    /// Measure this device's StemgenRT hop cost on the CPU EP.
+    ///
+    /// Ensures the model is on disk first (downloading it if needed), then runs
+    /// a warm-up plus `DEFAULT_BENCH_HOPS` timed hops on a private CPU session.
+    /// It never starts the live producer and never touches playback state, and
+    /// it runs on the FRB worker thread rather than the audio callback.
+    ///
+    /// `sink` receives hop progress; when the stream completes, the result is
+    /// available from [`Self::realtime_stems_capability`]. Returns without
+    /// measuring when the cached result still matches this device and model,
+    /// unless `force`.
+    #[cfg(feature = "stems")]
+    pub fn benchmark_realtime_stems(
+        &self,
+        force: bool,
+        sink: StreamSink<RealtimeStemsBenchmarkProgress>,
+    ) -> Result<(), String> {
+        if !force {
+            let cached = self.host.lock().bridge()?.realtime_capability.clone();
+            if cached.is_some_and(|capability| capability_matches_current(&capability)) {
+                return Ok(());
+            }
+        }
+
+        let models_root = crate::app_paths::ensure().join("models");
+        analyzer_stems::ensure_model(&models_root, analyzer_stems::STEMGEN_MODEL).bridge()?;
+        let model_sha = current_stemgen_sha()
+            .ok_or_else(|| "StemgenRT manifest has no artifact".to_string())?;
+        let handle = analyzer_stems::cached_model(&models_root, analyzer_stems::STEMGEN_MODEL)
+            .bridge()?
+            .ok_or_else(|| "StemgenRT model is missing after download".to_string())?;
+
+        let hops = analyzer_stems::DEFAULT_BENCH_HOPS;
+        let total = hops.saturating_add(analyzer_stems::WARMUP_HOPS);
+        let _ = sink.add(RealtimeStemsBenchmarkProgress {
+            completed: 0,
+            total,
+        });
+        let benchmark = analyzer_stems::benchmark_stemgen(
+            &handle.local_path,
+            hops,
+            analyzer_stems::WARMUP_HOPS,
+            Some(&|completed, total| {
+                // A hop costs a few milliseconds; a message per hop would flood
+                // the FFI channel. Report in tenths and always finish on the
+                // last hop so the bar lands at 100%.
+                if completed == total || completed % 10 == 0 {
+                    let _ = sink.add(RealtimeStemsBenchmarkProgress { completed, total });
+                }
+            }),
+        )
+        .bridge()?;
+
+        let capability = RealtimeStemsCapability::from_benchmark(
+            benchmark,
+            model_sha,
+            DeviceFingerprint::current(),
+        );
+        store_realtime_capability(capability)?;
+        Ok(())
+    }
+
+    /// Realtime Stems is CPU-only and built without ONNX Runtime on this target.
+    #[cfg(not(feature = "stems"))]
+    pub fn benchmark_realtime_stems(
+        &self,
+        _force: bool,
+        _sink: StreamSink<RealtimeStemsBenchmarkProgress>,
+    ) -> Result<(), String> {
+        Err("Realtime Stems is not available in this build (no ONNX Runtime)".to_string())
     }
 }
 
@@ -483,6 +758,9 @@ pub struct AppSettings {
     pub stems_model: String,
     /// Live separation fallback for tracks without cached stems. Offline
     /// stems always take priority; quality is lower and it uses a CPU core.
+    ///
+    /// Gated by [`Self::realtime_stems_capability`]: it only stays `true` when
+    /// this device's CPU benchmark reached realtime with margin.
     #[serde(default)]
     pub realtime_stems: bool,
     #[serde(default)]
@@ -521,6 +799,13 @@ pub struct AppSettings {
     /// First-run setup finished or skipped. Fresh installs start `false`.
     #[serde(default)]
     pub onboarding_completed: bool,
+    /// Cached CPU benchmark backing the Realtime Stems gate.
+    ///
+    /// Read-only from Dart: the settings host owns the measurement, and
+    /// `apply_settings` keeps its own copy, so a save can never clear or forge
+    /// it. `None` until the benchmark runs on this device/model.
+    #[serde(default)]
+    pub realtime_stems_capability: Option<RealtimeStemsCapability>,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -554,6 +839,8 @@ struct SettingsHost {
     stems_format: String,
     stems_model: String,
     realtime_stems: bool,
+    /// Last CPU benchmark backing the Realtime Stems gate.
+    realtime_capability: Option<RealtimeStemsCapability>,
     ui_language: UiLanguageSetting,
     theme: ThemeSetting,
     accent_palette: AccentPaletteSetting,
@@ -599,6 +886,7 @@ impl Default for SettingsHost {
             stems_format: default_stems_format(),
             stems_model: default_stems_model(),
             realtime_stems: false,
+            realtime_capability: None,
             ui_language: UiLanguageSetting::default(),
             theme: ThemeSetting::default(),
             accent_palette: AccentPaletteSetting::default(),
@@ -932,6 +1220,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         show_crossfader: host.show_crossfader,
         analytics_enabled: host.analytics_enabled,
         onboarding_completed: host.onboarding_completed,
+        realtime_stems_capability: host.realtime_capability.clone(),
     }
 }
 
@@ -977,7 +1266,18 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
     host.stems_model = settings.stems_model;
-    host.realtime_stems = settings.realtime_stems;
+    // Realtime Stems is a measured capability, not a plain preference. A stale
+    // settings file or a direct caller may ask for it on a device that never
+    // passed the benchmark; keep it off there rather than starting a producer
+    // that cannot keep up.
+    let capability_allows = host
+        .realtime_capability
+        .as_ref()
+        .is_some_and(RealtimeStemsCapability::allows_live);
+    host.realtime_stems = settings.realtime_stems && capability_allows;
+    // `realtime_stems_capability` is deliberately not copied back: it is a
+    // measurement owned by the host, and a Dart save echoes whatever it last
+    // read. Only the benchmark command replaces it.
     host.ui_language = settings.ui_language;
     host.theme = settings.theme;
     host.accent_palette = settings.accent_palette;
@@ -999,6 +1299,9 @@ fn load_host(path: &Path) -> SettingsHost {
         persist_path: Some(path.to_path_buf()),
         ..SettingsHost::default()
     };
+    // The cache must be in place before the settings apply, so a saved
+    // `realtime_stems: true` is re-gated against this device.
+    host.realtime_capability = read_capability_file(path);
     if let Some(settings) = read_settings_file(path) {
         let _ = apply_to_host(&mut host, settings);
     }
@@ -1011,6 +1314,9 @@ fn bind_persist_path(host: &mut SettingsHost, path: PathBuf) {
     }
     host.persist_path = Some(path.clone());
     if !host.configured {
+        if host.realtime_capability.is_none() {
+            host.realtime_capability = read_capability_file(&path);
+        }
         if let Some(settings) = read_settings_file(&path) {
             let _ = apply_to_host(host, settings);
         }
@@ -1087,6 +1393,8 @@ fn write_settings_file(path: &Path, settings: &AppSettings) -> Result<(), String
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).bridge()?;
     }
+    // `AppSettings` carries the benchmark cache as a read-only field, so every
+    // write (a Dart save included) preserves the host's last measurement.
     let json = serde_json::to_vec_pretty(settings).bridge()?;
     let mut tmp = path.as_os_str().to_os_string();
     tmp.push(".tmp");
@@ -1094,6 +1402,18 @@ fn write_settings_file(path: &Path, settings: &AppSettings) -> Result<(), String
     std::fs::write(&tmp, json).bridge()?;
     std::fs::rename(&tmp, path).bridge()?;
     Ok(())
+}
+
+/// Read the benchmark cache from a settings file.
+///
+/// Stale entries (different model sha or device) are dropped here, so callers
+/// only ever see a result this machine can act on.
+fn read_capability_file(path: &Path) -> Option<RealtimeStemsCapability> {
+    let bytes = std::fs::read(path).ok()?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    let capability: RealtimeStemsCapability =
+        serde_json::from_value(value.get(REALTIME_CAPABILITY_KEY)?.clone()).ok()?;
+    Some(capability.refresh_derived()).filter(capability_matches_current)
 }
 
 fn normalizer_target(enabled: bool, target_lufs: f32) -> Option<f32> {
@@ -1110,13 +1430,36 @@ pub(crate) fn settings_engine_config() -> Result<EngineConfig, String> {
 /// Whether the opt-in live StemgenRT filter is enabled for this session.
 ///
 /// Defaults to `false`; a poisoned host lock is treated as disabled so the
-/// audio/load path never starts live separation unexpectedly.
+/// audio/load path never starts live separation unexpectedly. The capability
+/// must also still pass the gate, so a stale `true` cannot outlive a model or
+/// device change.
 #[cfg(feature = "stems")]
 pub(crate) fn settings_realtime_stems_enabled() -> bool {
     let host = shared_host();
     host.lock()
-        .map(|guard| guard.realtime_stems)
+        .map(|guard| {
+            guard.realtime_stems
+                && guard
+                    .realtime_capability
+                    .as_ref()
+                    .is_some_and(RealtimeStemsCapability::allows_live)
+        })
         .unwrap_or(false)
+}
+
+/// Store a fresh benchmark and re-gate the live setting with it.
+#[cfg(feature = "stems")]
+fn store_realtime_capability(capability: RealtimeStemsCapability) -> Result<(), String> {
+    let host = shared_host();
+    let mut guard = host.lock().bridge()?;
+    // A device that just failed must not keep the switch on from an older run.
+    guard.realtime_stems = guard.realtime_stems && capability.allows_live();
+    guard.realtime_capability = Some(capability);
+    if let Some(path) = guard.persist_path.clone() {
+        let settings = parse_settings(settings_from_host(&guard))?;
+        write_settings_file(&path, &settings)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn settings_host_runtime() -> Result<(Option<f32>, JogMode, JogMode), String> {
@@ -2166,5 +2509,153 @@ mod tests {
     #[test]
     fn legacy_settings_default_onboarding_incomplete() {
         assert!(!legacy_settings_without("onboarding_completed").onboarding_completed);
+    }
+
+    #[test]
+    fn realtime_stems_needs_a_margin_over_exact_realtime() {
+        assert!(
+            !RealtimeStemsCapability::realtime_allows(1.0),
+            "1.0x is exact realtime and has no headroom"
+        );
+        assert!(!RealtimeStemsCapability::realtime_allows(1.099));
+        assert!(RealtimeStemsCapability::realtime_allows(
+            REALTIME_STEMS_MIN_MULTIPLE
+        ));
+        assert!(RealtimeStemsCapability::realtime_allows(1.5));
+        assert!(!RealtimeStemsCapability::realtime_allows(f64::NAN));
+    }
+
+    /// A measured device result; `allowed` is derived from `realtime`.
+    #[cfg(feature = "stems")]
+    fn capability_with(realtime: f64) -> RealtimeStemsCapability {
+        let device = DeviceFingerprint::current();
+        RealtimeStemsCapability {
+            avg_hop_ms: analyzer_stems::HOP_BUDGET_MS / realtime,
+            realtime,
+            hops: analyzer_stems::DEFAULT_BENCH_HOPS,
+            model_sha: current_stemgen_sha().expect("builtin StemgenRT manifest"),
+            os: device.os,
+            arch: device.arch,
+            cpu_model: device.cpu_model,
+            cores: device.cores,
+            min_realtime: REALTIME_STEMS_MIN_MULTIPLE,
+            allowed: RealtimeStemsCapability::realtime_allows(realtime),
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "stems")]
+    fn realtime_stems_stays_off_without_a_passing_benchmark() {
+        let mut requested = sample_settings();
+        requested.realtime_stems = true;
+
+        let mut unmeasured = SettingsHost::default();
+        apply_to_host(&mut unmeasured, requested.clone()).expect("apply");
+        assert!(
+            !unmeasured.realtime_stems,
+            "a device that was never benchmarked cannot enable live stems"
+        );
+
+        let mut too_slow = SettingsHost {
+            realtime_capability: Some(capability_with(0.97)),
+            ..SettingsHost::default()
+        };
+        apply_to_host(&mut too_slow, requested.clone()).expect("apply");
+        assert!(!too_slow.realtime_stems, "0.97x is below the 1.1x margin");
+
+        let mut fast_enough = SettingsHost {
+            realtime_capability: Some(capability_with(1.4)),
+            ..SettingsHost::default()
+        };
+        apply_to_host(&mut fast_enough, requested).expect("apply");
+        assert!(fast_enough.realtime_stems);
+    }
+
+    #[test]
+    #[cfg(feature = "stems")]
+    fn cached_benchmark_is_invalidated_by_model_or_device_change() {
+        let device = DeviceFingerprint::current();
+        let capability = capability_with(1.4);
+        assert!(capability.is_current(&capability.model_sha, &device));
+
+        assert!(
+            !capability.is_current("a-different-model", &device),
+            "a new model sha must force a re-probe"
+        );
+
+        let mut other_cores = device.clone();
+        other_cores.cores = other_cores.cores.saturating_add(1);
+        assert!(!capability.is_current(&capability.model_sha, &other_cores));
+
+        let mut other_cpu = device.clone();
+        other_cpu.cpu_model = Some("Another CPU".into());
+        assert!(!capability.is_current(&capability.model_sha, &other_cpu));
+
+        let mut other_os = device.clone();
+        other_os.os = "another-os".into();
+        assert!(!capability.is_current(&capability.model_sha, &other_os));
+    }
+
+    #[test]
+    #[cfg(feature = "stems")]
+    fn benchmark_cache_round_trips_in_settings_json() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let capability = capability_with(1.4);
+        let mut settings = sample_settings();
+        settings.realtime_stems_capability = Some(capability.clone());
+        write_settings_file(&path, &settings).expect("write");
+
+        let loaded = load_host(&path)
+            .realtime_capability
+            .expect("cache survives");
+        assert!((loaded.realtime - 1.4).abs() < 1e-9);
+        assert!(loaded.allowed);
+        assert_eq!(loaded.model_sha, capability.model_sha);
+    }
+
+    #[test]
+    #[cfg(feature = "stems")]
+    fn stale_benchmark_is_dropped_and_disables_live_stems_on_load() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+
+        let mut stale = capability_with(1.4);
+        stale.model_sha = "an-older-model".into();
+        let mut requested = sample_settings();
+        requested.realtime_stems = true;
+        requested.realtime_stems_capability = Some(stale);
+        write_settings_file(&path, &requested).expect("write");
+
+        let loaded = load_host(&path);
+        assert!(
+            loaded.realtime_capability.is_none(),
+            "a cache for another model must not survive the load"
+        );
+        assert!(
+            !loaded.realtime_stems,
+            "the saved opt-in is re-gated against the current device"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "stems")]
+    fn apply_keeps_the_host_measurement_and_ignores_the_dto_copy() {
+        // Dart echoes the capability back on every save; the host owns the
+        // measurement, so a stale or forged DTO value must not win.
+        let mut host = SettingsHost {
+            realtime_capability: Some(capability_with(1.4)),
+            ..SettingsHost::default()
+        };
+        let mut echoed = sample_settings();
+        echoed.realtime_stems_capability = Some(capability_with(0.5));
+        apply_to_host(&mut host, echoed).expect("apply");
+
+        let kept = host.realtime_capability.as_ref().expect("measurement kept");
+        assert!((kept.realtime - 1.4).abs() < 1e-9);
+        let exposed = settings_from_host(&host)
+            .realtime_stems_capability
+            .expect("DTO carries the measurement");
+        assert!((exposed.realtime - 1.4).abs() < 1e-9);
     }
 }

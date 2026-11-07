@@ -110,6 +110,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     final settingsAsync = ref.watch(appSettingsProvider);
+    final benchmark = ref.watch(realtimeStemsBenchmarkProvider);
 
     return settingsAsync.when(
       loading: () => Center(
@@ -214,6 +215,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         draft: draft,
                         highlightPreviewBus: _highlightPreviewBus,
                         previewBusCardKey: _previewBusCardKey,
+                        realtimeStemsCapability:
+                            benchmark.capability ??
+                            draft.realtimeStemsCapability,
+                        benchmarkRunning: benchmark.running,
+                        benchmarkFraction: benchmark.fraction,
+                        benchmarkError: benchmark.error,
+                        onRunRealtimeStemsBenchmark: () => ref
+                            .read(realtimeStemsBenchmarkProvider.notifier)
+                            .run(),
                         onChanged: (next) => setState(() => _draft = next),
                       ),
                     ),
@@ -357,6 +367,11 @@ class _SettingsSectionPanel extends StatelessWidget {
     required this.draft,
     required this.onChanged,
     required this.previewBusCardKey,
+    required this.realtimeStemsCapability,
+    required this.benchmarkRunning,
+    required this.benchmarkFraction,
+    required this.benchmarkError,
+    required this.onRunRealtimeStemsBenchmark,
     this.highlightPreviewBus = false,
   });
 
@@ -364,6 +379,11 @@ class _SettingsSectionPanel extends StatelessWidget {
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
   final GlobalKey previewBusCardKey;
+  final RealtimeStemsCapability? realtimeStemsCapability;
+  final bool benchmarkRunning;
+  final double? benchmarkFraction;
+  final String? benchmarkError;
+  final VoidCallback onRunRealtimeStemsBenchmark;
   final bool highlightPreviewBus;
 
   @override
@@ -378,6 +398,11 @@ class _SettingsSectionPanel extends StatelessWidget {
       SettingsSection.mixer => SettingsMixerPanel(
         draft: draft,
         onChanged: onChanged,
+        capability: realtimeStemsCapability,
+        benchmarkRunning: benchmarkRunning,
+        benchmarkFraction: benchmarkFraction,
+        benchmarkError: benchmarkError,
+        onRunBenchmark: onRunRealtimeStemsBenchmark,
       ),
       SettingsSection.waveform => SettingsWaveformPanel(
         draft: draft,

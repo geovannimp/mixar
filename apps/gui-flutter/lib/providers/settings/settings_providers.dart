@@ -83,6 +83,90 @@ final realtimeStemsEnabledProvider = Provider<bool>((ref) {
   return settings?.realtimeStems ?? false;
 });
 
+/// Progress and result of the CPU capability benchmark.
+///
+/// The capability is persisted by the host in app settings; this state carries
+/// the fresh result so the panel updates before the settings provider reloads.
+class RealtimeStemsBenchmarkRun {
+  const new({
+    this.running = false,
+    this.completed = 0,
+    this.total = 0,
+    this.error,
+    this.capability,
+  });
+
+  final bool running;
+  final int completed;
+  final int total;
+  final String? error;
+  final RealtimeStemsCapability? capability;
+
+  double? get fraction => total <= 0 ? null : (completed / total).clamp(0, 1);
+
+  RealtimeStemsBenchmarkRun copyWith({
+    bool? running,
+    int? completed,
+    int? total,
+    String? error,
+    RealtimeStemsCapability? capability,
+  }) {
+    return RealtimeStemsBenchmarkRun(
+      running: running ?? this.running,
+      completed: completed ?? this.completed,
+      total: total ?? this.total,
+      error: error,
+      capability: capability ?? this.capability,
+    );
+  }
+}
+
+/// Runs the StemgenRT CPU probe and exposes its progress.
+///
+/// The probe runs off the audio thread, never starts the live producer, and
+/// only writes the host's benchmark cache. The Realtime Stems switch stays
+/// gated on the measured result.
+class RealtimeStemsBenchmark extends Notifier<RealtimeStemsBenchmarkRun> {
+  @override
+  RealtimeStemsBenchmarkRun build() => const RealtimeStemsBenchmarkRun();
+
+  Future<void> run({bool force = true}) async {
+    if (state.running) {
+      return;
+    }
+    state = RealtimeStemsBenchmarkRun(
+      running: true,
+      capability: state.capability,
+    );
+    try {
+      final settings = await ref.read(settingsTransportProvider.future);
+      await for (final progress in settings.benchmarkRealtimeStems(
+        force: force,
+      )) {
+        state = state.copyWith(
+          running: true,
+          completed: progress.completed,
+          total: progress.total,
+        );
+      }
+      final capability = await settings.realtimeStemsCapability();
+      // The host re-gates `realtime_stems` with the new measurement.
+      ref.invalidate(appSettingsProvider);
+      state = RealtimeStemsBenchmarkRun(capability: capability);
+    } on Object catch (error) {
+      state = RealtimeStemsBenchmarkRun(
+        error: '$error',
+        capability: state.capability,
+      );
+    }
+  }
+}
+
+final realtimeStemsBenchmarkProvider =
+    NotifierProvider<RealtimeStemsBenchmark, RealtimeStemsBenchmarkRun>(
+      RealtimeStemsBenchmark.new,
+    );
+
 /// Saved library row layout, the default the list renders with.
 final libraryRowDensitySettingProvider = Provider<LibraryRowDensity>((ref) {
   return ref

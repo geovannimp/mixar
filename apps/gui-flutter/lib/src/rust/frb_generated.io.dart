@@ -168,6 +168,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustStreamSink<Event> dco_decode_StreamSink_event_Sse(dynamic raw);
 
   @protected
+  RustStreamSink<RealtimeStemsBenchmarkProgress>
+  dco_decode_StreamSink_realtime_stems_benchmark_progress_Sse(dynamic raw);
+
+  @protected
   String dco_decode_String(dynamic raw);
 
   @protected
@@ -403,6 +407,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Play dco_decode_box_autoadd_play(dynamic raw);
+
+  @protected
+  RealtimeStemsCapability dco_decode_box_autoadd_realtime_stems_capability(
+    dynamic raw,
+  );
 
   @protected
   RecallSavedLoop dco_decode_box_autoadd_recall_saved_loop(dynamic raw);
@@ -956,6 +965,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LoopRegion? dco_decode_opt_box_autoadd_loop_region(dynamic raw);
 
   @protected
+  RealtimeStemsCapability? dco_decode_opt_box_autoadd_realtime_stems_capability(
+    dynamic raw,
+  );
+
+  @protected
   SamplerPlayMode? dco_decode_opt_box_autoadd_sampler_play_mode(dynamic raw);
 
   @protected
@@ -990,6 +1004,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Play dco_decode_play(dynamic raw);
+
+  @protected
+  RealtimeStemsBenchmarkProgress dco_decode_realtime_stems_benchmark_progress(
+    dynamic raw,
+  );
+
+  @protected
+  RealtimeStemsCapability dco_decode_realtime_stems_capability(dynamic raw);
 
   @protected
   RecallSavedLoop dco_decode_recall_saved_loop(dynamic raw);
@@ -1349,6 +1371,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustStreamSink<RealtimeStemsBenchmarkProgress>
+  sse_decode_StreamSink_realtime_stems_benchmark_progress_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
@@ -1658,6 +1686,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Play sse_decode_box_autoadd_play(SseDeserializer deserializer);
+
+  @protected
+  RealtimeStemsCapability sse_decode_box_autoadd_realtime_stems_capability(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RecallSavedLoop sse_decode_box_autoadd_recall_saved_loop(
@@ -2361,6 +2394,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RealtimeStemsCapability? sse_decode_opt_box_autoadd_realtime_stems_capability(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SamplerPlayMode? sse_decode_opt_box_autoadd_sampler_play_mode(
     SseDeserializer deserializer,
   );
@@ -2399,6 +2437,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Play sse_decode_play(SseDeserializer deserializer);
+
+  @protected
+  RealtimeStemsBenchmarkProgress sse_decode_realtime_stems_benchmark_progress(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RealtimeStemsCapability sse_decode_realtime_stems_capability(
+    SseDeserializer deserializer,
+  );
 
   @protected
   RecallSavedLoop sse_decode_recall_saved_loop(SseDeserializer deserializer);
@@ -2802,6 +2850,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_realtime_stems_benchmark_progress_Sse(
+    RustStreamSink<RealtimeStemsBenchmarkProgress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
@@ -3190,6 +3244,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_play(Play self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_realtime_stems_capability(
+    RealtimeStemsCapability self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_recall_saved_loop(
@@ -4086,6 +4146,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_realtime_stems_capability(
+    RealtimeStemsCapability? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_sampler_play_mode(
     SamplerPlayMode? self,
     SseSerializer serializer,
@@ -4129,6 +4195,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_play(Play self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_realtime_stems_benchmark_progress(
+    RealtimeStemsBenchmarkProgress self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_realtime_stems_capability(
+    RealtimeStemsCapability self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_recall_saved_loop(

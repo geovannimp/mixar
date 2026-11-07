@@ -1401,6 +1401,48 @@ abstract class AppLocalizations {
   /// **'Quality is lower and it uses a CPU core.'**
   String get settingsMixerRealtimeStemsWarning;
 
+  /// No description provided for @settingsMixerRealtimeStemsBenchmarkNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Run the benchmark to check this device keeps up with realtime stems.'**
+  String get settingsMixerRealtimeStemsBenchmarkNeeded;
+
+  /// No description provided for @settingsMixerRealtimeStemsMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'Measured {realtime}× realtime ({hopMs} ms per hop).'**
+  String settingsMixerRealtimeStemsMeasured(String realtime, String hopMs);
+
+  /// No description provided for @settingsMixerRealtimeStemsTooSlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Too slow: {realtime}× measured, {required}× required.'**
+  String settingsMixerRealtimeStemsTooSlow(String realtime, String required);
+
+  /// No description provided for @settingsMixerRealtimeStemsRunBenchmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Run benchmark'**
+  String get settingsMixerRealtimeStemsRunBenchmark;
+
+  /// No description provided for @settingsMixerRealtimeStemsRerunBenchmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-run benchmark'**
+  String get settingsMixerRealtimeStemsRerunBenchmark;
+
+  /// No description provided for @settingsMixerRealtimeStemsBenchmarking.
+  ///
+  /// In en, this message translates to:
+  /// **'Benchmarking…'**
+  String get settingsMixerRealtimeStemsBenchmarking;
+
+  /// No description provided for @settingsMixerRealtimeStemsBenchmarkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Benchmark failed: {error}'**
+  String settingsMixerRealtimeStemsBenchmarkFailed(String error);
+
   /// No description provided for @settingsWaveformDescription.
   ///
   /// In en, this message translates to:

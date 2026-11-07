@@ -280,6 +280,40 @@
   "settingsMixerRealtimeStemsDescription": "Separates tracks without cached stems while they play. Tracks with offline stems always take priority.",
   "settingsMixerRealtimeStemsNotRecommended": "Not recommended.",
   "settingsMixerRealtimeStemsWarning": "Quality is lower and it uses a CPU core.",
+  "settingsMixerRealtimeStemsBenchmarkNeeded": "Run the benchmark to check this device keeps up with realtime stems.",
+  "settingsMixerRealtimeStemsMeasured": "Measured {realtime}× realtime ({hopMs} ms per hop).",
+  "@settingsMixerRealtimeStemsMeasured": {
+    "placeholders": {
+      "realtime": {
+        "type": "String"
+      },
+      "hopMs": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsMixerRealtimeStemsTooSlow": "Too slow: {realtime}× measured, {required}× required.",
+  "@settingsMixerRealtimeStemsTooSlow": {
+    "placeholders": {
+      "realtime": {
+        "type": "String"
+      },
+      "required": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsMixerRealtimeStemsRunBenchmark": "Run benchmark",
+  "settingsMixerRealtimeStemsRerunBenchmark": "Re-run benchmark",
+  "settingsMixerRealtimeStemsBenchmarking": "Benchmarking…",
+  "settingsMixerRealtimeStemsBenchmarkFailed": "Benchmark failed: {error}",
+  "@settingsMixerRealtimeStemsBenchmarkFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "settingsWaveformDescription": "RGB mixes low/mid/high into one color. Filtered stacks the three bands.",
   "settingsWaveformDisplayTitle": "Display",
   "settingsWaveformDisplayDescription": "RGB mixes low/mid/high into one color. Filtered stacks the three bands.",

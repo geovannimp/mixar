@@ -730,6 +730,34 @@ class AppLocalizationsEn extends AppLocalizations {
       'Quality is lower and it uses a CPU core.';
 
   @override
+  String get settingsMixerRealtimeStemsBenchmarkNeeded =>
+      'Run the benchmark to check this device keeps up with realtime stems.';
+
+  @override
+  String settingsMixerRealtimeStemsMeasured(String realtime, String hopMs) {
+    return 'Measured $realtime× realtime ($hopMs ms per hop).';
+  }
+
+  @override
+  String settingsMixerRealtimeStemsTooSlow(String realtime, String required) {
+    return 'Too slow: $realtime× measured, $required× required.';
+  }
+
+  @override
+  String get settingsMixerRealtimeStemsRunBenchmark => 'Run benchmark';
+
+  @override
+  String get settingsMixerRealtimeStemsRerunBenchmark => 'Re-run benchmark';
+
+  @override
+  String get settingsMixerRealtimeStemsBenchmarking => 'Benchmarking…';
+
+  @override
+  String settingsMixerRealtimeStemsBenchmarkFailed(String error) {
+    return 'Benchmark failed: $error';
+  }
+
+  @override
   String get settingsWaveformDescription =>
       'RGB mixes low/mid/high into one color. Filtered stacks the three bands.';
 
