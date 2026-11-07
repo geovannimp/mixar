@@ -101,6 +101,28 @@ void main() {
     });
   });
 
+  group('effective routes', () {
+    test('uses the live override when one owns the bus', () {
+      final override = _build(
+        defaultAppSettings(),
+        _hints,
+        _device('ddj', 'DDJ-400'),
+      )!;
+      final settings = copyAppSettings(
+        defaultAppSettings(),
+        controllerAudioOverride: override,
+      );
+      expect(effectiveMasterBus(settings).deviceId, 'ddj');
+      expect(effectivePreviewBus(settings).deviceId, 'ddj');
+    });
+
+    test('falls back to the saved routes without an override', () {
+      final settings = defaultAppSettings();
+      expect(effectiveMasterBus(settings), settings.masterBus);
+      expect(effectivePreviewBus(settings), settings.previewBus);
+    });
+  });
+
   group('buildControllerAudioOverride', () {
     test('routes master and headphone buses', () {
       final override = _build(
@@ -133,7 +155,7 @@ void main() {
       expect(override?.previewOverridden, isFalse);
     });
 
-    test('does nothing when the master bus already uses the device', () {
+    test('offers again when only the saved route matches', () {
       final device = _device('ddj', 'DDJ-400');
       final settings = copyAppSettings(
         defaultAppSettings(),
@@ -145,8 +167,10 @@ void main() {
           lowLatency: false,
         ),
       );
-      expect(_build(settings, _hints, device), isNull);
-      expect(controllerAudioAlreadyRouted(settings, _hints, device), isTrue);
+      // An older build may have persisted the controller into the saved route;
+      // a live override must still be created and offered.
+      expect(_build(settings, _hints, device), isNotNull);
+      expect(controllerAudioAlreadyRouted(settings, device), isFalse);
     });
 
     test('sees an existing runtime override as already routed', () {
@@ -157,13 +181,13 @@ void main() {
         controllerAudioOverride: active,
       );
       expect(_build(settings, _hints, device), isNull);
-      expect(controllerAudioAlreadyRouted(settings, _hints, device), isTrue);
+      expect(controllerAudioAlreadyRouted(settings, device), isTrue);
     });
 
-    test('treats a default-aliased route as already on a default device', () {
+    test('offers again when a saved default alias happens to match', () {
       final device = _device('ddj', 'DDJ-400', isDefault: true);
       final settings = defaultAppSettings();
-      expect(controllerAudioAlreadyRouted(settings, _hints, device), isTrue);
+      expect(controllerAudioAlreadyRouted(settings, device), isFalse);
     });
 
     test('returns null when the mapping declares no routes', () {

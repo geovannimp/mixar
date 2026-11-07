@@ -105,6 +105,24 @@ void main() {
     );
   }
 
+  test('hides the backend default alias from the device list', () {
+    final alias = OutputDevice(
+      id: 'cpal:pipewire:output_default',
+      name: 'System default',
+      isDefault: true,
+      maxChannels: 2,
+      defaultSampleRates: Uint32List.fromList([48000]),
+      sampleRateRanges: const [SampleRateRange(min: 48000, max: 48000)],
+      mixSampleRate: 48000,
+    );
+    final visible = selectableAudioDevices([
+      ...devices,
+      alias,
+    ], 'System default');
+    expect(visible.where((device) => device.name == 'System default'), isEmpty);
+    expect(visible, hasLength(devices.length));
+  });
+
   testWidgets('the default rate option names the device mix rate', (
     tester,
   ) async {

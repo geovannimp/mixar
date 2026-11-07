@@ -17,12 +17,17 @@ class SettingsBusRouteFields extends StatelessWidget {
     required this.devicesLoading,
     required this.onChanged,
     this.siblingBus,
+    this.readOnly = false,
   });
 
   final BusRouteSettings route;
   final List<OutputDevice> devices;
   final bool devicesLoading;
   final ValueChanged<BusRouteSettings> onChanged;
+
+  /// True while a live controller override owns this bus. The fields show the
+  /// active route but cannot be edited until the controller detaches.
+  final bool readOnly;
 
   /// The other live bus, when it exists. Buses on one device share one stream, so
   /// an explicit rate there decides the rate a "Device default" bus actually runs at.
@@ -42,7 +47,7 @@ class SettingsBusRouteFields extends StatelessWidget {
         defaultSampleRates: Uint32List(0),
         sampleRateRanges: const [],
       ),
-      ...devices.where((d) => d.id != 'default'),
+      ...selectableAudioDevices(devices, l10n.settingsSystemDefault),
     ];
     final selectedId = deviceOptions.any((d) => d.id == route.deviceId)
         ? route.deviceId
@@ -73,6 +78,7 @@ class SettingsBusRouteFields extends StatelessWidget {
             dialogTitle: l10n.settingsAudioDevice,
             value: selectedId,
             options: [for (final device in deviceOptions) device.id],
+            enabled: !readOnly,
             labelBuilder: (id) {
               final device = deviceOptions.firstWhere((d) => d.id == id);
               if (device.isDefault) {
@@ -107,6 +113,7 @@ class SettingsBusRouteFields extends StatelessWidget {
         SettingsCheckbox(
           label: l10n.settingsAudioLowLatency,
           value: route.lowLatency,
+          enabled: !readOnly,
           onChanged: (lowLatency) => onChanged(
             BusRouteSettings(
               deviceId: route.deviceId,
@@ -128,7 +135,7 @@ class SettingsBusRouteFields extends StatelessWidget {
             dialogTitle: l10n.settingsAudioSampleRate,
             value: route.sampleRate ?? 0,
             options: rateOptions,
-            enabled: !devicesLoading && rateOptions.length > 1,
+            enabled: !readOnly && !devicesLoading && rateOptions.length > 1,
             labelBuilder: (rate) =>
                 _rateLabel(l10n, busDevice, rate, inheritedRate),
             onChanged: (rate) => onChanged(
@@ -151,6 +158,7 @@ class SettingsBusRouteFields extends StatelessWidget {
             dialogTitle: l10n.settingsAudioChannelMode,
             value: route.mode,
             options: BusChannelMode.values,
+            enabled: !readOnly,
             labelBuilder: (m) => m == BusChannelMode.stereo
                 ? l10n.settingsAudioStereoPair
                 : l10n.settingsAudioMonoFold,
@@ -175,6 +183,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                 child: _ChannelStepper(
                   value: route.leftChannel,
                   maxChannels: maxChannels,
+                  enabled: !readOnly,
                   onChanged: (v) => onChanged(
                     BusRouteSettings(
                       deviceId: route.deviceId,
@@ -195,7 +204,7 @@ class SettingsBusRouteFields extends StatelessWidget {
                 child: _ChannelStepper(
                   value: route.rightChannel,
                   maxChannels: maxChannels,
-                  enabled: route.mode == BusChannelMode.stereo,
+                  enabled: !readOnly && route.mode == BusChannelMode.stereo,
                   onChanged: (v) => onChanged(
                     BusRouteSettings(
                       deviceId: route.deviceId,
@@ -224,6 +233,29 @@ class SettingsBusRouteFields extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Devices offered under the synthetic "System default" entry.
+///
+/// The backend exposes a "System default" / `*_default` alias beside the real
+/// devices; listing it would duplicate the localized entry.
+List<OutputDevice> selectableAudioDevices(
+  List<OutputDevice> devices,
+  String systemDefaultLabel,
+) {
+  final hiddenNames = {
+    'system default',
+    'output_default',
+    'sink_default',
+    systemDefaultLabel.trim().toLowerCase(),
+  };
+  return devices.where((device) {
+    final name = device.name.trim().toLowerCase();
+    return device.id != 'default' &&
+        !hiddenNames.contains(name) &&
+        !device.id.endsWith(':output_default') &&
+        !device.id.endsWith(':sink_default');
+  }).toList();
 }
 
 int _maxChannelsFor(List<OutputDevice> devices, String deviceId) {

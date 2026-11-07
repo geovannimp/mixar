@@ -77,23 +77,9 @@ bool busRouteUsesDeviceId(BusRouteSettings route, String deviceId) =>
 
 /// Whether the controller's declared output is already in use, so the prompt
 /// can stay quiet after the user has switched (or configured it by hand).
-bool controllerAudioAlreadyRouted(
-  AppSettings settings,
-  ControllerAudioHints hints,
-  OutputDevice device,
-) {
+bool controllerAudioAlreadyRouted(AppSettings settings, OutputDevice device) {
   final active = settings.controllerAudioOverride;
-  if (active != null && active.outputDeviceId == device.id) {
-    return true;
-  }
-  if (hints.masterChannels != null) {
-    return busRouteUsesDevice(settings.masterBus, device);
-  }
-  if (hints.headphoneChannels != null) {
-    return settings.previewEnabled &&
-        busRouteUsesDevice(settings.previewBus, device);
-  }
-  return false;
+  return active != null && active.outputDeviceId == device.id;
 }
 
 /// Whether this controller is configured to switch the output buses on attach
@@ -104,6 +90,23 @@ bool controllerAudioAlwaysSwitch(
 ) =>
     controllerDeviceId.isNotEmpty &&
     settings.alwaysSwitchAudioDeviceIds.contains(controllerDeviceId);
+
+/// The master route the engine is actually running: the live override when one
+/// owns master, otherwise the saved route.
+BusRouteSettings effectiveMasterBus(AppSettings settings) {
+  final override = settings.controllerAudioOverride;
+  return override != null && override.masterOverridden
+      ? override.masterBus
+      : settings.masterBus;
+}
+
+/// The preview route the engine is actually running.
+BusRouteSettings effectivePreviewBus(AppSettings settings) {
+  final override = settings.controllerAudioOverride;
+  return override != null && override.previewOverridden
+      ? override.previewBus
+      : settings.previewBus;
+}
 
 /// Whether [master] (or the preview bus) currently runs on the device a
 /// controller mapping moved it to. Drives the Settings badges.
@@ -132,7 +135,7 @@ ControllerAudioOverride? buildControllerAudioOverride(
   if (master == null && headphone == null) {
     return null;
   }
-  if (controllerAudioAlreadyRouted(settings, hints, device)) {
+  if (controllerAudioAlreadyRouted(settings, device)) {
     return null;
   }
   final existing = settings.controllerAudioOverride;

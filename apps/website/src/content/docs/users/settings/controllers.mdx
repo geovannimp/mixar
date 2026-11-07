@@ -49,10 +49,10 @@ shows a second prompt: **Switch audio outputs to `<device>`?** It lists the
 master and headphone routes it will apply. **Switch outputs** runs the engine on
 the controller without changing your saved devices; **Keep current** leaves
 Settings → Audio as it is. While the override is active, the **Master bus** and
-**Preview bus** cards show an *Overridden by `<device>` mapping* badge. Unplugging
-the controller (or detaching its mapping) resumes the saved devices immediately.
-The override is live only for the session: it is never written to the saved
-audio settings.
+**Preview bus** cards show an *Overridden by `<device>` mapping* badge, and the
+fields display the active controller route read-only. Unplugging the controller
+(or detaching its mapping) resumes the saved devices immediately. The override is
+live only for the session: it is never written to the saved audio settings.
 
 To skip the prompt on later connections, tick **Always switch audio to this
 controller** before choosing **Switch outputs**. The same option is available as
@@ -60,8 +60,9 @@ an **Audio** toggle on the mapping row in **Settings → Controllers**; like
 **Trust**, it takes effect when you press **Save**. With it enabled, attaching
 that controller switches the outputs automatically.
 
-Declining only affects the current connection, so reconnecting asks again. Once
-the master bus already uses the controller's device, Mixar does not ask.
+Declining only affects the current connection, so reconnecting asks again. A
+saved route that happens to match the controller does not suppress the offer;
+only a live override or the **Audio** preference does.
 
 The DDJ-400 mapping ships with master on channels 1–2 and headphones on 3–4, and
 confirming also enables the preview bus. The exact routes are visible and
