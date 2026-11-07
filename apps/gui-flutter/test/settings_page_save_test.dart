@@ -87,18 +87,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: mixarTestMaterialApp(
-          theme: MixarThemeData.dark(),
-          home: const Scaffold(
-            body: SettingsPage(initialSection: SettingsSection.audio),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _pumpAudioSettings(tester, container);
     expect(
       tester
           .widget<SettingsAudioPanel>(find.byType(SettingsAudioPanel))
@@ -151,18 +140,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: mixarTestMaterialApp(
-          theme: MixarThemeData.dark(),
-          home: const Scaffold(
-            body: SettingsPage(initialSection: SettingsSection.audio),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _pumpAudioSettings(tester, container);
 
     tester
         .widget<SettingsAudioPanel>(find.byType(SettingsAudioPanel))
@@ -188,4 +166,22 @@ void main() {
     expect(panel.draft.bufferSize, 1024, reason: 'local edit is preserved');
     expect(panel.draft.masterBus.deviceId, 'cpal:ddj');
   });
+}
+
+Future<void> _pumpAudioSettings(
+  WidgetTester tester,
+  ProviderContainer container,
+) async {
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: mixarTestMaterialApp(
+        theme: MixarThemeData.dark(),
+        home: const Scaffold(
+          body: SettingsPage(initialSection: SettingsSection.audio),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
 }

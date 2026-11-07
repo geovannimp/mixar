@@ -231,12 +231,15 @@ class SettingsBusRouteFields extends StatelessWidget {
 ///
 /// The backend exposes a "System default" / `*_default` alias beside the real
 /// devices; listing it would duplicate the localized entry.
+const _systemDefaultName = 'system default';
+const _defaultAliasIdSuffixes = [':output_default', ':sink_default'];
+
 List<OutputDevice> selectableAudioDevices(
   List<OutputDevice> devices,
   String systemDefaultLabel,
 ) {
   final hiddenNames = {
-    'system default',
+    _systemDefaultName,
     systemDefaultLabel.trim().toLowerCase(),
   };
   return devices.where((device) {
@@ -244,8 +247,7 @@ List<OutputDevice> selectableAudioDevices(
     final nameAlias = device.isDefault && hiddenNames.contains(name);
     return device.id != defaultAudioDeviceId &&
         !nameAlias &&
-        !device.id.endsWith(':output_default') &&
-        !device.id.endsWith(':sink_default');
+        !_defaultAliasIdSuffixes.any(device.id.endsWith);
   }).toList();
 }
 

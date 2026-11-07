@@ -158,21 +158,24 @@ ControllerAudioOverride? buildControllerAudioOverride(
     return null;
   }
   final existing = settings.controllerAudioOverride;
-  final sameDevice =
-      existing != null &&
-      existing.mappingId == mappingId &&
-      existing.outputDeviceId == device.id;
+  final prior = existing != null && existing.outputDeviceId == device.id
+      ? existing
+      : null;
   return _audioOverride(
     mappingId: mappingId,
     controllerLabel: controllerLabel,
     outputDeviceId: device.id,
-    masterOverridden: master != null,
+    masterOverridden: master != null || (prior?.masterOverridden ?? false),
     masterBus: master == null
-        ? (sameDevice ? existing.masterBus : settings.masterBus)
+        ? (prior != null && prior.masterOverridden
+              ? prior.masterBus
+              : settings.masterBus)
         : _routeTo(settings.masterBus, device, master, hints.sampleRate),
-    previewOverridden: headphone != null,
+    previewOverridden: headphone != null || (prior?.previewOverridden ?? false),
     previewBus: headphone == null
-        ? (sameDevice ? existing.previewBus : settings.previewBus)
+        ? (prior != null && prior.previewOverridden
+              ? prior.previewBus
+              : settings.previewBus)
         : _routeTo(settings.previewBus, device, headphone, hints.sampleRate),
   );
 }

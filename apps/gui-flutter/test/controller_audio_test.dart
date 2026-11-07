@@ -279,6 +279,29 @@ void main() {
       );
     });
 
+    test('keeps the previous preview bus on the same output device', () {
+      final device = _device('ddj', 'DDJ-400');
+      final active = _build(defaultAppSettings(), _hints, device)!;
+      final settings = copyAppSettings(
+        defaultAppSettings(),
+        controllerAudioOverride: active,
+      );
+      final override = buildControllerAudioOverride(
+        settings,
+        const ControllerAudioHints(
+          outputNameContains: ['DDJ-400'],
+          masterChannels: ControllerChannelPair(left: 1, right: 2),
+        ),
+        device,
+        mappingId: 'other-mapping',
+        controllerLabel: 'Other',
+      );
+      expect(override, isNotNull);
+      expect(override!.masterOverridden, isTrue);
+      expect(override.previewOverridden, isTrue);
+      expect(override.previewBus.leftChannel, 3);
+    });
+
     test('returns null when the mapping declares no routes', () {
       expect(
         _build(
