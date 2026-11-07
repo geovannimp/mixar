@@ -24,7 +24,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 uuid = { version = "1", features = ["v4"] }
 analyzer = { path = "../analyzer", optional = true }
 analyzer-core = { path = "../analyzer-core", optional = true }
-analyzer-stems = { path = "../analyzer-stems", optional = true }
+analyzer-stems = { path = "../analyzer-stems", optional = true, default-features = false }
 codec = { path = "../codec" }
 xspf = "0.4.2"
 xml = "0.8"
@@ -34,9 +34,12 @@ tracing.workspace = true
 default = ["analysis", "stems"]
 # BPM/key analysis; also gates the stem mixdown analysis helpers.
 analysis = ["dep:analyzer", "dep:analyzer-core"]
-# Offline stem separation (ONNX Runtime). Hosts without an ONNX Runtime build
-# for their platform (Android x86_64) build with `--no-default-features`.
+# Offline stem separation (ONNX Runtime). Desktop resolves the prebuilt at build
+# time; Android loads the Microsoft AAR at runtime (ort `load-dynamic`).
 stems = ["analysis", "dep:analyzer-stems"]
+# Desktop GPU EP passthrough; Android builds never enable it (the AAR has no
+# WebGPU). host-flutter turns it on for desktop defaults.
+stems-webgpu = ["stems", "analyzer-stems/webgpu"]
 
 [dev-dependencies]
 tempfile = "3.0"

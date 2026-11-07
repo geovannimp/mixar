@@ -13,3 +13,9 @@ mod jni_context;
 #[cfg(any(test, feature = "test-utils"))]
 #[doc(hidden)]
 pub mod testing;
+
+// Android loads Microsoft's ONNX Runtime AAR, which has no WebGPU EP. Enabling
+// the desktop GPU provider there resolves symbols the library does not export,
+// which surfaces as a `dlopen`/registration failure instead of a build error.
+#[cfg(all(target_os = "android", feature = "stems-webgpu"))]
+compile_error!("`stems-webgpu` must not be enabled on Android; build with `stems` only");

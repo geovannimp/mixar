@@ -31,6 +31,20 @@ class MainActivity : FlutterActivity() {
     private var pendingAudioReadResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // QNN's Hexagon backend loads its skel (`libQnnHtpV<arch>Skel.so`) from
+        // this path; it must be set before libonnxruntime dlopens the HTP
+        // backend. Harmless when no QNN libraries are packaged. Best effort:
+        // a failing env write must not stop the app from starting, and QNN is
+        // registered fail-silently in Rust anyway.
+        runCatching {
+            android.system.Os.setenv(
+                ADSP_LIBRARY_PATH_ENV,
+                applicationInfo.nativeLibraryDir,
+                true,
+            )
+        }.onFailure {
+            android.util.Log.w("Mixar", "ADSP_LIBRARY_PATH not set", it)
+        }
         System.loadLibrary("host_flutter")
         initAndroidContext(applicationContext)
         super.onCreate(savedInstanceState)
@@ -104,5 +118,8 @@ class MainActivity : FlutterActivity() {
         const val MEDIA_ACCESS_CHANNEL = "top.mixar.app/media_access"
         const val ENSURE_AUDIO_READ_METHOD = "ensureAudioReadPermission"
         const val AUDIO_READ_REQUEST = 4801
+
+        /// Env var QNN's Hexagon backend reads to find its skel library.
+        const val ADSP_LIBRARY_PATH_ENV = "ADSP_LIBRARY_PATH"
     }
 }

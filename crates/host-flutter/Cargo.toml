@@ -9,7 +9,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 anyhow = { workspace = true }
 analytics = { path = "../analytics" }
-analyzer-stems = { path = "../analyzer-stems", optional = true }
+analyzer-stems = { path = "../analyzer-stems", optional = true, default-features = false }
 bus-api = { path = "../bus-api" }
 engine-core = { path = "../engine-core" }
 event-bus = { path = "../event-bus" }
@@ -38,11 +38,14 @@ jni = "0.21"
 ndk-context = "0.1"
 
 [features]
-# Offline + live stem separation. ONNX Runtime ships no binary for 32-bit
-# Android or Android x86_64, so the Android build passes
-# `--no-default-features` (see rust_builder/android/build.gradle).
-default = ["stems"]
+# Offline + live stem separation (ONNX Runtime, via analyzer-stems).
+# `stems-webgpu` is the desktop GPU EP. Android loads the Microsoft ONNX Runtime
+# AAR at runtime instead, but every stem job there runs on the CPU EP (NNAPI,
+# XNNPACK, QNN all measured slower), so mobile builds
+# `--no-default-features --features stems` (see rust_builder/android/build.gradle).
+default = ["stems", "stems-webgpu"]
 stems = ["dep:analyzer-stems", "library/stems"]
+stems-webgpu = ["analyzer-stems/webgpu", "library/stems-webgpu"]
 # Exposes headless engine construction to this crate's own integration tests.
 # Integration tests are separate crates and cannot see `pub(crate)`, so without a
 # feature this hook would have to be unconditionally `pub`.
