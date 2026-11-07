@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
-import 'package:gui_flutter/core/utils/controller_audio.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
@@ -24,24 +23,21 @@ AppSettings _overridden() {
   );
   return copyAppSettings(
     base,
-    masterBus: ddj,
     previewEnabled: true,
-    previewBus: const BusRouteSettings(
-      deviceId: 'cpal:ddj',
-      leftChannel: 3,
-      rightChannel: 4,
-      mode: BusChannelMode.stereo,
-      lowLatency: false,
-    ),
-    controllerAudioOverride: ControllerAudioOverride(
+    controllerAudioOverride: const ControllerAudioOverride(
       mappingId: 'ddj-400',
       controllerLabel: 'DDJ-400',
       outputDeviceId: 'cpal:ddj',
-      previousMasterBus: base.masterBus,
       masterOverridden: true,
-      previousPreviewEnabled: false,
-      previousPreviewBus: base.previewBus,
+      masterBus: ddj,
       previewOverridden: true,
+      previewBus: BusRouteSettings(
+        deviceId: 'cpal:ddj',
+        leftChannel: 3,
+        rightChannel: 4,
+        mode: BusChannelMode.stereo,
+        lowLatency: false,
+      ),
     ),
   );
 }
@@ -73,8 +69,8 @@ void main() {
 
     expect(find.text('Overridden by DDJ-400 mapping'), findsNWidgets(2));
 
-    // Detaching the controller restores the previous routes and clears it.
-    saved = restoreControllerAudioOutputs(saved, 'ddj-400')!.settings;
+    // Detaching the controller clears the runtime override.
+    saved = copyAppSettings(saved, clearControllerAudioOverride: true);
     container.invalidate(appSettingsProvider);
     await tester.pumpAndSettle();
 

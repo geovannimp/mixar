@@ -237,6 +237,21 @@ impl SettingsTransport {
     ) -> Result<(), String> {
         Err("Realtime Stems is not available in this build (no ONNX Runtime)".to_string())
     }
+
+    /// Replace the live controller audio override without touching disk.
+    ///
+    /// Callers restart the engine afterwards so the effective buses change.
+    pub fn set_controller_audio_override(
+        &self,
+        override_settings: Option<ControllerAudioOverride>,
+    ) -> Result<AppSettings, String> {
+        let mut host = self.host.lock().bridge()?;
+        let mut candidate = host.clone();
+        candidate.controller_audio_override = override_settings;
+        let saved = parse_settings(settings_from_host(&candidate))?;
+        *host = candidate;
+        Ok(saved)
+    }
 }
 
 /// Bus channel routing mode.
@@ -265,24 +280,22 @@ pub struct BusRouteSettings {
     pub low_latency: bool,
 }
 
-/// A controller mapping moved the output buses onto its own audio interface.
+/// A controller mapping's live output override.
 ///
-/// Kept in settings so the buses can return to their pre-controller routes when
-/// the mapping detaches, even across a restart, and so Settings can mark the
-/// buses the mapping owns.
+/// This is kept in memory only. The saved master/preview routes are never
+/// replaced, so clearing the override simply resumes the saved configuration.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ControllerAudioOverride {
     /// App-data mapping folder id that owns this override.
     pub mapping_id: String,
     /// Controller label for the Settings badge (e.g. `DDJ-400`).
     pub controller_label: String,
-    /// OS output device id the buses were moved to.
+    /// OS output device id the buses are running on.
     pub output_device_id: String,
-    pub previous_master_bus: BusRouteSettings,
     pub master_overridden: bool,
-    pub previous_preview_enabled: bool,
-    pub previous_preview_bus: BusRouteSettings,
+    pub master_bus: BusRouteSettings,
     pub preview_overridden: bool,
+    pub preview_bus: BusRouteSettings,
 }
 
 /// Jog platter policy (maps to [`JogMode`]).
@@ -645,8 +658,8 @@ pub struct AppSettings {
     /// Controllers whose audio interface is switched in automatically on attach.
     #[serde(default)]
     pub always_switch_audio_device_ids: Vec<String>,
-    /// Set while a controller mapping owns the output buses; restored on detach.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Live controller audio override; memory only, never persisted.
+    #[serde(skip)]
     pub controller_audio_override: Option<ControllerAudioOverride>,
     #[serde(default = "default_history_enabled")]
     pub history_enabled: bool,
@@ -938,14 +951,14 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
             errors.push("controller_audio_override.output_device_id must be non-empty".into());
         }
         if let Err(e) = parse_bus(
-            "controller_audio_override.previous_master_bus",
-            &override_settings.previous_master_bus,
+            "controller_audio_override.master_bus",
+            &override_settings.master_bus,
         ) {
             errors.push(e);
         }
         if let Err(e) = parse_bus(
-            "controller_audio_override.previous_preview_bus",
-            &override_settings.previous_preview_bus,
+            "controller_audio_override.preview_bus",
+            &override_settings.preview_bus,
         ) {
             errors.push(e);
         }
@@ -1105,7 +1118,11 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         )
         .to_string(),
         master_bus,
-        preview_enabled: preview_bus_config.is_some(),
+        preview_enabled: preview_bus_config.is_some()
+            || host
+                .controller_audio_override
+                .as_ref()
+                .is_some_and(|override_settings| override_settings.preview_overridden),
         preview_bus: preview_bus_config
             .map(bus_route_from_config)
             .unwrap_or_else(default_preview_bus_route),
@@ -1191,7 +1208,8 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.key_color_mode = settings.key_color_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
     host.always_switch_audio_device_ids = settings.always_switch_audio_device_ids;
-    host.controller_audio_override = settings.controller_audio_override;
+    // `controller_audio_override` is runtime state; settings saves must not
+    // replace or persist it.
     host.history_enabled = settings.history_enabled;
     host.history_session_idle_minutes = settings.history_session_idle_minutes;
     host.history_min_play_seconds = settings.history_min_play_seconds;
@@ -1218,6 +1236,11 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.show_mixer = settings.show_mixer;
     host.show_fx_bar = settings.show_fx_bar;
     host.show_crossfader = settings.show_crossfader;
+    if !settings.preview_enabled {
+        if let Some(override_settings) = &mut host.controller_audio_override {
+            override_settings.preview_overridden = false;
+        }
+    }
     host.configured = true;
     Ok(())
 }
@@ -1329,10 +1352,46 @@ fn normalizer_target(enabled: bool, target_lufs: f32) -> Option<f32> {
 }
 
 /// Engine config for [`EngineTransport::start`] / restart.
+///
+/// The saved `engine_config` remains the base; a live controller override
+/// replaces only the buses it owns, so clearing it needs no disk write.
 pub(crate) fn settings_engine_config() -> Result<EngineConfig, String> {
     let host = shared_host();
     let host = host.lock().bridge()?;
-    Ok(host.engine_config.clone())
+    Ok(effective_engine_config(&host))
+}
+
+fn effective_engine_config(host: &SettingsHost) -> EngineConfig {
+    let Some(override_settings) = &host.controller_audio_override else {
+        return host.engine_config.clone();
+    };
+    let mut config = host.engine_config.clone();
+    if override_settings.master_overridden {
+        replace_bus(
+            &mut config.buses,
+            MASTER_BUS_ID,
+            "Master",
+            &override_settings.master_bus,
+        );
+    }
+    if override_settings.preview_overridden {
+        replace_bus(
+            &mut config.buses,
+            PREVIEW_BUS_ID,
+            "Preview",
+            &override_settings.preview_bus,
+        );
+    }
+    config
+}
+
+fn replace_bus(buses: &mut Vec<BusConfig>, id: &str, name: &str, route: &BusRouteSettings) {
+    let replacement = bus_config(id, name, route);
+    if let Some(position) = buses.iter().position(|bus| bus.id.as_str() == id) {
+        buses[position] = replacement;
+    } else {
+        buses.push(replacement);
+    }
 }
 
 /// Whether the opt-in live StemgenRT filter is on for this session.
@@ -1420,57 +1479,100 @@ mod tests {
     }
 
     #[test]
-    fn controller_audio_override_round_trips_through_disk() {
+    fn controller_audio_override_is_not_written_to_disk() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
-        let mut settings = sample_settings();
-        let previous_master = settings.master_bus.clone();
-        let previous_preview = settings.preview_bus.clone();
-        settings.master_bus.device_id = "cpal:ddj".into();
-        settings.master_bus.left_channel = 1;
-        settings.master_bus.right_channel = 2;
-        settings.preview_enabled = true;
-        settings.preview_bus.device_id = "cpal:ddj".into();
-        settings.preview_bus.left_channel = 3;
-        settings.preview_bus.right_channel = 4;
+        let base = sample_settings();
+        let mut settings = base.clone();
         settings.controller_audio_override = Some(ControllerAudioOverride {
             mapping_id: "ddj-400".into(),
             controller_label: "DDJ-400".into(),
             output_device_id: "cpal:ddj".into(),
-            previous_master_bus: previous_master.clone(),
             master_overridden: true,
-            previous_preview_enabled: false,
-            previous_preview_bus: previous_preview.clone(),
+            master_bus: BusRouteSettings {
+                device_id: "cpal:ddj".into(),
+                left_channel: 1,
+                right_channel: 2,
+                mode: BusChannelMode::Stereo,
+                sample_rate: None,
+                low_latency: false,
+            },
             preview_overridden: true,
+            preview_bus: BusRouteSettings {
+                device_id: "cpal:ddj".into(),
+                left_channel: 3,
+                right_channel: 4,
+                mode: BusChannelMode::Stereo,
+                sample_rate: None,
+                low_latency: false,
+            },
         });
 
         write_settings_file(&path, &settings).expect("write");
+        let json: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("read")).expect("json");
+        assert!(
+            json.get("controller_audio_override").is_none(),
+            "runtime override must never reach disk"
+        );
+
+        // The saved routes are untouched, and a restart has no override.
         let restored = settings_from_host(&load_host(&path));
-        let override_settings = restored
-            .controller_audio_override
-            .expect("override survives disk");
-        assert_eq!(override_settings.mapping_id, "ddj-400");
-        assert_eq!(override_settings.previous_master_bus, previous_master);
-        assert_eq!(override_settings.previous_preview_bus, previous_preview);
-        assert!(override_settings.master_overridden);
-        assert!(override_settings.preview_overridden);
-        assert_eq!(restored.master_bus.device_id, "cpal:ddj");
+        assert_eq!(restored.controller_audio_override, None);
+        assert_eq!(restored.master_bus, base.master_bus);
+    }
+
+    #[test]
+    fn controller_audio_override_affects_the_effective_engine_config() {
+        let host = SettingsHost {
+            controller_audio_override: Some(ControllerAudioOverride {
+                mapping_id: "ddj-400".into(),
+                controller_label: "DDJ-400".into(),
+                output_device_id: "cpal:ddj".into(),
+                master_overridden: true,
+                master_bus: BusRouteSettings {
+                    device_id: "cpal:ddj".into(),
+                    left_channel: 1,
+                    right_channel: 2,
+                    mode: BusChannelMode::Stereo,
+                    sample_rate: None,
+                    low_latency: false,
+                },
+                preview_overridden: false,
+                preview_bus: default_preview_bus_route(),
+            }),
+            ..Default::default()
+        };
+        let effective = effective_engine_config(&host);
+        let master = effective
+            .buses
+            .iter()
+            .find(|bus| bus.id.as_str() == MASTER_BUS_ID)
+            .expect("master bus");
+        assert_eq!(master.device.as_str(), "cpal:ddj");
+        // The saved base config stays on its device.
+        let saved_master = host
+            .engine_config
+            .buses
+            .iter()
+            .find(|bus| bus.id.as_str() == MASTER_BUS_ID)
+            .expect("saved master bus");
+        assert_eq!(saved_master.device.as_str(), "default");
     }
 
     #[test]
     fn controller_audio_override_rejects_empty_mapping_id() {
         let mut settings = sample_settings();
-        let previous_master = settings.master_bus.clone();
-        let previous_preview = settings.preview_bus.clone();
+        let master_bus = settings.master_bus.clone();
+        let preview_bus = settings.preview_bus.clone();
         settings.controller_audio_override = Some(ControllerAudioOverride {
             mapping_id: " ".into(),
             controller_label: "DDJ-400".into(),
             output_device_id: "cpal:ddj".into(),
-            previous_master_bus: previous_master,
             master_overridden: true,
-            previous_preview_enabled: false,
-            previous_preview_bus: previous_preview,
+            master_bus,
             preview_overridden: false,
+            preview_bus,
         });
         assert!(parse_settings(settings).is_err());
     }

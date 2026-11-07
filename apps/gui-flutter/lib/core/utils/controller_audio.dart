@@ -1,4 +1,3 @@
-import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -83,6 +82,10 @@ bool controllerAudioAlreadyRouted(
   ControllerAudioHints hints,
   OutputDevice device,
 ) {
+  final active = settings.controllerAudioOverride;
+  if (active != null && active.outputDeviceId == device.id) {
+    return true;
+  }
   if (hints.masterChannels != null) {
     return busRouteUsesDevice(settings.masterBus, device);
   }
@@ -109,22 +112,15 @@ bool controllerAudioOverridesBus(AppSettings settings, {required bool master}) {
   if (override == null) {
     return false;
   }
-  if (master) {
-    return override.masterOverridden &&
-        busRouteUsesDeviceId(settings.masterBus, override.outputDeviceId);
-  }
-  return override.previewOverridden &&
-      settings.previewEnabled &&
-      busRouteUsesDeviceId(settings.previewBus, override.outputDeviceId);
+  return master ? override.masterOverridden : override.previewOverridden;
 }
 
-/// Applies the mapping's routes to [settings], or returns `null` when there is
-/// nothing to change. A headphone route also turns the preview bus on: the
-/// controller's headphone jack is useless otherwise.
+/// Builds the live bus override for a controller mapping.
 ///
-/// The displaced routes are recorded in [AppSettings.controllerAudioOverride]
-/// so detaching the controller can put them back.
-AppSettings? applyControllerAudioOutputs(
+/// The saved master/preview routes are only used for `lowLatency` and as the
+/// inactive side of a single-bus mapping. Returning `null` means the mapping
+/// declares no routes or they are already active.
+ControllerAudioOverride? buildControllerAudioOverride(
   AppSettings settings,
   ControllerAudioHints hints,
   OutputDevice device, {
@@ -140,78 +136,23 @@ AppSettings? applyControllerAudioOutputs(
     return null;
   }
   final existing = settings.controllerAudioOverride;
-  final sameOverride = existing != null && existing.mappingId == mappingId;
-  final override = ControllerAudioOverride(
+  final sameDevice =
+      existing != null &&
+      existing.mappingId == mappingId &&
+      existing.outputDeviceId == device.id;
+  return ControllerAudioOverride(
     mappingId: mappingId,
     controllerLabel: controllerLabel,
     outputDeviceId: device.id,
-    // Keep the first displaced routes when the same mapping re-applies.
-    previousMasterBus: sameOverride
-        ? existing.previousMasterBus
-        : settings.masterBus,
     masterOverridden: master != null,
-    previousPreviewEnabled: sameOverride
-        ? existing.previousPreviewEnabled
-        : settings.previewEnabled,
-    previousPreviewBus: sameOverride
-        ? existing.previousPreviewBus
-        : settings.previewBus,
+    masterBus: master == null
+        ? (sameDevice ? existing.masterBus : settings.masterBus)
+        : _routeTo(settings.masterBus, device, master, hints.sampleRate),
     previewOverridden: headphone != null,
+    previewBus: headphone == null
+        ? (sameDevice ? existing.previewBus : settings.previewBus)
+        : _routeTo(settings.previewBus, device, headphone, hints.sampleRate),
   );
-  var updated = copyAppSettings(settings, controllerAudioOverride: override);
-  if (master != null) {
-    updated = copyAppSettings(
-      updated,
-      masterBus: _routeTo(updated.masterBus, device, master, hints.sampleRate),
-    );
-  }
-  if (headphone != null) {
-    updated = copyAppSettings(
-      updated,
-      previewEnabled: true,
-      previewBus: _routeTo(
-        updated.previewBus,
-        device,
-        headphone,
-        hints.sampleRate,
-      ),
-    );
-  }
-  return updated;
-}
-
-/// Puts back the routes displaced by [mappingId]'s override.
-///
-/// A bus the user changed by hand while the controller was attached keeps its
-/// new device; only buses still on the override's device are restored.
-/// Returns `null` when this mapping has no active override.
-({AppSettings settings, bool routesRestored})? restoreControllerAudioOutputs(
-  AppSettings settings,
-  String mappingId,
-) {
-  final override = settings.controllerAudioOverride;
-  if (override == null || override.mappingId != mappingId) {
-    return null;
-  }
-  var updated = settings;
-  var routesRestored = false;
-  if (override.masterOverridden &&
-      busRouteUsesDeviceId(updated.masterBus, override.outputDeviceId)) {
-    updated = copyAppSettings(updated, masterBus: override.previousMasterBus);
-    routesRestored = true;
-  }
-  if (override.previewOverridden &&
-      updated.previewEnabled &&
-      busRouteUsesDeviceId(updated.previewBus, override.outputDeviceId)) {
-    updated = copyAppSettings(
-      updated,
-      previewEnabled: override.previousPreviewEnabled,
-      previewBus: override.previousPreviewBus,
-    );
-    routesRestored = true;
-  }
-  updated = copyAppSettings(updated, clearControllerAudioOverride: true);
-  return (settings: updated, routesRestored: routesRestored);
 }
 
 BusRouteSettings _routeTo(

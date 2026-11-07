@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_num_decks`, `default_preview_bus_route`, `default_show_crossfader`, `default_show_fx_bar`, `default_show_mixer`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
+// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_num_decks`, `default_preview_bus_route`, `default_show_crossfader`, `default_show_fx_bar`, `default_show_mixer`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `effective_engine_config`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `replace_bus`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `write_settings_file`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsHost`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
@@ -26,6 +26,13 @@ abstract class SettingsTransport implements RustOpaqueInterface {
   /// Apply settings. Does not restart the engine or update the library —
   /// callers apply those separately (mirrors Flutter `saveAppSettings`).
   Future<AppSettings> saveSettings({required AppSettings settings});
+
+  /// Replace the live controller audio override without touching disk.
+  ///
+  /// Callers restart the engine afterwards so the effective buses change.
+  Future<AppSettings> setControllerAudioOverride({
+    ControllerAudioOverride? overrideSettings,
+  });
 }
 
 /// Accent palette for brand chrome (Settings → UI). Teal is the website
@@ -83,7 +90,7 @@ class AppSettings {
   /// Controllers whose audio interface is switched in automatically on attach.
   final List<String> alwaysSwitchAudioDeviceIds;
 
-  /// Set while a controller mapping owns the output buses; restored on detach.
+  /// Live controller audio override; memory only, never persisted.
   final ControllerAudioOverride? controllerAudioOverride;
   final bool historyEnabled;
   final int historySessionIdleMinutes;
@@ -360,11 +367,10 @@ class BusRouteSettings {
           lowLatency == other.lowLatency;
 }
 
-/// A controller mapping moved the output buses onto its own audio interface.
+/// A controller mapping's live output override.
 ///
-/// Kept in settings so the buses can return to their pre-controller routes when
-/// the mapping detaches, even across a restart, and so Settings can mark the
-/// buses the mapping owns.
+/// This is kept in memory only. The saved master/preview routes are never
+/// replaced, so clearing the override simply resumes the saved configuration.
 class ControllerAudioOverride {
   /// App-data mapping folder id that owns this override.
   final String mappingId;
@@ -372,23 +378,21 @@ class ControllerAudioOverride {
   /// Controller label for the Settings badge (e.g. `DDJ-400`).
   final String controllerLabel;
 
-  /// OS output device id the buses were moved to.
+  /// OS output device id the buses are running on.
   final String outputDeviceId;
-  final BusRouteSettings previousMasterBus;
   final bool masterOverridden;
-  final bool previousPreviewEnabled;
-  final BusRouteSettings previousPreviewBus;
+  final BusRouteSettings masterBus;
   final bool previewOverridden;
+  final BusRouteSettings previewBus;
 
   const ControllerAudioOverride({
     required this.mappingId,
     required this.controllerLabel,
     required this.outputDeviceId,
-    required this.previousMasterBus,
     required this.masterOverridden,
-    required this.previousPreviewEnabled,
-    required this.previousPreviewBus,
+    required this.masterBus,
     required this.previewOverridden,
+    required this.previewBus,
   });
 
   @override
@@ -396,11 +400,10 @@ class ControllerAudioOverride {
       mappingId.hashCode ^
       controllerLabel.hashCode ^
       outputDeviceId.hashCode ^
-      previousMasterBus.hashCode ^
       masterOverridden.hashCode ^
-      previousPreviewEnabled.hashCode ^
-      previousPreviewBus.hashCode ^
-      previewOverridden.hashCode;
+      masterBus.hashCode ^
+      previewOverridden.hashCode ^
+      previewBus.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -410,11 +413,10 @@ class ControllerAudioOverride {
           mappingId == other.mappingId &&
           controllerLabel == other.controllerLabel &&
           outputDeviceId == other.outputDeviceId &&
-          previousMasterBus == other.previousMasterBus &&
           masterOverridden == other.masterOverridden &&
-          previousPreviewEnabled == other.previousPreviewEnabled &&
-          previousPreviewBus == other.previousPreviewBus &&
-          previewOverridden == other.previewOverridden;
+          masterBus == other.masterBus &&
+          previewOverridden == other.previewOverridden &&
+          previewBus == other.previewBus;
 }
 
 /// Jog platter policy (maps to [`JogMode`]).
