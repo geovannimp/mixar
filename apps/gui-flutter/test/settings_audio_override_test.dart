@@ -45,7 +45,7 @@ AppSettings _overridden() {
 
 void main() {
   testWidgets('marks buses overridden by a controller mapping', (tester) async {
-    var saved = _overridden();
+    final saved = _overridden();
     final container = ProviderContainer(
       overrides: [
         appSettingsProvider.overrideWith((ref) async => saved),
@@ -74,24 +74,44 @@ void main() {
         .toList();
     expect(fields, hasLength(2));
     expect(fields[0].route.deviceId, 'cpal:ddj');
-    expect(fields[0].readOnly, isTrue);
     expect(fields[1].route.deviceId, 'cpal:ddj');
-    expect(fields[1].readOnly, isTrue);
 
-    // Detaching the controller clears the runtime override.
-    saved = copyAppSettings(saved, clearControllerAudioOverride: true);
-    container.invalidate(appSettingsProvider);
+    // Editing master makes it the saved route and drops only that badge.
+    fields[0].onChanged(
+      const BusRouteSettings(
+        deviceId: 'default',
+        leftChannel: 1,
+        rightChannel: 2,
+        mode: BusChannelMode.stereo,
+        lowLatency: false,
+      ),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Overridden by DDJ-400 mapping'), findsNothing);
+    expect(find.text('Overridden by DDJ-400 mapping'), findsOneWidget);
     fields = tester
         .widgetList<SettingsBusRouteFields>(find.byType(SettingsBusRouteFields))
         .toList();
     expect(fields[0].route.deviceId, 'default');
-    expect(fields[0].readOnly, isFalse);
+    expect(fields[1].route.deviceId, 'cpal:ddj');
+
+    // Editing preview clears the remaining override.
+    fields[1].onChanged(
+      const BusRouteSettings(
+        deviceId: 'default',
+        leftChannel: 3,
+        rightChannel: 4,
+        mode: BusChannelMode.stereo,
+        lowLatency: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Overridden by DDJ-400 mapping'), findsNothing);
     final panel = tester.widget<SettingsAudioPanel>(
       find.byType(SettingsAudioPanel),
     );
+    expect(panel.draft.controllerAudioOverride, isNull);
     expect(panel.draft.masterBus.deviceId, 'default');
   });
 }

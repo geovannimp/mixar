@@ -1,3 +1,4 @@
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -155,6 +156,48 @@ ControllerAudioOverride? buildControllerAudioOverride(
     previewBus: headphone == null
         ? (sameDevice ? existing.previewBus : settings.previewBus)
         : _routeTo(settings.previewBus, device, headphone, hints.sampleRate),
+  );
+}
+
+/// Removes one bus from a live override, or returns `null` when neither bus is
+/// overridden anymore.
+ControllerAudioOverride? clearControllerAudioOverrideBus(
+  ControllerAudioOverride override, {
+  required bool master,
+}) {
+  final masterOverridden = !master && override.masterOverridden;
+  final previewOverridden = master && override.previewOverridden;
+  if (!masterOverridden && !previewOverridden) {
+    return null;
+  }
+  return ControllerAudioOverride(
+    mappingId: override.mappingId,
+    controllerLabel: override.controllerLabel,
+    outputDeviceId: override.outputDeviceId,
+    masterOverridden: masterOverridden,
+    masterBus: override.masterBus,
+    previewOverridden: previewOverridden,
+    previewBus: override.previewBus,
+  );
+}
+
+/// Applies a manual bus edit, dropping the controller override for that bus so
+/// saving the draft returns it to the saved route.
+AppSettings editControllerAudioBus(
+  AppSettings settings,
+  BusRouteSettings route, {
+  required bool master,
+}) {
+  final override = settings.controllerAudioOverride;
+  final nextOverride = override == null
+      ? null
+      : clearControllerAudioOverrideBus(override, master: master);
+  return copyAppSettings(
+    settings,
+    masterBus: master ? route : settings.masterBus,
+    previewBus: master ? settings.previewBus : route,
+    controllerAudioOverride: nextOverride,
+    clearControllerAudioOverride: nextOverride == null,
   );
 }
 

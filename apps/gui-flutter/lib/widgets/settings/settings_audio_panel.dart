@@ -37,8 +37,6 @@ class SettingsAudioPanel extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final devicesAsync = ref.watch(audioDevicesProvider);
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
-    final masterOverridden = controllerAudioOverridesBus(draft, master: true);
-    final previewOverridden = controllerAudioOverridesBus(draft, master: false);
     final masterRoute = effectiveMasterBus(draft);
     final previewRoute = effectivePreviewBus(draft);
 
@@ -86,13 +84,12 @@ class SettingsAudioPanel extends ConsumerWidget {
           titleBadge: _controllerOverrideBadge(context, draft, master: true),
           child: SettingsBusRouteFields(
             route: masterRoute,
-            readOnly: masterOverridden,
             devices: deviceList,
             devicesLoading: devicesAsync.isLoading,
             // Only a live preview bus shares the master's stream.
             siblingBus: draft.previewEnabled ? previewRoute : null,
             onChanged: (bus) =>
-                onChanged(copyAppSettings(draft, masterBus: bus)),
+                onChanged(editControllerAudioBus(draft, bus, master: true)),
           ),
         ),
         SettingsGlowFlash(
@@ -111,12 +108,12 @@ class SettingsAudioPanel extends ConsumerWidget {
             child: draft.previewEnabled
                 ? SettingsBusRouteFields(
                     route: previewRoute,
-                    readOnly: previewOverridden,
                     devices: deviceList,
                     devicesLoading: devicesAsync.isLoading,
                     siblingBus: masterRoute,
-                    onChanged: (bus) =>
-                        onChanged(copyAppSettings(draft, previewBus: bus)),
+                    onChanged: (bus) => onChanged(
+                      editControllerAudioBus(draft, bus, master: false),
+                    ),
                   )
                 : null,
           ),
