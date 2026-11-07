@@ -125,6 +125,9 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       case Event_MappingAttached(:final field0):
         unawaited(syncAttachedMappingIds(ref));
         ref.invalidate(controllerDevicesProvider);
+        // A reconnect can arrive without a usable detach event; always allow
+        // the audio offer to be evaluated again.
+        _audioAskedPorts.remove(field0.portName);
         unawaited(_maybeOfferAudioSwitch(field0.mappingId, field0.portName));
       case Event_MappingDetached(:final field0):
         _shownPorts.remove(field0.portName);
@@ -226,7 +229,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         settingsTransportProvider.future,
       );
       final current = await settingsTransport.getSettings();
-      if (controllerAudioAlreadyRouted(current, hints, device)) {
+      if (controllerAudioAlreadyRouted(current, device)) {
         return;
       }
       if (!mounted) {

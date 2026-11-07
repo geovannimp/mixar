@@ -37,6 +37,10 @@ class SettingsAudioPanel extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final devicesAsync = ref.watch(audioDevicesProvider);
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
+    final masterOverridden = controllerAudioOverridesBus(draft, master: true);
+    final previewOverridden = controllerAudioOverridesBus(draft, master: false);
+    final masterRoute = effectiveMasterBus(draft);
+    final previewRoute = effectivePreviewBus(draft);
 
     return SettingsSectionBody(
       title: l10n.settingsSectionAudio,
@@ -81,11 +85,12 @@ class SettingsAudioPanel extends ConsumerWidget {
           subtitle: l10n.settingsAudioMasterBusDescription,
           titleBadge: _controllerOverrideBadge(context, draft, master: true),
           child: SettingsBusRouteFields(
-            route: draft.masterBus,
+            route: masterRoute,
+            readOnly: masterOverridden,
             devices: deviceList,
             devicesLoading: devicesAsync.isLoading,
             // Only a live preview bus shares the master's stream.
-            siblingBus: draft.previewEnabled ? draft.previewBus : null,
+            siblingBus: draft.previewEnabled ? previewRoute : null,
             onChanged: (bus) =>
                 onChanged(copyAppSettings(draft, masterBus: bus)),
           ),
@@ -105,10 +110,11 @@ class SettingsAudioPanel extends ConsumerWidget {
             ),
             child: draft.previewEnabled
                 ? SettingsBusRouteFields(
-                    route: draft.previewBus,
+                    route: previewRoute,
+                    readOnly: previewOverridden,
                     devices: deviceList,
                     devicesLoading: devicesAsync.isLoading,
-                    siblingBus: draft.masterBus,
+                    siblingBus: masterRoute,
                     onChanged: (bus) =>
                         onChanged(copyAppSettings(draft, previewBus: bus)),
                   )

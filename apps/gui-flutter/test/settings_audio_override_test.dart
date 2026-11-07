@@ -7,6 +7,7 @@ import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_audio_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_bus_route_fields.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -68,6 +69,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Overridden by DDJ-400 mapping'), findsNWidgets(2));
+    var fields = tester
+        .widgetList<SettingsBusRouteFields>(find.byType(SettingsBusRouteFields))
+        .toList();
+    expect(fields, hasLength(2));
+    expect(fields[0].route.deviceId, 'cpal:ddj');
+    expect(fields[0].readOnly, isTrue);
+    expect(fields[1].route.deviceId, 'cpal:ddj');
+    expect(fields[1].readOnly, isTrue);
 
     // Detaching the controller clears the runtime override.
     saved = copyAppSettings(saved, clearControllerAudioOverride: true);
@@ -75,6 +84,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Overridden by DDJ-400 mapping'), findsNothing);
+    fields = tester
+        .widgetList<SettingsBusRouteFields>(find.byType(SettingsBusRouteFields))
+        .toList();
+    expect(fields[0].route.deviceId, 'default');
+    expect(fields[0].readOnly, isFalse);
     final panel = tester.widget<SettingsAudioPanel>(
       find.byType(SettingsAudioPanel),
     );
