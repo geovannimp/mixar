@@ -70,7 +70,29 @@ moon run gui-flutter:build-android    # debug APK in build/app/outputs/flutter-a
 
 `build-android` passes `--target-platform android-arm64,android-x64`; `flutter run` takes no such flag and builds the attached device's ABI. `android/app/build.gradle.kts` pins both 64-bit ABIs in `ndk.abiFilters`, which cargokit honours when it builds `host_flutter` — 32-bit devices are dropped instead of pulling a second Rust target.
 
-Android builds `host_flutter` with `--no-default-features` (`rust_builder/android/build.gradle`), which turns the `stems` feature off: ONNX Runtime publishes no Android x86_64 binary. Stem jobs report "unavailable on this platform" instead of linking ORT; the engine itself runs (see above), only stem separation does not.
+Android builds `host_flutter` with `--no-default-features --features stems` (`rust_builder/android/build.gradle`) and loads ONNX Runtime at runtime from the `com.microsoft.onnxruntime:onnxruntime-android` AAR (`ort`'s `load-dynamic`). All stem work on Android runs on the CPU EP: NNAPI, XNNPACK, QNN and TVM all measured slower for these models, and desktop WebGPU is slower than CPU for the live model. Desktop offline separation still tries WebGPU first. The desktop-only `stems-webgpu` feature stays off on Android. Models download on first use into the app files dir, like the desktop builds.
+
+Which provider the live producer picked shows up in the app log:
+
+```sh
+adb shell run-as top.mixar.app tail -f files/mixar.log | grep "StemgenRT live"
+# StemgenRT live: session ready ep=cpu states=13 …
+# StemgenRT live: producer is slower than realtime ep=cpu avg_hop_ms=10.97 realtime=0.26
+```
+
+A stock build reports `ep=cpu`; a forced provider shows up as that label.
+
+Override for experiments without rebuilding: `adb shell setprop debug.mixar.stems_ep xnnpack` (or `cpu`, `nnapi`, `qnn`), then reload the deck — the property is read when the session is built. Normal playback never uses an accelerator. Measured on a Galaxy device, NNAPI costs 219.6 ms/hop against XNNPACK 10.97 and CPU 11.30 (budget 2.90 ms); numbers and the bench command are in `crates/analyzer-stems/PERF-RUN.md`.
+
+A custom ONNX Runtime build can replace the AAR without code changes:
+`MIXAR_EXTRA_JNI_DIR=/path/to/jniDir flutter build apk --debug`, where the
+directory is jniLibs-shaped (`arm64-v8a/libonnxruntime.so` plus any EP runtime
+libraries). This is how QNN was tested: ONNX Runtime v1.31 built with
+`--use_qnn=static_lib --qnn_home <QAIRT>`; on the S23's HTP it ran StemgenRT at
+13–71 ms/hop versus ~3 ms on CPU, so QNN is not wired into the cascade. NNAPI
+cannot share that build with QNN (duplicate `NodeAttrHelper` at link time).
+`MainActivity` sets `ADSP_LIBRARY_PATH` to the native library dir and the
+manifest declares `libcdsprpc.so` for QNN's Hexagon backend.
 
 Gradle details worth knowing: file_picker 13 is federated, and its Android module (`android_file_picker`) applies KGP itself whenever `android.builtInKotlin=false`, which this project keeps because AGP 9.x bundles Kotlin 2.2.10, below Flutter's 2.2.20 floor. `android/build.gradle.kts` keeps KGP 2.4.0 (the version declared in `settings.gradle.kts`) on the root classpath so it outranks the 1.8.22 that module declares in its own buildscript. `desktop_drop` stays on 0.8.4 until file_picker 14 moves to `cross_file` 0.4 — 0.9.x, the release that stops Flutter's KGP warning, needs it. `minSdk` is 29 for `libamidi` (midir) and `libaaudio` (cpal), and `rust_builder/cargokit` carries local patches for Gradle 9 (`ExecOperations` instead of `project.exec`), for the NDK/CMake environment native crates like `opusic-sys` require, for `ndk.abiFilters` platform filtering, and for per-platform cargo flags.
 

@@ -1,8 +1,9 @@
 # stems-live-separation — run record
 
 > **Historical:** this record covers the earlier HTDemucs live path. The
-> shipped Realtime Stems filter is StemgenRT on the CPU and is opt-in; see the
-> stems overview for current behavior.
+> shipped Realtime Stems filter is StemgenRT on the CPU EP (XNNPACK measured
+> within noise but is not selected) and is opt-in; see the stems overview and
+> the Android section at the end for current behavior.
 
 Branch `geovannimp/rust-optimization`, base `d85d3a99`, feature commit
 `51eeb256`, docs `62c87989`. Crates: `analyzer-stems`, `audio-core`,
@@ -168,4 +169,93 @@ LD_LIBRARY_PATH=target/release:target/release/examples \
 MIXAR_STEMS_MODEL_DIR=/tmp/mixar-stems-bench/models MIXAR_STEMS_ORT_EP=webgpu \
   LD_LIBRARY_PATH=target/release \
   cargo test --release -p analyzer-stems --test live_split_matches_offline -- --ignored
+```
+
+## Android devices: StemgenRT execution providers (2026-11-06)
+
+ONNX Runtime 1.31 from `com.microsoft.onnxruntime:onnxruntime-android` loaded
+through `ort`'s `load-dynamic`. Instrument: `examples/live_ep_bench.rs`
+(release; mirrors the live session's thread settings), 300 hops of
+`stemgenrt.onnx` (sha256 `0a49388d…`), 10-hop warm-up, zeroed input. Budget per
+hop is 128 / 44 100 = 2.90 ms.
+
+| device | NNAPI | XNNPACK | CPU |
+|---|---|---|---|
+| unknown Galaxy (`RX2W6001FBF`) | 219.61 ms · 0.01× | 10.97 ms · 0.26× | 11.30 ms · 0.26× |
+| Galaxy S23 (`SM-S911B`) | 64.8–71.4 ms · 0.04× | 3.2–3.9 ms · 0.74–0.91× | 3.2–3.7 ms · 0.78–0.90× |
+
+Steady state on the S23 after repeated runs: CPU ≈ 3.6 ms (0.80×), XNNPACK
+≈ 3.9 ms (0.74×). CPU thread sweep there (300 hops): 1 → 4.48 ms, 2 → 4.23,
+3 → 4.05, 4 → 4.20, 6 → 4.23, 8 → 8.98; the live path's half-cores-clamped-to-4
+is the right preset.
+
+Probing every EP type against the Microsoft AAR (`live_ep_bench` prints each
+one): `nnapi`, `xnnpack` and `cpu` are `available=true`; `acl`, `qnn`, `tvm`
+and `azure` are `available=false` — that binary does not contain them. The
+bench harness probes at runtime, so dropping in a custom ONNX Runtime build
+makes those rows run without code changes. QNN needs the Qualcomm AI Engine
+Direct SDK, TVM needs a built TVM runtime, and Azure needs an Azure ML endpoint;
+ACL is the only one buildable from open sources alone.
+
+NNAPI partitions almost nothing of this graph and pays per-hop copy cost, so it
+is ~18–20× slower than CPU on both devices, and QNN ranges from 4× to 24×
+slower; the live producer therefore uses CPU only. Android stem generation
+(offline) is CPU-only too, by product decision: the same accelerators are the
+only alternatives and none measured faster. A forced EP still works for
+experiments via `MIXAR_STEMS_ORT_EP` or the `debug.mixar.stems_ep` system
+property. Even at 0.8–0.98× the producer cannot sustain playback: the pacing
+window is ~11.9 s, so a fully pre-buffered start covers roughly a minute of
+playback before the deck falls back to the dry mix. The producer logs
+`StemgenRT live: producer is slower than realtime ep=… avg_hop_ms=… realtime=…`
+when that happens.
+
+Reproduce:
+
+```bash
+cd crates
+cargo build --release -p analyzer-stems --target aarch64-linux-android --example live_ep_bench
+adb push target/aarch64-linux-android/release/examples/live_ep_bench /data/local/tmp/
+adb push libonnxruntime.so stemgenrt.onnx /data/local/tmp/
+adb shell ORT_DYLIB_PATH=/data/local/tmp/libonnxruntime.so \
+  /data/local/tmp/live_ep_bench /data/local/tmp/stemgenrt.onnx 300
+# optional thread override: ... /data/local/tmp/stemgenrt.onnx 300 4
+```
+
+## QNN (Qualcomm HTP) on the S23 (2026-11-07)
+
+Built ONNX Runtime v1.31.0 for Android arm64 with
+`--use_qnn=static_lib --qnn_home <QAIRT 2.51.0.260929> --use_xnnpack`, loaded
+through `ort`'s `load-dynamic`. NNAPI had to be dropped from that build: its
+provider archive and QNN's both define `NodeAttrHelper`, so the shared library
+fails to link with duplicate symbols.
+
+| EP | avg hop | realtime factor |
+|---|---|---|
+| QNN, default options | 71.46 ms | 0.04× |
+| QNN, `MIXAR_QNN_PERF=burst` | 13.34 ms | 0.22× |
+| QNN, fp16 + high performance | 42.43 ms | 0.07× |
+| XNNPACK (same lib) | 3.17 ms | 0.91× |
+| CPU (same lib) | 2.96–3.00 ms | 0.96–0.98× |
+
+QNN/HTP is 4–24× slower than CPU here, depending on performance mode: the
+streaming graph partitions poorly and per-hop dispatch dominates, so HTP is not
+in the live cascade. Offline conv-heavy models (HTDemucs/SCNet) were not
+measured on HTP. Runtime wiring: `LD_LIBRARY_PATH` and `ADSP_LIBRARY_PATH` must
+contain the QNN libraries and `libQnnHtpV73Skel.so`; the app declares
+`libcdsprpc.so` via `<uses-native-library>` and sets `ADSP_LIBRARY_PATH` to its
+native library dir.
+
+Reproduce:
+
+```bash
+# QAIRT 2.51 unpacked at /path/qairt/2.51.0.260929, ORT v1.31.0 checkout
+./build.sh --android --config Release --android_abi arm64-v8a --android_api 29 \
+  --build_shared_lib --parallel --skip_tests --cmake_generator Ninja \
+  --android_ndk_path "$ANDROID_NDK" \
+  --use_qnn=static_lib --qnn_home /path/qairt/2.51.0.260929 --use_xnnpack
+adb push libonnxruntime.so libQnnHtp.so libQnnHtpPrepare.so libQnnSystem.so \
+  libQnnHtpV73Stub.so libQnnHtpV73Skel.so stemgenrt.onnx live_ep_bench /data/local/tmp/
+adb shell "cd /data/local/tmp && LD_LIBRARY_PATH=/data/local/tmp \
+  ADSP_LIBRARY_PATH=/data/local/tmp ORT_DYLIB_PATH=/data/local/tmp/libonnxruntime.so \
+  ./live_ep_bench ./stemgenrt.onnx 300"
 ```

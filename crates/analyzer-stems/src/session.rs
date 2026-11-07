@@ -2,15 +2,49 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{LazyLock, Mutex, OnceLock};
 use std::time::Instant;
 
 use anyhow::{anyhow, bail, Context, Result};
+use ort::environment::Environment;
 use ort::session::builder::GraphOptimizationLevel;
 use ort::session::Session;
 use tracing::{info, warn};
 
 use crate::ep::preferred_ep_cascade;
+
+/// Env var the dev probes use to point `ort` at a staged ONNX Runtime binary.
+pub const ORT_DYLIB_PATH_ENV: &str = "ORT_DYLIB_PATH";
+
+/// Soname of the ONNX Runtime shared library shipped by the Microsoft AAR.
+pub const ANDROID_ORT_DYLIB: &str = "libonnxruntime.so";
+
+/// ONNX Runtime allows one `Environment` per process, and ort ≥ 2.0.0-rc.14
+/// requires it to build any session (`Session::builder(&env)`).
+static ENVIRONMENT: LazyLock<Result<Environment, String>> = LazyLock::new(build_environment);
+
+fn build_environment() -> Result<Environment, String> {
+    // Android ships ONNX Runtime as a shared library (Microsoft's AAR) and builds
+    // `ort` with `load-dynamic`; dlopen the packaged soname, resolved by the app's
+    // linker namespace from `lib/<abi>/`.
+    #[cfg(target_os = "android")]
+    let builder = ort::init_from(ANDROID_ORT_DYLIB).map_err(|err| {
+        format!("load {ANDROID_ORT_DYLIB} (is the ONNX Runtime AAR packaged?): {err}")
+    })?;
+    #[cfg(not(target_os = "android"))]
+    let builder = ort::init();
+
+    builder
+        .build()
+        .map_err(|err| format!("create ort environment: {err}"))
+}
+
+pub(crate) fn environment() -> Result<&'static Environment> {
+    match &*ENVIRONMENT {
+        Ok(env) => Ok(env),
+        Err(err) => bail!("ort environment: {err}"),
+    }
+}
 
 /// Fixed HTDemucs segment length (samples per channel @ 44.1 kHz).
 pub const SEGMENT_SAMPLES: usize = 343_980;
@@ -61,6 +95,10 @@ pub fn with_session<R>(
 
 fn load_session(path: &Path) -> Result<LoadedSession> {
     let started = Instant::now();
+    // `load-dynamic` (Android) must resolve libonnxruntime.so before the cascade
+    // probes `GetAvailableProviders`; on desktop this is a no-op build of the
+    // process-wide environment.
+    environment()?;
     let cascade = preferred_ep_cascade();
     info!(
         path = %path.display(),
@@ -124,7 +162,7 @@ fn load_session(path: &Path) -> Result<LoadedSession> {
 /// `LOCALE_LOCK` is non-reentrant.
 fn try_commit(path: &Path, label: &str, ep: ort::ep::ExecutionProviderDispatch) -> Result<Session> {
     info!(ep = label, "stem ort: trying EP");
-    let mut builder = Session::builder().context("ort Session::builder")?;
+    let mut builder = Session::builder(environment()?).context("ort Session::builder")?;
     builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)
         .map_err(|err| anyhow!("ort optimization level: {err}"))?;

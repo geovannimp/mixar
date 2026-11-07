@@ -5,10 +5,19 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Optional: `MIXAR_EXTRA_JNI_DIR` points at a jniLibs-shaped directory
+// (`arm64-v8a/*.so`) holding a custom ONNX Runtime build (ACL/QNN/TVM EPs)
+// plus its runtime sidecars. When set, it replaces the Microsoft AAR below.
+// Read once: the android source set and the dependency block must agree.
+val extraJniDir: String? = System.getenv("MIXAR_EXTRA_JNI_DIR")
+val useExtraJni = extraJniDir != null
+
 android {
     namespace = "top.mixar.gui_flutter"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    extraJniDir?.let { sourceSets.getByName("main").jniLibs.srcDir(it) }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -32,8 +41,8 @@ android {
         versionName = flutter.versionName
 
         ndk {
-            // 64-bit only: ort-sys (ONNX Runtime) has no 32-bit Android binary,
-            // and Android builds without the `stems` feature anyway.
+            // 64-bit only: 32-bit Android Rust targets are dropped, and stems
+            // only needs the arm64-v8a/x86_64 ONNX Runtime AAR libraries.
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
     }
@@ -44,6 +53,26 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+
+    packaging {
+        jniLibs {
+            // 64-bit only: the app ships arm64-v8a/x86_64 only, but AARs and
+            // Flutter artifacts still carry 32-bit directories.
+            excludes += listOf("lib/armeabi-v7a/**", "lib/x86/**")
+            // Stem separation only needs the runtime library; the Java/JNI shim
+            // that ships in the same AAR is unused.
+            excludes += "**/libonnxruntime4j_jni.so"
+        }
+    }
+}
+
+dependencies {
+    // ONNX Runtime for stems: NNAPI + XNNPACK execution providers, loaded at
+    // runtime by `ort`'s `load-dynamic` from `lib/<abi>/libonnxruntime.so`.
+    // A custom build (MIXAR_EXTRA_JNI_DIR) carries its own copy instead.
+    if (!useExtraJni) {
+        implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.0")
     }
 }
 

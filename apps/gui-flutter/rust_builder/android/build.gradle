@@ -53,8 +53,8 @@ apply from: "../cargokit/gradle/plugin.gradle"
 cargokit {
     manifestDir = "../../../../crates/host-flutter"
     libname = "host_flutter"
-    // ONNX Runtime (ort-sys, used by the `stems` feature) ships no Android
-    // x86_64/32-bit prebuilt, so Android builds the host without stem
-    // separation. Live/offline stems stay enabled on desktop.
-    cargoFlags = ["--no-default-features"]
+    // Android loads Microsoft's ONNX Runtime AAR at runtime and runs every stem
+    // job on the CPU EP (accelerators measured slower), so the desktop-only
+    // `stems-webgpu` feature stays off.
+    cargoFlags = ["--no-default-features", "--features", "stems"]
 }
