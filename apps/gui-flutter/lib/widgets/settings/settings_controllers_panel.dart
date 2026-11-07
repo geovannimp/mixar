@@ -61,6 +61,20 @@ class _SettingsControllersPanelState
     );
   }
 
+  void _setAlwaysSwitchAudio(String deviceId, bool alwaysSwitch) {
+    final next = List<String>.from(widget.draft.alwaysSwitchAudioDeviceIds);
+    if (alwaysSwitch) {
+      if (!next.contains(deviceId)) {
+        next.add(deviceId);
+      }
+    } else {
+      next.remove(deviceId);
+    }
+    widget.onChanged(
+      copyAppSettings(widget.draft, alwaysSwitchAudioDeviceIds: next),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -114,8 +128,11 @@ class _SettingsControllersPanelState
                       trusted: widget.draft.trustedControllerDeviceIds.contains(
                         rows[i].deviceId,
                       ),
+                      alwaysSwitchAudio: widget.draft.alwaysSwitchAudioDeviceIds
+                          .contains(rows[i].deviceId),
                       attachBusy: _busy || transport == null,
                       trustBusy: _busy,
+                      audioBusy: _busy,
                       onToggleAttach: (enabled) => _run(
                         () => enabled
                             ? transport!.enableMapping(mappingId: rows[i].id)
@@ -123,6 +140,8 @@ class _SettingsControllersPanelState
                       ),
                       onToggleTrust: (trusted) =>
                           _setTrusted(rows[i].deviceId, trusted),
+                      onToggleAudio: (alwaysSwitch) =>
+                          _setAlwaysSwitchAudio(rows[i].deviceId, alwaysSwitch),
                       onUpdate: () => _run(() async {
                         await transport!.updateMapping(mappingId: rows[i].id);
                         if (mounted) {

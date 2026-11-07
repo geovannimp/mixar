@@ -127,6 +127,9 @@ Shift banks. This checklist is about what the unit *does* with them.
       again; once the master bus already uses the DDJ-400, no prompt appears.
 - [ ] While overridden, Settings → Audio marks the master and preview cards
       **Overridden by DDJ-400 mapping**.
+- [ ] Tick **Always switch audio to this controller** before **Switch outputs**
+      (or enable the mapping row's **Audio** toggle and Save): later attaches
+      switch without the prompt.
 - [ ] Unplug the unit (or detach the mapping): the previous master and preview
       devices come back and the badge disappears.
 - [ ] Declining the controller offer keeps the mapping unattached, shows no

@@ -7358,8 +7358,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 50)
-      throw Exception('unexpected arr length: expect 50 but see ${arr.length}');
+    if (arr.length != 51)
+      throw Exception('unexpected arr length: expect 51 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7387,31 +7387,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       keyDisplayMode: dco_decode_key_display_mode_setting(arr[23]),
       keyColorMode: dco_decode_key_color_mode_setting(arr[24]),
       trustedControllerDeviceIds: dco_decode_list_String(arr[25]),
+      alwaysSwitchAudioDeviceIds: dco_decode_list_String(arr[26]),
       controllerAudioOverride:
-          dco_decode_opt_box_autoadd_controller_audio_override(arr[26]),
-      historyEnabled: dco_decode_bool(arr[27]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[28]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[29]),
-      historyMinDeckVolume: dco_decode_f_32(arr[30]),
-      showTooltips: dco_decode_bool(arr[31]),
-      mixerMeters: dco_decode_mixer_meters_setting(arr[32]),
-      selectStyle: dco_decode_select_style_setting(arr[33]),
-      dimPlayedTracks: dco_decode_bool(arr[34]),
-      stemsFormat: dco_decode_String(arr[35]),
-      stemsModel: dco_decode_String(arr[36]),
-      realtimeStems: dco_decode_bool(arr[37]),
-      uiLanguage: dco_decode_ui_language_setting(arr[38]),
-      theme: dco_decode_theme_setting(arr[39]),
-      accentPalette: dco_decode_accent_palette_setting(arr[40]),
-      libraryDrawerEnabled: dco_decode_bool(arr[41]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[42]),
-      waveformPosition: dco_decode_waveform_position_setting(arr[43]),
-      showWaveform: dco_decode_bool(arr[44]),
-      showMixer: dco_decode_bool(arr[45]),
-      showFxBar: dco_decode_bool(arr[46]),
-      showCrossfader: dco_decode_bool(arr[47]),
-      analyticsEnabled: dco_decode_bool(arr[48]),
-      onboardingCompleted: dco_decode_bool(arr[49]),
+          dco_decode_opt_box_autoadd_controller_audio_override(arr[27]),
+      historyEnabled: dco_decode_bool(arr[28]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[29]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[30]),
+      historyMinDeckVolume: dco_decode_f_32(arr[31]),
+      showTooltips: dco_decode_bool(arr[32]),
+      mixerMeters: dco_decode_mixer_meters_setting(arr[33]),
+      selectStyle: dco_decode_select_style_setting(arr[34]),
+      dimPlayedTracks: dco_decode_bool(arr[35]),
+      stemsFormat: dco_decode_String(arr[36]),
+      stemsModel: dco_decode_String(arr[37]),
+      realtimeStems: dco_decode_bool(arr[38]),
+      uiLanguage: dco_decode_ui_language_setting(arr[39]),
+      theme: dco_decode_theme_setting(arr[40]),
+      accentPalette: dco_decode_accent_palette_setting(arr[41]),
+      libraryDrawerEnabled: dco_decode_bool(arr[42]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[43]),
+      waveformPosition: dco_decode_waveform_position_setting(arr[44]),
+      showWaveform: dco_decode_bool(arr[45]),
+      showMixer: dco_decode_bool(arr[46]),
+      showFxBar: dco_decode_bool(arr[47]),
+      showCrossfader: dco_decode_bool(arr[48]),
+      analyticsEnabled: dco_decode_bool(arr[49]),
+      onboardingCompleted: dco_decode_bool(arr[50]),
     );
   }
 
@@ -11265,6 +11266,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
     var var_keyColorMode = sse_decode_key_color_mode_setting(deserializer);
     var var_trustedControllerDeviceIds = sse_decode_list_String(deserializer);
+    var var_alwaysSwitchAudioDeviceIds = sse_decode_list_String(deserializer);
     var var_controllerAudioOverride =
         sse_decode_opt_box_autoadd_controller_audio_override(deserializer);
     var var_historyEnabled = sse_decode_bool(deserializer);
@@ -11321,6 +11323,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       keyDisplayMode: var_keyDisplayMode,
       keyColorMode: var_keyColorMode,
       trustedControllerDeviceIds: var_trustedControllerDeviceIds,
+      alwaysSwitchAudioDeviceIds: var_alwaysSwitchAudioDeviceIds,
       controllerAudioOverride: var_controllerAudioOverride,
       historyEnabled: var_historyEnabled,
       historySessionIdleMinutes: var_historySessionIdleMinutes,
@@ -15673,6 +15676,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
     sse_encode_key_color_mode_setting(self.keyColorMode, serializer);
     sse_encode_list_String(self.trustedControllerDeviceIds, serializer);
+    sse_encode_list_String(self.alwaysSwitchAudioDeviceIds, serializer);
     sse_encode_opt_box_autoadd_controller_audio_override(
       self.controllerAudioOverride,
       serializer,

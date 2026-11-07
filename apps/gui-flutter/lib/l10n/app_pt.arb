@@ -401,6 +401,15 @@
   "settingsControllersAttached": "Anexado",
   "settingsControllersUpdateAvailable": "Atualização disponível",
   "settingsControllersTrust": "Confiar",
+  "settingsControllersAudio": "Áudio",
+  "settingsControllersAudioSemantics": "Sempre trocar o áudio para {name}",
+  "@settingsControllersAudioSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "settingsControllersAttach": "Anexar",
   "settingsControllersTrustSemantics": "Confiar no dispositivo {name}",
   "@settingsControllersTrustSemantics": {

@@ -1179,6 +1179,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsControllersTrust => 'Trust';
 
   @override
+  String get settingsControllersAudio => 'Audio';
+
+  @override
+  String settingsControllersAudioSemantics(String name) {
+    return 'Always switch audio to $name';
+  }
+
+  @override
   String get settingsControllersAttach => 'Attach';
 
   @override

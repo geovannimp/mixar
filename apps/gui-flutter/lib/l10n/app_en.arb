@@ -449,6 +449,15 @@
   "settingsControllersAttached": "Attached",
   "settingsControllersUpdateAvailable": "Update available",
   "settingsControllersTrust": "Trust",
+  "settingsControllersAudio": "Audio",
+  "settingsControllersAudioSemantics": "Always switch audio to {name}",
+  "@settingsControllersAudioSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "settingsControllersAttach": "Attach",
   "settingsControllersTrustSemantics": "Trust device {name}",
   "@settingsControllersTrustSemantics": {

@@ -80,6 +80,9 @@ class AppSettings {
   final KeyColorModeSetting keyColorMode;
   final List<String> trustedControllerDeviceIds;
 
+  /// Controllers whose audio interface is switched in automatically on attach.
+  final List<String> alwaysSwitchAudioDeviceIds;
+
   /// Set while a controller mapping owns the output buses; restored on detach.
   final ControllerAudioOverride? controllerAudioOverride;
   final bool historyEnabled;
@@ -164,6 +167,7 @@ class AppSettings {
     required this.keyDisplayMode,
     required this.keyColorMode,
     required this.trustedControllerDeviceIds,
+    required this.alwaysSwitchAudioDeviceIds,
     this.controllerAudioOverride,
     required this.historyEnabled,
     required this.historySessionIdleMinutes,
@@ -218,6 +222,7 @@ class AppSettings {
       keyDisplayMode.hashCode ^
       keyColorMode.hashCode ^
       trustedControllerDeviceIds.hashCode ^
+      alwaysSwitchAudioDeviceIds.hashCode ^
       controllerAudioOverride.hashCode ^
       historyEnabled.hashCode ^
       historySessionIdleMinutes.hashCode ^
@@ -274,6 +279,7 @@ class AppSettings {
           keyDisplayMode == other.keyDisplayMode &&
           keyColorMode == other.keyColorMode &&
           trustedControllerDeviceIds == other.trustedControllerDeviceIds &&
+          alwaysSwitchAudioDeviceIds == other.alwaysSwitchAudioDeviceIds &&
           controllerAudioOverride == other.controllerAudioOverride &&
           historyEnabled == other.historyEnabled &&
           historySessionIdleMinutes == other.historySessionIdleMinutes &&

@@ -478,6 +478,9 @@ pub struct AppSettings {
     pub key_color_mode: KeyColorModeSetting,
     #[serde(default)]
     pub trusted_controller_device_ids: Vec<String>,
+    /// Controllers whose audio interface is switched in automatically on attach.
+    #[serde(default)]
+    pub always_switch_audio_device_ids: Vec<String>,
     /// Set while a controller mapping owns the output buses; restored on detach.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub controller_audio_override: Option<ControllerAudioOverride>,
@@ -566,6 +569,7 @@ struct SettingsHost {
     key_display_mode: KeyDisplayModeSetting,
     key_color_mode: KeyColorModeSetting,
     trusted_controller_device_ids: Vec<String>,
+    always_switch_audio_device_ids: Vec<String>,
     controller_audio_override: Option<ControllerAudioOverride>,
     history_enabled: bool,
     history_session_idle_minutes: u32,
@@ -612,6 +616,7 @@ impl Default for SettingsHost {
             key_display_mode: KeyDisplayModeSetting::Musical,
             key_color_mode: KeyColorModeSetting::Off,
             trusted_controller_device_ids: Vec::new(),
+            always_switch_audio_device_ids: Vec::new(),
             controller_audio_override: None,
             history_enabled: default_history_enabled(),
             history_session_idle_minutes: default_history_session_idle_minutes(),
@@ -954,6 +959,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         key_display_mode: host.key_display_mode,
         key_color_mode: host.key_color_mode,
         trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
+        always_switch_audio_device_ids: host.always_switch_audio_device_ids.clone(),
         controller_audio_override: host.controller_audio_override.clone(),
         history_enabled: host.history_enabled,
         history_session_idle_minutes: host.history_session_idle_minutes,
@@ -1013,6 +1019,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.key_display_mode = settings.key_display_mode;
     host.key_color_mode = settings.key_color_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
+    host.always_switch_audio_device_ids = settings.always_switch_audio_device_ids;
     host.controller_audio_override = settings.controller_audio_override;
     host.history_enabled = settings.history_enabled;
     host.history_session_idle_minutes = settings.history_session_idle_minutes;
@@ -1967,6 +1974,22 @@ mod tests {
         let restored = settings_from_host(&host);
         assert_eq!(
             restored.trusted_controller_device_ids,
+            vec!["pioneer.ddj-400".to_string()]
+        );
+    }
+
+    #[test]
+    fn always_switch_audio_device_ids_round_trip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.always_switch_audio_device_ids = vec!["pioneer.ddj-400".into()];
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert_eq!(
+            restored.always_switch_audio_device_ids,
             vec!["pioneer.ddj-400".to_string()]
         );
     }

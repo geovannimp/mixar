@@ -89,6 +89,18 @@ void main() {
     });
   });
 
+  group('controllerAudioAlwaysSwitch', () {
+    test('recognizes a saved controller preference', () {
+      final settings = copyAppSettings(
+        defaultAppSettings(),
+        alwaysSwitchAudioDeviceIds: ['pioneer.ddj-400'],
+      );
+      expect(controllerAudioAlwaysSwitch(settings, 'pioneer.ddj-400'), isTrue);
+      expect(controllerAudioAlwaysSwitch(settings, 'other'), isFalse);
+      expect(controllerAudioAlwaysSwitch(settings, ''), isFalse);
+    });
+  });
+
   group('applyControllerAudioOutputs', () {
     test('routes master and headphone buses and enables preview', () {
       final device = _device('ddj', 'DDJ-400');

@@ -2199,6 +2199,18 @@ abstract class AppLocalizations {
   /// **'Trust'**
   String get settingsControllersTrust;
 
+  /// No description provided for @settingsControllersAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get settingsControllersAudio;
+
+  /// No description provided for @settingsControllersAudioSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Always switch audio to {name}'**
+  String settingsControllersAudioSemantics(String name);
+
   /// No description provided for @settingsControllersAttach.
   ///
   /// In en, this message translates to:

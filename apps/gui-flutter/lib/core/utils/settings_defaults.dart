@@ -149,6 +149,7 @@ AppSettings defaultAppSettings() {
     keyDisplayMode: KeyDisplayModeSetting.musical,
     keyColorMode: KeyColorModeSetting.off,
     trustedControllerDeviceIds: const [],
+    alwaysSwitchAudioDeviceIds: const [],
     historyEnabled: true,
     historySessionIdleMinutes: 5,
     historyMinPlaySeconds: 5,
@@ -272,6 +273,7 @@ AppSettings copyAppSettings(
   KeyDisplayModeSetting? keyDisplayMode,
   KeyColorModeSetting? keyColorMode,
   List<String>? trustedControllerDeviceIds,
+  List<String>? alwaysSwitchAudioDeviceIds,
   ControllerAudioOverride? controllerAudioOverride,
   bool clearControllerAudioOverride = false,
   bool? historyEnabled,
@@ -328,6 +330,8 @@ AppSettings copyAppSettings(
     keyColorMode: keyColorMode ?? base.keyColorMode,
     trustedControllerDeviceIds:
         trustedControllerDeviceIds ?? base.trustedControllerDeviceIds,
+    alwaysSwitchAudioDeviceIds:
+        alwaysSwitchAudioDeviceIds ?? base.alwaysSwitchAudioDeviceIds,
     controllerAudioOverride: clearControllerAudioOverride
         ? null
         : controllerAudioOverride ?? base.controllerAudioOverride,
@@ -418,6 +422,10 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       !_sameList(
         draft.trustedControllerDeviceIds,
         baseline.trustedControllerDeviceIds,
+      ) ||
+      !_sameList(
+        draft.alwaysSwitchAudioDeviceIds,
+        baseline.alwaysSwitchAudioDeviceIds,
       ) ||
       draft.controllerAudioOverride != baseline.controllerAudioOverride;
 }

@@ -308,11 +308,25 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         return;
       }
       final productName = mapping?.productName.trim() ?? '';
+      final controllerDeviceId = mapping?.deviceId ?? '';
+      final label = productName.isEmpty ? device.name : productName;
       _audioAskedPorts.add(portName);
+      if (controllerAudioAlwaysSwitch(current, controllerDeviceId)) {
+        await _switchAudioOutputs(
+          portName: portName,
+          mappingId: mappingId,
+          controllerDeviceId: controllerDeviceId,
+          label: label,
+          hints: hints,
+          device: device,
+        );
+        return;
+      }
       _showAudioOffer(
         portName: portName,
         mappingId: mappingId,
-        label: productName.isEmpty ? device.name : productName,
+        controllerDeviceId: controllerDeviceId,
+        label: label,
         hints: hints,
         device: device,
       );
@@ -332,31 +346,41 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   void _showAudioOffer({
     required String portName,
     required String mappingId,
+    required String controllerDeviceId,
     required String label,
     required ControllerAudioHints hints,
     required OutputDevice device,
   }) {
     final master = hints.masterChannels;
     final headphones = hints.headphoneChannels;
+    var alwaysSwitch = false;
     showMixarToast(
       context: context,
       id: _audioToastId(portName),
       duration: null,
       title: Text('Switch audio outputs to $label?'),
-      description: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (master != null)
-            Text('Master → $label (channels ${master.left}–${master.right})'),
-          if (headphones != null)
-            Text(
-              'Headphones → $label '
-              '(channels ${headphones.left}–${headphones.right})',
+      description: StatefulBuilder(
+        builder: (context, setLocal) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (master != null)
+              Text('Master → $label (channels ${master.left}–${master.right})'),
+            if (headphones != null)
+              Text(
+                'Headphones → $label '
+                '(channels ${headphones.left}–${headphones.right})',
+              ),
+            const SizedBox(height: 4),
+            const Text('Mixar will restart the audio engine.'),
+            const SizedBox(height: 8),
+            MixarCheckbox(
+              value: alwaysSwitch,
+              label: const Text('Always switch audio to this controller'),
+              onChanged: (value) => setLocal(() => alwaysSwitch = value),
             ),
-          const SizedBox(height: 4),
-          const Text('Mixar will restart the audio engine.'),
-        ],
+          ],
+        ),
       ),
       suffixBuilder: (context, dismiss) => Row(
         mainAxisSize: MainAxisSize.min,
@@ -378,9 +402,11 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
                 _switchAudioOutputs(
                   portName: portName,
                   mappingId: mappingId,
+                  controllerDeviceId: controllerDeviceId,
                   label: label,
                   hints: hints,
                   device: device,
+                  alwaysSwitch: alwaysSwitch,
                 ),
               );
             },
@@ -394,16 +420,18 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   Future<void> _switchAudioOutputs({
     required String portName,
     required String mappingId,
+    required String controllerDeviceId,
     required String label,
     required ControllerAudioHints hints,
     required OutputDevice device,
+    bool alwaysSwitch = false,
   }) async {
     try {
       final settingsTransport = await ref.read(
         settingsTransportProvider.future,
       );
       final current = await settingsTransport.getSettings();
-      final updated = applyControllerAudioOutputs(
+      var updated = applyControllerAudioOutputs(
         current,
         hints,
         device,
@@ -412,6 +440,17 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       );
       if (updated == null) {
         return;
+      }
+      if (alwaysSwitch &&
+          controllerDeviceId.isNotEmpty &&
+          !updated.alwaysSwitchAudioDeviceIds.contains(controllerDeviceId)) {
+        updated = copyAppSettings(
+          updated,
+          alwaysSwitchAudioDeviceIds: [
+            ...updated.alwaysSwitchAudioDeviceIds,
+            controllerDeviceId,
+          ],
+        );
       }
       final result = await saveAppSettings(ref, updated);
       if (!mounted) {

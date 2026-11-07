@@ -93,6 +93,15 @@ bool controllerAudioAlreadyRouted(
   return false;
 }
 
+/// Whether this controller is configured to switch the output buses on attach
+/// without asking.
+bool controllerAudioAlwaysSwitch(
+  AppSettings settings,
+  String controllerDeviceId,
+) =>
+    controllerDeviceId.isNotEmpty &&
+    settings.alwaysSwitchAudioDeviceIds.contains(controllerDeviceId);
+
 /// Whether [master] (or the preview bus) currently runs on the device a
 /// controller mapping moved it to. Drives the Settings badges.
 bool controllerAudioOverridesBus(AppSettings settings, {required bool master}) {
