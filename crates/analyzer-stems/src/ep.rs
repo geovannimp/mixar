@@ -1,25 +1,74 @@
 //! ORT execution-provider preference cascade.
 //!
-//! Prefer WebGPU when the `webgpu` feature is on, always end on CPU. Optional
-//! force via `MIXAR_STEMS_ORT_EP` (e.g. `cpu`, `webgpu`).
+//! Desktop offline separation prefers WebGPU and always ends on CPU. Android
+//! runs every stem job on CPU: NNAPI, XNNPACK, QNN and TVM all measured slower
+//! for these models (see `PERF-RUN.md`). Optional force via `MIXAR_STEMS_ORT_EP`
+//! (desktop) or the `debug.mixar.stems_ep` system property (Android, where an
+//! app process cannot receive env vars) for experiments.
 
 use ort::ep::{self, ExecutionProviderDispatch};
 
 /// Env var that forces a single EP label (skips the platform cascade).
 pub const FORCE_EP_ENV: &str = "MIXAR_STEMS_ORT_EP";
 
+/// Android system property that mirrors [`FORCE_EP_ENV`].
+#[cfg(target_os = "android")]
+pub const FORCE_EP_PROPERTY: &str = "debug.mixar.stems_ep";
+
+/// Short label for the CPU fallback.
+pub const CPU_EP_LABEL: &str = "cpu";
+
+/// Short label for the WebGPU EP.
+pub const WEBGPU_EP_LABEL: &str = "webgpu";
+
+/// Short label for the Android NNAPI EP.
+pub const NNAPI_EP_LABEL: &str = "nnapi";
+
+/// Short label for the XNNPACK EP, shared by the cascade and the live
+/// single-thread policy.
+pub const XNNPACK_EP_LABEL: &str = "xnnpack";
+
+/// Short label for the Android QNN EP.
+pub const QNN_EP_LABEL: &str = "qnn";
+
+/// Probe-only labels for EPs ORT may expose but the cascade cannot force.
+pub const ACL_EP_LABEL: &str = "acl";
+pub const TVM_EP_LABEL: &str = "tvm";
+pub const AZURE_EP_LABEL: &str = "azure";
+
 /// Short Mixar cache/backend label for an EP name (`cpu`, `webgpu`, …).
 ///
 /// Accepts either our short labels or ORT `*ExecutionProvider` names.
 /// Unknown names fall back to `"cpu"`.
 pub fn ep_label(name: &str) -> &'static str {
-    parse_ep_label(name).unwrap_or("cpu")
+    parse_ep_label(name).unwrap_or(CPU_EP_LABEL)
 }
 
-/// Value of [`FORCE_EP_ENV`] when set to a recognized label.
+/// Forced EP label from [`FORCE_EP_ENV`], or the Android system property.
 pub fn force_ep_from_env() -> Option<&'static str> {
-    let raw = std::env::var(FORCE_EP_ENV).ok()?;
-    parse_ep_label(&raw)
+    let forced = std::env::var(FORCE_EP_ENV)
+        .ok()
+        .and_then(|raw| parse_ep_label(&raw));
+    #[cfg(target_os = "android")]
+    let forced = forced.or_else(android_forced_label);
+    forced
+}
+
+/// `adb shell setprop debug.mixar.stems_ep nnapi` — the Android stand-in for an
+/// env var. Read on each session build, so no app restart is needed.
+#[cfg(target_os = "android")]
+fn android_forced_label() -> Option<&'static str> {
+    // `PROP_VALUE_MAX`, including the NUL terminator.
+    let mut value = [0 as libc::c_char; 92];
+    let name = std::ffi::CString::new(FORCE_EP_PROPERTY).ok()?;
+    let len = unsafe { libc::__system_property_get(name.as_ptr(), value.as_mut_ptr()) };
+    if len <= 0 {
+        return None;
+    }
+    let raw = unsafe { std::ffi::CStr::from_ptr(value.as_ptr()) }
+        .to_str()
+        .ok()?;
+    parse_ep_label(raw)
 }
 
 /// EP builders in preference order for the current platform / force env.
@@ -32,15 +81,32 @@ pub fn preferred_execution_providers() -> Vec<ExecutionProviderDispatch> {
 
 /// Short labels in the same order as [`preferred_execution_providers`].
 pub fn preferred_ep_labels() -> Vec<&'static str> {
-    preferred_ep_cascade()
-        .into_iter()
-        .map(|(label, _)| label)
-        .collect()
+    labels_of(preferred_ep_cascade())
+}
+
+/// Short labels the realtime producer will try, in order.
+pub fn preferred_live_ep_labels() -> Vec<&'static str> {
+    labels_of(preferred_live_ep_cascade())
+}
+
+/// Project the labels of a `(label, EP)` cascade, keeping its order.
+fn labels_of(cascade: Vec<(&'static str, ExecutionProviderDispatch)>) -> Vec<&'static str> {
+    cascade.into_iter().map(|(label, _)| label).collect()
 }
 
 /// `(label, EP)` pairs in preference order (for sequential session tries).
 pub(crate) fn preferred_ep_cascade() -> Vec<(&'static str, ExecutionProviderDispatch)> {
     preference_cascade()
+}
+
+/// Cascade for the realtime StemgenRT producer: CPU only.
+///
+/// Measured everywhere: desktop WebGPU is slower than CPU for this graph; on
+/// mobile NNAPI 219.6 ms/hop and QNN 13.3–71.5 ms/hop against ~3 ms on CPU
+/// (S23), and XNNPACK is within noise of CPU but never faster. A forced EP
+/// (`MIXAR_STEMS_ORT_EP` / `debug.mixar.stems_ep`) still wins for experiments.
+pub(crate) fn preferred_live_ep_cascade() -> Vec<(&'static str, ExecutionProviderDispatch)> {
+    forced_or_else(|| vec![cpu_entry()])
 }
 
 fn normalize_ep_key(name: &str) -> String {
@@ -49,8 +115,14 @@ fn normalize_ep_key(name: &str) -> String {
 
 fn parse_ep_label(name: &str) -> Option<&'static str> {
     match normalize_ep_key(name).as_str() {
-        "cpu" | "cpuexecutionprovider" => Some("cpu"),
-        "webgpu" | "webgpuexecutionprovider" => Some("webgpu"),
+        "cpu" | "cpuexecutionprovider" => Some(CPU_EP_LABEL),
+        "webgpu" | "webgpuexecutionprovider" => Some(WEBGPU_EP_LABEL),
+        // Android only (Microsoft's ORT AAR / custom QNN build). Listed
+        // everywhere so the env var is self-documenting; non-Android hosts
+        // simply fall back to CPU.
+        "nnapi" | "nnapiexecutionprovider" => Some(NNAPI_EP_LABEL),
+        "xnnpack" | "xnnpackexecutionprovider" => Some(XNNPACK_EP_LABEL),
+        "qnn" | "qnnexecutionprovider" => Some(QNN_EP_LABEL),
         // Recognized for cache/env docs; not compiled in (no joint ORT EP binary
         // with webgpu — enabling these as cargo features breaks `--all-features`).
         "cuda" | "cudaexecutionprovider" => Some("cuda"),
@@ -64,25 +136,45 @@ fn parse_ep_label(name: &str) -> Option<&'static str> {
 }
 
 fn preference_cascade() -> Vec<(&'static str, ExecutionProviderDispatch)> {
-    if let Some(label) = force_ep_from_env() {
-        return vec![ep_entry(label).unwrap_or_else(cpu_entry)];
-    }
+    forced_or_else(|| {
+        let mut out = Vec::new();
 
-    let mut out = Vec::new();
+        // Desktop offline separation still tries the GPU EP; Android is CPU-only
+        // (NNAPI, XNNPACK, QNN and TVM all measured slower for these models).
+        #[cfg(any(target_os = "linux", target_os = "windows", target_vendor = "apple"))]
+        {
+            #[cfg(feature = "webgpu")]
+            out.push(ep_entry(WEBGPU_EP_LABEL).expect("webgpu feature"));
+        }
 
-    #[cfg(any(target_os = "linux", target_os = "windows", target_vendor = "apple"))]
-    {
-        #[cfg(feature = "webgpu")]
-        out.push(ep_entry("webgpu").expect("webgpu feature"));
-    }
+        out.push(cpu_entry());
+        out
+    })
+}
 
-    out.push(cpu_entry());
-    out
+/// Honor a forced EP when one is set, otherwise build the platform default.
+///
+/// Both cascades go through here so the override path cannot drift between the
+/// offline and live producers.
+fn forced_or_else(
+    default: impl FnOnce() -> Vec<(&'static str, ExecutionProviderDispatch)>,
+) -> Vec<(&'static str, ExecutionProviderDispatch)> {
+    forced_cascade().unwrap_or_else(default)
+}
+
+/// Forced single-EP cascade, when `MIXAR_STEMS_ORT_EP` / the Android property
+/// names a known provider. Unknown labels fall through to the platform order.
+fn forced_cascade() -> Option<Vec<(&'static str, ExecutionProviderDispatch)>> {
+    // Reject a label this build cannot build (e.g. `nnapi` on desktop, or
+    // `webgpu` without the feature) instead of reporting the label while
+    // silently running CPU: fall through to the platform order.
+    let label = force_ep_from_env()?;
+    Some(vec![ep_entry(label)?])
 }
 
 fn cpu_entry() -> (&'static str, ExecutionProviderDispatch) {
     // CPU may remain the only EP; silent failure is fine.
-    ("cpu", ep::CPU::default().build())
+    (CPU_EP_LABEL, ep::CPU::default().build())
 }
 
 fn ep_entry(label: &'static str) -> Option<(&'static str, ExecutionProviderDispatch)> {
@@ -90,12 +182,68 @@ fn ep_entry(label: &'static str) -> Option<(&'static str, ExecutionProviderDispa
     // still commit a CPU session, which would make our cascade think the GPU EP
     // won while inference stays on CPU.
     let ep = match label {
-        "cpu" => ep::CPU::default().build(),
+        CPU_EP_LABEL => ep::CPU::default().build(),
         #[cfg(feature = "webgpu")]
-        "webgpu" => webgpu_ep().error_on_failure(),
+        WEBGPU_EP_LABEL => webgpu_ep().error_on_failure(),
+        #[cfg(target_os = "android")]
+        NNAPI_EP_LABEL => ep::NNAPI::default().build().error_on_failure(),
+        #[cfg(target_os = "android")]
+        XNNPACK_EP_LABEL => ep::XNNPACK::default().build().error_on_failure(),
+        #[cfg(target_os = "android")]
+        QNN_EP_LABEL => qnn_ep(),
         _ => return None,
     };
     Some((label, ep))
+}
+
+/// Build one execution provider by label. The cascade and the benchmark tooling
+/// share this so env tuning (`MIXAR_QNN_*`) behaves the same in both.
+pub fn execution_provider(label: &str) -> Option<ExecutionProviderDispatch> {
+    let label = parse_ep_label(label)?;
+    ep_entry(label).map(|(_, ep)| ep)
+}
+
+/// QNN/HTP needs explicit tuning to be meaningful; defaults mirror ORT (HTP
+/// backend, its default performance mode). Overridable per run so the same
+/// binary can be benchmarked without rebuilding:
+/// `MIXAR_QNN_BACKEND`, `MIXAR_QNN_PERF` (burst/balanced/high/sustained),
+/// `MIXAR_QNN_FP16` (0/1), `MIXAR_QNN_HTP_ARCH`.
+#[cfg(target_os = "android")]
+const QNN_BACKEND_ENV: &str = "MIXAR_QNN_BACKEND";
+#[cfg(target_os = "android")]
+const QNN_PERF_ENV: &str = "MIXAR_QNN_PERF";
+#[cfg(target_os = "android")]
+const QNN_FP16_ENV: &str = "MIXAR_QNN_FP16";
+#[cfg(target_os = "android")]
+const QNN_HTP_ARCH_ENV: &str = "MIXAR_QNN_HTP_ARCH";
+
+#[cfg(target_os = "android")]
+fn qnn_ep() -> ExecutionProviderDispatch {
+    use ort::ep::qnn::PerformanceMode;
+
+    let mut qnn = ep::QNN::default();
+    if let Ok(path) = std::env::var(QNN_BACKEND_ENV) {
+        qnn = qnn.with_backend_path(path);
+    }
+    if let Ok(mode) = std::env::var(QNN_PERF_ENV) {
+        qnn = qnn.with_performance_mode(match mode.as_str() {
+            "burst" => PerformanceMode::Burst,
+            "balanced" => PerformanceMode::Balanced,
+            "high" => PerformanceMode::HighPerformance,
+            "sustained" => PerformanceMode::SustainedHighPerformance,
+            _ => PerformanceMode::Default,
+        });
+    }
+    if let Ok(fp16) = std::env::var(QNN_FP16_ENV) {
+        qnn = qnn.with_htp_fp16_precision(fp16 != "0");
+    }
+    if let Some(arch) = std::env::var(QNN_HTP_ARCH_ENV)
+        .ok()
+        .and_then(|raw| raw.parse::<u32>().ok())
+    {
+        qnn = qnn.with_htp_arch(arch);
+    }
+    qnn.build().error_on_failure()
 }
 
 #[cfg(feature = "webgpu")]
@@ -233,6 +381,21 @@ mod tests {
         });
     }
 
+    #[cfg(not(target_os = "android"))]
+    #[test]
+    fn forced_unbuildable_label_falls_through() {
+        // `nnapi` parses everywhere but `ep_entry` only builds it on Android;
+        // the cascade must not report an EP it cannot run.
+        with_force_ep(Some(NNAPI_EP_LABEL), || {
+            let labels = preferred_ep_labels();
+            assert!(
+                !labels.contains(&NNAPI_EP_LABEL),
+                "unbuildable forced label must not be reported: {labels:?}"
+            );
+            assert_eq!(labels.last().copied(), Some(CPU_EP_LABEL));
+        });
+    }
+
     #[test]
     fn ep_label_maps_ort_and_short_names() {
         assert_eq!(ep_label("CPUExecutionProvider"), "cpu");
@@ -240,6 +403,7 @@ mod tests {
         assert_eq!(ep_label("WebGpuExecutionProvider"), "webgpu");
         assert_eq!(ep_label("DmlExecutionProvider"), "directml");
         assert_eq!(ep_label("NvTensorRTRTXExecutionProvider"), "tensorrt_rtx");
+        assert_eq!(ep_label("QnnExecutionProvider"), "qnn");
     }
 
     #[test]

@@ -16,7 +16,14 @@ mod stemgen;
 mod window;
 
 pub use ep::{
-    ep_label, force_ep_from_env, preferred_ep_labels, preferred_execution_providers, FORCE_EP_ENV,
+    ep_label, execution_provider, force_ep_from_env, preferred_ep_labels,
+    preferred_execution_providers, preferred_live_ep_labels, ACL_EP_LABEL, AZURE_EP_LABEL,
+    CPU_EP_LABEL, FORCE_EP_ENV, NNAPI_EP_LABEL, QNN_EP_LABEL, TVM_EP_LABEL, WEBGPU_EP_LABEL,
+    XNNPACK_EP_LABEL,
+};
+pub use session::{ANDROID_ORT_DYLIB, ORT_DYLIB_PATH_ENV};
+pub use stemgen::{
+    intra_threads_for, live_intra_threads, STEMGEN_AUDIO_INPUT, STEMGEN_STATE_OUTPUT_PREFIX,
 };
 
 pub use format::{encode_stem_file, StemAudioFormat, OPUS_BITRATE_BPS, OPUS_SAMPLE_RATE};

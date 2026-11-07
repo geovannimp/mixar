@@ -28,9 +28,10 @@ fn main() -> Result<()> {
 
     let labels = preferred_ep_labels();
     let eps = preferred_execution_providers();
+    let env = ort::init().build().context("ort environment")?;
     for (label, ep) in labels.into_iter().zip(eps) {
         let started = Instant::now();
-        match try_ep(&path, label, ep) {
+        match try_ep(&path, label, ep, &env) {
             Ok(()) => {
                 println!("OK ep={label} elapsed_ms={}", started.elapsed().as_millis());
                 return Ok(());
@@ -47,8 +48,9 @@ fn try_ep(
     path: &std::path::Path,
     label: &str,
     ep: ort::ep::ExecutionProviderDispatch,
+    env: &ort::environment::Environment,
 ) -> Result<()> {
-    let mut builder = Session::builder().context("builder")?;
+    let mut builder = Session::builder(env).context("builder")?;
     builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)
         .map_err(|err| anyhow!("opt: {err}"))?;

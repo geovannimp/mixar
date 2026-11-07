@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use audio_core::{LiveStemRing, LoadedAudio};
@@ -28,6 +28,12 @@ use crate::resample_pcm::resample_interleaved_stereo;
 
 /// Model sample rate.
 pub(crate) const SAMPLE_RATE: u32 = 44_100;
+/// Name of the model's audio input tensor (the live producer and the
+/// benchmark must feed exactly this name).
+pub const STEMGEN_AUDIO_INPUT: &str = "audio_chunk";
+
+/// Prefix of the model's recurrent-state outputs (`next_<state>`).
+pub const STEMGEN_STATE_OUTPUT_PREFIX: &str = "next_";
 /// One model hop (samples per channel).
 const HOP: usize = 128;
 /// Four output stems.
@@ -72,6 +78,11 @@ trait HopRunner {
 
     /// Clear the carried recurrent state (seek / re-epoch).
     fn reset(&mut self);
+
+    /// Execution provider this runner was built with (for throughput logs).
+    fn ep_label(&self) -> &'static str {
+        "stub"
+    }
 }
 
 /// True when the playhead moved like a seek rather than normal playback.
@@ -141,31 +152,80 @@ pub fn start_live_separator(
     Ok(LiveSeparator::from_parts(stop, ring, handle))
 }
 
-fn load_session(weights: &Path) -> Result<(Session, Vec<State>)> {
-    let builder = Session::builder()
+fn load_session(weights: &Path) -> Result<(Session, Vec<State>, &'static str)> {
+    // `load-dynamic` (Android) resolves the runtime here; the cascade probes it.
+    crate::session::environment()?;
+
+    let mut last_err = None;
+    for (label, ep) in crate::ep::preferred_live_ep_cascade() {
+        match commit_session(weights, label, ep) {
+            Ok(loaded) => return Ok(loaded),
+            Err(err) => {
+                warn!(
+                    ep = label,
+                    error = %format!("{err:#}"),
+                    "StemgenRT live: EP session failed; trying next"
+                );
+                last_err = Some(err);
+            }
+        }
+    }
+    Err(last_err
+        .unwrap_or_else(|| anyhow::anyhow!("no ORT execution provider could load StemgenRT")))
+}
+
+/// Intra-op thread count for the live CPU session: half the cores, clamped to
+/// 1..=4. The graph is mostly sequential, so more threads hurt (on a Galaxy S23
+/// eight threads measured 2.5× the per-hop cost of four).
+pub fn live_intra_threads() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| (n.get() / 2).clamp(1, 4))
+        .unwrap_or(1)
+}
+
+/// Effective intra-op thread count for a session on `label`.
+///
+/// XNNPACK runs its own intra-op pool, so a second ORT pool only contends and
+/// it always gets one thread. Every other EP gets `requested` or the live
+/// default ([`live_intra_threads`]: half the cores, capped at four, because the
+/// graph is mostly sequential — measured 0.88x one thread, 1.00x four). A
+/// requested count the policy would ignore is rejected so a caller cannot
+/// report a thread budget it did not measure.
+pub fn intra_threads_for(label: &str, requested: Option<usize>) -> Result<usize> {
+    if label == crate::XNNPACK_EP_LABEL {
+        if let Some(count) = requested {
+            if count != 1 {
+                bail!("xnnpack runs its own intra-op pool; pass threads=1 (got {count})");
+            }
+        }
+        return Ok(1);
+    }
+    Ok(requested.unwrap_or_else(live_intra_threads))
+}
+
+fn commit_session(
+    weights: &Path,
+    label: &'static str,
+    ep: ort::ep::ExecutionProviderDispatch,
+) -> Result<(Session, Vec<State>, &'static str)> {
+    let intra_threads = intra_threads_for(label, None)?;
+    let builder = Session::builder(crate::session::environment()?)
         .context("StemgenRT ort Session::builder")?
         .with_optimization_level(GraphOptimizationLevel::Level3)
         .map_err(|e| anyhow::anyhow!("StemgenRT ort optimization level: {e}"))?
-        // The graph is mostly sequential, so threads barely help (measured
-        // 0.88x one thread, 1.00x four), but four is free on a desktop and
-        // keeps more of the lookahead produced while the deck is idle.
-        .with_intra_threads(
-            std::thread::available_parallelism()
-                .map(|n| (n.get() / 2).clamp(1, 4))
-                .unwrap_or(1),
-        )
-        .map_err(|e| anyhow::anyhow!("StemgenRT ort intra threads: {e}"))?
-        .with_inter_threads(1)
-        .map_err(|e| anyhow::anyhow!("StemgenRT ort inter threads: {e}"))?;
+        .with_intra_threads(intra_threads)
+        .map_err(|e| anyhow::anyhow!("StemgenRT ort intra threads: {e}"))?;
     let session = builder
-        .with_execution_providers([ort::ep::CPU::default().build()])
-        .map_err(|e| anyhow::anyhow!("StemgenRT ort CPU EP: {e}"))?
+        .with_inter_threads(1)
+        .map_err(|e| anyhow::anyhow!("StemgenRT ort inter threads: {e}"))?
+        .with_execution_providers([ep])
+        .map_err(|e| anyhow::anyhow!("StemgenRT ort register EP '{label}': {e}"))?
         .commit_from_file(weights)
         .with_context(|| format!("load StemgenRT ONNX {}", weights.display()))?;
 
     let mut states = Vec::new();
     for input in session.inputs() {
-        if input.name() == "audio_chunk" {
+        if input.name() == STEMGEN_AUDIO_INPUT {
             continue;
         }
         let ValueType::Tensor { shape, .. } = input.dtype() else {
@@ -197,17 +257,19 @@ fn load_session(weights: &Path) -> Result<(Session, Vec<State>)> {
     }
 
     info!(
+        ep = label,
         states = states.len(),
         path = %weights.display(),
         "StemgenRT live: session ready"
     );
-    Ok((session, states))
+    Ok((session, states, label))
 }
 
 /// The real model: one ONNX session plus its carried recurrent states.
 struct OnnxRunner {
     session: Session,
     states: Vec<State>,
+    ep_label: &'static str,
 }
 
 impl HopRunner for OnnxRunner {
@@ -220,6 +282,10 @@ impl HopRunner for OnnxRunner {
         for state in self.states.iter_mut() {
             state.data.fill(0.0);
         }
+    }
+
+    fn ep_label(&self) -> &'static str {
+        self.ep_label
     }
 }
 
@@ -235,7 +301,7 @@ fn run_hop(
 
     let mut inputs: Vec<(String, Tensor<f32>)> = Vec::with_capacity(states.len() + 1);
     inputs.push((
-        "audio_chunk".into(),
+        STEMGEN_AUDIO_INPUT.into(),
         Tensor::from_array(([1usize, 2, HOP], audio.to_vec())).context("StemgenRT audio tensor")?,
     ));
     for state in states.iter() {
@@ -269,7 +335,7 @@ fn run_hop(
     }
 
     for state in states.iter_mut() {
-        let name = format!("next_{}", state.name);
+        let name = format!("{}{}", STEMGEN_STATE_OUTPUT_PREFIX, state.name);
         let value = outputs
             .get(&name)
             .ok_or_else(|| anyhow::anyhow!("StemgenRT output missing '{name}'"))?;
@@ -340,7 +406,7 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
         return;
     }
 
-    let (session, states) = match load_session(weights) {
+    let (session, states, ep_label) = match load_session(weights) {
         Ok(loaded) => loaded,
         Err(err) => {
             warn!(error = %format!("{err:#}"), "StemgenRT live: session failed");
@@ -348,7 +414,11 @@ fn run(weights: &Path, audio: &LoadedAudio, ring: &LiveStemRing, stop: &AtomicBo
             return;
         }
     };
-    let mut runner = OnnxRunner { session, states };
+    let mut runner = OnnxRunner {
+        session,
+        states,
+        ep_label,
+    };
     let mut state = ProducerState::new();
 
     pump(&mut runner, pcm, total, ring, stop, &mut state, u64::MAX);
@@ -378,6 +448,74 @@ impl ProducerState {
     }
 }
 
+/// Rolling model-throughput meter: averaged hop cost and the realtime factor
+/// (audio seconds produced per wall second of inference). A factor below 1.0
+/// means the producer cannot stay ahead and the deck will fall back to the dry
+/// mix; report it every few seconds so device logs answer "is it keeping up?".
+struct Throughput {
+    run: Duration,
+    hops: u64,
+    since: Instant,
+}
+
+impl Throughput {
+    fn new() -> Self {
+        Self {
+            run: Duration::ZERO,
+            hops: 0,
+            since: Instant::now(),
+        }
+    }
+
+    fn record(&mut self, elapsed: Duration) {
+        self.run += elapsed;
+        self.hops += 1;
+    }
+
+    fn report(&mut self, runner: &impl HopRunner) {
+        if self.hops == 0 || self.since.elapsed() < Duration::from_secs(5) {
+            return;
+        }
+        let per_hop = self.run.as_secs_f64() / self.hops as f64;
+        let budget = HOP as f64 / SAMPLE_RATE as f64;
+        let realtime = if per_hop > 0.0 { budget / per_hop } else { 0.0 };
+        // One field set for both rows: the warn and info reports stay
+        // greppable with the same keys and cannot drift apart.
+        macro_rules! report {
+            ($level:ident, $message:literal) => {
+                tracing::$level!(
+                    ep = runner.ep_label(),
+                    hops = self.hops,
+                    avg_hop_ms = per_hop * 1000.0,
+                    realtime,
+                    $message
+                )
+            };
+        }
+        if realtime < 1.0 {
+            report!(warn, "StemgenRT live: producer is slower than realtime");
+        } else {
+            report!(info, "StemgenRT live: throughput");
+        }
+        self.run = Duration::ZERO;
+        self.hops = 0;
+        self.since = Instant::now();
+    }
+}
+
+/// Run one hop through the throughput meter. Both the steady-state and the
+/// flush path go through here so their timing and recording cannot drift.
+fn timed_run(
+    runner: &mut impl HopRunner,
+    throughput: &mut Throughput,
+    audio: &[f32],
+) -> Result<[Vec<f32>; STEMS]> {
+    let started = Instant::now();
+    let result = runner.run(audio);
+    throughput.record(started.elapsed());
+    result
+}
+
 fn pump(
     runner: &mut impl HopRunner,
     pcm: &[f32],
@@ -397,6 +535,7 @@ fn pump(
     } = state;
     let mut hops = 0u64;
     let mut audio_chunk = vec![0.0f32; 2 * HOP];
+    let mut throughput = Throughput::new();
 
     loop {
         if stop.load(Ordering::Acquire) || ring.is_closed() {
@@ -440,7 +579,8 @@ fn pump(
                 // stream never produced a pending output.
                 if !*first {
                     audio_chunk.fill(0.0);
-                    match runner.run(&audio_chunk) {
+                    let result = timed_run(runner, &mut throughput, &audio_chunk);
+                    match result {
                         Ok(separated) => publish_hop(ring, &separated, publish_at, total),
                         Err(err) => {
                             warn!(error = %format!("{err:#}"), "StemgenRT live: flush failed");
@@ -448,6 +588,7 @@ fn pump(
                             break;
                         }
                     }
+                    throughput.report(runner);
                 }
                 *flushed = true;
             }
@@ -463,7 +604,7 @@ fn pump(
             audio_chunk[HOP + i] = pcm[source + 1];
         }
 
-        let separated = match runner.run(&audio_chunk) {
+        let separated = match timed_run(runner, &mut throughput, &audio_chunk) {
             Ok(separated) => separated,
             Err(err) => {
                 warn!(error = %format!("{err:#}"), "StemgenRT live: separation failed");
@@ -471,6 +612,7 @@ fn pump(
                 break;
             }
         };
+        throughput.report(runner);
 
         if !*first {
             publish_hop(ring, &separated, publish_at, total);
