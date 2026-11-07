@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/controller_audio.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/bus_providers.dart';
 import 'package:gui_flutter/providers/shell/controller_providers.dart';
@@ -144,20 +145,20 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   static String _audioToastId(String port) => 'controller-audio:$port';
 
   /// Covers mappings that were already attached when this widget bound (a
-  /// trusted controller plugged in before the shell subscribed). Also restores
-  /// the saved buses when a controller that owned them is gone.
+  /// trusted controller plugged in before the shell subscribed).
   Future<void> _hydrateAttachedAudio(ControllerTransport transport) async {
     try {
-      final rows = await transport.listMappings();
       final attached = <String, ControllerAudioHints>{};
-      for (final row in rows) {
+      for (final row in await transport.listMappings()) {
         final audio = row.audio;
         if (row.attached && audio != null) {
           attached[row.id] = audio;
         }
       }
-      final devices = await transport.listDevices();
-      for (final device in devices) {
+      if (attached.isEmpty) {
+        return;
+      }
+      for (final device in await transport.listDevices()) {
         final mappingId = device.matchedMappingId;
         if (device.direction == ControllerDeviceDirection.input &&
             mappingId != null &&
@@ -165,88 +166,12 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
           unawaited(_maybeOfferAudioSwitch(mappingId, device.portName));
         }
       }
-
-      final settingsTransport = await ref.read(
-        settingsTransportProvider.future,
-      );
-      final override =
-          (await settingsTransport.getSettings()).controllerAudioOverride;
-      if (override == null || !mounted) {
-        return;
-      }
-      if (rows.any((row) => row.id == override.mappingId && row.attached)) {
-        return;
-      }
-      var midiHints = const <String>[];
-      for (final row in rows) {
-        if (row.id == override.mappingId) {
-          midiHints = row.midiNameContains;
-          break;
-        }
-      }
-      final portPresent = devices.any(
-        (device) =>
-            device.direction == ControllerDeviceDirection.input &&
-            _portMatches(device.portName, midiHints),
-      );
-      if (!portPresent) {
-        unawaited(_restoreIfControllerGone(override.mappingId, midiHints));
-      }
     } catch (e, st) {
       FlutterError.reportError(
         FlutterErrorDetails(
           exception: e,
           stack: st,
           context: ErrorDescription('controller attached audio hydrate'),
-        ),
-      );
-    }
-  }
-
-  static bool _portMatches(String portName, List<String> hints) {
-    final name = portName.toLowerCase();
-    return hints.any((hint) {
-      final needle = hint.trim().toLowerCase();
-      return needle.isNotEmpty && name.contains(needle);
-    });
-  }
-
-  /// Startup recovery: a controller unplugged while the app was closed leaves
-  /// an override pointing at a device that is no longer present. Wait one poll
-  /// so a trusted controller can auto-attach before restoring.
-  Future<void> _restoreIfControllerGone(
-    String mappingId,
-    List<String> midiHints,
-  ) async {
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (!mounted) {
-      return;
-    }
-    try {
-      final transport = ref.read(controllerTransportProvider).value;
-      if (transport == null) {
-        return;
-      }
-      for (final row in await transport.listMappings()) {
-        if (row.id == mappingId && row.attached) {
-          return;
-        }
-      }
-      final devices = await transport.listDevices();
-      final portPresent = devices.any(
-        (device) =>
-            device.direction == ControllerDeviceDirection.input &&
-            _portMatches(device.portName, midiHints),
-      );
-      if (!portPresent) {
-        await _restoreAudioOutputs(mappingId);
-      }
-    } catch (e, st) {
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: e,
-          stack: st,
-          context: ErrorDescription('controller audio output recovery'),
         ),
       );
     }
@@ -431,39 +356,35 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         settingsTransportProvider.future,
       );
       final current = await settingsTransport.getSettings();
-      var updated = applyControllerAudioOutputs(
+      final override = buildControllerAudioOverride(
         current,
         hints,
         device,
         mappingId: mappingId,
         controllerLabel: label,
       );
-      if (updated == null) {
+      if (override == null) {
         return;
       }
       if (alwaysSwitch &&
           controllerDeviceId.isNotEmpty &&
-          !updated.alwaysSwitchAudioDeviceIds.contains(controllerDeviceId)) {
-        updated = copyAppSettings(
-          updated,
-          alwaysSwitchAudioDeviceIds: [
-            ...updated.alwaysSwitchAudioDeviceIds,
-            controllerDeviceId,
-          ],
+          !current.alwaysSwitchAudioDeviceIds.contains(controllerDeviceId)) {
+        await settingsTransport.saveSettings(
+          settings: copyAppSettings(
+            current,
+            alwaysSwitchAudioDeviceIds: [
+              ...current.alwaysSwitchAudioDeviceIds,
+              controllerDeviceId,
+            ],
+          ),
         );
       }
-      final result = await saveAppSettings(ref, updated);
+      await settingsTransport.setControllerAudioOverride(
+        overrideSettings: override,
+      );
+      ref.invalidate(appSettingsProvider);
+      await _restartEngineFromSettings();
       if (!mounted) {
-        return;
-      }
-      if (result.applyError != null) {
-        _audioAskedPorts.remove(portName);
-        showMixarToast(
-          context: context,
-          variant: MixarToastVariant.destructive,
-          title: const Text('Could not switch audio outputs'),
-          description: Text(result.applyError!),
-        );
         return;
       }
       showMixarToast(
@@ -472,6 +393,17 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       );
     } catch (e, st) {
       _audioAskedPorts.remove(portName);
+      // A failed restart must not leave the engine pointing at the controller.
+      try {
+        final settingsTransport = await ref.read(
+          settingsTransportProvider.future,
+        );
+        await settingsTransport.setControllerAudioOverride();
+        ref.invalidate(appSettingsProvider);
+        await _restartEngineFromSettings();
+      } catch (_) {
+        // The original failure is more useful than cleanup failure.
+      }
       if (!mounted) {
         return;
       }
@@ -491,25 +423,33 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     }
   }
 
-  /// Puts the pre-controller buses back when its mapping detaches.
+  /// Restarts audio from the saved config, with the live override reapplied
+  /// when one is active.
+  Future<void> _restartEngineFromSettings() async {
+    final engine = await ref.read(engineTransportProvider.future);
+    if (engine == null) {
+      // A fresh start reads the effective config, including any live override.
+      ref.invalidate(engineTransportProvider);
+      await ref.read(engineTransportProvider.future);
+      return;
+    }
+    await engine.restartFromSettings();
+  }
+
+  /// Drops the live controller override when its mapping detaches.
   Future<void> _restoreAudioOutputs(String mappingId) async {
     try {
       final settingsTransport = await ref.read(
         settingsTransportProvider.future,
       );
       final current = await settingsTransport.getSettings();
-      final restored = restoreControllerAudioOutputs(current, mappingId);
-      if (restored == null || !mounted) {
+      final active = current.controllerAudioOverride;
+      if (active == null || active.mappingId != mappingId) {
         return;
       }
-      if (restored.routesRestored) {
-        await saveAppSettings(ref, restored.settings);
-      } else {
-        // The user moved the buses by hand; only drop the stale marker so no
-        // engine restart is needed for a route that did not change.
-        await settingsTransport.saveSettings(settings: restored.settings);
-        ref.invalidate(appSettingsProvider);
-      }
+      await settingsTransport.setControllerAudioOverride();
+      ref.invalidate(appSettingsProvider);
+      await _restartEngineFromSettings();
       if (!mounted) {
         return;
       }

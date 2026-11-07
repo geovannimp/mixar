@@ -77,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1569110571;
+  int get rustContentHash => 1707391124;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -854,6 +854,12 @@ abstract class RustLibApi extends BaseApi {
   Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
     required SettingsTransport that,
     required AppSettings settings,
+  });
+
+  Future<AppSettings>
+  crateApiSettingsSettingsTransportSetControllerAudioOverride({
+    required SettingsTransport that,
+    ControllerAudioOverride? overrideSettings,
   });
 
   Future<AccentPaletteSetting> crateApiSettingsAccentPaletteSettingDefault();
@@ -6399,6 +6405,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<AppSettings>
+  crateApiSettingsSettingsTransportSetControllerAudioOverride({
+    required SettingsTransport that,
+    ControllerAudioOverride? overrideSettings,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+            that,
+            serializer,
+          );
+          sse_encode_opt_box_autoadd_controller_audio_override(
+            overrideSettings,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 136,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_settings,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiSettingsSettingsTransportSetControllerAudioOverrideConstMeta,
+        argValues: [that, overrideSettings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSettingsSettingsTransportSetControllerAudioOverrideConstMeta =>
+      const TaskConstMeta(
+        debugName: "SettingsTransport_set_controller_audio_override",
+        argNames: ["that", "overrideSettings"],
+      );
+
+  @override
   Future<AccentPaletteSetting> crateApiSettingsAccentPaletteSettingDefault() {
     return handler.executeNormal(
       NormalTask(
@@ -6407,7 +6457,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 137,
             port: port_,
           );
         },
@@ -6437,7 +6487,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 138,
           )!;
         },
         codec: SseCodec(
@@ -6466,7 +6516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 138,
+            funcId: 139,
             port: port_,
           );
         },
@@ -6493,7 +6543,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 139,
+            funcId: 140,
             port: port_,
           );
         },
@@ -6520,7 +6570,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 140,
+            funcId: 141,
             port: port_,
           );
         },
@@ -6547,7 +6597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 141,
+            funcId: 142,
             port: port_,
           );
         },
@@ -6574,7 +6624,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 142,
+            funcId: 143,
             port: port_,
           );
         },
@@ -6604,7 +6654,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 143,
+            funcId: 144,
             port: port_,
           );
         },
@@ -6635,7 +6685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 144,
+            funcId: 145,
             port: port_,
           );
         },
@@ -6666,7 +6716,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 145,
+            funcId: 146,
             port: port_,
           );
         },
@@ -6696,7 +6746,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 146,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6726,7 +6776,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 148,
             port: port_,
           );
         },
@@ -6753,7 +6803,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 149,
             port: port_,
           );
         },
@@ -6780,7 +6830,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 149,
+            funcId: 150,
             port: port_,
           );
         },
@@ -6810,7 +6860,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 150,
+            funcId: 151,
             port: port_,
           );
         },
@@ -6843,7 +6893,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 151,
+            funcId: 152,
             port: port_,
           );
         },
@@ -6873,7 +6923,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 152,
+            funcId: 153,
             port: port_,
           );
         },
@@ -6906,7 +6956,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 153,
+            funcId: 154,
             port: port_,
           );
         },
@@ -6936,7 +6986,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 154,
+            funcId: 155,
             port: port_,
           );
         },
@@ -6967,7 +7017,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 155,
+            funcId: 156,
             port: port_,
           );
         },
@@ -6994,7 +7044,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 156,
+            funcId: 157,
             port: port_,
           );
         },
@@ -7021,7 +7071,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 157,
+            funcId: 158,
             port: port_,
           );
         },
@@ -7052,7 +7102,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 158,
+            funcId: 159,
             port: port_,
           );
         },
@@ -8358,17 +8408,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ControllerAudioOverride dco_decode_controller_audio_override(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return ControllerAudioOverride(
       mappingId: dco_decode_String(arr[0]),
       controllerLabel: dco_decode_String(arr[1]),
       outputDeviceId: dco_decode_String(arr[2]),
-      previousMasterBus: dco_decode_bus_route_settings(arr[3]),
-      masterOverridden: dco_decode_bool(arr[4]),
-      previousPreviewEnabled: dco_decode_bool(arr[5]),
-      previousPreviewBus: dco_decode_bus_route_settings(arr[6]),
-      previewOverridden: dco_decode_bool(arr[7]),
+      masterOverridden: dco_decode_bool(arr[3]),
+      masterBus: dco_decode_bus_route_settings(arr[4]),
+      previewOverridden: dco_decode_bool(arr[5]),
+      previewBus: dco_decode_bus_route_settings(arr[6]),
     );
   }
 
@@ -12423,20 +12472,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_mappingId = sse_decode_String(deserializer);
     var var_controllerLabel = sse_decode_String(deserializer);
     var var_outputDeviceId = sse_decode_String(deserializer);
-    var var_previousMasterBus = sse_decode_bus_route_settings(deserializer);
     var var_masterOverridden = sse_decode_bool(deserializer);
-    var var_previousPreviewEnabled = sse_decode_bool(deserializer);
-    var var_previousPreviewBus = sse_decode_bus_route_settings(deserializer);
+    var var_masterBus = sse_decode_bus_route_settings(deserializer);
     var var_previewOverridden = sse_decode_bool(deserializer);
+    var var_previewBus = sse_decode_bus_route_settings(deserializer);
     return ControllerAudioOverride(
       mappingId: var_mappingId,
       controllerLabel: var_controllerLabel,
       outputDeviceId: var_outputDeviceId,
-      previousMasterBus: var_previousMasterBus,
       masterOverridden: var_masterOverridden,
-      previousPreviewEnabled: var_previousPreviewEnabled,
-      previousPreviewBus: var_previousPreviewBus,
+      masterBus: var_masterBus,
       previewOverridden: var_previewOverridden,
+      previewBus: var_previewBus,
     );
   }
 
@@ -16901,11 +16948,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.mappingId, serializer);
     sse_encode_String(self.controllerLabel, serializer);
     sse_encode_String(self.outputDeviceId, serializer);
-    sse_encode_bus_route_settings(self.previousMasterBus, serializer);
     sse_encode_bool(self.masterOverridden, serializer);
-    sse_encode_bool(self.previousPreviewEnabled, serializer);
-    sse_encode_bus_route_settings(self.previousPreviewBus, serializer);
+    sse_encode_bus_route_settings(self.masterBus, serializer);
     sse_encode_bool(self.previewOverridden, serializer);
+    sse_encode_bus_route_settings(self.previewBus, serializer);
   }
 
   @protected
@@ -20459,5 +20505,16 @@ class SettingsTransportImpl extends RustOpaque implements SettingsTransport {
       RustLib.instance.api.crateApiSettingsSettingsTransportSaveSettings(
         that: this,
         settings: settings,
+      );
+
+  /// Replace the live controller audio override without touching disk.
+  ///
+  /// Callers restart the engine afterwards so the effective buses change.
+  Future<AppSettings> setControllerAudioOverride({
+    ControllerAudioOverride? overrideSettings,
+  }) => RustLib.instance.api
+      .crateApiSettingsSettingsTransportSetControllerAudioOverride(
+        that: this,
+        overrideSettings: overrideSettings,
       );
 }

@@ -42,11 +42,11 @@ offer switching Mixar's output buses to it when the controller connects.
 
 Declaring either channel pair makes Mixar prompt when the controller's output
 device is present. The prompt appears after the mapping attaches, and confirming
-it moves the master bus (and, when `headphone_channels` is set, the preview bus)
-onto the controller. The displaced routes are saved in
-`controller_audio_override` and restored when the mapping detaches. Settings
-marks the affected bus cards as overridden by the mapping. Declining leaves
-Settings → Audio untouched.
+it runs the master bus (and, when `headphone_channels` is set, the preview bus)
+on the controller without changing the saved bus routes. That live override is
+kept in memory only; detaching the mapping or quitting Mixar resumes the saved
+routes. Settings marks the affected bus cards as overridden by the mapping.
+Declining leaves Settings → Audio untouched.
 
 ```toml
 [audio]

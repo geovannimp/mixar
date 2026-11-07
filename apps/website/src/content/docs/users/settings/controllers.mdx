@@ -46,13 +46,13 @@ A mapping can declare the controller's own audio interface, including which
 channels carry the master and headphone buses. When that controller's output
 device is present and Mixar is still using another output, attaching the mapping
 shows a second prompt: **Switch audio outputs to `<device>`?** It lists the
-master and headphone routes it will apply. **Switch outputs** moves the buses and
-restarts the engine; **Keep current** leaves Settings → Audio as it is. While the
-override is active, the **Master bus** and **Preview bus** cards show an
-*Overridden by `<device>` mapping* badge. Unplugging the controller (or detaching
-its mapping) restores the devices and channels saved before the switch. The same
-recovery happens on the next start if the controller was removed while Mixar was
-closed.
+master and headphone routes it will apply. **Switch outputs** runs the engine on
+the controller without changing your saved devices; **Keep current** leaves
+Settings → Audio as it is. While the override is active, the **Master bus** and
+**Preview bus** cards show an *Overridden by `<device>` mapping* badge. Unplugging
+the controller (or detaching its mapping) resumes the saved devices immediately.
+The override is live only for the session: it is never written to the saved
+audio settings.
 
 To skip the prompt on later connections, tick **Always switch audio to this
 controller** before choosing **Switch outputs**. The same option is available as

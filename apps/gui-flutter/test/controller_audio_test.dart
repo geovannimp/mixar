@@ -30,11 +30,11 @@ const _hints = ControllerAudioHints(
 const _mappingId = 'ddj-400';
 const _controllerLabel = 'DDJ-400';
 
-AppSettings? _apply(
+ControllerAudioOverride? _build(
   AppSettings settings,
   ControllerAudioHints hints,
   OutputDevice device,
-) => applyControllerAudioOutputs(
+) => buildControllerAudioOverride(
   settings,
   hints,
   device,
@@ -101,33 +101,36 @@ void main() {
     });
   });
 
-  group('applyControllerAudioOutputs', () {
-    test('routes master and headphone buses and enables preview', () {
-      final device = _device('ddj', 'DDJ-400');
-      final updated = _apply(defaultAppSettings(), _hints, device);
-      expect(updated, isNotNull);
-      expect(updated!.masterBus.deviceId, 'ddj');
-      expect(updated.masterBus.leftChannel, 1);
-      expect(updated.masterBus.rightChannel, 2);
-      expect(updated.previewEnabled, isTrue);
-      expect(updated.previewBus.deviceId, 'ddj');
-      expect(updated.previewBus.leftChannel, 3);
-      expect(updated.previewBus.rightChannel, 4);
+  group('buildControllerAudioOverride', () {
+    test('routes master and headphone buses', () {
+      final override = _build(
+        defaultAppSettings(),
+        _hints,
+        _device('ddj', 'DDJ-400'),
+      );
+      expect(override, isNotNull);
+      expect(override!.masterOverridden, isTrue);
+      expect(override.masterBus.deviceId, 'ddj');
+      expect(override.masterBus.leftChannel, 1);
+      expect(override.masterBus.rightChannel, 2);
+      expect(override.previewOverridden, isTrue);
+      expect(override.previewBus.deviceId, 'ddj');
+      expect(override.previewBus.leftChannel, 3);
+      expect(override.previewBus.rightChannel, 4);
     });
 
-    test('uses a declared sample rate for both buses', () {
-      final device = _device('ddj', 'DDJ-400');
-      final updated = _apply(
+    test('uses a declared sample rate', () {
+      final override = _build(
         defaultAppSettings(),
         const ControllerAudioHints(
           outputNameContains: ['DDJ-400'],
           masterChannels: ControllerChannelPair(left: 1, right: 2),
           sampleRate: 48000,
         ),
-        device,
+        _device('ddj', 'DDJ-400'),
       );
-      expect(updated?.masterBus.sampleRate, 48000);
-      expect(updated?.previewEnabled, isFalse);
+      expect(override?.masterBus.sampleRate, 48000);
+      expect(override?.previewOverridden, isFalse);
     });
 
     test('does nothing when the master bus already uses the device', () {
@@ -142,7 +145,18 @@ void main() {
           lowLatency: false,
         ),
       );
-      expect(_apply(settings, _hints, device), isNull);
+      expect(_build(settings, _hints, device), isNull);
+      expect(controllerAudioAlreadyRouted(settings, _hints, device), isTrue);
+    });
+
+    test('sees an existing runtime override as already routed', () {
+      final device = _device('ddj', 'DDJ-400');
+      final active = _build(defaultAppSettings(), _hints, device)!;
+      final settings = copyAppSettings(
+        defaultAppSettings(),
+        controllerAudioOverride: active,
+      );
+      expect(_build(settings, _hints, device), isNull);
       expect(controllerAudioAlreadyRouted(settings, _hints, device), isTrue);
     });
 
@@ -154,7 +168,7 @@ void main() {
 
     test('returns null when the mapping declares no routes', () {
       expect(
-        _apply(
+        _build(
           defaultAppSettings(),
           const ControllerAudioHints(outputNameContains: ['DDJ-400']),
           _device('ddj', 'DDJ-400'),
@@ -163,86 +177,18 @@ void main() {
       );
     });
 
-    test('records the displaced routes and marks both buses overridden', () {
-      final before = defaultAppSettings();
-      final updated = _apply(before, _hints, _device('ddj', 'DDJ-400'))!;
-      final override = updated.controllerAudioOverride;
-      expect(override, isNotNull);
-      expect(override!.mappingId, _mappingId);
-      expect(override.controllerLabel, _controllerLabel);
-      expect(override.outputDeviceId, 'ddj');
-      expect(override.previousMasterBus, before.masterBus);
-      expect(override.previousPreviewBus, before.previewBus);
-      expect(override.previousPreviewEnabled, isFalse);
-      expect(override.masterOverridden, isTrue);
-      expect(override.previewOverridden, isTrue);
-      expect(controllerAudioOverridesBus(updated, master: true), isTrue);
-      expect(controllerAudioOverridesBus(updated, master: false), isTrue);
-    });
-
-    test('restores the displaced routes and clears the override', () {
-      final before = defaultAppSettings();
-      final applied = _apply(before, _hints, _device('ddj', 'DDJ-400'))!;
-      final restored = restoreControllerAudioOutputs(applied, _mappingId);
-      expect(restored, isNotNull);
-      expect(restored!.routesRestored, isTrue);
-      expect(restored.settings.masterBus, before.masterBus);
-      expect(restored.settings.previewBus, before.previewBus);
-      expect(restored.settings.previewEnabled, isFalse);
-      expect(restored.settings.controllerAudioOverride, isNull);
-    });
-
-    test('keeps a bus the user changed by hand while overridden', () {
-      final applied = _apply(
+    test('marks both buses for the Settings badges', () {
+      final override = _build(
         defaultAppSettings(),
         _hints,
         _device('ddj', 'DDJ-400'),
       )!;
-      final manual = copyAppSettings(
-        applied,
-        masterBus: const BusRouteSettings(
-          deviceId: 'usb',
-          leftChannel: 5,
-          rightChannel: 6,
-          mode: BusChannelMode.stereo,
-          lowLatency: false,
-        ),
+      final settings = copyAppSettings(
+        defaultAppSettings(),
+        controllerAudioOverride: override,
       );
-      final restored = restoreControllerAudioOutputs(manual, _mappingId)!;
-      expect(restored.routesRestored, isTrue, reason: 'preview still restores');
-      expect(restored.settings.masterBus.deviceId, 'usb');
-      expect(restored.settings.previewBus.deviceId, 'default');
-    });
-
-    test('clears a stale override without a route change', () {
-      final applied = _apply(
-        defaultAppSettings(),
-        _hints,
-        _device('ddj', 'DDJ-400'),
-      )!;
-      final manual = copyAppSettings(
-        applied,
-        masterBus: const BusRouteSettings(
-          deviceId: 'usb',
-          leftChannel: 5,
-          rightChannel: 6,
-          mode: BusChannelMode.stereo,
-          lowLatency: false,
-        ),
-        previewEnabled: false,
-      );
-      final restored = restoreControllerAudioOutputs(manual, _mappingId)!;
-      expect(restored.routesRestored, isFalse);
-      expect(restored.settings.controllerAudioOverride, isNull);
-    });
-
-    test('ignores an override owned by another mapping', () {
-      final applied = _apply(
-        defaultAppSettings(),
-        _hints,
-        _device('ddj', 'DDJ-400'),
-      )!;
-      expect(restoreControllerAudioOutputs(applied, 'other'), isNull);
+      expect(controllerAudioOverridesBus(settings, master: true), isTrue);
+      expect(controllerAudioOverridesBus(settings, master: false), isTrue);
     });
   });
 }

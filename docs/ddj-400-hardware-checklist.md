@@ -130,10 +130,10 @@ Shift banks. This checklist is about what the unit *does* with them.
 - [ ] Tick **Always switch audio to this controller** before **Switch outputs**
       (or enable the mapping row's **Audio** toggle and Save): later attaches
       switch without the prompt.
-- [ ] Unplug the unit (or detach the mapping): the previous master and preview
-      devices come back and the badge disappears.
+- [ ] Unplug the unit (or detach the mapping): the saved master and preview
+      devices resume and the badge disappears. The saved routes never changed.
 - [ ] Declining the controller offer keeps the mapping unattached, shows no
-      audio prompt, and restores any override left by a previous session.
+      audio prompt, and clears any live audio override.
 
 ## Robustness
 
