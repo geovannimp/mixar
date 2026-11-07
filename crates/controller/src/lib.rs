@@ -30,8 +30,8 @@ pub use catalog::{
 };
 pub use check::check_bundle_dir;
 pub use device::{
-    AudioHints, DeviceFile, SectionName, TomlSchemaRef, SECTION_CUSTOM, SECTION_MASTER,
-    SECTION_SAMPLER,
+    AudioHints, DeviceFile, OutputChannels, SectionName, TomlSchemaRef, SECTION_CUSTOM,
+    SECTION_MASTER, SECTION_SAMPLER,
 };
 #[cfg(any(test, feature = "test-utils"))]
 pub use engine::report_script_binding_failure;

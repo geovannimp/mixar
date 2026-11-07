@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/controller_audio.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
@@ -36,6 +37,8 @@ class SettingsAudioPanel extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final devicesAsync = ref.watch(audioDevicesProvider);
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
+    final masterRoute = effectiveMasterBus(draft);
+    final previewRoute = effectivePreviewBus(draft);
 
     return SettingsSectionBody(
       title: l10n.settingsSectionAudio,
@@ -78,14 +81,15 @@ class SettingsAudioPanel extends ConsumerWidget {
         SettingsSectionCard(
           title: l10n.settingsAudioMasterBus,
           subtitle: l10n.settingsAudioMasterBusDescription,
+          titleBadge: _controllerOverrideBadge(context, draft, master: true),
           child: SettingsBusRouteFields(
-            route: draft.masterBus,
+            route: masterRoute,
             devices: deviceList,
             devicesLoading: devicesAsync.isLoading,
             // Only a live preview bus shares the master's stream.
-            siblingBus: draft.previewEnabled ? draft.previewBus : null,
+            siblingBus: draft.previewEnabled ? previewRoute : null,
             onChanged: (bus) =>
-                onChanged(copyAppSettings(draft, masterBus: bus)),
+                onChanged(editControllerAudioBus(draft, bus, master: true)),
           ),
         ),
         SettingsGlowFlash(
@@ -94,6 +98,7 @@ class SettingsAudioPanel extends ConsumerWidget {
           child: SettingsSectionCard(
             title: l10n.settingsAudioPreviewBusTitle,
             subtitle: l10n.settingsAudioPreviewBusDescription,
+            titleBadge: _controllerOverrideBadge(context, draft, master: false),
             trailing: SettingsHeaderSwitch(
               value: draft.previewEnabled,
               semanticsLabel: l10n.settingsAudioPreviewBus,
@@ -102,17 +107,64 @@ class SettingsAudioPanel extends ConsumerWidget {
             ),
             child: draft.previewEnabled
                 ? SettingsBusRouteFields(
-                    route: draft.previewBus,
+                    route: previewRoute,
                     devices: deviceList,
                     devicesLoading: devicesAsync.isLoading,
-                    siblingBus: draft.masterBus,
-                    onChanged: (bus) =>
-                        onChanged(copyAppSettings(draft, previewBus: bus)),
+                    siblingBus: masterRoute,
+                    onChanged: (bus) => onChanged(
+                      editControllerAudioBus(draft, bus, master: false),
+                    ),
                   )
                 : null,
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Inline marker for a bus a controller mapping currently owns.
+Widget? _controllerOverrideBadge(
+  BuildContext context,
+  AppSettings draft, {
+  required bool master,
+}) {
+  final override = draft.controllerAudioOverride;
+  if (override == null || !controllerAudioOverridesBus(draft, master: master)) {
+    return null;
+  }
+  final l10n = AppLocalizations.of(context)!;
+  return _ControllerOverrideBadge(
+    text: l10n.settingsAudioControllerOverride(override.controllerLabel),
+  );
+}
+
+class _ControllerOverrideBadge extends StatelessWidget {
+  const new({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colors.accentTint,
+        border: Border.all(color: theme.colors.accent),
+        borderRadius: theme.style.borderRadius.pill,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.typography.body.xs.copyWith(
+            color: theme.colors.accent,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

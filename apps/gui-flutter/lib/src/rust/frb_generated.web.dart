@@ -266,6 +266,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ClearSampler dco_decode_box_autoadd_clear_sampler(dynamic raw);
 
   @protected
+  ControllerAudioHints dco_decode_box_autoadd_controller_audio_hints(
+    dynamic raw,
+  );
+
+  @protected
+  ControllerAudioOverride dco_decode_box_autoadd_controller_audio_override(
+    dynamic raw,
+  );
+
+  @protected
+  ControllerChannelPair dco_decode_box_autoadd_controller_channel_pair(
+    dynamic raw,
+  );
+
+  @protected
   DeckLevels dco_decode_box_autoadd_deck_levels(dynamic raw);
 
   @protected
@@ -607,6 +622,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ClearSampler dco_decode_clear_sampler(dynamic raw);
 
   @protected
+  ControllerAudioHints dco_decode_controller_audio_hints(dynamic raw);
+
+  @protected
+  ControllerAudioOverride dco_decode_controller_audio_override(dynamic raw);
+
+  @protected
+  ControllerChannelPair dco_decode_controller_channel_pair(dynamic raw);
+
+  @protected
   ControllerDeviceDirection dco_decode_controller_device_direction(dynamic raw);
 
   @protected
@@ -936,6 +960,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BeatGridData? dco_decode_opt_box_autoadd_beat_grid_data(dynamic raw);
+
+  @protected
+  ControllerAudioHints? dco_decode_opt_box_autoadd_controller_audio_hints(
+    dynamic raw,
+  );
+
+  @protected
+  ControllerAudioOverride? dco_decode_opt_box_autoadd_controller_audio_override(
+    dynamic raw,
+  );
+
+  @protected
+  ControllerChannelPair? dco_decode_opt_box_autoadd_controller_channel_pair(
+    dynamic raw,
+  );
 
   @protected
   double? dco_decode_opt_box_autoadd_f_32(dynamic raw);
@@ -1501,6 +1540,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ControllerAudioHints sse_decode_box_autoadd_controller_audio_hints(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerAudioOverride sse_decode_box_autoadd_controller_audio_override(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerChannelPair sse_decode_box_autoadd_controller_channel_pair(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DeckLevels sse_decode_box_autoadd_deck_levels(SseDeserializer deserializer);
 
   @protected
@@ -1964,6 +2018,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ClearSampler sse_decode_clear_sampler(SseDeserializer deserializer);
 
   @protected
+  ControllerAudioHints sse_decode_controller_audio_hints(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerAudioOverride sse_decode_controller_audio_override(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerChannelPair sse_decode_controller_channel_pair(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ControllerDeviceDirection sse_decode_controller_device_direction(
     SseDeserializer deserializer,
   );
@@ -2359,6 +2428,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BeatGridData? sse_decode_opt_box_autoadd_beat_grid_data(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerAudioHints? sse_decode_opt_box_autoadd_controller_audio_hints(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerAudioOverride? sse_decode_opt_box_autoadd_controller_audio_override(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerChannelPair? sse_decode_opt_box_autoadd_controller_channel_pair(
     SseDeserializer deserializer,
   );
 
@@ -3008,6 +3092,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_controller_audio_hints(
+    ControllerAudioHints self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_controller_audio_override(
+    ControllerAudioOverride self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_controller_channel_pair(
+    ControllerChannelPair self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_deck_levels(
     DeckLevels self,
     SseSerializer serializer,
@@ -3608,6 +3710,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_clear_sampler(ClearSampler self, SseSerializer serializer);
 
   @protected
+  void sse_encode_controller_audio_hints(
+    ControllerAudioHints self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_controller_audio_override(
+    ControllerAudioOverride self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_controller_channel_pair(
+    ControllerChannelPair self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_controller_device_direction(
     ControllerDeviceDirection self,
     SseSerializer serializer,
@@ -4105,6 +4225,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_beat_grid_data(
     BeatGridData? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_audio_hints(
+    ControllerAudioHints? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_audio_override(
+    ControllerAudioOverride? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_channel_pair(
+    ControllerChannelPair? self,
     SseSerializer serializer,
   );
 

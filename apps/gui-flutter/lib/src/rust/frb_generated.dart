@@ -77,7 +77,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -448550076;
+  int get rustContentHash => -506505631;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -850,6 +850,12 @@ abstract class RustLibApi extends BaseApi {
     required SettingsTransport that,
   });
 
+  Future<AppSettings>
+  crateApiSettingsSettingsTransportClearControllerAudioOverride({
+    required SettingsTransport that,
+    required String mappingId,
+  });
+
   Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
     required SettingsTransport that,
   });
@@ -864,6 +870,12 @@ abstract class RustLibApi extends BaseApi {
   Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
     required SettingsTransport that,
     required AppSettings settings,
+  });
+
+  Future<AppSettings>
+  crateApiSettingsSettingsTransportSetControllerAudioOverride({
+    required SettingsTransport that,
+    ControllerAudioOverride? overrideSettings,
   });
 
   Future<AccentPaletteSetting> crateApiSettingsAccentPaletteSettingDefault();
@@ -6354,6 +6366,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<AppSettings>
+  crateApiSettingsSettingsTransportClearControllerAudioOverride({
+    required SettingsTransport that,
+    required String mappingId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(mappingId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 134,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_settings,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiSettingsSettingsTransportClearControllerAudioOverrideConstMeta,
+        argValues: [that, mappingId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSettingsSettingsTransportClearControllerAudioOverrideConstMeta =>
+      const TaskConstMeta(
+        debugName: "SettingsTransport_clear_controller_audio_override",
+        argNames: ["that", "mappingId"],
+      );
+
+  @override
   Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
     required SettingsTransport that,
   }) {
@@ -6368,7 +6421,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 134,
+            funcId: 135,
             port: port_,
           );
         },
@@ -6398,7 +6451,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 135,
+            funcId: 136,
             port: port_,
           );
         },
@@ -6433,7 +6486,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 137,
             port: port_,
           );
         },
@@ -6474,7 +6527,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 138,
             port: port_,
           );
         },
@@ -6496,6 +6549,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<AppSettings>
+  crateApiSettingsSettingsTransportSetControllerAudioOverride({
+    required SettingsTransport that,
+    ControllerAudioOverride? overrideSettings,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+            that,
+            serializer,
+          );
+          sse_encode_opt_box_autoadd_controller_audio_override(
+            overrideSettings,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 139,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_settings,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiSettingsSettingsTransportSetControllerAudioOverrideConstMeta,
+        argValues: [that, overrideSettings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSettingsSettingsTransportSetControllerAudioOverrideConstMeta =>
+      const TaskConstMeta(
+        debugName: "SettingsTransport_set_controller_audio_override",
+        argNames: ["that", "overrideSettings"],
+      );
+
+  @override
   Future<AccentPaletteSetting> crateApiSettingsAccentPaletteSettingDefault() {
     return handler.executeNormal(
       NormalTask(
@@ -6504,7 +6601,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 138,
+            funcId: 140,
             port: port_,
           );
         },
@@ -6534,7 +6631,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 139,
+            funcId: 141,
           )!;
         },
         codec: SseCodec(
@@ -6563,7 +6660,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 140,
+            funcId: 142,
             port: port_,
           );
         },
@@ -6590,7 +6687,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 141,
+            funcId: 143,
             port: port_,
           );
         },
@@ -6617,7 +6714,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 142,
+            funcId: 144,
             port: port_,
           );
         },
@@ -6644,7 +6741,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 143,
+            funcId: 145,
             port: port_,
           );
         },
@@ -6671,7 +6768,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 144,
+            funcId: 146,
             port: port_,
           );
         },
@@ -6701,7 +6798,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 145,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6732,7 +6829,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 146,
+            funcId: 148,
             port: port_,
           );
         },
@@ -6763,7 +6860,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 149,
             port: port_,
           );
         },
@@ -6793,7 +6890,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 150,
             port: port_,
           );
         },
@@ -6823,7 +6920,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 149,
+            funcId: 151,
             port: port_,
           );
         },
@@ -6850,7 +6947,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 150,
+            funcId: 152,
             port: port_,
           );
         },
@@ -6877,7 +6974,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 151,
+            funcId: 153,
             port: port_,
           );
         },
@@ -6907,7 +7004,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 152,
+            funcId: 154,
             port: port_,
           );
         },
@@ -6940,7 +7037,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 153,
+            funcId: 155,
             port: port_,
           );
         },
@@ -6970,7 +7067,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 154,
+            funcId: 156,
             port: port_,
           );
         },
@@ -7003,7 +7100,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 155,
+            funcId: 157,
             port: port_,
           );
         },
@@ -7033,7 +7130,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 156,
+            funcId: 158,
             port: port_,
           );
         },
@@ -7064,7 +7161,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 157,
+            funcId: 159,
             port: port_,
           );
         },
@@ -7091,7 +7188,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 158,
+            funcId: 160,
             port: port_,
           );
         },
@@ -7118,7 +7215,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 159,
+            funcId: 161,
             port: port_,
           );
         },
@@ -7149,7 +7246,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 160,
+            funcId: 162,
             port: port_,
           );
         },
@@ -7462,8 +7559,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 49)
-      throw Exception('unexpected arr length: expect 49 but see ${arr.length}');
+    if (arr.length != 51)
+      throw Exception('unexpected arr length: expect 51 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7491,29 +7588,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       keyDisplayMode: dco_decode_key_display_mode_setting(arr[23]),
       keyColorMode: dco_decode_key_color_mode_setting(arr[24]),
       trustedControllerDeviceIds: dco_decode_list_String(arr[25]),
-      historyEnabled: dco_decode_bool(arr[26]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[27]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[28]),
-      historyMinDeckVolume: dco_decode_f_32(arr[29]),
-      showTooltips: dco_decode_bool(arr[30]),
-      mixerMeters: dco_decode_mixer_meters_setting(arr[31]),
-      selectStyle: dco_decode_select_style_setting(arr[32]),
-      dimPlayedTracks: dco_decode_bool(arr[33]),
-      stemsFormat: dco_decode_String(arr[34]),
-      stemsModel: dco_decode_String(arr[35]),
-      realtimeStems: dco_decode_bool(arr[36]),
-      uiLanguage: dco_decode_ui_language_setting(arr[37]),
-      theme: dco_decode_theme_setting(arr[38]),
-      accentPalette: dco_decode_accent_palette_setting(arr[39]),
-      libraryDrawerEnabled: dco_decode_bool(arr[40]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[41]),
-      waveformPosition: dco_decode_waveform_position_setting(arr[42]),
-      showWaveform: dco_decode_bool(arr[43]),
-      showMixer: dco_decode_bool(arr[44]),
-      showFxBar: dco_decode_bool(arr[45]),
-      showCrossfader: dco_decode_bool(arr[46]),
-      analyticsEnabled: dco_decode_bool(arr[47]),
-      onboardingCompleted: dco_decode_bool(arr[48]),
+      alwaysSwitchAudioDeviceIds: dco_decode_list_String(arr[26]),
+      controllerAudioOverride:
+          dco_decode_opt_box_autoadd_controller_audio_override(arr[27]),
+      historyEnabled: dco_decode_bool(arr[28]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[29]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[30]),
+      historyMinDeckVolume: dco_decode_f_32(arr[31]),
+      showTooltips: dco_decode_bool(arr[32]),
+      mixerMeters: dco_decode_mixer_meters_setting(arr[33]),
+      selectStyle: dco_decode_select_style_setting(arr[34]),
+      dimPlayedTracks: dco_decode_bool(arr[35]),
+      stemsFormat: dco_decode_String(arr[36]),
+      stemsModel: dco_decode_String(arr[37]),
+      realtimeStems: dco_decode_bool(arr[38]),
+      uiLanguage: dco_decode_ui_language_setting(arr[39]),
+      theme: dco_decode_theme_setting(arr[40]),
+      accentPalette: dco_decode_accent_palette_setting(arr[41]),
+      libraryDrawerEnabled: dco_decode_bool(arr[42]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[43]),
+      waveformPosition: dco_decode_waveform_position_setting(arr[44]),
+      showWaveform: dco_decode_bool(arr[45]),
+      showMixer: dco_decode_bool(arr[46]),
+      showFxBar: dco_decode_bool(arr[47]),
+      showCrossfader: dco_decode_bool(arr[48]),
+      analyticsEnabled: dco_decode_bool(arr[49]),
+      onboardingCompleted: dco_decode_bool(arr[50]),
     );
   }
 
@@ -7714,6 +7814,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ClearSampler dco_decode_box_autoadd_clear_sampler(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_clear_sampler(raw);
+  }
+
+  @protected
+  ControllerAudioHints dco_decode_box_autoadd_controller_audio_hints(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_controller_audio_hints(raw);
+  }
+
+  @protected
+  ControllerAudioOverride dco_decode_box_autoadd_controller_audio_override(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_controller_audio_override(raw);
+  }
+
+  @protected
+  ControllerChannelPair dco_decode_box_autoadd_controller_channel_pair(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_controller_channel_pair(raw);
   }
 
   @protected
@@ -8422,6 +8546,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerAudioHints dco_decode_controller_audio_hints(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ControllerAudioHints(
+      outputNameContains: dco_decode_list_String(arr[0]),
+      masterChannels: dco_decode_opt_box_autoadd_controller_channel_pair(
+        arr[1],
+      ),
+      headphoneChannels: dco_decode_opt_box_autoadd_controller_channel_pair(
+        arr[2],
+      ),
+      sampleRate: dco_decode_opt_box_autoadd_u_32(arr[3]),
+    );
+  }
+
+  @protected
+  ControllerAudioOverride dco_decode_controller_audio_override(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return ControllerAudioOverride(
+      mappingId: dco_decode_String(arr[0]),
+      controllerLabel: dco_decode_String(arr[1]),
+      outputDeviceId: dco_decode_String(arr[2]),
+      masterOverridden: dco_decode_bool(arr[3]),
+      masterBus: dco_decode_bus_route_settings(arr[4]),
+      previewOverridden: dco_decode_bool(arr[5]),
+      previewBus: dco_decode_bus_route_settings(arr[6]),
+    );
+  }
+
+  @protected
+  ControllerChannelPair dco_decode_controller_channel_pair(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ControllerChannelPair(
+      left: dco_decode_u_16(arr[0]),
+      right: dco_decode_u_16(arr[1]),
+    );
+  }
+
+  @protected
   ControllerDeviceDirection dco_decode_controller_device_direction(
     dynamic raw,
   ) {
@@ -8446,8 +8617,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ControllerMappingInfo dco_decode_controller_mapping_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ControllerMappingInfo(
       id: dco_decode_String(arr[0]),
       deviceId: dco_decode_String(arr[1]),
@@ -8457,7 +8628,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       version: dco_decode_opt_String(arr[5]),
       updateAvailable: dco_decode_bool(arr[6]),
       midiNameContains: dco_decode_list_String(arr[7]),
-      attached: dco_decode_bool(arr[8]),
+      audio: dco_decode_opt_box_autoadd_controller_audio_hints(arr[8]),
+      attached: dco_decode_bool(arr[9]),
     );
   }
 
@@ -9887,6 +10059,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BeatGridData? dco_decode_opt_box_autoadd_beat_grid_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_beat_grid_data(raw);
+  }
+
+  @protected
+  ControllerAudioHints? dco_decode_opt_box_autoadd_controller_audio_hints(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_controller_audio_hints(raw);
+  }
+
+  @protected
+  ControllerAudioOverride? dco_decode_opt_box_autoadd_controller_audio_override(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_controller_audio_override(raw);
+  }
+
+  @protected
+  ControllerChannelPair? dco_decode_opt_box_autoadd_controller_channel_pair(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_controller_channel_pair(raw);
   }
 
   @protected
@@ -11320,6 +11522,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
     var var_keyColorMode = sse_decode_key_color_mode_setting(deserializer);
     var var_trustedControllerDeviceIds = sse_decode_list_String(deserializer);
+    var var_alwaysSwitchAudioDeviceIds = sse_decode_list_String(deserializer);
+    var var_controllerAudioOverride =
+        sse_decode_opt_box_autoadd_controller_audio_override(deserializer);
     var var_historyEnabled = sse_decode_bool(deserializer);
     var var_historySessionIdleMinutes = sse_decode_u_32(deserializer);
     var var_historyMinPlaySeconds = sse_decode_u_32(deserializer);
@@ -11374,6 +11579,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       keyDisplayMode: var_keyDisplayMode,
       keyColorMode: var_keyColorMode,
       trustedControllerDeviceIds: var_trustedControllerDeviceIds,
+      alwaysSwitchAudioDeviceIds: var_alwaysSwitchAudioDeviceIds,
+      controllerAudioOverride: var_controllerAudioOverride,
       historyEnabled: var_historyEnabled,
       historySessionIdleMinutes: var_historySessionIdleMinutes,
       historyMinPlaySeconds: var_historyMinPlaySeconds,
@@ -11595,6 +11802,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_clear_sampler(deserializer));
+  }
+
+  @protected
+  ControllerAudioHints sse_decode_box_autoadd_controller_audio_hints(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_controller_audio_hints(deserializer));
+  }
+
+  @protected
+  ControllerAudioOverride sse_decode_box_autoadd_controller_audio_override(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_controller_audio_override(deserializer));
+  }
+
+  @protected
+  ControllerChannelPair sse_decode_box_autoadd_controller_channel_pair(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_controller_channel_pair(deserializer));
   }
 
   @protected
@@ -12429,6 +12660,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerAudioHints sse_decode_controller_audio_hints(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_outputNameContains = sse_decode_list_String(deserializer);
+    var var_masterChannels = sse_decode_opt_box_autoadd_controller_channel_pair(
+      deserializer,
+    );
+    var var_headphoneChannels =
+        sse_decode_opt_box_autoadd_controller_channel_pair(deserializer);
+    var var_sampleRate = sse_decode_opt_box_autoadd_u_32(deserializer);
+    return ControllerAudioHints(
+      outputNameContains: var_outputNameContains,
+      masterChannels: var_masterChannels,
+      headphoneChannels: var_headphoneChannels,
+      sampleRate: var_sampleRate,
+    );
+  }
+
+  @protected
+  ControllerAudioOverride sse_decode_controller_audio_override(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mappingId = sse_decode_String(deserializer);
+    var var_controllerLabel = sse_decode_String(deserializer);
+    var var_outputDeviceId = sse_decode_String(deserializer);
+    var var_masterOverridden = sse_decode_bool(deserializer);
+    var var_masterBus = sse_decode_bus_route_settings(deserializer);
+    var var_previewOverridden = sse_decode_bool(deserializer);
+    var var_previewBus = sse_decode_bus_route_settings(deserializer);
+    return ControllerAudioOverride(
+      mappingId: var_mappingId,
+      controllerLabel: var_controllerLabel,
+      outputDeviceId: var_outputDeviceId,
+      masterOverridden: var_masterOverridden,
+      masterBus: var_masterBus,
+      previewOverridden: var_previewOverridden,
+      previewBus: var_previewBus,
+    );
+  }
+
+  @protected
+  ControllerChannelPair sse_decode_controller_channel_pair(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_left = sse_decode_u_16(deserializer);
+    var var_right = sse_decode_u_16(deserializer);
+    return ControllerChannelPair(left: var_left, right: var_right);
+  }
+
+  @protected
   ControllerDeviceDirection sse_decode_controller_device_direction(
     SseDeserializer deserializer,
   ) {
@@ -12465,6 +12749,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_version = sse_decode_opt_String(deserializer);
     var var_updateAvailable = sse_decode_bool(deserializer);
     var var_midiNameContains = sse_decode_list_String(deserializer);
+    var var_audio = sse_decode_opt_box_autoadd_controller_audio_hints(
+      deserializer,
+    );
     var var_attached = sse_decode_bool(deserializer);
     return ControllerMappingInfo(
       id: var_id,
@@ -12475,6 +12762,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       version: var_version,
       updateAvailable: var_updateAvailable,
       midiNameContains: var_midiNameContains,
+      audio: var_audio,
       attached: var_attached,
     );
   }
@@ -14226,6 +14514,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerAudioHints? sse_decode_opt_box_autoadd_controller_audio_hints(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_controller_audio_hints(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ControllerAudioOverride? sse_decode_opt_box_autoadd_controller_audio_override(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_controller_audio_override(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ControllerChannelPair? sse_decode_opt_box_autoadd_controller_channel_pair(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_controller_channel_pair(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   double? sse_decode_opt_box_autoadd_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -15673,6 +16000,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
     sse_encode_key_color_mode_setting(self.keyColorMode, serializer);
     sse_encode_list_String(self.trustedControllerDeviceIds, serializer);
+    sse_encode_list_String(self.alwaysSwitchAudioDeviceIds, serializer);
+    sse_encode_opt_box_autoadd_controller_audio_override(
+      self.controllerAudioOverride,
+      serializer,
+    );
     sse_encode_bool(self.historyEnabled, serializer);
     sse_encode_u_32(self.historySessionIdleMinutes, serializer);
     sse_encode_u_32(self.historyMinPlaySeconds, serializer);
@@ -15898,6 +16230,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_clear_sampler(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_controller_audio_hints(
+    ControllerAudioHints self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_controller_audio_hints(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_controller_audio_override(
+    ControllerAudioOverride self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_controller_audio_override(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_controller_channel_pair(
+    ControllerChannelPair self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_controller_channel_pair(self, serializer);
   }
 
   @protected
@@ -16849,6 +17208,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_controller_audio_hints(
+    ControllerAudioHints self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_String(self.outputNameContains, serializer);
+    sse_encode_opt_box_autoadd_controller_channel_pair(
+      self.masterChannels,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_controller_channel_pair(
+      self.headphoneChannels,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_u_32(self.sampleRate, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_audio_override(
+    ControllerAudioOverride self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.mappingId, serializer);
+    sse_encode_String(self.controllerLabel, serializer);
+    sse_encode_String(self.outputDeviceId, serializer);
+    sse_encode_bool(self.masterOverridden, serializer);
+    sse_encode_bus_route_settings(self.masterBus, serializer);
+    sse_encode_bool(self.previewOverridden, serializer);
+    sse_encode_bus_route_settings(self.previewBus, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_channel_pair(
+    ControllerChannelPair self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.left, serializer);
+    sse_encode_u_16(self.right, serializer);
+  }
+
+  @protected
   void sse_encode_controller_device_direction(
     ControllerDeviceDirection self,
     SseSerializer serializer,
@@ -16882,6 +17284,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.version, serializer);
     sse_encode_bool(self.updateAvailable, serializer);
     sse_encode_list_String(self.midiNameContains, serializer);
+    sse_encode_opt_box_autoadd_controller_audio_hints(self.audio, serializer);
     sse_encode_bool(self.attached, serializer);
   }
 
@@ -18292,6 +18695,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_beat_grid_data(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_audio_hints(
+    ControllerAudioHints? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_controller_audio_hints(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_audio_override(
+    ControllerAudioOverride? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_controller_audio_override(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_controller_channel_pair(
+    ControllerChannelPair? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_controller_channel_pair(self, serializer);
     }
   }
 
@@ -20384,11 +20826,23 @@ class SettingsTransportImpl extends RustOpaque implements SettingsTransport {
   ///
   /// `sink` receives hop progress; when the stream completes, the result is
   /// available from [`Self::realtime_stems_capability`]. Nothing is persisted:
-  /// the gate is re-verified on request and lives for this session.
+  /// the verdict lives for this session, and a newer run replaces it.
   Stream<RealtimeStemsBenchmarkProgress> benchmarkRealtimeStems() => RustLib
       .instance
       .api
       .crateApiSettingsSettingsTransportBenchmarkRealtimeStems(that: this);
+
+  /// Clear the live override only when [mapping_id] still owns it.
+  ///
+  /// Avoids a read-then-clear race when another controller switched audio in
+  /// between the caller reading settings and clearing.
+  Future<AppSettings> clearControllerAudioOverride({
+    required String mappingId,
+  }) => RustLib.instance.api
+      .crateApiSettingsSettingsTransportClearControllerAudioOverride(
+        that: this,
+        mappingId: mappingId,
+      );
 
   /// Current session settings (schema-validated).
   Future<AppSettings> getSettings() => RustLib.instance.api
@@ -20409,5 +20863,16 @@ class SettingsTransportImpl extends RustOpaque implements SettingsTransport {
       RustLib.instance.api.crateApiSettingsSettingsTransportSaveSettings(
         that: this,
         settings: settings,
+      );
+
+  /// Replace the live controller audio override without touching disk.
+  ///
+  /// Callers restart the engine afterwards so the effective buses change.
+  Future<AppSettings> setControllerAudioOverride({
+    ControllerAudioOverride? overrideSettings,
+  }) => RustLib.instance.api
+      .crateApiSettingsSettingsTransportSetControllerAudioOverride(
+        that: this,
+        overrideSettings: overrideSettings,
       );
 }

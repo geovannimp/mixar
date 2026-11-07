@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::catalog::{is_closed_input_alias, is_snake_case};
 use crate::error::LoadError;
@@ -15,10 +15,83 @@ pub const SECTION_CUSTOM: &str = "custom";
 
 pub type SectionName = String;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+/// One stereo pair of output channels (1-based), as Settings → Audio shows them.
+pub type OutputChannels = [u16; 2];
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct AudioHints {
+    /// Substrings matched (case-insensitively) against OS output device names.
     #[serde(default)]
     pub output_name_contains: Vec<String>,
+    /// Channels carrying the master bus on the matched device, e.g. `[1, 2]`.
+    #[serde(default)]
+    pub master_channels: Option<OutputChannels>,
+    /// Channels carrying the headphone / cue bus, e.g. `[3, 4]`.
+    #[serde(default)]
+    pub headphone_channels: Option<OutputChannels>,
+    /// Rate to open the matched device at. `None` follows the device default.
+    #[serde(default)]
+    pub sample_rate: Option<u32>,
+}
+
+impl AudioHints {
+    /// True when the bundle maps at least one bus onto the controller's output.
+    pub fn has_output_routes(&self) -> bool {
+        self.master_channels.is_some() || self.headphone_channels.is_some()
+    }
+
+    /// True when the block carries any usable hint worth surfacing.
+    pub fn is_empty(&self) -> bool {
+        self.output_name_contains.is_empty() && !self.has_output_routes()
+    }
+
+    fn validate(&self) -> Result<(), LoadError> {
+        for name in &self.output_name_contains {
+            if name.trim().is_empty() {
+                return Err(LoadError::Validation(
+                    "audio.output_name_contains entries must be non-empty".into(),
+                ));
+            }
+        }
+        for (field, pair) in [
+            ("audio.master_channels", self.master_channels),
+            ("audio.headphone_channels", self.headphone_channels),
+        ] {
+            let Some([left, right]) = pair else {
+                continue;
+            };
+            if left == 0 || right == 0 {
+                return Err(LoadError::Validation(format!(
+                    "{field} channels are 1-based and must be non-zero"
+                )));
+            }
+            if left == right {
+                return Err(LoadError::Validation(format!(
+                    "{field} left and right channels must differ"
+                )));
+            }
+        }
+        if self.has_output_routes() && self.output_name_contains.is_empty() {
+            return Err(LoadError::Validation(
+                "audio output channels require output_name_contains".into(),
+            ));
+        }
+        if let (Some(master), Some(headphones)) = (self.master_channels, self.headphone_channels) {
+            if master.iter().any(|channel| headphones.contains(channel)) {
+                return Err(LoadError::Validation(
+                    "audio master_channels and headphone_channels must not share channels".into(),
+                ));
+            }
+        }
+        if let Some(rate) = self.sample_rate {
+            if !(8_000..=384_000).contains(&rate) {
+                return Err(LoadError::Validation(format!(
+                    "audio.sample_rate {rate} is outside 8000..=384000"
+                )));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Reserved `[toml-schema]` metadata (editor aid). Ignored at runtime.
@@ -113,6 +186,7 @@ impl DeviceFile {
                 "device.product_name must be non-empty".into(),
             ));
         }
+        self.audio.validate()?;
         let mut input_keys: BTreeMap<MatchKey, String> = BTreeMap::new();
         for (section, aliases) in &self.sections {
             if !is_section_key(section) {
@@ -203,4 +277,74 @@ pub fn deck_index(section: &str) -> Option<u16> {
 /// `deck_1` → Origin deck index 0.
 pub fn origin_deck_id(section: &str) -> Option<u16> {
     deck_index(section).map(|n| n - 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_device(audio: &str) -> Result<DeviceFile, LoadError> {
+        let text = format!(
+            "schema_version = 1\nid = \"test.audio\"\nvendor_name = \"Test\"\n\
+             product_name = \"Audio\"\n{audio}\n\
+             [deck_1]\nplay_pause = {{ type = \"note\", channel = 1, note = 0x0B }}\n"
+        );
+        DeviceFile::parse(&text, Path::new("device.toml"))
+    }
+
+    #[test]
+    fn parses_output_device_and_channel_routes() {
+        let device = parse_device(
+            "[audio]\noutput_name_contains = [\"DDJ-400\"]\n\
+             master_channels = [1, 2]\nheadphone_channels = [3, 4]\nsample_rate = 48000\n",
+        )
+        .unwrap();
+        assert_eq!(device.audio.output_name_contains, ["DDJ-400"]);
+        assert_eq!(device.audio.master_channels, Some([1, 2]));
+        assert_eq!(device.audio.headphone_channels, Some([3, 4]));
+        assert_eq!(device.audio.sample_rate, Some(48_000));
+        assert!(device.audio.has_output_routes());
+    }
+
+    #[test]
+    fn audio_names_without_routes_remain_valid() {
+        // Bundles authored before output routing existed must still load.
+        let device = parse_device("[audio]\noutput_name_contains = [\"DDJ-400\"]\n").unwrap();
+        assert!(!device.audio.has_output_routes());
+        assert!(!device.audio.is_empty());
+    }
+
+    #[test]
+    fn rejects_zero_based_or_equal_channel_pairs() {
+        let zero = parse_device(
+            "[audio]\noutput_name_contains = [\"DDJ-400\"]\nmaster_channels = [0, 2]\n",
+        );
+        assert!(zero.is_err(), "channel numbers are 1-based");
+        let equal = parse_device(
+            "[audio]\noutput_name_contains = [\"DDJ-400\"]\nmaster_channels = [2, 2]\n",
+        );
+        assert!(equal.is_err(), "left and right must differ");
+    }
+
+    #[test]
+    fn rejects_routes_without_a_device_name_hint() {
+        let err = parse_device("[audio]\nmaster_channels = [1, 2]\n").unwrap_err();
+        assert!(
+            err.to_string().contains("output_name_contains"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_overlapping_master_and_headphone_channels() {
+        let err = parse_device(
+            "[audio]\noutput_name_contains = [\"DDJ-400\"]\n\
+             master_channels = [1, 2]\nheadphone_channels = [2, 3]\n",
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("must not share channels"),
+            "unexpected error: {err}"
+        );
+    }
 }

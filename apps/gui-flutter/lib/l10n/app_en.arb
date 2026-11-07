@@ -250,6 +250,15 @@
   "settingsAudioPreviewBusTitle": "Preview bus",
   "settingsAudioPreviewBusDescription": "Headphones / cue output when preview is enabled.",
   "settingsAudioPreviewBus": "Enable preview bus",
+  "settingsAudioControllerOverride": "Overridden by {controllerName} mapping",
+  "@settingsAudioControllerOverride": {
+    "description": "Badge on a bus whose route is supplied by an attached controller mapping.",
+    "placeholders": {
+      "controllerName": {
+        "type": "String"
+      }
+    }
+  },
   "settingsAudioDevice": "Device",
   "settingsAudioDeviceLowQuality": "{device} — low quality output",
   "@settingsAudioDeviceLowQuality": {
@@ -463,6 +472,19 @@
   "settingsControllersAttached": "Attached",
   "settingsControllersUpdateAvailable": "Update available",
   "settingsControllersTrust": "Trust",
+  "settingsControllersAudio": "Audio",
+  "@settingsControllersAudio": {
+    "description": "Label for the per-controller automatic audio switch toggle."
+  },
+  "settingsControllersAudioSemantics": "Always switch audio to {name}",
+  "@settingsControllersAudioSemantics": {
+    "description": "Screen-reader label for the controller audio switch toggle.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "settingsControllersAttach": "Attach",
   "settingsControllersTrustSemantics": "Trust device {name}",
   "@settingsControllersTrustSemantics": {

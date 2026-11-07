@@ -12,48 +12,59 @@ import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
+OutputDevice _device({
+  required String id,
+  required String name,
+  bool isDefault = false,
+  int maxChannels = 2,
+  required List<int> rates,
+  required List<SampleRateRange> ranges,
+  int? mixRate,
+}) => OutputDevice(
+  id: id,
+  name: name,
+  isDefault: isDefault,
+  maxChannels: maxChannels,
+  defaultSampleRates: Uint32List.fromList(rates),
+  sampleRateRanges: ranges,
+  mixSampleRate: mixRate,
+);
+
 void main() {
   final devices = <OutputDevice>[
-    OutputDevice(
+    _device(
       id: 'speakers',
       name: 'Speakers',
       isDefault: true,
-      maxChannels: 2,
-      defaultSampleRates: Uint32List.fromList([44100, 48000, 96000]),
-      sampleRateRanges: const [
+      rates: [44100, 48000, 96000],
+      ranges: const [
         SampleRateRange(min: 44100, max: 48000),
         SampleRateRange(min: 96000, max: 96000),
       ],
-      mixSampleRate: 48000,
+      mixRate: 48000,
     ),
-    OutputDevice(
+    _device(
       id: 'headphones',
       name: 'Headphones',
-      isDefault: false,
-      maxChannels: 2,
-      defaultSampleRates: Uint32List.fromList([44100]),
-      sampleRateRanges: const [SampleRateRange(min: 44100, max: 44100)],
-      mixSampleRate: 44100,
+      rates: [44100],
+      ranges: const [SampleRateRange(min: 44100, max: 44100)],
+      mixRate: 44100,
     ),
     // Advertises only its span endpoints; 96 kHz is inside the span.
-    OutputDevice(
+    _device(
       id: 'interface',
       name: 'Interface',
-      isDefault: false,
-      maxChannels: 2,
-      defaultSampleRates: Uint32List.fromList([44100, 192000]),
-      sampleRateRanges: const [SampleRateRange(min: 44100, max: 192000)],
-      mixSampleRate: 48000,
+      rates: [44100, 192000],
+      ranges: const [SampleRateRange(min: 44100, max: 192000)],
+      mixRate: 48000,
     ),
     // Mixes at a rate it does not list as a supported endpoint.
-    OutputDevice(
+    _device(
       id: 'dac',
       name: 'DAC',
-      isDefault: false,
-      maxChannels: 2,
-      defaultSampleRates: Uint32List.fromList([44100, 48000]),
-      sampleRateRanges: const [SampleRateRange(min: 44100, max: 48000)],
-      mixSampleRate: 96000,
+      rates: [44100, 48000],
+      ranges: const [SampleRateRange(min: 44100, max: 48000)],
+      mixRate: 96000,
     ),
     // A Bluetooth headset in call mode: voice rates only.
     OutputDevice(
@@ -104,6 +115,23 @@ void main() {
       ),
     );
   }
+
+  test('hides the backend default alias from the device list', () {
+    final alias = _device(
+      id: 'cpal:pipewire:output_default',
+      name: 'System default',
+      isDefault: true,
+      rates: [48000],
+      ranges: const [SampleRateRange(min: 48000, max: 48000)],
+      mixRate: 48000,
+    );
+    final visible = selectableAudioDevices([
+      ...devices,
+      alias,
+    ], 'System default');
+    expect(visible.where((device) => device.name == 'System default'), isEmpty);
+    expect(visible, hasLength(devices.length));
+  });
 
   testWidgets('the default rate option names the device mix rate', (
     tester,

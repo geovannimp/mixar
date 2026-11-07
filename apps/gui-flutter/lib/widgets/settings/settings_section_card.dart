@@ -51,6 +51,7 @@ class SettingsSectionCard extends StatelessWidget {
     this.trailing,
     this.child,
     this.subtitleBuilder,
+    this.titleBadge,
     this.decorated = true,
   });
 
@@ -67,6 +68,7 @@ class SettingsSectionCard extends StatelessWidget {
 
   /// Optional rich subtitle; see [SettingsSectionHeader.descriptionBuilder].
   final Widget Function(TextStyle style)? subtitleBuilder;
+  final Widget? titleBadge;
   final Widget? trailing;
   final Widget? child;
 
@@ -77,6 +79,7 @@ class SettingsSectionCard extends StatelessWidget {
       title: title,
       description: subtitle,
       descriptionBuilder: subtitleBuilder,
+      badge: titleBadge,
     );
     final border = BorderSide(
       color: theme.colors.border,

@@ -92,8 +92,11 @@ const kMinVinylBrakeStopSecs = 0.05;
 const kMaxVinylBrakeStopSecs = 3.0;
 const kVinylBrakeStopSecsStep = 0.05;
 
+/// Device id for the synthetic “System default” routing token.
+const defaultAudioDeviceId = 'default';
+
 const kDefaultMasterBus = BusRouteSettings(
-  deviceId: 'default',
+  deviceId: defaultAudioDeviceId,
   leftChannel: 1,
   rightChannel: 2,
   mode: BusChannelMode.stereo,
@@ -101,7 +104,7 @@ const kDefaultMasterBus = BusRouteSettings(
 );
 
 const kDefaultPreviewBus = BusRouteSettings(
-  deviceId: 'default',
+  deviceId: defaultAudioDeviceId,
   leftChannel: 3,
   rightChannel: 4,
   mode: BusChannelMode.stereo,
@@ -149,6 +152,7 @@ AppSettings defaultAppSettings() {
     keyDisplayMode: KeyDisplayModeSetting.musical,
     keyColorMode: KeyColorModeSetting.off,
     trustedControllerDeviceIds: const [],
+    alwaysSwitchAudioDeviceIds: const [],
     historyEnabled: true,
     historySessionIdleMinutes: 5,
     historyMinPlaySeconds: 5,
@@ -272,6 +276,9 @@ AppSettings copyAppSettings(
   KeyDisplayModeSetting? keyDisplayMode,
   KeyColorModeSetting? keyColorMode,
   List<String>? trustedControllerDeviceIds,
+  List<String>? alwaysSwitchAudioDeviceIds,
+  ControllerAudioOverride? controllerAudioOverride,
+  bool clearControllerAudioOverride = false,
   bool? historyEnabled,
   int? historySessionIdleMinutes,
   int? historyMinPlaySeconds,
@@ -326,6 +333,11 @@ AppSettings copyAppSettings(
     keyColorMode: keyColorMode ?? base.keyColorMode,
     trustedControllerDeviceIds:
         trustedControllerDeviceIds ?? base.trustedControllerDeviceIds,
+    alwaysSwitchAudioDeviceIds:
+        alwaysSwitchAudioDeviceIds ?? base.alwaysSwitchAudioDeviceIds,
+    controllerAudioOverride: clearControllerAudioOverride
+        ? null
+        : controllerAudioOverride ?? base.controllerAudioOverride,
     historyEnabled: historyEnabled ?? base.historyEnabled,
     historySessionIdleMinutes:
         historySessionIdleMinutes ?? base.historySessionIdleMinutes,
@@ -413,7 +425,12 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       !_sameList(
         draft.trustedControllerDeviceIds,
         baseline.trustedControllerDeviceIds,
-      );
+      ) ||
+      !_sameList(
+        draft.alwaysSwitchAudioDeviceIds,
+        baseline.alwaysSwitchAudioDeviceIds,
+      ) ||
+      draft.controllerAudioOverride != baseline.controllerAudioOverride;
 }
 
 /// Stop secs crosses the Rust f32 boundary, so the host baseline and a stepper

@@ -56,6 +56,20 @@ type = "array"
 arraytype = "string"
 optional = true
 
+[types.audio_hints.master_channels]
+type = "array"
+arraytype = "integer"
+optional = true
+
+[types.audio_hints.headphone_channels]
+type = "array"
+arraytype = "integer"
+optional = true
+
+[types.audio_hints.sample_rate]
+type = "integer"
+optional = true
+
 [types.section_aliases]
 type = "collection"
 typeof = "types.midi_endpoint"
