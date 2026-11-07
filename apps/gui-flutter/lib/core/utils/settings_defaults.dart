@@ -92,8 +92,11 @@ const kMinVinylBrakeStopSecs = 0.05;
 const kMaxVinylBrakeStopSecs = 3.0;
 const kVinylBrakeStopSecsStep = 0.05;
 
+/// Device id for the synthetic “System default” routing token.
+const defaultAudioDeviceId = 'default';
+
 const kDefaultMasterBus = BusRouteSettings(
-  deviceId: 'default',
+  deviceId: defaultAudioDeviceId,
   leftChannel: 1,
   rightChannel: 2,
   mode: BusChannelMode.stereo,
@@ -101,7 +104,7 @@ const kDefaultMasterBus = BusRouteSettings(
 );
 
 const kDefaultPreviewBus = BusRouteSettings(
-  deviceId: 'default',
+  deviceId: defaultAudioDeviceId,
   leftChannel: 3,
   rightChannel: 4,
   mode: BusChannelMode.stereo,

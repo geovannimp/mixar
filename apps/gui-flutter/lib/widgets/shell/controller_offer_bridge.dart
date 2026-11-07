@@ -202,7 +202,9 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         }
       }
       final hints = mapping?.audio;
-      if (hints == null ||
+      if (mapping == null ||
+          !mapping.attached ||
+          hints == null ||
           (hints.masterChannels == null && hints.headphoneChannels == null)) {
         return;
       }
@@ -229,14 +231,14 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         settingsTransportProvider.future,
       );
       final current = await settingsTransport.getSettings();
-      if (controllerAudioAlreadyRouted(current, device)) {
+      if (controllerAudioAlreadyRouted(current, device, mappingId)) {
         return;
       }
       if (!mounted) {
         return;
       }
-      final productName = mapping?.productName.trim() ?? '';
-      final controllerDeviceId = mapping?.deviceId ?? '';
+      final productName = mapping.productName.trim();
+      final controllerDeviceId = mapping.deviceId;
       final label = productName.isEmpty ? device.name : productName;
       _audioAskedPorts.add(portName);
       if (controllerAudioAlwaysSwitch(current, controllerDeviceId)) {
@@ -398,12 +400,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       _audioAskedPorts.remove(portName);
       // A failed restart must not leave the engine pointing at the controller.
       try {
-        final settingsTransport = await ref.read(
-          settingsTransportProvider.future,
-        );
-        await settingsTransport.setControllerAudioOverride();
-        ref.invalidate(appSettingsProvider);
-        await _restartEngineFromSettings();
+        await _dropControllerAudioOverride(mappingId);
       } catch (_) {
         // The original failure is more useful than cleanup failure.
       }
@@ -424,6 +421,15 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         description: Text('$e'),
       );
     }
+  }
+
+  /// Clears the live override owned by [mappingId] and restarts from the saved
+  /// routes. The Rust side only clears when the mapping still owns the override.
+  Future<void> _dropControllerAudioOverride(String mappingId) async {
+    final settingsTransport = await ref.read(settingsTransportProvider.future);
+    await settingsTransport.clearControllerAudioOverride(mappingId: mappingId);
+    ref.invalidate(appSettingsProvider);
+    await _restartEngineFromSettings();
   }
 
   /// Restarts audio from the saved config, with the live override reapplied
@@ -450,9 +456,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       if (active == null || active.mappingId != mappingId) {
         return;
       }
-      await settingsTransport.setControllerAudioOverride();
-      ref.invalidate(appSettingsProvider);
-      await _restartEngineFromSettings();
+      await _dropControllerAudioOverride(mappingId);
       if (!mounted) {
         return;
       }
@@ -461,6 +465,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         title: const Text('Audio outputs restored'),
       );
     } catch (e, st) {
+      _audioAskedPorts.clear();
       if (!mounted) {
         return;
       }

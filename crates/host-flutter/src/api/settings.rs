@@ -252,6 +252,25 @@ impl SettingsTransport {
         *host = candidate;
         Ok(saved)
     }
+
+    /// Clear the live override only when [mapping_id] still owns it.
+    ///
+    /// Avoids a read-then-clear race when another controller switched audio in
+    /// between the caller reading settings and clearing.
+    pub fn clear_controller_audio_override(
+        &self,
+        mapping_id: String,
+    ) -> Result<AppSettings, String> {
+        let mut host = self.host.lock().bridge()?;
+        if host
+            .controller_audio_override
+            .as_ref()
+            .is_some_and(|override_settings| override_settings.mapping_id == mapping_id)
+        {
+            host.controller_audio_override = None;
+        }
+        parse_settings(settings_from_host(&host))
+    }
 }
 
 /// Bus channel routing mode.
@@ -264,7 +283,7 @@ pub enum BusChannelMode {
 }
 
 /// Output bus route (device + channels + rate).
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BusRouteSettings {
     pub device_id: String,
     pub left_channel: u16,
@@ -950,6 +969,23 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         if override_settings.output_device_id.trim().is_empty() {
             errors.push("controller_audio_override.output_device_id must be non-empty".into());
         }
+        if override_settings.controller_label.trim().is_empty() {
+            errors.push("controller_audio_override.controller_label must be non-empty".into());
+        }
+        if override_settings.master_overridden
+            && override_settings.master_bus.device_id != override_settings.output_device_id
+        {
+            errors.push(
+                "controller_audio_override.master_bus must target its output_device_id".into(),
+            );
+        }
+        if override_settings.preview_overridden
+            && override_settings.preview_bus.device_id != override_settings.output_device_id
+        {
+            errors.push(
+                "controller_audio_override.preview_bus must target its output_device_id".into(),
+            );
+        }
         if let Err(e) = parse_bus(
             "controller_audio_override.master_bus",
             &override_settings.master_bus,
@@ -1013,6 +1049,12 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
 
     settings.stems_format = normalize_stems_format(&settings.stems_format);
     settings.stems_model = normalize_stems_model(&settings.stems_model);
+
+    // The preference list drives auto-switch; duplicates add no meaning.
+    let mut audio_ids = std::collections::HashSet::new();
+    settings
+        .always_switch_audio_device_ids
+        .retain(|id| !id.trim().is_empty() && audio_ids.insert(id.clone()));
 
     // Order is the user's priority, so keep the first occurrence of each field.
     // An empty list is a real choice (no metadata pills), not a broken value.
@@ -1118,6 +1160,8 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         )
         .to_string(),
         master_bus,
+        // Report the live state so the Settings switch reflects the controller
+        // override; the saved config keeps its own preview flag.
         preview_enabled: preview_bus_config.is_some()
             || host
                 .controller_audio_override
@@ -1377,6 +1421,8 @@ fn effective_engine_config(host: &SettingsHost) -> EngineConfig {
         );
     }
     if override_settings.preview_overridden {
+        // A mapping's headphone route intentionally owns the preview bus even
+        // when the saved config had preview disabled.
         replace_bus(
             &mut config.buses,
             PREVIEW_BUS_ID,
@@ -1392,6 +1438,10 @@ fn replace_bus(buses: &mut Vec<BusConfig>, id: &str, name: &str, route: &BusRout
     if let Some(position) = buses.iter().position(|bus| bus.id.as_str() == id) {
         buses[position] = replacement;
     } else {
+        debug_assert!(
+            false,
+            "base engine config is missing bus `{id}`; appending instead"
+        );
         buses.push(replacement);
     }
 }
@@ -1570,9 +1620,23 @@ mod tests {
                 controller_label: "DDJ-400".into(),
                 output_device_id: "cpal:ddj".into(),
                 master_overridden: true,
-                master_bus: default_master_bus_route(),
+                master_bus: BusRouteSettings {
+                    device_id: "cpal:ddj".into(),
+                    left_channel: 1,
+                    right_channel: 2,
+                    mode: BusChannelMode::Stereo,
+                    sample_rate: None,
+                    low_latency: false,
+                },
                 preview_overridden: true,
-                preview_bus: default_preview_bus_route(),
+                preview_bus: BusRouteSettings {
+                    device_id: "cpal:ddj".into(),
+                    left_channel: 3,
+                    right_channel: 4,
+                    mode: BusChannelMode::Stereo,
+                    sample_rate: None,
+                    low_latency: false,
+                },
             }),
             ..Default::default()
         };
@@ -1581,6 +1645,88 @@ mod tests {
         settings.controller_audio_override = None;
         apply_to_host(&mut host, settings).expect("clear override");
         assert!(host.controller_audio_override.is_none());
+    }
+
+    #[test]
+    fn unrelated_save_keeps_the_preview_override() {
+        let mut host = SettingsHost {
+            controller_audio_override: Some(ControllerAudioOverride {
+                mapping_id: "ddj-400".into(),
+                controller_label: "DDJ-400".into(),
+                output_device_id: "cpal:ddj".into(),
+                master_overridden: false,
+                master_bus: default_master_bus_route(),
+                preview_overridden: true,
+                preview_bus: BusRouteSettings {
+                    device_id: "cpal:ddj".into(),
+                    left_channel: 3,
+                    right_channel: 4,
+                    mode: BusChannelMode::Stereo,
+                    sample_rate: None,
+                    low_latency: false,
+                },
+            }),
+            ..Default::default()
+        };
+        let mut settings = settings_from_host(&host);
+        assert!(settings.preview_enabled, "preview reports the live state");
+        settings.buffer_size = 1024;
+        apply_to_host(&mut host, settings).expect("unrelated save");
+        assert!(
+            host.controller_audio_override
+                .expect("override kept")
+                .preview_overridden
+        );
+    }
+
+    #[test]
+    fn always_switch_audio_device_ids_are_deduped() {
+        let mut settings = sample_settings();
+        settings.always_switch_audio_device_ids = vec![
+            "pioneer.ddj-400".into(),
+            " ".into(),
+            "pioneer.ddj-400".into(),
+        ];
+        let parsed = parse_settings(settings).expect("parse");
+        assert_eq!(
+            parsed.always_switch_audio_device_ids,
+            vec!["pioneer.ddj-400".to_string()]
+        );
+    }
+
+    #[test]
+    fn clear_controller_audio_override_only_clears_its_owner() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let transport = SettingsTransport::open_at(&dir.path().join("settings.json"));
+        let override_settings = ControllerAudioOverride {
+            mapping_id: "ddj-400".into(),
+            controller_label: "DDJ-400".into(),
+            output_device_id: "cpal:ddj".into(),
+            master_overridden: true,
+            master_bus: BusRouteSettings {
+                device_id: "cpal:ddj".into(),
+                left_channel: 1,
+                right_channel: 2,
+                mode: BusChannelMode::Stereo,
+                sample_rate: None,
+                low_latency: false,
+            },
+            preview_overridden: false,
+            preview_bus: default_preview_bus_route(),
+        };
+        transport
+            .set_controller_audio_override(Some(override_settings))
+            .expect("set override");
+
+        let kept = transport
+            .clear_controller_audio_override("other".into())
+            .expect("clear other");
+        assert!(kept.controller_audio_override.is_some());
+
+        let cleared = transport
+            .clear_controller_audio_override("ddj-400".into())
+            .expect("clear owner");
+        assert!(cleared.controller_audio_override.is_none());
     }
 
     #[test]

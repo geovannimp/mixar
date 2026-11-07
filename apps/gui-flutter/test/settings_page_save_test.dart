@@ -41,7 +41,7 @@ void main() {
     tester
         .widget<SettingsMixerPanel>(find.byType(SettingsMixerPanel))
         .onChanged(copyAppSettings(baseline, numDecks: 4));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsLabel(l10n.settingsCloseSemantics));
     await tester.pumpAndSettle();
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
@@ -167,7 +167,7 @@ void main() {
     tester
         .widget<SettingsAudioPanel>(find.byType(SettingsAudioPanel))
         .onChanged(copyAppSettings(defaultAppSettings(), bufferSize: 1024));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     saved = copyAppSettings(
       saved,

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -34,7 +35,7 @@ class SettingsBusRouteFields extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final deviceOptions = <OutputDevice>[
       OutputDevice(
-        id: 'default',
+        id: defaultAudioDeviceId,
         name: l10n.settingsSystemDefault,
         isDefault: true,
         maxChannels: 2,
@@ -46,7 +47,7 @@ class SettingsBusRouteFields extends StatelessWidget {
     ];
     final selectedId = deviceOptions.any((d) => d.id == route.deviceId)
         ? route.deviceId
-        : 'default';
+        : defaultAudioDeviceId;
     final maxChannels = _maxChannelsFor(devices, selectedId);
     final busDevice = resolveAudioOutputDevice(devices, selectedId);
     final rateOptions = _rateOptions(busDevice, route.sampleRate);
@@ -242,8 +243,9 @@ List<OutputDevice> selectableAudioDevices(
   };
   return devices.where((device) {
     final name = device.name.trim().toLowerCase();
-    return device.id != 'default' &&
-        !hiddenNames.contains(name) &&
+    final nameAlias = device.isDefault && hiddenNames.contains(name);
+    return device.id != defaultAudioDeviceId &&
+        !nameAlias &&
         !device.id.endsWith(':output_default') &&
         !device.id.endsWith(':sink_default');
   }).toList();
@@ -390,7 +392,7 @@ OutputDevice? resolveAudioOutputDevice(
   List<OutputDevice> devices,
   String deviceId,
 ) {
-  if (deviceId == 'default') {
+  if (deviceId == defaultAudioDeviceId) {
     for (final device in devices) {
       if (device.isDefault) {
         return device;

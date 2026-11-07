@@ -3,9 +3,9 @@ import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
-/// Highest 1-based channel the mapping asks for (2 when it declares none).
+/// Highest 1-based channel the mapping asks for (0 when it declares none).
 int controllerAudioMaxChannel(ControllerAudioHints hints) {
-  var max = 2;
+  var max = 0;
   for (final pair in [hints.masterChannels, hints.headphoneChannels]) {
     if (pair == null) {
       continue;
@@ -24,6 +24,9 @@ OutputDevice? matchControllerAudioOutput(
   List<OutputDevice> devices,
   ControllerAudioHints hints,
 ) {
+  if (hints.masterChannels == null && hints.headphoneChannels == null) {
+    return null;
+  }
   final needles = hints.outputNameContains
       .map((name) => name.trim().toLowerCase())
       .where((name) => name.isNotEmpty)
@@ -33,34 +36,43 @@ OutputDevice? matchControllerAudioOutput(
   }
   final requiredChannels = controllerAudioMaxChannel(hints);
   OutputDevice? best;
-  var bestScore = -1;
+  var bestExact = -1;
+  var bestChannels = -1;
+  var bestDefault = false;
   for (final device in devices) {
-    if (device.id == 'default' || device.maxChannels < requiredChannels) {
+    if (device.id == defaultAudioDeviceId ||
+        device.maxChannels < requiredChannels) {
       continue;
     }
     final name = device.name.toLowerCase();
-    var score = -1;
+    var exact = 0;
+    var matched = false;
     for (final needle in needles) {
       if (name == needle) {
-        score = 4;
+        exact = 1;
+        matched = true;
         break;
       }
       if (name.contains(needle)) {
-        score = 2;
+        matched = true;
       }
     }
-    if (score < 0) {
+    if (!matched) {
       continue;
     }
-    if (device.isDefault) {
-      score += 1;
-    }
-    if (score > bestScore ||
-        (score == bestScore &&
-            best != null &&
-            device.maxChannels > best.maxChannels)) {
+    // Exact name, then channel headroom, then the system default.
+    final better =
+        exact > bestExact ||
+        (exact == bestExact && device.maxChannels > bestChannels) ||
+        (exact == bestExact &&
+            device.maxChannels == bestChannels &&
+            device.isDefault &&
+            !bestDefault);
+    if (better) {
       best = device;
-      bestScore = score;
+      bestExact = exact;
+      bestChannels = device.maxChannels;
+      bestDefault = device.isDefault;
     }
   }
   return best;
@@ -70,17 +82,23 @@ OutputDevice? matchControllerAudioOutput(
 /// when the OS made that device the default output.
 bool busRouteUsesDevice(BusRouteSettings route, OutputDevice device) =>
     busRouteUsesDeviceId(route, device.id) ||
-    (route.deviceId == 'default' && device.isDefault);
+    (route.deviceId == defaultAudioDeviceId && device.isDefault);
 
 /// Exact device-id match between a saved route and an override target.
 bool busRouteUsesDeviceId(BusRouteSettings route, String deviceId) =>
     route.deviceId == deviceId;
 
-/// Whether the controller's declared output is already in use, so the prompt
-/// can stay quiet after the user has switched (or configured it by hand).
-bool controllerAudioAlreadyRouted(AppSettings settings, OutputDevice device) {
+/// Whether [mappingId]'s declared output is already live, so the prompt can
+/// stay quiet while it owns the buses.
+bool controllerAudioAlreadyRouted(
+  AppSettings settings,
+  OutputDevice device,
+  String mappingId,
+) {
   final active = settings.controllerAudioOverride;
-  return active != null && active.outputDeviceId == device.id;
+  return active != null &&
+      active.mappingId == mappingId &&
+      active.outputDeviceId == device.id;
 }
 
 /// Whether this controller is configured to switch the output buses on attach
@@ -136,7 +154,7 @@ ControllerAudioOverride? buildControllerAudioOverride(
   if (master == null && headphone == null) {
     return null;
   }
-  if (controllerAudioAlreadyRouted(settings, device)) {
+  if (controllerAudioAlreadyRouted(settings, device, mappingId)) {
     return null;
   }
   final existing = settings.controllerAudioOverride;
@@ -144,7 +162,7 @@ ControllerAudioOverride? buildControllerAudioOverride(
       existing != null &&
       existing.mappingId == mappingId &&
       existing.outputDeviceId == device.id;
-  return ControllerAudioOverride(
+  return _audioOverride(
     mappingId: mappingId,
     controllerLabel: controllerLabel,
     outputDeviceId: device.id,
@@ -159,6 +177,24 @@ ControllerAudioOverride? buildControllerAudioOverride(
   );
 }
 
+ControllerAudioOverride _audioOverride({
+  required String mappingId,
+  required String controllerLabel,
+  required String outputDeviceId,
+  required bool masterOverridden,
+  required BusRouteSettings masterBus,
+  required bool previewOverridden,
+  required BusRouteSettings previewBus,
+}) => ControllerAudioOverride(
+  mappingId: mappingId,
+  controllerLabel: controllerLabel,
+  outputDeviceId: outputDeviceId,
+  masterOverridden: masterOverridden,
+  masterBus: masterBus,
+  previewOverridden: previewOverridden,
+  previewBus: previewBus,
+);
+
 /// Removes one bus from a live override, or returns `null` when neither bus is
 /// overridden anymore.
 ControllerAudioOverride? clearControllerAudioOverrideBus(
@@ -170,7 +206,7 @@ ControllerAudioOverride? clearControllerAudioOverrideBus(
   if (!masterOverridden && !previewOverridden) {
     return null;
   }
-  return ControllerAudioOverride(
+  return _audioOverride(
     mappingId: override.mappingId,
     controllerLabel: override.controllerLabel,
     outputDeviceId: override.outputDeviceId,
