@@ -7,10 +7,15 @@ class SettingsSectionHeader extends StatelessWidget {
     required this.title,
     this.description = '',
     this.descriptionBuilder,
+    this.badge,
     super.key,
   });
 
   final String title;
+
+  /// Optional inline marker rendered beside [title]
+  /// (e.g. a controller override).
+  final Widget? badge;
 
   /// Muted line under the title. Empty (the default) leaves the header
   /// title-only, for sections whose fields explain themselves.
@@ -26,14 +31,26 @@ class SettingsSectionHeader extends StatelessWidget {
     final descriptionStyle = theme.typography.body.sm.copyWith(
       color: theme.colors.mutedForeground,
     );
+    final titleStyle = theme.typography.body.md.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+    final badgeWidget = badge;
+    final titleLine = badgeWidget == null
+        ? Text(title, style: titleStyle)
+        : Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(title, style: titleStyle),
+              badgeWidget,
+            ],
+          );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 4,
       children: [
-        Text(
-          title,
-          style: theme.typography.body.md.copyWith(fontWeight: FontWeight.w600),
-        ),
+        titleLine,
         if (descriptionBuilder case final builder?)
           builder(descriptionStyle)
         else if (description.isNotEmpty)

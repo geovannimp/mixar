@@ -237,8 +237,8 @@ Future<SaveAppSettingsResult> saveAppSettings(
   final normalized = normalizeAppSettings(draft);
   // A save that only changes how the list paints — the theme, the consent
   // toggle, the visible row fields, which panels are on screen, where the
-  // waveform sits, or whether first-run setup is done — must not restart the
-  // engine: audio would glitch for a
+  // waveform sits, the controller audio preference, or whether first-run setup
+  // is done — must not restart the engine: audio would glitch for a
   // cosmetic edit. Everything else goes through the apply path below.
   final viewOnly = !appSettingsDirty(
     copyAppSettings(
@@ -256,6 +256,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
       libraryDrawerEnabled: previous.libraryDrawerEnabled,
       libraryDrawerSide: previous.libraryDrawerSide,
       mixerMeters: previous.mixerMeters,
+      alwaysSwitchAudioDeviceIds: previous.alwaysSwitchAudioDeviceIds,
     ),
     previous,
   );

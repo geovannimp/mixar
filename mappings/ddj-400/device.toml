@@ -16,7 +16,8 @@ usb_pid = 0x0026
 # (ON/OFF, FX SELECT, BEAT, LEVEL/DEPTH, CH SELECT) so it is strictly newer
 # than the base the version gate compares against. 1.3.1 makes the LEVEL/DEPTH
 # knob authoritative (no catch-up dead zone) — re-offer it to existing installs.
-mapping_version = "1.3.1"
+# 1.4.0 maps the controller's own audio interface (master 1/2, headphones 3/4).
+mapping_version = "1.4.0"
 midi_name_contains = ["DDJ-400"]
 
 [toml-schema]
@@ -24,7 +25,11 @@ version = "1.0.0"
 location = "../../schemas/device.tosd"
 
 [audio]
+# The DDJ-400 exposes a 4-channel USB audio interface: master on 1/2 and the
+# headphone / cue output on 3/4.
 output_name_contains = ["DDJ-400"]
+master_channels = [1, 2]
+headphone_channels = [3, 4]
 
 [deck_1]
 play_pause = { type = "note", channel = 1, note = 0x0B }

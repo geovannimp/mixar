@@ -1,3 +1,4 @@
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 /// In-memory settings host for widget tests that boot the setup flow.
@@ -26,5 +27,26 @@ class FakeSettingsTransport implements SettingsTransport {
     }
     stored = settings;
     return settings;
+  }
+
+  @override
+  Future<AppSettings> setControllerAudioOverride({
+    ControllerAudioOverride? overrideSettings,
+  }) async {
+    return stored = copyAppSettings(
+      stored,
+      controllerAudioOverride: overrideSettings,
+      clearControllerAudioOverride: overrideSettings == null,
+    );
+  }
+
+  @override
+  Future<AppSettings> clearControllerAudioOverride({
+    required String mappingId,
+  }) async {
+    if (stored.controllerAudioOverride?.mappingId == mappingId) {
+      stored = copyAppSettings(stored, clearControllerAudioOverride: true);
+    }
+    return stored;
   }
 }

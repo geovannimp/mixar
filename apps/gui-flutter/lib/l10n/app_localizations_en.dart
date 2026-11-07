@@ -657,6 +657,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAudioPreviewBus => 'Enable preview bus';
 
   @override
+  String settingsAudioControllerOverride(String controllerName) {
+    return 'Overridden by $controllerName mapping';
+  }
+
+  @override
   String get settingsAudioDevice => 'Device';
 
   @override
@@ -1177,6 +1182,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsControllersTrust => 'Trust';
+
+  @override
+  String get settingsControllersAudio => 'Audio';
+
+  @override
+  String settingsControllersAudioSemantics(String name) {
+    return 'Always switch audio to $name';
+  }
 
   @override
   String get settingsControllersAttach => 'Attach';

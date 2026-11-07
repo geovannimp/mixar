@@ -10,11 +10,13 @@ class SettingsCheckbox extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
     super.key,
   });
 
   final String label;
   final bool value;
+  final bool enabled;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -24,6 +26,7 @@ class SettingsCheckbox extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: MixarCheckbox(
         value: value,
+        enabled: enabled,
         onChanged: onChanged,
         label: Text(
           label,

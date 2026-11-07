@@ -663,6 +663,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsAudioPreviewBus => 'Ativar barramento de escuta';
 
   @override
+  String settingsAudioControllerOverride(String controllerName) {
+    return 'Substituído pelo mapeamento $controllerName';
+  }
+
+  @override
   String get settingsAudioDevice => 'Dispositivo';
 
   @override
@@ -1194,6 +1199,14 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsControllersTrust => 'Confiar';
+
+  @override
+  String get settingsControllersAudio => 'Áudio';
+
+  @override
+  String settingsControllersAudioSemantics(String name) {
+    return 'Sempre trocar o áudio para $name';
+  }
 
   @override
   String get settingsControllersAttach => 'Anexar';

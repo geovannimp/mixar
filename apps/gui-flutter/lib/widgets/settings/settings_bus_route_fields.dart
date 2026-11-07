@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -34,7 +35,7 @@ class SettingsBusRouteFields extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final deviceOptions = <OutputDevice>[
       OutputDevice(
-        id: 'default',
+        id: defaultAudioDeviceId,
         name: l10n.settingsSystemDefault,
         isDefault: true,
         maxChannels: 2,
@@ -42,11 +43,11 @@ class SettingsBusRouteFields extends StatelessWidget {
         defaultSampleRates: Uint32List(0),
         sampleRateRanges: const [],
       ),
-      ...devices.where((d) => d.id != 'default'),
+      ...selectableAudioDevices(devices, l10n.settingsSystemDefault),
     ];
     final selectedId = deviceOptions.any((d) => d.id == route.deviceId)
         ? route.deviceId
-        : 'default';
+        : defaultAudioDeviceId;
     final maxChannels = _maxChannelsFor(devices, selectedId);
     final busDevice = resolveAudioOutputDevice(devices, selectedId);
     final rateOptions = _rateOptions(busDevice, route.sampleRate);
@@ -226,6 +227,30 @@ class SettingsBusRouteFields extends StatelessWidget {
   }
 }
 
+/// Devices offered under the synthetic "System default" entry.
+///
+/// The backend exposes a "System default" / `*_default` alias beside the real
+/// devices; listing it would duplicate the localized entry.
+List<OutputDevice> selectableAudioDevices(
+  List<OutputDevice> devices,
+  String systemDefaultLabel,
+) {
+  final hiddenNames = {
+    'system default',
+    'output_default',
+    'sink_default',
+    systemDefaultLabel.trim().toLowerCase(),
+  };
+  return devices.where((device) {
+    final name = device.name.trim().toLowerCase();
+    final nameAlias = device.isDefault && hiddenNames.contains(name);
+    return device.id != defaultAudioDeviceId &&
+        !nameAlias &&
+        !device.id.endsWith(':output_default') &&
+        !device.id.endsWith(':sink_default');
+  }).toList();
+}
+
 int _maxChannelsFor(List<OutputDevice> devices, String deviceId) {
   final max = resolveAudioOutputDevice(devices, deviceId)?.maxChannels ?? 2;
   return max < 1 ? 1 : max;
@@ -367,7 +392,7 @@ OutputDevice? resolveAudioOutputDevice(
   List<OutputDevice> devices,
   String deviceId,
 ) {
-  if (deviceId == 'default') {
+  if (deviceId == defaultAudioDeviceId) {
     for (final device in devices) {
       if (device.isDefault) {
         return device;

@@ -122,7 +122,26 @@ pub struct ControllerMappingInfo {
     pub version: Option<String>,
     pub update_available: bool,
     pub midi_name_contains: Vec<String>,
+    /// Present when the bundle maps the controller's own audio interface.
+    pub audio: Option<ControllerAudioHints>,
     pub attached: bool,
+}
+
+/// Stereo output channels on the controller's audio device (1-based).
+#[derive(Clone, Copy, Debug)]
+pub struct ControllerChannelPair {
+    pub left: u16,
+    pub right: u16,
+}
+
+/// `device.toml` `[audio]`: how to find the controller's output and where to
+/// route the master / headphone buses on it.
+#[derive(Clone, Debug)]
+pub struct ControllerAudioHints {
+    pub output_name_contains: Vec<String>,
+    pub master_channels: Option<ControllerChannelPair>,
+    pub headphone_channels: Option<ControllerChannelPair>,
+    pub sample_rate: Option<u32>,
 }
 
 /// Live MIDI port row for Flutter settings.
@@ -344,7 +363,20 @@ fn mapping_info(info: MappingInfo) -> ControllerMappingInfo {
         version: info.version,
         update_available: info.update_available,
         midi_name_contains: info.midi_name_contains,
+        audio: info.audio.map(controller_audio_hints),
         attached: info.attached,
+    }
+}
+
+fn controller_audio_hints(hints: controller::AudioHints) -> ControllerAudioHints {
+    let pair = |channels: Option<controller::OutputChannels>| {
+        channels.map(|[left, right]| ControllerChannelPair { left, right })
+    };
+    ControllerAudioHints {
+        output_name_contains: hints.output_name_contains,
+        master_channels: pair(hints.master_channels),
+        headphone_channels: pair(hints.headphone_channels),
+        sample_rate: hints.sample_rate,
     }
 }
 
@@ -671,6 +703,23 @@ mod tests {
             ),
         )
         .expect("device.toml");
+    }
+
+    #[test]
+    fn audio_hints_convert_to_channel_pairs() {
+        let hints = controller::AudioHints {
+            output_name_contains: vec!["DDJ-400".into()],
+            master_channels: Some([1, 2]),
+            headphone_channels: Some([3, 4]),
+            sample_rate: Some(48_000),
+        };
+        let out = controller_audio_hints(hints);
+        assert_eq!(out.output_name_contains, ["DDJ-400"]);
+        let master = out.master_channels.expect("master channels");
+        assert_eq!((master.left, master.right), (1, 2));
+        let headphones = out.headphone_channels.expect("headphone channels");
+        assert_eq!((headphones.left, headphones.right), (3, 4));
+        assert_eq!(out.sample_rate, Some(48_000));
     }
 
     #[test]

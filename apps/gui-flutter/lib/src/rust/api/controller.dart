@@ -9,9 +9,9 @@ import 'event_mirrors.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_deck_feedback`, `apply_deck_vu`, `apply_engine_mirror`, `apply_fx_slots`, `apply_hot_cues`, `apply_key_shift_page`, `apply_key_shift`, `apply_keyboard_page`, `apply_keyboard_root`, `apply_library_mirror`, `apply_master_feedback`, `apply_position`, `device_info`, `hot_cue_slots_deck`, `hot_cue_slots_lib`, `loop_slots`, `mapping_devices`, `mapping_info`, `match_port`, `mirror_engine_library_to_controller`, `publish_events`, `read_device_files`, `resolve_shipped_mappings`, `spawn_named`, `start_at`, `stop_and_join`
+// These functions are ignored because they are not marked as `pub`: `apply_deck_feedback`, `apply_deck_vu`, `apply_engine_mirror`, `apply_fx_slots`, `apply_hot_cues`, `apply_key_shift_page`, `apply_key_shift`, `apply_keyboard_page`, `apply_keyboard_root`, `apply_library_mirror`, `apply_master_feedback`, `apply_position`, `controller_audio_hints`, `device_info`, `hot_cue_slots_deck`, `hot_cue_slots_lib`, `loop_slots`, `mapping_devices`, `mapping_info`, `match_port`, `mirror_engine_library_to_controller`, `publish_events`, `read_device_files`, `resolve_shipped_mappings`, `spawn_named`, `start_at`, `stop_and_join`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `HostPublish`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `publish_cmd`, `publish_evt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `publish_cmd`, `publish_evt`
 
 /// Enumerate MIDI inputs and match each against the mapping bundles Mixar has.
 ///
@@ -47,6 +47,58 @@ abstract class ControllerTransport implements RustOpaqueInterface {
   Future<void> updateAllMappings();
 
   Future<void> updateMapping({required String mappingId});
+}
+
+/// `device.toml` `[audio]`: how to find the controller's output and where to
+/// route the master / headphone buses on it.
+class ControllerAudioHints {
+  final List<String> outputNameContains;
+  final ControllerChannelPair? masterChannels;
+  final ControllerChannelPair? headphoneChannels;
+  final int? sampleRate;
+
+  const ControllerAudioHints({
+    required this.outputNameContains,
+    this.masterChannels,
+    this.headphoneChannels,
+    this.sampleRate,
+  });
+
+  @override
+  int get hashCode =>
+      outputNameContains.hashCode ^
+      masterChannels.hashCode ^
+      headphoneChannels.hashCode ^
+      sampleRate.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ControllerAudioHints &&
+          runtimeType == other.runtimeType &&
+          outputNameContains == other.outputNameContains &&
+          masterChannels == other.masterChannels &&
+          headphoneChannels == other.headphoneChannels &&
+          sampleRate == other.sampleRate;
+}
+
+/// Stereo output channels on the controller's audio device (1-based).
+class ControllerChannelPair {
+  final int left;
+  final int right;
+
+  const ControllerChannelPair({required this.left, required this.right});
+
+  @override
+  int get hashCode => left.hashCode ^ right.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ControllerChannelPair &&
+          runtimeType == other.runtimeType &&
+          left == other.left &&
+          right == other.right;
 }
 
 enum ControllerDeviceDirection { input, output }
@@ -87,6 +139,9 @@ class ControllerMappingInfo {
   final String? version;
   final bool updateAvailable;
   final List<String> midiNameContains;
+
+  /// Present when the bundle maps the controller's own audio interface.
+  final ControllerAudioHints? audio;
   final bool attached;
 
   const ControllerMappingInfo({
@@ -98,6 +153,7 @@ class ControllerMappingInfo {
     this.version,
     required this.updateAvailable,
     required this.midiNameContains,
+    this.audio,
     required this.attached,
   });
 
@@ -111,6 +167,7 @@ class ControllerMappingInfo {
       version.hashCode ^
       updateAvailable.hashCode ^
       midiNameContains.hashCode ^
+      audio.hashCode ^
       attached.hashCode;
 
   @override
@@ -126,6 +183,7 @@ class ControllerMappingInfo {
           version == other.version &&
           updateAvailable == other.updateAvailable &&
           midiNameContains == other.midiNameContains &&
+          audio == other.audio &&
           attached == other.attached;
 }
 
