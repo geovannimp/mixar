@@ -1438,10 +1438,8 @@ fn replace_bus(buses: &mut Vec<BusConfig>, id: &str, name: &str, route: &BusRout
     if let Some(position) = buses.iter().position(|bus| bus.id.as_str() == id) {
         buses[position] = replacement;
     } else {
-        debug_assert!(
-            false,
-            "base engine config is missing bus `{id}`; appending instead"
-        );
+        // A controller's headphone route can intentionally turn on a preview
+        // bus that the saved config had disabled, so an absent bus is valid.
         buses.push(replacement);
     }
 }
@@ -1621,6 +1619,29 @@ mod tests {
         settings.controller_audio_override = None;
         apply_to_host(&mut host, settings).expect("clear override");
         assert!(host.controller_audio_override.is_none());
+    }
+
+    #[test]
+    fn preview_override_adds_a_disabled_preview_bus() {
+        let host = SettingsHost {
+            controller_audio_override: Some(ControllerAudioOverride {
+                mapping_id: "ddj-400".into(),
+                controller_label: "DDJ-400".into(),
+                output_device_id: "cpal:ddj".into(),
+                master_overridden: false,
+                master_bus: default_master_bus_route(),
+                preview_overridden: true,
+                preview_bus: controller_route(3, 4),
+            }),
+            ..Default::default()
+        };
+        let effective = effective_engine_config(&host);
+        let preview = effective
+            .buses
+            .iter()
+            .find(|bus| bus.id.as_str() == PREVIEW_BUS_ID)
+            .expect("preview bus is created");
+        assert_eq!(preview.device.as_str(), "cpal:ddj");
     }
 
     #[test]
