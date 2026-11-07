@@ -39,4 +39,14 @@ class FakeSettingsTransport implements SettingsTransport {
       clearControllerAudioOverride: overrideSettings == null,
     );
   }
+
+  @override
+  Future<AppSettings> clearControllerAudioOverride({
+    required String mappingId,
+  }) async {
+    if (stored.controllerAudioOverride?.mappingId == mappingId) {
+      stored = copyAppSettings(stored, clearControllerAudioOverride: true);
+    }
+    return stored;
+  }
 }

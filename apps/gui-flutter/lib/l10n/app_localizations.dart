@@ -1269,11 +1269,11 @@ abstract class AppLocalizations {
   /// **'Enable preview bus'**
   String get settingsAudioPreviewBus;
 
-  /// No description provided for @settingsAudioControllerOverride.
+  /// Badge on a bus whose route is supplied by an attached controller mapping.
   ///
   /// In en, this message translates to:
-  /// **'Overridden by {controller} mapping'**
-  String settingsAudioControllerOverride(String controller);
+  /// **'Overridden by {controllerName} mapping'**
+  String settingsAudioControllerOverride(String controllerName);
 
   /// No description provided for @settingsAudioDevice.
   ///
@@ -2199,13 +2199,13 @@ abstract class AppLocalizations {
   /// **'Trust'**
   String get settingsControllersTrust;
 
-  /// No description provided for @settingsControllersAudio.
+  /// Label for the per-controller automatic audio switch toggle.
   ///
   /// In en, this message translates to:
   /// **'Audio'**
   String get settingsControllersAudio;
 
-  /// No description provided for @settingsControllersAudioSemantics.
+  /// Screen-reader label for the controller audio switch toggle.
   ///
   /// In en, this message translates to:
   /// **'Always switch audio to {name}'**

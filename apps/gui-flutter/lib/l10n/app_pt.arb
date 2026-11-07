@@ -202,10 +202,11 @@
   "settingsAudioPreviewBusTitle": "Barramento de escuta",
   "settingsAudioPreviewBusDescription": "Saída de fones / cue quando a escuta está ativada.",
   "settingsAudioPreviewBus": "Ativar barramento de escuta",
-  "settingsAudioControllerOverride": "Substituído pelo mapeamento {controller}",
+  "settingsAudioControllerOverride": "Substituído pelo mapeamento {controllerName}",
   "@settingsAudioControllerOverride": {
+    "description": "Selo em um barramento cuja rota vem de um mapeamento de controlador conectado.",
     "placeholders": {
-      "controller": {
+      "controllerName": {
         "type": "String"
       }
     }
@@ -402,8 +403,12 @@
   "settingsControllersUpdateAvailable": "Atualização disponível",
   "settingsControllersTrust": "Confiar",
   "settingsControllersAudio": "Áudio",
+  "@settingsControllersAudio": {
+    "description": "Rótulo do botão de troca automática de áudio por controlador."
+  },
   "settingsControllersAudioSemantics": "Sempre trocar o áudio para {name}",
   "@settingsControllersAudioSemantics": {
+    "description": "Rótulo para leitor de tela do botão de troca automática de áudio.",
     "placeholders": {
       "name": {
         "type": "String"

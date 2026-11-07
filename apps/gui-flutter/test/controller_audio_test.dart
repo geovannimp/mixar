@@ -206,6 +206,21 @@ void main() {
       expect(override.previewBus.rightChannel, 4);
     });
 
+    test('does not override master for a headphone-only mapping', () {
+      final override = _build(
+        defaultAppSettings(),
+        const ControllerAudioHints(
+          outputNameContains: ['DDJ-400'],
+          headphoneChannels: ControllerChannelPair(left: 3, right: 4),
+        ),
+        _device('ddj', 'DDJ-400'),
+      );
+      expect(override, isNotNull);
+      expect(override!.masterOverridden, isFalse);
+      expect(override.previewOverridden, isTrue);
+      expect(override.previewBus.leftChannel, 3);
+    });
+
     test('uses a declared sample rate', () {
       final override = _build(
         defaultAppSettings(),
@@ -235,7 +250,10 @@ void main() {
       // An older build may have persisted the controller into the saved route;
       // a live override must still be created and offered.
       expect(_build(settings, _hints, device), isNotNull);
-      expect(controllerAudioAlreadyRouted(settings, device), isFalse);
+      expect(
+        controllerAudioAlreadyRouted(settings, device, _mappingId),
+        isFalse,
+      );
     });
 
     test('sees an existing runtime override as already routed', () {
@@ -246,13 +264,19 @@ void main() {
         controllerAudioOverride: active,
       );
       expect(_build(settings, _hints, device), isNull);
-      expect(controllerAudioAlreadyRouted(settings, device), isTrue);
+      expect(
+        controllerAudioAlreadyRouted(settings, device, _mappingId),
+        isTrue,
+      );
     });
 
     test('offers again when a saved default alias happens to match', () {
       final device = _device('ddj', 'DDJ-400', isDefault: true);
       final settings = defaultAppSettings();
-      expect(controllerAudioAlreadyRouted(settings, device), isFalse);
+      expect(
+        controllerAudioAlreadyRouted(settings, device, _mappingId),
+        isFalse,
+      );
     });
 
     test('returns null when the mapping declares no routes', () {
