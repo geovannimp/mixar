@@ -41,8 +41,8 @@ pub use config::{
 pub use control::{spawn_engine_worker, EngineWorker};
 pub use curve_core::CurveGroup;
 pub use curve_library::{
-    behavior_from_setting, behavior_setting, library_from_spec, resolve_selection,
-    CrossfaderCurveSelection, ResolvedCurveSelection,
+    behavior_from_setting, behavior_setting, group_from_spec, group_to_spec, library_from_spec,
+    resolve_selection, CrossfaderCurveSelection, ResolvedCurveSelection,
 };
 pub use curve_presets::{
     available_presets, catalog as crossfader_preset_catalog, CrossfaderCurveError,

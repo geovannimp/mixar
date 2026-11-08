@@ -98,7 +98,67 @@ pub fn library_from_spec(spec: &CurveLibrarySpec) -> Result<CurveLibrary, String
     CurveLibrary::new(groups, sets).map_err(|error| error.to_string())
 }
 
-fn group_from_spec(spec: &CurveGroupSpec) -> Result<NamedCurveGroup, String> {
+/// Convert one edited curve group back to its settings form.
+///
+/// The inverse of [`group_from_spec`]: the editor round-trips a group through
+/// settings without losing points, segment kinds, rates, or Bézier handles.
+pub fn group_to_spec(id: &str, display_name: &str, group: &CurveGroup) -> CurveGroupSpec {
+    CurveGroupSpec {
+        id: id.to_string(),
+        display_name: display_name.to_string(),
+        curves: group.curves.iter().map(curve_to_spec).collect(),
+    }
+}
+
+fn curve_to_spec(curve: &CurveSpec) -> CurveSpecSpec {
+    CurveSpecSpec {
+        points: curve
+            .points
+            .iter()
+            .map(|point| bus_api::CurvePointSpec {
+                x: point.x,
+                y: point.y,
+            })
+            .collect(),
+        segments: curve.segments.iter().map(segment_to_spec).collect(),
+    }
+}
+
+fn segment_to_spec(segment: &SegmentKind) -> CurveSegmentSpec {
+    let mut spec = CurveSegmentSpec {
+        kind: CurveSegmentKind::Linear,
+        rate: 0.0,
+        c1x: 0.0,
+        c1y: 0.0,
+        c2x: 0.0,
+        c2y: 0.0,
+    };
+    match *segment {
+        SegmentKind::Linear => {}
+        SegmentKind::Exponential { rate } => {
+            spec.kind = CurveSegmentKind::Exponential;
+            spec.rate = rate;
+        }
+        SegmentKind::Logarithmic { rate } => {
+            spec.kind = CurveSegmentKind::Logarithmic;
+            spec.rate = rate;
+        }
+        SegmentKind::CubicBezier { c1, c2 } => {
+            spec.kind = CurveSegmentKind::CubicBezier;
+            spec.c1x = c1[0];
+            spec.c1y = c1[1];
+            spec.c2x = c2[0];
+            spec.c2y = c2[1];
+        }
+    }
+    spec
+}
+
+/// Convert one settings group into a validated [`CurveGroup`].
+///
+/// Exposed for settings-time callers (VirtualDJ import, curve editor previews)
+/// that hold a single group rather than a whole library.
+pub fn group_from_spec(spec: &CurveGroupSpec) -> Result<NamedCurveGroup, String> {
     reject_preset_shadow(&spec.id, "curve group")?;
     let curves = spec
         .curves
@@ -551,6 +611,58 @@ mod tests {
         };
         let error = library_from_spec(&spec).expect_err("a one-member set cannot morph");
         assert!(error.contains("at least two"), "{error}");
+    }
+
+    #[test]
+    fn group_wire_conversion_round_trips_every_segment_kind() {
+        let linear = CurveSegmentSpec {
+            kind: CurveSegmentKind::Linear,
+            rate: 0.0,
+            c1x: 0.0,
+            c1y: 0.0,
+            c2x: 0.0,
+            c2y: 0.0,
+        };
+        let spec = CurveLibrarySpec {
+            groups: vec![CurveGroupSpec {
+                id: "edited".into(),
+                display_name: "Edited".into(),
+                curves: vec![CurveSpecSpec {
+                    points: vec![
+                        CurvePointSpec { x: 0.0, y: 0.0 },
+                        CurvePointSpec { x: 0.25, y: 0.4 },
+                        CurvePointSpec { x: 0.7, y: 0.6 },
+                        CurvePointSpec { x: 1.0, y: 1.0 },
+                    ],
+                    segments: vec![
+                        CurveSegmentSpec {
+                            kind: CurveSegmentKind::Exponential,
+                            rate: 3.0,
+                            ..linear
+                        },
+                        CurveSegmentSpec {
+                            kind: CurveSegmentKind::Logarithmic,
+                            rate: -2.0,
+                            ..linear
+                        },
+                        CurveSegmentSpec {
+                            kind: CurveSegmentKind::CubicBezier,
+                            rate: 0.0,
+                            c1x: 0.3,
+                            c1y: 0.1,
+                            c2x: 0.7,
+                            c2y: 0.9,
+                        },
+                    ],
+                }],
+            }],
+            sets: vec![],
+        };
+        let named = group_from_spec(&spec.groups[0]).expect("valid group");
+        let round_tripped = group_to_spec(&named.id, &named.display_name, &named.group);
+        assert_eq!(round_tripped.id, "edited");
+        assert_eq!(round_tripped.display_name, "Edited");
+        assert_eq!(round_tripped.curves, spec.groups[0].curves);
     }
 
     #[test]

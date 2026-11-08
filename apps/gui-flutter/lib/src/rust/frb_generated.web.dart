@@ -9,6 +9,7 @@
 import 'api/analytics.dart';
 import 'api/bus.dart';
 import 'api/controller.dart';
+import 'api/curve_editor.dart';
 import 'api/engine.dart';
 import 'api/event_mirrors.dart';
 import 'api/fs_browser.dart';
@@ -279,6 +280,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ControllerChannelPair dco_decode_box_autoadd_controller_channel_pair(
     dynamic raw,
   );
+
+  @protected
+  CurveGroupSpec dco_decode_box_autoadd_curve_group_spec(dynamic raw);
 
   @protected
   CurveLibrarySpec dco_decode_box_autoadd_curve_library_spec(dynamic raw);
@@ -1372,6 +1376,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  VirtualDjCurveExport dco_decode_virtual_dj_curve_export(dynamic raw);
+
+  @protected
+  VirtualDjCurveImport dco_decode_virtual_dj_curve_import(dynamic raw);
+
+  @protected
   WaveformDisplayModeSetting dco_decode_waveform_display_mode_setting(
     dynamic raw,
   );
@@ -1638,6 +1648,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ControllerChannelPair sse_decode_box_autoadd_controller_channel_pair(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CurveGroupSpec sse_decode_box_autoadd_curve_group_spec(
     SseDeserializer deserializer,
   );
 
@@ -2989,6 +3004,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt sse_decode_usize(SseDeserializer deserializer);
 
   @protected
+  VirtualDjCurveExport sse_decode_virtual_dj_curve_export(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  VirtualDjCurveImport sse_decode_virtual_dj_curve_import(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   WaveformDisplayModeSetting sse_decode_waveform_display_mode_setting(
     SseDeserializer deserializer,
   );
@@ -3310,6 +3335,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_controller_channel_pair(
     ControllerChannelPair self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_curve_group_spec(
+    CurveGroupSpec self,
     SseSerializer serializer,
   );
 
@@ -5025,6 +5056,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_virtual_dj_curve_export(
+    VirtualDjCurveExport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_virtual_dj_curve_import(
+    VirtualDjCurveImport self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_waveform_display_mode_setting(

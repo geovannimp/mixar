@@ -11,6 +11,8 @@ anyhow = { workspace = true }
 analytics = { path = "../analytics" }
 analyzer-stems = { path = "../analyzer-stems", optional = true, default-features = false }
 bus-api = { path = "../bus-api" }
+config-adapters = { path = "../config-adapters" }
+curve-core = { path = "../curve-core" }
 engine-core = { path = "../engine-core" }
 event-bus = { path = "../event-bus" }
 fs-browser = { path = "../fs-browser" }

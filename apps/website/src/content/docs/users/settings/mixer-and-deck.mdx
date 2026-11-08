@@ -21,6 +21,10 @@ Card subtitle: "The curve the crossfader follows, plus the two performance flags
 
 Changing any of these restarts the audio engine, because they seed the mixer it builds. A controller can change the active curve live without a restart (see [crossfader curves](/docs/developers/mixer/overview#crossfader-curves)).
 
+### Custom curves
+
+**Settings → Curves** is the visual editor for the same curve library. Create an A/B curve to edit deck A and deck B separately, or a scalar curve for a single control. Drag points on the chart, tap the chart or use **Add point** to insert one, and pick the interpolation for each segment: linear, exponential, logarithmic, or cubic Bézier. A curve set sweeps between two or more A/B curves; drag its **Morph** slider to preview the blend. Curve and set ids are stable snake_case, so controller mappings can select them by id; deleting a curve that a set or the default selection uses is blocked until the reference is removed. **Import VirtualDJ** turns a `crossfaderCurve`/`crossfaderCustom` pair into an editable native A/B curve, and **Export to VirtualDJ** writes the selected curve back as a `crossfaderCustom` point script.
+
 ## Mixer → Volume normalizer
 
 Card subtitle: "Match analyzed tracks to a target loudness."

@@ -6,6 +6,7 @@
 import 'api/analytics.dart';
 import 'api/bus.dart';
 import 'api/controller.dart';
+import 'api/curve_editor.dart';
 import 'api/engine.dart';
 import 'api/event_mirrors.dart';
 import 'api/fs_browser.dart';
@@ -77,7 +78,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -60439217;
+  int get rustContentHash => 546011214;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -914,6 +915,15 @@ abstract class RustLibApi extends BaseApi {
   List<CrossfaderPresetOption> crateApiSettingsCrossfaderPresetOptions();
 
   Future<List<DetectedController>> crateApiControllerDetectControllers();
+
+  Future<VirtualDjCurveExport> crateApiCurveEditorExportVirtualdjCurve({
+    required CurveGroupSpec group,
+  });
+
+  Future<VirtualDjCurveImport> crateApiCurveEditorImportVirtualdjCurve({
+    required String crossfaderCurve,
+    required String crossfaderCustom,
+  });
 
   Future<void> crateApiMetaInitApp();
 
@@ -6945,6 +6955,74 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "detect_controllers", argNames: []);
 
   @override
+  Future<VirtualDjCurveExport> crateApiCurveEditorExportVirtualdjCurve({
+    required CurveGroupSpec group,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_curve_group_spec(group, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 150,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_virtual_dj_curve_export,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiCurveEditorExportVirtualdjCurveConstMeta,
+        argValues: [group],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCurveEditorExportVirtualdjCurveConstMeta =>
+      const TaskConstMeta(
+        debugName: "export_virtualdj_curve",
+        argNames: ["group"],
+      );
+
+  @override
+  Future<VirtualDjCurveImport> crateApiCurveEditorImportVirtualdjCurve({
+    required String crossfaderCurve,
+    required String crossfaderCustom,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(crossfaderCurve, serializer);
+          sse_encode_String(crossfaderCustom, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 151,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_virtual_dj_curve_import,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiCurveEditorImportVirtualdjCurveConstMeta,
+        argValues: [crossfaderCurve, crossfaderCustom],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCurveEditorImportVirtualdjCurveConstMeta =>
+      const TaskConstMeta(
+        debugName: "import_virtualdj_curve",
+        argNames: ["crossfaderCurve", "crossfaderCustom"],
+      );
+
+  @override
   Future<void> crateApiMetaInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -6953,7 +7031,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 150,
+            funcId: 152,
             port: port_,
           );
         },
@@ -6980,7 +7058,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 151,
+            funcId: 153,
             port: port_,
           );
         },
@@ -7010,7 +7088,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 152,
+            funcId: 154,
             port: port_,
           );
         },
@@ -7041,7 +7119,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 153,
+            funcId: 155,
             port: port_,
           );
         },
@@ -7072,7 +7150,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 154,
+            funcId: 156,
             port: port_,
           );
         },
@@ -7102,7 +7180,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 155,
+            funcId: 157,
             port: port_,
           );
         },
@@ -7132,7 +7210,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 156,
+            funcId: 158,
             port: port_,
           );
         },
@@ -7159,7 +7237,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 157,
+            funcId: 159,
             port: port_,
           );
         },
@@ -7186,7 +7264,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 158,
+            funcId: 160,
             port: port_,
           );
         },
@@ -7216,7 +7294,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 159,
+            funcId: 161,
             port: port_,
           );
         },
@@ -7249,7 +7327,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 160,
+            funcId: 162,
             port: port_,
           );
         },
@@ -7279,7 +7357,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 161,
+            funcId: 163,
             port: port_,
           );
         },
@@ -7312,7 +7390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 162,
+            funcId: 164,
             port: port_,
           );
         },
@@ -7342,7 +7420,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 163,
+            funcId: 165,
             port: port_,
           );
         },
@@ -7373,7 +7451,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 164,
+            funcId: 166,
             port: port_,
           );
         },
@@ -7400,7 +7478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 165,
+            funcId: 167,
             port: port_,
           );
         },
@@ -7427,7 +7505,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 166,
+            funcId: 168,
             port: port_,
           );
         },
@@ -7458,7 +7536,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 167,
+            funcId: 169,
             port: port_,
           );
         },
@@ -8053,6 +8131,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_controller_channel_pair(raw);
+  }
+
+  @protected
+  CurveGroupSpec dco_decode_box_autoadd_curve_group_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_curve_group_spec(raw);
   }
 
   @protected
@@ -11642,6 +11726,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VirtualDjCurveExport dco_decode_virtual_dj_curve_export(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return VirtualDjCurveExport(
+      crossfaderCurve: dco_decode_String(arr[0]),
+      crossfaderCustom: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  VirtualDjCurveImport dco_decode_virtual_dj_curve_import(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return VirtualDjCurveImport(
+      group: dco_decode_curve_group_spec(arr[0]),
+      suggestedName: dco_decode_String(arr[1]),
+      crossfaderCurve: dco_decode_String(arr[2]),
+      hamster: dco_decode_bool(arr[3]),
+      disabled: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
   WaveformDisplayModeSetting dco_decode_waveform_display_mode_setting(
     dynamic raw,
   ) {
@@ -12327,6 +12438,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_controller_channel_pair(deserializer));
+  }
+
+  @protected
+  CurveGroupSpec sse_decode_box_autoadd_curve_group_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_curve_group_spec(deserializer));
   }
 
   @protected
@@ -16430,6 +16549,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  VirtualDjCurveExport sse_decode_virtual_dj_curve_export(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_crossfaderCurve = sse_decode_String(deserializer);
+    var var_crossfaderCustom = sse_decode_String(deserializer);
+    return VirtualDjCurveExport(
+      crossfaderCurve: var_crossfaderCurve,
+      crossfaderCustom: var_crossfaderCustom,
+    );
+  }
+
+  @protected
+  VirtualDjCurveImport sse_decode_virtual_dj_curve_import(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_group = sse_decode_curve_group_spec(deserializer);
+    var var_suggestedName = sse_decode_String(deserializer);
+    var var_crossfaderCurve = sse_decode_String(deserializer);
+    var var_hamster = sse_decode_bool(deserializer);
+    var var_disabled = sse_decode_bool(deserializer);
+    return VirtualDjCurveImport(
+      group: var_group,
+      suggestedName: var_suggestedName,
+      crossfaderCurve: var_crossfaderCurve,
+      hamster: var_hamster,
+      disabled: var_disabled,
+    );
+  }
+
+  @protected
   WaveformDisplayModeSetting sse_decode_waveform_display_mode_setting(
     SseDeserializer deserializer,
   ) {
@@ -17091,6 +17242,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_controller_channel_pair(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_curve_group_spec(
+    CurveGroupSpec self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_curve_group_spec(self, serializer);
   }
 
   @protected
@@ -20779,6 +20939,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_virtual_dj_curve_export(
+    VirtualDjCurveExport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.crossfaderCurve, serializer);
+    sse_encode_String(self.crossfaderCustom, serializer);
+  }
+
+  @protected
+  void sse_encode_virtual_dj_curve_import(
+    VirtualDjCurveImport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_curve_group_spec(self.group, serializer);
+    sse_encode_String(self.suggestedName, serializer);
+    sse_encode_String(self.crossfaderCurve, serializer);
+    sse_encode_bool(self.hamster, serializer);
+    sse_encode_bool(self.disabled, serializer);
   }
 
   @protected

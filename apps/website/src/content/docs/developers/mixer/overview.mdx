@@ -63,6 +63,8 @@ Selection ids are canonical snake_case everywhere: settings, bus payloads, contr
 
 Settings persist the same defaults under `audio.default_crossfader_curve`, `audio.crossfader_behavior`, and `audio.curve_library` in the engine config, which the app fills from **Settings → Mixer → Crossfader**. That is why a headless start and a GUI start agree on the active curve.
 
+The visual editor is **Settings → Curves**. It edits the settings draft's `CurveLibrarySpec` directly: `apps/gui-flutter/lib/widgets/curves/curve_group_editor.dart` owns point dragging and per-segment interpolation, `curve_set_editor.dart` owns member order and the morph preview, and `settings_curves_panel.dart` owns create/rename/delete. Ids and points are validated in Dart before the settings save reaches `SetCurveLibrary`, so an invalid edit never replaces the active library. VirtualDJ import/export lives in `crates/host-flutter/src/api/curve_editor.rs`; it calls `config-adapters`, and an imported custom point script arrives as a native two-channel group the editor can change like any other custom curve.
+
 ## Filter smoothing
 
 The FLT knob changes a cutoff on every step, so `DjFilter` never applies one abruptly. It keeps the commanded position (`filter_db()`, which the UI and soft takeover read back) and glides an internal copy toward it inside `process_buffer`, re-deriving the biquad coefficients every 16 frames across a full-range 0.02 s sweep. Coefficients are swapped in place with `Biquad::set_coeffs` rather than rebuilt, because a rebuilt biquad starts with an empty delay line and each step becomes an audible click. While the knob is off centre a low-pass and a high-pass both run, blended by a weight that reaches zero at the centre, so the LP→HP swap there is continuous as well.
@@ -79,6 +81,9 @@ The FLT knob changes a cutoff on every step, so `DjFilter` never applies one abr
 | `crates/audio-core/src/crossfader_curve.rs` | Compiled crossfader tables, `disabled`/`hamster` flags, equal-power default |
 | `crates/engine-core/src/curve_presets.rs` | Crossfader preset registry and catalog |
 | `crates/engine-core/src/curve_library.rs` | Selection resolution, library validation, settings ↔ curve-core conversion |
+| `crates/host-flutter/src/api/curve_editor.rs` | VirtualDJ curve import/export bridge over `config-adapters` |
+| `apps/gui-flutter/lib/widgets/curves/` | Point, segment, and curve-set editor widgets |
+| `apps/gui-flutter/lib/widgets/settings/settings_curves_panel.dart` | Curves settings section and named-library management |
 | `crates/bus-api/src/payload.rs` | `DeckSnapshot` / `DeckUpdated` fields, `CmdBody` variants |
 | `crates/engine-core/src/control.rs` | Command decode + dispatch, mixer vs deck origin |
 | `crates/engine-core/src/status.rs` | DSP state → wire snapshot mapping |

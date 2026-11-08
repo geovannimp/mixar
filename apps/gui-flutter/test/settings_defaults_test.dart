@@ -19,6 +19,51 @@ void main() {
     expect(appSettingsDirty(baseline, restored), isFalse);
   });
 
+  test('an equal curve library copy is not dirty', () {
+    CurveLibrarySpec library({double endY = 0}) => CurveLibrarySpec(
+      groups: [
+        CurveGroupSpec(
+          id: 'mine',
+          displayName: 'Mine',
+          curves: [
+            CurveSpecSpec(
+              points: [
+                CurvePointSpec(x: 0, y: 1),
+                CurvePointSpec(x: 1, y: endY),
+              ],
+              segments: [
+                CurveSegmentSpec(
+                  kind: CurveSegmentKind.linear,
+                  rate: 0,
+                  c1X: 0,
+                  c1Y: 0,
+                  c2X: 0,
+                  c2Y: 0,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      sets: const [],
+    );
+    final baseline = defaultAppSettings();
+    final saved = copyAppSettings(baseline, curveLibrary: library());
+    final restored = copyAppSettings(saved, curveLibrary: library());
+    expect(
+      appSettingsDirty(restored, saved),
+      isFalse,
+      reason: 'a re-created but identical library is not a change',
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(saved, curveLibrary: library(endY: 1)),
+        saved,
+      ),
+      isTrue,
+    );
+  });
+
   test('a bus low-latency flag alone enables saving settings', () {
     final baseline = defaultAppSettings();
     final bus = baseline.masterBus;

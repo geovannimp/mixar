@@ -812,5 +812,142 @@
       }
     }
   },
-  "onboardingLibraryNotFoundBoth": "Nenhuma biblioteca do Mixxx ou do Rekordbox encontrada neste computador. Você pode importar uma depois em Configurações → Integrações."
+  "onboardingLibraryNotFoundBoth": "Nenhuma biblioteca do Mixxx ou do Rekordbox encontrada neste computador. Você pode importar uma depois em Configurações → Integrações.",
+  "settingsSectionCurves": "Curvas",
+  "settingsCurvesDescription": "Crie curvas e conjuntos de curvas personalizados para o crossfader e importe ou exporte pelo adaptador do VirtualDJ.",
+  "curvesCustomTitle": "Curvas personalizadas",
+  "curvesCustomDescription": "Uma curva mapeia a posição do fader para o ganho. Curvas A/B editam os decks A e B separadamente; curvas escalares controlam um único valor.",
+  "curvesSetsTitle": "Conjuntos de curvas",
+  "curvesSetsDescription": "Um conjunto percorre duas ou mais curvas A/B conforme o botão de morph se move.",
+  "curvesImportExportTitle": "Importar e exportar",
+  "curvesImportExportDescription": "Mova curvas personalizadas do crossfader de e para o VirtualDJ pelo adaptador de configurações.",
+  "curvesNew": "Nova curva",
+  "curvesNewSet": "Novo conjunto",
+  "curvesEmpty": "Ainda não há curvas personalizadas.",
+  "curvesEmptySets": "Ainda não há conjuntos de curvas.",
+  "curvesScalar": "Escalar",
+  "curvesAb": "A/B",
+  "curvesChannelA": "Deck A",
+  "curvesChannelB": "Deck B",
+  "curvesScalarCurve": "Curva escalar",
+  "curvesSelectToEdit": "Selecione uma curva para editar.",
+  "curvesSelectSetToEdit": "Selecione um conjunto de curvas para editar.",
+  "curvesRename": "Renomear",
+  "curvesDelete": "Eliminar",
+  "curvesAddPoint": "Adicionar ponto",
+  "curvesRemovePoint": "Remover ponto",
+  "curvesPointX": "Ponto X",
+  "curvesPointY": "Ponto Y",
+  "curvesChartHint": "Arraste um ponto para movê-lo. Toque no gráfico para adicionar um ponto.",
+  "curvesChartSemantics": "Gráfico da curva {name}",
+  "@curvesChartSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesMorphSemantics": "Pré-visualização do morph de {name}",
+  "@curvesMorphSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesSegment": "Interpolação do segmento {index}",
+  "@curvesSegment": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "curvesSegmentLinear": "Linear",
+  "curvesSegmentExponential": "Exponencial",
+  "curvesSegmentLogarithmic": "Logarítmica",
+  "curvesSegmentCubicBezier": "Bézier cúbica",
+  "curvesRate": "Taxa",
+  "curvesBezierC1X": "Ponto 1 X",
+  "curvesBezierC1Y": "Ponto 1 Y",
+  "curvesBezierC2X": "Ponto 2 X",
+  "curvesBezierC2Y": "Ponto 2 Y",
+  "curvesMembers": "Membros",
+  "curvesAddMember": "Adicionar membro",
+  "curvesMoveUp": "Mover para cima",
+  "curvesMoveDown": "Mover para baixo",
+  "curvesSetHint": "O botão de morph mistura membros adjacentes em ordem; o primeiro membro é 0 e o último é 1.",
+  "curvesMorphPreview": "Pré-visualização do morph",
+  "curvesMemberCount": "{count, plural, =1{1 membro} other{{count} membros}}",
+  "@curvesMemberCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "curvesCreateTitle": "Nova curva",
+  "curvesCreateSetTitle": "Novo conjunto de curvas",
+  "curvesRenameTitle": "Renomear curva",
+  "curvesRenameSetTitle": "Renomear conjunto de curvas",
+  "curvesName": "Nome",
+  "curvesId": "Id",
+  "curvesIdHint": "Usado por mapeamentos de controlador e configurações. Letras minúsculas, dígitos e sublinhados.",
+  "curvesControl": "Controlo",
+  "curvesControlAb": "A/B (crossfader)",
+  "curvesControlScalar": "Escalar (canal, tempo, FX)",
+  "curvesCancel": "Cancelar",
+  "curvesCreate": "Criar",
+  "curvesSave": "Guardar",
+  "curvesImport": "Importar do VirtualDJ",
+  "curvesImporting": "A importar…",
+  "curvesExport": "Exportar para VirtualDJ",
+  "curvesExporting": "A exportar…",
+  "curvesImportTitle": "Importar curva do VirtualDJ",
+  "curvesImportHelp": "Cole as duas opções do crossfader do VirtualDJ. Um script de pontos personalizado torna-se uma curva A/B nativa editável.",
+  "curvesImportCurveLabel": "crossfaderCurve",
+  "curvesImportCurveHint": "Nome de preset ou quantidade, ex.: Smooth, Cut, 30%",
+  "curvesImportCustomLabel": "crossfaderCustom",
+  "curvesImportCustomHint": "0=[1,0]/0.5=[0.5,0.5]/1=[0,1]",
+  "curvesExportTitle": "Curva do VirtualDJ",
+  "curvesExportCustomLabel": "crossfaderCustom",
+  "curvesCopy": "Copiar",
+  "curvesCopied": "Copiado",
+  "curvesClose": "Fechar",
+  "curvesImported": "“{name}” importada",
+  "@curvesImported": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesInUseTitle": "A curva está em uso",
+  "curvesInUseBody": "Remova “{name}” primeiro dos conjuntos de curvas que a referenciam.",
+  "@curvesInUseBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesDefaultInUseTitle": "A curva é a predefinida",
+  "curvesDefaultInUseBody": "Escolha outra curva predefinida do crossfader antes de eliminar “{name}”.",
+  "@curvesDefaultInUseBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesDeleteConfirmTitle": "Eliminar curva?",
+  "curvesDeleteSetConfirmTitle": "Eliminar conjunto de curvas?",
+  "curvesDeleteConfirmBody": "“{name}” será removida da sua biblioteca.",
+  "@curvesDeleteConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

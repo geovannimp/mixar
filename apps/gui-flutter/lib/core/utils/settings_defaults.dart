@@ -414,7 +414,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultTempoRange != baseline.defaultTempoRange ||
       draft.defaultCrossfaderCurve != baseline.defaultCrossfaderCurve ||
       draft.crossfaderBehavior != baseline.crossfaderBehavior ||
-      !identical(draft.curveLibrary, baseline.curveLibrary) ||
+      !_sameCurveLibrary(draft.curveLibrary, baseline.curveLibrary) ||
       draft.defaultKeyLock != baseline.defaultKeyLock ||
       draft.vinylBrakePause != baseline.vinylBrakePause ||
       !_sameDuration(draft.vinylBrakeStopSecs, baseline.vinylBrakeStopSecs) ||
@@ -468,17 +468,68 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
 /// on a tolerance far below the 0.05 step so a genuine change still reads dirty.
 bool _sameDuration(double a, double b) => (a - b).abs() <= 1e-6;
 
-bool _sameList<T>(List<T> a, List<T> b) {
+bool _sameList<T>(List<T> a, List<T> b, [bool Function(T, T)? equals]) {
   if (identical(a, b)) {
     return true;
   }
   if (a.length != b.length) {
     return false;
   }
+  final same = equals ?? (T left, T right) => left == right;
   for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) {
+    if (!same(a[i], b[i])) {
       return false;
     }
   }
   return true;
+}
+
+/// Deep equality for the curve library.
+///
+/// The generated wire classes compare their nested lists by identity, so a
+/// re-created but identical library would otherwise read as a settings change.
+bool _sameCurveLibrary(CurveLibrarySpec a, CurveLibrarySpec b) {
+  return identical(a, b) ||
+      (_sameList(a.groups, b.groups, _sameCurveGroup) &&
+          _sameList(a.sets, b.sets, _sameCurveSet));
+}
+
+bool _sameCurveGroup(CurveGroupSpec a, CurveGroupSpec b) {
+  return identical(a, b) ||
+      (a.id == b.id &&
+          a.displayName == b.displayName &&
+          _sameList(a.curves, b.curves, _sameCurveSpec));
+}
+
+bool _sameCurveSet(CurveSetSpec a, CurveSetSpec b) {
+  return identical(a, b) ||
+      (a.id == b.id &&
+          a.displayName == b.displayName &&
+          _sameList(
+            a.members,
+            b.members,
+            (CurveRefSpec left, CurveRefSpec right) =>
+                left.id == right.id && left.parameter == right.parameter,
+          ));
+}
+
+bool _sameCurveSpec(CurveSpecSpec a, CurveSpecSpec b) {
+  return identical(a, b) ||
+      (_sameList(
+            a.points,
+            b.points,
+            (CurvePointSpec left, CurvePointSpec right) =>
+                left.x == right.x && left.y == right.y,
+          ) &&
+          _sameList(
+            a.segments,
+            b.segments,
+            (CurveSegmentSpec left, CurveSegmentSpec right) =>
+                left.kind == right.kind &&
+                left.rate == right.rate &&
+                left.c1X == right.c1X &&
+                left.c1Y == right.c1Y &&
+                left.c2X == right.c2X &&
+                left.c2Y == right.c2Y,
+          ));
 }
