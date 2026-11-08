@@ -76,6 +76,16 @@ fn with_channel<T>(
     f(channel)
 }
 
+/// Inspect the DSP deck that backs `deck_id`.
+fn with_deck<T>(engine: &Engine, deck_id: usize, f: impl FnOnce(&engine_dsp::Deck) -> T) -> T {
+    let dsp_engine = engine.dsp_engine.as_ref().expect("engine running");
+    let dsp = dsp_engine.lock().unwrap();
+    let deck = dsp
+        .deck(deck_id)
+        .expect("deck must exist for a valid deck id");
+    f(deck)
+}
+
 #[test]
 fn load_track_sets_channel_loudness_from_metadata() {
     let mut engine = started_null_engine();
@@ -687,6 +697,7 @@ fn empty_audio() -> crate::config::AudioConfig {
         vinyl_brake_stop_secs: None,
         default_crossfader_curve: None,
         default_channel_fader_curve: None,
+        default_tempo_curve: None,
         crossfader_behavior: None,
         curve_library: None,
     }
@@ -845,6 +856,132 @@ fn invalid_channel_fader_curves_fall_back_to_linear_with_a_notice() {
     .unwrap();
     assert!(engine.set_channel_fader_curve(two_channel).is_err());
     assert!((with_channel(&engine, 0, |channel| channel.fader_gain()) - 0.5).abs() < 1e-6);
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn default_tempo_curve_is_linear_and_preserves_tempo() {
+    let mut engine = started_null_engine();
+    assert_eq!(
+        engine.tempo_curve_selection(0).expect("deck 0").id,
+        bus_api::DEFAULT_TEMPO_CURVE_ID
+    );
+
+    for (speed, expected) in [
+        (0.0, 1.06),
+        (0.25, 1.03),
+        (0.5, 1.0),
+        (0.75, 0.97),
+        (1.0, 0.94),
+    ] {
+        engine.set_deck_speed(0, speed).unwrap();
+        let ratio = with_deck(&engine, 0, |deck| deck.playback_ratio());
+        assert!(
+            (ratio - expected).abs() < 1e-5,
+            "speed {speed}: ratio {ratio} != {expected}"
+        );
+    }
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn configured_custom_tempo_curve_applies_on_start() {
+    let mut audio = empty_audio();
+    audio.default_tempo_curve = Some("taper".into());
+    audio.curve_library = Some(bus_api::CurveLibrarySpec {
+        groups: vec![one_channel_group(
+            "taper",
+            &[(0.0, 1.0), (0.25, 0.85), (0.5, 0.5), (1.0, 0.0)],
+        )],
+        sets: vec![],
+    });
+    let mut engine = started_null_engine_with_audio(audio);
+
+    assert_eq!(
+        engine.tempo_curve_selection(0).expect("deck 0").id,
+        "taper",
+        "the configured default is the active selection"
+    );
+    engine.set_deck_speed(0, 0.25).unwrap();
+    let ratio = with_deck(&engine, 0, |deck| deck.playback_ratio());
+    assert!((ratio - 1.042).abs() < 1e-4, "custom tempo ratio: {ratio}");
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn custom_tempo_curve_keeps_the_center_detent_and_range() {
+    let mut audio = empty_audio();
+    audio.default_tempo_curve = Some("offcenter".into());
+    audio.curve_library = Some(bus_api::CurveLibrarySpec {
+        // The curve's own midpoint is 0.8, not 0.5. The centered tempo mapping
+        // must still put unity at the fader center and reach both signed ends.
+        groups: vec![one_channel_group(
+            "offcenter",
+            &[(0.0, 1.0), (0.5, 0.8), (1.0, 0.0)],
+        )],
+        sets: vec![],
+    });
+    let mut engine = started_null_engine_with_audio(audio);
+
+    for (speed, expected) in [(0.0, 1.06), (0.5, 1.0), (1.0, 0.94)] {
+        engine.set_deck_speed(0, speed).unwrap();
+        let ratio = with_deck(&engine, 0, |deck| deck.playback_ratio());
+        assert!(
+            (ratio - expected).abs() < 1e-5,
+            "speed {speed}: ratio {ratio} != {expected}"
+        );
+    }
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn tempo_curve_can_change_without_restart() {
+    let mut engine = started_null_engine();
+    engine.set_deck_speed(0, 0.25).unwrap();
+    assert!((with_deck(&engine, 0, |deck| deck.playback_ratio()) - 1.03).abs() < 1e-5);
+
+    engine
+        .set_curve_library(&bus_api::CurveLibrarySpec {
+            groups: vec![one_channel_group(
+                "taper",
+                &[(0.0, 1.0), (0.25, 0.85), (0.5, 0.5), (1.0, 0.0)],
+            )],
+            sets: vec![],
+        })
+        .unwrap();
+    assert_eq!(engine.select_tempo_curve(0, "taper").unwrap(), None);
+    assert_eq!(engine.tempo_curve_selection(0).expect("deck 0").id, "taper");
+    assert!((with_deck(&engine, 0, |deck| deck.playback_ratio()) - 1.042).abs() < 1e-4);
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn invalid_tempo_curves_fall_back_to_linear_with_a_notice() {
+    let mut audio = empty_audio();
+    audio.default_tempo_curve = Some("pair".into());
+    audio.curve_library = Some(bus_api::CurveLibrarySpec {
+        groups: vec![custom_group("pair", 1.0, 0.0)],
+        sets: vec![],
+    });
+    let mut engine = started_null_engine_with_audio(audio);
+    assert_eq!(
+        engine.tempo_curve_selection(0).expect("deck 0").id,
+        bus_api::DEFAULT_TEMPO_CURVE_ID
+    );
+
+    let notice = engine.select_tempo_curve(0, "pair").unwrap();
+    assert!(notice.expect("notice").contains("needs 1 curves"));
+    engine.set_deck_speed(0, 0.5).unwrap();
+    assert!((with_deck(&engine, 0, |deck| deck.playback_ratio()) - 1.0).abs() < 1e-6);
+    assert_eq!(
+        engine.tempo_curve_selection(0).expect("deck 0").id,
+        bus_api::DEFAULT_TEMPO_CURVE_ID
+    );
 
     engine.stop().unwrap();
 }

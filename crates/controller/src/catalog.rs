@@ -198,6 +198,7 @@ const DECK_LEAVES: &[&str] = &[
     "set_crossfader_assign",
     "set_speed",
     "cycle_tempo_range",
+    "set_tempo_curve",
     "set_headphone_cue",
     "jog_touch",
     "jog_turn",
@@ -447,6 +448,16 @@ pub fn validate_leaf_args(
         }
         // Channel faders share the same canonical curve-id space.
         "set_channel_fader_curve" => {
+            args.expect_keys_exactly(&["id"])?;
+            let id = args.require_ident("id")?;
+            if !is_snake_case(id) {
+                return Err(LoadError::Validation(format!(
+                    "arg `id` must be a canonical snake_case curve id, got `{id}`"
+                )));
+            }
+            Ok(())
+        }
+        "set_tempo_curve" => {
             args.expect_keys_exactly(&["id"])?;
             let id = args.require_ident("id")?;
             if !is_snake_case(id) {

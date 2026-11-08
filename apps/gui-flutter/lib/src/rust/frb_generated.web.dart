@@ -580,6 +580,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetStemEqEnabled dco_decode_box_autoadd_set_stem_eq_enabled(dynamic raw);
 
   @protected
+  SetTempoCurve dco_decode_box_autoadd_set_tempo_curve(dynamic raw);
+
+  @protected
   SetTempoRange dco_decode_box_autoadd_set_tempo_range(dynamic raw);
 
   @protected
@@ -1303,6 +1306,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled dco_decode_set_stem_eq_enabled(dynamic raw);
+
+  @protected
+  SetTempoCurve dco_decode_set_tempo_curve(dynamic raw);
 
   @protected
   SetTempoRange dco_decode_set_tempo_range(dynamic raw);
@@ -2053,6 +2059,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled sse_decode_box_autoadd_set_stem_eq_enabled(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetTempoCurve sse_decode_box_autoadd_set_tempo_curve(
     SseDeserializer deserializer,
   );
 
@@ -2926,6 +2937,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled sse_decode_set_stem_eq_enabled(SseDeserializer deserializer);
+
+  @protected
+  SetTempoCurve sse_decode_set_tempo_curve(SseDeserializer deserializer);
 
   @protected
   SetTempoRange sse_decode_set_tempo_range(SseDeserializer deserializer);
@@ -3847,6 +3861,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_stem_eq_enabled(
     SetStemEqEnabled self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_tempo_curve(
+    SetTempoCurve self,
     SseSerializer serializer,
   );
 
@@ -4968,6 +4988,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SetStemEqEnabled self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_set_tempo_curve(SetTempoCurve self, SseSerializer serializer);
 
   @protected
   void sse_encode_set_tempo_range(SetTempoRange self, SseSerializer serializer);

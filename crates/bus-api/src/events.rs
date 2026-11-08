@@ -77,6 +77,11 @@ bus_events! {
         { deck: u16, speed: f32, soft_takeover: bool };
     SetTempoRange: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16, tempo_range: f32 };
+    /// Select the deck's tempo-fader curve by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetTempoCurve: Update, Entity::Deck(*deck), Part::Whole,
+        { deck: u16, id: String };
     SetKeyLock: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16, enabled: bool };
     SetKeyShift: Update, Entity::Deck(*deck), Part::Whole,

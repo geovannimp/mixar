@@ -58,6 +58,7 @@ use bus_api::SetMasterVolume;
 use bus_api::SetPadMode;
 use bus_api::SetSpeed;
 use bus_api::SetStemEqBand;
+use bus_api::SetTempoCurve;
 use bus_api::SetTempoRange;
 use bus_api::SetVolume;
 use bus_api::ToggleHeadphoneCue;
@@ -630,6 +631,18 @@ pub fn resolve_action(
                 soft_takeover,
             })
         }),
+        "set_tempo_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            deck_cmd(scope, |deck| {
+                Event::SetTempoCurve(SetTempoCurve {
+                    deck,
+                    id: id.to_string(),
+                })
+            })
+        }
         "cycle_tempo_range" => {
             if !active {
                 return None;
@@ -1681,6 +1694,29 @@ mod tests {
             })) => assert!((tempo_range - 0.06).abs() < 1e-5),
             other => panic!("unexpected {other:?}"),
         }
+    }
+
+    #[test]
+    fn set_tempo_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Deck(_)::set_tempo_curve(id:linear)",
+                "deck_1",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetTempoCurve(SetTempoCurve {
+                deck: 0,
+                id: "linear".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
     }
 
     #[test]

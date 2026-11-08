@@ -27,6 +27,7 @@ mod soft_takeover;
 mod status;
 mod stems;
 mod sync;
+mod tempo_curve;
 mod transport;
 
 pub use analyzer_core::AnalysisDurationMode;
@@ -64,4 +65,8 @@ pub use pads::{
     KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
 };
 pub use session::EngineSession;
+pub use tempo_curve::{
+    linear_tempo_curve, resolve_tempo_curve, ResolvedTempoCurve, TempoCurveSelection,
+    TEMPO_CURVE_CHANNELS,
+};
 pub use transport::TransportEvent;

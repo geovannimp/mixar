@@ -872,6 +872,8 @@ impl MappingSession {
             Event::SetTempoRange(SetTempoRange { deck, tempo_range }) => {
                 self.snapshot.tempo_range[deck_slot(*deck)] = *tempo_range;
             }
+            // State-only: no LED signal reads the tempo curve.
+            Event::SetTempoCurve(_) => {}
             // Mixer strip: the master section always re-resolves (an FX or cue
             // lamp may have moved).
             Event::SetCrossfader(_)

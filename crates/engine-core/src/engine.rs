@@ -52,6 +52,8 @@ pub struct Engine {
     pub(crate) crossfader_selection: crate::curve_library::CrossfaderCurveSelection,
     /// Active channel-fader curve selection (compiled tables live per channel).
     pub(crate) channel_fader_selection: crate::channel_fader_curve::ChannelFaderCurveSelection,
+    /// Active tempo-curve selection per deck (compiled curves live on each deck).
+    pub(crate) tempo_curve_selections: Vec<crate::tempo_curve::TempoCurveSelection>,
 }
 
 /// Absolute-control readback as wire `0..1` (for soft-takeover compares).
@@ -122,6 +124,16 @@ impl Engine {
                 crate::channel_fader_curve::ChannelFaderCurveSelection::linear()
             }
         };
+        let tempo_curve_selection = match crate::tempo_curve::resolve_tempo_curve(
+            &config.default_tempo_curve(),
+            &curve_library,
+        ) {
+            Ok(resolved) => resolved.selection,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::tempo_curve::TempoCurveSelection::linear()
+            }
+        };
 
         Ok(Self {
             config,
@@ -147,6 +159,9 @@ impl Engine {
             curve_library,
             crossfader_selection,
             channel_fader_selection,
+            tempo_curve_selections: (0..num_decks)
+                .map(|_| tempo_curve_selection.clone())
+                .collect(),
         })
     }
 
@@ -427,6 +442,18 @@ impl Engine {
                 crate::channel_fader_curve::linear_channel_fader_curve()
             }
         };
+        // Tempo curves are per deck; an unknown or multi-channel id falls back
+        // to the historical linear mapping.
+        let default_tempo_curve = match crate::tempo_curve::resolve_tempo_curve(
+            &self.config.default_tempo_curve(),
+            &self.curve_library,
+        ) {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::tempo_curve::linear_tempo_curve()
+            }
+        };
         {
             let default_range = self.config.default_tempo_range();
             let default_key_lock = self.config.default_key_lock();
@@ -436,6 +463,7 @@ impl Engine {
             for deck_id in 0..dsp.num_decks() {
                 if let Some(deck) = dsp.deck_mut(deck_id) {
                     deck.set_tempo_range(default_range);
+                    deck.set_tempo_curve(default_tempo_curve.curve.clone())?;
                     let _ = deck.set_key_lock(default_key_lock);
                     deck.set_vinyl_brake(vinyl_brake, vinyl_brake_stop);
                 }
@@ -448,6 +476,13 @@ impl Engine {
         }
         self.crossfader_selection = default_selection;
         self.channel_fader_selection = default_channel_fader.selection;
+        self.tempo_curve_selections.resize(
+            self.deck_control.len(),
+            crate::tempo_curve::TempoCurveSelection::linear(),
+        );
+        for selection in &mut self.tempo_curve_selections {
+            *selection = default_tempo_curve.selection.clone();
+        }
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
         // One resampler per device opened off the DSP clock. Built here so a failure

@@ -44,6 +44,7 @@ pub use sampler::{
 };
 /// Shared session key-shift bound (also used by the engine control layer).
 pub use stretch::KEY_SHIFT_SEMITONE_LIMIT;
+pub use tempo::{linear_tempo_curve, TempoCurve, DEFAULT_TEMPO_RANGE, TEMPO_CURVE_CHANNELS};
 pub use transport::DeckTransportEvent;
 
 /// DSP engine that manages all audio processing components

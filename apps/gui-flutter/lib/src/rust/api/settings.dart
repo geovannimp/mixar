@@ -8,7 +8,7 @@ import 'event_mirrors.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_crossfader_curve`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_num_decks`, `default_preview_bus_route`, `default_show_crossfader`, `default_show_fx_bar`, `default_show_mixer`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `effective_engine_config`, `enable_allowed`, `from_benchmark`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `replace_bus`, `run_realtime_probe`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `stemgen_model_sha`, `store_realtime_capability`, `write_settings_file`
+// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_crossfader_curve`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_row_fields`, `default_master_bus_route`, `default_num_decks`, `default_preview_bus_route`, `default_show_crossfader`, `default_show_fx_bar`, `default_show_mixer`, `default_show_tooltips`, `default_show_waveform`, `default_stems_format`, `default_stems_model`, `default_tempo_curve`, `default_vinyl_brake_stop_secs`, `deserialize_library_row_fields`, `effective_engine_config`, `enable_allowed`, `from_benchmark`, `load_host`, `normalize_stems_format`, `normalize_stems_model`, `normalizer_target`, `open_at`, `parse_bus`, `parse_settings`, `read_settings_file`, `replace_bus`, `run_realtime_probe`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `settings_realtime_stems_enabled`, `shared_host`, `stemgen_model_sha`, `store_realtime_capability`, `write_settings_file`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsHost`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `allows_live`, `realtime_allows`
@@ -113,6 +113,9 @@ class AppSettings {
   final double defaultTempoRange;
   final Float32List tempoRangeSteps;
 
+  /// Default tempo-fader curve id applied to every deck on engine start.
+  final String defaultTempoCurve;
+
   /// Default crossfader curve id applied on every engine start.
   final String defaultCrossfaderCurve;
 
@@ -213,6 +216,7 @@ class AppSettings {
     required this.defaultOuterJogMode,
     required this.defaultTempoRange,
     required this.tempoRangeSteps,
+    required this.defaultTempoCurve,
     required this.defaultCrossfaderCurve,
     required this.crossfaderBehavior,
     required this.curveLibrary,
@@ -271,6 +275,7 @@ class AppSettings {
       defaultOuterJogMode.hashCode ^
       defaultTempoRange.hashCode ^
       tempoRangeSteps.hashCode ^
+      defaultTempoCurve.hashCode ^
       defaultCrossfaderCurve.hashCode ^
       crossfaderBehavior.hashCode ^
       curveLibrary.hashCode ^
@@ -331,6 +336,7 @@ class AppSettings {
           defaultOuterJogMode == other.defaultOuterJogMode &&
           defaultTempoRange == other.defaultTempoRange &&
           tempoRangeSteps == other.tempoRangeSteps &&
+          defaultTempoCurve == other.defaultTempoCurve &&
           defaultCrossfaderCurve == other.defaultCrossfaderCurve &&
           crossfaderBehavior == other.crossfaderBehavior &&
           curveLibrary == other.curveLibrary &&

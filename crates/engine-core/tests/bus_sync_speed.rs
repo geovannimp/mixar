@@ -33,6 +33,7 @@ fn null_session_with_synced_decks() -> EngineSession {
             vinyl_brake_stop_secs: None,
             default_crossfader_curve: None,
             default_channel_fader_curve: None,
+            default_tempo_curve: None,
             crossfader_behavior: None,
             curve_library: None,
         }),

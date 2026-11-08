@@ -30,6 +30,8 @@ type EngineHandle = Arc<Mutex<Option<Engine>>>;
 
 enum CmdOutcome {
     DeckUpdated(usize),
+    /// Publish a notice, then the updated deck (a coerced value was used).
+    DeckUpdatedWithNotice(usize, String),
     DecksUpdated(Vec<usize>),
     EngineStatus,
     /// Publish a notice, then the engine status (a coerced value was used).
@@ -323,6 +325,7 @@ fn deck_of(event: &Event) -> Option<u16> {
         Event::SetCrossfaderAssign(e) => Some(e.deck),
         Event::SetSpeed(e) => Some(e.deck),
         Event::SetTempoRange(e) => Some(e.deck),
+        Event::SetTempoCurve(e) => Some(e.deck),
         Event::SetKeyLock(e) => Some(e.deck),
         Event::SetKeyShift(e) => Some(e.deck),
         Event::SetKeyboardRoot(e) => Some(e.deck),
@@ -380,6 +383,12 @@ fn handle_cmd_event(event: Event, engine: &EngineHandle, bus: &EventBus<Event>) 
 
     match result {
         Ok(CmdOutcome::DeckUpdated(deck_id)) => {
+            if let Err(e) = with_engine_ref(engine, |eng| publish_deck_updated(bus, eng, deck_id)) {
+                publish_error(bus, deck, format!("{e:#}"));
+            }
+        }
+        Ok(CmdOutcome::DeckUpdatedWithNotice(deck_id, message)) => {
+            publish_notice(bus, message);
             if let Err(e) = with_engine_ref(engine, |eng| publish_deck_updated(bus, eng, deck_id)) {
                 publish_error(bus, deck, format!("{e:#}"));
             }
@@ -668,6 +677,14 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             deck_cmd(*deck, engine, |eng, id| {
                 let updated = eng.set_deck_tempo_range(id, *tempo_range)?;
                 Ok(CmdOutcome::DecksUpdated(updated))
+            })
+        }
+        Event::SetTempoCurve(bus_api::SetTempoCurve { deck, id }) => {
+            deck_cmd(*deck, engine, |eng, deck_id| {
+                Ok(match eng.select_tempo_curve(deck_id, id)? {
+                    Some(message) => CmdOutcome::DeckUpdatedWithNotice(deck_id, message),
+                    None => CmdOutcome::DeckUpdated(deck_id),
+                })
             })
         }
         Event::SetKeyLock(bus_api::SetKeyLock { deck, enabled }) => {

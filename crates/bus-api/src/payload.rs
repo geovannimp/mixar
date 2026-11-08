@@ -275,6 +275,12 @@ pub const CROSSFADER_CURVE_CYCLE: [&str; 3] = ["constant_power", "linear", "fast
 /// engine pins the two together in a test.
 pub const DEFAULT_CHANNEL_FADER_CURVE_ID: &str = "linear";
 
+/// Canonical id of the tempo-fader curve used when none is configured.
+///
+/// Keep in sync with `engine_core::config::default_tempo_curve`; the engine
+/// pins the two together in a test.
+pub const DEFAULT_TEMPO_CURVE_ID: &str = "linear";
+
 /// Crossfader behavior flags: curve bypass and A/B swap.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CrossfaderBehaviorSetting {

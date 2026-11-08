@@ -398,6 +398,12 @@ pub struct _SetTempoRange {
     pub tempo_range: f32,
 }
 
+#[flutter_rust_bridge::frb(mirror(SetTempoCurve))]
+pub struct _SetTempoCurve {
+    pub deck: u16,
+    pub id: String,
+}
+
 #[flutter_rust_bridge::frb(mirror(SetKeyLock))]
 pub struct _SetKeyLock {
     pub deck: u16,
@@ -1005,6 +1011,7 @@ pub enum _Event {
     SetCrossfaderAssign(SetCrossfaderAssign),
     SetSpeed(SetSpeed),
     SetTempoRange(SetTempoRange),
+    SetTempoCurve(SetTempoCurve),
     SetKeyLock(SetKeyLock),
     SetKeyShift(SetKeyShift),
     SetKeyboardRoot(SetKeyboardRoot),
@@ -1116,6 +1123,7 @@ pub enum _Topic {
     SetCrossfaderAssign,
     SetSpeed,
     SetTempoRange,
+    SetTempoCurve,
     SetKeyLock,
     SetKeyShift,
     SetKeyboardRoot,
