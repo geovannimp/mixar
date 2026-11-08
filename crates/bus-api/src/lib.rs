@@ -27,8 +27,8 @@ pub use payload::{
     CurveGroupSpec, CurveLibrarySpec, CurvePointSpec, CurveRefSpec, CurveSegmentKind,
     CurveSegmentSpec, CurveSetSpec, CurveSpecSpec, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot,
     EngineStatus, EqBand, FxKind, FxSlotState, JogMode, LoopRegion, PadMode, SamplerSlotInfo,
-    SyncMode, CROSSFADER_CURVE_CYCLE, DEFAULT_CROSSFADER_CURVE_ID, FX_DIVISION_COUNT,
-    FX_PARAM_COUNT, FX_SLOT_COUNT,
+    SyncMode, CROSSFADER_CURVE_CYCLE, DEFAULT_CHANNEL_FADER_CURVE_ID, DEFAULT_CROSSFADER_CURVE_ID,
+    FX_DIVISION_COUNT, FX_PARAM_COUNT, FX_SLOT_COUNT,
 };
 
 pub use events::Event;
@@ -43,9 +43,9 @@ pub use events::{
     LoopRollPadRelease, LoopsChanged, MappingAttached, MappingDetached, MappingOffer, Navigate,
     Notice, PadPress, PadRelease, Pause, Play, RecallSavedLoop, RefreshTrack, SamplerPadPress,
     SamplerPadRelease, SaveBeatGrid, SaveDeckHotCue, SaveTrackHotCue, SaveTrackLoop, Seek,
-    SetAutoLoop, SetCrossfader, SetCrossfaderAssign, SetCrossfaderBehavior, SetCrossfaderCurve,
-    SetCrossfaderCurveAmount, SetCueMix, SetCuePoint, SetCueVolume, SetCurveLibrary,
-    SetDeckFxRouted, SetEq, SetEqBand, SetFilter, SetFxUnitParam, SetFxUnitSlot,
+    SetAutoLoop, SetChannelFaderCurve, SetCrossfader, SetCrossfaderAssign, SetCrossfaderBehavior,
+    SetCrossfaderCurve, SetCrossfaderCurveAmount, SetCueMix, SetCuePoint, SetCueVolume,
+    SetCurveLibrary, SetDeckFxRouted, SetEq, SetEqBand, SetFilter, SetFxUnitParam, SetFxUnitSlot,
     SetFxUnitSlotEnabled, SetFxUnitWet, SetGainTrim, SetHeadphoneCue, SetJogMode, SetKeyLock,
     SetKeyShift, SetKeyShiftPage, SetKeyboardPage, SetKeyboardRoot, SetMasterCue, SetMasterDeck,
     SetMasterVolume, SetPadMode, SetQuantize, SetSlip, SetSpeed, SetStemEqBand, SetStemEqEnabled,

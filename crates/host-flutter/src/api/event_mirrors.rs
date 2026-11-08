@@ -730,6 +730,11 @@ pub struct _SetCrossfaderBehavior {
     pub disabled: bool,
 }
 
+#[flutter_rust_bridge::frb(mirror(SetChannelFaderCurve))]
+pub struct _SetChannelFaderCurve {
+    pub id: String,
+}
+
 #[flutter_rust_bridge::frb(mirror(SetFxUnitSlot))]
 pub struct _SetFxUnitSlot {
     pub slot: u8,
@@ -1056,6 +1061,7 @@ pub enum _Event {
     SetCrossfaderCurve(SetCrossfaderCurve),
     SetCrossfaderCurveAmount(SetCrossfaderCurveAmount),
     SetCrossfaderBehavior(SetCrossfaderBehavior),
+    SetChannelFaderCurve(SetChannelFaderCurve),
     SetFxUnitSlot(SetFxUnitSlot),
     SetFxUnitSlotEnabled(SetFxUnitSlotEnabled),
     SetFxUnitWet(SetFxUnitWet),
@@ -1166,6 +1172,7 @@ pub enum _Topic {
     SetCrossfaderCurve,
     SetCrossfaderCurveAmount,
     SetCrossfaderBehavior,
+    SetChannelFaderCurve,
     SetFxUnitSlot,
     SetFxUnitSlotEnabled,
     SetFxUnitWet,

@@ -467,6 +467,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop dco_decode_box_autoadd_set_auto_loop(dynamic raw);
 
   @protected
+  SetChannelFaderCurve dco_decode_box_autoadd_set_channel_fader_curve(
+    dynamic raw,
+  );
+
+  @protected
   SetCrossfader dco_decode_box_autoadd_set_crossfader(dynamic raw);
 
   @protected
@@ -1195,6 +1200,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop dco_decode_set_auto_loop(dynamic raw);
 
   @protected
+  SetChannelFaderCurve dco_decode_set_channel_fader_curve(dynamic raw);
+
+  @protected
   SetCrossfader dco_decode_set_crossfader(dynamic raw);
 
   @protected
@@ -1890,6 +1898,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetAutoLoop sse_decode_box_autoadd_set_auto_loop(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetChannelFaderCurve sse_decode_box_autoadd_set_channel_fader_curve(
     SseDeserializer deserializer,
   );
 
@@ -2798,6 +2811,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop sse_decode_set_auto_loop(SseDeserializer deserializer);
 
   @protected
+  SetChannelFaderCurve sse_decode_set_channel_fader_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SetCrossfader sse_decode_set_crossfader(SseDeserializer deserializer);
 
   @protected
@@ -3625,6 +3643,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_auto_loop(
     SetAutoLoop self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_channel_fader_curve(
+    SetChannelFaderCurve self,
     SseSerializer serializer,
   );
 
@@ -4788,6 +4812,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_set_auto_loop(SetAutoLoop self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_channel_fader_curve(
+    SetChannelFaderCurve self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_set_crossfader(SetCrossfader self, SseSerializer serializer);

@@ -37,6 +37,7 @@ use bus_api::SamplerPadPress;
 use bus_api::SamplerPadRelease;
 use bus_api::SaveDeckHotCue;
 use bus_api::SetAutoLoop;
+use bus_api::SetChannelFaderCurve;
 use bus_api::SetCrossfader;
 use bus_api::SetCrossfaderAssign;
 use bus_api::SetCrossfaderBehavior;
@@ -711,6 +712,13 @@ pub fn resolve_action(
             }
             let id = args.require_ident("id").ok()?;
             mixer_cmd(|| Event::SetCrossfaderCurve(SetCrossfaderCurve { id: id.to_string() }))
+        }
+        "set_channel_fader_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            mixer_cmd(|| Event::SetChannelFaderCurve(SetChannelFaderCurve { id: id.to_string() }))
         }
         "cycle_crossfader_curve" => {
             if !active {
@@ -2055,6 +2063,28 @@ mod tests {
             route(true).unwrap(),
             RoutedAction::Cmd(Event::SetCrossfaderCurve(SetCrossfaderCurve {
                 id: "fast_cut".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
+    fn channel_fader_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Mixer::set_channel_fader_curve(id:linear)",
+                "master",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetChannelFaderCurve(SetChannelFaderCurve {
+                id: "linear".into(),
             }))
         );
         assert!(route(false).is_none(), "releases publish nothing");

@@ -972,6 +972,7 @@ fn default_engine_config() -> EngineConfig {
             vinyl_brake_pause: Some(false),
             vinyl_brake_stop_secs: Some(0.5),
             default_crossfader_curve: Some(bus_api::DEFAULT_CROSSFADER_CURVE_ID.to_string()),
+            default_channel_fader_curve: None,
             crossfader_behavior: Some(bus_api::CrossfaderBehaviorSetting::default()),
             curve_library: Some(bus_api::CurveLibrarySpec::default()),
         }),
@@ -1295,6 +1296,12 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     config.buses = buses_from_settings(&settings);
     config.buffer_size = settings.buffer_size;
     config.analysis_duration = settings.analysis_duration.into();
+    // The GUI does not edit the channel-fader curve yet; keep a headless or
+    // hand-edited value instead of dropping it on every settings save.
+    let default_channel_fader_curve = config
+        .audio
+        .as_ref()
+        .and_then(|audio| audio.default_channel_fader_curve.clone());
     config.audio = Some(AudioConfig {
         resampler_quality: Some(settings.resampler_quality.clone()),
         sampler_strip_route: Some(settings.sampler_strip_route.into()),
@@ -1304,6 +1311,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         vinyl_brake_pause: Some(settings.vinyl_brake_pause),
         vinyl_brake_stop_secs: Some(settings.vinyl_brake_stop_secs),
         default_crossfader_curve: Some(settings.default_crossfader_curve.clone()),
+        default_channel_fader_curve,
         crossfader_behavior: Some(settings.crossfader_behavior),
         curve_library: Some(settings.curve_library.clone()),
     });

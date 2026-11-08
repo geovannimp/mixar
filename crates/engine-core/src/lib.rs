@@ -6,6 +6,7 @@
 mod backend;
 mod bus;
 mod callback;
+mod channel_fader_curve;
 mod config;
 mod control;
 mod control_norm;
@@ -33,13 +34,17 @@ pub use audio_core::{CrossfaderCurveBehavior, ResolvedCrossfaderCurve};
 pub use audio_core::{DeviceInfo, LoadableAudio, LoadedAudio};
 pub use backend::{create_backend, AudioBackend, AudioBackendTrait};
 pub use bus::{new_event_bus, CMD_CAPACITY, EVT_CAPACITY};
+pub use channel_fader_curve::{
+    linear_channel_fader_curve, resolve_channel_fader_curve, ChannelFaderCurveSelection,
+    ResolvedChannelFaderCurve, CHANNEL_FADER_CHANNELS,
+};
 pub use config::{
     validate_buffer_size, AdvancedConfig, AudioConfig, DeviceConfig, EngineConfig,
     SamplerStripRouteSetting, BUFFER_SIZE_MULTIPLE, DEFAULT_TEMPO_RANGE, DEFAULT_TEMPO_RANGE_STEPS,
     MAX_DECKS,
 };
 pub use control::{spawn_engine_worker, EngineWorker};
-pub use curve_core::CurveGroup;
+pub use curve_core::{CurveGroup, ResolvedCurveGroup};
 pub use curve_library::{
     behavior_from_setting, behavior_setting, library_from_spec, resolve_selection,
     CrossfaderCurveSelection, ResolvedCurveSelection,

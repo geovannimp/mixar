@@ -34,7 +34,9 @@ pub use fx::{FxChain, FxKind, FxSlot, FX_PARAM_COUNT, FX_SLOT_COUNT};
 pub use headphone_monitor::HeadphoneMonitor;
 pub use level_meter::{measure_stereo_peaks, LevelPeaks};
 pub use mixer::Mixer;
-pub use mixer_channel::{MixerChannel, AUTO_GAIN_CLAMP_DB};
+pub use mixer_channel::{
+    linear_fader_curve, MixerChannel, AUTO_GAIN_CLAMP_DB, CHANNEL_FADER_CHANNELS,
+};
 pub use mixer_lane::MixerLane;
 pub use platter_motion::{MotionMode, PlatterMotion};
 pub use sampler::{

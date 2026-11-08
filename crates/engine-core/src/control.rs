@@ -1049,6 +1049,14 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 Ok(CmdOutcome::EngineStatus)
             })
         }
+        Event::SetChannelFaderCurve(bus_api::SetChannelFaderCurve { id }) => {
+            with_engine_mut(engine, |eng| {
+                Ok(match eng.select_channel_fader_curve(id)? {
+                    Some(message) => CmdOutcome::EngineStatusWithNotice(message),
+                    None => CmdOutcome::EngineStatus,
+                })
+            })
+        }
 
         // ── shared FX unit ───────────────────────────────────────────────────
         Event::SetFxUnitSlot(bus_api::SetFxUnitSlot { slot, kind }) => {

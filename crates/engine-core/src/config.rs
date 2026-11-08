@@ -95,6 +95,11 @@ pub struct AudioConfig {
     /// Unknown ids fall back to `constant_power` when the engine starts.
     #[serde(default)]
     pub default_crossfader_curve: Option<String>,
+    /// Default channel-fader curve: `linear` or a custom one-channel group id.
+    ///
+    /// Unknown or multi-channel ids fall back to `linear` when the engine starts.
+    #[serde(default)]
+    pub default_channel_fader_curve: Option<String>,
     /// Curve bypass and hamster flags applied on start.
     #[serde(default)]
     pub crossfader_behavior: Option<bus_api::CrossfaderBehaviorSetting>,
@@ -228,6 +233,26 @@ impl EngineConfig {
         .unwrap_or_else(|| crate::curve_presets::DEFAULT_PRESET_ID.to_string())
     }
 
+    /// Default channel-fader curve id (`linear` or a custom group id).
+    ///
+    /// The `linear` alias is canonicalized to snake_case; unknown values are
+    /// left for the engine's fallback.
+    pub fn default_channel_fader_curve(&self) -> String {
+        self.audio
+            .as_ref()
+            .and_then(|audio| audio.default_channel_fader_curve.as_deref())
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(|id| {
+                if id.eq_ignore_ascii_case("linear") {
+                    bus_api::DEFAULT_CHANNEL_FADER_CURVE_ID.to_string()
+                } else {
+                    id.to_string()
+                }
+            })
+            .unwrap_or_else(|| bus_api::DEFAULT_CHANNEL_FADER_CURVE_ID.to_string())
+    }
+
     /// Default crossfader behavior flags.
     pub fn crossfader_behavior(&self) -> bus_api::CrossfaderBehaviorSetting {
         self.audio
@@ -325,6 +350,16 @@ impl EngineConfig {
                 "default_crossfader_curve must not be empty when set"
             );
         }
+        if let Some(id) = self
+            .audio
+            .as_ref()
+            .and_then(|audio| audio.default_channel_fader_curve.as_deref())
+        {
+            ensure!(
+                !id.trim().is_empty(),
+                "default_channel_fader_curve must not be empty when set"
+            );
+        }
         // Duplicate ids and malformed curves reject the config here so a saved
         // settings file cannot silently drop a curve library at the next start.
         crate::curve_library::library_from_spec(&self.curve_library())
@@ -392,6 +427,10 @@ mod tests {
             crate::curve_presets::DEFAULT_PRESET_ID
         );
         assert_eq!(
+            config.default_channel_fader_curve(),
+            bus_api::DEFAULT_CHANNEL_FADER_CURVE_ID
+        );
+        assert_eq!(
             config.crossfader_behavior(),
             bus_api::CrossfaderBehaviorSetting::default()
         );
@@ -405,10 +444,15 @@ analysis_duration = "precise"
 
 [audio]
 default_crossfader_curve = "Constant Power"
+default_channel_fader_curve = "Linear"
 crossfader_behavior = { hamster = true, disabled = false }
 "#;
         let config: EngineConfig = toml::from_str(toml).unwrap();
         assert_eq!(config.default_crossfader_curve(), "constant_power");
+        assert_eq!(
+            config.default_channel_fader_curve(),
+            bus_api::DEFAULT_CHANNEL_FADER_CURVE_ID
+        );
         assert!(config.crossfader_behavior().hamster);
         assert!(!config.crossfader_behavior().disabled);
         config.validate().unwrap();
@@ -440,6 +484,7 @@ default_crossfader_curve = "fast_cut(0.1)"
                 vinyl_brake_pause: None,
                 vinyl_brake_stop_secs: None,
                 default_crossfader_curve: None,
+                default_channel_fader_curve: None,
                 crossfader_behavior: None,
                 curve_library: None,
             }),

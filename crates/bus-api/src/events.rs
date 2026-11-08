@@ -210,6 +210,11 @@ bus_events! {
     /// Set the curve-bypass and hamster flags together.
     SetCrossfaderBehavior: Update, Entity::Mixer, Part::Whole,
         { hamster: bool, disabled: bool };
+    /// Select the channel-fader curve for every channel by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetChannelFaderCurve: Update, Entity::Mixer, Part::Whole,
+        { id: String };
 
     // ── shared FX unit ───────────────────────────────────────────────────────
     SetFxUnitSlot: Update, Entity::Mixer, Part::Index(*slot),

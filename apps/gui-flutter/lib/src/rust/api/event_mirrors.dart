@@ -1316,6 +1316,8 @@ sealed class Event with _$Event {
   ) = Event_SetCrossfaderCurveAmount;
   const factory Event.setCrossfaderBehavior(SetCrossfaderBehavior field0) =
       Event_SetCrossfaderBehavior;
+  const factory Event.setChannelFaderCurve(SetChannelFaderCurve field0) =
+      Event_SetChannelFaderCurve;
   const factory Event.setFxUnitSlot(SetFxUnitSlot field0) = Event_SetFxUnitSlot;
   const factory Event.setFxUnitSlotEnabled(SetFxUnitSlotEnabled field0) =
       Event_SetFxUnitSlotEnabled;
@@ -2262,6 +2264,22 @@ class SetAutoLoop {
           runtimeType == other.runtimeType &&
           deck == other.deck &&
           beats == other.beats;
+}
+
+class SetChannelFaderCurve {
+  final String id;
+
+  const SetChannelFaderCurve({required this.id});
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetChannelFaderCurve &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 }
 
 class SetCrossfader {

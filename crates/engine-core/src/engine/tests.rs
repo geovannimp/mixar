@@ -651,6 +651,31 @@ fn custom_group(id: &str, a_start: f32, a_end: f32) -> bus_api::CurveGroupSpec {
     }
 }
 
+/// A one-channel custom group whose (x, y) points all use linear segments.
+fn one_channel_group(id: &str, points: &[(f32, f32)]) -> bus_api::CurveGroupSpec {
+    bus_api::CurveGroupSpec {
+        id: id.to_string(),
+        display_name: id.to_string(),
+        curves: vec![bus_api::CurveSpecSpec {
+            points: points
+                .iter()
+                .map(|(x, y)| bus_api::CurvePointSpec { x: *x, y: *y })
+                .collect(),
+            segments: vec![
+                bus_api::CurveSegmentSpec {
+                    kind: bus_api::CurveSegmentKind::Linear,
+                    rate: 0.0,
+                    c1x: 0.0,
+                    c1y: 0.0,
+                    c2x: 0.0,
+                    c2y: 0.0,
+                };
+                points.len() - 1
+            ],
+        }],
+    }
+}
+
 fn empty_audio() -> crate::config::AudioConfig {
     crate::config::AudioConfig {
         resampler_quality: Some("medium".into()),
@@ -661,6 +686,7 @@ fn empty_audio() -> crate::config::AudioConfig {
         vinyl_brake_pause: None,
         vinyl_brake_stop_secs: None,
         default_crossfader_curve: None,
+        default_channel_fader_curve: None,
         crossfader_behavior: None,
         curve_library: None,
     }
@@ -718,6 +744,108 @@ fn unknown_default_curve_falls_back_to_constant_power() {
         engine.engine_status_snapshot().unwrap().crossfader_curve.id,
         bus_api::DEFAULT_CROSSFADER_CURVE_ID
     );
+    engine.stop().unwrap();
+}
+
+#[test]
+fn default_channel_fader_curve_is_linear_and_preserves_volume() {
+    let mut engine = started_null_engine();
+    assert_eq!(
+        engine.channel_fader_curve_selection().id,
+        bus_api::DEFAULT_CHANNEL_FADER_CURVE_ID
+    );
+
+    engine.set_deck_volume(0, 0.25).unwrap();
+    let gain = with_channel(&engine, 0, |channel| channel.fader_gain());
+    assert!((gain - 0.25).abs() < 1e-6, "linear fader gain: {gain}");
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn configured_custom_channel_fader_curve_applies_on_start() {
+    let mut audio = empty_audio();
+    audio.default_channel_fader_curve = Some("taper".into());
+    audio.curve_library = Some(bus_api::CurveLibrarySpec {
+        groups: vec![one_channel_group(
+            "taper",
+            &[(0.0, 0.0), (0.5, 0.25), (1.0, 1.0)],
+        )],
+        sets: vec![],
+    });
+    let mut engine = started_null_engine_with_audio(audio);
+
+    assert_eq!(
+        engine.channel_fader_curve_selection().id,
+        "taper",
+        "the configured default is the active selection"
+    );
+    engine.set_deck_volume(0, 0.5).unwrap();
+    let gain = with_channel(&engine, 0, |channel| channel.fader_gain());
+    assert!((gain - 0.25).abs() < 1e-4, "custom fader gain: {gain}");
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn custom_channel_fader_curve_changes_without_restart() {
+    let mut engine = started_null_engine();
+    engine.set_deck_volume(0, 0.5).unwrap();
+    assert!((with_channel(&engine, 0, |channel| channel.fader_gain()) - 0.5).abs() < 1e-6);
+
+    engine
+        .set_curve_library(&bus_api::CurveLibrarySpec {
+            groups: vec![one_channel_group(
+                "taper",
+                &[(0.0, 0.0), (0.5, 0.25), (1.0, 1.0)],
+            )],
+            sets: vec![],
+        })
+        .unwrap();
+    assert_eq!(engine.select_channel_fader_curve("taper").unwrap(), None);
+
+    assert!(
+        engine.engine_status_snapshot().is_some(),
+        "engine is running"
+    );
+    let gain = with_channel(&engine, 0, |channel| channel.fader_gain());
+    assert!((gain - 0.25).abs() < 1e-4, "runtime fader gain: {gain}");
+    assert_eq!(engine.channel_fader_curve_selection().id, "taper");
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn invalid_channel_fader_curves_fall_back_to_linear_with_a_notice() {
+    // A two-channel group is valid for the crossfader but not a scalar fader.
+    let mut audio = empty_audio();
+    audio.default_channel_fader_curve = Some("pair".into());
+    audio.curve_library = Some(bus_api::CurveLibrarySpec {
+        groups: vec![custom_group("pair", 1.0, 0.0)],
+        sets: vec![],
+    });
+    let mut engine = started_null_engine_with_audio(audio);
+    assert_eq!(
+        engine.channel_fader_curve_selection().id,
+        bus_api::DEFAULT_CHANNEL_FADER_CURVE_ID
+    );
+
+    engine.set_deck_volume(0, 0.5).unwrap();
+    let notice = engine.select_channel_fader_curve("pair").unwrap();
+    assert!(notice.expect("notice").contains("needs 1 curves"));
+    assert!((with_channel(&engine, 0, |channel| channel.fader_gain()) - 0.5).abs() < 1e-6);
+
+    let two_channel = curve_core::ResolvedCurveGroup::single(
+        &curve_core::CurveGroup::new(vec![
+            curve_core::presets::linear(),
+            curve_core::presets::linear(),
+        ])
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(engine.set_channel_fader_curve(two_channel).is_err());
+    assert!((with_channel(&engine, 0, |channel| channel.fader_gain()) - 0.5).abs() < 1e-6);
+
     engine.stop().unwrap();
 }
 

@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use audio_core::Sample;
+use curve_core::{CurveError, CurveGroup, ResolvedCurveGroup};
 use dasp_graph::{Buffer, Input, Node};
 
 use crate::eq::{clamp_gain_db, DeckEqGains, ThreeBandEq};
@@ -11,6 +12,18 @@ use crate::level_meter::LevelPeaks;
 
 /// Maximum auto-gain applied when normalizing (± dB).
 pub const AUTO_GAIN_CLAMP_DB: f32 = 12.0;
+
+/// A channel fader drives exactly one post-fader gain curve.
+pub const CHANNEL_FADER_CHANNELS: usize = 1;
+
+/// The identity channel-fader curve (`gain = volume`).
+///
+/// This is the default and reproduces the historical linear volume behaviour.
+pub fn linear_fader_curve() -> ResolvedCurveGroup {
+    let group = CurveGroup::scalar(curve_core::presets::linear())
+        .expect("the linear shape preset is always a valid scalar group");
+    ResolvedCurveGroup::single(&group).expect("the linear scalar curve always compiles")
+}
 
 /// Per-lane mixer strip state and DSP.
 ///
@@ -34,7 +47,10 @@ pub struct MixerChannel {
     fx: FxChain,
     /// Whether this deck's signal runs through the shared FX unit.
     fx_routed: bool,
+    /// Normalized fader position (`0..=1`) before the curve.
     volume: f32,
+    /// Compiled post-fader gain curve (one output). Defaults to `linear`.
+    fader_curve: ResolvedCurveGroup,
     headphone_cue: bool,
     level_peaks: LevelPeaks,
     pre_fader_buffer: Vec<Sample>,
@@ -52,6 +68,7 @@ impl MixerChannel {
             fx: FxChain::new(sample_rate),
             fx_routed: false,
             volume: 1.0,
+            fader_curve: linear_fader_curve(),
             headphone_cue: false,
             level_peaks: LevelPeaks::default(),
             pre_fader_buffer: Vec::new(),
@@ -68,6 +85,40 @@ impl MixerChannel {
         }
         self.volume = volume;
         Ok(())
+    }
+
+    /// The installed post-fader gain curve.
+    pub fn fader_curve(&self) -> &ResolvedCurveGroup {
+        &self.fader_curve
+    }
+
+    /// Replace the post-fader gain curve.
+    ///
+    /// The curve must produce exactly one output; a multi-channel group is
+    /// rejected and the previous curve stays installed.
+    pub fn set_fader_curve(&mut self, curve: ResolvedCurveGroup) -> Result<(), CurveError> {
+        if curve.channels() != CHANNEL_FADER_CHANNELS {
+            return Err(CurveError::ChannelCount {
+                expected: CHANNEL_FADER_CHANNELS,
+                count: curve.channels(),
+            });
+        }
+        self.fader_curve = curve;
+        Ok(())
+    }
+
+    /// Post-fader gain produced by the installed curve at the current volume.
+    ///
+    /// Realtime callers evaluate this once per block; the result is constant
+    /// across the block because the fader does not move per sample.
+    pub fn fader_gain(&self) -> f32 {
+        let mut out = [0.0f32; CHANNEL_FADER_CHANNELS];
+        match self.fader_curve.evaluate_into(self.volume, &mut out) {
+            Ok(()) => out[0],
+            // The channel count is checked on install; keep the raw position
+            // rather than panicking inside a callback if that invariant breaks.
+            Err(_) => self.volume,
+        }
     }
 
     pub fn eq_gains(&self) -> DeckEqGains {
@@ -228,6 +279,9 @@ impl MixerChannel {
         self.pre_fader_buffer
             .resize(chunk_start + chunk_samples, 0.0);
         let gain = db_to_linear(self.auto_gain_db + self.gain_trim_db);
+        // The fader is constant across a block: evaluate the compiled table once
+        // and reuse the gain for every sample in the chunk.
+        let post_fader_gain = self.fader_gain();
 
         for frame in 0..chunk_frames {
             let (left, right) = input_at(frame);
@@ -246,7 +300,6 @@ impl MixerChannel {
         self.level_peaks.peak_l = self.level_peaks.peak_l.max(chunk_peaks.peak_l);
         self.level_peaks.peak_r = self.level_peaks.peak_r.max(chunk_peaks.peak_r);
 
-        let post_fader_gain = self.volume;
         for frame in 0..chunk_frames {
             left_output[0][frame] = chunk[frame * 2] * post_fader_gain;
             right_output[0][frame] = chunk[frame * 2 + 1] * post_fader_gain;
@@ -508,6 +561,72 @@ mod tests {
         assert!(mixer_channel.pre_fader_buffer().is_empty());
         assert_eq!(mixer_channel.level_peaks().peak_l, 0.0);
         assert_eq!(mixer_channel.level_peaks().peak_r, 0.0);
+    }
+
+    fn scalar_curve(points: &[(f32, f32)]) -> curve_core::ResolvedCurveGroup {
+        use curve_core::{CurveGroup, CurvePoint, CurveSpec, ResolvedCurveGroup, SegmentKind};
+        let spec = CurveSpec::new(
+            points
+                .iter()
+                .map(|(x, y)| CurvePoint::new(*x, *y))
+                .collect(),
+            vec![SegmentKind::Linear; points.len() - 1],
+        )
+        .expect("valid test curve");
+        ResolvedCurveGroup::single(&CurveGroup::scalar(spec).expect("valid scalar test group"))
+            .expect("scalar curve compiles")
+    }
+
+    #[test]
+    fn default_fader_curve_is_linear_and_matches_raw_volume() {
+        let mut channel = MixerChannel::new(48_000);
+        channel.set_volume(0.25).unwrap();
+
+        assert_eq!(channel.fader_curve(), &super::linear_fader_curve());
+        assert!((channel.fader_gain() - 0.25).abs() < 1e-6);
+
+        let out = render_strip(&mut channel, 4, |_| (0.8, -0.4));
+        assert!((out[0] - 0.2).abs() < 1e-6, "left: {}", out[0]);
+        assert!((out[1] + 0.1).abs() < 1e-6, "right: {}", out[1]);
+    }
+
+    #[test]
+    fn custom_fader_curve_changes_the_post_fader_gain() {
+        let mut channel = MixerChannel::new(48_000);
+        channel
+            .set_fader_curve(scalar_curve(&[(0.0, 0.0), (0.5, 0.25), (1.0, 1.0)]))
+            .unwrap();
+        channel.set_volume(0.5).unwrap();
+
+        assert!((channel.fader_gain() - 0.25).abs() < 1e-4);
+        let out = render_strip(&mut channel, 2, |_| (1.0, 1.0));
+        assert!((out[0] - 0.25).abs() < 1e-4, "left: {}", out[0]);
+        assert!((out[1] - 0.25).abs() < 1e-4, "right: {}", out[1]);
+    }
+
+    #[test]
+    fn multi_channel_fader_curve_is_rejected_and_keeps_the_previous_curve() {
+        use curve_core::{CurveError, CurveGroup, ResolvedCurveGroup};
+
+        let mut channel = MixerChannel::new(48_000);
+        channel.set_volume(0.5).unwrap();
+        let two_channel = ResolvedCurveGroup::single(
+            &CurveGroup::new(vec![
+                curve_core::presets::linear(),
+                curve_core::presets::linear(),
+            ])
+            .expect("valid two-channel group"),
+        )
+        .expect("two-channel group compiles");
+
+        assert!(matches!(
+            channel.set_fader_curve(two_channel),
+            Err(CurveError::ChannelCount {
+                expected: 1,
+                count: 2
+            })
+        ));
+        assert!((channel.fader_gain() - 0.5).abs() < 1e-6);
     }
 
     /// Render `frames` through the strip in `Buffer::LEN` chunks.

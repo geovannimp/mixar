@@ -50,6 +50,8 @@ pub struct Engine {
     pub(crate) curve_library: curve_core::CurveLibrary,
     /// Active crossfader curve selection (compiled tables live in the mixer).
     pub(crate) crossfader_selection: crate::curve_library::CrossfaderCurveSelection,
+    /// Active channel-fader curve selection (compiled tables live per channel).
+    pub(crate) channel_fader_selection: crate::channel_fader_curve::ChannelFaderCurveSelection,
 }
 
 /// Absolute-control readback as wire `0..1` (for soft-takeover compares).
@@ -110,6 +112,16 @@ impl Engine {
                 crate::curve_library::CrossfaderCurveSelection::constant_power()
             }
         };
+        let channel_fader_selection = match crate::channel_fader_curve::resolve_channel_fader_curve(
+            &config.default_channel_fader_curve(),
+            &curve_library,
+        ) {
+            Ok(resolved) => resolved.selection,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::channel_fader_curve::ChannelFaderCurveSelection::linear()
+            }
+        };
 
         Ok(Self {
             config,
@@ -134,6 +146,7 @@ impl Engine {
             soft_takeover: crate::soft_takeover::SoftTakeoverState::default(),
             curve_library,
             crossfader_selection,
+            channel_fader_selection,
         })
     }
 
@@ -402,6 +415,18 @@ impl Engine {
         };
         let default_behavior =
             crate::curve_library::behavior_from_setting(self.config.crossfader_behavior());
+        // Resolve the channel-fader curve on the control thread too; an
+        // unknown or multi-channel id falls back to linear.
+        let default_channel_fader = match crate::channel_fader_curve::resolve_channel_fader_curve(
+            &self.config.default_channel_fader_curve(),
+            &self.curve_library,
+        ) {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::channel_fader_curve::linear_channel_fader_curve()
+            }
+        };
         {
             let default_range = self.config.default_tempo_range();
             let default_key_lock = self.config.default_key_lock();
@@ -418,8 +443,11 @@ impl Engine {
             dsp.mixer_mut().set_master_deck(self.master_deck);
             dsp.mixer_mut()
                 .set_crossfader_curve(default_curve.with_behavior(default_behavior));
+            dsp.mixer_mut()
+                .set_channel_fader_curve(default_channel_fader.curve)?;
         }
         self.crossfader_selection = default_selection;
+        self.channel_fader_selection = default_channel_fader.selection;
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
         // One resampler per device opened off the DSP clock. Built here so a failure
