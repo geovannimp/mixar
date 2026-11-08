@@ -8,7 +8,7 @@
     "check": "tsc -p . && npm run generate && git diff --exit-code -- :/apps/gui-flutter/lib/core/theme/mixar_palette.dart :/apps/gui-flutter/lib/core/theme/mixar_colors.dart :/apps/website/src/styles/tokens.css"
   },
   "dependencies": {
-    "style-dictionary": "^5.7.1"
+    "style-dictionary": "^5.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

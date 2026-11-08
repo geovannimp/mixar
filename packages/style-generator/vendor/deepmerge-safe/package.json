@@ -1,0 +1,15 @@
+{
+  "name": "@bundled-es-modules/deepmerge",
+  "version": "4.3.2-safe.0",
+  "private": true,
+  "description": "Drop-in, prototype-safe replacement for @bundled-es-modules/deepmerge, used via an npm override because deepmerge <=4.3.1 has no patched release (GHSA-gcqx-w48m-w2h4).",
+  "type": "module",
+  "main": "./index.cjs",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "require": "./index.cjs"
+    }
+  }
+}
