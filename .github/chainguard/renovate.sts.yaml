@@ -5,6 +5,11 @@
 #
 # This policy must live at .github/chainguard/<identity>.sts.yaml, where
 # <identity> matches the `identity` input of the octo-sts/action step.
+#
+# If the repository is renamed/transferred or the default branch changes,
+# update `subject` below or token minting fails. A rename also requires
+# updating the Windows publisher_url in
+# apps/gui-flutter/windows/packaging/exe/make_config.yaml.
 issuer: https://token.actions.githubusercontent.com
 subject: repo:geovannimp/mixar:ref:refs/heads/main
 

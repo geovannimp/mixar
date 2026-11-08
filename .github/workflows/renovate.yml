@@ -20,6 +20,8 @@ permissions:
 
 concurrency:
   group: renovate
+  # Let an in-flight run finish: cancelling mid-run can leave branches/PRs
+  # partially updated. Scheduled runs are days apart, so overlap is rare.
   cancel-in-progress: false
 
 jobs:
