@@ -165,6 +165,7 @@ The `n` argument is not capped at eight. Any `n:1+` is accepted, and numbered al
 | `set_crossfader_curve` | `id:<curve-id>` | Select a preset, custom group, or curve set by canonical snake_case id on press. An unknown id installs `constant_power` and raises a notice. |
 | `set_channel_fader_curve` | `id:<curve-id>` | Select the channel-fader preset or custom one-channel group by canonical snake_case id on press. An unknown or multi-channel id installs `linear` and raises a notice. |
 | `set_tempo_curve` | `id:<curve-id>` | Select the deck's tempo-fader preset or custom one-channel group by canonical snake_case id on press. An unknown or multi-channel id installs `linear` and raises a notice. |
+| `set_fx_level_curve` | `id:<curve-id>` | Select the shared FX level/depth preset or custom one-channel group by canonical snake_case id on press. An unknown or multi-channel id installs `linear` and raises a notice. |
 | `cycle_crossfader_curve` | – | Step to the next available preset (`constant_power` → `linear` → `fast_cut`, wrapping). A custom selection steps back to `constant_power`. |
 | `set_crossfader_curve_amount` | `set:<set-id>` | Absolute knob sweep `0..1` across the named curve set. Listed in the absolute catalog, so bindings default to soft-takeover. |
 | `set_crossfader_hamster` | – | Toggle the hamster flag (swap A/B gains) on press. |
@@ -215,6 +216,7 @@ Argument keys are validated per leaf, and a leaf accepts **exactly** the keys li
 | `set_crossfader_curve` | `id` | Canonical snake_case curve id (`fast_cut`, a custom group, or a curve set). |
 | `set_crossfader_curve_amount` | `set` | Canonical snake_case curve-set id. |
 | `set_channel_fader_curve` | `id` | Canonical snake_case channel-fader curve id (`linear` or a custom one-channel group). |
+| `set_fx_level_curve` | `id` | Canonical snake_case FX level/depth curve id (`linear` or a custom one-channel group). |
 | all other leaves | – | Arguments rejected. |
 
 ## Absolute vs. relative leaves

@@ -320,6 +320,7 @@ const MIXER_LEAVES: &[&str] = &[
     "step_fx_division_down",
     "step_fx_division_up",
     "set_fx_wet",
+    "set_fx_level_curve",
     "set_fx_route",
 ];
 
@@ -458,6 +459,17 @@ pub fn validate_leaf_args(
             Ok(())
         }
         "set_tempo_curve" => {
+            args.expect_keys_exactly(&["id"])?;
+            let id = args.require_ident("id")?;
+            if !is_snake_case(id) {
+                return Err(LoadError::Validation(format!(
+                    "arg `id` must be a canonical snake_case curve id, got `{id}`"
+                )));
+            }
+            Ok(())
+        }
+        // The FX level/depth control shares the same canonical curve-id space.
+        "set_fx_level_curve" => {
             args.expect_keys_exactly(&["id"])?;
             let id = args.require_ident("id")?;
             if !is_snake_case(id) {

@@ -30,7 +30,10 @@ pub use deck::{
 };
 pub use eq::{clamp_gain_db, DeckEqGains, ThreeBandEq, EQ_MAX_DB, EQ_MIN_DB};
 pub use filter::{db_to_linear, DjFilter};
-pub use fx::{FxChain, FxKind, FxSlot, FX_PARAM_COUNT, FX_SLOT_COUNT};
+pub use fx::{
+    linear_fx_level_curve, FxChain, FxKind, FxLevelCurve, FxSlot, FX_LEVEL_CHANNELS,
+    FX_PARAM_COUNT, FX_SLOT_COUNT,
+};
 pub use headphone_monitor::HeadphoneMonitor;
 pub use level_meter::{measure_stereo_peaks, LevelPeaks};
 pub use mixer::Mixer;

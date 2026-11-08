@@ -14,6 +14,7 @@ mod curve_library;
 pub mod curve_presets;
 mod deck_pads;
 mod engine;
+mod fx_level_curve;
 mod library_bridge;
 mod load;
 mod mixer;
@@ -57,6 +58,10 @@ pub use curve_presets::{
 };
 pub use engine::Engine;
 pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
+pub use fx_level_curve::{
+    linear_fx_level_curve, resolve_fx_level_curve, FxLevelCurveSelection, ResolvedFxLevelCurve,
+    FX_LEVEL_CURVE_CHANNELS,
+};
 pub use library::PreparedTrackPlayback;
 pub use library_core::{AudioSource, FileAudioSource, TrackId};
 pub use pads::{

@@ -54,6 +54,8 @@ pub struct Engine {
     pub(crate) channel_fader_selection: crate::channel_fader_curve::ChannelFaderCurveSelection,
     /// Active tempo-curve selection per deck (compiled curves live on each deck).
     pub(crate) tempo_curve_selections: Vec<crate::tempo_curve::TempoCurveSelection>,
+    /// Active FX level/depth curve selection (compiled curve lives on the FX chain).
+    pub(crate) fx_level_selection: crate::fx_level_curve::FxLevelCurveSelection,
 }
 
 /// Absolute-control readback as wire `0..1` (for soft-takeover compares).
@@ -134,6 +136,16 @@ impl Engine {
                 crate::tempo_curve::TempoCurveSelection::linear()
             }
         };
+        let fx_level_selection = match crate::fx_level_curve::resolve_fx_level_curve(
+            &config.default_fx_level_curve(),
+            &curve_library,
+        ) {
+            Ok(resolved) => resolved.selection,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::fx_level_curve::FxLevelCurveSelection::linear()
+            }
+        };
 
         Ok(Self {
             config,
@@ -162,6 +174,7 @@ impl Engine {
             tempo_curve_selections: (0..num_decks)
                 .map(|_| tempo_curve_selection.clone())
                 .collect(),
+            fx_level_selection,
         })
     }
 
@@ -454,6 +467,18 @@ impl Engine {
                 crate::tempo_curve::linear_tempo_curve()
             }
         };
+        // The FX level/depth curve is shared by the unit; an unknown or
+        // multi-channel id falls back to the historical linear response.
+        let default_fx_level = match crate::fx_level_curve::resolve_fx_level_curve(
+            &self.config.default_fx_level_curve(),
+            &self.curve_library,
+        ) {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::fx_level_curve::linear_fx_level_curve()
+            }
+        };
         {
             let default_range = self.config.default_tempo_range();
             let default_key_lock = self.config.default_key_lock();
@@ -473,9 +498,11 @@ impl Engine {
                 .set_crossfader_curve(default_curve.with_behavior(default_behavior));
             dsp.mixer_mut()
                 .set_channel_fader_curve(default_channel_fader.curve)?;
+            dsp.mixer_mut().set_fx_level_curve(default_fx_level.curve)?;
         }
         self.crossfader_selection = default_selection;
         self.channel_fader_selection = default_channel_fader.selection;
+        self.fx_level_selection = default_fx_level.selection;
         self.tempo_curve_selections.resize(
             self.deck_control.len(),
             crate::tempo_curve::TempoCurveSelection::linear(),

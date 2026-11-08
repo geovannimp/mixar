@@ -513,6 +513,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetFilter dco_decode_box_autoadd_set_filter(dynamic raw);
 
   @protected
+  SetFxLevelCurve dco_decode_box_autoadd_set_fx_level_curve(dynamic raw);
+
+  @protected
   SetFxUnitParam dco_decode_box_autoadd_set_fx_unit_param(dynamic raw);
 
   @protected
@@ -1243,6 +1246,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetFilter dco_decode_set_filter(dynamic raw);
 
   @protected
+  SetFxLevelCurve dco_decode_set_fx_level_curve(dynamic raw);
+
+  @protected
   SetFxUnitParam dco_decode_set_fx_unit_param(dynamic raw);
 
   @protected
@@ -1966,6 +1972,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter sse_decode_box_autoadd_set_filter(SseDeserializer deserializer);
+
+  @protected
+  SetFxLevelCurve sse_decode_box_autoadd_set_fx_level_curve(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SetFxUnitParam sse_decode_box_autoadd_set_fx_unit_param(
@@ -2872,6 +2883,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetFilter sse_decode_set_filter(SseDeserializer deserializer);
 
   @protected
+  SetFxLevelCurve sse_decode_set_fx_level_curve(SseDeserializer deserializer);
+
+  @protected
   SetFxUnitParam sse_decode_set_fx_unit_param(SseDeserializer deserializer);
 
   @protected
@@ -3736,6 +3750,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_filter(
     SetFilter self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_level_curve(
+    SetFxLevelCurve self,
     SseSerializer serializer,
   );
 
@@ -4893,6 +4913,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_set_filter(SetFilter self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_fx_level_curve(
+    SetFxLevelCurve self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_set_fx_unit_param(

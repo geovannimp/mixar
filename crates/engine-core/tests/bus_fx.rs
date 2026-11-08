@@ -8,12 +8,14 @@ use bus_api::Event;
 use bus_api::FxKind;
 use bus_api::FxSlotState;
 use bus_api::SetDeckFxRouted;
+use bus_api::SetFxLevelCurve;
 use bus_api::SetFxUnitParam;
 use bus_api::SetFxUnitSlot;
 use bus_api::SetFxUnitSlotEnabled;
 use bus_api::SetFxUnitWet;
 use bus_api::FX_SLOT_COUNT;
 use common::recv_error;
+use common::recv_evt;
 use common::recv_updated;
 use common::recv_updated_where;
 use common::TestReceiver;
@@ -296,4 +298,33 @@ fn set_fx_unit_wet_soft_takeover_blocks_until_near() {
     );
     let fx = deck_fx(&mut evt, 0);
     assert!((fx[0].wet - 0.02).abs() < 1e-6, "wet {}", fx[0].wet);
+}
+
+#[test]
+fn set_fx_level_curve_reports_unknown_ids_and_keeps_linear() {
+    let session = null_session();
+    let mut evt = session.subscribe_evt_all().expect("sub");
+
+    publish(
+        &session,
+        Event::SetFxLevelCurve(SetFxLevelCurve {
+            id: "missing".into(),
+        }),
+    );
+    let notice = recv_evt(&mut evt, |event| matches!(event, Event::Notice(_)));
+    match notice {
+        Event::Notice(notice) => assert!(
+            notice.message.contains("unknown FX level curve"),
+            "message={}",
+            notice.message
+        ),
+        other => panic!("unexpected {other:?}"),
+    }
+
+    // The failed selection installs `linear`, so the default 0.5 level is intact.
+    let wet = session
+        .with_engine(|engine| Ok(engine.fx_unit_wet(0)))
+        .expect("engine")
+        .expect("slot 0");
+    assert!((wet - 0.5).abs() < 1e-6, "fallback wet {wet}");
 }

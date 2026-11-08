@@ -456,6 +456,7 @@ void main() {
     final baseline = defaultAppSettings();
     expect(baseline.defaultCrossfaderCurve, 'constant_power');
     expect(baseline.defaultTempoCurve, 'linear');
+    expect(baseline.defaultFxLevelCurve, 'linear');
     expect(baseline.crossfaderBehavior.hamster, isFalse);
     expect(baseline.crossfaderBehavior.disabled, isFalse);
     expect(baseline.curveLibrary.groups, isEmpty);
@@ -476,6 +477,13 @@ void main() {
     expect(
       appSettingsDirty(
         copyAppSettings(baseline, defaultTempoCurve: 'taper'),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, defaultFxLevelCurve: 'taper'),
         baseline,
       ),
       isTrue,

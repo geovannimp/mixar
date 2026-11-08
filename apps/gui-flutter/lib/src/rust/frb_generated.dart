@@ -7771,8 +7771,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 55)
-      throw Exception('unexpected arr length: expect 55 but see ${arr.length}');
+    if (arr.length != 56)
+      throw Exception('unexpected arr length: expect 56 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7794,42 +7794,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultTempoRange: dco_decode_f_32(arr[17]),
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
       defaultTempoCurve: dco_decode_String(arr[19]),
-      defaultCrossfaderCurve: dco_decode_String(arr[20]),
-      crossfaderBehavior: dco_decode_crossfader_behavior_setting(arr[21]),
-      curveLibrary: dco_decode_curve_library_spec(arr[22]),
-      defaultKeyLock: dco_decode_bool(arr[23]),
-      vinylBrakePause: dco_decode_bool(arr[24]),
-      vinylBrakeStopSecs: dco_decode_f_32(arr[25]),
-      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[26]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[27]),
-      keyColorMode: dco_decode_key_color_mode_setting(arr[28]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[29]),
-      alwaysSwitchAudioDeviceIds: dco_decode_list_String(arr[30]),
+      defaultFxLevelCurve: dco_decode_String(arr[20]),
+      defaultCrossfaderCurve: dco_decode_String(arr[21]),
+      crossfaderBehavior: dco_decode_crossfader_behavior_setting(arr[22]),
+      curveLibrary: dco_decode_curve_library_spec(arr[23]),
+      defaultKeyLock: dco_decode_bool(arr[24]),
+      vinylBrakePause: dco_decode_bool(arr[25]),
+      vinylBrakeStopSecs: dco_decode_f_32(arr[26]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[27]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[28]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[29]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[30]),
+      alwaysSwitchAudioDeviceIds: dco_decode_list_String(arr[31]),
       controllerAudioOverride:
-          dco_decode_opt_box_autoadd_controller_audio_override(arr[31]),
-      historyEnabled: dco_decode_bool(arr[32]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[33]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[34]),
-      historyMinDeckVolume: dco_decode_f_32(arr[35]),
-      showTooltips: dco_decode_bool(arr[36]),
-      mixerMeters: dco_decode_mixer_meters_setting(arr[37]),
-      selectStyle: dco_decode_select_style_setting(arr[38]),
-      dimPlayedTracks: dco_decode_bool(arr[39]),
-      stemsFormat: dco_decode_String(arr[40]),
-      stemsModel: dco_decode_String(arr[41]),
-      realtimeStems: dco_decode_bool(arr[42]),
-      uiLanguage: dco_decode_ui_language_setting(arr[43]),
-      theme: dco_decode_theme_setting(arr[44]),
-      accentPalette: dco_decode_accent_palette_setting(arr[45]),
-      libraryDrawerEnabled: dco_decode_bool(arr[46]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[47]),
-      waveformPosition: dco_decode_waveform_position_setting(arr[48]),
-      showWaveform: dco_decode_bool(arr[49]),
-      showMixer: dco_decode_bool(arr[50]),
-      showFxBar: dco_decode_bool(arr[51]),
-      showCrossfader: dco_decode_bool(arr[52]),
-      analyticsEnabled: dco_decode_bool(arr[53]),
-      onboardingCompleted: dco_decode_bool(arr[54]),
+          dco_decode_opt_box_autoadd_controller_audio_override(arr[32]),
+      historyEnabled: dco_decode_bool(arr[33]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[34]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[35]),
+      historyMinDeckVolume: dco_decode_f_32(arr[36]),
+      showTooltips: dco_decode_bool(arr[37]),
+      mixerMeters: dco_decode_mixer_meters_setting(arr[38]),
+      selectStyle: dco_decode_select_style_setting(arr[39]),
+      dimPlayedTracks: dco_decode_bool(arr[40]),
+      stemsFormat: dco_decode_String(arr[41]),
+      stemsModel: dco_decode_String(arr[42]),
+      realtimeStems: dco_decode_bool(arr[43]),
+      uiLanguage: dco_decode_ui_language_setting(arr[44]),
+      theme: dco_decode_theme_setting(arr[45]),
+      accentPalette: dco_decode_accent_palette_setting(arr[46]),
+      libraryDrawerEnabled: dco_decode_bool(arr[47]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[48]),
+      waveformPosition: dco_decode_waveform_position_setting(arr[49]),
+      showWaveform: dco_decode_bool(arr[50]),
+      showMixer: dco_decode_bool(arr[51]),
+      showFxBar: dco_decode_bool(arr[52]),
+      showCrossfader: dco_decode_bool(arr[53]),
+      analyticsEnabled: dco_decode_bool(arr[54]),
+      onboardingCompleted: dco_decode_bool(arr[55]),
     );
   }
 
@@ -8514,6 +8515,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SetFilter dco_decode_box_autoadd_set_filter(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_set_filter(raw);
+  }
+
+  @protected
+  SetFxLevelCurve dco_decode_box_autoadd_set_fx_level_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_fx_level_curve(raw);
   }
 
   @protected
@@ -9603,92 +9610,96 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           dco_decode_box_autoadd_set_fx_unit_wet(raw[1]),
         );
       case 79:
+        return Event_SetFxLevelCurve(
+          dco_decode_box_autoadd_set_fx_level_curve(raw[1]),
+        );
+      case 80:
         return Event_SetFxUnitParam(
           dco_decode_box_autoadd_set_fx_unit_param(raw[1]),
         );
-      case 80:
+      case 81:
         return Event_SetDeckFxRouted(
           dco_decode_box_autoadd_set_deck_fx_routed(raw[1]),
         );
-      case 81:
-        return Event_DeckUpdated(dco_decode_box_autoadd_deck_updated(raw[1]));
       case 82:
-        return Event_DeckPosition(dco_decode_box_autoadd_deck_position(raw[1]));
+        return Event_DeckUpdated(dco_decode_box_autoadd_deck_updated(raw[1]));
       case 83:
-        return Event_DeckLevels(dco_decode_box_autoadd_deck_levels(raw[1]));
+        return Event_DeckPosition(dco_decode_box_autoadd_deck_position(raw[1]));
       case 84:
+        return Event_DeckLevels(dco_decode_box_autoadd_deck_levels(raw[1]));
+      case 85:
         return Event_EngineSnapshot(
           dco_decode_box_autoadd_engine_snapshot(raw[1]),
         );
-      case 85:
-        return Event_Error(dco_decode_box_autoadd_error(raw[1]));
       case 86:
-        return Event_Notice(dco_decode_box_autoadd_notice(raw[1]));
+        return Event_Error(dco_decode_box_autoadd_error(raw[1]));
       case 87:
-        return Event_AnalyzeTrack(dco_decode_box_autoadd_analyze_track(raw[1]));
+        return Event_Notice(dco_decode_box_autoadd_notice(raw[1]));
       case 88:
+        return Event_AnalyzeTrack(dco_decode_box_autoadd_analyze_track(raw[1]));
+      case 89:
         return Event_GenerateStems(
           dco_decode_box_autoadd_generate_stems(raw[1]),
         );
-      case 89:
-        return Event_RefreshTrack(dco_decode_box_autoadd_refresh_track(raw[1]));
       case 90:
+        return Event_RefreshTrack(dco_decode_box_autoadd_refresh_track(raw[1]));
+      case 91:
         return Event_SaveBeatGrid(
           dco_decode_box_autoadd_save_beat_grid(raw[1]),
         );
-      case 91:
+      case 92:
         return Event_SaveTrackHotCue(
           dco_decode_box_autoadd_save_track_hot_cue(raw[1]),
         );
-      case 92:
+      case 93:
         return Event_DeleteTrackHotCue(
           dco_decode_box_autoadd_delete_track_hot_cue(raw[1]),
         );
-      case 93:
+      case 94:
         return Event_SaveTrackLoop(
           dco_decode_box_autoadd_save_track_loop(raw[1]),
         );
-      case 94:
+      case 95:
         return Event_DeleteTrackLoop(
           dco_decode_box_autoadd_delete_track_loop(raw[1]),
         );
-      case 95:
+      case 96:
         return Event_TrackAnalyzed(
           dco_decode_box_autoadd_track_analyzed(raw[1]),
         );
-      case 96:
-        return Event_TrackUpdated(dco_decode_box_autoadd_track_updated(raw[1]));
       case 97:
+        return Event_TrackUpdated(dco_decode_box_autoadd_track_updated(raw[1]));
+      case 98:
         return Event_TrackProgress(
           dco_decode_box_autoadd_track_progress(raw[1]),
         );
-      case 98:
+      case 99:
         return Event_HotCuesChanged(
           dco_decode_box_autoadd_hot_cues_changed(raw[1]),
         );
-      case 99:
-        return Event_LoopsChanged(dco_decode_box_autoadd_loops_changed(raw[1]));
       case 100:
+        return Event_LoopsChanged(dco_decode_box_autoadd_loops_changed(raw[1]));
+      case 101:
         return Event_BeatGridChanged(
           dco_decode_box_autoadd_beat_grid_changed(raw[1]),
         );
-      case 101:
+      case 102:
         return Event_HistorySessionUpdated(
           dco_decode_box_autoadd_history_session_updated(raw[1]),
         );
-      case 102:
-        return Event_Navigate(dco_decode_box_autoadd_navigate(raw[1]));
       case 103:
-        return Event_Focus(dco_decode_box_autoadd_focus(raw[1]));
+        return Event_Navigate(dco_decode_box_autoadd_navigate(raw[1]));
       case 104:
-        return Event_Load(dco_decode_box_autoadd_load(raw[1]));
+        return Event_Focus(dco_decode_box_autoadd_focus(raw[1]));
       case 105:
-        return Event_MappingOffer(dco_decode_box_autoadd_mapping_offer(raw[1]));
+        return Event_Load(dco_decode_box_autoadd_load(raw[1]));
       case 106:
+        return Event_MappingOffer(dco_decode_box_autoadd_mapping_offer(raw[1]));
+      case 107:
         return Event_MappingAttached(
           dco_decode_box_autoadd_mapping_attached(raw[1]),
         );
-      case 107:
+      case 108:
         return Event_MappingDetached(
           dco_decode_box_autoadd_mapping_detached(raw[1]),
         );
@@ -11183,6 +11194,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetFxLevelCurve dco_decode_set_fx_level_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SetFxLevelCurve(id: dco_decode_String(arr[0]));
+  }
+
+  @protected
   SetFxUnitParam dco_decode_set_fx_unit_param(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -12051,6 +12071,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_defaultTempoRange = sse_decode_f_32(deserializer);
     var var_tempoRangeSteps = sse_decode_list_prim_f_32_strict(deserializer);
     var var_defaultTempoCurve = sse_decode_String(deserializer);
+    var var_defaultFxLevelCurve = sse_decode_String(deserializer);
     var var_defaultCrossfaderCurve = sse_decode_String(deserializer);
     var var_crossfaderBehavior = sse_decode_crossfader_behavior_setting(
       deserializer,
@@ -12116,6 +12137,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultTempoRange: var_defaultTempoRange,
       tempoRangeSteps: var_tempoRangeSteps,
       defaultTempoCurve: var_defaultTempoCurve,
+      defaultFxLevelCurve: var_defaultFxLevelCurve,
       defaultCrossfaderCurve: var_defaultCrossfaderCurve,
       crossfaderBehavior: var_crossfaderBehavior,
       curveLibrary: var_curveLibrary,
@@ -12911,6 +12933,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SetFilter sse_decode_box_autoadd_set_filter(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_set_filter(deserializer));
+  }
+
+  @protected
+  SetFxLevelCurve sse_decode_box_autoadd_set_fx_level_curve(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_fx_level_curve(deserializer));
   }
 
   @protected
@@ -14196,98 +14226,103 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_wet(deserializer);
         return Event_SetFxUnitWet(var_field0);
       case 79:
+        var var_field0 = sse_decode_box_autoadd_set_fx_level_curve(
+          deserializer,
+        );
+        return Event_SetFxLevelCurve(var_field0);
+      case 80:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_param(deserializer);
         return Event_SetFxUnitParam(var_field0);
-      case 80:
+      case 81:
         var var_field0 = sse_decode_box_autoadd_set_deck_fx_routed(
           deserializer,
         );
         return Event_SetDeckFxRouted(var_field0);
-      case 81:
+      case 82:
         var var_field0 = sse_decode_box_autoadd_deck_updated(deserializer);
         return Event_DeckUpdated(var_field0);
-      case 82:
+      case 83:
         var var_field0 = sse_decode_box_autoadd_deck_position(deserializer);
         return Event_DeckPosition(var_field0);
-      case 83:
+      case 84:
         var var_field0 = sse_decode_box_autoadd_deck_levels(deserializer);
         return Event_DeckLevels(var_field0);
-      case 84:
+      case 85:
         var var_field0 = sse_decode_box_autoadd_engine_snapshot(deserializer);
         return Event_EngineSnapshot(var_field0);
-      case 85:
+      case 86:
         var var_field0 = sse_decode_box_autoadd_error(deserializer);
         return Event_Error(var_field0);
-      case 86:
+      case 87:
         var var_field0 = sse_decode_box_autoadd_notice(deserializer);
         return Event_Notice(var_field0);
-      case 87:
+      case 88:
         var var_field0 = sse_decode_box_autoadd_analyze_track(deserializer);
         return Event_AnalyzeTrack(var_field0);
-      case 88:
+      case 89:
         var var_field0 = sse_decode_box_autoadd_generate_stems(deserializer);
         return Event_GenerateStems(var_field0);
-      case 89:
+      case 90:
         var var_field0 = sse_decode_box_autoadd_refresh_track(deserializer);
         return Event_RefreshTrack(var_field0);
-      case 90:
+      case 91:
         var var_field0 = sse_decode_box_autoadd_save_beat_grid(deserializer);
         return Event_SaveBeatGrid(var_field0);
-      case 91:
+      case 92:
         var var_field0 = sse_decode_box_autoadd_save_track_hot_cue(
           deserializer,
         );
         return Event_SaveTrackHotCue(var_field0);
-      case 92:
+      case 93:
         var var_field0 = sse_decode_box_autoadd_delete_track_hot_cue(
           deserializer,
         );
         return Event_DeleteTrackHotCue(var_field0);
-      case 93:
+      case 94:
         var var_field0 = sse_decode_box_autoadd_save_track_loop(deserializer);
         return Event_SaveTrackLoop(var_field0);
-      case 94:
+      case 95:
         var var_field0 = sse_decode_box_autoadd_delete_track_loop(deserializer);
         return Event_DeleteTrackLoop(var_field0);
-      case 95:
+      case 96:
         var var_field0 = sse_decode_box_autoadd_track_analyzed(deserializer);
         return Event_TrackAnalyzed(var_field0);
-      case 96:
+      case 97:
         var var_field0 = sse_decode_box_autoadd_track_updated(deserializer);
         return Event_TrackUpdated(var_field0);
-      case 97:
+      case 98:
         var var_field0 = sse_decode_box_autoadd_track_progress(deserializer);
         return Event_TrackProgress(var_field0);
-      case 98:
+      case 99:
         var var_field0 = sse_decode_box_autoadd_hot_cues_changed(deserializer);
         return Event_HotCuesChanged(var_field0);
-      case 99:
+      case 100:
         var var_field0 = sse_decode_box_autoadd_loops_changed(deserializer);
         return Event_LoopsChanged(var_field0);
-      case 100:
+      case 101:
         var var_field0 = sse_decode_box_autoadd_beat_grid_changed(deserializer);
         return Event_BeatGridChanged(var_field0);
-      case 101:
+      case 102:
         var var_field0 = sse_decode_box_autoadd_history_session_updated(
           deserializer,
         );
         return Event_HistorySessionUpdated(var_field0);
-      case 102:
+      case 103:
         var var_field0 = sse_decode_box_autoadd_navigate(deserializer);
         return Event_Navigate(var_field0);
-      case 103:
+      case 104:
         var var_field0 = sse_decode_box_autoadd_focus(deserializer);
         return Event_Focus(var_field0);
-      case 104:
+      case 105:
         var var_field0 = sse_decode_box_autoadd_load(deserializer);
         return Event_Load(var_field0);
-      case 105:
+      case 106:
         var var_field0 = sse_decode_box_autoadd_mapping_offer(deserializer);
         return Event_MappingOffer(var_field0);
-      case 106:
+      case 107:
         var var_field0 = sse_decode_box_autoadd_mapping_attached(deserializer);
         return Event_MappingAttached(var_field0);
-      case 107:
+      case 108:
         var var_field0 = sse_decode_box_autoadd_mapping_detached(deserializer);
         return Event_MappingDetached(var_field0);
       default:
@@ -16087,6 +16122,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetFxLevelCurve sse_decode_set_fx_level_curve(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    return SetFxLevelCurve(id: var_id);
+  }
+
+  @protected
   SetFxUnitParam sse_decode_set_fx_unit_param(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_slot = sse_decode_u_8(deserializer);
@@ -16909,6 +16951,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.defaultTempoRange, serializer);
     sse_encode_list_prim_f_32_strict(self.tempoRangeSteps, serializer);
     sse_encode_String(self.defaultTempoCurve, serializer);
+    sse_encode_String(self.defaultFxLevelCurve, serializer);
     sse_encode_String(self.defaultCrossfaderCurve, serializer);
     sse_encode_crossfader_behavior_setting(self.crossfaderBehavior, serializer);
     sse_encode_curve_library_spec(self.curveLibrary, serializer);
@@ -17800,6 +17843,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_set_filter(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_level_curve(
+    SetFxLevelCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_fx_level_curve(self, serializer);
   }
 
   @protected
@@ -18887,92 +18939,95 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case Event_SetFxUnitWet(field0: final field0):
         sse_encode_i_32(78, serializer);
         sse_encode_box_autoadd_set_fx_unit_wet(field0, serializer);
-      case Event_SetFxUnitParam(field0: final field0):
+      case Event_SetFxLevelCurve(field0: final field0):
         sse_encode_i_32(79, serializer);
+        sse_encode_box_autoadd_set_fx_level_curve(field0, serializer);
+      case Event_SetFxUnitParam(field0: final field0):
+        sse_encode_i_32(80, serializer);
         sse_encode_box_autoadd_set_fx_unit_param(field0, serializer);
       case Event_SetDeckFxRouted(field0: final field0):
-        sse_encode_i_32(80, serializer);
+        sse_encode_i_32(81, serializer);
         sse_encode_box_autoadd_set_deck_fx_routed(field0, serializer);
       case Event_DeckUpdated(field0: final field0):
-        sse_encode_i_32(81, serializer);
+        sse_encode_i_32(82, serializer);
         sse_encode_box_autoadd_deck_updated(field0, serializer);
       case Event_DeckPosition(field0: final field0):
-        sse_encode_i_32(82, serializer);
+        sse_encode_i_32(83, serializer);
         sse_encode_box_autoadd_deck_position(field0, serializer);
       case Event_DeckLevels(field0: final field0):
-        sse_encode_i_32(83, serializer);
+        sse_encode_i_32(84, serializer);
         sse_encode_box_autoadd_deck_levels(field0, serializer);
       case Event_EngineSnapshot(field0: final field0):
-        sse_encode_i_32(84, serializer);
+        sse_encode_i_32(85, serializer);
         sse_encode_box_autoadd_engine_snapshot(field0, serializer);
       case Event_Error(field0: final field0):
-        sse_encode_i_32(85, serializer);
+        sse_encode_i_32(86, serializer);
         sse_encode_box_autoadd_error(field0, serializer);
       case Event_Notice(field0: final field0):
-        sse_encode_i_32(86, serializer);
+        sse_encode_i_32(87, serializer);
         sse_encode_box_autoadd_notice(field0, serializer);
       case Event_AnalyzeTrack(field0: final field0):
-        sse_encode_i_32(87, serializer);
+        sse_encode_i_32(88, serializer);
         sse_encode_box_autoadd_analyze_track(field0, serializer);
       case Event_GenerateStems(field0: final field0):
-        sse_encode_i_32(88, serializer);
+        sse_encode_i_32(89, serializer);
         sse_encode_box_autoadd_generate_stems(field0, serializer);
       case Event_RefreshTrack(field0: final field0):
-        sse_encode_i_32(89, serializer);
+        sse_encode_i_32(90, serializer);
         sse_encode_box_autoadd_refresh_track(field0, serializer);
       case Event_SaveBeatGrid(field0: final field0):
-        sse_encode_i_32(90, serializer);
+        sse_encode_i_32(91, serializer);
         sse_encode_box_autoadd_save_beat_grid(field0, serializer);
       case Event_SaveTrackHotCue(field0: final field0):
-        sse_encode_i_32(91, serializer);
+        sse_encode_i_32(92, serializer);
         sse_encode_box_autoadd_save_track_hot_cue(field0, serializer);
       case Event_DeleteTrackHotCue(field0: final field0):
-        sse_encode_i_32(92, serializer);
+        sse_encode_i_32(93, serializer);
         sse_encode_box_autoadd_delete_track_hot_cue(field0, serializer);
       case Event_SaveTrackLoop(field0: final field0):
-        sse_encode_i_32(93, serializer);
+        sse_encode_i_32(94, serializer);
         sse_encode_box_autoadd_save_track_loop(field0, serializer);
       case Event_DeleteTrackLoop(field0: final field0):
-        sse_encode_i_32(94, serializer);
+        sse_encode_i_32(95, serializer);
         sse_encode_box_autoadd_delete_track_loop(field0, serializer);
       case Event_TrackAnalyzed(field0: final field0):
-        sse_encode_i_32(95, serializer);
+        sse_encode_i_32(96, serializer);
         sse_encode_box_autoadd_track_analyzed(field0, serializer);
       case Event_TrackUpdated(field0: final field0):
-        sse_encode_i_32(96, serializer);
+        sse_encode_i_32(97, serializer);
         sse_encode_box_autoadd_track_updated(field0, serializer);
       case Event_TrackProgress(field0: final field0):
-        sse_encode_i_32(97, serializer);
+        sse_encode_i_32(98, serializer);
         sse_encode_box_autoadd_track_progress(field0, serializer);
       case Event_HotCuesChanged(field0: final field0):
-        sse_encode_i_32(98, serializer);
+        sse_encode_i_32(99, serializer);
         sse_encode_box_autoadd_hot_cues_changed(field0, serializer);
       case Event_LoopsChanged(field0: final field0):
-        sse_encode_i_32(99, serializer);
+        sse_encode_i_32(100, serializer);
         sse_encode_box_autoadd_loops_changed(field0, serializer);
       case Event_BeatGridChanged(field0: final field0):
-        sse_encode_i_32(100, serializer);
+        sse_encode_i_32(101, serializer);
         sse_encode_box_autoadd_beat_grid_changed(field0, serializer);
       case Event_HistorySessionUpdated(field0: final field0):
-        sse_encode_i_32(101, serializer);
+        sse_encode_i_32(102, serializer);
         sse_encode_box_autoadd_history_session_updated(field0, serializer);
       case Event_Navigate(field0: final field0):
-        sse_encode_i_32(102, serializer);
+        sse_encode_i_32(103, serializer);
         sse_encode_box_autoadd_navigate(field0, serializer);
       case Event_Focus(field0: final field0):
-        sse_encode_i_32(103, serializer);
+        sse_encode_i_32(104, serializer);
         sse_encode_box_autoadd_focus(field0, serializer);
       case Event_Load(field0: final field0):
-        sse_encode_i_32(104, serializer);
+        sse_encode_i_32(105, serializer);
         sse_encode_box_autoadd_load(field0, serializer);
       case Event_MappingOffer(field0: final field0):
-        sse_encode_i_32(105, serializer);
+        sse_encode_i_32(106, serializer);
         sse_encode_box_autoadd_mapping_offer(field0, serializer);
       case Event_MappingAttached(field0: final field0):
-        sse_encode_i_32(106, serializer);
+        sse_encode_i_32(107, serializer);
         sse_encode_box_autoadd_mapping_attached(field0, serializer);
       case Event_MappingDetached(field0: final field0):
-        sse_encode_i_32(107, serializer);
+        sse_encode_i_32(108, serializer);
         sse_encode_box_autoadd_mapping_detached(field0, serializer);
     }
   }
@@ -20523,6 +20578,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_16(self.deck, serializer);
     sse_encode_f_32(self.filter, serializer);
     sse_encode_bool(self.softTakeover, serializer);
+  }
+
+  @protected
+  void sse_encode_set_fx_level_curve(
+    SetFxLevelCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
   }
 
   @protected

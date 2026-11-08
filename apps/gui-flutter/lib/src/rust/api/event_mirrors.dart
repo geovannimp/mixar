@@ -1323,6 +1323,8 @@ sealed class Event with _$Event {
   const factory Event.setFxUnitSlotEnabled(SetFxUnitSlotEnabled field0) =
       Event_SetFxUnitSlotEnabled;
   const factory Event.setFxUnitWet(SetFxUnitWet field0) = Event_SetFxUnitWet;
+  const factory Event.setFxLevelCurve(SetFxLevelCurve field0) =
+      Event_SetFxLevelCurve;
   const factory Event.setFxUnitParam(SetFxUnitParam field0) =
       Event_SetFxUnitParam;
   const factory Event.setDeckFxRouted(SetDeckFxRouted field0) =
@@ -2541,6 +2543,22 @@ class SetFilter {
           deck == other.deck &&
           filter == other.filter &&
           softTakeover == other.softTakeover;
+}
+
+class SetFxLevelCurve {
+  final String id;
+
+  const SetFxLevelCurve({required this.id});
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetFxLevelCurve &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 }
 
 class SetFxUnitParam {

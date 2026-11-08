@@ -760,6 +760,11 @@ pub struct _SetFxUnitWet {
     pub soft_takeover: bool,
 }
 
+#[flutter_rust_bridge::frb(mirror(SetFxLevelCurve))]
+pub struct _SetFxLevelCurve {
+    pub id: String,
+}
+
 #[flutter_rust_bridge::frb(mirror(SetFxUnitParam))]
 pub struct _SetFxUnitParam {
     pub slot: u8,
@@ -1072,6 +1077,7 @@ pub enum _Event {
     SetFxUnitSlot(SetFxUnitSlot),
     SetFxUnitSlotEnabled(SetFxUnitSlotEnabled),
     SetFxUnitWet(SetFxUnitWet),
+    SetFxLevelCurve(SetFxLevelCurve),
     SetFxUnitParam(SetFxUnitParam),
     SetDeckFxRouted(SetDeckFxRouted),
     DeckUpdated(DeckUpdated),
@@ -1184,6 +1190,7 @@ pub enum _Topic {
     SetFxUnitSlot,
     SetFxUnitSlotEnabled,
     SetFxUnitWet,
+    SetFxLevelCurve,
     SetFxUnitParam,
     SetDeckFxRouted,
     DeckUpdated,

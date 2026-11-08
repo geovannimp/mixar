@@ -228,6 +228,11 @@ bus_events! {
         { slot: u8, enabled: bool };
     SetFxUnitWet: Update, Entity::Mixer, Part::Index(*slot),
         { slot: u8, wet: f32, soft_takeover: bool };
+    /// Select the shared FX level/depth curve by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetFxLevelCurve: Update, Entity::Mixer, Part::Whole,
+        { id: String };
     SetFxUnitParam: Update, Entity::Mixer, Part::Pair(*slot, *param),
         { slot: u8, param: u8, value: f32 };
     SetDeckFxRouted: Update, Entity::Deck(*deck), Part::Whole,

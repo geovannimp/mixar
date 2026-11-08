@@ -1098,7 +1098,9 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             soft_takeover,
         }) => with_engine_mut(engine, |eng| {
             let key = soft_takeover::key_mixer(&format!("fx_wet{slot}"));
-            let current = eng.fx_unit_wet(*slot).unwrap_or(0.5);
+            // Compare in the pre-curve control domain: the knob position the
+            // controller reports and the level the slot stores share `0..1`.
+            let current = eng.fx_unit_level(*slot).unwrap_or(0.5);
             if !gate_mixer_soft_takeover(eng, &key, *soft_takeover, current, *wet) {
                 return Ok(CmdOutcome::Silent);
             }
@@ -1106,6 +1108,12 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             Ok(CmdOutcome::DecksUpdated(
                 (0..eng.config.num_decks).collect(),
             ))
+        }),
+        Event::SetFxLevelCurve(bus_api::SetFxLevelCurve { id }) => with_engine_mut(engine, |eng| {
+            Ok(match eng.select_fx_level_curve(id)? {
+                Some(message) => CmdOutcome::EngineStatusWithNotice(message),
+                None => CmdOutcome::EngineStatus,
+            })
         }),
         Event::SetFxUnitParam(bus_api::SetFxUnitParam { slot, param, value }) => {
             with_engine_mut(engine, |eng| {

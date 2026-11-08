@@ -698,6 +698,7 @@ fn empty_audio() -> crate::config::AudioConfig {
         default_crossfader_curve: None,
         default_channel_fader_curve: None,
         default_tempo_curve: None,
+        default_fx_level_curve: None,
         crossfader_behavior: None,
         curve_library: None,
     }
@@ -987,10 +988,121 @@ fn invalid_tempo_curves_fall_back_to_linear_with_a_notice() {
 }
 
 #[test]
+fn default_fx_level_curve_is_linear_and_preserves_wet() {
+    let mut engine = started_null_engine();
+    assert_eq!(
+        engine.fx_level_curve_selection().id,
+        bus_api::DEFAULT_FX_LEVEL_CURVE_ID
+    );
+
+    engine.set_fx_unit_wet(0, 0.25).unwrap();
+    assert!((engine.fx_unit_wet(0).expect("slot 0") - 0.25).abs() < 1e-6);
+    assert!((engine.fx_unit_level(0).expect("slot 0") - 0.25).abs() < 1e-6);
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn configured_custom_fx_level_curve_applies_on_start() {
+    let mut audio = empty_audio();
+    audio.default_fx_level_curve = Some("taper".into());
+    audio.curve_library = Some(bus_api::CurveLibrarySpec {
+        groups: vec![one_channel_group(
+            "taper",
+            &[(0.0, 0.0), (0.5, 0.25), (1.0, 1.0)],
+        )],
+        sets: vec![],
+    });
+    let mut engine = started_null_engine_with_audio(audio);
+
+    assert_eq!(
+        engine.fx_level_curve_selection().id,
+        "taper",
+        "the configured default is the active selection"
+    );
+    engine.set_fx_unit_wet(0, 0.5).unwrap();
+    assert!(
+        (engine.fx_unit_wet(0).expect("slot 0") - 0.25).abs() < 1e-4,
+        "custom level: {:?}",
+        engine.fx_unit_wet(0)
+    );
+    assert!(
+        (engine.fx_unit_level(0).expect("slot 0") - 0.5).abs() < 1e-6,
+        "the raw control position is preserved"
+    );
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn custom_fx_level_curve_changes_without_restart() {
+    let mut engine = started_null_engine();
+    engine.set_fx_unit_wet(0, 0.5).unwrap();
+    assert!((engine.fx_unit_wet(0).expect("slot 0") - 0.5).abs() < 1e-6);
+
+    engine
+        .set_curve_library(&bus_api::CurveLibrarySpec {
+            groups: vec![one_channel_group(
+                "taper",
+                &[(0.0, 0.0), (0.5, 0.25), (1.0, 1.0)],
+            )],
+            sets: vec![],
+        })
+        .unwrap();
+    assert_eq!(engine.select_fx_level_curve("taper").unwrap(), None);
+    assert_eq!(engine.fx_level_curve_selection().id, "taper");
+
+    assert!(
+        engine.engine_status_snapshot().is_some(),
+        "engine is running"
+    );
+    assert!(
+        (engine.fx_unit_wet(0).expect("slot 0") - 0.25).abs() < 1e-4,
+        "runtime level: {:?}",
+        engine.fx_unit_wet(0)
+    );
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn invalid_fx_level_curves_fall_back_to_linear_with_a_notice() {
+    // A two-channel group is valid for the crossfader but not a scalar level.
+    let mut audio = empty_audio();
+    audio.default_fx_level_curve = Some("pair".into());
+    audio.curve_library = Some(bus_api::CurveLibrarySpec {
+        groups: vec![custom_group("pair", 1.0, 0.0)],
+        sets: vec![],
+    });
+    let mut engine = started_null_engine_with_audio(audio);
+    assert_eq!(
+        engine.fx_level_curve_selection().id,
+        bus_api::DEFAULT_FX_LEVEL_CURVE_ID
+    );
+
+    engine.set_fx_unit_wet(0, 0.5).unwrap();
+    let notice = engine.select_fx_level_curve("pair").unwrap();
+    assert!(notice.expect("notice").contains("needs 1 curves"));
+    assert!((engine.fx_unit_wet(0).expect("slot 0") - 0.5).abs() < 1e-6);
+
+    let two_channel = curve_core::ResolvedCurveGroup::single(
+        &curve_core::CurveGroup::new(vec![
+            curve_core::presets::linear(),
+            curve_core::presets::linear(),
+        ])
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(engine.set_fx_level_curve(two_channel).is_err());
+    assert!((engine.fx_unit_wet(0).expect("slot 0") - 0.5).abs() < 1e-6);
+
+    engine.stop().unwrap();
+}
+
+#[test]
 fn curve_library_selects_custom_groups_and_reports_status() {
     let mut engine = started_null_engine();
     engine.set_crossfader(0.0).unwrap();
-
     let library = bus_api::CurveLibrarySpec {
         groups: vec![
             custom_group("tight", 1.0, 0.0),

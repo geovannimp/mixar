@@ -49,6 +49,7 @@ use bus_api::SetCueVolume;
 use bus_api::SetDeckFxRouted;
 use bus_api::SetEqBand;
 use bus_api::SetFilter;
+use bus_api::SetFxLevelCurve;
 use bus_api::SetFxUnitParam;
 use bus_api::SetFxUnitSlot;
 use bus_api::SetFxUnitSlotEnabled;
@@ -816,6 +817,13 @@ pub fn resolve_action(
                 soft_takeover,
             })
         }),
+        "set_fx_level_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            mixer_cmd(|| Event::SetFxLevelCurve(SetFxLevelCurve { id: id.to_string() }))
+        }
         // CH SELECT is exclusive: every press publishes the full routing group.
         "set_fx_route" => {
             if !active {
@@ -1714,6 +1722,28 @@ mod tests {
             RoutedAction::Cmd(Event::SetTempoCurve(SetTempoCurve {
                 deck: 0,
                 id: "linear".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
+    fn set_fx_level_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Mixer::set_fx_level_curve(id:taper)",
+                "master",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetFxLevelCurve(SetFxLevelCurve {
+                id: "taper".into(),
             }))
         );
         assert!(route(false).is_none(), "releases publish nothing");

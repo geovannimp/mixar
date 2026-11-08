@@ -34,6 +34,7 @@ fn null_session_with_synced_decks() -> EngineSession {
             default_crossfader_curve: None,
             default_channel_fader_curve: None,
             default_tempo_curve: None,
+            default_fx_level_curve: None,
             crossfader_behavior: None,
             curve_library: None,
         }),

@@ -330,6 +330,21 @@ impl Mixer {
         Ok(())
     }
 
+    /// Install one compiled FX level curve on every deck's shared FX chain.
+    ///
+    /// Resolve and compile the curve before taking the DSP mutex; this method
+    /// only swaps the prepared value. A multi-channel group is rejected before
+    /// any chain is touched.
+    pub fn set_fx_level_curve(&mut self, curve: ResolvedCurveGroup) -> Result<(), CurveError> {
+        let compiled = crate::FxLevelCurve::new(curve)?;
+        for index in 0..self.lane_node_ids.len() {
+            if let Some(channel) = self.channel_mut(index) {
+                channel.fx_mut().set_level_curve(compiled.clone());
+            }
+        }
+        Ok(())
+    }
+
     /// Behavior flags currently applied after the curve.
     pub fn crossfader_curve_behavior(&self) -> CrossfaderCurveBehavior {
         self.crossfader_curve.behavior()
