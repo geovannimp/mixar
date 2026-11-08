@@ -604,10 +604,10 @@ CurveSpecSpec moveCurvePoint(
   final last = curve.points.length - 1;
   final lower = index == 0
       ? 0.0
-      : math.max(0.0, curve.points[index - 1].x + epsilon);
+      : math.max(0, curve.points[index - 1].x + epsilon).toDouble();
   final upper = index == last
       ? 1.0
-      : math.min(1.0, curve.points[index + 1].x - epsilon);
+      : math.min(1, curve.points[index + 1].x - epsilon).toDouble();
   if (lower > upper) {
     return curve;
   }
