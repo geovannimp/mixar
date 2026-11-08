@@ -26,6 +26,7 @@
     "website:build": "moon run website:build"
   },
   "devDependencies": {
+    "@bundled-es-modules/deepmerge": "file:./packages/style-generator/vendor/deepmerge-safe",
     "@moonrepo/cli": "^2.6.2",
     "lefthook": "2.1.10"
   },
@@ -33,6 +34,8 @@
     "lefthook": true
   },
   "overrides": {
-    "katex": "^0.18.2"
+    "katex": "^0.18.2",
+    "glob": "^14.0.4",
+    "@bundled-es-modules/deepmerge": "$@bundled-es-modules/deepmerge"
   }
 }
