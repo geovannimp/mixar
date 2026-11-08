@@ -94,15 +94,26 @@ jobs:
       - name: Setup toolchains
         uses: ./.github/actions/setup-toolchains
 
+      # Derive the Windows Flutter pin from mise.toml so the release build
+      # cannot drift from the toolchain CI installs.
+      - name: Read Flutter version from mise
+        if: runner.os == 'Windows'
+        id: flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "version=$(mise current flutter)" >> "$GITHUB_OUTPUT"
+
       # Windows Release: official Flutter action sets FLUTTER_ROOT (cargokit
-      # run_build_tool.cmd needs it). Keep mise for Rust/Node/ninja; pin matches
-      # mise.toml. Re-apply PUB_CACHE after this — flutter-action may reset it.
+      # run_build_tool.cmd needs it). Keep mise for Rust/Node/ninja; the
+      # Flutter version comes from mise.toml via `mise current flutter`.
+      # Re-apply PUB_CACHE after this — flutter-action may reset it.
       - name: Set up Flutter (Windows)
         if: runner.os == 'Windows'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.47.0'
+          flutter-version: ${{ steps.flutter.outputs.version }}
           cache: true
 
       - name: Use non-AppData PUB_CACHE (Windows)

@@ -23,32 +23,7 @@
     "apps/gui-flutter/rust_builder/**",
   ],
 
-  // Renovate does not parse the with.flutter-version input in release.yml, so
-  // this regex manager keeps it in step with the Flutter pin in mise.toml.
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Flutter SDK pin used by the Windows release build",
-      "managerFilePatterns": [
-        "/^\\.github/workflows/release\\.yml$/",
-      ],
-      "matchStrings": [
-        "flutter-version:\\s*'(?<currentValue>[^']+)'",
-      ],
-      "datasourceTemplate": "flutter-version",
-      "depNameTemplate": "flutter",
-    },
-  ],
-
   "packageRules": [
-    // Both the mise manager and the regex manager above use the
-    // flutter-version datasource, so group them into one SDK PR.
-    {
-      "description": "Keep the SDK pin in mise.toml and release.yml together",
-      "matchDatasources": ["flutter-version"],
-      "groupName": "Flutter SDK",
-    },
-
     // Minor/patch updates are grouped per ecosystem so the PR queue stays
     // reviewable; majors remain individual.
     {
@@ -103,8 +78,11 @@
       "enabled": false,
     },
 
-    // These plugin IDs are supplied by the Flutter SDK's included Gradle
-    // build. Updating them independently causes version skew with Flutter.
+    // Source of truth: apps/gui-flutter/android/settings.gradle.kts
+    // (flutter-plugin-loader) and app/build.gradle.kts (flutter-gradle-plugin).
+    // These IDs come from the Flutter SDK includeBuild, not a version catalog.
+    // Renovate cannot import Kotlin constants, so keep this list in step when
+    // Flutter changes its plugin IDs; updating them independently causes skew.
     {
       "description": "Flutter supplies these Gradle plugins from its SDK",
       "matchManagers": ["gradle"],
