@@ -1,0 +1,18 @@
+# Octo STS trust policy for .github/workflows/renovate.yml.
+#
+# The Renovate workflow exchanges its GitHub Actions OIDC token for a
+# short-lived GitHub App token with the permissions below. No PAT is stored.
+#
+# This policy must live at .github/chainguard/<identity>.sts.yaml, where
+# <identity> matches the `identity` input of the octo-sts/action step.
+issuer: https://token.actions.githubusercontent.com
+subject: repo:geovannimp/mixar:ref:refs/heads/main
+
+permissions:
+  checks: write
+  contents: write
+  issues: write
+  members: read
+  pull_requests: write
+  statuses: write
+  workflows: write
