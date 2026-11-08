@@ -16,6 +16,7 @@ event-bus = { path = "../event-bus" }
 omnibus = "0.1"
 audio-core = { path = "../audio-core" }
 analyzer-core = { path = "../analyzer-core" }
+curve-core = { path = "../curve-core" }
 engine-dsp = { path = "../engine-dsp" }
 library-core = { path = "../library-core" }
 library = { path = "../library", default-features = false, features = ["analysis"] }

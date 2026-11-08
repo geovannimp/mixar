@@ -9,6 +9,7 @@ mod callback;
 mod config;
 mod control;
 mod control_norm;
+pub mod curve_presets;
 mod deck_pads;
 mod engine;
 mod library_bridge;
@@ -36,6 +37,11 @@ pub use config::{
     MAX_DECKS,
 };
 pub use control::{spawn_engine_worker, EngineWorker};
+pub use curve_presets::{
+    available_presets, catalog as crossfader_preset_catalog, CrossfaderCurveError,
+    CrossfaderPreset, CrossfaderPresetError, CrossfaderPresetInfo, CrossfaderPresetParameter,
+    DEFAULT_PRESET_ID,
+};
 pub use engine::Engine;
 pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
 pub use library::PreparedTrackPlayback;
