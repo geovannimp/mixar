@@ -70,6 +70,16 @@ Set history uses these assignments when deciding whether a playing deck is audib
 
 The crossfader and its hairline can be taken off screen: **Settings → Layout → Mixer strip → Crossfader**. The decks keep their assignments, so hardware and set history still follow them.
 
+### Curve
+
+The crossfader's gain law comes from **Settings → Mixer → Crossfader → Default curve**:
+
+- **Constant power** (default) keeps the sum of both sides even across the middle, so the overall level does not dip as you cross.
+- **Linear** is the plain `1 - x` / `x` fade.
+- **Fast cut** stays at full gain near each end and swaps over in a short distance, useful for cut-based mixing.
+
+Two flags modify any curve. **Hamster** swaps the A and B gains without mirroring the fader position. **Disable the crossfader** leaves both sides at full gain, so the fader does nothing except for decks assigned to **Thru**. A mapped controller can change the active curve, sweep a curve set, or flip either flag live; the app's **Default curve** only decides what a freshly started engine begins with.
+
 ## Master output
 
 The **master meter** sits at the left of the FX bar under the library. Click it to open **Levels**, which holds the master output level, the master cue toggle, the headphone level, and the cue/master blend for the headphones. See [Cueing](/docs/users/mixer/cueing) for how the headphone bus is built and what each control does.

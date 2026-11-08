@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 void main() {
@@ -448,6 +449,41 @@ void main() {
     expect(
       effectiveSelectStyle(SelectStyleSetting.desktop),
       SelectStyleSetting.desktop,
+    );
+  });
+
+  test('crossfader curve defaults to equal power with no flags', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.defaultCrossfaderCurve, 'constant_power');
+    expect(baseline.crossfaderBehavior.hamster, isFalse);
+    expect(baseline.crossfaderBehavior.disabled, isFalse);
+    expect(baseline.curveLibrary.groups, isEmpty);
+    expect(baseline.curveLibrary.sets, isEmpty);
+    // Mirrors `bus_api::CROSSFADER_CURVE_CYCLE` on the Rust side.
+    expect(kCrossfaderCurvePresets, ['constant_power', 'linear', 'fast_cut']);
+  });
+
+  test('curve and behavior edits are dirty', () {
+    final baseline = defaultAppSettings();
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, defaultCrossfaderCurve: 'linear'),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(
+          baseline,
+          crossfaderBehavior: const CrossfaderBehaviorSetting(
+            disabled: false,
+            hamster: true,
+          ),
+        ),
+        baseline,
+      ),
+      isTrue,
     );
   });
 }

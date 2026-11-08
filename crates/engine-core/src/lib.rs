@@ -9,6 +9,7 @@ mod callback;
 mod config;
 mod control;
 mod control_norm;
+mod curve_library;
 pub mod curve_presets;
 mod deck_pads;
 mod engine;
@@ -39,6 +40,10 @@ pub use config::{
 };
 pub use control::{spawn_engine_worker, EngineWorker};
 pub use curve_core::CurveGroup;
+pub use curve_library::{
+    behavior_from_setting, behavior_setting, library_from_spec, resolve_selection,
+    CrossfaderCurveSelection, ResolvedCurveSelection,
+};
 pub use curve_presets::{
     available_presets, catalog as crossfader_preset_catalog, CrossfaderCurveError,
     CrossfaderPreset, CrossfaderPresetError, CrossfaderPresetInfo, CrossfaderPresetParameter,

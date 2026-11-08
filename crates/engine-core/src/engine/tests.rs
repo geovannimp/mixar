@@ -596,3 +596,266 @@ fn crossfader_preset_and_curve_set_install_without_restart() {
 
     engine.stop().unwrap();
 }
+
+/// Null-backend engine started with explicit audio defaults.
+fn started_null_engine_with_audio(audio: crate::config::AudioConfig) -> Engine {
+    let config = EngineConfig {
+        backend: "null".into(),
+        audio: Some(audio),
+        ..Default::default()
+    };
+    let mut engine = Engine::new(config).unwrap();
+    engine.start().unwrap();
+    engine
+}
+
+fn linear_curve_spec() -> bus_api::CurveSpecSpec {
+    bus_api::CurveSpecSpec {
+        points: vec![
+            bus_api::CurvePointSpec { x: 0.0, y: 1.0 },
+            bus_api::CurvePointSpec { x: 1.0, y: 0.0 },
+        ],
+        segments: vec![bus_api::CurveSegmentSpec {
+            kind: bus_api::CurveSegmentKind::Linear,
+            rate: 0.0,
+            c1x: 0.0,
+            c1y: 0.0,
+            c2x: 0.0,
+            c2y: 0.0,
+        }],
+    }
+}
+
+/// A two-channel custom group with the given A-side endpoint values.
+fn custom_group(id: &str, a_start: f32, a_end: f32) -> bus_api::CurveGroupSpec {
+    let mut deck_a = linear_curve_spec();
+    deck_a.points[0].y = a_start;
+    deck_a.points[1].y = a_end;
+    let deck_b = bus_api::CurveSpecSpec {
+        points: vec![
+            bus_api::CurvePointSpec {
+                x: 0.0,
+                y: 1.0 - a_start,
+            },
+            bus_api::CurvePointSpec {
+                x: 1.0,
+                y: 1.0 - a_end,
+            },
+        ],
+        segments: deck_a.segments.clone(),
+    };
+    bus_api::CurveGroupSpec {
+        id: id.to_string(),
+        display_name: id.to_string(),
+        curves: vec![deck_a, deck_b],
+    }
+}
+
+fn empty_audio() -> crate::config::AudioConfig {
+    crate::config::AudioConfig {
+        resampler_quality: Some("medium".into()),
+        sampler_strip_route: None,
+        default_tempo_range: None,
+        tempo_range_steps: None,
+        default_key_lock: None,
+        vinyl_brake_pause: None,
+        vinyl_brake_stop_secs: None,
+        default_crossfader_curve: None,
+        crossfader_behavior: None,
+        curve_library: None,
+    }
+}
+
+#[test]
+fn installing_a_preset_by_value_updates_the_status_selection() {
+    use crate::curve_presets::CrossfaderPreset;
+
+    let mut engine = started_null_engine();
+    engine
+        .set_crossfader_preset(CrossfaderPreset::Linear)
+        .unwrap();
+    let status = engine.engine_status_snapshot().unwrap().crossfader_curve;
+    assert_eq!(status.id, "linear");
+    assert_eq!(status.display_name, "Linear");
+    engine.stop().unwrap();
+}
+
+#[test]
+fn configured_default_curve_and_behavior_apply_on_start() {
+    let mut audio = empty_audio();
+    audio.default_crossfader_curve = Some("Linear".into());
+    audio.crossfader_behavior = Some(bus_api::CrossfaderBehaviorSetting {
+        hamster: true,
+        disabled: false,
+    });
+    let mut engine = started_null_engine_with_audio(audio);
+    engine.set_crossfader(0.0).unwrap();
+
+    // Linear with hamster swaps the ends: A is silent at the far left.
+    let (gain_a, gain_b) = engine.resolved_crossfader_gains().unwrap();
+    assert!(gain_a.abs() < 1e-4);
+    assert!((gain_b - 1.0).abs() < 1e-4);
+
+    let status = engine.engine_status_snapshot().unwrap().crossfader_curve;
+    assert_eq!(status.id, "linear", "aliases normalize to snake_case ids");
+    assert!(status.hamster);
+    assert!(!status.disabled);
+    assert!(status.morph.abs() < 1e-6);
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn unknown_default_curve_falls_back_to_constant_power() {
+    let mut audio = empty_audio();
+    audio.default_crossfader_curve = Some("no_such_curve".into());
+    let mut engine = started_null_engine_with_audio(audio);
+    engine.set_crossfader(0.5).unwrap();
+    let (gain_a, gain_b) = engine.resolved_crossfader_gains().unwrap();
+    assert!((gain_a - std::f32::consts::FRAC_1_SQRT_2).abs() < 1e-3);
+    assert!((gain_a - gain_b).abs() < 1e-6);
+    assert_eq!(
+        engine.engine_status_snapshot().unwrap().crossfader_curve.id,
+        bus_api::DEFAULT_CROSSFADER_CURVE_ID
+    );
+    engine.stop().unwrap();
+}
+
+#[test]
+fn curve_library_selects_custom_groups_and_reports_status() {
+    let mut engine = started_null_engine();
+    engine.set_crossfader(0.0).unwrap();
+
+    let library = bus_api::CurveLibrarySpec {
+        groups: vec![
+            custom_group("tight", 1.0, 0.0),
+            custom_group("flat", 1.0, 1.0),
+        ],
+        sets: vec![bus_api::CurveSetSpec {
+            id: "sweep".into(),
+            display_name: "Sweep".into(),
+            members: vec![
+                bus_api::CurveRefSpec {
+                    id: "tight".into(),
+                    parameter: None,
+                },
+                bus_api::CurveRefSpec {
+                    id: "linear".into(),
+                    parameter: None,
+                },
+            ],
+        }],
+    };
+    engine.set_curve_library(&library).unwrap();
+    assert!(engine.curve_library().group("tight").is_some());
+
+    assert_eq!(engine.select_crossfader_curve("flat").unwrap(), None);
+    assert_eq!(
+        engine.engine_status_snapshot().unwrap().crossfader_curve.id,
+        "flat"
+    );
+    let (gain_a, _) = engine.resolved_crossfader_gains().unwrap();
+    assert!(
+        (gain_a - 1.0).abs() < 1e-4,
+        "flat group keeps A at full gain"
+    );
+
+    // A knob sweep selects the set and moves the morph.
+    assert_eq!(
+        engine
+            .select_crossfader_curve_set("sweep", 0.5, true)
+            .unwrap(),
+        None
+    );
+    let status = engine.engine_status_snapshot().unwrap().crossfader_curve;
+    assert_eq!(status.id, "sweep");
+    assert!((status.morph - 0.5).abs() < 1e-6);
+
+    // Behavior flags persist across selections and land in the status.
+    engine
+        .apply_crossfader_behavior(bus_api::CrossfaderBehaviorSetting {
+            hamster: false,
+            disabled: true,
+        })
+        .unwrap();
+    let (gain_a, gain_b) = engine.resolved_crossfader_gains().unwrap();
+    assert!((gain_a - 1.0).abs() < 1e-6 && (gain_b - 1.0).abs() < 1e-6);
+    assert!(
+        engine
+            .engine_status_snapshot()
+            .unwrap()
+            .crossfader_curve
+            .disabled
+    );
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn unknown_curve_ids_fall_back_with_a_notice_message() {
+    let mut engine = started_null_engine();
+    engine.select_crossfader_curve("linear").unwrap();
+    assert_eq!(
+        engine.engine_status_snapshot().unwrap().crossfader_curve.id,
+        "linear"
+    );
+
+    let notice = engine.select_crossfader_curve("nope").unwrap();
+    let notice = notice.expect("unknown ids report a notice");
+    assert!(notice.contains("nope"), "{notice}");
+    assert_eq!(
+        engine.engine_status_snapshot().unwrap().crossfader_curve.id,
+        bus_api::DEFAULT_CROSSFADER_CURVE_ID
+    );
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn duplicate_curve_ids_reject_the_library_and_keep_the_previous_one() {
+    let mut engine = started_null_engine();
+    let library = bus_api::CurveLibrarySpec {
+        groups: vec![custom_group("tight", 1.0, 0.0)],
+        sets: vec![],
+    };
+    engine.set_curve_library(&library).unwrap();
+
+    let duplicate = bus_api::CurveLibrarySpec {
+        groups: vec![
+            custom_group("tight", 1.0, 0.0),
+            custom_group("tight", 0.0, 1.0),
+        ],
+        sets: vec![],
+    };
+    let error = engine.set_curve_library(&duplicate).unwrap_err();
+    assert!(
+        error.to_string().to_lowercase().contains("duplicate"),
+        "{error}"
+    );
+    assert!(engine.curve_library().group("tight").is_some());
+    assert_eq!(engine.curve_library().groups.len(), 1);
+
+    engine.stop().unwrap();
+}
+
+#[test]
+fn config_rejects_a_curve_library_with_duplicate_ids() {
+    let mut audio = empty_audio();
+    audio.curve_library = Some(bus_api::CurveLibrarySpec {
+        groups: vec![
+            custom_group("same", 1.0, 0.0),
+            custom_group("same", 0.0, 1.0),
+        ],
+        sets: vec![],
+    });
+    let config = EngineConfig {
+        backend: "null".into(),
+        audio: Some(audio),
+        ..Default::default()
+    };
+    let error = config.validate().unwrap_err();
+    assert!(
+        error.to_string().to_lowercase().contains("duplicate"),
+        "{error}"
+    );
+}

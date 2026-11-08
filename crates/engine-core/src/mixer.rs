@@ -287,20 +287,33 @@ impl Engine {
     pub fn set_crossfader_preset(&mut self, preset: CrossfaderPreset) -> Result<()> {
         // Build and compile on the control thread, before taking the DSP mutex.
         let curve = ResolvedCrossfaderCurve::from_group(preset.curve_group()?)?;
-        self.install_crossfader_curve(curve)
+        self.install_curves_keeping_behavior(curve)?;
+        let display_name = crate::curve_presets::preset_info(preset.id())
+            .map(|info| info.display_name)
+            .unwrap_or(preset.id());
+        self.crossfader_selection = crate::curve_library::CrossfaderCurveSelection {
+            id: preset.id().to_string(),
+            display_name: display_name.to_string(),
+        };
+        Ok(())
     }
 
     /// Compile every member of a curve set and install it, keeping behavior flags.
     ///
     /// The morph position starts at the first member; use
-    /// [`Self::set_crossfader_curve_morph`] to sweep it.
+    /// [`Self::set_crossfader_curve_morph`] to sweep it. This low-level form has
+    /// no id, so [`Self::crossfader_curve_selection`] keeps the previous name;
+    /// use [`Self::select_crossfader_curve`] for a named set.
     pub fn set_crossfader_curve_set(&mut self, groups: Vec<CurveGroup>) -> Result<()> {
         let curve = ResolvedCrossfaderCurve::from_groups(&groups)?;
-        self.install_crossfader_curve(curve)
+        self.install_curves_keeping_behavior(curve)
     }
 
     /// Install a prepared curve while preserving the current behavior flags.
-    fn install_crossfader_curve(&mut self, mut curve: ResolvedCrossfaderCurve) -> Result<()> {
+    pub(crate) fn install_curves_keeping_behavior(
+        &mut self,
+        mut curve: ResolvedCrossfaderCurve,
+    ) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()

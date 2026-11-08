@@ -31,6 +31,9 @@ fn null_session_with_synced_decks() -> EngineSession {
             default_key_lock: None,
             vinyl_brake_pause: None,
             vinyl_brake_stop_secs: None,
+            default_crossfader_curve: None,
+            crossfader_behavior: None,
+            curve_library: None,
         }),
         ..Default::default()
     };

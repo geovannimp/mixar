@@ -176,6 +176,9 @@ Event deckLevelsEvent({
 );
 
 /// One `EngineSnapshot` bus event hydrating [decks].
+///
+/// The curve defaults to equal power with both behavior flags off, so a test
+/// that does not care about curves still gets a valid status.
 Event engineSnapshotEvent({
   bool running = true,
   double crossfader = 0.5,
@@ -184,6 +187,7 @@ Event engineSnapshotEvent({
   double cueMix = 0.5,
   bool masterCue = false,
   int masterDeck = 0,
+  CrossfaderCurveStatus? crossfaderCurve,
   List<DeckSnapshot> decks = const [],
 }) => Event.engineSnapshot(
   EngineSnapshot(
@@ -196,6 +200,15 @@ Event engineSnapshotEvent({
       cueMix: cueMix,
       masterCue: masterCue,
       masterDeck: masterDeck,
+      crossfaderCurve:
+          crossfaderCurve ??
+          const CrossfaderCurveStatus(
+            id: 'constant_power',
+            displayName: 'Constant Power',
+            morph: 0,
+            hamster: false,
+            disabled: false,
+          ),
       decks: decks,
     ),
   ),

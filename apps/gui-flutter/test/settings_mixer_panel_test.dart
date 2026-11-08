@@ -6,6 +6,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -94,6 +95,8 @@ void main() {
     expect(realtimeSwitch, findsOneWidget);
     expect(tester.widget<SettingsHeaderSwitch>(realtimeSwitch).value, isFalse);
 
+    await tester.ensureVisible(realtimeSwitch);
+    await tester.pumpAndSettle();
     await tester.tap(realtimeSwitch);
     await tester.pumpAndSettle();
     expect(changed.single.realtimeStems, isTrue);
@@ -174,6 +177,8 @@ void main() {
     );
     expect(find.byIcon(LucideIcons.badgeCheck), findsOneWidget);
 
+    await tester.ensureVisible(realtimeSwitch);
+    await tester.pumpAndSettle();
     await tester.tap(realtimeSwitch);
     await tester.pumpAndSettle();
     expect(changed.single.realtimeStems, isTrue);
@@ -232,5 +237,35 @@ void main() {
 
     expect(find.textContaining('model download failed'), findsOneWidget);
     expect(_realtimeSwitch(), findsNothing);
+  }, semanticsEnabled: false);
+
+  testWidgets('crossfader card selects a preset and toggles the flags', (
+    tester,
+  ) async {
+    final changed = <AppSettings>[];
+    await _pumpPanel(tester, changed: changed);
+
+    expect(find.text('Crossfader'), findsOneWidget);
+    final select = tester.widget<SettingsSelect<String>>(
+      find.byType(SettingsSelect<String>),
+    );
+    expect(select.options, kCrossfaderCurvePresets);
+    expect(select.value, 'constant_power');
+    expect(find.text('Constant power'), findsOneWidget);
+
+    final hamster = find.text('Hamster (swap A and B)');
+    await tester.ensureVisible(hamster);
+    await tester.pumpAndSettle();
+    await tester.tap(hamster);
+    await tester.pumpAndSettle();
+    expect(changed.last.crossfaderBehavior.hamster, isTrue);
+    expect(changed.last.crossfaderBehavior.disabled, isFalse);
+
+    final disable = find.text('Disable the crossfader');
+    await tester.ensureVisible(disable);
+    await tester.pumpAndSettle();
+    await tester.tap(disable);
+    await tester.pumpAndSettle();
+    expect(changed.last.crossfaderBehavior.disabled, isTrue);
   }, semanticsEnabled: false);
 }

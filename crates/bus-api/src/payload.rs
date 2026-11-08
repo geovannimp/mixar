@@ -257,6 +257,145 @@ pub struct DeckSnapshot {
     pub jog_touching: bool,
 }
 
+/// Canonical id of the crossfader curve used when none is configured.
+///
+/// Keep in sync with `engine_core::curve_presets::DEFAULT_PRESET_ID`; the
+/// engine pins the two together in a test.
+pub const DEFAULT_CROSSFADER_CURVE_ID: &str = "constant_power";
+
+/// Preset ids a button's `cycle_crossfader_curve` walks, in order.
+///
+/// Canonical snake_case, and exactly the presets the engine catalog marks
+/// available (pinned by an engine test).
+pub const CROSSFADER_CURVE_CYCLE: [&str; 3] = ["constant_power", "linear", "fast_cut"];
+
+/// Crossfader behavior flags: curve bypass and A/B swap.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CrossfaderBehaviorSetting {
+    /// Curve bypassed: both sides stay at full gain at every position.
+    #[serde(default)]
+    pub disabled: bool,
+    /// Swap the A and B gains (hamster); the position is not mirrored.
+    #[serde(default)]
+    pub hamster: bool,
+}
+
+/// One point of a custom curve, in the normalized `0..=1` domain.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CurvePointSpec {
+    pub x: f32,
+    pub y: f32,
+}
+
+/// Interpolation rule for the span between two adjacent points.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CurveSegmentKind {
+    #[default]
+    Linear,
+    Exponential,
+    Logarithmic,
+    CubicBezier,
+}
+
+/// One segment of a custom curve.
+///
+/// `rate` applies to [`CurveSegmentKind::Exponential`] and
+/// [`CurveSegmentKind::Logarithmic`]; the four handles apply to
+/// [`CurveSegmentKind::CubicBezier`]. Unused fields stay at `0`.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CurveSegmentSpec {
+    pub kind: CurveSegmentKind,
+    #[serde(default)]
+    pub rate: f32,
+    #[serde(default)]
+    pub c1x: f32,
+    #[serde(default)]
+    pub c1y: f32,
+    #[serde(default)]
+    pub c2x: f32,
+    #[serde(default)]
+    pub c2y: f32,
+}
+
+/// A validated custom curve: points plus one segment per adjacent pair.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CurveSpecSpec {
+    pub points: Vec<CurvePointSpec>,
+    pub segments: Vec<CurveSegmentSpec>,
+}
+
+/// A named custom curve group (one curve per output).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CurveGroupSpec {
+    pub id: String,
+    #[serde(default)]
+    pub display_name: String,
+    pub curves: Vec<CurveSpecSpec>,
+}
+
+/// A reference to a curve group by id.
+///
+/// A preset id resolves through the crossfader preset registry; any other id
+/// must name a custom group in the same [`CurveLibrarySpec`]. `parameter` is
+/// the preset's optional numeric argument (the `cut` of `fast_cut`).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CurveRefSpec {
+    pub id: String,
+    #[serde(default)]
+    pub parameter: Option<f32>,
+}
+
+/// An ordered curve set a knob sweeps by morph position.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CurveSetSpec {
+    pub id: String,
+    #[serde(default)]
+    pub display_name: String,
+    pub members: Vec<CurveRefSpec>,
+}
+
+/// Named custom curve groups plus ordered curve sets.
+///
+/// This is the persisted settings form; the engine validates and compiles it
+/// before installing anything. Duplicate group or set ids are rejected.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CurveLibrarySpec {
+    #[serde(default)]
+    pub groups: Vec<CurveGroupSpec>,
+    #[serde(default)]
+    pub sets: Vec<CurveSetSpec>,
+}
+
+/// Active crossfader curve as reported by [`EngineStatus`].
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CrossfaderCurveStatus {
+    /// Canonical id of the active preset, custom group, or curve set.
+    pub id: String,
+    /// Human-readable name for Settings and status badges.
+    pub display_name: String,
+    /// Curve-set morph position `0..=1` (`0` for a single curve).
+    pub morph: f32,
+    /// A and B gains swapped (hamster).
+    #[serde(default)]
+    pub hamster: bool,
+    /// Curve bypassed (both sides at full gain).
+    #[serde(default)]
+    pub disabled: bool,
+}
+
+impl Default for CrossfaderCurveStatus {
+    fn default() -> Self {
+        Self {
+            id: DEFAULT_CROSSFADER_CURVE_ID.to_string(),
+            display_name: "Constant Power".to_string(),
+            morph: 0.0,
+            hamster: false,
+            disabled: false,
+        }
+    }
+}
+
 /// Full engine snapshot for hydrate and multi-deck changes.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct EngineStatus {
@@ -268,5 +407,8 @@ pub struct EngineStatus {
     pub cue_mix: f32,
     pub master_cue: bool,
     pub master_deck: u16,
+    /// Active crossfader curve, curve-set morph, and behavior flags.
+    #[serde(default)]
+    pub crossfader_curve: CrossfaderCurveStatus,
     pub decks: Vec<DeckSnapshot>,
 }

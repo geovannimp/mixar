@@ -3,7 +3,9 @@ import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/theme/mixar_colors.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
@@ -69,6 +71,54 @@ class SettingsMixerPanel extends StatelessWidget {
       title: l10n.settingsSectionMixer,
       description: l10n.settingsMixerDescription,
       cards: [
+        SettingsSectionCard(
+          title: l10n.settingsMixerCrossfaderTitle,
+          subtitle: l10n.settingsMixerCrossfaderDescription,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 16,
+            children: [
+              SettingsField(
+                label: l10n.settingsMixerCrossfaderCurve,
+                child: SettingsSelect<String>(
+                  dialogTitle: l10n.settingsMixerCrossfaderCurve,
+                  value: draft.defaultCrossfaderCurve,
+                  options: _curveOptions(draft),
+                  labelBuilder: (id) => _curveLabel(draft, id, l10n),
+                  onChanged: (id) => onChanged(
+                    copyAppSettings(draft, defaultCrossfaderCurve: id),
+                  ),
+                ),
+              ),
+              SettingsCheckbox(
+                label: l10n.settingsMixerCrossfaderHamster,
+                value: draft.crossfaderBehavior.hamster,
+                onChanged: (value) => onChanged(
+                  copyAppSettings(
+                    draft,
+                    crossfaderBehavior: CrossfaderBehaviorSetting(
+                      disabled: draft.crossfaderBehavior.disabled,
+                      hamster: value,
+                    ),
+                  ),
+                ),
+              ),
+              SettingsCheckbox(
+                label: l10n.settingsMixerCrossfaderDisable,
+                value: draft.crossfaderBehavior.disabled,
+                onChanged: (value) => onChanged(
+                  copyAppSettings(
+                    draft,
+                    crossfaderBehavior: CrossfaderBehaviorSetting(
+                      disabled: value,
+                      hamster: draft.crossfaderBehavior.hamster,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         SettingsSectionCard(
           title: l10n.settingsMixerNormalizerTitle,
           subtitle: l10n.settingsMixerNormalizerDescription,
@@ -200,6 +250,46 @@ class SettingsMixerPanel extends StatelessWidget {
       fill: colors.destructive.withValues(alpha: 0.12),
       border: colors.destructive.withValues(alpha: 0.4),
     );
+  }
+
+  /// Preset ids plus the user's custom groups and curve sets.
+  ///
+  /// A saved id that no longer exists is kept at the top so the picker shows
+  /// the real value instead of silently selecting a different curve.
+  List<String> _curveOptions(AppSettings draft) {
+    final options = <String>[
+      ...kCrossfaderCurvePresets,
+      for (final group in draft.curveLibrary.groups) group.id,
+      for (final set in draft.curveLibrary.sets) set.id,
+    ];
+    if (!options.contains(draft.defaultCrossfaderCurve)) {
+      options.insert(0, draft.defaultCrossfaderCurve);
+    }
+    return options;
+  }
+
+  /// Display name for a curve id: preset name, custom label, or the id itself.
+  String _curveLabel(AppSettings draft, String id, AppLocalizations l10n) {
+    final preset = switch (id) {
+      'constant_power' => l10n.settingsCrossfaderCurveConstantPower,
+      'linear' => l10n.settingsCrossfaderCurveLinear,
+      'fast_cut' => l10n.settingsCrossfaderCurveFastCut,
+      _ => null,
+    };
+    if (preset != null) {
+      return preset;
+    }
+    for (final group in draft.curveLibrary.groups) {
+      if (group.id == id) {
+        return group.displayName.isEmpty ? id : group.displayName;
+      }
+    }
+    for (final set in draft.curveLibrary.sets) {
+      if (set.id == id) {
+        return set.displayName.isEmpty ? id : set.displayName;
+      }
+    }
+    return id;
   }
 }
 

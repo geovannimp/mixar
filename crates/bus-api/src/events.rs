@@ -14,6 +14,7 @@ use crate::library::BeatGrid;
 use crate::library::HotCue;
 use crate::library::SavedLoop;
 use crate::library::TrackSummary;
+use crate::payload::CurveLibrarySpec;
 use crate::payload::DeckEq;
 use crate::payload::DeckHotCue;
 use crate::payload::DeckSavedLoop;
@@ -195,6 +196,20 @@ bus_events! {
         { enabled: bool };
     ToggleMasterCue: Toggle, Entity::Mixer, Part::Whole,
         { };
+    /// Replace the custom curve library. Duplicate ids reject the whole update.
+    SetCurveLibrary: Update, Entity::Mixer, Part::Whole,
+        { library: CurveLibrarySpec };
+    /// Select a preset, custom group, or curve set by canonical id.
+    ///
+    /// An unknown id installs `constant_power` and publishes a notice.
+    SetCrossfaderCurve: Update, Entity::Mixer, Part::Whole,
+        { id: String };
+    /// Sweep the curve set `set` to morph position `amount` (`0..=1`).
+    SetCrossfaderCurveAmount: Update, Entity::Mixer, Part::Whole,
+        { set: String, amount: f32, soft_takeover: bool };
+    /// Set the curve-bypass and hamster flags together.
+    SetCrossfaderBehavior: Update, Entity::Mixer, Part::Whole,
+        { hamster: bool, disabled: bool };
 
     // ── shared FX unit ───────────────────────────────────────────────────────
     SetFxUnitSlot: Update, Entity::Mixer, Part::Index(*slot),

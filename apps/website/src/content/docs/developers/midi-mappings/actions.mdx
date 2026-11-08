@@ -162,6 +162,11 @@ The `n` argument is not capped at eight. Any `n:1+` is accepted, and numbered al
 | `step_fx_division_down`, `step_fx_division_up` | – | Step Echo's beat division one table entry; inert for other effects and clamped at both ends. |
 | `set_fx_wet` | – | Absolute Beat FX level `0..1`. Listed in the absolute catalog, so bindings default to soft-takeover. |
 | `set_fx_route` | `target:ch1\|ch2\|master` | Exclusive CH SELECT: publishes the full per-deck routing group in one control. |
+| `set_crossfader_curve` | `id:<curve-id>` | Select a preset, custom group, or curve set by canonical snake_case id on press. An unknown id installs `constant_power` and raises a notice. |
+| `cycle_crossfader_curve` | – | Step to the next available preset (`constant_power` → `linear` → `fast_cut`, wrapping). A custom selection steps back to `constant_power`. |
+| `set_crossfader_curve_amount` | `set:<set-id>` | Absolute knob sweep `0..1` across the named curve set. Listed in the absolute catalog, so bindings default to soft-takeover. |
+| `set_crossfader_hamster` | – | Toggle the hamster flag (swap A/B gains) on press. |
+| `set_crossfader_disabled` | – | Toggle curve bypass (both sides full gain) on press. |
 
 ### Engine
 
@@ -205,6 +210,8 @@ Argument keys are validated per leaf, and a leaf accepts **exactly** the keys li
 | `auto_loop` | `beats` | Positive finite number. |
 | `beat_jump` | `beats` | Non-zero finite number (may be negative). |
 | `pad_mode` | `mode` | One of the five pad modes. |
+| `set_crossfader_curve` | `id` | Canonical snake_case curve id (`fast_cut`, a custom group, or a curve set). |
+| `set_crossfader_curve_amount` | `set` | Canonical snake_case curve-set id. |
 | all other leaves | – | Arguments rejected. |
 
 ## Absolute vs. relative leaves
@@ -213,7 +220,7 @@ Most leaves are **buttons** (edge-triggered on press, or press/release pairs suc
 
 | Category | Leaves | Wire value |
 | --- | --- | --- |
-| Absolute | `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_stem_eq_high`, `set_stem_eq_mid`, `set_stem_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed` | Normalized `0..1`, clamped. |
+| Absolute | `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_stem_eq_high`, `set_stem_eq_mid`, `set_stem_eq_low`, `set_crossfader`, `set_crossfader_curve_amount`, `set_cue_mix`, `set_speed` | Normalized `0..1`, clamped. |
 | Relative | `jog_turn`, `navigate` | A decoded tick delta from the device's `relative` mode. |
 
 Absolute leaves default to soft-takeover behavior (and can opt out per binding). They are the ones you typically pair with `soft_takeover = true` in `map.toml`. What soft takeover does and why it is useful is [explained on the inputs page](/docs/developers/midi-mappings/map-toml/inputs#soft-takeover--invert):

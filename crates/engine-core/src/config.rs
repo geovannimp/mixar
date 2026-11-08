@@ -90,6 +90,17 @@ pub struct AudioConfig {
     /// Brake stop duration in seconds (valid 0.05..=3.0).
     #[serde(default)]
     pub vinyl_brake_stop_secs: Option<f32>,
+    /// Default crossfader curve: a preset alias, custom group id, or curve set id.
+    ///
+    /// Unknown ids fall back to `constant_power` when the engine starts.
+    #[serde(default)]
+    pub default_crossfader_curve: Option<String>,
+    /// Curve bypass and hamster flags applied on start.
+    #[serde(default)]
+    pub crossfader_behavior: Option<bus_api::CrossfaderBehaviorSetting>,
+    /// Custom curve library available to `default_crossfader_curve`.
+    #[serde(default)]
+    pub curve_library: Option<bus_api::CurveLibrarySpec>,
 }
 
 /// Sampler ↔ channel-strip routing (persisted in engine config).
@@ -195,6 +206,44 @@ impl EngineConfig {
             .unwrap_or(0.5)
     }
 
+    /// Default crossfader curve id (preset id or alias, custom group, or set).
+    ///
+    /// Preset aliases are canonicalized to snake_case so settings, mappings, and
+    /// logs agree; unknown values are left for the engine's fallback.
+    pub fn default_crossfader_curve(&self) -> String {
+        let raw = self
+            .audio
+            .as_ref()
+            .and_then(|audio| audio.default_crossfader_curve.as_deref())
+            .map(str::trim)
+            .filter(|id| !id.is_empty());
+        raw.map(|id| {
+            // Canonicalize plain aliases only: `fast_cut(0.1)` carries a
+            // parameter, so reducing it to `fast_cut` would change the curve.
+            match crate::curve_presets::canonical_id(id) {
+                Some(canonical) if !id.contains(['(', ':']) => canonical.to_string(),
+                _ => id.to_string(),
+            }
+        })
+        .unwrap_or_else(|| crate::curve_presets::DEFAULT_PRESET_ID.to_string())
+    }
+
+    /// Default crossfader behavior flags.
+    pub fn crossfader_behavior(&self) -> bus_api::CrossfaderBehaviorSetting {
+        self.audio
+            .as_ref()
+            .and_then(|audio| audio.crossfader_behavior)
+            .unwrap_or_default()
+    }
+
+    /// Custom curve library persisted with the config.
+    pub fn curve_library(&self) -> bus_api::CurveLibrarySpec {
+        self.audio
+            .as_ref()
+            .and_then(|audio| audio.curve_library.clone())
+            .unwrap_or_default()
+    }
+
     /// Validate fields that the engine requires to be well-formed.
     pub fn validate(&self) -> Result<()> {
         ensure!(
@@ -266,6 +315,20 @@ impl EngineConfig {
                 );
             }
         }
+        if let Some(id) = self
+            .audio
+            .as_ref()
+            .and_then(|audio| audio.default_crossfader_curve.as_deref())
+        {
+            ensure!(
+                !id.trim().is_empty(),
+                "default_crossfader_curve must not be empty when set"
+            );
+        }
+        // Duplicate ids and malformed curves reject the config here so a saved
+        // settings file cannot silently drop a curve library at the next start.
+        crate::curve_library::library_from_spec(&self.curve_library())
+            .map_err(|error| anyhow::anyhow!("curve_library: {error}"))?;
         Ok(())
     }
 
@@ -322,6 +385,50 @@ mod tests {
     }
 
     #[test]
+    fn crossfader_curve_defaults_and_aliases_normalize() {
+        let config = EngineConfig::default();
+        assert_eq!(
+            config.default_crossfader_curve(),
+            crate::curve_presets::DEFAULT_PRESET_ID
+        );
+        assert_eq!(
+            config.crossfader_behavior(),
+            bus_api::CrossfaderBehaviorSetting::default()
+        );
+        assert!(config.curve_library().groups.is_empty());
+
+        let toml = r#"
+buffer_size = 512
+backend = "null"
+buses = []
+analysis_duration = "precise"
+
+[audio]
+default_crossfader_curve = "Constant Power"
+crossfader_behavior = { hamster = true, disabled = false }
+"#;
+        let config: EngineConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.default_crossfader_curve(), "constant_power");
+        assert!(config.crossfader_behavior().hamster);
+        assert!(!config.crossfader_behavior().disabled);
+        config.validate().unwrap();
+
+        // A parameterized expression keeps its parameter: an alias would not.
+        let toml = r#"
+buffer_size = 512
+backend = "null"
+buses = []
+analysis_duration = "precise"
+
+[audio]
+default_crossfader_curve = "fast_cut(0.1)"
+"#;
+        let config: EngineConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.default_crossfader_curve(), "fast_cut(0.1)");
+        config.validate().unwrap();
+    }
+
+    #[test]
     fn tempo_range_config_overrides_defaults() {
         let config = EngineConfig {
             audio: Some(AudioConfig {
@@ -332,6 +439,9 @@ mod tests {
                 default_key_lock: None,
                 vinyl_brake_pause: None,
                 vinyl_brake_stop_secs: None,
+                default_crossfader_curve: None,
+                crossfader_behavior: None,
+                curve_library: None,
             }),
             ..EngineConfig::default()
         };

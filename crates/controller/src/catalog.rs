@@ -164,6 +164,7 @@ pub const ABSOLUTE_LEAVES: &[&str] = &[
     "set_stem_eq_low",
     "set_crossfader",
     "set_crossfader_assign",
+    "set_crossfader_curve_amount",
     "set_master_volume",
     "set_cue_volume",
     "set_cue_mix",
@@ -243,7 +244,12 @@ const DECK_SIGNALS: &[&str] = &[
     "pad_mode_key_shift",
 ];
 
-const MASTER_SIGNALS: &[&str] = &["master_cue", "fx_armed"];
+const MASTER_SIGNALS: &[&str] = &[
+    "master_cue",
+    "fx_armed",
+    "crossfader_hamster",
+    "crossfader_disabled",
+];
 
 /// Per-slot pad-bank signal prefixes (1-based `pad_<mode>_<n>`).
 const PAD_SLOT_PREFIXES: &[&str] = &[
@@ -263,7 +269,13 @@ pub const LOOP_SLOT_COUNT: usize = 8;
 /// `true` when `name` is a signal this section can resolve.
 pub fn is_known_signal(section: &str, name: &str) -> bool {
     if section == crate::device::SECTION_MASTER {
-        return MASTER_SIGNALS.contains(&name);
+        if MASTER_SIGNALS.contains(&name) {
+            return true;
+        }
+        // `crossfader_curve_<id>`: ids are canonical snake_case.
+        return name
+            .strip_prefix("crossfader_curve_")
+            .is_some_and(is_snake_case);
     }
     if crate::device::deck_index(section).is_none() {
         return false;
@@ -294,6 +306,11 @@ const MIXER_LEAVES: &[&str] = &[
     "set_cue_volume",
     "set_cue_mix",
     "set_master_cue",
+    "set_crossfader_curve",
+    "set_crossfader_curve_amount",
+    "cycle_crossfader_curve",
+    "set_crossfader_hamster",
+    "set_crossfader_disabled",
     "toggle_fx",
     "disarm_fx",
     "cycle_fx_next",
@@ -402,6 +419,27 @@ pub fn validate_leaf_args(
             if !["ch1", "ch2", "master"].contains(&target) {
                 return Err(LoadError::Validation(format!(
                     "unknown fx route target `{target}`"
+                )));
+            }
+            Ok(())
+        }
+        // Curve ids are canonical snake_case; presets, groups, and sets share one space.
+        "set_crossfader_curve" => {
+            args.expect_keys_exactly(&["id"])?;
+            let id = args.require_ident("id")?;
+            if !is_snake_case(id) {
+                return Err(LoadError::Validation(format!(
+                    "arg `id` must be a canonical snake_case curve id, got `{id}`"
+                )));
+            }
+            Ok(())
+        }
+        "set_crossfader_curve_amount" => {
+            args.expect_keys_exactly(&["set"])?;
+            let set = args.require_ident("set")?;
+            if !is_snake_case(set) {
+                return Err(LoadError::Validation(format!(
+                    "arg `set` must be a canonical snake_case curve set id, got `{set}`"
                 )));
             }
             Ok(())

@@ -46,6 +46,10 @@ pub struct Engine {
     /// deck plays without a command to trigger a republish.
     pub(crate) stems_audible_seen: Vec<bool>,
     pub(crate) soft_takeover: crate::soft_takeover::SoftTakeoverState,
+    /// Validated custom curve library installed by settings or the bus.
+    pub(crate) curve_library: curve_core::CurveLibrary,
+    /// Active crossfader curve selection (compiled tables live in the mixer).
+    pub(crate) crossfader_selection: crate::curve_library::CrossfaderCurveSelection,
 }
 
 /// Absolute-control readback as wire `0..1` (for soft-takeover compares).
@@ -92,6 +96,20 @@ impl Engine {
         config.validate()?;
         let num_decks = config.num_decks;
         let backend = create_backend(&config.backend)?;
+        // Validate the persisted library up front: a malformed spec must fail
+        // construction instead of surfacing as silent fallbacks mid-set.
+        let curve_library = crate::curve_library::library_from_spec(&config.curve_library())
+            .map_err(|error| anyhow::anyhow!("curve_library: {error}"))?;
+        let crossfader_selection = match crate::curve_library::resolve_selection(
+            &config.default_crossfader_curve(),
+            &curve_library,
+        ) {
+            Ok(resolved) => resolved.selection,
+            Err(error) => {
+                tracing::warn!("{error}; using constant_power");
+                crate::curve_library::CrossfaderCurveSelection::constant_power()
+            }
+        };
 
         Ok(Self {
             config,
@@ -114,6 +132,8 @@ impl Engine {
             stems_ready_seen: vec![false; num_decks],
             stems_audible_seen: vec![false; num_decks],
             soft_takeover: crate::soft_takeover::SoftTakeoverState::default(),
+            curve_library,
+            crossfader_selection,
         })
     }
 
@@ -367,6 +387,21 @@ impl Engine {
             &self.config.resampler_quality(),
             self.config.sampler_strip_route(),
         )));
+        // Resolve the configured default curve before taking the DSP lock; an
+        // unknown id falls back to equal power so a stale settings file starts.
+        let (default_curve, default_selection) = match crate::curve_library::resolve_selection(
+            &self.config.default_crossfader_curve(),
+            &self.curve_library,
+        ) {
+            Ok(resolved) => (resolved.curve, resolved.selection),
+            Err(error) => {
+                tracing::warn!("{error}; using constant_power");
+                let fallback = crate::curve_library::constant_power_selection();
+                (fallback.curve, fallback.selection)
+            }
+        };
+        let default_behavior =
+            crate::curve_library::behavior_from_setting(self.config.crossfader_behavior());
         {
             let default_range = self.config.default_tempo_range();
             let default_key_lock = self.config.default_key_lock();
@@ -381,7 +416,10 @@ impl Engine {
                 }
             }
             dsp.mixer_mut().set_master_deck(self.master_deck);
+            dsp.mixer_mut()
+                .set_crossfader_curve(default_curve.with_behavior(default_behavior));
         }
+        self.crossfader_selection = default_selection;
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
         // One resampler per device opened off the DSP clock. Built here so a failure

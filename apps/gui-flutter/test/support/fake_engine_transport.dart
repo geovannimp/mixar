@@ -1,6 +1,8 @@
 // Test doubles for EngineTransport (FRB opaque). Hand-maintained stubs.
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
+    show CurveLibrarySpec;
 import 'package:gui_flutter/src/rust/api/library.dart' show SamplerPlayMode;
 import 'package:gui_flutter/src/rust/api/settings.dart' show JogModeSetting;
 
@@ -209,6 +211,25 @@ class FakeEngineTransport implements EngineTransport {
     required int deckId,
     required CrossfaderAssign assignment,
   }) async {}
+
+  @override
+  Future<void> setCrossfaderBehavior({
+    required bool hamster,
+    required bool disabled,
+  }) async {}
+
+  @override
+  Future<void> setCrossfaderCurve({required String id}) async {}
+
+  @override
+  Future<void> setCrossfaderCurveAmount({
+    required String set_,
+    required double amount,
+    required bool softTakeover,
+  }) async {}
+
+  @override
+  Future<void> setCurveLibrary({required CurveLibrarySpec library_}) async {}
 
   @override
   Future<void> setCueMix({required double mix}) async {

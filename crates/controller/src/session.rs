@@ -17,6 +17,8 @@ use bus_api::PadMode;
 use bus_api::Pause;
 use bus_api::PitchPadAction;
 use bus_api::Play;
+use bus_api::SetCrossfaderBehavior;
+use bus_api::SetCrossfaderCurve;
 use bus_api::SetFxUnitParam;
 use bus_api::SetFxUnitSlot;
 use bus_api::SetFxUnitSlotEnabled;
@@ -337,6 +339,31 @@ impl MappingSession {
     /// Mirror mixer state (MASTER CUE LED).
     pub fn set_master_cue(&mut self, enabled: bool, midi: &mut impl MidiOut) {
         self.snapshot.master_cue = enabled;
+        self.refresh_leds(crate::device::SECTION_MASTER, midi);
+    }
+
+    /// Mirror the engine's active crossfader curve and behavior flags.
+    ///
+    /// Only the curve id/flags are cached; the compiled tables stay in the
+    /// engine. `crossfader_curve_<id>` outputs and the hamster/disabled signals
+    /// refresh from this state.
+    pub fn set_crossfader_curve(
+        &mut self,
+        curve_id: &str,
+        hamster: bool,
+        disabled: bool,
+        midi: &mut impl MidiOut,
+    ) {
+        if self.snapshot.crossfader_curve == curve_id
+            && self.snapshot.crossfader_hamster == hamster
+            && self.snapshot.crossfader_disabled == disabled
+        {
+            return;
+        }
+        self.snapshot.crossfader_curve.clear();
+        self.snapshot.crossfader_curve.push_str(curve_id);
+        self.snapshot.crossfader_hamster = hamster;
+        self.snapshot.crossfader_disabled = disabled;
         self.refresh_leds(crate::device::SECTION_MASTER, midi);
     }
 
@@ -859,6 +886,17 @@ impl MappingSession {
                 self.snapshot.master_cue = *enabled;
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
             }
+            // Optimistic: `crossfader_curve_<id>` lamps follow the press before
+            // the engine echoes `EngineStatus`.
+            Event::SetCrossfaderCurve(SetCrossfaderCurve { id }) => {
+                self.snapshot.crossfader_curve.clone_from(id);
+                self.refresh_leds(crate::device::SECTION_MASTER, midi);
+            }
+            Event::SetCrossfaderBehavior(SetCrossfaderBehavior { hamster, disabled }) => {
+                self.snapshot.crossfader_hamster = *hamster;
+                self.snapshot.crossfader_disabled = *disabled;
+                self.refresh_leds(crate::device::SECTION_MASTER, midi);
+            }
             Event::SetFxUnitSlotEnabled(SetFxUnitSlotEnabled { enabled, .. }) => {
                 self.snapshot.fx.enabled = *enabled;
                 self.refresh_leds(crate::device::SECTION_MASTER, midi);
@@ -1305,5 +1343,39 @@ mod tests {
         s.age_cc_coalesce_for_test("deck_1.volume");
         s.handle_midi(&[0xB0, 0x13, 65], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
+    }
+
+    #[test]
+    fn crossfader_curve_mirror_updates_the_snapshot() {
+        let mut s = session();
+        assert_eq!(
+            s.snapshot().crossfader_curve,
+            bus_api::DEFAULT_CROSSFADER_CURVE_ID
+        );
+        assert!(!s.snapshot().crossfader_hamster);
+
+        s.set_crossfader_curve("sweep", true, false, &mut NullMidi);
+        assert_eq!(s.snapshot().crossfader_curve, "sweep");
+        assert!(s.snapshot().crossfader_hamster);
+        assert!(!s.snapshot().crossfader_disabled);
+        assert_eq!(
+            s.snapshot().signal("master", "crossfader_curve_sweep"),
+            Some(true)
+        );
+        assert_eq!(
+            s.snapshot().signal("master", "crossfader_hamster"),
+            Some(true)
+        );
+
+        s.set_crossfader_curve("linear", false, true, &mut NullMidi);
+        assert_eq!(s.snapshot().crossfader_curve, "linear");
+        assert_eq!(
+            s.snapshot().signal("master", "crossfader_disabled"),
+            Some(true)
+        );
+        assert_eq!(
+            s.snapshot().signal("master", "crossfader_curve_sweep"),
+            Some(false)
+        );
     }
 }

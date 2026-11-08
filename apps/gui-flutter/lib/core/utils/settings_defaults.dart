@@ -5,11 +5,25 @@ import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 /// Built-in offline separation models (must match analyzer-stems).
 const kStemModels = ['htdemucs_mixxx_v1', 'scnet_int8_v1'];
 const kDefaultStemModel = 'htdemucs_mixxx_v1';
+
+/// Canonical crossfader preset ids shipped today, in catalog order.
+///
+/// Mirrors `engine_core::curve_presets::available_presets()`; the Rust side
+/// pins that list to `bus_api::CROSSFADER_CURVE_CYCLE`, and
+/// `settings_defaults_test` pins this one to the same order. Reserved catalog
+/// names (`full`, `slow_cut`, …) are intentionally absent: they cannot be
+/// selected yet.
+const kCrossfaderCurvePresets = <String>[
+  'constant_power',
+  'linear',
+  'fast_cut',
+];
 
 WaveformDisplayMode waveformModeFromSettings(WaveformDisplayModeSetting mode) {
   return switch (mode) {
@@ -145,6 +159,12 @@ AppSettings defaultAppSettings() {
     defaultOuterJogMode: JogModeSetting.pitchBend,
     defaultTempoRange: kDefaultTempoRange,
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
+    defaultCrossfaderCurve: 'constant_power',
+    crossfaderBehavior: const CrossfaderBehaviorSetting(
+      disabled: false,
+      hamster: false,
+    ),
+    curveLibrary: const CurveLibrarySpec(groups: [], sets: []),
     defaultKeyLock: false,
     vinylBrakePause: false,
     vinylBrakeStopSecs: kDefaultVinylBrakeStopSecs,
@@ -269,6 +289,9 @@ AppSettings copyAppSettings(
   JogModeSetting? defaultOuterJogMode,
   double? defaultTempoRange,
   Float32List? tempoRangeSteps,
+  String? defaultCrossfaderCurve,
+  CrossfaderBehaviorSetting? crossfaderBehavior,
+  CurveLibrarySpec? curveLibrary,
   bool? defaultKeyLock,
   bool? vinylBrakePause,
   double? vinylBrakeStopSecs,
@@ -325,6 +348,10 @@ AppSettings copyAppSettings(
     defaultOuterJogMode: defaultOuterJogMode ?? base.defaultOuterJogMode,
     defaultTempoRange: defaultTempoRange ?? base.defaultTempoRange,
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
+    defaultCrossfaderCurve:
+        defaultCrossfaderCurve ?? base.defaultCrossfaderCurve,
+    crossfaderBehavior: crossfaderBehavior ?? base.crossfaderBehavior,
+    curveLibrary: curveLibrary ?? base.curveLibrary,
     defaultKeyLock: defaultKeyLock ?? base.defaultKeyLock,
     vinylBrakePause: vinylBrakePause ?? base.vinylBrakePause,
     vinylBrakeStopSecs: vinylBrakeStopSecs ?? base.vinylBrakeStopSecs,
@@ -385,6 +412,9 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultTopJogMode != baseline.defaultTopJogMode ||
       draft.defaultOuterJogMode != baseline.defaultOuterJogMode ||
       draft.defaultTempoRange != baseline.defaultTempoRange ||
+      draft.defaultCrossfaderCurve != baseline.defaultCrossfaderCurve ||
+      draft.crossfaderBehavior != baseline.crossfaderBehavior ||
+      !identical(draft.curveLibrary, baseline.curveLibrary) ||
       draft.defaultKeyLock != baseline.defaultKeyLock ||
       draft.vinylBrakePause != baseline.vinylBrakePause ||
       !_sameDuration(draft.vinylBrakeStopSecs, baseline.vinylBrakeStopSecs) ||

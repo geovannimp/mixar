@@ -9,7 +9,7 @@ order: 5
 
 ## Sections
 
-Sections are `deck_1` through `deck_4`, `master`, `sampler`, and `custom`. Only `deck_*` sections resolve signals, and `master` resolves `master_cue` and `fx_armed`. `sampler` and `custom` are host-driven only.
+Sections are `deck_1` through `deck_4`, `master`, `sampler`, and `custom`. Only `deck_*` sections resolve signals, and `master` resolves `master_cue`, `fx_armed`, the crossfader behavior flags, and `crossfader_curve_<id>`. `sampler` and `custom` are host-driven only.
 
 ## Binding fields
 
@@ -80,6 +80,9 @@ Because a pad bank is mode-gated, only the deck's active page can light. The pre
 | --- | --- |
 | `master_cue` | Mixer master cue (PFL) on. |
 | `fx_armed` | The shared Beat FX unit is armed (`SlotEnabled` on slot 0). |
+| `crossfader_hamster` | The hamster flag is on (A and B gains swapped). |
+| `crossfader_disabled` | The crossfader curve is bypassed (both sides full gain). |
+| `crossfader_curve_<id>` | `true` when `<id>` is the active crossfader curve (preset, custom group, or curve set); e.g. `crossfader_curve_fast_cut`. |
 
 ## LED modes
 

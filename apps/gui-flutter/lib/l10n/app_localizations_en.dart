@@ -721,6 +721,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsMixerSamplerStripAfter => 'After channel strip';
 
   @override
+  String get settingsMixerCrossfaderTitle => 'Crossfader';
+
+  @override
+  String get settingsMixerCrossfaderDescription =>
+      'The curve the crossfader follows, plus the two performance flags. Changing it restarts the audio engine.';
+
+  @override
+  String get settingsMixerCrossfaderCurve => 'Default curve';
+
+  @override
+  String get settingsMixerCrossfaderHamster => 'Hamster (swap A and B)';
+
+  @override
+  String get settingsMixerCrossfaderDisable => 'Disable the crossfader';
+
+  @override
+  String get settingsCrossfaderCurveConstantPower => 'Constant power';
+
+  @override
+  String get settingsCrossfaderCurveLinear => 'Linear';
+
+  @override
+  String get settingsCrossfaderCurveFastCut => 'Fast cut';
+
+  @override
   String get settingsMixerRealtimeStemsTitle => 'Realtime Stems';
 
   @override

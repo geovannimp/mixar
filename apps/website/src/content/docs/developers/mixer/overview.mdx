@@ -30,7 +30,7 @@ MixerChannel strip
         │
         channel fader
         ▼
-crossfader gains (equal power)  ──►  master mix  ──►  master bus
+crossfader gains (resolved curve)  ──►  master mix  ──►  master bus
         │
         └─► cue bus (pre-fader taps of cue-enabled channels + optional master tap)
 ```
@@ -40,6 +40,28 @@ The pre-fader tap is captured **after** EQ, filter and FX. Headphones and the ch
 ## Chunking
 
 `Mixer::process` requires the frame count to be a positive multiple of `Buffer::LEN` (64 samples) and renders that many chunks per callback. Everything inside the callback is allocation-free. Buffers, scratch space and level state are allocated in constructors and reused, and no lock is taken on the audio thread.
+
+## Crossfader curves
+
+The crossfader law is a two-channel curve group (deck A, deck B). It is resolved and compiled on the control thread and only evaluated inside `Mixer::process`, so the audio callback never parses an id or allocates.
+
+- `curve-core` owns the target-agnostic model: `CurveSpec` (points + per-segment shape), `CurveGroup` (one curve per output), `CurveSet` and `CurveLibrary`, and `ResolvedCurveGroup`, which blends adjacent set members for a morph position.
+- `audio-core/src/crossfader_curve.rs` owns `ResolvedCrossfaderCurve`: the compiled A/B tables plus the `disabled` and `hamster` flags applied after evaluation. Its default is the equal-power `constant_power` group.
+- `engine-core/src/curve_presets.rs` is the crossfader preset registry (`constant_power`, `linear`, `fast_cut(cut)`), with reserved names listed but unavailable.
+- `engine-core/src/curve_library.rs` resolves a selection id in order: preset → custom group → curve set. It also converts the persisted `CurveLibrarySpec` into a validated `CurveLibrary`.
+
+Selection ids are canonical snake_case everywhere: settings, bus payloads, controller mappings, and logs. An unknown id installs `constant_power` and publishes a `Notice`; it never fails the load or the command. Duplicate group or set ids in `SetCurveLibrary` reject the whole update and keep the previous library.
+
+| Event | Payload | Effect |
+| ----- | ------- | ------ |
+| `SetCrossfaderCurve` | `id` | Select a preset, custom group, or curve set. Answers with `EngineStatus`. |
+| `SetCrossfaderCurveAmount` | `set`, `amount`, `soft_takeover` | Install `set` when it is not active, then sweep its morph. Gated by mixer soft takeover. |
+| `SetCrossfaderBehavior` | `hamster`, `disabled` | Apply both flags without rebuilding the gain tables. |
+| `SetCurveLibrary` | `library` | Validate and replace the custom curve library. |
+
+`EngineStatus.crossfader_curve` reports the active id, display name, morph position, and both flags, so a controller can drive a curve button or knob and mirror its state back as LEDs.
+
+Settings persist the same defaults under `audio.default_crossfader_curve`, `audio.crossfader_behavior`, and `audio.curve_library` in the engine config, which the app fills from **Settings → Mixer → Crossfader**. That is why a headless start and a GUI start agree on the active curve.
 
 ## Filter smoothing
 
@@ -54,6 +76,9 @@ The FLT knob changes a cutoff on every step, so `DjFilter` never applies one abr
 | `crates/engine-dsp/src/mixer_channel.rs` | The strip: gain, EQ, filter, FX, meter/PFL capture, fader |
 | `crates/engine-dsp/src/fx/` | FX chain, echo, reverb; see [FX chain](/docs/developers/mixer/fx-chain) |
 | `crates/engine-dsp/src/mixer.rs` | Lane rendering, crossfade sum, bus routing, master peaks, FX tempo |
+| `crates/audio-core/src/crossfader_curve.rs` | Compiled crossfader tables, `disabled`/`hamster` flags, equal-power default |
+| `crates/engine-core/src/curve_presets.rs` | Crossfader preset registry and catalog |
+| `crates/engine-core/src/curve_library.rs` | Selection resolution, library validation, settings ↔ curve-core conversion |
 | `crates/bus-api/src/payload.rs` | `DeckSnapshot` / `DeckUpdated` fields, `CmdBody` variants |
 | `crates/engine-core/src/control.rs` | Command decode + dispatch, mixer vs deck origin |
 | `crates/engine-core/src/status.rs` | DSP state → wire snapshot mapping |

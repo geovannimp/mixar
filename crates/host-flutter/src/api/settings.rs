@@ -626,6 +626,36 @@ fn default_show_crossfader() -> bool {
 fn default_num_decks() -> u8 {
     2
 }
+fn default_crossfader_curve() -> String {
+    bus_api::DEFAULT_CROSSFADER_CURVE_ID.to_string()
+}
+
+/// Crossfader preset option for the Settings curve picker.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CrossfaderPresetOption {
+    /// Canonical snake_case id (the value stored in settings).
+    pub id: String,
+    /// Human-readable name for the dropdown.
+    pub display_name: String,
+    /// Reserved names ship in the catalog but cannot be selected yet.
+    pub available: bool,
+}
+
+/// Every crossfader preset the Settings dropdown lists, in catalog order.
+///
+/// Canonical ids are the only values settings persist; reserved names appear
+/// disabled instead of being silently omitted.
+#[flutter_rust_bridge::frb(sync)]
+pub fn crossfader_preset_options() -> Vec<CrossfaderPresetOption> {
+    engine_core::crossfader_preset_catalog()
+        .iter()
+        .map(|preset| CrossfaderPresetOption {
+            id: preset.id.to_string(),
+            display_name: preset.display_name.to_string(),
+            available: preset.available,
+        })
+        .collect()
+}
 
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -661,6 +691,15 @@ pub struct AppSettings {
     pub default_outer_jog_mode: JogModeSetting,
     pub default_tempo_range: f32,
     pub tempo_range_steps: Vec<f32>,
+    /// Default crossfader curve id applied on every engine start.
+    #[serde(default = "default_crossfader_curve")]
+    pub default_crossfader_curve: String,
+    /// Curve bypass and hamster flags applied on every engine start.
+    #[serde(default)]
+    pub crossfader_behavior: bus_api::CrossfaderBehaviorSetting,
+    /// Named custom curve groups and the curve sets a knob can sweep.
+    #[serde(default)]
+    pub curve_library: bus_api::CurveLibrarySpec,
     #[serde(default)]
     pub default_key_lock: bool,
     #[serde(default)]
@@ -932,6 +971,9 @@ fn default_engine_config() -> EngineConfig {
             default_key_lock: Some(false),
             vinyl_brake_pause: Some(false),
             vinyl_brake_stop_secs: Some(0.5),
+            default_crossfader_curve: Some(bus_api::DEFAULT_CROSSFADER_CURVE_ID.to_string()),
+            crossfader_behavior: Some(bus_api::CrossfaderBehaviorSetting::default()),
+            curve_library: Some(bus_api::CurveLibrarySpec::default()),
         }),
         buses: vec![bus_config(
             MASTER_BUS_ID,
@@ -1049,6 +1091,30 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
 
     settings.stems_format = normalize_stems_format(&settings.stems_format);
     settings.stems_model = normalize_stems_model(&settings.stems_model);
+
+    // Preset aliases ("Constant Power") are accepted on the way in but always
+    // stored as canonical snake_case. An unknown id is coerced to the equal-power
+    // default (like a retired stem model), so a stale settings file still loads.
+    let requested = settings.default_crossfader_curve.trim().to_string();
+    let canonical = engine_core::curve_presets::canonical_id(&requested).map(str::to_string);
+    let known_custom = settings
+        .curve_library
+        .groups
+        .iter()
+        .any(|group| group.id == requested)
+        || settings
+            .curve_library
+            .sets
+            .iter()
+            .any(|set| set.id == requested);
+    settings.default_crossfader_curve = match canonical {
+        Some(id) => id,
+        None if known_custom => requested,
+        None => default_crossfader_curve(),
+    };
+    if let Err(error) = engine_core::library_from_spec(&settings.curve_library) {
+        errors.push(format!("curve_library: {error}"));
+    }
 
     // The preference list drives auto-switch; duplicates add no meaning.
     let mut audio_ids = std::collections::HashSet::new();
@@ -1184,6 +1250,9 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_outer_jog_mode: host.default_outer_jog_mode,
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
+        default_crossfader_curve: config.default_crossfader_curve(),
+        crossfader_behavior: config.crossfader_behavior(),
+        curve_library: config.curve_library(),
         default_key_lock: config.default_key_lock(),
         vinyl_brake_pause: config.vinyl_brake_pause(),
         vinyl_brake_stop_secs: config.vinyl_brake_stop_secs(),
@@ -1234,6 +1303,9 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         default_key_lock: Some(settings.default_key_lock),
         vinyl_brake_pause: Some(settings.vinyl_brake_pause),
         vinyl_brake_stop_secs: Some(settings.vinyl_brake_stop_secs),
+        default_crossfader_curve: Some(settings.default_crossfader_curve.clone()),
+        crossfader_behavior: Some(settings.crossfader_behavior),
+        curve_library: Some(settings.curve_library.clone()),
     });
     config.validate().bridge()?;
     host.engine_config = config;
@@ -2701,6 +2773,151 @@ mod tests {
     #[test]
     fn legacy_settings_default_onboarding_incomplete() {
         assert!(!legacy_settings_without("onboarding_completed").onboarding_completed);
+    }
+
+    #[test]
+    fn default_settings_carry_the_equal_power_curve_and_no_flags() {
+        let parsed = parse_settings(sample_settings()).expect("defaults parse");
+        assert_eq!(
+            parsed.default_crossfader_curve,
+            bus_api::DEFAULT_CROSSFADER_CURVE_ID
+        );
+        assert_eq!(
+            parsed.crossfader_behavior,
+            bus_api::CrossfaderBehaviorSetting::default()
+        );
+        assert!(parsed.curve_library.groups.is_empty());
+        assert!(parsed.curve_library.sets.is_empty());
+        assert!(legacy_settings_without("default_crossfader_curve")
+            .curve_library
+            .groups
+            .is_empty());
+    }
+
+    #[test]
+    fn crossfader_curve_settings_persist_and_normalize() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut host = SettingsHost {
+            persist_path: Some(path.clone()),
+            ..Default::default()
+        };
+
+        // A display alias is accepted and stored as the canonical snake_case id.
+        let mut draft = settings_from_host(&host);
+        draft.default_crossfader_curve = "Linear".into();
+        draft.crossfader_behavior = bus_api::CrossfaderBehaviorSetting {
+            disabled: false,
+            hamster: true,
+        };
+        apply_to_host(&mut host, draft).expect("apply");
+        let saved = parse_settings(settings_from_host(&host)).expect("parse");
+        assert_eq!(saved.default_crossfader_curve, "linear");
+        assert!(saved.crossfader_behavior.hamster);
+        write_settings_file(&path, &saved).expect("write");
+
+        let reloaded = settings_from_host(&load_host(&path));
+        assert_eq!(reloaded.default_crossfader_curve, "linear");
+        assert!(reloaded.crossfader_behavior.hamster);
+        assert!(!reloaded.crossfader_behavior.disabled);
+    }
+
+    #[test]
+    fn curve_library_persists_and_duplicate_ids_are_rejected() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut host = SettingsHost {
+            persist_path: Some(path.clone()),
+            ..Default::default()
+        };
+
+        let mut draft = settings_from_host(&host);
+        draft.curve_library = bus_api::CurveLibrarySpec {
+            groups: vec![curve_group("tight")],
+            sets: vec![bus_api::CurveSetSpec {
+                id: "sweep".into(),
+                display_name: "Sweep".into(),
+                members: vec![
+                    bus_api::CurveRefSpec {
+                        id: "tight".into(),
+                        parameter: None,
+                    },
+                    bus_api::CurveRefSpec {
+                        id: "linear".into(),
+                        parameter: None,
+                    },
+                ],
+            }],
+        };
+        draft.default_crossfader_curve = "sweep".into();
+        apply_to_host(&mut host, draft).expect("apply");
+        let saved = parse_settings(settings_from_host(&host)).expect("parse");
+        assert_eq!(saved.default_crossfader_curve, "sweep");
+        assert_eq!(saved.curve_library.sets.len(), 1);
+        write_settings_file(&path, &saved).expect("write");
+        assert_eq!(
+            settings_from_host(&load_host(&path))
+                .curve_library
+                .sets
+                .len(),
+            1
+        );
+
+        // Duplicate ids are rejected before anything is written, and the host
+        // keeps the library it already had.
+        let mut duplicate = saved;
+        duplicate.curve_library.groups.push(curve_group("tight"));
+        let error = apply_to_host(&mut host, duplicate).unwrap_err();
+        assert!(error.to_lowercase().contains("duplicate"), "{error}");
+        assert_eq!(settings_from_host(&host).curve_library.groups.len(), 1);
+    }
+
+    #[test]
+    fn preset_options_expose_canonical_ids_and_reserved_names() {
+        let options = crossfader_preset_options();
+        let available: Vec<&str> = options
+            .iter()
+            .filter(|option| option.available)
+            .map(|option| option.id.as_str())
+            .collect();
+        assert_eq!(available, bus_api::CROSSFADER_CURVE_CYCLE.to_vec());
+        let reserved = options
+            .iter()
+            .find(|option| option.id == "full")
+            .expect("reserved names stay in the catalog");
+        assert!(!reserved.available);
+        assert_eq!(reserved.display_name, "Full");
+        assert!(
+            options.iter().all(|option| option
+                .id
+                .chars()
+                .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_')),
+            "dropdown values are canonical snake_case ids"
+        );
+    }
+
+    /// A straight two-channel custom group with canonical endpoints.
+    fn curve_group(id: &str) -> bus_api::CurveGroupSpec {
+        let segment = bus_api::CurveSegmentSpec {
+            kind: bus_api::CurveSegmentKind::Linear,
+            rate: 0.0,
+            c1x: 0.0,
+            c1y: 0.0,
+            c2x: 0.0,
+            c2y: 0.0,
+        };
+        let curve = |y0: f32, y1: f32| bus_api::CurveSpecSpec {
+            points: vec![
+                bus_api::CurvePointSpec { x: 0.0, y: y0 },
+                bus_api::CurvePointSpec { x: 1.0, y: y1 },
+            ],
+            segments: vec![segment],
+        };
+        bus_api::CurveGroupSpec {
+            id: id.into(),
+            display_name: id.into(),
+            curves: vec![curve(1.0, 0.0), curve(0.0, 1.0)],
+        }
     }
 
     #[test]

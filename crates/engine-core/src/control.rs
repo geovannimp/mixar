@@ -32,6 +32,8 @@ enum CmdOutcome {
     DeckUpdated(usize),
     DecksUpdated(Vec<usize>),
     EngineStatus,
+    /// Publish a notice, then the engine status (a coerced value was used).
+    EngineStatusWithNotice(String),
     /// Publish a Position evt for `deck_id` (playhead moved without a full DeckUpdated).
     Position(usize),
     Silent,
@@ -276,6 +278,16 @@ fn publish_error(bus: &EventBus<Event>, deck: Option<u16>, message: impl Into<St
     );
 }
 
+/// Non-fatal notice: a command was accepted with a coerced value.
+fn publish_notice(bus: &EventBus<Event>, message: impl Into<String>) {
+    publish(
+        bus,
+        Event::Notice(bus_api::Notice {
+            message: message.into(),
+        }),
+    );
+}
+
 fn publish_deck_updated(bus: &EventBus<Event>, engine: &Engine, deck_id: usize) -> Result<()> {
     let snap = engine
         .deck_snapshot(deck_id)
@@ -382,6 +394,13 @@ fn handle_cmd_event(event: Event, engine: &EngineHandle, bus: &EventBus<Event>) 
             }
         }
         Ok(CmdOutcome::EngineStatus) => {
+            let _ = with_engine_ref(engine, |eng| {
+                publish_engine_status(bus, eng);
+                Ok(())
+            });
+        }
+        Ok(CmdOutcome::EngineStatusWithNotice(message)) => {
+            publish_notice(bus, message);
             let _ = with_engine_ref(engine, |eng| {
                 publish_engine_status(bus, eng);
                 Ok(())
@@ -992,6 +1011,41 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             with_engine_mut(engine, |eng| {
                 let enabled = !eng.master_cue().unwrap_or(false);
                 eng.set_master_cue(enabled)?;
+                Ok(CmdOutcome::EngineStatus)
+            })
+        }
+        Event::SetCurveLibrary(bus_api::SetCurveLibrary { library }) => {
+            with_engine_mut(engine, |eng| {
+                eng.set_curve_library(library)?;
+                Ok(CmdOutcome::EngineStatus)
+            })
+        }
+        Event::SetCrossfaderCurve(bus_api::SetCrossfaderCurve { id }) => {
+            with_engine_mut(engine, |eng| {
+                Ok(match eng.select_crossfader_curve(id)? {
+                    Some(message) => CmdOutcome::EngineStatusWithNotice(message),
+                    None => CmdOutcome::EngineStatus,
+                })
+            })
+        }
+        Event::SetCrossfaderCurveAmount(bus_api::SetCrossfaderCurveAmount {
+            set,
+            amount,
+            soft_takeover,
+        }) => with_engine_mut(engine, |eng| {
+            Ok(
+                match eng.select_crossfader_curve_set(set, *amount, *soft_takeover)? {
+                    Some(message) => CmdOutcome::EngineStatusWithNotice(message),
+                    None => CmdOutcome::EngineStatus,
+                },
+            )
+        }),
+        Event::SetCrossfaderBehavior(bus_api::SetCrossfaderBehavior { hamster, disabled }) => {
+            with_engine_mut(engine, |eng| {
+                eng.apply_crossfader_behavior(bus_api::CrossfaderBehaviorSetting {
+                    hamster: *hamster,
+                    disabled: *disabled,
+                })?;
                 Ok(CmdOutcome::EngineStatus)
             })
         }

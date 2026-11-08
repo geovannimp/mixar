@@ -1383,6 +1383,54 @@ abstract class AppLocalizations {
   /// **'After channel strip'**
   String get settingsMixerSamplerStripAfter;
 
+  /// No description provided for @settingsMixerCrossfaderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crossfader'**
+  String get settingsMixerCrossfaderTitle;
+
+  /// No description provided for @settingsMixerCrossfaderDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The curve the crossfader follows, plus the two performance flags. Changing it restarts the audio engine.'**
+  String get settingsMixerCrossfaderDescription;
+
+  /// No description provided for @settingsMixerCrossfaderCurve.
+  ///
+  /// In en, this message translates to:
+  /// **'Default curve'**
+  String get settingsMixerCrossfaderCurve;
+
+  /// No description provided for @settingsMixerCrossfaderHamster.
+  ///
+  /// In en, this message translates to:
+  /// **'Hamster (swap A and B)'**
+  String get settingsMixerCrossfaderHamster;
+
+  /// No description provided for @settingsMixerCrossfaderDisable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable the crossfader'**
+  String get settingsMixerCrossfaderDisable;
+
+  /// No description provided for @settingsCrossfaderCurveConstantPower.
+  ///
+  /// In en, this message translates to:
+  /// **'Constant power'**
+  String get settingsCrossfaderCurveConstantPower;
+
+  /// No description provided for @settingsCrossfaderCurveLinear.
+  ///
+  /// In en, this message translates to:
+  /// **'Linear'**
+  String get settingsCrossfaderCurveLinear;
+
+  /// No description provided for @settingsCrossfaderCurveFastCut.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast cut'**
+  String get settingsCrossfaderCurveFastCut;
+
   /// No description provided for @settingsMixerRealtimeStemsTitle.
   ///
   /// In en, this message translates to:

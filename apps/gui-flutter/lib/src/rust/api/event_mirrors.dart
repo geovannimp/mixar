@@ -227,6 +227,223 @@ class ClearSampler {
 
 enum CrossfaderAssign { a, thru, b }
 
+class CrossfaderBehaviorSetting {
+  final bool disabled;
+  final bool hamster;
+
+  const CrossfaderBehaviorSetting({
+    required this.disabled,
+    required this.hamster,
+  });
+
+  @override
+  int get hashCode => disabled.hashCode ^ hamster.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CrossfaderBehaviorSetting &&
+          runtimeType == other.runtimeType &&
+          disabled == other.disabled &&
+          hamster == other.hamster;
+}
+
+class CrossfaderCurveStatus {
+  final String id;
+  final String displayName;
+  final double morph;
+  final bool hamster;
+  final bool disabled;
+
+  const CrossfaderCurveStatus({
+    required this.id,
+    required this.displayName,
+    required this.morph,
+    required this.hamster,
+    required this.disabled,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      displayName.hashCode ^
+      morph.hashCode ^
+      hamster.hashCode ^
+      disabled.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CrossfaderCurveStatus &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          displayName == other.displayName &&
+          morph == other.morph &&
+          hamster == other.hamster &&
+          disabled == other.disabled;
+}
+
+class CurveGroupSpec {
+  final String id;
+  final String displayName;
+  final List<CurveSpecSpec> curves;
+
+  const CurveGroupSpec({
+    required this.id,
+    required this.displayName,
+    required this.curves,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ displayName.hashCode ^ curves.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CurveGroupSpec &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          displayName == other.displayName &&
+          curves == other.curves;
+}
+
+class CurveLibrarySpec {
+  final List<CurveGroupSpec> groups;
+  final List<CurveSetSpec> sets;
+
+  const CurveLibrarySpec({required this.groups, required this.sets});
+
+  @override
+  int get hashCode => groups.hashCode ^ sets.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CurveLibrarySpec &&
+          runtimeType == other.runtimeType &&
+          groups == other.groups &&
+          sets == other.sets;
+}
+
+class CurvePointSpec {
+  final double x;
+  final double y;
+
+  const CurvePointSpec({required this.x, required this.y});
+
+  @override
+  int get hashCode => x.hashCode ^ y.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CurvePointSpec &&
+          runtimeType == other.runtimeType &&
+          x == other.x &&
+          y == other.y;
+}
+
+class CurveRefSpec {
+  final String id;
+  final double? parameter;
+
+  const CurveRefSpec({required this.id, this.parameter});
+
+  @override
+  int get hashCode => id.hashCode ^ parameter.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CurveRefSpec &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          parameter == other.parameter;
+}
+
+enum CurveSegmentKind { linear, exponential, logarithmic, cubicBezier }
+
+class CurveSegmentSpec {
+  final CurveSegmentKind kind;
+  final double rate;
+  final double c1X;
+  final double c1Y;
+  final double c2X;
+  final double c2Y;
+
+  const CurveSegmentSpec({
+    required this.kind,
+    required this.rate,
+    required this.c1X,
+    required this.c1Y,
+    required this.c2X,
+    required this.c2Y,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      rate.hashCode ^
+      c1X.hashCode ^
+      c1Y.hashCode ^
+      c2X.hashCode ^
+      c2Y.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CurveSegmentSpec &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          rate == other.rate &&
+          c1X == other.c1X &&
+          c1Y == other.c1Y &&
+          c2X == other.c2X &&
+          c2Y == other.c2Y;
+}
+
+class CurveSetSpec {
+  final String id;
+  final String displayName;
+  final List<CurveRefSpec> members;
+
+  const CurveSetSpec({
+    required this.id,
+    required this.displayName,
+    required this.members,
+  });
+
+  @override
+  int get hashCode => id.hashCode ^ displayName.hashCode ^ members.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CurveSetSpec &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          displayName == other.displayName &&
+          members == other.members;
+}
+
+class CurveSpecSpec {
+  final List<CurvePointSpec> points;
+  final List<CurveSegmentSpec> segments;
+
+  const CurveSpecSpec({required this.points, required this.segments});
+
+  @override
+  int get hashCode => points.hashCode ^ segments.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CurveSpecSpec &&
+          runtimeType == other.runtimeType &&
+          points == other.points &&
+          segments == other.segments;
+}
+
 class DeckEq {
   final double low;
   final double mid;
@@ -922,6 +1139,7 @@ class EngineStatus {
   final double cueMix;
   final bool masterCue;
   final int masterDeck;
+  final CrossfaderCurveStatus crossfaderCurve;
   final List<DeckSnapshot> decks;
 
   const EngineStatus({
@@ -933,6 +1151,7 @@ class EngineStatus {
     required this.cueMix,
     required this.masterCue,
     required this.masterDeck,
+    required this.crossfaderCurve,
     required this.decks,
   });
 
@@ -946,6 +1165,7 @@ class EngineStatus {
       cueMix.hashCode ^
       masterCue.hashCode ^
       masterDeck.hashCode ^
+      crossfaderCurve.hashCode ^
       decks.hashCode;
 
   @override
@@ -961,6 +1181,7 @@ class EngineStatus {
           cueMix == other.cueMix &&
           masterCue == other.masterCue &&
           masterDeck == other.masterDeck &&
+          crossfaderCurve == other.crossfaderCurve &&
           decks == other.decks;
 }
 
@@ -1086,6 +1307,15 @@ sealed class Event with _$Event {
   const factory Event.setMasterCue(SetMasterCue field0) = Event_SetMasterCue;
   const factory Event.toggleMasterCue(ToggleMasterCue field0) =
       Event_ToggleMasterCue;
+  const factory Event.setCurveLibrary(SetCurveLibrary field0) =
+      Event_SetCurveLibrary;
+  const factory Event.setCrossfaderCurve(SetCrossfaderCurve field0) =
+      Event_SetCrossfaderCurve;
+  const factory Event.setCrossfaderCurveAmount(
+    SetCrossfaderCurveAmount field0,
+  ) = Event_SetCrossfaderCurveAmount;
+  const factory Event.setCrossfaderBehavior(SetCrossfaderBehavior field0) =
+      Event_SetCrossfaderBehavior;
   const factory Event.setFxUnitSlot(SetFxUnitSlot field0) = Event_SetFxUnitSlot;
   const factory Event.setFxUnitSlotEnabled(SetFxUnitSlotEnabled field0) =
       Event_SetFxUnitSlotEnabled;
@@ -2070,6 +2300,64 @@ class SetCrossfaderAssign {
           assignment == other.assignment;
 }
 
+class SetCrossfaderBehavior {
+  final bool hamster;
+  final bool disabled;
+
+  const SetCrossfaderBehavior({required this.hamster, required this.disabled});
+
+  @override
+  int get hashCode => hamster.hashCode ^ disabled.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetCrossfaderBehavior &&
+          runtimeType == other.runtimeType &&
+          hamster == other.hamster &&
+          disabled == other.disabled;
+}
+
+class SetCrossfaderCurve {
+  final String id;
+
+  const SetCrossfaderCurve({required this.id});
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetCrossfaderCurve &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+}
+
+class SetCrossfaderCurveAmount {
+  final String set_;
+  final double amount;
+  final bool softTakeover;
+
+  const SetCrossfaderCurveAmount({
+    required this.set_,
+    required this.amount,
+    required this.softTakeover,
+  });
+
+  @override
+  int get hashCode => set_.hashCode ^ amount.hashCode ^ softTakeover.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetCrossfaderCurveAmount &&
+          runtimeType == other.runtimeType &&
+          set_ == other.set_ &&
+          amount == other.amount &&
+          softTakeover == other.softTakeover;
+}
+
 class SetCueMix {
   final double mix;
   final bool softTakeover;
@@ -2120,6 +2408,22 @@ class SetCueVolume {
           runtimeType == other.runtimeType &&
           volume == other.volume &&
           softTakeover == other.softTakeover;
+}
+
+class SetCurveLibrary {
+  final CurveLibrarySpec library_;
+
+  const SetCurveLibrary({required this.library_});
+
+  @override
+  int get hashCode => library_.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetCurveLibrary &&
+          runtimeType == other.runtimeType &&
+          library_ == other.library_;
 }
 
 class SetDeckFxRouted {

@@ -41,9 +41,13 @@ use bus_api::Seek;
 use bus_api::SetAutoLoop;
 use bus_api::SetCrossfader;
 use bus_api::SetCrossfaderAssign;
+use bus_api::SetCrossfaderBehavior;
+use bus_api::SetCrossfaderCurve;
+use bus_api::SetCrossfaderCurveAmount;
 use bus_api::SetCueMix;
 use bus_api::SetCuePoint;
 use bus_api::SetCueVolume;
+use bus_api::SetCurveLibrary;
 use bus_api::SetDeckFxRouted;
 use bus_api::SetEqBand;
 use bus_api::SetFilter;
@@ -565,6 +569,38 @@ impl EngineTransport {
             deck: deck_id,
             assignment,
         }))
+    }
+
+    /// Select a crossfader preset, custom group, or curve set by canonical id.
+    pub fn set_crossfader_curve(&self, id: String) -> Result<(), String> {
+        self.publish_cmd(Event::SetCrossfaderCurve(SetCrossfaderCurve { id }))
+    }
+
+    /// Sweep the curve set `set` to morph `amount` (`0..1`).
+    pub fn set_crossfader_curve_amount(
+        &self,
+        set: String,
+        amount: f32,
+        soft_takeover: bool,
+    ) -> Result<(), String> {
+        self.publish_cmd(Event::SetCrossfaderCurveAmount(SetCrossfaderCurveAmount {
+            set,
+            amount,
+            soft_takeover,
+        }))
+    }
+
+    /// Set the hamster (A/B swap) and curve-bypass flags together.
+    pub fn set_crossfader_behavior(&self, hamster: bool, disabled: bool) -> Result<(), String> {
+        self.publish_cmd(Event::SetCrossfaderBehavior(SetCrossfaderBehavior {
+            hamster,
+            disabled,
+        }))
+    }
+
+    /// Replace the custom curve library (duplicate ids reject the update).
+    pub fn set_curve_library(&self, library: bus_api::CurveLibrarySpec) -> Result<(), String> {
+        self.publish_cmd(Event::SetCurveLibrary(SetCurveLibrary { library }))
     }
 
     /// Master bus volume `0..1`.
