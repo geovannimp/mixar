@@ -127,23 +127,34 @@ jobs:
         uses: ./.github/actions/install-native-deps
 
       # `bundled-sqlcipher-vendored-openssl` builds OpenSSL from source, and the
-      # MSVC build needs Perl plus NASM for its x86-64 assembly. The Windows
-      # runner image ships both; this keeps a minimal image from failing the
-      # whole release on a missing assembler.
+      # MSVC build needs a full Perl plus NASM for its x86-64 assembly.
+      #
+      # The Perl must be Strawberry, not the `perl` found on PATH: GitHub runs
+      # `shell: bash` steps under Git for Windows, whose bash prepends
+      # `C:\Program Files\Git\usr\bin` to PATH. That directory contains a
+      # trimmed MSYS Perl without Locale::Maketext::Simple, so OpenSSL's
+      # `perl ./Configure` dies with exit code 2 even when Strawberry Perl is
+      # installed and listed earlier via GITHUB_PATH. Name it explicitly for
+      # openssl-src (via OPENSSL_SRC_PERL) instead of relying on PATH.
       - name: Install OpenSSL build tools (Windows)
         if: matrix.platform == 'windows'
         shell: bash
         run: |
           set -euo pipefail
-          command -v perl >/dev/null || choco install -y strawberryperl
+          if [ ! -x /c/Strawberry/perl/bin/perl.exe ]; then
+            choco install -y strawberryperl
+          fi
           command -v nasm >/dev/null || choco install -y nasm
           # choco updates the machine PATH, which running shells have already
           # read; publish the directories so the later packaging steps (cargo
           # build of openssl-src) inherit them too.
-          printf '%s\n' "C:\\Strawberry\\perl\\bin" "C:\\Strawberry\\c\\bin" \
-            "C:\\Program Files\\NASM" >> "$GITHUB_PATH"
-          export PATH="/c/Strawberry/perl/bin:/c/Program Files/NASM:$PATH"
-          perl -v | head -n 2
+          printf '%s\n' "C:\\Strawberry\\c\\bin" "C:\\Program Files\\NASM" >> "$GITHUB_PATH"
+          PERL_WIN='C:\Strawberry\perl\bin\perl.exe'
+          echo "OPENSSL_SRC_PERL=$PERL_WIN" >> "$GITHUB_ENV"
+          echo "PERL=$PERL_WIN" >> "$GITHUB_ENV"
+          /c/Strawberry/perl/bin/perl.exe -MLocale::Maketext::Simple \
+            -e 'print "Locale::Maketext::Simple OK\n"'
+          /c/Strawberry/perl/bin/perl.exe -v | head -n 2
           nasm -v
 
       - name: Install Flutter desktop packaging deps
