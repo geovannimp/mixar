@@ -61,9 +61,9 @@ pub use deck_data::{
 };
 pub use export::ExportSession;
 pub use history::{
-    crossfader_gain, export_document, history_dir_for_db, render_document, DeckPlaySnapshot,
-    HistoryDocument, HistoryEntry, HistoryExportFormat, HistoryRecorder, HistoryRestorePrompt,
-    HistorySessionRow, HistorySettings,
+    export_document, history_dir_for_db, render_document, DeckPlaySnapshot, HistoryDocument,
+    HistoryEntry, HistoryExportFormat, HistoryRecorder, HistoryRestorePrompt, HistorySessionRow,
+    HistorySettings,
 };
 pub use sampler_data::{
     assign_slot as assign_sampler_slot, clear_slot as clear_sampler_slot, create_bank, delete_bank,

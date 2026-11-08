@@ -538,3 +538,61 @@ fn unload_pushes_the_stem_eq_toggle_into_the_dsp_deck() {
         "DSP mirror reset"
     );
 }
+
+fn linear_crossfader_group() -> curve_core::CurveGroup {
+    use curve_core::{CurveGroup, CurvePoint, CurveSpec, SegmentKind};
+    let curve = |y0: f32, y1: f32| {
+        CurveSpec::new(
+            vec![CurvePoint::new(0.0, y0), CurvePoint::new(1.0, y1)],
+            vec![SegmentKind::Linear],
+        )
+        .expect("valid linear curve")
+    };
+    CurveGroup::new(vec![curve(1.0, 0.0), curve(0.0, 1.0)]).expect("valid two-channel group")
+}
+
+#[test]
+fn crossfader_preset_and_curve_set_install_without_restart() {
+    use crate::curve_presets::CrossfaderPreset;
+    use audio_core::CrossfaderCurveBehavior;
+
+    let mut engine = started_null_engine();
+    engine.set_crossfader(0.5).unwrap();
+
+    let (gain_a, gain_b) = engine.resolved_crossfader_gains().unwrap();
+    assert!((gain_a - std::f32::consts::FRAC_1_SQRT_2).abs() < 1e-4);
+    assert!((gain_a - gain_b).abs() < 1e-6);
+
+    engine
+        .set_crossfader_preset(CrossfaderPreset::Linear)
+        .unwrap();
+    let (gain_a, gain_b) = engine.resolved_crossfader_gains().unwrap();
+    assert!((gain_a - 0.5).abs() < 1e-4);
+    assert!((gain_b - 0.5).abs() < 1e-4);
+
+    // Behavior survives a preset swap and applies to the new tables.
+    engine
+        .set_crossfader_behavior(CrossfaderCurveBehavior::hamster())
+        .unwrap();
+    engine
+        .set_crossfader_preset(CrossfaderPreset::FastCut { cut: 0.15 })
+        .unwrap();
+    assert!(engine.crossfader_behavior().unwrap().hamster);
+    engine.set_crossfader(0.0).unwrap();
+    let (gain_a, gain_b) = engine.resolved_crossfader_gains().unwrap();
+    assert!(gain_a.abs() < 1e-6, "hamster swaps the open side");
+    assert!((gain_b - 1.0).abs() < 1e-6);
+
+    // A curve set installs without restarting audio and morphs per block.
+    engine
+        .set_crossfader_curve_set(vec![linear_crossfader_group(), linear_crossfader_group()])
+        .unwrap();
+    engine.set_crossfader(0.5).unwrap();
+    engine.set_crossfader_curve_morph(0.5).unwrap();
+    assert_eq!(engine.crossfader_curve_morph(), Some(0.5));
+    let (gain_a, gain_b) = engine.resolved_crossfader_gains().unwrap();
+    assert!((gain_a - 0.5).abs() < 1e-4);
+    assert!((gain_b - 0.5).abs() < 1e-4);
+
+    engine.stop().unwrap();
+}

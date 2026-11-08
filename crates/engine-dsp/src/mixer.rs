@@ -4,7 +4,10 @@
 //! renders lanes, applies crossfader gains when summing, then routes buses.
 
 use anyhow::Result;
-use audio_core::{slice as audio_slice, BusId, CrossfaderAssign, Frame, Sample, StereoFrame};
+use audio_core::{
+    slice as audio_slice, BusId, CrossfaderAssign, CrossfaderCurveBehavior, Frame,
+    ResolvedCrossfaderCurve, Sample, StereoFrame,
+};
 use dasp_graph::{process, Buffer, Input, Node, NodeData, Processor};
 use petgraph::graph::DiGraph;
 use std::collections::HashMap;
@@ -40,6 +43,8 @@ pub struct Mixer {
     master_cue: bool,
     /// Crossfader position: 0.0 = deck A, 1.0 = deck B.
     crossfader: f32,
+    /// Compiled crossfader gains plus behavior flags (installed pre-lock).
+    crossfader_curve: ResolvedCrossfaderCurve,
     /// Assignment for each stable deck ID (0=A, 1=B, 2=C, 3=D).
     crossfader_assignments: [CrossfaderAssign; 4],
     /// Internal mix buffer (interleaved stereo) filled from lane outputs.
@@ -68,6 +73,8 @@ impl std::fmt::Debug for Mixer {
             .field("cue_mix", &self.cue_mix)
             .field("master_cue", &self.master_cue)
             .field("crossfader", &self.crossfader)
+            .field("crossfader_behavior", &self.crossfader_curve.behavior())
+            .field("crossfader_morph", &self.crossfader_curve.morph())
             .field("lane_count", &self.lane_node_ids.len())
             .field("mix_buffer_len", &self.mix_buffer.len())
             .finish()
@@ -113,6 +120,7 @@ impl Mixer {
                 CrossfaderAssign::B,
             ],
             crossfader: 0.5,
+            crossfader_curve: ResolvedCrossfaderCurve::constant_power(),
             mix_buffer: Vec::new(),
             pfl_scratch: Vec::new(),
             graph,
@@ -288,6 +296,44 @@ impl Mixer {
         (angle.cos(), angle.sin())
     }
 
+    /// The installed resolved crossfader curve.
+    pub fn crossfader_curve(&self) -> &ResolvedCrossfaderCurve {
+        &self.crossfader_curve
+    }
+
+    /// Install already-compiled crossfader tables and behavior.
+    ///
+    /// Resolve and compile the curve before taking the DSP mutex; this method
+    /// only swaps the prepared value.
+    pub fn set_crossfader_curve(&mut self, curve: ResolvedCrossfaderCurve) {
+        self.crossfader_curve = curve;
+    }
+
+    /// Behavior flags currently applied after the curve.
+    pub fn crossfader_curve_behavior(&self) -> CrossfaderCurveBehavior {
+        self.crossfader_curve.behavior()
+    }
+
+    /// Replace the behavior flags without rebuilding the tables.
+    pub fn set_crossfader_curve_behavior(&mut self, behavior: CrossfaderCurveBehavior) {
+        self.crossfader_curve.set_behavior(behavior);
+    }
+
+    /// Curve-set morph position in `0..=1`.
+    pub fn crossfader_curve_morph(&self) -> f32 {
+        self.crossfader_curve.morph()
+    }
+
+    /// Set the curve-set morph position, clamped to `0..=1`.
+    pub fn set_crossfader_curve_morph(&mut self, morph: f32) {
+        self.crossfader_curve.set_morph(morph);
+    }
+
+    /// Current resolved A/B gains for the installed curve and crossfader position.
+    pub fn resolved_crossfader_gains(&self) -> (f32, f32) {
+        self.crossfader_curve.gains_at(self.crossfader)
+    }
+
     /// Process audio from all lanes, apply crossfader when summing, and route buses.
     pub fn process(
         &mut self,
@@ -308,7 +354,9 @@ impl Mixer {
             lane.set_fx_tempo(fx_bpm);
         }
 
-        let (gain_a, gain_b) = Self::crossfader_gains(self.crossfader);
+        // Resolve A/B once per block from the installed compiled tables; the
+        // lane loop only picks one of the two values.
+        let (gain_a, gain_b) = self.crossfader_curve.gains_at(self.crossfader);
         let n_samples_per_channel = frames as usize;
         anyhow::ensure!(
             n_samples_per_channel > 0 && n_samples_per_channel.is_multiple_of(CHUNK_SAMPLES),
@@ -821,6 +869,148 @@ mod tests {
 
         let (a, b) = Mixer::crossfader_gains(0.5);
         assert!((a - b).abs() < 1e-6);
+    }
+
+    fn linear_crossfader_group() -> curve_core::CurveGroup {
+        use curve_core::{CurveGroup, CurvePoint, CurveSpec, SegmentKind};
+        let curve = |y0: f32, y1: f32| {
+            CurveSpec::new(
+                vec![CurvePoint::new(0.0, y0), CurvePoint::new(1.0, y1)],
+                vec![SegmentKind::Linear],
+            )
+            .expect("valid linear curve")
+        };
+        CurveGroup::new(vec![curve(1.0, 0.0), curve(0.0, 1.0)]).expect("valid two-channel group")
+    }
+
+    fn render_peak_with_curve(
+        assignment: CrossfaderAssign,
+        position: f32,
+        curve: ResolvedCrossfaderCurve,
+    ) -> f32 {
+        let mut mixer = new_mixer(1);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.set_crossfader_assign(0, assignment).unwrap();
+        mixer.set_crossfader(position).unwrap();
+        mixer.set_crossfader_curve(curve);
+        let mut output_buses = HashMap::from([(BusId::new("master"), vec![0.0; 1024])]);
+        mixer.process(512, &mut output_buses).unwrap();
+        output_buses[&BusId::new("master")][..1024]
+            .iter()
+            .map(|sample| sample.abs())
+            .fold(0.0, f32::max)
+    }
+
+    #[test]
+    fn default_crossfader_curve_matches_equal_power_law() {
+        let mut mixer = new_mixer(1);
+        for step in 0..=100 {
+            let position = step as f32 / 100.0;
+            mixer.set_crossfader(position).unwrap();
+            let (gain_a, gain_b) = mixer.resolved_crossfader_gains();
+            let (expected_a, expected_b) = Mixer::crossfader_gains(position);
+            assert!(
+                (gain_a - expected_a).abs() < 1e-4,
+                "A gain at {position}: {gain_a} vs {expected_a}"
+            );
+            assert!(
+                (gain_b - expected_b).abs() < 1e-4,
+                "B gain at {position}: {gain_b} vs {expected_b}"
+            );
+        }
+    }
+
+    #[test]
+    fn custom_curve_changes_gains_without_restart() {
+        let mut mixer = new_mixer(1);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.set_crossfader_assign(0, CrossfaderAssign::A).unwrap();
+        mixer.set_crossfader(0.5).unwrap();
+        let mut output_buses = HashMap::from([(BusId::new("master"), vec![0.0; 1024])]);
+        mixer.process(512, &mut output_buses).unwrap();
+        let constant_power_peak = output_buses[&BusId::new("master")][..1024]
+            .iter()
+            .map(|sample| sample.abs())
+            .fold(0.0, f32::max);
+
+        let linear = ResolvedCrossfaderCurve::from_group(linear_crossfader_group())
+            .expect("linear curve resolves");
+        mixer.set_crossfader_curve(linear);
+        mixer.lane_mut(0).unwrap().deck_mut().seek(0).unwrap();
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+        mixer.process(512, &mut output_buses).unwrap();
+        let linear_peak = output_buses[&BusId::new("master")][..1024]
+            .iter()
+            .map(|sample| sample.abs())
+            .fold(0.0, f32::max);
+
+        assert!(
+            (constant_power_peak - 0.8 * std::f32::consts::FRAC_1_SQRT_2).abs() < 1e-3,
+            "default peak {constant_power_peak}"
+        );
+        assert!(
+            (linear_peak - 0.4).abs() < 1e-3,
+            "linear peak {linear_peak} must reflect the installed curve"
+        );
+    }
+
+    #[test]
+    fn hamster_swaps_a_and_b_gains() {
+        let curve = ResolvedCrossfaderCurve::constant_power()
+            .with_behavior(CrossfaderCurveBehavior::hamster());
+        // At position 0 the A curve is open; hamster must open B instead.
+        assert!(
+            render_peak_with_curve(CrossfaderAssign::A, 0.0, curve.clone()) < 1e-5,
+            "hamster must silence an A lane at the A end"
+        );
+        assert!(
+            render_peak_with_curve(CrossfaderAssign::B, 0.0, curve) > 0.5,
+            "hamster must open a B lane at the A end"
+        );
+    }
+
+    #[test]
+    fn disabled_crossfader_bypasses_curve_gains() {
+        let curve = ResolvedCrossfaderCurve::constant_power()
+            .with_behavior(CrossfaderCurveBehavior::disabled());
+        assert!(
+            render_peak_with_curve(CrossfaderAssign::A, 1.0, curve.clone()) > 0.5,
+            "disabled must leave A open at the B end"
+        );
+        assert!(
+            render_peak_with_curve(CrossfaderAssign::B, 0.0, curve.clone()) > 0.5,
+            "disabled must leave B open at the A end"
+        );
+        assert!(
+            render_peak_with_curve(CrossfaderAssign::Thru, 1.0, curve) > 0.5,
+            "Thru stays a per-lane bypass"
+        );
+    }
+
+    #[test]
+    fn curve_set_morph_blends_at_runtime() {
+        let linear = linear_crossfader_group();
+        let constant_power = audio_core::constant_power_group();
+        let mut curve = ResolvedCrossfaderCurve::from_groups(&[linear, constant_power])
+            .expect("two-member curve set resolves");
+
+        curve.set_morph(0.0);
+        let (a, b) = curve.gains_at(0.5);
+        assert!((a - 0.5).abs() < 1e-4 && (b - 0.5).abs() < 1e-4);
+
+        curve.set_morph(1.0);
+        let (a, b) = curve.gains_at(0.5);
+        assert!((a - std::f32::consts::FRAC_1_SQRT_2).abs() < 1e-4);
+        assert!((a - b).abs() < 1e-6);
+
+        curve.set_morph(0.5);
+        let (a, b) = curve.gains_at(0.5);
+        let midpoint = (0.5 + std::f32::consts::FRAC_1_SQRT_2) / 2.0;
+        assert!((a - midpoint).abs() < 1e-4, "morph midpoint {a}");
+        assert!((b - midpoint).abs() < 1e-4);
     }
 
     #[test]

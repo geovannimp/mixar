@@ -424,6 +424,7 @@ name = "audio-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "curve-core",
  "dasp",
  "serde",
  "thiserror 1.0.69",
@@ -1533,6 +1534,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "curve-core",
  "dasp_graph",
  "petgraph",
  "resampler",
@@ -2596,6 +2598,7 @@ dependencies = [
  "bus-api",
  "chrono",
  "codec",
+ "curve-core",
  "event-bus",
  "image",
  "library-core",

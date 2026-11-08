@@ -60,11 +60,6 @@ pub const RESERVED_PRESET_IDS: [&str; 6] = [
     "logarithmic",
 ];
 
-/// Number of cubic segments used to reproduce the equal-power law.
-///
-/// Cubic Hermite segments keep the generated curve within f32 rounding of the
-/// exact `cos`/`sin` law while staying inside [`curve_core`]'s 256-point limit.
-const CONSTANT_POWER_SEGMENTS: usize = 64;
 /// Samples used when validating a group's normalized output range.
 const VALIDATION_STEPS: usize = 256;
 
@@ -281,7 +276,7 @@ impl CrossfaderPreset {
     pub fn curve_group(self) -> Result<CurveGroup, CrossfaderPresetError> {
         self.validate()?;
         let curves = match self {
-            Self::ConstantPower => constant_power_curves().to_vec(),
+            Self::ConstantPower => audio_core::constant_power_group().curves,
             Self::Linear => linear_curves().to_vec(),
             Self::FastCut { cut } => vec![fast_cut_curve(cut, true), fast_cut_curve(cut, false)],
         };
@@ -559,68 +554,6 @@ fn parse_parameter(id: &str, raw: &str) -> Result<Option<f32>, CrossfaderPresetE
 
 fn linear_curves() -> [CurveSpec; 2] {
     [two_point(|x| 1.0 - x), two_point(|x| x)]
-}
-
-/// Build the equal-power curves as cubic Hermite segments.
-///
-/// A cubic Hermite fit of `cos`/`sin` keeps the error below f32 rounding while
-/// every segment's control handles stay inside `curve_core`'s normalized range.
-fn constant_power_curves() -> [CurveSpec; 2] {
-    [
-        hermite_curve(
-            |x| (x * std::f32::consts::FRAC_PI_2).cos(),
-            |x| -(x * std::f32::consts::FRAC_PI_2).sin() * std::f32::consts::FRAC_PI_2,
-            1.0,
-            0.0,
-        ),
-        hermite_curve(
-            |x| (x * std::f32::consts::FRAC_PI_2).sin(),
-            |x| (x * std::f32::consts::FRAC_PI_2).cos() * std::f32::consts::FRAC_PI_2,
-            0.0,
-            1.0,
-        ),
-    ]
-}
-
-fn hermite_curve(
-    value: impl Fn(f32) -> f32,
-    derivative: impl Fn(f32) -> f32,
-    start: f32,
-    end: f32,
-) -> CurveSpec {
-    let steps = CONSTANT_POWER_SEGMENTS;
-    let mut points = Vec::with_capacity(steps + 1);
-    for index in 0..=steps {
-        let x = index as f32 / steps as f32;
-        let y = match index {
-            0 => start,
-            index if index == steps => end,
-            _ => value(x).clamp(0.0, 1.0),
-        };
-        points.push(CurvePoint::new(x, y));
-    }
-
-    let mut segments = Vec::with_capacity(steps);
-    for index in 0..steps {
-        let start_point = points[index];
-        let end_point = points[index + 1];
-        let span = end_point.x - start_point.x;
-        let rise = end_point.y - start_point.y;
-        if span <= 0.0 || rise.abs() < f32::EPSILON {
-            segments.push(SegmentKind::Linear);
-            continue;
-        }
-        // Normalize the endpoints' slopes into the segment's local 0..=1 shape.
-        let slope_start = derivative(start_point.x) * span / rise;
-        let slope_end = derivative(end_point.x) * span / rise;
-        segments.push(SegmentKind::CubicBezier {
-            c1: [1.0 / 3.0, (slope_start / 3.0).clamp(0.0, 1.0)],
-            c2: [2.0 / 3.0, (1.0 - slope_end / 3.0).clamp(0.0, 1.0)],
-        });
-    }
-
-    CurveSpec::new(points, segments)
-        .expect("the constant_power Hermite curve is always a valid normalized curve")
 }
 
 fn fast_cut_curve(cut: f32, deck_a: bool) -> CurveSpec {

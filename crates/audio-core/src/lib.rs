@@ -8,6 +8,7 @@
 //! re-export dasp's `Frame` trait and `slice` module for frame/sample conversions.
 
 mod audio_source;
+mod crossfader_curve;
 mod live_stems;
 pub mod time;
 mod waveform;
@@ -17,6 +18,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub use audio_source::{LoadableAudio, LoadedAudio};
+pub use crossfader_curve::{
+    constant_power_group, CrossfaderCurveBehavior, ResolvedCrossfaderCurve,
+    CROSSFADER_CURVE_CHANNELS,
+};
 pub use live_stems::{LiveStemRing, DEFAULT_LIVE_STEM_CAPACITY, LIVE_STEM_COUNT};
 pub use time::{ms_to_secs, secs_to_ms};
 pub use waveform::{

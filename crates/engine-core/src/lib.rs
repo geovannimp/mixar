@@ -28,6 +28,7 @@ mod sync;
 mod transport;
 
 pub use analyzer_core::AnalysisDurationMode;
+pub use audio_core::{CrossfaderCurveBehavior, ResolvedCrossfaderCurve};
 pub use audio_core::{DeviceInfo, LoadableAudio, LoadedAudio};
 pub use backend::{create_backend, AudioBackend, AudioBackendTrait};
 pub use bus::{new_event_bus, CMD_CAPACITY, EVT_CAPACITY};
@@ -37,6 +38,7 @@ pub use config::{
     MAX_DECKS,
 };
 pub use control::{spawn_engine_worker, EngineWorker};
+pub use curve_core::CurveGroup;
 pub use curve_presets::{
     available_presets, catalog as crossfader_preset_catalog, CrossfaderCurveError,
     CrossfaderPreset, CrossfaderPresetError, CrossfaderPresetInfo, CrossfaderPresetParameter,

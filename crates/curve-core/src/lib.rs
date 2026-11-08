@@ -48,6 +48,7 @@ mod library;
 mod point;
 pub mod presets;
 mod refs;
+mod resolved;
 mod segment;
 mod spec;
 mod table;
@@ -61,6 +62,7 @@ pub use library::{
 };
 pub use point::CurvePoint;
 pub use refs::{CurveGroupRef, CurveRefKind, MAX_ID_LEN};
+pub use resolved::ResolvedCurveGroup;
 pub use segment::{SegmentKind, MAX_SEGMENT_RATE};
 pub use spec::{CurveSpec, MAX_POINTS, MIN_POINTS};
 pub use table::{CurveTable, TABLE_SAMPLES};

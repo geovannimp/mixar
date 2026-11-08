@@ -67,6 +67,12 @@ pub enum CurveError {
     #[error("expected an output buffer of {expected} values, got {actual}")]
     OutputLength { expected: usize, actual: usize },
 
+    #[error("a resolved curve group needs at least one compiled member")]
+    EmptyResolvedGroup,
+
+    #[error("resolved curve groups mix {expected} and {count} channels")]
+    ResolvedChannelMismatch { expected: usize, count: usize },
+
     #[error("`{id}` is not a snake_case id (expected [a-z][a-z0-9_]*, at most 64 characters)")]
     InvalidId { id: String },
 

@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use audio_core::CrossfaderAssign;
+use audio_core::{CrossfaderAssign, ResolvedCrossfaderCurve};
 use library_core::{Result, TrackId};
 use uuid::Uuid;
 
@@ -88,6 +88,8 @@ pub struct HistoryRecorder {
     history_dir: PathBuf,
     settings: HistorySettings,
     crossfader: f32,
+    /// Resolved crossfader tables installed by the engine (same values the mixer uses).
+    crossfader_curve: ResolvedCrossfaderCurve,
     decks: Vec<DeckRuntime>,
     document: Option<HistoryDocument>,
     xspf_path: Option<PathBuf>,
@@ -106,6 +108,7 @@ impl HistoryRecorder {
             history_dir,
             settings,
             crossfader: 0.5,
+            crossfader_curve: ResolvedCrossfaderCurve::constant_power(),
             decks: Vec::new(),
             document: None,
             xspf_path: None,
@@ -169,6 +172,19 @@ impl HistoryRecorder {
     pub fn on_crossfader(&mut self, db: &Db, crossfader: f32) -> Result<()> {
         self.crossfader = crossfader.clamp(0.0, 1.0);
         self.sync_deck_states(db)
+    }
+
+    /// Install the resolved tables the mixer is using.
+    ///
+    /// The engine compiles them on its control thread; history only evaluates
+    /// the same curve and behavior flags at the current crossfader position.
+    pub fn set_crossfader_curve(&mut self, curve: ResolvedCrossfaderCurve) {
+        self.crossfader_curve = curve;
+    }
+
+    /// The resolved crossfader curve currently driving the qualification gate.
+    pub fn crossfader_curve(&self) -> &ResolvedCrossfaderCurve {
+        &self.crossfader_curve
     }
 
     pub fn on_deck_updated(
@@ -541,32 +557,20 @@ impl HistoryRecorder {
             return false;
         };
         let loaded = deck.snapshot.track_id.is_some() || deck.snapshot.track_path.is_some();
+        let (gain_a, gain_b) = self.crossfader_curve.gains_at(self.crossfader);
+        let crossfader_gain = match deck.snapshot.crossfader_assign {
+            CrossfaderAssign::A => gain_a,
+            CrossfaderAssign::B => gain_b,
+            CrossfaderAssign::Thru => 1.0,
+        };
         deck.snapshot.playing
             && loaded
-            && effective_output(
-                deck.snapshot.crossfader_assign,
-                deck.snapshot.volume,
-                self.crossfader,
-            ) >= self.settings.min_deck_volume
+            && deck.snapshot.volume * crossfader_gain >= self.settings.min_deck_volume
     }
 
     fn any_deck_qualifying(&self) -> bool {
         (0..self.decks.len()).any(|id| self.is_qualifying(id))
     }
-}
-
-pub fn crossfader_gain(assignment: CrossfaderAssign, crossfader: f32) -> f32 {
-    let t = crossfader.clamp(0.0, 1.0);
-    let angle = t * std::f32::consts::FRAC_PI_2;
-    match assignment {
-        CrossfaderAssign::A => angle.cos(),
-        CrossfaderAssign::B => angle.sin(),
-        CrossfaderAssign::Thru => 1.0,
-    }
-}
-
-pub fn effective_output(assignment: CrossfaderAssign, volume: f32, crossfader: f32) -> f32 {
-    volume * crossfader_gain(assignment, crossfader)
 }
 
 fn merge_deck_play_snapshot(prev: &DeckPlaySnapshot, next: DeckPlaySnapshot) -> DeckPlaySnapshot {
@@ -767,15 +771,127 @@ mod tests {
             .expect("stop");
     }
 
+    fn linear_crossfader_group() -> curve_core::CurveGroup {
+        use curve_core::{CurveGroup, CurvePoint, CurveSpec, SegmentKind};
+        let curve = |y0: f32, y1: f32| {
+            CurveSpec::new(
+                vec![CurvePoint::new(0.0, y0), CurvePoint::new(1.0, y1)],
+                vec![SegmentKind::Linear],
+            )
+            .expect("valid linear curve")
+        };
+        CurveGroup::new(vec![curve(1.0, 0.0), curve(0.0, 1.0)]).expect("valid two-channel group")
+    }
+
+    fn snapshot_on(assignment: CrossfaderAssign, volume: f32) -> DeckPlaySnapshot {
+        DeckPlaySnapshot {
+            crossfader_assign: assignment,
+            ..snap("/music/a.flac", true, volume)
+        }
+    }
+
     #[test]
-    fn crossfader_gains_match_mixer() {
-        assert!((crossfader_gain(CrossfaderAssign::A, 0.0) - 1.0).abs() < f32::EPSILON);
-        assert!((crossfader_gain(CrossfaderAssign::B, 1.0) - 1.0).abs() < f32::EPSILON);
-        assert_eq!(crossfader_gain(CrossfaderAssign::Thru, 0.0), 1.0);
-        assert_eq!(crossfader_gain(CrossfaderAssign::Thru, 1.0), 1.0);
-        assert!(effective_output(CrossfaderAssign::A, 0.1, 0.0) >= 0.05);
-        assert!(effective_output(CrossfaderAssign::B, 0.1, 1.0) >= 0.05);
-        assert!(effective_output(CrossfaderAssign::A, 0.1, 1.0) < 0.05);
+    fn default_curve_gains_match_the_mixer_law() {
+        let fx = fixture(fast_settings());
+        let curve = fx.recorder.crossfader_curve();
+
+        let (a, b) = curve.gains_at(0.0);
+        assert!((a - 1.0).abs() < 1e-6);
+        assert!(b.abs() < 1e-6);
+
+        let (a, b) = curve.gains_at(1.0);
+        assert!(a.abs() < 1e-6);
+        assert!((b - 1.0).abs() < 1e-6);
+
+        let (a, b) = curve.gains_at(0.5);
+        assert!((a - std::f32::consts::FRAC_1_SQRT_2).abs() < 1e-4);
+        assert!((a - b).abs() < 1e-6);
+    }
+
+    #[test]
+    fn history_gate_follows_installed_custom_curve_without_restart() {
+        let mut settings = fast_settings();
+        settings.min_deck_volume = 0.06;
+        let mut fx = fixture(settings);
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snapshot_on(CrossfaderAssign::A, 0.1))
+            .expect("deck");
+        fx.recorder.on_crossfader(&fx.db, 0.5).expect("xf");
+        assert!(
+            fx.recorder.is_qualifying(0),
+            "equal power leaves enough output to qualify"
+        );
+
+        let linear = audio_core::ResolvedCrossfaderCurve::from_group(linear_crossfader_group())
+            .expect("linear curve resolves");
+        fx.recorder.set_crossfader_curve(linear);
+        assert!(
+            !fx.recorder.is_qualifying(0),
+            "linear halves the A gain at the center"
+        );
+    }
+
+    #[test]
+    fn history_gate_follows_curve_set_morph() {
+        let mut settings = fast_settings();
+        settings.min_deck_volume = 0.055;
+        let mut fx = fixture(settings);
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snapshot_on(CrossfaderAssign::A, 0.1))
+            .expect("deck");
+        fx.recorder.on_crossfader(&fx.db, 0.5).expect("xf");
+
+        let mut curve = audio_core::ResolvedCrossfaderCurve::from_groups(&[
+            linear_crossfader_group(),
+            audio_core::constant_power_group(),
+        ])
+        .expect("two-member curve set resolves");
+        curve.set_morph(0.0);
+        fx.recorder.set_crossfader_curve(curve.clone());
+        assert!(!fx.recorder.is_qualifying(0), "linear end falls below");
+
+        curve.set_morph(0.5);
+        fx.recorder.set_crossfader_curve(curve.clone());
+        assert!(
+            fx.recorder.is_qualifying(0),
+            "halfway to equal power clears the gate"
+        );
+
+        curve.set_morph(1.0);
+        fx.recorder.set_crossfader_curve(curve);
+        assert!(fx.recorder.is_qualifying(0), "equal-power end qualifies");
+    }
+
+    #[test]
+    fn history_gate_applies_hamster_and_disabled_flags() {
+        use audio_core::CrossfaderCurveBehavior;
+
+        let mut settings = fast_settings();
+        settings.min_deck_volume = 0.06;
+        let mut fx = fixture(settings);
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snapshot_on(CrossfaderAssign::A, 0.1))
+            .expect("deck");
+        fx.recorder
+            .on_deck_updated(&fx.db, 1, snapshot_on(CrossfaderAssign::B, 0.1))
+            .expect("deck");
+        fx.recorder.on_crossfader(&fx.db, 0.0).expect("xf");
+        assert!(fx.recorder.is_qualifying(0));
+        assert!(!fx.recorder.is_qualifying(1));
+
+        fx.recorder.set_crossfader_curve(
+            audio_core::ResolvedCrossfaderCurve::constant_power()
+                .with_behavior(CrossfaderCurveBehavior::hamster()),
+        );
+        assert!(!fx.recorder.is_qualifying(0), "hamster silences side A");
+        assert!(fx.recorder.is_qualifying(1), "hamster opens side B");
+
+        fx.recorder.set_crossfader_curve(
+            audio_core::ResolvedCrossfaderCurve::constant_power()
+                .with_behavior(CrossfaderCurveBehavior::disabled()),
+        );
+        assert!(fx.recorder.is_qualifying(0));
+        assert!(fx.recorder.is_qualifying(1));
     }
 
     #[test]
@@ -1018,7 +1134,8 @@ mod tests {
             .expect("deck");
         fx.recorder.tick(&fx.db).expect("tick");
         assert!(fx.recorder.active_session_id().is_none());
-        assert!(effective_output(CrossfaderAssign::A, 1.0, 1.0) < 0.05);
+        let (gain_a, _) = fx.recorder.crossfader_curve().gains_at(1.0);
+        assert!(gain_a < 0.05);
     }
 
     #[test]
