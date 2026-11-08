@@ -198,6 +198,7 @@ const DECK_LEAVES: &[&str] = &[
     "set_crossfader_assign",
     "set_speed",
     "cycle_tempo_range",
+    "set_tempo_curve",
     "set_headphone_cue",
     "jog_touch",
     "jog_turn",
@@ -309,6 +310,7 @@ const MIXER_LEAVES: &[&str] = &[
     "set_crossfader_curve",
     "set_crossfader_curve_amount",
     "cycle_crossfader_curve",
+    "set_channel_fader_curve",
     "set_crossfader_hamster",
     "set_crossfader_disabled",
     "toggle_fx",
@@ -318,6 +320,7 @@ const MIXER_LEAVES: &[&str] = &[
     "step_fx_division_down",
     "step_fx_division_up",
     "set_fx_wet",
+    "set_fx_level_curve",
     "set_fx_route",
 ];
 
@@ -440,6 +443,38 @@ pub fn validate_leaf_args(
             if !is_snake_case(set) {
                 return Err(LoadError::Validation(format!(
                     "arg `set` must be a canonical snake_case curve set id, got `{set}`"
+                )));
+            }
+            Ok(())
+        }
+        // Channel faders share the same canonical curve-id space.
+        "set_channel_fader_curve" => {
+            args.expect_keys_exactly(&["id"])?;
+            let id = args.require_ident("id")?;
+            if !is_snake_case(id) {
+                return Err(LoadError::Validation(format!(
+                    "arg `id` must be a canonical snake_case curve id, got `{id}`"
+                )));
+            }
+            Ok(())
+        }
+        "set_tempo_curve" => {
+            args.expect_keys_exactly(&["id"])?;
+            let id = args.require_ident("id")?;
+            if !is_snake_case(id) {
+                return Err(LoadError::Validation(format!(
+                    "arg `id` must be a canonical snake_case curve id, got `{id}`"
+                )));
+            }
+            Ok(())
+        }
+        // The FX level/depth control shares the same canonical curve-id space.
+        "set_fx_level_curve" => {
+            args.expect_keys_exactly(&["id"])?;
+            let id = args.require_ident("id")?;
+            if !is_snake_case(id) {
+                return Err(LoadError::Validation(format!(
+                    "arg `id` must be a canonical snake_case curve id, got `{id}`"
                 )));
             }
             Ok(())

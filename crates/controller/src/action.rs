@@ -37,6 +37,7 @@ use bus_api::SamplerPadPress;
 use bus_api::SamplerPadRelease;
 use bus_api::SaveDeckHotCue;
 use bus_api::SetAutoLoop;
+use bus_api::SetChannelFaderCurve;
 use bus_api::SetCrossfader;
 use bus_api::SetCrossfaderAssign;
 use bus_api::SetCrossfaderBehavior;
@@ -48,6 +49,7 @@ use bus_api::SetCueVolume;
 use bus_api::SetDeckFxRouted;
 use bus_api::SetEqBand;
 use bus_api::SetFilter;
+use bus_api::SetFxLevelCurve;
 use bus_api::SetFxUnitParam;
 use bus_api::SetFxUnitSlot;
 use bus_api::SetFxUnitSlotEnabled;
@@ -57,6 +59,7 @@ use bus_api::SetMasterVolume;
 use bus_api::SetPadMode;
 use bus_api::SetSpeed;
 use bus_api::SetStemEqBand;
+use bus_api::SetTempoCurve;
 use bus_api::SetTempoRange;
 use bus_api::SetVolume;
 use bus_api::ToggleHeadphoneCue;
@@ -629,6 +632,18 @@ pub fn resolve_action(
                 soft_takeover,
             })
         }),
+        "set_tempo_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            deck_cmd(scope, |deck| {
+                Event::SetTempoCurve(SetTempoCurve {
+                    deck,
+                    id: id.to_string(),
+                })
+            })
+        }
         "cycle_tempo_range" => {
             if !active {
                 return None;
@@ -711,6 +726,13 @@ pub fn resolve_action(
             }
             let id = args.require_ident("id").ok()?;
             mixer_cmd(|| Event::SetCrossfaderCurve(SetCrossfaderCurve { id: id.to_string() }))
+        }
+        "set_channel_fader_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            mixer_cmd(|| Event::SetChannelFaderCurve(SetChannelFaderCurve { id: id.to_string() }))
         }
         "cycle_crossfader_curve" => {
             if !active {
@@ -795,6 +817,13 @@ pub fn resolve_action(
                 soft_takeover,
             })
         }),
+        "set_fx_level_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            mixer_cmd(|| Event::SetFxLevelCurve(SetFxLevelCurve { id: id.to_string() }))
+        }
         // CH SELECT is exclusive: every press publishes the full routing group.
         "set_fx_route" => {
             if !active {
@@ -1676,6 +1705,51 @@ mod tests {
     }
 
     #[test]
+    fn set_tempo_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Deck(_)::set_tempo_curve(id:linear)",
+                "deck_1",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetTempoCurve(SetTempoCurve {
+                deck: 0,
+                id: "linear".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
+    fn set_fx_level_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Mixer::set_fx_level_curve(id:taper)",
+                "master",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetFxLevelCurve(SetFxLevelCurve {
+                id: "taper".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
     fn load_to_deck_publishes_focused_load_evt() {
         let snap = ControlSnapshot::default();
         let routed = resolve_action(
@@ -2055,6 +2129,28 @@ mod tests {
             route(true).unwrap(),
             RoutedAction::Cmd(Event::SetCrossfaderCurve(SetCrossfaderCurve {
                 id: "fast_cut".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
+    fn channel_fader_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Mixer::set_channel_fader_curve(id:linear)",
+                "master",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetChannelFaderCurve(SetChannelFaderCurve {
+                id: "linear".into(),
             }))
         );
         assert!(route(false).is_none(), "releases publish nothing");

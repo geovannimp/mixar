@@ -5,8 +5,10 @@ mod common;
 
 use bus_api::Event;
 use bus_api::SetSpeed;
+use bus_api::SetTempoCurve;
 use bus_api::SetTempoRange;
 use common::recv_error;
+use common::recv_evt;
 use common::recv_updated;
 use common::short_tone_fixture;
 use engine_core::EngineConfig;
@@ -70,6 +72,39 @@ fn set_tempo_range_keeps_speed_and_publishes_fraction() {
         "tempo_range={tempo_range}"
     );
     assert!((speed - 0.25).abs() < 1e-5, "speed={speed}");
+}
+
+#[test]
+fn set_tempo_curve_publishes_a_deck_update_and_notice_on_unknown() {
+    let session = null_session_with_loaded_deck();
+    let mut evt = session.subscribe_evt_all().expect("sub");
+
+    session
+        .publish_cmd(Event::SetTempoCurve(SetTempoCurve {
+            deck: 0,
+            id: "linear".into(),
+        }))
+        .expect("select linear");
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.deck, 0);
+
+    session
+        .publish_cmd(Event::SetTempoCurve(SetTempoCurve {
+            deck: 0,
+            id: "missing".into(),
+        }))
+        .expect("select unknown");
+    let notice = recv_evt(&mut evt, |event| matches!(event, Event::Notice(_)));
+    match notice {
+        Event::Notice(notice) => assert!(
+            notice.message.contains("unknown tempo curve"),
+            "message={}",
+            notice.message
+        ),
+        other => panic!("unexpected {other:?}"),
+    }
+    let update = recv_updated(&mut evt);
+    assert_eq!(update.deck, 0);
 }
 
 #[test]

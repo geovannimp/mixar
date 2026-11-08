@@ -77,6 +77,11 @@ bus_events! {
         { deck: u16, speed: f32, soft_takeover: bool };
     SetTempoRange: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16, tempo_range: f32 };
+    /// Select the deck's tempo-fader curve by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetTempoCurve: Update, Entity::Deck(*deck), Part::Whole,
+        { deck: u16, id: String };
     SetKeyLock: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16, enabled: bool };
     SetKeyShift: Update, Entity::Deck(*deck), Part::Whole,
@@ -210,6 +215,11 @@ bus_events! {
     /// Set the curve-bypass and hamster flags together.
     SetCrossfaderBehavior: Update, Entity::Mixer, Part::Whole,
         { hamster: bool, disabled: bool };
+    /// Select the channel-fader curve for every channel by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetChannelFaderCurve: Update, Entity::Mixer, Part::Whole,
+        { id: String };
 
     // ── shared FX unit ───────────────────────────────────────────────────────
     SetFxUnitSlot: Update, Entity::Mixer, Part::Index(*slot),
@@ -218,6 +228,11 @@ bus_events! {
         { slot: u8, enabled: bool };
     SetFxUnitWet: Update, Entity::Mixer, Part::Index(*slot),
         { slot: u8, wet: f32, soft_takeover: bool };
+    /// Select the shared FX level/depth curve by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetFxLevelCurve: Update, Entity::Mixer, Part::Whole,
+        { id: String };
     SetFxUnitParam: Update, Entity::Mixer, Part::Pair(*slot, *param),
         { slot: u8, param: u8, value: f32 };
     SetDeckFxRouted: Update, Entity::Deck(*deck), Part::Whole,

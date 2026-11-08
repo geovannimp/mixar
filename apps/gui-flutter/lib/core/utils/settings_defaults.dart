@@ -159,6 +159,8 @@ AppSettings defaultAppSettings() {
     defaultOuterJogMode: JogModeSetting.pitchBend,
     defaultTempoRange: kDefaultTempoRange,
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
+    defaultTempoCurve: 'linear',
+    defaultFxLevelCurve: 'linear',
     defaultCrossfaderCurve: 'constant_power',
     crossfaderBehavior: const CrossfaderBehaviorSetting(
       disabled: false,
@@ -289,6 +291,8 @@ AppSettings copyAppSettings(
   JogModeSetting? defaultOuterJogMode,
   double? defaultTempoRange,
   Float32List? tempoRangeSteps,
+  String? defaultTempoCurve,
+  String? defaultFxLevelCurve,
   String? defaultCrossfaderCurve,
   CrossfaderBehaviorSetting? crossfaderBehavior,
   CurveLibrarySpec? curveLibrary,
@@ -348,6 +352,8 @@ AppSettings copyAppSettings(
     defaultOuterJogMode: defaultOuterJogMode ?? base.defaultOuterJogMode,
     defaultTempoRange: defaultTempoRange ?? base.defaultTempoRange,
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
+    defaultTempoCurve: defaultTempoCurve ?? base.defaultTempoCurve,
+    defaultFxLevelCurve: defaultFxLevelCurve ?? base.defaultFxLevelCurve,
     defaultCrossfaderCurve:
         defaultCrossfaderCurve ?? base.defaultCrossfaderCurve,
     crossfaderBehavior: crossfaderBehavior ?? base.crossfaderBehavior,
@@ -412,6 +418,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultTopJogMode != baseline.defaultTopJogMode ||
       draft.defaultOuterJogMode != baseline.defaultOuterJogMode ||
       draft.defaultTempoRange != baseline.defaultTempoRange ||
+      draft.defaultTempoCurve != baseline.defaultTempoCurve ||
+      draft.defaultFxLevelCurve != baseline.defaultFxLevelCurve ||
       draft.defaultCrossfaderCurve != baseline.defaultCrossfaderCurve ||
       draft.crossfaderBehavior != baseline.crossfaderBehavior ||
       !_sameCurveLibrary(draft.curveLibrary, baseline.curveLibrary) ||

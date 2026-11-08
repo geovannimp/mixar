@@ -629,6 +629,12 @@ fn default_num_decks() -> u8 {
 fn default_crossfader_curve() -> String {
     bus_api::DEFAULT_CROSSFADER_CURVE_ID.to_string()
 }
+fn default_tempo_curve() -> String {
+    bus_api::DEFAULT_TEMPO_CURVE_ID.to_string()
+}
+fn default_fx_level_curve() -> String {
+    bus_api::DEFAULT_FX_LEVEL_CURVE_ID.to_string()
+}
 
 /// Crossfader preset option for the Settings curve picker.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -691,6 +697,12 @@ pub struct AppSettings {
     pub default_outer_jog_mode: JogModeSetting,
     pub default_tempo_range: f32,
     pub tempo_range_steps: Vec<f32>,
+    /// Default tempo-fader curve id applied to every deck on engine start.
+    #[serde(default = "default_tempo_curve")]
+    pub default_tempo_curve: String,
+    /// Default FX level/depth curve id applied on every engine start.
+    #[serde(default = "default_fx_level_curve")]
+    pub default_fx_level_curve: String,
     /// Default crossfader curve id applied on every engine start.
     #[serde(default = "default_crossfader_curve")]
     pub default_crossfader_curve: String,
@@ -972,6 +984,9 @@ fn default_engine_config() -> EngineConfig {
             vinyl_brake_pause: Some(false),
             vinyl_brake_stop_secs: Some(0.5),
             default_crossfader_curve: Some(bus_api::DEFAULT_CROSSFADER_CURVE_ID.to_string()),
+            default_channel_fader_curve: None,
+            default_tempo_curve: Some(bus_api::DEFAULT_TEMPO_CURVE_ID.to_string()),
+            default_fx_level_curve: Some(bus_api::DEFAULT_FX_LEVEL_CURVE_ID.to_string()),
             crossfader_behavior: Some(bus_api::CrossfaderBehaviorSetting::default()),
             curve_library: Some(bus_api::CurveLibrarySpec::default()),
         }),
@@ -1112,6 +1127,22 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         None if known_custom => requested,
         None => default_crossfader_curve(),
     };
+    let requested_tempo = settings.default_tempo_curve.trim().to_string();
+    settings.default_tempo_curve = if requested_tempo.is_empty()
+        || requested_tempo.eq_ignore_ascii_case(bus_api::DEFAULT_TEMPO_CURVE_ID)
+    {
+        default_tempo_curve()
+    } else {
+        requested_tempo
+    };
+    let requested_fx_level = settings.default_fx_level_curve.trim().to_string();
+    settings.default_fx_level_curve = if requested_fx_level.is_empty()
+        || requested_fx_level.eq_ignore_ascii_case(bus_api::DEFAULT_FX_LEVEL_CURVE_ID)
+    {
+        default_fx_level_curve()
+    } else {
+        requested_fx_level
+    };
     if let Err(error) = engine_core::library_from_spec(&settings.curve_library) {
         errors.push(format!("curve_library: {error}"));
     }
@@ -1250,6 +1281,8 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_outer_jog_mode: host.default_outer_jog_mode,
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
+        default_tempo_curve: config.default_tempo_curve(),
+        default_fx_level_curve: config.default_fx_level_curve(),
         default_crossfader_curve: config.default_crossfader_curve(),
         crossfader_behavior: config.crossfader_behavior(),
         curve_library: config.curve_library(),
@@ -1295,6 +1328,12 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     config.buses = buses_from_settings(&settings);
     config.buffer_size = settings.buffer_size;
     config.analysis_duration = settings.analysis_duration.into();
+    // The GUI does not edit the channel-fader curve yet; keep a headless or
+    // hand-edited value instead of dropping it on every settings save.
+    let default_channel_fader_curve = config
+        .audio
+        .as_ref()
+        .and_then(|audio| audio.default_channel_fader_curve.clone());
     config.audio = Some(AudioConfig {
         resampler_quality: Some(settings.resampler_quality.clone()),
         sampler_strip_route: Some(settings.sampler_strip_route.into()),
@@ -1304,6 +1343,9 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         vinyl_brake_pause: Some(settings.vinyl_brake_pause),
         vinyl_brake_stop_secs: Some(settings.vinyl_brake_stop_secs),
         default_crossfader_curve: Some(settings.default_crossfader_curve.clone()),
+        default_channel_fader_curve,
+        default_tempo_curve: Some(settings.default_tempo_curve.clone()),
+        default_fx_level_curve: Some(settings.default_fx_level_curve.clone()),
         crossfader_behavior: Some(settings.crossfader_behavior),
         curve_library: Some(settings.curve_library.clone()),
     });
@@ -2782,12 +2824,25 @@ mod tests {
             parsed.default_crossfader_curve,
             bus_api::DEFAULT_CROSSFADER_CURVE_ID
         );
+        assert_eq!(parsed.default_tempo_curve, bus_api::DEFAULT_TEMPO_CURVE_ID);
+        assert_eq!(
+            parsed.default_fx_level_curve,
+            bus_api::DEFAULT_FX_LEVEL_CURVE_ID
+        );
         assert_eq!(
             parsed.crossfader_behavior,
             bus_api::CrossfaderBehaviorSetting::default()
         );
         assert!(parsed.curve_library.groups.is_empty());
         assert!(parsed.curve_library.sets.is_empty());
+        assert_eq!(
+            legacy_settings_without("default_tempo_curve").default_tempo_curve,
+            bus_api::DEFAULT_TEMPO_CURVE_ID
+        );
+        assert_eq!(
+            legacy_settings_without("default_fx_level_curve").default_fx_level_curve,
+            bus_api::DEFAULT_FX_LEVEL_CURVE_ID
+        );
         assert!(legacy_settings_without("default_crossfader_curve")
             .curve_library
             .groups
@@ -2806,6 +2861,8 @@ mod tests {
         // A display alias is accepted and stored as the canonical snake_case id.
         let mut draft = settings_from_host(&host);
         draft.default_crossfader_curve = "Linear".into();
+        draft.default_tempo_curve = "Linear".into();
+        draft.default_fx_level_curve = "Linear".into();
         draft.crossfader_behavior = bus_api::CrossfaderBehaviorSetting {
             disabled: false,
             hamster: true,
@@ -2813,11 +2870,15 @@ mod tests {
         apply_to_host(&mut host, draft).expect("apply");
         let saved = parse_settings(settings_from_host(&host)).expect("parse");
         assert_eq!(saved.default_crossfader_curve, "linear");
+        assert_eq!(saved.default_tempo_curve, "linear");
+        assert_eq!(saved.default_fx_level_curve, "linear");
         assert!(saved.crossfader_behavior.hamster);
         write_settings_file(&path, &saved).expect("write");
 
         let reloaded = settings_from_host(&load_host(&path));
         assert_eq!(reloaded.default_crossfader_curve, "linear");
+        assert_eq!(reloaded.default_tempo_curve, "linear");
+        assert_eq!(reloaded.default_fx_level_curve, "linear");
         assert!(reloaded.crossfader_behavior.hamster);
         assert!(!reloaded.crossfader_behavior.disabled);
     }

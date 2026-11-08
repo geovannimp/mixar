@@ -171,14 +171,24 @@ impl Engine {
 
     /// FX unit slot wet/dry readback. The unit is shared across decks, so deck 0
     /// is canonical (see [`Self::for_each_fx_slot`]).
+    ///
+    /// This is the post-curve mix the DSP applies, not the control position.
     pub fn fx_unit_wet(&self, slot: u8) -> Option<f32> {
+        self.fx_unit_value(slot, |s| s.wet())
+    }
+
+    /// FX unit slot control position (`0..1`) before the level curve.
+    ///
+    /// Soft takeover compares in this domain so a curve cannot make the knob
+    /// and the engine disagree about where the control is.
+    pub fn fx_unit_level(&self, slot: u8) -> Option<f32> {
+        self.fx_unit_value(slot, |s| s.level())
+    }
+
+    fn fx_unit_value(&self, slot: u8, f: impl FnOnce(&engine_dsp::FxSlot) -> f32) -> Option<f32> {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
-        dsp.mixer()
-            .channel(0)?
-            .fx()
-            .slot(slot as usize)
-            .map(|s| s.wet())
+        dsp.mixer().channel(0)?.fx().slot(slot as usize).map(f)
     }
 
     /// FX unit slot knob, applied to every deck's chain.

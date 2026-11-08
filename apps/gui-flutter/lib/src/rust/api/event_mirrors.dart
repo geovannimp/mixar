@@ -1233,6 +1233,7 @@ sealed class Event with _$Event {
       Event_SetCrossfaderAssign;
   const factory Event.setSpeed(SetSpeed field0) = Event_SetSpeed;
   const factory Event.setTempoRange(SetTempoRange field0) = Event_SetTempoRange;
+  const factory Event.setTempoCurve(SetTempoCurve field0) = Event_SetTempoCurve;
   const factory Event.setKeyLock(SetKeyLock field0) = Event_SetKeyLock;
   const factory Event.setKeyShift(SetKeyShift field0) = Event_SetKeyShift;
   const factory Event.setKeyboardRoot(SetKeyboardRoot field0) =
@@ -1316,10 +1317,14 @@ sealed class Event with _$Event {
   ) = Event_SetCrossfaderCurveAmount;
   const factory Event.setCrossfaderBehavior(SetCrossfaderBehavior field0) =
       Event_SetCrossfaderBehavior;
+  const factory Event.setChannelFaderCurve(SetChannelFaderCurve field0) =
+      Event_SetChannelFaderCurve;
   const factory Event.setFxUnitSlot(SetFxUnitSlot field0) = Event_SetFxUnitSlot;
   const factory Event.setFxUnitSlotEnabled(SetFxUnitSlotEnabled field0) =
       Event_SetFxUnitSlotEnabled;
   const factory Event.setFxUnitWet(SetFxUnitWet field0) = Event_SetFxUnitWet;
+  const factory Event.setFxLevelCurve(SetFxLevelCurve field0) =
+      Event_SetFxLevelCurve;
   const factory Event.setFxUnitParam(SetFxUnitParam field0) =
       Event_SetFxUnitParam;
   const factory Event.setDeckFxRouted(SetDeckFxRouted field0) =
@@ -2264,6 +2269,22 @@ class SetAutoLoop {
           beats == other.beats;
 }
 
+class SetChannelFaderCurve {
+  final String id;
+
+  const SetChannelFaderCurve({required this.id});
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetChannelFaderCurve &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+}
+
 class SetCrossfader {
   final double position;
   final bool softTakeover;
@@ -2522,6 +2543,22 @@ class SetFilter {
           deck == other.deck &&
           filter == other.filter &&
           softTakeover == other.softTakeover;
+}
+
+class SetFxLevelCurve {
+  final String id;
+
+  const SetFxLevelCurve({required this.id});
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetFxLevelCurve &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 }
 
 class SetFxUnitParam {
@@ -2936,6 +2973,24 @@ class SetStemEqEnabled {
           runtimeType == other.runtimeType &&
           deck == other.deck &&
           enabled == other.enabled;
+}
+
+class SetTempoCurve {
+  final int deck;
+  final String id;
+
+  const SetTempoCurve({required this.deck, required this.id});
+
+  @override
+  int get hashCode => deck.hashCode ^ id.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetTempoCurve &&
+          runtimeType == other.runtimeType &&
+          deck == other.deck &&
+          id == other.id;
 }
 
 class SetTempoRange {

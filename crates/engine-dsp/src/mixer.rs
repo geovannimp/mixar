@@ -8,6 +8,7 @@ use audio_core::{
     slice as audio_slice, BusId, CrossfaderAssign, CrossfaderCurveBehavior, Frame,
     ResolvedCrossfaderCurve, Sample, StereoFrame,
 };
+use curve_core::{CurveError, ResolvedCurveGroup};
 use dasp_graph::{process, Buffer, Input, Node, NodeData, Processor};
 use petgraph::graph::DiGraph;
 use std::collections::HashMap;
@@ -307,6 +308,41 @@ impl Mixer {
     /// only swaps the prepared value.
     pub fn set_crossfader_curve(&mut self, curve: ResolvedCrossfaderCurve) {
         self.crossfader_curve = curve;
+    }
+
+    /// Install one compiled scalar fader curve on every channel strip.
+    ///
+    /// Resolve and compile the curve before taking the DSP mutex; this method
+    /// only swaps the prepared tables. A multi-channel group is rejected before
+    /// any channel is touched.
+    pub fn set_channel_fader_curve(&mut self, curve: ResolvedCurveGroup) -> Result<(), CurveError> {
+        if curve.channels() != crate::CHANNEL_FADER_CHANNELS {
+            return Err(CurveError::ChannelCount {
+                expected: crate::CHANNEL_FADER_CHANNELS,
+                count: curve.channels(),
+            });
+        }
+        for index in 0..self.lane_node_ids.len() {
+            if let Some(channel) = self.channel_mut(index) {
+                channel.set_fader_curve(curve.clone())?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Install one compiled FX level curve on every deck's shared FX chain.
+    ///
+    /// Resolve and compile the curve before taking the DSP mutex; this method
+    /// only swaps the prepared value. A multi-channel group is rejected before
+    /// any chain is touched.
+    pub fn set_fx_level_curve(&mut self, curve: ResolvedCurveGroup) -> Result<(), CurveError> {
+        let compiled = crate::FxLevelCurve::new(curve)?;
+        for index in 0..self.lane_node_ids.len() {
+            if let Some(channel) = self.channel_mut(index) {
+                channel.fx_mut().set_level_curve(compiled.clone());
+            }
+        }
+        Ok(())
     }
 
     /// Behavior flags currently applied after the curve.

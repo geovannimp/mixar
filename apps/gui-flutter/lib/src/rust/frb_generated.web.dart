@@ -471,6 +471,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop dco_decode_box_autoadd_set_auto_loop(dynamic raw);
 
   @protected
+  SetChannelFaderCurve dco_decode_box_autoadd_set_channel_fader_curve(
+    dynamic raw,
+  );
+
+  @protected
   SetCrossfader dco_decode_box_autoadd_set_crossfader(dynamic raw);
 
   @protected
@@ -512,6 +517,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter dco_decode_box_autoadd_set_filter(dynamic raw);
+
+  @protected
+  SetFxLevelCurve dco_decode_box_autoadd_set_fx_level_curve(dynamic raw);
 
   @protected
   SetFxUnitParam dco_decode_box_autoadd_set_fx_unit_param(dynamic raw);
@@ -577,6 +585,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled dco_decode_box_autoadd_set_stem_eq_enabled(dynamic raw);
+
+  @protected
+  SetTempoCurve dco_decode_box_autoadd_set_tempo_curve(dynamic raw);
 
   @protected
   SetTempoRange dco_decode_box_autoadd_set_tempo_range(dynamic raw);
@@ -1199,6 +1210,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop dco_decode_set_auto_loop(dynamic raw);
 
   @protected
+  SetChannelFaderCurve dco_decode_set_channel_fader_curve(dynamic raw);
+
+  @protected
   SetCrossfader dco_decode_set_crossfader(dynamic raw);
 
   @protected
@@ -1236,6 +1250,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter dco_decode_set_filter(dynamic raw);
+
+  @protected
+  SetFxLevelCurve dco_decode_set_fx_level_curve(dynamic raw);
 
   @protected
   SetFxUnitParam dco_decode_set_fx_unit_param(dynamic raw);
@@ -1299,6 +1316,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled dco_decode_set_stem_eq_enabled(dynamic raw);
+
+  @protected
+  SetTempoCurve dco_decode_set_tempo_curve(dynamic raw);
 
   @protected
   SetTempoRange dco_decode_set_tempo_range(dynamic raw);
@@ -1909,6 +1929,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SetChannelFaderCurve sse_decode_box_autoadd_set_channel_fader_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SetCrossfader sse_decode_box_autoadd_set_crossfader(
     SseDeserializer deserializer,
   );
@@ -1964,6 +1989,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter sse_decode_box_autoadd_set_filter(SseDeserializer deserializer);
+
+  @protected
+  SetFxLevelCurve sse_decode_box_autoadd_set_fx_level_curve(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SetFxUnitParam sse_decode_box_autoadd_set_fx_unit_param(
@@ -2055,6 +2085,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled sse_decode_box_autoadd_set_stem_eq_enabled(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetTempoCurve sse_decode_box_autoadd_set_tempo_curve(
     SseDeserializer deserializer,
   );
 
@@ -2813,6 +2848,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop sse_decode_set_auto_loop(SseDeserializer deserializer);
 
   @protected
+  SetChannelFaderCurve sse_decode_set_channel_fader_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SetCrossfader sse_decode_set_crossfader(SseDeserializer deserializer);
 
   @protected
@@ -2858,6 +2898,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter sse_decode_set_filter(SseDeserializer deserializer);
+
+  @protected
+  SetFxLevelCurve sse_decode_set_fx_level_curve(SseDeserializer deserializer);
 
   @protected
   SetFxUnitParam sse_decode_set_fx_unit_param(SseDeserializer deserializer);
@@ -2923,6 +2966,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled sse_decode_set_stem_eq_enabled(SseDeserializer deserializer);
+
+  @protected
+  SetTempoCurve sse_decode_set_tempo_curve(SseDeserializer deserializer);
 
   @protected
   SetTempoRange sse_decode_set_tempo_range(SseDeserializer deserializer);
@@ -3660,6 +3706,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_set_channel_fader_curve(
+    SetChannelFaderCurve self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_set_crossfader(
     SetCrossfader self,
     SseSerializer serializer,
@@ -3731,6 +3783,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_filter(
     SetFilter self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_level_curve(
+    SetFxLevelCurve self,
     SseSerializer serializer,
   );
 
@@ -3854,6 +3912,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_stem_eq_enabled(
     SetStemEqEnabled self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_tempo_curve(
+    SetTempoCurve self,
     SseSerializer serializer,
   );
 
@@ -4821,6 +4885,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_set_auto_loop(SetAutoLoop self, SseSerializer serializer);
 
   @protected
+  void sse_encode_set_channel_fader_curve(
+    SetChannelFaderCurve self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_set_crossfader(SetCrossfader self, SseSerializer serializer);
 
   @protected
@@ -4876,6 +4946,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_set_filter(SetFilter self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_fx_level_curve(
+    SetFxLevelCurve self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_set_fx_unit_param(
@@ -4969,6 +5045,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SetStemEqEnabled self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_set_tempo_curve(SetTempoCurve self, SseSerializer serializer);
 
   @protected
   void sse_encode_set_tempo_range(SetTempoRange self, SseSerializer serializer);

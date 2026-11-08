@@ -398,6 +398,12 @@ pub struct _SetTempoRange {
     pub tempo_range: f32,
 }
 
+#[flutter_rust_bridge::frb(mirror(SetTempoCurve))]
+pub struct _SetTempoCurve {
+    pub deck: u16,
+    pub id: String,
+}
+
 #[flutter_rust_bridge::frb(mirror(SetKeyLock))]
 pub struct _SetKeyLock {
     pub deck: u16,
@@ -730,6 +736,11 @@ pub struct _SetCrossfaderBehavior {
     pub disabled: bool,
 }
 
+#[flutter_rust_bridge::frb(mirror(SetChannelFaderCurve))]
+pub struct _SetChannelFaderCurve {
+    pub id: String,
+}
+
 #[flutter_rust_bridge::frb(mirror(SetFxUnitSlot))]
 pub struct _SetFxUnitSlot {
     pub slot: u8,
@@ -747,6 +758,11 @@ pub struct _SetFxUnitWet {
     pub slot: u8,
     pub wet: f32,
     pub soft_takeover: bool,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetFxLevelCurve))]
+pub struct _SetFxLevelCurve {
+    pub id: String,
 }
 
 #[flutter_rust_bridge::frb(mirror(SetFxUnitParam))]
@@ -1000,6 +1016,7 @@ pub enum _Event {
     SetCrossfaderAssign(SetCrossfaderAssign),
     SetSpeed(SetSpeed),
     SetTempoRange(SetTempoRange),
+    SetTempoCurve(SetTempoCurve),
     SetKeyLock(SetKeyLock),
     SetKeyShift(SetKeyShift),
     SetKeyboardRoot(SetKeyboardRoot),
@@ -1056,9 +1073,11 @@ pub enum _Event {
     SetCrossfaderCurve(SetCrossfaderCurve),
     SetCrossfaderCurveAmount(SetCrossfaderCurveAmount),
     SetCrossfaderBehavior(SetCrossfaderBehavior),
+    SetChannelFaderCurve(SetChannelFaderCurve),
     SetFxUnitSlot(SetFxUnitSlot),
     SetFxUnitSlotEnabled(SetFxUnitSlotEnabled),
     SetFxUnitWet(SetFxUnitWet),
+    SetFxLevelCurve(SetFxLevelCurve),
     SetFxUnitParam(SetFxUnitParam),
     SetDeckFxRouted(SetDeckFxRouted),
     DeckUpdated(DeckUpdated),
@@ -1110,6 +1129,7 @@ pub enum _Topic {
     SetCrossfaderAssign,
     SetSpeed,
     SetTempoRange,
+    SetTempoCurve,
     SetKeyLock,
     SetKeyShift,
     SetKeyboardRoot,
@@ -1166,9 +1186,11 @@ pub enum _Topic {
     SetCrossfaderCurve,
     SetCrossfaderCurveAmount,
     SetCrossfaderBehavior,
+    SetChannelFaderCurve,
     SetFxUnitSlot,
     SetFxUnitSlotEnabled,
     SetFxUnitWet,
+    SetFxLevelCurve,
     SetFxUnitParam,
     SetDeckFxRouted,
     DeckUpdated,

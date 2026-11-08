@@ -7,6 +7,7 @@ use crate::platter_motion::{MotionMode, PlatterMotion};
 use crate::transport::DeckTransportEvent;
 use anyhow::Result;
 use audio_core::{secs_to_ms, LiveStemRing, LoadedAudio, Sample, LIVE_STEM_COUNT};
+use curve_core::ResolvedCurveGroup;
 use dasp_graph::Buffer;
 use resampler::Resampler;
 use std::fmt;
@@ -92,8 +93,8 @@ pub struct Deck {
     position_frac: f64,
     /// Tempo fader position `0..1` (center = track BPM).
     speed: f32,
-    /// Half-span of the tempo fader in BPM (default ±8).
-    tempo_range: f32,
+    /// Tempo fader curve and its signed pitch range.
+    tempo_curve: crate::tempo::TempoCurve,
     /// Track BPM for fader→ratio; `None` uses a fallback inside ratio math.
     track_bpm: Option<f64>,
     /// When set (tempo sync), DSP uses this ratio instead of fader-derived.
@@ -219,7 +220,7 @@ impl Deck {
             position_frames: 0,
             position_frac: 0.0,
             speed: 0.5,
-            tempo_range: crate::tempo::DEFAULT_TEMPO_RANGE,
+            tempo_curve: crate::tempo::TempoCurve::linear(crate::tempo::DEFAULT_TEMPO_RANGE),
             track_bpm: None,
             ratio_override: None,
             motion: PlatterMotion::new(),
@@ -351,15 +352,32 @@ impl Deck {
 
     /// Tempo fader half-span as pitch fraction (e.g. `0.06` = ±6%).
     pub fn tempo_range(&self) -> f32 {
-        self.tempo_range
+        self.tempo_curve.range()
     }
 
     pub fn set_tempo_range(&mut self, range: f32) {
-        self.tempo_range = range.max(0.0);
+        self.tempo_curve.set_range(range);
         // Keep fader position; if synced, remap displayed speed from override.
         if let Some(ratio) = self.ratio_override {
-            self.speed = crate::tempo::playback_ratio_to_norm(ratio, self.tempo_range);
+            self.speed = self.tempo_curve.position_for_playback_ratio(ratio);
         }
+    }
+
+    /// The installed tempo fader curve.
+    pub fn tempo_curve(&self) -> &crate::tempo::TempoCurve {
+        &self.tempo_curve
+    }
+
+    /// Replace the tempo fader curve, keeping the fader position.
+    ///
+    /// A synced deck keeps its ratio override, so only the displayed fader
+    /// position is remapped to the new curve.
+    pub fn set_tempo_curve(&mut self, curve: ResolvedCurveGroup) -> Result<()> {
+        self.tempo_curve.set_curve(curve)?;
+        if let Some(ratio) = self.ratio_override {
+            self.speed = self.tempo_curve.position_for_playback_ratio(ratio);
+        }
+        Ok(())
     }
 
     pub fn set_track_bpm(&mut self, bpm: Option<f64>) {
@@ -373,7 +391,7 @@ impl Deck {
         if let Some(ratio) = self.ratio_override {
             return ratio.max(0.01);
         }
-        crate::tempo::norm_to_playback_ratio(self.speed, self.tempo_range)
+        self.tempo_curve.playback_ratio_at(self.speed)
     }
 
     /// Track BPM from library analysis (`None` when unknown).
@@ -404,7 +422,7 @@ impl Deck {
             return Err(anyhow::anyhow!("Playback ratio must be positive"));
         }
         self.ratio_override = Some(ratio);
-        self.speed = crate::tempo::playback_ratio_to_norm(ratio, self.tempo_range);
+        self.speed = self.tempo_curve.position_for_playback_ratio(ratio);
         Ok(())
     }
 

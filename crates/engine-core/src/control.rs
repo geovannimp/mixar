@@ -30,6 +30,8 @@ type EngineHandle = Arc<Mutex<Option<Engine>>>;
 
 enum CmdOutcome {
     DeckUpdated(usize),
+    /// Publish a notice, then the updated deck (a coerced value was used).
+    DeckUpdatedWithNotice(usize, String),
     DecksUpdated(Vec<usize>),
     EngineStatus,
     /// Publish a notice, then the engine status (a coerced value was used).
@@ -323,6 +325,7 @@ fn deck_of(event: &Event) -> Option<u16> {
         Event::SetCrossfaderAssign(e) => Some(e.deck),
         Event::SetSpeed(e) => Some(e.deck),
         Event::SetTempoRange(e) => Some(e.deck),
+        Event::SetTempoCurve(e) => Some(e.deck),
         Event::SetKeyLock(e) => Some(e.deck),
         Event::SetKeyShift(e) => Some(e.deck),
         Event::SetKeyboardRoot(e) => Some(e.deck),
@@ -380,6 +383,12 @@ fn handle_cmd_event(event: Event, engine: &EngineHandle, bus: &EventBus<Event>) 
 
     match result {
         Ok(CmdOutcome::DeckUpdated(deck_id)) => {
+            if let Err(e) = with_engine_ref(engine, |eng| publish_deck_updated(bus, eng, deck_id)) {
+                publish_error(bus, deck, format!("{e:#}"));
+            }
+        }
+        Ok(CmdOutcome::DeckUpdatedWithNotice(deck_id, message)) => {
+            publish_notice(bus, message);
             if let Err(e) = with_engine_ref(engine, |eng| publish_deck_updated(bus, eng, deck_id)) {
                 publish_error(bus, deck, format!("{e:#}"));
             }
@@ -668,6 +677,14 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             deck_cmd(*deck, engine, |eng, id| {
                 let updated = eng.set_deck_tempo_range(id, *tempo_range)?;
                 Ok(CmdOutcome::DecksUpdated(updated))
+            })
+        }
+        Event::SetTempoCurve(bus_api::SetTempoCurve { deck, id }) => {
+            deck_cmd(*deck, engine, |eng, deck_id| {
+                Ok(match eng.select_tempo_curve(deck_id, id)? {
+                    Some(message) => CmdOutcome::DeckUpdatedWithNotice(deck_id, message),
+                    None => CmdOutcome::DeckUpdated(deck_id),
+                })
             })
         }
         Event::SetKeyLock(bus_api::SetKeyLock { deck, enabled }) => {
@@ -1049,6 +1066,14 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 Ok(CmdOutcome::EngineStatus)
             })
         }
+        Event::SetChannelFaderCurve(bus_api::SetChannelFaderCurve { id }) => {
+            with_engine_mut(engine, |eng| {
+                Ok(match eng.select_channel_fader_curve(id)? {
+                    Some(message) => CmdOutcome::EngineStatusWithNotice(message),
+                    None => CmdOutcome::EngineStatus,
+                })
+            })
+        }
 
         // ── shared FX unit ───────────────────────────────────────────────────
         Event::SetFxUnitSlot(bus_api::SetFxUnitSlot { slot, kind }) => {
@@ -1073,7 +1098,9 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             soft_takeover,
         }) => with_engine_mut(engine, |eng| {
             let key = soft_takeover::key_mixer(&format!("fx_wet{slot}"));
-            let current = eng.fx_unit_wet(*slot).unwrap_or(0.5);
+            // Compare in the pre-curve control domain: the knob position the
+            // controller reports and the level the slot stores share `0..1`.
+            let current = eng.fx_unit_level(*slot).unwrap_or(0.5);
             if !gate_mixer_soft_takeover(eng, &key, *soft_takeover, current, *wet) {
                 return Ok(CmdOutcome::Silent);
             }
@@ -1081,6 +1108,12 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             Ok(CmdOutcome::DecksUpdated(
                 (0..eng.config.num_decks).collect(),
             ))
+        }),
+        Event::SetFxLevelCurve(bus_api::SetFxLevelCurve { id }) => with_engine_mut(engine, |eng| {
+            Ok(match eng.select_fx_level_curve(id)? {
+                Some(message) => CmdOutcome::EngineStatusWithNotice(message),
+                None => CmdOutcome::EngineStatus,
+            })
         }),
         Event::SetFxUnitParam(bus_api::SetFxUnitParam { slot, param, value }) => {
             with_engine_mut(engine, |eng| {

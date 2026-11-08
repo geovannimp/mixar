@@ -50,6 +50,12 @@ pub struct Engine {
     pub(crate) curve_library: curve_core::CurveLibrary,
     /// Active crossfader curve selection (compiled tables live in the mixer).
     pub(crate) crossfader_selection: crate::curve_library::CrossfaderCurveSelection,
+    /// Active channel-fader curve selection (compiled tables live per channel).
+    pub(crate) channel_fader_selection: crate::channel_fader_curve::ChannelFaderCurveSelection,
+    /// Active tempo-curve selection per deck (compiled curves live on each deck).
+    pub(crate) tempo_curve_selections: Vec<crate::tempo_curve::TempoCurveSelection>,
+    /// Active FX level/depth curve selection (compiled curve lives on the FX chain).
+    pub(crate) fx_level_selection: crate::fx_level_curve::FxLevelCurveSelection,
 }
 
 /// Absolute-control readback as wire `0..1` (for soft-takeover compares).
@@ -110,6 +116,36 @@ impl Engine {
                 crate::curve_library::CrossfaderCurveSelection::constant_power()
             }
         };
+        let channel_fader_selection = match crate::channel_fader_curve::resolve_channel_fader_curve(
+            &config.default_channel_fader_curve(),
+            &curve_library,
+        ) {
+            Ok(resolved) => resolved.selection,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::channel_fader_curve::ChannelFaderCurveSelection::linear()
+            }
+        };
+        let tempo_curve_selection = match crate::tempo_curve::resolve_tempo_curve(
+            &config.default_tempo_curve(),
+            &curve_library,
+        ) {
+            Ok(resolved) => resolved.selection,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::tempo_curve::TempoCurveSelection::linear()
+            }
+        };
+        let fx_level_selection = match crate::fx_level_curve::resolve_fx_level_curve(
+            &config.default_fx_level_curve(),
+            &curve_library,
+        ) {
+            Ok(resolved) => resolved.selection,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::fx_level_curve::FxLevelCurveSelection::linear()
+            }
+        };
 
         Ok(Self {
             config,
@@ -134,6 +170,11 @@ impl Engine {
             soft_takeover: crate::soft_takeover::SoftTakeoverState::default(),
             curve_library,
             crossfader_selection,
+            channel_fader_selection,
+            tempo_curve_selections: (0..num_decks)
+                .map(|_| tempo_curve_selection.clone())
+                .collect(),
+            fx_level_selection,
         })
     }
 
@@ -402,6 +443,42 @@ impl Engine {
         };
         let default_behavior =
             crate::curve_library::behavior_from_setting(self.config.crossfader_behavior());
+        // Resolve the channel-fader curve on the control thread too; an
+        // unknown or multi-channel id falls back to linear.
+        let default_channel_fader = match crate::channel_fader_curve::resolve_channel_fader_curve(
+            &self.config.default_channel_fader_curve(),
+            &self.curve_library,
+        ) {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::channel_fader_curve::linear_channel_fader_curve()
+            }
+        };
+        // Tempo curves are per deck; an unknown or multi-channel id falls back
+        // to the historical linear mapping.
+        let default_tempo_curve = match crate::tempo_curve::resolve_tempo_curve(
+            &self.config.default_tempo_curve(),
+            &self.curve_library,
+        ) {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::tempo_curve::linear_tempo_curve()
+            }
+        };
+        // The FX level/depth curve is shared by the unit; an unknown or
+        // multi-channel id falls back to the historical linear response.
+        let default_fx_level = match crate::fx_level_curve::resolve_fx_level_curve(
+            &self.config.default_fx_level_curve(),
+            &self.curve_library,
+        ) {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                tracing::warn!("{error}; using linear");
+                crate::fx_level_curve::linear_fx_level_curve()
+            }
+        };
         {
             let default_range = self.config.default_tempo_range();
             let default_key_lock = self.config.default_key_lock();
@@ -411,6 +488,7 @@ impl Engine {
             for deck_id in 0..dsp.num_decks() {
                 if let Some(deck) = dsp.deck_mut(deck_id) {
                     deck.set_tempo_range(default_range);
+                    deck.set_tempo_curve(default_tempo_curve.curve.clone())?;
                     let _ = deck.set_key_lock(default_key_lock);
                     deck.set_vinyl_brake(vinyl_brake, vinyl_brake_stop);
                 }
@@ -418,8 +496,20 @@ impl Engine {
             dsp.mixer_mut().set_master_deck(self.master_deck);
             dsp.mixer_mut()
                 .set_crossfader_curve(default_curve.with_behavior(default_behavior));
+            dsp.mixer_mut()
+                .set_channel_fader_curve(default_channel_fader.curve)?;
+            dsp.mixer_mut().set_fx_level_curve(default_fx_level.curve)?;
         }
         self.crossfader_selection = default_selection;
+        self.channel_fader_selection = default_channel_fader.selection;
+        self.fx_level_selection = default_fx_level.selection;
+        self.tempo_curve_selections.resize(
+            self.deck_control.len(),
+            crate::tempo_curve::TempoCurveSelection::linear(),
+        );
+        for selection in &mut self.tempo_curve_selections {
+            *selection = default_tempo_curve.selection.clone();
+        }
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
         // One resampler per device opened off the DSP clock. Built here so a failure
