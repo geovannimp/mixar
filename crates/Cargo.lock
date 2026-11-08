@@ -912,6 +912,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "config-adapters"
+version = "0.1.0"
+dependencies = [
+ "audio-core 0.1.0",
+ "curve-core",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
