@@ -524,7 +524,7 @@ class _CurvePreviewPainter extends CustomPainter {
       final paint = Paint()
         ..color = colors[channel % colors.length]
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
+        ..strokeWidth = 2
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..isAntiAlias = true;
