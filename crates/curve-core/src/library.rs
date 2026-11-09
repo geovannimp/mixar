@@ -169,14 +169,20 @@ impl CurveLibrary {
             if self.sets[..index].iter().any(|other| other.id == set.id) {
                 return Err(CurveError::DuplicateSetId { id: set.id.clone() });
             }
-            for member in &set.groups {
-                if let CurveRefKind::Custom { id } = &member.kind {
-                    if !self.groups.iter().any(|group| group.id == *id) {
-                        return Err(CurveError::UnknownGroup {
-                            id: set.id.clone(),
-                            group_id: id.clone(),
-                        });
-                    }
+            self.validate_set_members(set)?;
+        }
+        Ok(())
+    }
+
+    /// Validate every custom group reference in [set] against the library.
+    fn validate_set_members(&self, set: &CurveSet) -> Result<(), CurveError> {
+        for member in &set.groups {
+            if let CurveRefKind::Custom { id } = &member.kind {
+                if self.group(id).is_none() {
+                    return Err(CurveError::UnknownGroup {
+                        id: set.id.clone(),
+                        group_id: id.clone(),
+                    });
                 }
             }
         }
@@ -215,16 +221,7 @@ impl CurveLibrary {
         if self.sets.iter().any(|other| other.id == set.id) {
             return Err(CurveError::DuplicateSetId { id: set.id });
         }
-        for member in &set.groups {
-            if let CurveRefKind::Custom { id } = &member.kind {
-                if !self.groups.iter().any(|group| group.id == *id) {
-                    return Err(CurveError::UnknownGroup {
-                        id: set.id.clone(),
-                        group_id: id.clone(),
-                    });
-                }
-            }
-        }
+        self.validate_set_members(&set)?;
         self.sets.push(set);
         Ok(())
     }

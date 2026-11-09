@@ -442,7 +442,8 @@ class _SettingsCurvesPanelState extends State<SettingsCurvesPanel> {
     final trimmed = base.length > 60 ? base.substring(0, 60) : base;
     var candidate = trimmed;
     var suffix = 2;
-    while (library.groups.any((group) => group.id == candidate) ||
+    while (kReservedCurvePresetIds.contains(candidate) ||
+        library.groups.any((group) => group.id == candidate) ||
         library.sets.any((set) => set.id == candidate)) {
       candidate = '${trimmed}_$suffix';
       suffix += 1;

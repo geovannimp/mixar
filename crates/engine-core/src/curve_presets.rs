@@ -32,6 +32,18 @@ pub const CONSTANT_POWER: &str = "constant_power";
 pub const LINEAR: &str = "linear";
 /// Canonical id of the parameterized fast-cut crossfader preset.
 pub const FAST_CUT: &str = "fast_cut";
+/// Canonical id reserved for a future full-range crossfader preset.
+pub const FULL: &str = "full";
+/// Canonical id reserved for a future intermediate crossfader preset.
+pub const INTERMEDIATE: &str = "intermediate";
+/// Canonical id reserved for a future slow-fade crossfader preset.
+pub const SLOW_FADE: &str = "slow_fade";
+/// Canonical id reserved for a future slow-cut crossfader preset.
+pub const SLOW_CUT: &str = "slow_cut";
+/// Canonical id reserved for a future transition crossfader preset.
+pub const TRANSITION: &str = "transition";
+/// Canonical id reserved for a future logarithmic crossfader preset.
+pub const LOGARITHMIC: &str = "logarithmic";
 
 /// Canonical id used when no preset is configured.
 pub const DEFAULT_PRESET_ID: &str = CONSTANT_POWER;
@@ -52,12 +64,12 @@ pub const ENDPOINT_TOLERANCE: f32 = 1e-5;
 /// They are present in the catalog as unavailable entries instead of being
 /// silently treated as unknown ids.
 pub const RESERVED_PRESET_IDS: [&str; 6] = [
-    "full",
-    "intermediate",
-    "slow_fade",
-    "slow_cut",
-    "transition",
-    "logarithmic",
+    FULL,
+    INTERMEDIATE,
+    SLOW_FADE,
+    SLOW_CUT,
+    TRANSITION,
+    LOGARITHMIC,
 ];
 
 /// Samples used when validating a group's normalized output range.
@@ -154,42 +166,42 @@ pub const PRESET_CATALOG: [CrossfaderPresetInfo; 9] = [
         available: true,
     },
     CrossfaderPresetInfo {
-        id: "full",
+        id: FULL,
         display_name: "Full",
         aliases: &["Full"],
         parameter: None,
         available: false,
     },
     CrossfaderPresetInfo {
-        id: "intermediate",
+        id: INTERMEDIATE,
         display_name: "Intermediate",
         aliases: &["Intermediate"],
         parameter: None,
         available: false,
     },
     CrossfaderPresetInfo {
-        id: "slow_fade",
+        id: SLOW_FADE,
         display_name: "Slow Fade",
         aliases: &["Slow Fade"],
         parameter: None,
         available: false,
     },
     CrossfaderPresetInfo {
-        id: "slow_cut",
+        id: SLOW_CUT,
         display_name: "Slow Cut",
         aliases: &["Slow Cut"],
         parameter: None,
         available: false,
     },
     CrossfaderPresetInfo {
-        id: "transition",
+        id: TRANSITION,
         display_name: "Transition",
         aliases: &["Transition"],
         parameter: None,
         available: false,
     },
     CrossfaderPresetInfo {
-        id: "logarithmic",
+        id: LOGARITHMIC,
         display_name: "Logarithmic",
         aliases: &["Logarithmic"],
         parameter: None,
@@ -558,7 +570,7 @@ fn linear_curves() -> [CurveSpec; 2] {
 
 fn fast_cut_curve(cut: f32, deck_a: bool) -> CurveSpec {
     let mut xs = vec![0.0, cut, 1.0 - cut, 1.0];
-    if deck_a && cut < 0.5 && 1.0 - cut >= 1.0 {
+    if cut < 0.5 && 1.0 - cut >= 1.0 {
         // For a tiny cut the `1 - cut` breakpoint rounds to 1.0. Keep the last
         // representable x before 1 so the drop stays a step rather than a long
         // interpolation across the whole range.
@@ -748,6 +760,17 @@ mod tests {
     }
 
     #[test]
+    fn fast_cut_tiny_cut_keeps_both_decks_symmetric() {
+        let group = fast_cut(f32::MIN_POSITIVE).expect("tiny positive cut");
+        for step in 0..=200 {
+            let x = step as f32 / 200.0;
+            let a = group.evaluate_channel(0, x).expect("channel A");
+            let b = group.evaluate_channel(1, 1.0 - x).expect("channel B");
+            assert!(close(a, b), "A({x}) = {a}, B({}) = {b}", 1.0 - x);
+        }
+    }
+
+    #[test]
     fn fast_cut_default_uses_the_documented_cut() {
         assert_eq!(DEFAULT_CUT, 0.15);
         assert_eq!(
@@ -762,7 +785,7 @@ mod tests {
         assert_eq!(canonical_id("constant power"), Some(CONSTANT_POWER));
         assert_eq!(canonical_id("CONSTANT-POWER"), Some(CONSTANT_POWER));
         assert_eq!(canonical_id("Fast Cut"), Some(FAST_CUT));
-        assert_eq!(canonical_id("slow fade"), Some("slow_fade"));
+        assert_eq!(canonical_id("slow fade"), Some(SLOW_FADE));
         assert_eq!(canonical_id("linear"), Some(LINEAR));
         assert_eq!(canonical_id("fast_cut(cut: 0.1)"), Some(FAST_CUT));
         assert_eq!(canonical_id("nope"), None);
