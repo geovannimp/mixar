@@ -88,9 +88,9 @@ class _SettingsNavItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 16,
-                  color: selected
-                      ? colors.selectionForeground
-                      : colors.mutedForeground,
+                  // Selected rows carry the brand accent on the icon only; the
+                  // label stays selection-foreground so it reads as chrome.
+                  color: selected ? colors.primary : colors.mutedForeground,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
