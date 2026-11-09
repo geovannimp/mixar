@@ -109,6 +109,69 @@ pub struct _DeckSnapshot {
     pub jog_touching: bool,
 }
 
+#[flutter_rust_bridge::frb(mirror(CrossfaderBehaviorSetting))]
+pub struct _CrossfaderBehaviorSetting {
+    pub disabled: bool,
+    pub hamster: bool,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurvePointSpec))]
+pub struct _CurvePointSpec {
+    pub x: f32,
+    pub y: f32,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurveSegmentSpec))]
+pub struct _CurveSegmentSpec {
+    pub kind: CurveSegmentKind,
+    pub rate: f32,
+    pub c1x: f32,
+    pub c1y: f32,
+    pub c2x: f32,
+    pub c2y: f32,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurveSpecSpec))]
+pub struct _CurveSpecSpec {
+    pub points: Vec<CurvePointSpec>,
+    pub segments: Vec<CurveSegmentSpec>,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurveGroupSpec))]
+pub struct _CurveGroupSpec {
+    pub id: String,
+    pub display_name: String,
+    pub curves: Vec<CurveSpecSpec>,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurveRefSpec))]
+pub struct _CurveRefSpec {
+    pub id: String,
+    pub parameter: Option<f32>,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurveSetSpec))]
+pub struct _CurveSetSpec {
+    pub id: String,
+    pub display_name: String,
+    pub members: Vec<CurveRefSpec>,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurveLibrarySpec))]
+pub struct _CurveLibrarySpec {
+    pub groups: Vec<CurveGroupSpec>,
+    pub sets: Vec<CurveSetSpec>,
+}
+
+#[flutter_rust_bridge::frb(mirror(CrossfaderCurveStatus))]
+pub struct _CrossfaderCurveStatus {
+    pub id: String,
+    pub display_name: String,
+    pub morph: f32,
+    pub hamster: bool,
+    pub disabled: bool,
+}
+
 #[flutter_rust_bridge::frb(mirror(EngineStatus))]
 pub struct _EngineStatus {
     pub running: bool,
@@ -119,6 +182,7 @@ pub struct _EngineStatus {
     pub cue_mix: f32,
     pub master_cue: bool,
     pub master_deck: u16,
+    pub crossfader_curve: CrossfaderCurveStatus,
     pub decks: Vec<DeckSnapshot>,
 }
 
@@ -205,6 +269,14 @@ pub enum _SyncMode {
     Off,
     Tempo,
     Beat,
+}
+
+#[flutter_rust_bridge::frb(mirror(CurveSegmentKind))]
+pub enum _CurveSegmentKind {
+    Linear,
+    Exponential,
+    Logarithmic,
+    CubicBezier,
 }
 
 #[flutter_rust_bridge::frb(mirror(CrossfaderAssign))]
@@ -324,6 +396,12 @@ pub struct _SetSpeed {
 pub struct _SetTempoRange {
     pub deck: u16,
     pub tempo_range: f32,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetTempoCurve))]
+pub struct _SetTempoCurve {
+    pub deck: u16,
+    pub id: String,
 }
 
 #[flutter_rust_bridge::frb(mirror(SetKeyLock))]
@@ -635,6 +713,34 @@ pub struct _SetMasterCue {
 #[flutter_rust_bridge::frb(mirror(ToggleMasterCue))]
 pub struct _ToggleMasterCue {}
 
+#[flutter_rust_bridge::frb(mirror(SetCurveLibrary))]
+pub struct _SetCurveLibrary {
+    pub library: CurveLibrarySpec,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetCrossfaderCurve))]
+pub struct _SetCrossfaderCurve {
+    pub id: String,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetCrossfaderCurveAmount))]
+pub struct _SetCrossfaderCurveAmount {
+    pub set: String,
+    pub amount: f32,
+    pub soft_takeover: bool,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetCrossfaderBehavior))]
+pub struct _SetCrossfaderBehavior {
+    pub hamster: bool,
+    pub disabled: bool,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetChannelFaderCurve))]
+pub struct _SetChannelFaderCurve {
+    pub id: String,
+}
+
 #[flutter_rust_bridge::frb(mirror(SetFxUnitSlot))]
 pub struct _SetFxUnitSlot {
     pub slot: u8,
@@ -652,6 +758,11 @@ pub struct _SetFxUnitWet {
     pub slot: u8,
     pub wet: f32,
     pub soft_takeover: bool,
+}
+
+#[flutter_rust_bridge::frb(mirror(SetFxLevelCurve))]
+pub struct _SetFxLevelCurve {
+    pub id: String,
 }
 
 #[flutter_rust_bridge::frb(mirror(SetFxUnitParam))]
@@ -905,6 +1016,7 @@ pub enum _Event {
     SetCrossfaderAssign(SetCrossfaderAssign),
     SetSpeed(SetSpeed),
     SetTempoRange(SetTempoRange),
+    SetTempoCurve(SetTempoCurve),
     SetKeyLock(SetKeyLock),
     SetKeyShift(SetKeyShift),
     SetKeyboardRoot(SetKeyboardRoot),
@@ -957,9 +1069,15 @@ pub enum _Event {
     SetCueMix(SetCueMix),
     SetMasterCue(SetMasterCue),
     ToggleMasterCue(ToggleMasterCue),
+    SetCurveLibrary(SetCurveLibrary),
+    SetCrossfaderCurve(SetCrossfaderCurve),
+    SetCrossfaderCurveAmount(SetCrossfaderCurveAmount),
+    SetCrossfaderBehavior(SetCrossfaderBehavior),
+    SetChannelFaderCurve(SetChannelFaderCurve),
     SetFxUnitSlot(SetFxUnitSlot),
     SetFxUnitSlotEnabled(SetFxUnitSlotEnabled),
     SetFxUnitWet(SetFxUnitWet),
+    SetFxLevelCurve(SetFxLevelCurve),
     SetFxUnitParam(SetFxUnitParam),
     SetDeckFxRouted(SetDeckFxRouted),
     DeckUpdated(DeckUpdated),
@@ -1011,6 +1129,7 @@ pub enum _Topic {
     SetCrossfaderAssign,
     SetSpeed,
     SetTempoRange,
+    SetTempoCurve,
     SetKeyLock,
     SetKeyShift,
     SetKeyboardRoot,
@@ -1063,9 +1182,15 @@ pub enum _Topic {
     SetCueMix,
     SetMasterCue,
     ToggleMasterCue,
+    SetCurveLibrary,
+    SetCrossfaderCurve,
+    SetCrossfaderCurveAmount,
+    SetCrossfaderBehavior,
+    SetChannelFaderCurve,
     SetFxUnitSlot,
     SetFxUnitSlotEnabled,
     SetFxUnitWet,
+    SetFxLevelCurve,
     SetFxUnitParam,
     SetDeckFxRouted,
     DeckUpdated,

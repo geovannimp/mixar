@@ -6,6 +6,7 @@
 import 'api/analytics.dart';
 import 'api/bus.dart';
 import 'api/controller.dart';
+import 'api/curve_editor.dart';
 import 'api/engine.dart';
 import 'api/event_mirrors.dart';
 import 'api/fs_browser.dart';
@@ -279,6 +280,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CurveGroupSpec dco_decode_box_autoadd_curve_group_spec(dynamic raw);
+
+  @protected
+  CurveLibrarySpec dco_decode_box_autoadd_curve_library_spec(dynamic raw);
+
+  @protected
   DeckLevels dco_decode_box_autoadd_deck_levels(dynamic raw);
 
   @protected
@@ -462,10 +469,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop dco_decode_box_autoadd_set_auto_loop(dynamic raw);
 
   @protected
+  SetChannelFaderCurve dco_decode_box_autoadd_set_channel_fader_curve(
+    dynamic raw,
+  );
+
+  @protected
   SetCrossfader dco_decode_box_autoadd_set_crossfader(dynamic raw);
 
   @protected
   SetCrossfaderAssign dco_decode_box_autoadd_set_crossfader_assign(dynamic raw);
+
+  @protected
+  SetCrossfaderBehavior dco_decode_box_autoadd_set_crossfader_behavior(
+    dynamic raw,
+  );
+
+  @protected
+  SetCrossfaderCurve dco_decode_box_autoadd_set_crossfader_curve(dynamic raw);
+
+  @protected
+  SetCrossfaderCurveAmount dco_decode_box_autoadd_set_crossfader_curve_amount(
+    dynamic raw,
+  );
 
   @protected
   SetCueMix dco_decode_box_autoadd_set_cue_mix(dynamic raw);
@@ -475,6 +500,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetCueVolume dco_decode_box_autoadd_set_cue_volume(dynamic raw);
+
+  @protected
+  SetCurveLibrary dco_decode_box_autoadd_set_curve_library(dynamic raw);
 
   @protected
   SetDeckFxRouted dco_decode_box_autoadd_set_deck_fx_routed(dynamic raw);
@@ -487,6 +515,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter dco_decode_box_autoadd_set_filter(dynamic raw);
+
+  @protected
+  SetFxLevelCurve dco_decode_box_autoadd_set_fx_level_curve(dynamic raw);
 
   @protected
   SetFxUnitParam dco_decode_box_autoadd_set_fx_unit_param(dynamic raw);
@@ -552,6 +583,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled dco_decode_box_autoadd_set_stem_eq_enabled(dynamic raw);
+
+  @protected
+  SetTempoCurve dco_decode_box_autoadd_set_tempo_curve(dynamic raw);
 
   @protected
   SetTempoRange dco_decode_box_autoadd_set_tempo_range(dynamic raw);
@@ -639,6 +673,39 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CrossfaderAssign dco_decode_crossfader_assign(dynamic raw);
+
+  @protected
+  CrossfaderBehaviorSetting dco_decode_crossfader_behavior_setting(dynamic raw);
+
+  @protected
+  CrossfaderCurveStatus dco_decode_crossfader_curve_status(dynamic raw);
+
+  @protected
+  CrossfaderPresetOption dco_decode_crossfader_preset_option(dynamic raw);
+
+  @protected
+  CurveGroupSpec dco_decode_curve_group_spec(dynamic raw);
+
+  @protected
+  CurveLibrarySpec dco_decode_curve_library_spec(dynamic raw);
+
+  @protected
+  CurvePointSpec dco_decode_curve_point_spec(dynamic raw);
+
+  @protected
+  CurveRefSpec dco_decode_curve_ref_spec(dynamic raw);
+
+  @protected
+  CurveSegmentKind dco_decode_curve_segment_kind(dynamic raw);
+
+  @protected
+  CurveSegmentSpec dco_decode_curve_segment_spec(dynamic raw);
+
+  @protected
+  CurveSetSpec dco_decode_curve_set_spec(dynamic raw);
+
+  @protected
+  CurveSpecSpec dco_decode_curve_spec_spec(dynamic raw);
 
   @protected
   DeckEq dco_decode_deck_eq(dynamic raw);
@@ -827,6 +894,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ControllerMappingInfo> dco_decode_list_controller_mapping_info(
     dynamic raw,
   );
+
+  @protected
+  List<CrossfaderPresetOption> dco_decode_list_crossfader_preset_option(
+    dynamic raw,
+  );
+
+  @protected
+  List<CurveGroupSpec> dco_decode_list_curve_group_spec(dynamic raw);
+
+  @protected
+  List<CurvePointSpec> dco_decode_list_curve_point_spec(dynamic raw);
+
+  @protected
+  List<CurveRefSpec> dco_decode_list_curve_ref_spec(dynamic raw);
+
+  @protected
+  List<CurveSegmentSpec> dco_decode_list_curve_segment_spec(dynamic raw);
+
+  @protected
+  List<CurveSetSpec> dco_decode_list_curve_set_spec(dynamic raw);
+
+  @protected
+  List<CurveSpecSpec> dco_decode_list_curve_spec_spec(dynamic raw);
 
   @protected
   List<DeckHotCue> dco_decode_list_deck_hot_cue(dynamic raw);
@@ -1118,10 +1208,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop dco_decode_set_auto_loop(dynamic raw);
 
   @protected
+  SetChannelFaderCurve dco_decode_set_channel_fader_curve(dynamic raw);
+
+  @protected
   SetCrossfader dco_decode_set_crossfader(dynamic raw);
 
   @protected
   SetCrossfaderAssign dco_decode_set_crossfader_assign(dynamic raw);
+
+  @protected
+  SetCrossfaderBehavior dco_decode_set_crossfader_behavior(dynamic raw);
+
+  @protected
+  SetCrossfaderCurve dco_decode_set_crossfader_curve(dynamic raw);
+
+  @protected
+  SetCrossfaderCurveAmount dco_decode_set_crossfader_curve_amount(dynamic raw);
 
   @protected
   SetCueMix dco_decode_set_cue_mix(dynamic raw);
@@ -1131,6 +1233,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetCueVolume dco_decode_set_cue_volume(dynamic raw);
+
+  @protected
+  SetCurveLibrary dco_decode_set_curve_library(dynamic raw);
 
   @protected
   SetDeckFxRouted dco_decode_set_deck_fx_routed(dynamic raw);
@@ -1143,6 +1248,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter dco_decode_set_filter(dynamic raw);
+
+  @protected
+  SetFxLevelCurve dco_decode_set_fx_level_curve(dynamic raw);
 
   @protected
   SetFxUnitParam dco_decode_set_fx_unit_param(dynamic raw);
@@ -1206,6 +1314,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled dco_decode_set_stem_eq_enabled(dynamic raw);
+
+  @protected
+  SetTempoCurve dco_decode_set_tempo_curve(dynamic raw);
 
   @protected
   SetTempoRange dco_decode_set_tempo_range(dynamic raw);
@@ -1281,6 +1392,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
+
+  @protected
+  VirtualDjCurveExport dco_decode_virtual_dj_curve_export(dynamic raw);
+
+  @protected
+  VirtualDjCurveImport dco_decode_virtual_dj_curve_import(dynamic raw);
 
   @protected
   WaveformDisplayModeSetting dco_decode_waveform_display_mode_setting(
@@ -1553,6 +1670,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CurveGroupSpec sse_decode_box_autoadd_curve_group_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CurveLibrarySpec sse_decode_box_autoadd_curve_library_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   DeckLevels sse_decode_box_autoadd_deck_levels(SseDeserializer deserializer);
 
   @protected
@@ -1800,12 +1927,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SetChannelFaderCurve sse_decode_box_autoadd_set_channel_fader_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SetCrossfader sse_decode_box_autoadd_set_crossfader(
     SseDeserializer deserializer,
   );
 
   @protected
   SetCrossfaderAssign sse_decode_box_autoadd_set_crossfader_assign(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCrossfaderBehavior sse_decode_box_autoadd_set_crossfader_behavior(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCrossfaderCurve sse_decode_box_autoadd_set_crossfader_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCrossfaderCurveAmount sse_decode_box_autoadd_set_crossfader_curve_amount(
     SseDeserializer deserializer,
   );
 
@@ -1823,6 +1970,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SetCurveLibrary sse_decode_box_autoadd_set_curve_library(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SetDeckFxRouted sse_decode_box_autoadd_set_deck_fx_routed(
     SseDeserializer deserializer,
   );
@@ -1835,6 +1987,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter sse_decode_box_autoadd_set_filter(SseDeserializer deserializer);
+
+  @protected
+  SetFxLevelCurve sse_decode_box_autoadd_set_fx_level_curve(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SetFxUnitParam sse_decode_box_autoadd_set_fx_unit_param(
@@ -1926,6 +2083,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled sse_decode_box_autoadd_set_stem_eq_enabled(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetTempoCurve sse_decode_box_autoadd_set_tempo_curve(
     SseDeserializer deserializer,
   );
 
@@ -2047,6 +2209,45 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CrossfaderAssign sse_decode_crossfader_assign(SseDeserializer deserializer);
+
+  @protected
+  CrossfaderBehaviorSetting sse_decode_crossfader_behavior_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CrossfaderCurveStatus sse_decode_crossfader_curve_status(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CrossfaderPresetOption sse_decode_crossfader_preset_option(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  CurveGroupSpec sse_decode_curve_group_spec(SseDeserializer deserializer);
+
+  @protected
+  CurveLibrarySpec sse_decode_curve_library_spec(SseDeserializer deserializer);
+
+  @protected
+  CurvePointSpec sse_decode_curve_point_spec(SseDeserializer deserializer);
+
+  @protected
+  CurveRefSpec sse_decode_curve_ref_spec(SseDeserializer deserializer);
+
+  @protected
+  CurveSegmentKind sse_decode_curve_segment_kind(SseDeserializer deserializer);
+
+  @protected
+  CurveSegmentSpec sse_decode_curve_segment_spec(SseDeserializer deserializer);
+
+  @protected
+  CurveSetSpec sse_decode_curve_set_spec(SseDeserializer deserializer);
+
+  @protected
+  CurveSpecSpec sse_decode_curve_spec_spec(SseDeserializer deserializer);
 
   @protected
   DeckEq sse_decode_deck_eq(SseDeserializer deserializer);
@@ -2265,6 +2466,41 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ControllerMappingInfo> sse_decode_list_controller_mapping_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CrossfaderPresetOption> sse_decode_list_crossfader_preset_option(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CurveGroupSpec> sse_decode_list_curve_group_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CurvePointSpec> sse_decode_list_curve_point_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CurveRefSpec> sse_decode_list_curve_ref_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CurveSegmentSpec> sse_decode_list_curve_segment_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CurveSetSpec> sse_decode_list_curve_set_spec(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CurveSpecSpec> sse_decode_list_curve_spec_spec(
     SseDeserializer deserializer,
   );
 
@@ -2610,10 +2846,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetAutoLoop sse_decode_set_auto_loop(SseDeserializer deserializer);
 
   @protected
+  SetChannelFaderCurve sse_decode_set_channel_fader_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SetCrossfader sse_decode_set_crossfader(SseDeserializer deserializer);
 
   @protected
   SetCrossfaderAssign sse_decode_set_crossfader_assign(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCrossfaderBehavior sse_decode_set_crossfader_behavior(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCrossfaderCurve sse_decode_set_crossfader_curve(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SetCrossfaderCurveAmount sse_decode_set_crossfader_curve_amount(
     SseDeserializer deserializer,
   );
 
@@ -2627,6 +2883,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetCueVolume sse_decode_set_cue_volume(SseDeserializer deserializer);
 
   @protected
+  SetCurveLibrary sse_decode_set_curve_library(SseDeserializer deserializer);
+
+  @protected
   SetDeckFxRouted sse_decode_set_deck_fx_routed(SseDeserializer deserializer);
 
   @protected
@@ -2637,6 +2896,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetFilter sse_decode_set_filter(SseDeserializer deserializer);
+
+  @protected
+  SetFxLevelCurve sse_decode_set_fx_level_curve(SseDeserializer deserializer);
 
   @protected
   SetFxUnitParam sse_decode_set_fx_unit_param(SseDeserializer deserializer);
@@ -2702,6 +2964,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetStemEqEnabled sse_decode_set_stem_eq_enabled(SseDeserializer deserializer);
+
+  @protected
+  SetTempoCurve sse_decode_set_tempo_curve(SseDeserializer deserializer);
 
   @protected
   SetTempoRange sse_decode_set_tempo_range(SseDeserializer deserializer);
@@ -2781,6 +3046,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  VirtualDjCurveExport sse_decode_virtual_dj_curve_export(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  VirtualDjCurveImport sse_decode_virtual_dj_curve_import(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WaveformDisplayModeSetting sse_decode_waveform_display_mode_setting(
@@ -3108,6 +3383,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_curve_group_spec(
+    CurveGroupSpec self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_curve_library_spec(
+    CurveLibrarySpec self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_deck_levels(
     DeckLevels self,
     SseSerializer serializer,
@@ -3417,6 +3704,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_set_channel_fader_curve(
+    SetChannelFaderCurve self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_set_crossfader(
     SetCrossfader self,
     SseSerializer serializer,
@@ -3425,6 +3718,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_crossfader_assign(
     SetCrossfaderAssign self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_crossfader_behavior(
+    SetCrossfaderBehavior self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_crossfader_curve(
+    SetCrossfaderCurve self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_crossfader_curve_amount(
+    SetCrossfaderCurveAmount self,
     SseSerializer serializer,
   );
 
@@ -3447,6 +3758,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_set_curve_library(
+    SetCurveLibrary self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_set_deck_fx_routed(
     SetDeckFxRouted self,
     SseSerializer serializer,
@@ -3464,6 +3781,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_filter(
     SetFilter self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_level_curve(
+    SetFxLevelCurve self,
     SseSerializer serializer,
   );
 
@@ -3587,6 +3910,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_stem_eq_enabled(
     SetStemEqEnabled self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_tempo_curve(
+    SetTempoCurve self,
     SseSerializer serializer,
   );
 
@@ -3748,6 +4077,63 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     CrossfaderAssign self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_crossfader_behavior_setting(
+    CrossfaderBehaviorSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_crossfader_curve_status(
+    CrossfaderCurveStatus self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_crossfader_preset_option(
+    CrossfaderPresetOption self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_curve_group_spec(
+    CurveGroupSpec self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_curve_library_spec(
+    CurveLibrarySpec self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_curve_point_spec(
+    CurvePointSpec self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_curve_ref_spec(CurveRefSpec self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_curve_segment_kind(
+    CurveSegmentKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_curve_segment_spec(
+    CurveSegmentSpec self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_curve_set_spec(CurveSetSpec self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_curve_spec_spec(CurveSpecSpec self, SseSerializer serializer);
 
   @protected
   void sse_encode_deck_eq(DeckEq self, SseSerializer serializer);
@@ -4016,6 +4402,48 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_controller_mapping_info(
     List<ControllerMappingInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_crossfader_preset_option(
+    List<CrossfaderPresetOption> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_curve_group_spec(
+    List<CurveGroupSpec> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_curve_point_spec(
+    List<CurvePointSpec> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_curve_ref_spec(
+    List<CurveRefSpec> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_curve_segment_spec(
+    List<CurveSegmentSpec> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_curve_set_spec(
+    List<CurveSetSpec> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_curve_spec_spec(
+    List<CurveSpecSpec> self,
     SseSerializer serializer,
   );
 
@@ -4455,11 +4883,35 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_set_auto_loop(SetAutoLoop self, SseSerializer serializer);
 
   @protected
+  void sse_encode_set_channel_fader_curve(
+    SetChannelFaderCurve self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_set_crossfader(SetCrossfader self, SseSerializer serializer);
 
   @protected
   void sse_encode_set_crossfader_assign(
     SetCrossfaderAssign self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_crossfader_behavior(
+    SetCrossfaderBehavior self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_crossfader_curve(
+    SetCrossfaderCurve self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_set_crossfader_curve_amount(
+    SetCrossfaderCurveAmount self,
     SseSerializer serializer,
   );
 
@@ -4471,6 +4923,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_set_cue_volume(SetCueVolume self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_curve_library(
+    SetCurveLibrary self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_set_deck_fx_routed(
@@ -4486,6 +4944,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_set_filter(SetFilter self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_fx_level_curve(
+    SetFxLevelCurve self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_set_fx_unit_param(
@@ -4581,6 +5045,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_set_tempo_curve(SetTempoCurve self, SseSerializer serializer);
+
+  @protected
   void sse_encode_set_tempo_range(SetTempoRange self, SseSerializer serializer);
 
   @protected
@@ -4666,6 +5133,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_virtual_dj_curve_export(
+    VirtualDjCurveExport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_virtual_dj_curve_import(
+    VirtualDjCurveImport self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_waveform_display_mode_setting(

@@ -119,6 +119,7 @@ IconData _iconFor(SettingsSection section) {
   return switch (section) {
     SettingsSection.audio => LucideIcons.volume2,
     SettingsSection.mixer => LucideIcons.slidersHorizontal,
+    SettingsSection.curves => LucideIcons.spline,
     SettingsSection.waveform => LucideIcons.audioWaveform,
     SettingsSection.deck => LucideIcons.disc3,
     SettingsSection.ui => LucideIcons.panelTop,

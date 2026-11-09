@@ -143,6 +143,22 @@ abstract class EngineTransport implements RustOpaqueInterface {
     required CrossfaderAssign assignment,
   });
 
+  /// Set the hamster (A/B swap) and curve-bypass flags together.
+  Future<void> setCrossfaderBehavior({
+    required bool hamster,
+    required bool disabled,
+  });
+
+  /// Select a crossfader preset, custom group, or curve set by canonical id.
+  Future<void> setCrossfaderCurve({required String id});
+
+  /// Sweep the curve set `set` to morph `amount` (`0..1`).
+  Future<void> setCrossfaderCurveAmount({
+    required String set_,
+    required double amount,
+    required bool softTakeover,
+  });
+
   /// Cue/master headphone mix `0..1`.
   Future<void> setCueMix({required double mix});
 
@@ -150,6 +166,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Cue/headphone bus volume `0..1`.
   Future<void> setCueVolume({required double volume});
+
+  /// Replace the custom curve library (duplicate ids reject the update).
+  Future<void> setCurveLibrary({required CurveLibrarySpec library_});
 
   /// Route deck `deck_id` through the shared FX unit.
   Future<void> setDeckFxRouted({required int deckId, required bool routed});

@@ -285,6 +285,14 @@
   "settingsMixerSamplerStripRoute": "Sampler strip route",
   "settingsMixerSamplerStripBefore": "Before channel strip",
   "settingsMixerSamplerStripAfter": "After channel strip",
+  "settingsMixerCrossfaderTitle": "Crossfader",
+  "settingsMixerCrossfaderDescription": "The curve the crossfader follows, plus the two performance flags. Changing it restarts the audio engine.",
+  "settingsMixerCrossfaderCurve": "Default curve",
+  "settingsMixerCrossfaderInvert": "Invert (swap A and B)",
+  "settingsMixerCrossfaderDisable": "Disable the crossfader",
+  "settingsCrossfaderCurveConstantPower": "Constant power",
+  "settingsCrossfaderCurveLinear": "Linear",
+  "settingsCrossfaderCurveFastCut": "Fast cut",
   "settingsMixerRealtimeStemsTitle": "Realtime Stems",
   "settingsMixerRealtimeStemsDescription": "Separates tracks without cached stems while they play. Tracks with offline stems always take priority.",
   "settingsMixerRealtimeStemsNotRecommended": "Not recommended.",
@@ -361,7 +369,7 @@
   "settingsLibraryListTitle": "Library list",
   "settingsLibraryListDescription": "How tracks look in the library table.",
   "settingsLibraryDescription": "Offline analysis, metadata, and list display.",
-  "settingsIntegrationsDescription": "Read another DJ application into your library.",
+  "settingsIntegrationsDescription": "Read another DJ application's library and curve settings.",
   "settingsLibraryAnalysisTitle": "Analysis",
   "settingsLibraryAnalysisDescription": "How thoroughly offline analysis scans each track.",
   "settingsLibraryAnalysisQuality": "Analysis quality",
@@ -859,5 +867,143 @@
       }
     }
   },
-  "onboardingLibraryNotFoundBoth": "No Mixxx or Rekordbox library found on this computer. You can import one later in Settings → Integrations."
+  "onboardingLibraryNotFoundBoth": "No Mixxx or Rekordbox library found on this computer. You can import one later in Settings → Integrations.",
+  "settingsSectionCurves": "Curves",
+  "settingsCurvesDescription": "Build custom crossfader curves and curve sets, then import or export them through the VirtualDJ adapter.",
+  "curvesCustomTitle": "Custom curves",
+  "curvesCustomDescription": "A curve maps fader position to gain. A/B curves edit deck A and deck B separately; scalar curves drive one value.",
+  "curvesSetsTitle": "Curve sets",
+  "curvesSetsDescription": "A set sweeps between two or more A/B curves as the morph knob moves.",
+  "curvesImportExportTitle": "Import & export",
+  "curvesImportExportDescription": "Move custom crossfader curves to and from VirtualDJ through the settings adapter.",
+  "curvesExportCurveLabel": "Curve",
+  "curvesNew": "New curve",
+  "curvesNewSet": "New set",
+  "curvesEmpty": "No custom curves yet.",
+  "curvesEmptySets": "No curve sets yet.",
+  "curvesScalar": "Scalar",
+  "curvesAb": "A/B",
+  "curvesChannelA": "Deck A",
+  "curvesChannelB": "Deck B",
+  "curvesScalarCurve": "Scalar curve",
+  "curvesSelectToEdit": "Select a curve to edit.",
+  "curvesSelectSetToEdit": "Select a curve set to edit.",
+  "curvesRename": "Rename",
+  "curvesDelete": "Delete",
+  "curvesAddPoint": "Add point",
+  "curvesRemovePoint": "Remove point",
+  "curvesPointX": "Point X",
+  "curvesPointY": "Point Y",
+  "curvesChartHint": "Drag a handle to move it. Tap the chart to add a point.",
+  "curvesChartSemantics": "Curve chart for {name}",
+  "@curvesChartSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesMorphSemantics": "Morph preview for {name}",
+  "@curvesMorphSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesSegment": "Segment {index} interpolation",
+  "@curvesSegment": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "curvesSegmentLinear": "Linear",
+  "curvesSegmentExponential": "Exponential",
+  "curvesSegmentLogarithmic": "Logarithmic",
+  "curvesSegmentCubicBezier": "Cubic Bézier",
+  "curvesRate": "Rate",
+  "curvesBezierC1X": "Handle 1 X",
+  "curvesBezierC1Y": "Handle 1 Y",
+  "curvesBezierC2X": "Handle 2 X",
+  "curvesBezierC2Y": "Handle 2 Y",
+  "curvesMembers": "Members",
+  "curvesAddMember": "Add member",
+  "curvesMoveUp": "Move up",
+  "curvesMoveDown": "Move down",
+  "curvesSetHint": "The morph knob blends adjacent members in order; the first member is 0 and the last is 1.",
+  "curvesMorphPreview": "Morph preview",
+  "curvesMemberCount": "{count, plural, =1{1 member} other{{count} members}}",
+  "@curvesMemberCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "curvesCreateTitle": "New curve",
+  "curvesCreateSetTitle": "New curve set",
+  "curvesRenameTitle": "Rename curve",
+  "curvesRenameSetTitle": "Rename curve set",
+  "curvesName": "Name",
+  "curvesId": "Id",
+  "curvesIdHint": "Used by controller mappings and settings. Lowercase letters, digits and underscores.",
+  "curvesControl": "Control",
+  "curvesControlAb": "A/B (crossfader)",
+  "curvesControlScalar": "Scalar (channel, tempo, FX)",
+  "curvesCancel": "Cancel",
+  "curvesCreate": "Create",
+  "curvesSave": "Save",
+  "curvesImport": "Import VirtualDJ",
+  "curvesImporting": "Importing…",
+  "curvesExport": "Export to VirtualDJ",
+  "curvesExporting": "Exporting…",
+  "curvesImportTitle": "Import VirtualDJ curve",
+  "curvesImportHelp": "Paste the two VirtualDJ crossfader options. A custom point script becomes an editable native A/B curve.",
+  "curvesImportCurveLabel": "crossfaderCurve",
+  "curvesImportCurveHint": "Preset name or amount, e.g. Smooth, Cut, 30%",
+  "curvesImportCustomLabel": "crossfaderCustom",
+  "curvesImportCustomHint": "0=[1,0]/0.5=[0.5,0.5]/1=[0,1]",
+  "curvesExportTitle": "VirtualDJ curve",
+  "curvesExportCustomLabel": "crossfaderCustom",
+  "curvesCopy": "Copy",
+  "curvesCopied": "Copied",
+  "curvesClose": "Close",
+  "curvesImported": "Imported “{name}”",
+  "@curvesImported": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesInUseTitle": "Curve is in use",
+  "curvesInUseBody": "Remove “{name}” from the curve sets that reference it first.",
+  "@curvesInUseBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesDefaultInUseTitle": "Curve is the default",
+  "curvesDefaultInUseBody": "Choose another default crossfader curve before deleting “{name}”.",
+  "@curvesDefaultInUseBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "curvesDeleteConfirmTitle": "Delete curve?",
+  "curvesDeleteSetConfirmTitle": "Delete curve set?",
+  "curvesDeleteConfirmBody": "“{name}” will be removed from your library.",
+  "@curvesDeleteConfirmBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

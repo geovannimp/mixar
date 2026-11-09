@@ -12,9 +12,11 @@
 use audio_core::Sample;
 
 pub mod echo;
+pub mod level_curve;
 pub mod reverb;
 
 pub use echo::Echo;
+pub use level_curve::{linear_fx_level_curve, FxLevelCurve, FX_LEVEL_CHANNELS};
 pub use reverb::Reverb;
 
 /// Chain capacity per deck (bounds a preset's effect count); keep in sync with
@@ -66,6 +68,11 @@ pub struct FxSlot {
     sample_rate: u32,
     kind: FxKind,
     enabled: bool,
+    /// Level/depth control position (`0..=1`) before the curve.
+    level: f32,
+    /// Compiled control-position-to-wet curve. Defaults to `linear`.
+    level_curve: FxLevelCurve,
+    /// Effective wet/dry mix for the current position and curve.
     wet: f32,
     params: [f32; FX_PARAM_COUNT],
     fx: Option<Box<dyn Fx>>,
@@ -73,11 +80,16 @@ pub struct FxSlot {
 
 impl FxSlot {
     pub fn new(sample_rate: u32) -> Self {
+        let level = 0.5;
+        let level_curve = FxLevelCurve::linear();
+        let wet = level_curve.level_at(level);
         Self {
             sample_rate,
             kind: FxKind::Off,
             enabled: false,
-            wet: 0.5,
+            level,
+            level_curve,
+            wet,
             params: [0.0; FX_PARAM_COUNT],
             fx: None,
         }
@@ -91,8 +103,25 @@ impl FxSlot {
         self.enabled
     }
 
+    /// Effective wet/dry mix (`0` = dry), after the installed level curve.
     pub fn wet(&self) -> f32 {
         self.wet
+    }
+
+    /// Level/depth control position (`0..=1`) before the curve.
+    pub fn level(&self) -> f32 {
+        self.level
+    }
+
+    /// The installed control-position-to-wet curve.
+    pub fn level_curve(&self) -> &FxLevelCurve {
+        &self.level_curve
+    }
+
+    /// Replace the level curve, keeping the current control position.
+    pub fn set_level_curve(&mut self, curve: FxLevelCurve) {
+        self.level_curve = curve;
+        self.wet = self.level_curve.level_at(self.level);
     }
 
     pub fn params(&self) -> [f32; FX_PARAM_COUNT] {
@@ -138,9 +167,13 @@ impl FxSlot {
         }
     }
 
-    /// Wet/dry `0..1` (`0` = dry), clamped.
+    /// Set the level/depth control position (`0..1`, clamped).
+    ///
+    /// The installed curve maps it to the wet/dry mix [`Self::wet`] reports; the
+    /// default linear curve keeps `wet == position`.
     pub fn set_wet(&mut self, wet: f32) {
-        self.wet = wet.clamp(0.0, 1.0);
+        self.level = wet.clamp(0.0, 1.0);
+        self.wet = self.level_curve.level_at(self.level);
     }
 
     /// Knob `index`, normalized `0..1` (clamped).
@@ -168,7 +201,7 @@ impl FxSlot {
         if !self.is_active() {
             return (left, right);
         }
-        let wet = self.wet;
+        let wet = self.wet();
         let (wet_l, wet_r) = self
             .fx
             .as_mut()
@@ -222,6 +255,14 @@ impl FxChain {
     pub fn set_tempo(&mut self, bpm: f32) {
         for slot in &mut self.slots {
             slot.set_tempo(bpm);
+        }
+    }
+
+    /// Install one compiled level curve on every slot (the unit is shared, so
+    /// the chain keeps a single response).
+    pub fn set_level_curve(&mut self, curve: FxLevelCurve) {
+        for slot in &mut self.slots {
+            slot.set_level_curve(curve.clone());
         }
     }
 
@@ -289,6 +330,34 @@ mod tests {
         let before = buffer.clone();
         chain.process_buffer(&mut buffer);
         assert_eq!(buffer, before, "wet 0.0 must stay dry");
+    }
+
+    #[test]
+    fn default_level_curve_keeps_the_historical_wet_response() {
+        let mut slot = FxSlot::new(SAMPLE_RATE);
+        for position in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            slot.set_wet(position);
+            assert_eq!(slot.level(), position);
+            assert!((slot.wet() - position).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn custom_level_curve_maps_the_control_position_to_wet() {
+        let spec = curve_core::presets::exponential(4.0).expect("exponential curve");
+        let group = curve_core::CurveGroup::scalar(spec).expect("scalar curve");
+        let curve = FxLevelCurve::new(
+            curve_core::ResolvedCurveGroup::single(&group).expect("compiled curve"),
+        )
+        .expect("one channel");
+
+        let mut chain = FxChain::new(SAMPLE_RATE);
+        chain.set_level_curve(curve);
+        let slot = chain.slot_mut(0).expect("slot 0");
+        slot.set_wet(0.5);
+
+        assert!((slot.level() - 0.5).abs() < 1e-6, "raw position is kept");
+        assert!(slot.wet() < 0.25, "curved wet: {}", slot.wet());
     }
 
     #[test]

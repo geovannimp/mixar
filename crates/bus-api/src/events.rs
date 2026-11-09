@@ -14,6 +14,7 @@ use crate::library::BeatGrid;
 use crate::library::HotCue;
 use crate::library::SavedLoop;
 use crate::library::TrackSummary;
+use crate::payload::CurveLibrarySpec;
 use crate::payload::DeckEq;
 use crate::payload::DeckHotCue;
 use crate::payload::DeckSavedLoop;
@@ -76,6 +77,11 @@ bus_events! {
         { deck: u16, speed: f32, soft_takeover: bool };
     SetTempoRange: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16, tempo_range: f32 };
+    /// Select the deck's tempo-fader curve by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetTempoCurve: Update, Entity::Deck(*deck), Part::Whole,
+        { deck: u16, id: String };
     SetKeyLock: Update, Entity::Deck(*deck), Part::Whole,
         { deck: u16, enabled: bool };
     SetKeyShift: Update, Entity::Deck(*deck), Part::Whole,
@@ -195,6 +201,25 @@ bus_events! {
         { enabled: bool };
     ToggleMasterCue: Toggle, Entity::Mixer, Part::Whole,
         { };
+    /// Replace the custom curve library. Duplicate ids reject the whole update.
+    SetCurveLibrary: Update, Entity::Mixer, Part::Whole,
+        { library: CurveLibrarySpec };
+    /// Select a preset, custom group, or curve set by canonical id.
+    ///
+    /// An unknown id installs `constant_power` and publishes a notice.
+    SetCrossfaderCurve: Update, Entity::Mixer, Part::Whole,
+        { id: String };
+    /// Sweep the curve set `set` to morph position `amount` (`0..=1`).
+    SetCrossfaderCurveAmount: Update, Entity::Mixer, Part::Whole,
+        { set: String, amount: f32, soft_takeover: bool };
+    /// Set the curve-bypass and hamster flags together.
+    SetCrossfaderBehavior: Update, Entity::Mixer, Part::Whole,
+        { hamster: bool, disabled: bool };
+    /// Select the channel-fader curve for every channel by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetChannelFaderCurve: Update, Entity::Mixer, Part::Whole,
+        { id: String };
 
     // ── shared FX unit ───────────────────────────────────────────────────────
     SetFxUnitSlot: Update, Entity::Mixer, Part::Index(*slot),
@@ -203,6 +228,11 @@ bus_events! {
         { slot: u8, enabled: bool };
     SetFxUnitWet: Update, Entity::Mixer, Part::Index(*slot),
         { slot: u8, wet: f32, soft_takeover: bool };
+    /// Select the shared FX level/depth curve by canonical id.
+    ///
+    /// An unknown or multi-channel id installs `linear` and publishes a notice.
+    SetFxLevelCurve: Update, Entity::Mixer, Part::Whole,
+        { id: String };
     SetFxUnitParam: Update, Entity::Mixer, Part::Pair(*slot, *param),
         { slot: u8, param: u8, value: f32 };
     SetDeckFxRouted: Update, Entity::Deck(*deck), Part::Whole,

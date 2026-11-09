@@ -321,6 +321,122 @@ fn set_master_deck_publishes_status() {
     assert_eq!(status.master_deck, 1);
 }
 
+/// A straight two-channel custom group: A fades out, B fades in.
+fn linear_group(id: &str, a_start: f32, a_end: f32) -> bus_api::CurveGroupSpec {
+    let segment = bus_api::CurveSegmentSpec {
+        kind: bus_api::CurveSegmentKind::Linear,
+        rate: 0.0,
+        c1x: 0.0,
+        c1y: 0.0,
+        c2x: 0.0,
+        c2y: 0.0,
+    };
+    let curve = |y0: f32, y1: f32| bus_api::CurveSpecSpec {
+        points: vec![
+            bus_api::CurvePointSpec { x: 0.0, y: y0 },
+            bus_api::CurvePointSpec { x: 1.0, y: y1 },
+        ],
+        segments: vec![segment],
+    };
+    bus_api::CurveGroupSpec {
+        id: id.into(),
+        display_name: id.into(),
+        curves: vec![curve(a_start, a_end), curve(1.0 - a_start, 1.0 - a_end)],
+    }
+}
+
+fn curve_set(id: &str, members: [&str; 2]) -> bus_api::CurveSetSpec {
+    bus_api::CurveSetSpec {
+        id: id.into(),
+        display_name: id.into(),
+        members: members
+            .iter()
+            .map(|member| bus_api::CurveRefSpec {
+                id: (*member).into(),
+                parameter: None,
+            })
+            .collect(),
+    }
+}
+
+#[test]
+fn crossfader_curve_commands_publish_status_and_notices() {
+    let bus = BusTransport::open().unwrap();
+    let library = LibraryTransport::open_in_memory(&bus).unwrap();
+    let transport = testing::start_engine(&bus, &library, null_engine_config()).unwrap();
+    let mut rx = testing::subscribe_evt(&bus).unwrap();
+
+    // A preset id selects without a restart and reports back.
+    transport.set_crossfader_curve("linear".into()).unwrap();
+    let status = recv_engine_status(&mut rx, Duration::from_secs(2));
+    assert_eq!(status.crossfader_curve.id, "linear");
+    assert!(!status.crossfader_curve.hamster);
+
+    // The custom library installs, then a knob sweep selects the set and morphs.
+    transport
+        .set_curve_library(bus_api::CurveLibrarySpec {
+            groups: vec![linear_group("flat", 1.0, 1.0)],
+            sets: vec![curve_set("sweep", ["flat", "linear"])],
+        })
+        .unwrap();
+    let _ = recv_engine_status(&mut rx, Duration::from_secs(2));
+
+    transport
+        .set_crossfader_curve_amount("sweep".into(), 0.5, false)
+        .unwrap();
+    let status = recv_engine_status(&mut rx, Duration::from_secs(2));
+    assert_eq!(status.crossfader_curve.id, "sweep");
+    assert!((status.crossfader_curve.morph - 0.5).abs() < 1e-6);
+
+    transport.set_crossfader_behavior(true, false).unwrap();
+    let status = recv_engine_status(&mut rx, Duration::from_secs(2));
+    assert!(status.crossfader_curve.hamster);
+    assert!(!status.crossfader_curve.disabled);
+
+    // An unknown id falls back to constant_power and explains itself in a notice.
+    transport.set_crossfader_curve("nope".into()).unwrap();
+    let notice = recv_matching(
+        &mut rx,
+        "Notice",
+        Duration::from_secs(2),
+        |event| match event {
+            Event::Notice(notice) => Some(notice),
+            _ => None,
+        },
+    );
+    assert!(notice.message.contains("nope"), "{}", notice.message);
+    let status = recv_engine_status(&mut rx, Duration::from_secs(2));
+    assert_eq!(
+        status.crossfader_curve.id,
+        bus_api::DEFAULT_CROSSFADER_CURVE_ID
+    );
+
+    // Duplicate ids reject the update, and the previous library stays usable.
+    transport
+        .set_curve_library(bus_api::CurveLibrarySpec {
+            groups: vec![linear_group("dup", 1.0, 0.0), linear_group("dup", 0.0, 1.0)],
+            sets: vec![],
+        })
+        .unwrap();
+    let error = recv_matching(
+        &mut rx,
+        "Error",
+        Duration::from_secs(2),
+        |event| match event {
+            Event::Error(error) => Some(error),
+            _ => None,
+        },
+    );
+    assert!(
+        error.message.to_lowercase().contains("duplicate"),
+        "{}",
+        error.message
+    );
+    transport.set_crossfader_curve("flat".into()).unwrap();
+    let status = recv_engine_status(&mut rx, Duration::from_secs(2));
+    assert_eq!(status.crossfader_curve.id, "flat");
+}
+
 #[test]
 fn set_sampler_bank_publishes_active_bank_id() {
     let bus = BusTransport::open().unwrap();

@@ -727,6 +727,31 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsMixerSamplerStripAfter => 'Depois do channel strip';
 
   @override
+  String get settingsMixerCrossfaderTitle => 'Crossfader';
+
+  @override
+  String get settingsMixerCrossfaderDescription =>
+      'A curva que o crossfader segue, além dos dois flags de performance. Alterar reinicia o motor de áudio.';
+
+  @override
+  String get settingsMixerCrossfaderCurve => 'Curva padrão';
+
+  @override
+  String get settingsMixerCrossfaderInvert => 'Inverter (trocar A e B)';
+
+  @override
+  String get settingsMixerCrossfaderDisable => 'Desativar o crossfader';
+
+  @override
+  String get settingsCrossfaderCurveConstantPower => 'Potência constante';
+
+  @override
+  String get settingsCrossfaderCurveLinear => 'Linear';
+
+  @override
+  String get settingsCrossfaderCurveFastCut => 'Corte rápido';
+
+  @override
   String get settingsMixerRealtimeStemsTitle => 'Stems em tempo real';
 
   @override
@@ -914,7 +939,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsIntegrationsDescription =>
-      'Importe a biblioteca de outro aplicativo de DJ.';
+      'Leia a biblioteca e as definições de curvas de outra aplicação de DJ.';
 
   @override
   String get settingsLibraryAnalysisTitle => 'Análise';
@@ -1708,6 +1733,284 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get onboardingLibraryNotFoundBoth =>
       'Nenhuma biblioteca do Mixxx ou do Rekordbox encontrada neste computador. Você pode importar uma depois em Configurações → Integrações.';
+
+  @override
+  String get settingsSectionCurves => 'Curvas';
+
+  @override
+  String get settingsCurvesDescription =>
+      'Crie curvas e conjuntos de curvas personalizados para o crossfader e importe ou exporte pelo adaptador do VirtualDJ.';
+
+  @override
+  String get curvesCustomTitle => 'Curvas personalizadas';
+
+  @override
+  String get curvesCustomDescription =>
+      'Uma curva mapeia a posição do fader para o ganho. Curvas A/B editam os decks A e B separadamente; curvas escalares controlam um único valor.';
+
+  @override
+  String get curvesSetsTitle => 'Conjuntos de curvas';
+
+  @override
+  String get curvesSetsDescription =>
+      'Um conjunto percorre duas ou mais curvas A/B conforme o botão de morph se move.';
+
+  @override
+  String get curvesImportExportTitle => 'Importar e exportar';
+
+  @override
+  String get curvesImportExportDescription =>
+      'Mova curvas personalizadas do crossfader de e para o VirtualDJ pelo adaptador de configurações.';
+
+  @override
+  String get curvesExportCurveLabel => 'Curva';
+
+  @override
+  String get curvesNew => 'Nova curva';
+
+  @override
+  String get curvesNewSet => 'Novo conjunto';
+
+  @override
+  String get curvesEmpty => 'Ainda não há curvas personalizadas.';
+
+  @override
+  String get curvesEmptySets => 'Ainda não há conjuntos de curvas.';
+
+  @override
+  String get curvesScalar => 'Escalar';
+
+  @override
+  String get curvesAb => 'A/B';
+
+  @override
+  String get curvesChannelA => 'Deck A';
+
+  @override
+  String get curvesChannelB => 'Deck B';
+
+  @override
+  String get curvesScalarCurve => 'Curva escalar';
+
+  @override
+  String get curvesSelectToEdit => 'Selecione uma curva para editar.';
+
+  @override
+  String get curvesSelectSetToEdit =>
+      'Selecione um conjunto de curvas para editar.';
+
+  @override
+  String get curvesRename => 'Renomear';
+
+  @override
+  String get curvesDelete => 'Eliminar';
+
+  @override
+  String get curvesAddPoint => 'Adicionar ponto';
+
+  @override
+  String get curvesRemovePoint => 'Remover ponto';
+
+  @override
+  String get curvesPointX => 'Ponto X';
+
+  @override
+  String get curvesPointY => 'Ponto Y';
+
+  @override
+  String get curvesChartHint =>
+      'Arraste um ponto para movê-lo. Toque no gráfico para adicionar um ponto.';
+
+  @override
+  String curvesChartSemantics(String name) {
+    return 'Gráfico da curva $name';
+  }
+
+  @override
+  String curvesMorphSemantics(String name) {
+    return 'Pré-visualização do morph de $name';
+  }
+
+  @override
+  String curvesSegment(int index) {
+    return 'Interpolação do segmento $index';
+  }
+
+  @override
+  String get curvesSegmentLinear => 'Linear';
+
+  @override
+  String get curvesSegmentExponential => 'Exponencial';
+
+  @override
+  String get curvesSegmentLogarithmic => 'Logarítmica';
+
+  @override
+  String get curvesSegmentCubicBezier => 'Bézier cúbica';
+
+  @override
+  String get curvesRate => 'Taxa';
+
+  @override
+  String get curvesBezierC1X => 'Ponto 1 X';
+
+  @override
+  String get curvesBezierC1Y => 'Ponto 1 Y';
+
+  @override
+  String get curvesBezierC2X => 'Ponto 2 X';
+
+  @override
+  String get curvesBezierC2Y => 'Ponto 2 Y';
+
+  @override
+  String get curvesMembers => 'Membros';
+
+  @override
+  String get curvesAddMember => 'Adicionar membro';
+
+  @override
+  String get curvesMoveUp => 'Mover para cima';
+
+  @override
+  String get curvesMoveDown => 'Mover para baixo';
+
+  @override
+  String get curvesSetHint =>
+      'O botão de morph mistura membros adjacentes em ordem; o primeiro membro é 0 e o último é 1.';
+
+  @override
+  String get curvesMorphPreview => 'Pré-visualização do morph';
+
+  @override
+  String curvesMemberCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count membros',
+      one: '1 membro',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get curvesCreateTitle => 'Nova curva';
+
+  @override
+  String get curvesCreateSetTitle => 'Novo conjunto de curvas';
+
+  @override
+  String get curvesRenameTitle => 'Renomear curva';
+
+  @override
+  String get curvesRenameSetTitle => 'Renomear conjunto de curvas';
+
+  @override
+  String get curvesName => 'Nome';
+
+  @override
+  String get curvesId => 'Id';
+
+  @override
+  String get curvesIdHint =>
+      'Usado por mapeamentos de controlador e configurações. Letras minúsculas, dígitos e sublinhados.';
+
+  @override
+  String get curvesControl => 'Controlo';
+
+  @override
+  String get curvesControlAb => 'A/B (crossfader)';
+
+  @override
+  String get curvesControlScalar => 'Escalar (canal, tempo, FX)';
+
+  @override
+  String get curvesCancel => 'Cancelar';
+
+  @override
+  String get curvesCreate => 'Criar';
+
+  @override
+  String get curvesSave => 'Guardar';
+
+  @override
+  String get curvesImport => 'Importar do VirtualDJ';
+
+  @override
+  String get curvesImporting => 'A importar…';
+
+  @override
+  String get curvesExport => 'Exportar para VirtualDJ';
+
+  @override
+  String get curvesExporting => 'A exportar…';
+
+  @override
+  String get curvesImportTitle => 'Importar curva do VirtualDJ';
+
+  @override
+  String get curvesImportHelp =>
+      'Cole as duas opções do crossfader do VirtualDJ. Um script de pontos personalizado torna-se uma curva A/B nativa editável.';
+
+  @override
+  String get curvesImportCurveLabel => 'crossfaderCurve';
+
+  @override
+  String get curvesImportCurveHint =>
+      'Nome de preset ou quantidade, ex.: Smooth, Cut, 30%';
+
+  @override
+  String get curvesImportCustomLabel => 'crossfaderCustom';
+
+  @override
+  String get curvesImportCustomHint => '0=[1,0]/0.5=[0.5,0.5]/1=[0,1]';
+
+  @override
+  String get curvesExportTitle => 'Curva do VirtualDJ';
+
+  @override
+  String get curvesExportCustomLabel => 'crossfaderCustom';
+
+  @override
+  String get curvesCopy => 'Copiar';
+
+  @override
+  String get curvesCopied => 'Copiado';
+
+  @override
+  String get curvesClose => 'Fechar';
+
+  @override
+  String curvesImported(String name) {
+    return '“$name” importada';
+  }
+
+  @override
+  String get curvesInUseTitle => 'A curva está em uso';
+
+  @override
+  String curvesInUseBody(String name) {
+    return 'Remova “$name” primeiro dos conjuntos de curvas que a referenciam.';
+  }
+
+  @override
+  String get curvesDefaultInUseTitle => 'A curva é a predefinida';
+
+  @override
+  String curvesDefaultInUseBody(String name) {
+    return 'Escolha outra curva predefinida do crossfader antes de eliminar “$name”.';
+  }
+
+  @override
+  String get curvesDeleteConfirmTitle => 'Eliminar curva?';
+
+  @override
+  String get curvesDeleteSetConfirmTitle => 'Eliminar conjunto de curvas?';
+
+  @override
+  String curvesDeleteConfirmBody(String name) {
+    return '“$name” será removida da sua biblioteca.';
+  }
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).

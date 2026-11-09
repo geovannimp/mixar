@@ -37,14 +37,19 @@ use bus_api::SamplerPadPress;
 use bus_api::SamplerPadRelease;
 use bus_api::SaveDeckHotCue;
 use bus_api::SetAutoLoop;
+use bus_api::SetChannelFaderCurve;
 use bus_api::SetCrossfader;
 use bus_api::SetCrossfaderAssign;
+use bus_api::SetCrossfaderBehavior;
+use bus_api::SetCrossfaderCurve;
+use bus_api::SetCrossfaderCurveAmount;
 use bus_api::SetCueMix;
 use bus_api::SetCuePoint;
 use bus_api::SetCueVolume;
 use bus_api::SetDeckFxRouted;
 use bus_api::SetEqBand;
 use bus_api::SetFilter;
+use bus_api::SetFxLevelCurve;
 use bus_api::SetFxUnitParam;
 use bus_api::SetFxUnitSlot;
 use bus_api::SetFxUnitSlotEnabled;
@@ -54,6 +59,7 @@ use bus_api::SetMasterVolume;
 use bus_api::SetPadMode;
 use bus_api::SetSpeed;
 use bus_api::SetStemEqBand;
+use bus_api::SetTempoCurve;
 use bus_api::SetTempoRange;
 use bus_api::SetVolume;
 use bus_api::ToggleHeadphoneCue;
@@ -123,6 +129,13 @@ pub struct ControlSnapshot {
     /// Hot-cue slot used as the Keyboard pad root.
     pub keyboard_root_hot_cue: [u8; 4],
     pub crossfader: f32,
+    /// Canonical id of the engine's active crossfader curve (preset, custom
+    /// group, or curve set); mirrors `EngineStatus.crossfader_curve.id`.
+    pub crossfader_curve: String,
+    /// A and B gains swapped (hamster), mirrored from engine status.
+    pub crossfader_hamster: bool,
+    /// Curve bypassed (both sides at full gain), mirrored from engine status.
+    pub crossfader_disabled: bool,
     pub master_volume: f32,
     pub cue_volume: f32,
     pub cue_mix: f32,
@@ -189,6 +202,9 @@ impl Default for ControlSnapshot {
             key_shift_page: [DEFAULT_PITCH_PAGE; 4],
             keyboard_root_hot_cue: [0; 4],
             crossfader: 0.5,
+            crossfader_curve: bus_api::DEFAULT_CROSSFADER_CURVE_ID.to_string(),
+            crossfader_hamster: false,
+            crossfader_disabled: false,
             master_volume: 1.0,
             cue_volume: 1.0,
             cue_mix: 0.5,
@@ -258,7 +274,9 @@ impl ControlSnapshot {
             return match name {
                 "master_cue" => Some(self.master_cue),
                 "fx_armed" => Some(self.fx.enabled),
-                _ => None,
+                "crossfader_hamster" => Some(self.crossfader_hamster),
+                "crossfader_disabled" => Some(self.crossfader_disabled),
+                _ => self.curve_signal(name),
             };
         }
         let i = deck_idx(crate::device::origin_deck_id(section)?)?;
@@ -283,6 +301,14 @@ impl ControlSnapshot {
                 return self.slot_signal(i, name);
             }
         })
+    }
+
+    /// `crossfader_curve_<id>`: true when `<id>` is the active curve.
+    ///
+    /// Ids are canonical snake_case, so the suffix never needs escaping.
+    fn curve_signal(&self, name: &str) -> Option<bool> {
+        let id = name.strip_prefix("crossfader_curve_")?;
+        crate::catalog::is_snake_case(id).then_some(id == self.crossfader_curve)
     }
 
     /// `hot_cue_<n>` (cue saved), `loop_slot_<n>` (loop saved) and the mode-gated
@@ -418,6 +444,18 @@ fn fx_unit_enabled(enabled: bool) -> Option<RoutedAction> {
             enabled,
         })
     })
+}
+
+/// Next preset id in [`bus_api::CROSSFADER_CURVE_CYCLE`].
+///
+/// The cycle covers the available presets only; a custom group or curve set
+/// (not in the cycle) steps back to the first preset.
+fn next_curve_id(current: &str) -> &'static str {
+    let cycle = bus_api::CROSSFADER_CURVE_CYCLE;
+    match cycle.iter().position(|id| *id == current) {
+        Some(index) => cycle[(index + 1) % cycle.len()],
+        None => cycle[0],
+    }
 }
 
 /// Wire value after device decode: absolute `0..1` or relative tick delta.
@@ -594,6 +632,18 @@ pub fn resolve_action(
                 soft_takeover,
             })
         }),
+        "set_tempo_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            deck_cmd(scope, |deck| {
+                Event::SetTempoCurve(SetTempoCurve {
+                    deck,
+                    id: id.to_string(),
+                })
+            })
+        }
         "cycle_tempo_range" => {
             if !active {
                 return None;
@@ -669,6 +719,53 @@ pub fn resolve_action(
             })
         }),
         "set_master_cue" => mixer_press(active, || Event::ToggleMasterCue(ToggleMasterCue {})),
+        // Curve library: a button selects a preset/custom curve, a knob sweeps a set.
+        "set_crossfader_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            mixer_cmd(|| Event::SetCrossfaderCurve(SetCrossfaderCurve { id: id.to_string() }))
+        }
+        "set_channel_fader_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            mixer_cmd(|| Event::SetChannelFaderCurve(SetChannelFaderCurve { id: id.to_string() }))
+        }
+        "cycle_crossfader_curve" => {
+            if !active {
+                return None;
+            }
+            let next = next_curve_id(&snap.crossfader_curve);
+            mixer_cmd(|| {
+                Event::SetCrossfaderCurve(SetCrossfaderCurve {
+                    id: next.to_string(),
+                })
+            })
+        }
+        "set_crossfader_curve_amount" => {
+            let set = args.require_ident("set").ok()?;
+            mixer_cmd(|| {
+                Event::SetCrossfaderCurveAmount(SetCrossfaderCurveAmount {
+                    set: set.to_string(),
+                    amount: norm.clamp(0.0, 1.0),
+                    soft_takeover,
+                })
+            })
+        }
+        "set_crossfader_hamster" | "set_crossfader_disabled" => {
+            if !active {
+                return None;
+            }
+            let (hamster, disabled) = if leaf == "set_crossfader_hamster" {
+                (!snap.crossfader_hamster, snap.crossfader_disabled)
+            } else {
+                (snap.crossfader_hamster, !snap.crossfader_disabled)
+            };
+            mixer_cmd(|| Event::SetCrossfaderBehavior(SetCrossfaderBehavior { hamster, disabled }))
+        }
         // Beat FX: ON/OFF arms the shared unit; SHIFT+ON/OFF disarms it.
         "toggle_fx" => active.then(|| fx_unit_enabled(!snap.fx.enabled)).flatten(),
         "disarm_fx" => active.then(|| fx_unit_enabled(false)).flatten(),
@@ -720,6 +817,13 @@ pub fn resolve_action(
                 soft_takeover,
             })
         }),
+        "set_fx_level_curve" => {
+            if !active {
+                return None;
+            }
+            let id = args.require_ident("id").ok()?;
+            mixer_cmd(|| Event::SetFxLevelCurve(SetFxLevelCurve { id: id.to_string() }))
+        }
         // CH SELECT is exclusive: every press publishes the full routing group.
         "set_fx_route" => {
             if !active {
@@ -1601,6 +1705,51 @@ mod tests {
     }
 
     #[test]
+    fn set_tempo_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Deck(_)::set_tempo_curve(id:linear)",
+                "deck_1",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetTempoCurve(SetTempoCurve {
+                deck: 0,
+                id: "linear".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
+    fn set_fx_level_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Mixer::set_fx_level_curve(id:taper)",
+                "master",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetFxLevelCurve(SetFxLevelCurve {
+                id: "taper".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
     fn load_to_deck_publishes_focused_load_evt() {
         let snap = ControlSnapshot::default();
         let routed = resolve_action(
@@ -1961,5 +2110,211 @@ mod tests {
         snap.fx.enabled = true;
         assert_eq!(snap.signal("master", "fx_armed"), Some(true));
         assert_eq!(snap.signal("master", "nonsense"), None);
+    }
+
+    #[test]
+    fn curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Mixer::set_crossfader_curve(id:fast_cut)",
+                "master",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetCrossfaderCurve(SetCrossfaderCurve {
+                id: "fast_cut".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
+    fn channel_fader_curve_button_selects_the_named_curve_on_press() {
+        let snap = ControlSnapshot::default();
+        let route = |active| {
+            resolve_action(
+                "Mixer::set_channel_fader_curve(id:linear)",
+                "master",
+                ControlValue::Absolute(1.0),
+                active,
+                false,
+                &snap,
+            )
+        };
+        assert_eq!(
+            route(true).unwrap(),
+            RoutedAction::Cmd(Event::SetChannelFaderCurve(SetChannelFaderCurve {
+                id: "linear".into(),
+            }))
+        );
+        assert!(route(false).is_none(), "releases publish nothing");
+    }
+
+    #[test]
+    fn curve_cycle_steps_through_the_preset_cycle_and_wraps() {
+        let mut snap = ControlSnapshot::default();
+        let cycle = |snap: &ControlSnapshot| {
+            resolve_action(
+                "Mixer::cycle_crossfader_curve",
+                "master",
+                ControlValue::Absolute(1.0),
+                true,
+                false,
+                snap,
+            )
+            .and_then(|routed| match routed {
+                RoutedAction::Cmd(Event::SetCrossfaderCurve(event)) => Some(event.id),
+                _ => None,
+            })
+            .unwrap()
+        };
+
+        assert_eq!(cycle(&snap), "linear");
+        snap.crossfader_curve = "linear".into();
+        assert_eq!(cycle(&snap), "fast_cut");
+        snap.crossfader_curve = "fast_cut".into();
+        assert_eq!(cycle(&snap), "constant_power", "cycle wraps");
+        // A custom selection (outside the preset cycle) steps to the first preset.
+        snap.crossfader_curve = "my_set".into();
+        assert_eq!(cycle(&snap), "constant_power");
+    }
+
+    #[test]
+    fn curve_amount_knob_sweeps_the_named_set() {
+        let snap = ControlSnapshot::default();
+        match resolve_action(
+            "Mixer::set_crossfader_curve_amount(set:sweep)",
+            "master",
+            ControlValue::Absolute(0.25),
+            true,
+            true,
+            &snap,
+        )
+        .unwrap()
+        {
+            RoutedAction::Cmd(Event::SetCrossfaderCurveAmount(event)) => {
+                assert_eq!(event.set, "sweep");
+                assert!((event.amount - 0.25).abs() < 1e-6);
+                assert!(event.soft_takeover);
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn crossfader_behavior_buttons_toggle_from_the_snapshot() {
+        let mut snap = ControlSnapshot::default();
+        let route = |leaf: &str, snap: &ControlSnapshot| {
+            resolve_action(
+                &format!("Mixer::{leaf}"),
+                "master",
+                ControlValue::Absolute(1.0),
+                true,
+                false,
+                snap,
+            )
+        };
+        assert_eq!(
+            route("set_crossfader_hamster", &snap).unwrap(),
+            RoutedAction::Cmd(Event::SetCrossfaderBehavior(SetCrossfaderBehavior {
+                hamster: true,
+                disabled: false,
+            }))
+        );
+        snap.crossfader_hamster = true;
+        assert_eq!(
+            route("set_crossfader_disabled", &snap).unwrap(),
+            RoutedAction::Cmd(Event::SetCrossfaderBehavior(SetCrossfaderBehavior {
+                hamster: true,
+                disabled: true,
+            }))
+        );
+        snap.crossfader_disabled = true;
+        assert_eq!(
+            route("set_crossfader_hamster", &snap).unwrap(),
+            RoutedAction::Cmd(Event::SetCrossfaderBehavior(SetCrossfaderBehavior {
+                hamster: false,
+                disabled: true,
+            }))
+        );
+    }
+
+    #[test]
+    fn curve_signals_follow_the_active_selection() {
+        let mut snap = ControlSnapshot::default();
+        assert_eq!(
+            snap.signal("master", "crossfader_curve_constant_power"),
+            Some(true)
+        );
+        assert_eq!(
+            snap.signal("master", "crossfader_curve_linear"),
+            Some(false)
+        );
+        snap.crossfader_curve = "linear".into();
+        assert_eq!(snap.signal("master", "crossfader_curve_linear"), Some(true));
+        assert_eq!(snap.signal("master", "crossfader_hamster"), Some(false));
+        snap.crossfader_hamster = true;
+        assert_eq!(snap.signal("master", "crossfader_hamster"), Some(true));
+        snap.crossfader_disabled = true;
+        assert_eq!(snap.signal("master", "crossfader_disabled"), Some(true));
+    }
+
+    #[test]
+    fn curve_actions_require_canonical_snake_case_ids() {
+        assert!(crate::catalog::is_known_action(
+            "Mixer::set_crossfader_curve(id:fast_cut)"
+        ));
+        assert!(crate::catalog::is_known_action(
+            "Mixer::set_crossfader_curve_amount(set:my_set)"
+        ));
+        assert!(!crate::catalog::is_known_action(
+            "Mixer::set_crossfader_curve"
+        ));
+        assert!(!crate::catalog::is_known_action(
+            "Mixer::set_crossfader_curve(id:FastCut)"
+        ));
+        assert!(!crate::catalog::is_known_action(
+            "Mixer::set_crossfader_curve(id:fast_cut, extra:1)"
+        ));
+        assert!(!crate::catalog::is_known_action(
+            "Mixer::set_crossfader_curve_amount(set:sweep, amount:0.5)"
+        ));
+        assert!(crate::catalog::is_known_action(
+            "Mixer::cycle_crossfader_curve"
+        ));
+        assert!(crate::catalog::is_known_action(
+            "Mixer::set_crossfader_hamster"
+        ));
+        assert!(crate::catalog::is_known_action(
+            "Mixer::set_crossfader_disabled"
+        ));
+        assert!(crate::catalog::is_absolute_action(
+            "Mixer::set_crossfader_curve_amount(set:sweep)"
+        ));
+        assert!(!crate::catalog::is_absolute_action(
+            "Mixer::set_crossfader_curve(id:linear)"
+        ));
+        assert!(crate::catalog::is_known_signal(
+            "master",
+            "crossfader_curve_constant_power"
+        ));
+        assert!(crate::catalog::is_known_signal(
+            "master",
+            "crossfader_hamster"
+        ));
+        assert!(crate::catalog::is_known_signal(
+            "master",
+            "crossfader_disabled"
+        ));
+        assert!(!crate::catalog::is_known_signal(
+            "master",
+            "crossfader_curve_"
+        ));
     }
 }

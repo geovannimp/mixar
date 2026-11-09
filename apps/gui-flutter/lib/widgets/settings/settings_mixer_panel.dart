@@ -1,9 +1,13 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/models/curve_editor.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/theme/mixar_colors.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
@@ -11,6 +15,7 @@ import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -69,6 +74,64 @@ class SettingsMixerPanel extends StatelessWidget {
       title: l10n.settingsSectionMixer,
       description: l10n.settingsMixerDescription,
       cards: [
+        SettingsSectionCard(
+          title: l10n.settingsMixerCrossfaderTitle,
+          subtitle: l10n.settingsMixerCrossfaderDescription,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 16,
+            children: [
+              SettingsField(
+                label: l10n.settingsMixerCrossfaderCurve,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 8,
+                  children: [
+                    for (final id in _curveOptions(draft))
+                      _CurveChoice(
+                        id: id,
+                        label: _curveLabel(draft, id, l10n),
+                        selected: draft.defaultCrossfaderCurve == id,
+                        channels: _previewChannels(draft, id),
+                        onSelected: (selectedId) => onChanged(
+                          copyAppSettings(
+                            draft,
+                            defaultCrossfaderCurve: selectedId,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              SettingsCheckbox(
+                label: l10n.settingsMixerCrossfaderInvert,
+                value: draft.crossfaderBehavior.hamster,
+                onChanged: (value) => onChanged(
+                  copyAppSettings(
+                    draft,
+                    crossfaderBehavior: CrossfaderBehaviorSetting(
+                      disabled: draft.crossfaderBehavior.disabled,
+                      hamster: value,
+                    ),
+                  ),
+                ),
+              ),
+              SettingsCheckbox(
+                label: l10n.settingsMixerCrossfaderDisable,
+                value: draft.crossfaderBehavior.disabled,
+                onChanged: (value) => onChanged(
+                  copyAppSettings(
+                    draft,
+                    crossfaderBehavior: CrossfaderBehaviorSetting(
+                      disabled: value,
+                      hamster: draft.crossfaderBehavior.hamster,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         SettingsSectionCard(
           title: l10n.settingsMixerNormalizerTitle,
           subtitle: l10n.settingsMixerNormalizerDescription,
@@ -201,6 +264,78 @@ class SettingsMixerPanel extends StatelessWidget {
       border: colors.destructive.withValues(alpha: 0.4),
     );
   }
+
+  /// Preset ids plus the user's custom groups and curve sets.
+  ///
+  /// A saved id that no longer exists is kept at the top so the picker shows
+  /// the real value instead of silently selecting a different curve.
+  List<String> _curveOptions(AppSettings draft) {
+    final options = <String>[
+      ...kCrossfaderCurvePresets,
+      for (final group in draft.curveLibrary.groups) group.id,
+      for (final set in draft.curveLibrary.sets) set.id,
+    ];
+    if (!options.contains(draft.defaultCrossfaderCurve)) {
+      options.insert(0, draft.defaultCrossfaderCurve);
+    }
+    return options;
+  }
+
+  /// Display name for a curve id: preset name, custom label, or the id itself.
+  String _curveLabel(AppSettings draft, String id, AppLocalizations l10n) {
+    final preset = switch (id) {
+      'constant_power' => l10n.settingsCrossfaderCurveConstantPower,
+      'linear' => l10n.settingsCrossfaderCurveLinear,
+      'fast_cut' => l10n.settingsCrossfaderCurveFastCut,
+      _ => null,
+    };
+    if (preset != null) {
+      return preset;
+    }
+    for (final group in draft.curveLibrary.groups) {
+      if (group.id == id) {
+        return group.displayName.isEmpty ? id : group.displayName;
+      }
+    }
+    for (final set in draft.curveLibrary.sets) {
+      if (set.id == id) {
+        return set.displayName.isEmpty ? id : set.displayName;
+      }
+    }
+    return id;
+  }
+
+  /// Sample a curve id into the A/B channels a preview draws.
+  List<List<double>> _previewChannels(AppSettings draft, String id) {
+    const samples = 48;
+    List<double> at(double x) {
+      if (kCrossfaderPresetIds.contains(id)) {
+        return evaluateCurvePreset(id, null, x);
+      }
+      for (final group in draft.curveLibrary.groups) {
+        if (group.id == id) {
+          return evaluateCurveGroup(group, x);
+        }
+      }
+      for (final set in draft.curveLibrary.sets) {
+        if (set.id == id) {
+          return evaluateCurveSet(set, draft.curveLibrary, 0.5, x);
+        }
+      }
+      return const [0, 0];
+    }
+
+    final samplesAtX = [
+      for (var i = 0; i < samples; i++) at(i / (samples - 1)),
+    ];
+    return [
+      [for (final values in samplesAtX) _valueOrZero(values, 0)],
+      [for (final values in samplesAtX) _valueOrZero(values, 1)],
+    ];
+  }
+
+  double _valueOrZero(List<double> values, int index) =>
+      index < values.length ? values[index] : 0.0;
 }
 
 /// Replaces the switch until the device has a passing measurement.
@@ -266,6 +401,157 @@ class _CapabilityStatus {
   final Color color;
   final Color fill;
   final Color border;
+}
+
+/// One radio-style default-curve choice with a small A/B preview.
+class _CurveChoice extends StatelessWidget {
+  const new({
+    required this.id,
+    required this.label,
+    required this.selected,
+    required this.channels,
+    required this.onSelected,
+  });
+
+  final String id;
+  final String label;
+  final bool selected;
+  final List<List<double>> channels;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final colors = [
+      deckInk(DeckAccent.a, theme.colors.brightness),
+      deckInk(DeckAccent.b, theme.colors.brightness),
+    ];
+    return MTappable(
+      onPress: () => onSelected(id),
+      selected: selected,
+      semanticsLabel: label,
+      builder: (context, state) {
+        final border = selected ? theme.colors.primary : theme.colors.border;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: selected ? theme.colors.selection : theme.colors.card,
+            border: Border.all(color: border, width: selected ? 1.5 : 1),
+            borderRadius: theme.style.borderRadius.md,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                _RadioMark(selected: selected),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: theme.typography.body.sm.copyWith(
+                      color: theme.colors.foreground,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 64,
+                  height: 28,
+                  child: CustomPaint(
+                    painter: _CurvePreviewPainter(
+                      channels: channels,
+                      colors: colors,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RadioMark extends StatelessWidget {
+  const new({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Container(
+      width: 16,
+      height: 16,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: selected ? theme.colors.primary : theme.colors.border,
+          width: 1.5,
+        ),
+      ),
+      child: Center(
+        child: selected
+            ? Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: theme.colors.primary,
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+}
+
+class _CurvePreviewPainter extends CustomPainter {
+  const new({required this.channels, required this.colors});
+
+  final List<List<double>> channels;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (channels.isEmpty || size.isEmpty) {
+      return;
+    }
+    const inset = 1.5;
+    final width = size.width - inset * 2;
+    final height = size.height - inset * 2;
+
+    for (var channel = 0; channel < channels.length; channel++) {
+      final values = channels[channel];
+      if (values.length < 2) {
+        continue;
+      }
+      final paint = Paint()
+        ..color = colors[channel % colors.length]
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..isAntiAlias = true;
+      final path = Path();
+      for (var index = 0; index < values.length; index++) {
+        final x = inset + width * index / (values.length - 1);
+        final y = inset + height * (1 - values[index].clamp(0.0, 1.0));
+        if (index == 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurvePreviewPainter oldDelegate) {
+    return oldDelegate.channels != channels || oldDelegate.colors != colors;
+  }
 }
 
 /// Pill verdict: verified (green), blocked (red), or a neutral hint.

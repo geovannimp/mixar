@@ -1383,6 +1383,54 @@ abstract class AppLocalizations {
   /// **'After channel strip'**
   String get settingsMixerSamplerStripAfter;
 
+  /// No description provided for @settingsMixerCrossfaderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crossfader'**
+  String get settingsMixerCrossfaderTitle;
+
+  /// No description provided for @settingsMixerCrossfaderDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The curve the crossfader follows, plus the two performance flags. Changing it restarts the audio engine.'**
+  String get settingsMixerCrossfaderDescription;
+
+  /// No description provided for @settingsMixerCrossfaderCurve.
+  ///
+  /// In en, this message translates to:
+  /// **'Default curve'**
+  String get settingsMixerCrossfaderCurve;
+
+  /// No description provided for @settingsMixerCrossfaderInvert.
+  ///
+  /// In en, this message translates to:
+  /// **'Invert (swap A and B)'**
+  String get settingsMixerCrossfaderInvert;
+
+  /// No description provided for @settingsMixerCrossfaderDisable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable the crossfader'**
+  String get settingsMixerCrossfaderDisable;
+
+  /// No description provided for @settingsCrossfaderCurveConstantPower.
+  ///
+  /// In en, this message translates to:
+  /// **'Constant power'**
+  String get settingsCrossfaderCurveConstantPower;
+
+  /// No description provided for @settingsCrossfaderCurveLinear.
+  ///
+  /// In en, this message translates to:
+  /// **'Linear'**
+  String get settingsCrossfaderCurveLinear;
+
+  /// No description provided for @settingsCrossfaderCurveFastCut.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast cut'**
+  String get settingsCrossfaderCurveFastCut;
+
   /// No description provided for @settingsMixerRealtimeStemsTitle.
   ///
   /// In en, this message translates to:
@@ -1704,7 +1752,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsIntegrationsDescription.
   ///
   /// In en, this message translates to:
-  /// **'Read another DJ application into your library.'**
+  /// **'Read another DJ application\'s library and curve settings.'**
   String get settingsIntegrationsDescription;
 
   /// No description provided for @settingsLibraryAnalysisTitle.
@@ -2802,6 +2850,498 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No Mixxx or Rekordbox library found on this computer. You can import one later in Settings → Integrations.'**
   String get onboardingLibraryNotFoundBoth;
+
+  /// No description provided for @settingsSectionCurves.
+  ///
+  /// In en, this message translates to:
+  /// **'Curves'**
+  String get settingsSectionCurves;
+
+  /// No description provided for @settingsCurvesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Build custom crossfader curves and curve sets, then import or export them through the VirtualDJ adapter.'**
+  String get settingsCurvesDescription;
+
+  /// No description provided for @curvesCustomTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom curves'**
+  String get curvesCustomTitle;
+
+  /// No description provided for @curvesCustomDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A curve maps fader position to gain. A/B curves edit deck A and deck B separately; scalar curves drive one value.'**
+  String get curvesCustomDescription;
+
+  /// No description provided for @curvesSetsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Curve sets'**
+  String get curvesSetsTitle;
+
+  /// No description provided for @curvesSetsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'A set sweeps between two or more A/B curves as the morph knob moves.'**
+  String get curvesSetsDescription;
+
+  /// No description provided for @curvesImportExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import & export'**
+  String get curvesImportExportTitle;
+
+  /// No description provided for @curvesImportExportDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Move custom crossfader curves to and from VirtualDJ through the settings adapter.'**
+  String get curvesImportExportDescription;
+
+  /// No description provided for @curvesExportCurveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Curve'**
+  String get curvesExportCurveLabel;
+
+  /// No description provided for @curvesNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New curve'**
+  String get curvesNew;
+
+  /// No description provided for @curvesNewSet.
+  ///
+  /// In en, this message translates to:
+  /// **'New set'**
+  String get curvesNewSet;
+
+  /// No description provided for @curvesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No custom curves yet.'**
+  String get curvesEmpty;
+
+  /// No description provided for @curvesEmptySets.
+  ///
+  /// In en, this message translates to:
+  /// **'No curve sets yet.'**
+  String get curvesEmptySets;
+
+  /// No description provided for @curvesScalar.
+  ///
+  /// In en, this message translates to:
+  /// **'Scalar'**
+  String get curvesScalar;
+
+  /// No description provided for @curvesAb.
+  ///
+  /// In en, this message translates to:
+  /// **'A/B'**
+  String get curvesAb;
+
+  /// No description provided for @curvesChannelA.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck A'**
+  String get curvesChannelA;
+
+  /// No description provided for @curvesChannelB.
+  ///
+  /// In en, this message translates to:
+  /// **'Deck B'**
+  String get curvesChannelB;
+
+  /// No description provided for @curvesScalarCurve.
+  ///
+  /// In en, this message translates to:
+  /// **'Scalar curve'**
+  String get curvesScalarCurve;
+
+  /// No description provided for @curvesSelectToEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a curve to edit.'**
+  String get curvesSelectToEdit;
+
+  /// No description provided for @curvesSelectSetToEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a curve set to edit.'**
+  String get curvesSelectSetToEdit;
+
+  /// No description provided for @curvesRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get curvesRename;
+
+  /// No description provided for @curvesDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get curvesDelete;
+
+  /// No description provided for @curvesAddPoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add point'**
+  String get curvesAddPoint;
+
+  /// No description provided for @curvesRemovePoint.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove point'**
+  String get curvesRemovePoint;
+
+  /// No description provided for @curvesPointX.
+  ///
+  /// In en, this message translates to:
+  /// **'Point X'**
+  String get curvesPointX;
+
+  /// No description provided for @curvesPointY.
+  ///
+  /// In en, this message translates to:
+  /// **'Point Y'**
+  String get curvesPointY;
+
+  /// No description provided for @curvesChartHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag a handle to move it. Tap the chart to add a point.'**
+  String get curvesChartHint;
+
+  /// No description provided for @curvesChartSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Curve chart for {name}'**
+  String curvesChartSemantics(String name);
+
+  /// No description provided for @curvesMorphSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Morph preview for {name}'**
+  String curvesMorphSemantics(String name);
+
+  /// No description provided for @curvesSegment.
+  ///
+  /// In en, this message translates to:
+  /// **'Segment {index} interpolation'**
+  String curvesSegment(int index);
+
+  /// No description provided for @curvesSegmentLinear.
+  ///
+  /// In en, this message translates to:
+  /// **'Linear'**
+  String get curvesSegmentLinear;
+
+  /// No description provided for @curvesSegmentExponential.
+  ///
+  /// In en, this message translates to:
+  /// **'Exponential'**
+  String get curvesSegmentExponential;
+
+  /// No description provided for @curvesSegmentLogarithmic.
+  ///
+  /// In en, this message translates to:
+  /// **'Logarithmic'**
+  String get curvesSegmentLogarithmic;
+
+  /// No description provided for @curvesSegmentCubicBezier.
+  ///
+  /// In en, this message translates to:
+  /// **'Cubic Bézier'**
+  String get curvesSegmentCubicBezier;
+
+  /// No description provided for @curvesRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get curvesRate;
+
+  /// No description provided for @curvesBezierC1X.
+  ///
+  /// In en, this message translates to:
+  /// **'Handle 1 X'**
+  String get curvesBezierC1X;
+
+  /// No description provided for @curvesBezierC1Y.
+  ///
+  /// In en, this message translates to:
+  /// **'Handle 1 Y'**
+  String get curvesBezierC1Y;
+
+  /// No description provided for @curvesBezierC2X.
+  ///
+  /// In en, this message translates to:
+  /// **'Handle 2 X'**
+  String get curvesBezierC2X;
+
+  /// No description provided for @curvesBezierC2Y.
+  ///
+  /// In en, this message translates to:
+  /// **'Handle 2 Y'**
+  String get curvesBezierC2Y;
+
+  /// No description provided for @curvesMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get curvesMembers;
+
+  /// No description provided for @curvesAddMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Add member'**
+  String get curvesAddMember;
+
+  /// No description provided for @curvesMoveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get curvesMoveUp;
+
+  /// No description provided for @curvesMoveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get curvesMoveDown;
+
+  /// No description provided for @curvesSetHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The morph knob blends adjacent members in order; the first member is 0 and the last is 1.'**
+  String get curvesSetHint;
+
+  /// No description provided for @curvesMorphPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Morph preview'**
+  String get curvesMorphPreview;
+
+  /// No description provided for @curvesMemberCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 member} other{{count} members}}'**
+  String curvesMemberCount(int count);
+
+  /// No description provided for @curvesCreateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New curve'**
+  String get curvesCreateTitle;
+
+  /// No description provided for @curvesCreateSetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New curve set'**
+  String get curvesCreateSetTitle;
+
+  /// No description provided for @curvesRenameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename curve'**
+  String get curvesRenameTitle;
+
+  /// No description provided for @curvesRenameSetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename curve set'**
+  String get curvesRenameSetTitle;
+
+  /// No description provided for @curvesName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get curvesName;
+
+  /// No description provided for @curvesId.
+  ///
+  /// In en, this message translates to:
+  /// **'Id'**
+  String get curvesId;
+
+  /// No description provided for @curvesIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Used by controller mappings and settings. Lowercase letters, digits and underscores.'**
+  String get curvesIdHint;
+
+  /// No description provided for @curvesControl.
+  ///
+  /// In en, this message translates to:
+  /// **'Control'**
+  String get curvesControl;
+
+  /// No description provided for @curvesControlAb.
+  ///
+  /// In en, this message translates to:
+  /// **'A/B (crossfader)'**
+  String get curvesControlAb;
+
+  /// No description provided for @curvesControlScalar.
+  ///
+  /// In en, this message translates to:
+  /// **'Scalar (channel, tempo, FX)'**
+  String get curvesControlScalar;
+
+  /// No description provided for @curvesCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get curvesCancel;
+
+  /// No description provided for @curvesCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get curvesCreate;
+
+  /// No description provided for @curvesSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get curvesSave;
+
+  /// No description provided for @curvesImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import VirtualDJ'**
+  String get curvesImport;
+
+  /// No description provided for @curvesImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get curvesImporting;
+
+  /// No description provided for @curvesExport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to VirtualDJ'**
+  String get curvesExport;
+
+  /// No description provided for @curvesExporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting…'**
+  String get curvesExporting;
+
+  /// No description provided for @curvesImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import VirtualDJ curve'**
+  String get curvesImportTitle;
+
+  /// No description provided for @curvesImportHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the two VirtualDJ crossfader options. A custom point script becomes an editable native A/B curve.'**
+  String get curvesImportHelp;
+
+  /// No description provided for @curvesImportCurveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'crossfaderCurve'**
+  String get curvesImportCurveLabel;
+
+  /// No description provided for @curvesImportCurveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset name or amount, e.g. Smooth, Cut, 30%'**
+  String get curvesImportCurveHint;
+
+  /// No description provided for @curvesImportCustomLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'crossfaderCustom'**
+  String get curvesImportCustomLabel;
+
+  /// No description provided for @curvesImportCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'0=[1,0]/0.5=[0.5,0.5]/1=[0,1]'**
+  String get curvesImportCustomHint;
+
+  /// No description provided for @curvesExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'VirtualDJ curve'**
+  String get curvesExportTitle;
+
+  /// No description provided for @curvesExportCustomLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'crossfaderCustom'**
+  String get curvesExportCustomLabel;
+
+  /// No description provided for @curvesCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get curvesCopy;
+
+  /// No description provided for @curvesCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get curvesCopied;
+
+  /// No description provided for @curvesClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get curvesClose;
+
+  /// No description provided for @curvesImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported “{name}”'**
+  String curvesImported(String name);
+
+  /// No description provided for @curvesInUseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Curve is in use'**
+  String get curvesInUseTitle;
+
+  /// No description provided for @curvesInUseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove “{name}” from the curve sets that reference it first.'**
+  String curvesInUseBody(String name);
+
+  /// No description provided for @curvesDefaultInUseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Curve is the default'**
+  String get curvesDefaultInUseTitle;
+
+  /// No description provided for @curvesDefaultInUseBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose another default crossfader curve before deleting “{name}”.'**
+  String curvesDefaultInUseBody(String name);
+
+  /// No description provided for @curvesDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete curve?'**
+  String get curvesDeleteConfirmTitle;
+
+  /// No description provided for @curvesDeleteSetConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete curve set?'**
+  String get curvesDeleteSetConfirmTitle;
+
+  /// No description provided for @curvesDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” will be removed from your library.'**
+  String curvesDeleteConfirmBody(String name);
 }
 
 class _AppLocalizationsDelegate

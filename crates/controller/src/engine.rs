@@ -320,6 +320,10 @@ pub struct ControllerEngine {
     master_cue: bool,
     /// Shared Beat FX unit slot 0 (engine boot state until the host mirrors).
     fx: FxSlotState,
+    /// Active crossfader curve id and flags, replayed on attach.
+    crossfader_curve: String,
+    crossfader_hamster: bool,
+    crossfader_disabled: bool,
 }
 
 impl ControllerEngine {
@@ -352,6 +356,9 @@ impl ControllerEngine {
             deck_feedback: [DeckFeedback::default(); 4],
             master_cue: false,
             fx: FxSlotState::boot(),
+            crossfader_curve: bus_api::DEFAULT_CROSSFADER_CURVE_ID.to_string(),
+            crossfader_hamster: false,
+            crossfader_disabled: false,
         };
         this.ensure_seeded()?;
         Ok(this)
@@ -800,6 +807,12 @@ impl ControllerEngine {
             }
             session.set_master_cue(self.master_cue, &mut sink);
             session.set_fx_state(&self.fx, &mut sink);
+            session.set_crossfader_curve(
+                &self.crossfader_curve,
+                self.crossfader_hamster,
+                self.crossfader_disabled,
+                &mut sink,
+            );
         }
         self.suppressed_ports.remove(&port_name);
         self.attached.insert(
@@ -985,6 +998,17 @@ impl ControllerEngine {
         self.fx = fx;
         let state = self.fx.clone();
         self.for_each_attached_sink(|session, sink| session.set_fx_state(&state, sink));
+    }
+
+    /// Mirror the active crossfader curve and behavior flags (LEDs + soft-takeover).
+    pub fn set_crossfader_curve(&mut self, curve_id: &str, hamster: bool, disabled: bool) {
+        self.crossfader_curve.clear();
+        self.crossfader_curve.push_str(curve_id);
+        self.crossfader_hamster = hamster;
+        self.crossfader_disabled = disabled;
+        self.for_each_attached_sink(|session, sink| {
+            session.set_crossfader_curve(curve_id, hamster, disabled, sink);
+        });
     }
 
     pub fn on_deck_playing(&mut self, deck: u16, playing: bool) {

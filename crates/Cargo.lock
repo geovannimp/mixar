@@ -424,6 +424,7 @@ name = "audio-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "curve-core",
  "dasp",
  "serde",
  "thiserror 1.0.69",
@@ -911,6 +912,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "config-adapters"
+version = "0.1.0"
+dependencies = [
+ "audio-core 0.1.0",
+ "curve-core",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1179,6 +1189,13 @@ checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
  "generic-array",
  "typenum",
+]
+
+[[package]]
+name = "curve-core"
+version = "0.1.0"
+dependencies = [
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1504,6 +1521,7 @@ dependencies = [
  "backend-null",
  "bus-api",
  "codec",
+ "curve-core",
  "engine-dsp",
  "event-bus",
  "library",
@@ -1525,6 +1543,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "curve-core",
  "dasp_graph",
  "petgraph",
  "resampler",
@@ -2002,7 +2021,9 @@ dependencies = [
  "audio-core 0.1.0",
  "bus-api",
  "codec",
+ "config-adapters",
  "controller",
+ "curve-core",
  "engine-core",
  "event-bus",
  "flutter_rust_bridge",
@@ -2588,6 +2609,7 @@ dependencies = [
  "bus-api",
  "chrono",
  "codec",
+ "curve-core",
  "event-bus",
  "image",
  "library-core",

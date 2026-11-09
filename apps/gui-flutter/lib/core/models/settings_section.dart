@@ -5,6 +5,7 @@ enum SettingsSection {
   layout,
   audio,
   mixer,
+  curves,
   waveform,
   deck,
   library,
@@ -21,6 +22,7 @@ extension SettingsSectionLabel on SettingsSection {
     SettingsSection.layout => l10n.settingsSectionLayout,
     SettingsSection.audio => l10n.settingsSectionAudio,
     SettingsSection.mixer => l10n.settingsSectionMixer,
+    SettingsSection.curves => l10n.settingsSectionCurves,
     SettingsSection.waveform => l10n.settingsSectionWaveform,
     SettingsSection.deck => l10n.settingsSectionDeck,
     SettingsSection.library => l10n.settingsSectionLibrary,
@@ -32,4 +34,19 @@ extension SettingsSectionLabel on SettingsSection {
   };
 }
 
-const List<SettingsSection> kSettingsSections = SettingsSection.values;
+/// Sections shown in Settings. The curve editor is intentionally absent until
+/// the dedicated editor ships.
+const List<SettingsSection> kSettingsSections = [
+  SettingsSection.ui,
+  SettingsSection.layout,
+  SettingsSection.audio,
+  SettingsSection.mixer,
+  SettingsSection.waveform,
+  SettingsSection.deck,
+  SettingsSection.library,
+  SettingsSection.integrations,
+  SettingsSection.storage,
+  SettingsSection.session,
+  SettingsSection.controllers,
+  SettingsSection.privacy,
+];

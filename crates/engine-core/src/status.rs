@@ -150,6 +150,7 @@ impl Engine {
             cue_mix: dsp.mixer().cue_mix(),
             master_cue: dsp.mixer().master_cue(),
             master_deck: self.master_deck as u16,
+            crossfader_curve: self.crossfader_curve_status(&dsp),
             decks,
         })
     }

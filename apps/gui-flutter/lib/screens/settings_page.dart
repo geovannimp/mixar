@@ -10,6 +10,7 @@ import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_controllers_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_curves_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_deck_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_integrations_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_layout_panel.dart';
@@ -460,6 +461,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         benchmarkError: benchmarkError,
         onRunBenchmark: onRunRealtimeStemsBenchmark,
       ),
+      SettingsSection.curves => SettingsCurvesPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
       SettingsSection.waveform => SettingsWaveformPanel(
         draft: draft,
         onChanged: onChanged,
@@ -477,7 +482,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
-      SettingsSection.integrations => const SettingsIntegrationsPanel(),
+      SettingsSection.integrations => SettingsIntegrationsPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
       SettingsSection.storage => const SettingsStoragePanel(),
       SettingsSection.session => SettingsSessionPanel(
         draft: draft,

@@ -9,6 +9,22 @@ Everything in the **Deck** section seeds new decks. A track already loaded keeps
 
 The deck count and the on-screen panels live under [**Layout**](/docs/users/settings/interface), because they shape the whole page rather than a deck's defaults.
 
+## Mixer → Crossfader
+
+Card subtitle: "The curve the crossfader follows, plus the two performance flags."
+
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **Default curve** | radio + preview | **Constant power** / **Linear** / **Fast cut**, plus any imported custom group or curve set | Constant power | Gain law both sides follow as the fader moves. Each choice shows its A/B shape. Constant power keeps the sum of both channels even through the middle; linear is the plain `1 - x` / `x` crossfade; fast cut stays at full gain near the ends and swaps over quickly. |
+| **Invert (swap A and B)** | checkbox | on / off | off | Swaps the A and B gains without mirroring the fader position. |
+| **Disable the crossfader** | checkbox | on / off | off | Bypasses the curve and leaves both sides at full gain; deck **THRU** assignments still bypass the fader. |
+
+Changing any of these restarts the audio engine, because they seed the mixer it builds. A controller can change the active curve live without a restart (see [crossfader curves](/docs/developers/mixer/overview#crossfader-curves)).
+
+### Custom curves
+
+The full custom curve editor is not exposed in the app yet. VirtualDJ curve import and export live under **Settings → Integrations**; an imported curve becomes a native A/B group and is listed under **Default curve** so it can be selected immediately. The point/segment editor and curve-set editor remain in the codebase for the dedicated editor issue.
+
 ## Mixer → Volume normalizer
 
 Card subtitle: "Match analyzed tracks to a target loudness."

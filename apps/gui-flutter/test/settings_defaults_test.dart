@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 void main() {
@@ -16,6 +17,51 @@ void main() {
       tempoRangeSteps: Float32List.fromList(baseline.tempoRangeSteps),
     );
     expect(appSettingsDirty(baseline, restored), isFalse);
+  });
+
+  test('an equal curve library copy is not dirty', () {
+    CurveLibrarySpec library({double endY = 0}) => CurveLibrarySpec(
+      groups: [
+        CurveGroupSpec(
+          id: 'mine',
+          displayName: 'Mine',
+          curves: [
+            CurveSpecSpec(
+              points: [
+                CurvePointSpec(x: 0, y: 1),
+                CurvePointSpec(x: 1, y: endY),
+              ],
+              segments: [
+                CurveSegmentSpec(
+                  kind: CurveSegmentKind.linear,
+                  rate: 0,
+                  c1X: 0,
+                  c1Y: 0,
+                  c2X: 0,
+                  c2Y: 0,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      sets: const [],
+    );
+    final baseline = defaultAppSettings();
+    final saved = copyAppSettings(baseline, curveLibrary: library());
+    final restored = copyAppSettings(saved, curveLibrary: library());
+    expect(
+      appSettingsDirty(restored, saved),
+      isFalse,
+      reason: 'a re-created but identical library is not a change',
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(saved, curveLibrary: library(endY: 1)),
+        saved,
+      ),
+      isTrue,
+    );
   });
 
   test('a bus low-latency flag alone enables saving settings', () {
@@ -448,6 +494,57 @@ void main() {
     expect(
       effectiveSelectStyle(SelectStyleSetting.desktop),
       SelectStyleSetting.desktop,
+    );
+  });
+
+  test('crossfader curve defaults to equal power with no flags', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.defaultCrossfaderCurve, 'constant_power');
+    expect(baseline.defaultTempoCurve, 'linear');
+    expect(baseline.defaultFxLevelCurve, 'linear');
+    expect(baseline.crossfaderBehavior.hamster, isFalse);
+    expect(baseline.crossfaderBehavior.disabled, isFalse);
+    expect(baseline.curveLibrary.groups, isEmpty);
+    expect(baseline.curveLibrary.sets, isEmpty);
+    // Mirrors `bus_api::CROSSFADER_CURVE_CYCLE` on the Rust side.
+    expect(kCrossfaderCurvePresets, ['constant_power', 'linear', 'fast_cut']);
+  });
+
+  test('curve and behavior edits are dirty', () {
+    final baseline = defaultAppSettings();
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, defaultCrossfaderCurve: 'linear'),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, defaultTempoCurve: 'taper'),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, defaultFxLevelCurve: 'taper'),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(
+          baseline,
+          crossfaderBehavior: const CrossfaderBehaviorSetting(
+            disabled: false,
+            hamster: true,
+          ),
+        ),
+        baseline,
+      ),
+      isTrue,
     );
   });
 }

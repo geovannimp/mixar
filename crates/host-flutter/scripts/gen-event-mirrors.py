@@ -117,7 +117,14 @@ def main() -> None:
             lines.append(f"pub struct _{name} {{}}")
         lines.append("")
 
-    for enum_name in ["EqBand", "FxKind", "JogMode", "PadMode", "SyncMode"]:
+    for enum_name in [
+        "EqBand",
+        "FxKind",
+        "JogMode",
+        "PadMode",
+        "SyncMode",
+        "CurveSegmentKind",
+    ]:
         variants = enum_variants(payload_src, enum_name)
         lines.append(
             f"#[flutter_rust_bridge::frb(mirror({enum_name}))]"

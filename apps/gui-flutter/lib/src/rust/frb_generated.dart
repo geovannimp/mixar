@@ -6,6 +6,7 @@
 import 'api/analytics.dart';
 import 'api/bus.dart';
 import 'api/controller.dart';
+import 'api/curve_editor.dart';
 import 'api/engine.dart';
 import 'api/event_mirrors.dart';
 import 'api/fs_browser.dart';
@@ -77,7 +78,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -506505631;
+  int get rustContentHash => 546011214;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -366,6 +367,24 @@ abstract class RustLibApi extends BaseApi {
     required CrossfaderAssign assignment,
   });
 
+  Future<void> crateApiEngineEngineTransportSetCrossfaderBehavior({
+    required EngineTransport that,
+    required bool hamster,
+    required bool disabled,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetCrossfaderCurve({
+    required EngineTransport that,
+    required String id,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetCrossfaderCurveAmount({
+    required EngineTransport that,
+    required String set_,
+    required double amount,
+    required bool softTakeover,
+  });
+
   Future<void> crateApiEngineEngineTransportSetCueMix({
     required EngineTransport that,
     required double mix,
@@ -379,6 +398,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiEngineEngineTransportSetCueVolume({
     required EngineTransport that,
     required double volume,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetCurveLibrary({
+    required EngineTransport that,
+    required CurveLibrarySpec library_,
   });
 
   Future<void> crateApiEngineEngineTransportSetDeckFxRouted({
@@ -888,7 +912,18 @@ abstract class RustLibApi extends BaseApi {
 
   Future<BusChannelMode> crateApiSettingsBusChannelModeDefault();
 
+  List<CrossfaderPresetOption> crateApiSettingsCrossfaderPresetOptions();
+
   Future<List<DetectedController>> crateApiControllerDetectControllers();
+
+  Future<VirtualDjCurveExport> crateApiCurveEditorExportVirtualdjCurve({
+    required CurveGroupSpec group,
+  });
+
+  Future<VirtualDjCurveImport> crateApiCurveEditorImportVirtualdjCurve({
+    required String crossfaderCurve,
+    required String crossfaderCustom,
+  });
 
   Future<void> crateApiMetaInitApp();
 
@@ -2957,6 +2992,129 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportSetCrossfaderBehavior({
+    required EngineTransport that,
+    required bool hamster,
+    required bool disabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_bool(hamster, serializer);
+          sse_encode_bool(disabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 51,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetCrossfaderBehaviorConstMeta,
+        argValues: [that, hamster, disabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiEngineEngineTransportSetCrossfaderBehaviorConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_crossfader_behavior",
+        argNames: ["that", "hamster", "disabled"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetCrossfaderCurve({
+    required EngineTransport that,
+    required String id,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(id, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 52,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetCrossfaderCurveConstMeta,
+        argValues: [that, id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetCrossfaderCurveConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_crossfader_curve",
+        argNames: ["that", "id"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetCrossfaderCurveAmount({
+    required EngineTransport that,
+    required String set_,
+    required double amount,
+    required bool softTakeover,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(set_, serializer);
+          sse_encode_f_32(amount, serializer);
+          sse_encode_bool(softTakeover, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 53,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiEngineEngineTransportSetCrossfaderCurveAmountConstMeta,
+        argValues: [that, set_, amount, softTakeover],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiEngineEngineTransportSetCrossfaderCurveAmountConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_crossfader_curve_amount",
+        argNames: ["that", "set_", "amount", "softTakeover"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportSetCueMix({
     required EngineTransport that,
     required double mix,
@@ -2973,7 +3131,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 54,
             port: port_,
           );
         },
@@ -3011,7 +3169,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 55,
             port: port_,
           );
         },
@@ -3049,7 +3207,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 56,
             port: port_,
           );
         },
@@ -3071,6 +3229,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportSetCurveLibrary({
+    required EngineTransport that,
+    required CurveLibrarySpec library_,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_box_autoadd_curve_library_spec(library_, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 57,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetCurveLibraryConstMeta,
+        argValues: [that, library_],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetCurveLibraryConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_curve_library",
+        argNames: ["that", "library_"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportSetDeckFxRouted({
     required EngineTransport that,
     required int deckId,
@@ -3089,7 +3285,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 54,
+            funcId: 58,
             port: port_,
           );
         },
@@ -3131,7 +3327,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 55,
+            funcId: 59,
             port: port_,
           );
         },
@@ -3171,7 +3367,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 56,
+            funcId: 60,
             port: port_,
           );
         },
@@ -3213,7 +3409,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 57,
+            funcId: 61,
             port: port_,
           );
         },
@@ -3253,7 +3449,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 58,
+            funcId: 62,
             port: port_,
           );
         },
@@ -3293,7 +3489,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 59,
+            funcId: 63,
             port: port_,
           );
         },
@@ -3334,7 +3530,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 60,
+            funcId: 64,
             port: port_,
           );
         },
@@ -3374,7 +3570,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 61,
+            funcId: 65,
             port: port_,
           );
         },
@@ -3414,7 +3610,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 62,
+            funcId: 66,
             port: port_,
           );
         },
@@ -3456,7 +3652,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 63,
+            funcId: 67,
             port: port_,
           );
         },
@@ -3496,7 +3692,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 64,
+            funcId: 68,
             port: port_,
           );
         },
@@ -3536,7 +3732,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 65,
+            funcId: 69,
             port: port_,
           );
         },
@@ -3576,7 +3772,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 66,
+            funcId: 70,
             port: port_,
           );
         },
@@ -3616,7 +3812,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 67,
+            funcId: 71,
             port: port_,
           );
         },
@@ -3656,7 +3852,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 68,
+            funcId: 72,
             port: port_,
           );
         },
@@ -3694,7 +3890,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 69,
+            funcId: 73,
             port: port_,
           );
         },
@@ -3732,7 +3928,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 70,
+            funcId: 74,
             port: port_,
           );
         },
@@ -3770,7 +3966,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 71,
+            funcId: 75,
             port: port_,
           );
         },
@@ -3810,7 +4006,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 72,
+            funcId: 76,
             port: port_,
           );
         },
@@ -3850,7 +4046,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 73,
+            funcId: 77,
             port: port_,
           );
         },
@@ -3890,7 +4086,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 74,
+            funcId: 78,
             port: port_,
           );
         },
@@ -3930,7 +4126,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 75,
+            funcId: 79,
             port: port_,
           );
         },
@@ -3970,7 +4166,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 76,
+            funcId: 80,
             port: port_,
           );
         },
@@ -4010,7 +4206,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 77,
+            funcId: 81,
             port: port_,
           );
         },
@@ -4050,7 +4246,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 78,
+            funcId: 82,
             port: port_,
           );
         },
@@ -4090,7 +4286,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 79,
+            funcId: 83,
             port: port_,
           );
         },
@@ -4131,7 +4327,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 80,
+            funcId: 84,
             port: port_,
           );
         },
@@ -4168,7 +4364,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 81,
+            funcId: 85,
             port: port_,
           );
         },
@@ -4208,7 +4404,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 82,
+            funcId: 86,
             port: port_,
           );
         },
@@ -4246,7 +4442,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 83,
+            funcId: 87,
             port: port_,
           );
         },
@@ -4288,7 +4484,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 84,
+            funcId: 88,
             port: port_,
           );
         },
@@ -4330,7 +4526,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 85,
+            funcId: 89,
             port: port_,
           );
         },
@@ -4374,7 +4570,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 86,
+            funcId: 90,
             port: port_,
           );
         },
@@ -4416,7 +4612,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 87,
+            funcId: 91,
             port: port_,
           );
         },
@@ -4461,7 +4657,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 88,
+            funcId: 92,
             port: port_,
           );
         },
@@ -4502,7 +4698,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 89,
+            funcId: 93,
             port: port_,
           );
         },
@@ -4546,7 +4742,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 90,
+            funcId: 94,
             port: port_,
           );
         },
@@ -4607,7 +4803,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 91,
+            funcId: 95,
             port: port_,
           );
         },
@@ -4657,7 +4853,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 92,
+            funcId: 96,
             port: port_,
           );
         },
@@ -4693,7 +4889,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 93,
+            funcId: 97,
             port: port_,
           );
         },
@@ -4729,7 +4925,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 94,
+            funcId: 98,
             port: port_,
           );
         },
@@ -4770,7 +4966,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 95,
+            funcId: 99,
             port: port_,
           );
         },
@@ -4809,7 +5005,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 96,
+            funcId: 100,
             port: port_,
           );
         },
@@ -4847,7 +5043,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 97,
+            funcId: 101,
             port: port_,
           );
         },
@@ -4889,7 +5085,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 98,
+            funcId: 102,
             port: port_,
           );
         },
@@ -4933,7 +5129,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 99,
+            funcId: 103,
             port: port_,
           );
         },
@@ -4981,7 +5177,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 100,
+            funcId: 104,
             port: port_,
           );
         },
@@ -5021,7 +5217,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 101,
+            funcId: 105,
             port: port_,
           );
         },
@@ -5059,7 +5255,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 102,
+            funcId: 106,
             port: port_,
           );
         },
@@ -5097,7 +5293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 103,
+            funcId: 107,
             port: port_,
           );
         },
@@ -5135,7 +5331,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 104,
+            funcId: 108,
             port: port_,
           );
         },
@@ -5180,7 +5376,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 105,
+            funcId: 109,
             port: port_,
           );
         },
@@ -5217,7 +5413,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 106,
+            funcId: 110,
             port: port_,
           );
         },
@@ -5253,7 +5449,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 107,
+            funcId: 111,
             port: port_,
           );
         },
@@ -5291,7 +5487,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 108,
+            funcId: 112,
             port: port_,
           );
         },
@@ -5327,7 +5523,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 109,
+            funcId: 113,
             port: port_,
           );
         },
@@ -5365,7 +5561,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 110,
+            funcId: 114,
             port: port_,
           );
         },
@@ -5406,7 +5602,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 111,
+            funcId: 115,
             port: port_,
           );
         },
@@ -5444,7 +5640,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 112,
+            funcId: 116,
             port: port_,
           );
         },
@@ -5485,7 +5681,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 113,
+            funcId: 117,
             port: port_,
           );
         },
@@ -5525,7 +5721,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 114,
+            funcId: 118,
             port: port_,
           );
         },
@@ -5565,7 +5761,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 115,
+            funcId: 119,
             port: port_,
           );
         },
@@ -5606,7 +5802,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 116,
+            funcId: 120,
             port: port_,
           );
         },
@@ -5645,7 +5841,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 117,
+            funcId: 121,
             port: port_,
           );
         },
@@ -5682,7 +5878,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 118,
+            funcId: 122,
             port: port_,
           );
         },
@@ -5720,7 +5916,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 119,
+            funcId: 123,
             port: port_,
           );
         },
@@ -5756,7 +5952,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 120,
+            funcId: 124,
             port: port_,
           );
         },
@@ -5793,7 +5989,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 121,
+            funcId: 125,
             port: port_,
           );
         },
@@ -5832,7 +6028,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 122,
+            funcId: 126,
             port: port_,
           );
         },
@@ -5872,7 +6068,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 123,
+            funcId: 127,
             port: port_,
           );
         },
@@ -5914,7 +6110,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 124,
+            funcId: 128,
             port: port_,
           );
         },
@@ -5955,7 +6151,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 125,
+            funcId: 129,
             port: port_,
           );
         },
@@ -5993,7 +6189,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 126,
+            funcId: 130,
             port: port_,
           );
         },
@@ -6036,7 +6232,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 127,
+            funcId: 131,
             port: port_,
           );
         },
@@ -6079,7 +6275,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 128,
+            funcId: 132,
             port: port_,
           );
         },
@@ -6125,7 +6321,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 129,
+            funcId: 133,
             port: port_,
           );
         },
@@ -6161,7 +6357,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 130,
+            funcId: 134,
             port: port_,
           );
         },
@@ -6197,7 +6393,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 131,
+            funcId: 135,
             port: port_,
           );
         },
@@ -6264,7 +6460,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 132,
+            funcId: 136,
             port: port_,
           );
         },
@@ -6340,7 +6536,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 133,
+              funcId: 137,
               port: port_,
             );
           },
@@ -6383,7 +6579,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 134,
+            funcId: 138,
             port: port_,
           );
         },
@@ -6421,7 +6617,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 135,
+            funcId: 139,
             port: port_,
           );
         },
@@ -6451,7 +6647,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 136,
+            funcId: 140,
             port: port_,
           );
         },
@@ -6486,7 +6682,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 137,
+            funcId: 141,
             port: port_,
           );
         },
@@ -6527,7 +6723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 138,
+            funcId: 142,
             port: port_,
           );
         },
@@ -6569,7 +6765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 139,
+            funcId: 143,
             port: port_,
           );
         },
@@ -6601,7 +6797,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 140,
+            funcId: 144,
             port: port_,
           );
         },
@@ -6631,7 +6827,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 141,
+            funcId: 145,
           )!;
         },
         codec: SseCodec(
@@ -6660,7 +6856,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 142,
+            funcId: 146,
             port: port_,
           );
         },
@@ -6687,7 +6883,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 143,
+            funcId: 147,
             port: port_,
           );
         },
@@ -6706,6 +6902,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "bus_channel_mode_default", argNames: []);
 
   @override
+  List<CrossfaderPresetOption> crateApiSettingsCrossfaderPresetOptions() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 148,
+          )!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_crossfader_preset_option,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsCrossfaderPresetOptionsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsCrossfaderPresetOptionsConstMeta =>
+      const TaskConstMeta(debugName: "crossfader_preset_options", argNames: []);
+
+  @override
   Future<List<DetectedController>> crateApiControllerDetectControllers() {
     return handler.executeNormal(
       NormalTask(
@@ -6714,7 +6936,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 144,
+            funcId: 149,
             port: port_,
           );
         },
@@ -6733,6 +6955,74 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "detect_controllers", argNames: []);
 
   @override
+  Future<VirtualDjCurveExport> crateApiCurveEditorExportVirtualdjCurve({
+    required CurveGroupSpec group,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_curve_group_spec(group, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 150,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_virtual_dj_curve_export,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiCurveEditorExportVirtualdjCurveConstMeta,
+        argValues: [group],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCurveEditorExportVirtualdjCurveConstMeta =>
+      const TaskConstMeta(
+        debugName: "export_virtualdj_curve",
+        argNames: ["group"],
+      );
+
+  @override
+  Future<VirtualDjCurveImport> crateApiCurveEditorImportVirtualdjCurve({
+    required String crossfaderCurve,
+    required String crossfaderCustom,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(crossfaderCurve, serializer);
+          sse_encode_String(crossfaderCustom, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 151,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_virtual_dj_curve_import,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiCurveEditorImportVirtualdjCurveConstMeta,
+        argValues: [crossfaderCurve, crossfaderCustom],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCurveEditorImportVirtualdjCurveConstMeta =>
+      const TaskConstMeta(
+        debugName: "import_virtualdj_curve",
+        argNames: ["crossfaderCurve", "crossfaderCustom"],
+      );
+
+  @override
   Future<void> crateApiMetaInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -6741,7 +7031,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 145,
+            funcId: 152,
             port: port_,
           );
         },
@@ -6768,7 +7058,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 146,
+            funcId: 153,
             port: port_,
           );
         },
@@ -6798,7 +7088,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 147,
+            funcId: 154,
             port: port_,
           );
         },
@@ -6829,7 +7119,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 148,
+            funcId: 155,
             port: port_,
           );
         },
@@ -6860,7 +7150,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 149,
+            funcId: 156,
             port: port_,
           );
         },
@@ -6890,7 +7180,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 150,
+            funcId: 157,
             port: port_,
           );
         },
@@ -6920,7 +7210,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 151,
+            funcId: 158,
             port: port_,
           );
         },
@@ -6947,7 +7237,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 152,
+            funcId: 159,
             port: port_,
           );
         },
@@ -6974,7 +7264,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 153,
+            funcId: 160,
             port: port_,
           );
         },
@@ -7004,7 +7294,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 154,
+            funcId: 161,
             port: port_,
           );
         },
@@ -7037,7 +7327,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 155,
+            funcId: 162,
             port: port_,
           );
         },
@@ -7067,7 +7357,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 156,
+            funcId: 163,
             port: port_,
           );
         },
@@ -7100,7 +7390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 157,
+            funcId: 164,
             port: port_,
           );
         },
@@ -7130,7 +7420,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 158,
+            funcId: 165,
             port: port_,
           );
         },
@@ -7161,7 +7451,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 159,
+            funcId: 166,
             port: port_,
           );
         },
@@ -7188,7 +7478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 160,
+            funcId: 167,
             port: port_,
           );
         },
@@ -7215,7 +7505,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 161,
+            funcId: 168,
             port: port_,
           );
         },
@@ -7246,7 +7536,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 162,
+            funcId: 169,
             port: port_,
           );
         },
@@ -7559,8 +7849,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 51)
-      throw Exception('unexpected arr length: expect 51 but see ${arr.length}');
+    if (arr.length != 56)
+      throw Exception('unexpected arr length: expect 56 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7581,39 +7871,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultOuterJogMode: dco_decode_jog_mode_setting(arr[16]),
       defaultTempoRange: dco_decode_f_32(arr[17]),
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
-      defaultKeyLock: dco_decode_bool(arr[19]),
-      vinylBrakePause: dco_decode_bool(arr[20]),
-      vinylBrakeStopSecs: dco_decode_f_32(arr[21]),
-      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[22]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[23]),
-      keyColorMode: dco_decode_key_color_mode_setting(arr[24]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[25]),
-      alwaysSwitchAudioDeviceIds: dco_decode_list_String(arr[26]),
+      defaultTempoCurve: dco_decode_String(arr[19]),
+      defaultFxLevelCurve: dco_decode_String(arr[20]),
+      defaultCrossfaderCurve: dco_decode_String(arr[21]),
+      crossfaderBehavior: dco_decode_crossfader_behavior_setting(arr[22]),
+      curveLibrary: dco_decode_curve_library_spec(arr[23]),
+      defaultKeyLock: dco_decode_bool(arr[24]),
+      vinylBrakePause: dco_decode_bool(arr[25]),
+      vinylBrakeStopSecs: dco_decode_f_32(arr[26]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[27]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[28]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[29]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[30]),
+      alwaysSwitchAudioDeviceIds: dco_decode_list_String(arr[31]),
       controllerAudioOverride:
-          dco_decode_opt_box_autoadd_controller_audio_override(arr[27]),
-      historyEnabled: dco_decode_bool(arr[28]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[29]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[30]),
-      historyMinDeckVolume: dco_decode_f_32(arr[31]),
-      showTooltips: dco_decode_bool(arr[32]),
-      mixerMeters: dco_decode_mixer_meters_setting(arr[33]),
-      selectStyle: dco_decode_select_style_setting(arr[34]),
-      dimPlayedTracks: dco_decode_bool(arr[35]),
-      stemsFormat: dco_decode_String(arr[36]),
-      stemsModel: dco_decode_String(arr[37]),
-      realtimeStems: dco_decode_bool(arr[38]),
-      uiLanguage: dco_decode_ui_language_setting(arr[39]),
-      theme: dco_decode_theme_setting(arr[40]),
-      accentPalette: dco_decode_accent_palette_setting(arr[41]),
-      libraryDrawerEnabled: dco_decode_bool(arr[42]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[43]),
-      waveformPosition: dco_decode_waveform_position_setting(arr[44]),
-      showWaveform: dco_decode_bool(arr[45]),
-      showMixer: dco_decode_bool(arr[46]),
-      showFxBar: dco_decode_bool(arr[47]),
-      showCrossfader: dco_decode_bool(arr[48]),
-      analyticsEnabled: dco_decode_bool(arr[49]),
-      onboardingCompleted: dco_decode_bool(arr[50]),
+          dco_decode_opt_box_autoadd_controller_audio_override(arr[32]),
+      historyEnabled: dco_decode_bool(arr[33]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[34]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[35]),
+      historyMinDeckVolume: dco_decode_f_32(arr[36]),
+      showTooltips: dco_decode_bool(arr[37]),
+      mixerMeters: dco_decode_mixer_meters_setting(arr[38]),
+      selectStyle: dco_decode_select_style_setting(arr[39]),
+      dimPlayedTracks: dco_decode_bool(arr[40]),
+      stemsFormat: dco_decode_String(arr[41]),
+      stemsModel: dco_decode_String(arr[42]),
+      realtimeStems: dco_decode_bool(arr[43]),
+      uiLanguage: dco_decode_ui_language_setting(arr[44]),
+      theme: dco_decode_theme_setting(arr[45]),
+      accentPalette: dco_decode_accent_palette_setting(arr[46]),
+      libraryDrawerEnabled: dco_decode_bool(arr[47]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[48]),
+      waveformPosition: dco_decode_waveform_position_setting(arr[49]),
+      showWaveform: dco_decode_bool(arr[50]),
+      showMixer: dco_decode_bool(arr[51]),
+      showFxBar: dco_decode_bool(arr[52]),
+      showCrossfader: dco_decode_bool(arr[53]),
+      analyticsEnabled: dco_decode_bool(arr[54]),
+      onboardingCompleted: dco_decode_bool(arr[55]),
     );
   }
 
@@ -7838,6 +8133,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_controller_channel_pair(raw);
+  }
+
+  @protected
+  CurveGroupSpec dco_decode_box_autoadd_curve_group_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_curve_group_spec(raw);
+  }
+
+  @protected
+  CurveLibrarySpec dco_decode_box_autoadd_curve_library_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_curve_library_spec(raw);
   }
 
   @protected
@@ -8203,6 +8510,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetChannelFaderCurve dco_decode_box_autoadd_set_channel_fader_curve(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_channel_fader_curve(raw);
+  }
+
+  @protected
   SetCrossfader dco_decode_box_autoadd_set_crossfader(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_set_crossfader(raw);
@@ -8214,6 +8529,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_set_crossfader_assign(raw);
+  }
+
+  @protected
+  SetCrossfaderBehavior dco_decode_box_autoadd_set_crossfader_behavior(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_crossfader_behavior(raw);
+  }
+
+  @protected
+  SetCrossfaderCurve dco_decode_box_autoadd_set_crossfader_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_crossfader_curve(raw);
+  }
+
+  @protected
+  SetCrossfaderCurveAmount dco_decode_box_autoadd_set_crossfader_curve_amount(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_crossfader_curve_amount(raw);
   }
 
   @protected
@@ -8232,6 +8569,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SetCueVolume dco_decode_box_autoadd_set_cue_volume(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_set_cue_volume(raw);
+  }
+
+  @protected
+  SetCurveLibrary dco_decode_box_autoadd_set_curve_library(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_curve_library(raw);
   }
 
   @protected
@@ -8256,6 +8599,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SetFilter dco_decode_box_autoadd_set_filter(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_set_filter(raw);
+  }
+
+  @protected
+  SetFxLevelCurve dco_decode_box_autoadd_set_fx_level_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_fx_level_curve(raw);
   }
 
   @protected
@@ -8384,6 +8733,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SetStemEqEnabled dco_decode_box_autoadd_set_stem_eq_enabled(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_set_stem_eq_enabled(raw);
+  }
+
+  @protected
+  SetTempoCurve dco_decode_box_autoadd_set_tempo_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_tempo_curve(raw);
   }
 
   @protected
@@ -8637,6 +8992,144 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CrossfaderAssign dco_decode_crossfader_assign(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return CrossfaderAssign.values[raw as int];
+  }
+
+  @protected
+  CrossfaderBehaviorSetting dco_decode_crossfader_behavior_setting(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CrossfaderBehaviorSetting(
+      disabled: dco_decode_bool(arr[0]),
+      hamster: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
+  CrossfaderCurveStatus dco_decode_crossfader_curve_status(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return CrossfaderCurveStatus(
+      id: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      morph: dco_decode_f_32(arr[2]),
+      hamster: dco_decode_bool(arr[3]),
+      disabled: dco_decode_bool(arr[4]),
+    );
+  }
+
+  @protected
+  CrossfaderPresetOption dco_decode_crossfader_preset_option(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return CrossfaderPresetOption(
+      id: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      available: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  CurveGroupSpec dco_decode_curve_group_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return CurveGroupSpec(
+      id: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      curves: dco_decode_list_curve_spec_spec(arr[2]),
+    );
+  }
+
+  @protected
+  CurveLibrarySpec dco_decode_curve_library_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CurveLibrarySpec(
+      groups: dco_decode_list_curve_group_spec(arr[0]),
+      sets: dco_decode_list_curve_set_spec(arr[1]),
+    );
+  }
+
+  @protected
+  CurvePointSpec dco_decode_curve_point_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CurvePointSpec(
+      x: dco_decode_f_32(arr[0]),
+      y: dco_decode_f_32(arr[1]),
+    );
+  }
+
+  @protected
+  CurveRefSpec dco_decode_curve_ref_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CurveRefSpec(
+      id: dco_decode_String(arr[0]),
+      parameter: dco_decode_opt_box_autoadd_f_32(arr[1]),
+    );
+  }
+
+  @protected
+  CurveSegmentKind dco_decode_curve_segment_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return CurveSegmentKind.values[raw as int];
+  }
+
+  @protected
+  CurveSegmentSpec dco_decode_curve_segment_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return CurveSegmentSpec(
+      kind: dco_decode_curve_segment_kind(arr[0]),
+      rate: dco_decode_f_32(arr[1]),
+      c1X: dco_decode_f_32(arr[2]),
+      c1Y: dco_decode_f_32(arr[3]),
+      c2X: dco_decode_f_32(arr[4]),
+      c2Y: dco_decode_f_32(arr[5]),
+    );
+  }
+
+  @protected
+  CurveSetSpec dco_decode_curve_set_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return CurveSetSpec(
+      id: dco_decode_String(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      members: dco_decode_list_curve_ref_spec(arr[2]),
+    );
+  }
+
+  @protected
+  CurveSpecSpec dco_decode_curve_spec_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CurveSpecSpec(
+      points: dco_decode_list_curve_point_spec(arr[0]),
+      segments: dco_decode_list_curve_segment_spec(arr[1]),
+    );
   }
 
   @protected
@@ -8911,8 +9404,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineStatus dco_decode_engine_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return EngineStatus(
       running: dco_decode_bool(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -8922,7 +9415,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       cueMix: dco_decode_f_32(arr[5]),
       masterCue: dco_decode_bool(arr[6]),
       masterDeck: dco_decode_u_16(arr[7]),
-      decks: dco_decode_list_deck_snapshot(arr[8]),
+      crossfaderCurve: dco_decode_crossfader_curve_status(arr[8]),
+      decks: dco_decode_list_deck_snapshot(arr[9]),
     );
   }
 
@@ -9000,268 +9494,296 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           dco_decode_box_autoadd_set_tempo_range(raw[1]),
         );
       case 18:
-        return Event_SetKeyLock(dco_decode_box_autoadd_set_key_lock(raw[1]));
+        return Event_SetTempoCurve(
+          dco_decode_box_autoadd_set_tempo_curve(raw[1]),
+        );
       case 19:
-        return Event_SetKeyShift(dco_decode_box_autoadd_set_key_shift(raw[1]));
+        return Event_SetKeyLock(dco_decode_box_autoadd_set_key_lock(raw[1]));
       case 20:
+        return Event_SetKeyShift(dco_decode_box_autoadd_set_key_shift(raw[1]));
+      case 21:
         return Event_SetKeyboardRoot(
           dco_decode_box_autoadd_set_keyboard_root(raw[1]),
         );
-      case 21:
+      case 22:
         return Event_SetKeyboardPage(
           dco_decode_box_autoadd_set_keyboard_page(raw[1]),
         );
-      case 22:
+      case 23:
         return Event_SetKeyShiftPage(
           dco_decode_box_autoadd_set_key_shift_page(raw[1]),
         );
-      case 23:
-        return Event_ToggleSync(dco_decode_box_autoadd_toggle_sync(raw[1]));
       case 24:
+        return Event_ToggleSync(dco_decode_box_autoadd_toggle_sync(raw[1]));
+      case 25:
         return Event_SetMasterDeck(
           dco_decode_box_autoadd_set_master_deck(raw[1]),
         );
-      case 25:
-        return Event_SetCuePoint(dco_decode_box_autoadd_set_cue_point(raw[1]));
       case 26:
+        return Event_SetCuePoint(dco_decode_box_autoadd_set_cue_point(raw[1]));
+      case 27:
         return Event_BeginCueHold(
           dco_decode_box_autoadd_begin_cue_hold(raw[1]),
         );
-      case 27:
-        return Event_EndCueHold(dco_decode_box_autoadd_end_cue_hold(raw[1]));
       case 28:
-        return Event_SetQuantize(dco_decode_box_autoadd_set_quantize(raw[1]));
+        return Event_EndCueHold(dco_decode_box_autoadd_end_cue_hold(raw[1]));
       case 29:
+        return Event_SetQuantize(dco_decode_box_autoadd_set_quantize(raw[1]));
+      case 30:
         return Event_ToggleQuantize(
           dco_decode_box_autoadd_toggle_quantize(raw[1]),
         );
-      case 30:
-        return Event_SetSlip(dco_decode_box_autoadd_set_slip(raw[1]));
       case 31:
-        return Event_ToggleSlip(dco_decode_box_autoadd_toggle_slip(raw[1]));
+        return Event_SetSlip(dco_decode_box_autoadd_set_slip(raw[1]));
       case 32:
-        return Event_SetAutoLoop(dco_decode_box_autoadd_set_auto_loop(raw[1]));
+        return Event_ToggleSlip(dco_decode_box_autoadd_toggle_slip(raw[1]));
       case 33:
-        return Event_LoopIn(dco_decode_box_autoadd_loop_in(raw[1]));
+        return Event_SetAutoLoop(dco_decode_box_autoadd_set_auto_loop(raw[1]));
       case 34:
-        return Event_LoopOut(dco_decode_box_autoadd_loop_out(raw[1]));
+        return Event_LoopIn(dco_decode_box_autoadd_loop_in(raw[1]));
       case 35:
-        return Event_ExitLoop(dco_decode_box_autoadd_exit_loop(raw[1]));
+        return Event_LoopOut(dco_decode_box_autoadd_loop_out(raw[1]));
       case 36:
+        return Event_ExitLoop(dco_decode_box_autoadd_exit_loop(raw[1]));
+      case 37:
         return Event_RecallSavedLoop(
           dco_decode_box_autoadd_recall_saved_loop(raw[1]),
         );
-      case 37:
+      case 38:
         return Event_BeginLoopRoll(
           dco_decode_box_autoadd_begin_loop_roll(raw[1]),
         );
-      case 38:
-        return Event_EndLoopRoll(dco_decode_box_autoadd_end_loop_roll(raw[1]));
       case 39:
-        return Event_BeatJump(dco_decode_box_autoadd_beat_jump(raw[1]));
+        return Event_EndLoopRoll(dco_decode_box_autoadd_end_loop_roll(raw[1]));
       case 40:
-        return Event_SetPadMode(dco_decode_box_autoadd_set_pad_mode(raw[1]));
+        return Event_BeatJump(dco_decode_box_autoadd_beat_jump(raw[1]));
       case 41:
-        return Event_PadPress(dco_decode_box_autoadd_pad_press(raw[1]));
+        return Event_SetPadMode(dco_decode_box_autoadd_set_pad_mode(raw[1]));
       case 42:
-        return Event_PadRelease(dco_decode_box_autoadd_pad_release(raw[1]));
+        return Event_PadPress(dco_decode_box_autoadd_pad_press(raw[1]));
       case 43:
+        return Event_PadRelease(dco_decode_box_autoadd_pad_release(raw[1]));
+      case 44:
         return Event_HotCuePadPress(
           dco_decode_box_autoadd_hot_cue_pad_press(raw[1]),
         );
-      case 44:
+      case 45:
         return Event_HotCuePadRelease(
           dco_decode_box_autoadd_hot_cue_pad_release(raw[1]),
         );
-      case 45:
+      case 46:
         return Event_LoopRollPadPress(
           dco_decode_box_autoadd_loop_roll_pad_press(raw[1]),
         );
-      case 46:
+      case 47:
         return Event_LoopRollPadRelease(
           dco_decode_box_autoadd_loop_roll_pad_release(raw[1]),
         );
-      case 47:
+      case 48:
         return Event_BeatJumpPadPress(
           dco_decode_box_autoadd_beat_jump_pad_press(raw[1]),
         );
-      case 48:
+      case 49:
         return Event_BeatJumpPadRelease(
           dco_decode_box_autoadd_beat_jump_pad_release(raw[1]),
         );
-      case 49:
+      case 50:
         return Event_SamplerPadPress(
           dco_decode_box_autoadd_sampler_pad_press(raw[1]),
         );
-      case 50:
+      case 51:
         return Event_SamplerPadRelease(
           dco_decode_box_autoadd_sampler_pad_release(raw[1]),
         );
-      case 51:
+      case 52:
         return Event_KeyboardPadPress(
           dco_decode_box_autoadd_keyboard_pad_press(raw[1]),
         );
-      case 52:
+      case 53:
         return Event_KeyboardPadRelease(
           dco_decode_box_autoadd_keyboard_pad_release(raw[1]),
         );
-      case 53:
+      case 54:
         return Event_KeyShiftPadPress(
           dco_decode_box_autoadd_key_shift_pad_press(raw[1]),
         );
-      case 54:
+      case 55:
         return Event_KeyShiftPadRelease(
           dco_decode_box_autoadd_key_shift_pad_release(raw[1]),
         );
-      case 55:
+      case 56:
         return Event_TriggerHotCue(
           dco_decode_box_autoadd_trigger_hot_cue(raw[1]),
         );
-      case 56:
+      case 57:
         return Event_SaveDeckHotCue(
           dco_decode_box_autoadd_save_deck_hot_cue(raw[1]),
         );
-      case 57:
+      case 58:
         return Event_DeleteDeckHotCue(
           dco_decode_box_autoadd_delete_deck_hot_cue(raw[1]),
         );
-      case 58:
+      case 59:
         return Event_AssignSampler(
           dco_decode_box_autoadd_assign_sampler(raw[1]),
         );
-      case 59:
+      case 60:
         return Event_AssignSamplerTrack(
           dco_decode_box_autoadd_assign_sampler_track(raw[1]),
         );
-      case 60:
-        return Event_ClearSampler(dco_decode_box_autoadd_clear_sampler(raw[1]));
       case 61:
-        return Event_JogTouch(dco_decode_box_autoadd_jog_touch(raw[1]));
+        return Event_ClearSampler(dco_decode_box_autoadd_clear_sampler(raw[1]));
       case 62:
-        return Event_JogTurn(dco_decode_box_autoadd_jog_turn(raw[1]));
+        return Event_JogTouch(dco_decode_box_autoadd_jog_touch(raw[1]));
       case 63:
-        return Event_SetJogMode(dco_decode_box_autoadd_set_jog_mode(raw[1]));
+        return Event_JogTurn(dco_decode_box_autoadd_jog_turn(raw[1]));
       case 64:
+        return Event_SetJogMode(dco_decode_box_autoadd_set_jog_mode(raw[1]));
+      case 65:
         return Event_SetCrossfader(
           dco_decode_box_autoadd_set_crossfader(raw[1]),
         );
-      case 65:
+      case 66:
         return Event_SetMasterVolume(
           dco_decode_box_autoadd_set_master_volume(raw[1]),
         );
-      case 66:
+      case 67:
         return Event_SetCueVolume(
           dco_decode_box_autoadd_set_cue_volume(raw[1]),
         );
-      case 67:
-        return Event_SetCueMix(dco_decode_box_autoadd_set_cue_mix(raw[1]));
       case 68:
+        return Event_SetCueMix(dco_decode_box_autoadd_set_cue_mix(raw[1]));
+      case 69:
         return Event_SetMasterCue(
           dco_decode_box_autoadd_set_master_cue(raw[1]),
         );
-      case 69:
+      case 70:
         return Event_ToggleMasterCue(
           dco_decode_box_autoadd_toggle_master_cue(raw[1]),
         );
-      case 70:
+      case 71:
+        return Event_SetCurveLibrary(
+          dco_decode_box_autoadd_set_curve_library(raw[1]),
+        );
+      case 72:
+        return Event_SetCrossfaderCurve(
+          dco_decode_box_autoadd_set_crossfader_curve(raw[1]),
+        );
+      case 73:
+        return Event_SetCrossfaderCurveAmount(
+          dco_decode_box_autoadd_set_crossfader_curve_amount(raw[1]),
+        );
+      case 74:
+        return Event_SetCrossfaderBehavior(
+          dco_decode_box_autoadd_set_crossfader_behavior(raw[1]),
+        );
+      case 75:
+        return Event_SetChannelFaderCurve(
+          dco_decode_box_autoadd_set_channel_fader_curve(raw[1]),
+        );
+      case 76:
         return Event_SetFxUnitSlot(
           dco_decode_box_autoadd_set_fx_unit_slot(raw[1]),
         );
-      case 71:
+      case 77:
         return Event_SetFxUnitSlotEnabled(
           dco_decode_box_autoadd_set_fx_unit_slot_enabled(raw[1]),
         );
-      case 72:
+      case 78:
         return Event_SetFxUnitWet(
           dco_decode_box_autoadd_set_fx_unit_wet(raw[1]),
         );
-      case 73:
+      case 79:
+        return Event_SetFxLevelCurve(
+          dco_decode_box_autoadd_set_fx_level_curve(raw[1]),
+        );
+      case 80:
         return Event_SetFxUnitParam(
           dco_decode_box_autoadd_set_fx_unit_param(raw[1]),
         );
-      case 74:
+      case 81:
         return Event_SetDeckFxRouted(
           dco_decode_box_autoadd_set_deck_fx_routed(raw[1]),
         );
-      case 75:
+      case 82:
         return Event_DeckUpdated(dco_decode_box_autoadd_deck_updated(raw[1]));
-      case 76:
+      case 83:
         return Event_DeckPosition(dco_decode_box_autoadd_deck_position(raw[1]));
-      case 77:
+      case 84:
         return Event_DeckLevels(dco_decode_box_autoadd_deck_levels(raw[1]));
-      case 78:
+      case 85:
         return Event_EngineSnapshot(
           dco_decode_box_autoadd_engine_snapshot(raw[1]),
         );
-      case 79:
+      case 86:
         return Event_Error(dco_decode_box_autoadd_error(raw[1]));
-      case 80:
+      case 87:
         return Event_Notice(dco_decode_box_autoadd_notice(raw[1]));
-      case 81:
+      case 88:
         return Event_AnalyzeTrack(dco_decode_box_autoadd_analyze_track(raw[1]));
-      case 82:
+      case 89:
         return Event_GenerateStems(
           dco_decode_box_autoadd_generate_stems(raw[1]),
         );
-      case 83:
+      case 90:
         return Event_RefreshTrack(dco_decode_box_autoadd_refresh_track(raw[1]));
-      case 84:
+      case 91:
         return Event_SaveBeatGrid(
           dco_decode_box_autoadd_save_beat_grid(raw[1]),
         );
-      case 85:
+      case 92:
         return Event_SaveTrackHotCue(
           dco_decode_box_autoadd_save_track_hot_cue(raw[1]),
         );
-      case 86:
+      case 93:
         return Event_DeleteTrackHotCue(
           dco_decode_box_autoadd_delete_track_hot_cue(raw[1]),
         );
-      case 87:
+      case 94:
         return Event_SaveTrackLoop(
           dco_decode_box_autoadd_save_track_loop(raw[1]),
         );
-      case 88:
+      case 95:
         return Event_DeleteTrackLoop(
           dco_decode_box_autoadd_delete_track_loop(raw[1]),
         );
-      case 89:
+      case 96:
         return Event_TrackAnalyzed(
           dco_decode_box_autoadd_track_analyzed(raw[1]),
         );
-      case 90:
+      case 97:
         return Event_TrackUpdated(dco_decode_box_autoadd_track_updated(raw[1]));
-      case 91:
+      case 98:
         return Event_TrackProgress(
           dco_decode_box_autoadd_track_progress(raw[1]),
         );
-      case 92:
+      case 99:
         return Event_HotCuesChanged(
           dco_decode_box_autoadd_hot_cues_changed(raw[1]),
         );
-      case 93:
+      case 100:
         return Event_LoopsChanged(dco_decode_box_autoadd_loops_changed(raw[1]));
-      case 94:
+      case 101:
         return Event_BeatGridChanged(
           dco_decode_box_autoadd_beat_grid_changed(raw[1]),
         );
-      case 95:
+      case 102:
         return Event_HistorySessionUpdated(
           dco_decode_box_autoadd_history_session_updated(raw[1]),
         );
-      case 96:
+      case 103:
         return Event_Navigate(dco_decode_box_autoadd_navigate(raw[1]));
-      case 97:
+      case 104:
         return Event_Focus(dco_decode_box_autoadd_focus(raw[1]));
-      case 98:
+      case 105:
         return Event_Load(dco_decode_box_autoadd_load(raw[1]));
-      case 99:
+      case 106:
         return Event_MappingOffer(dco_decode_box_autoadd_mapping_offer(raw[1]));
-      case 100:
+      case 107:
         return Event_MappingAttached(
           dco_decode_box_autoadd_mapping_attached(raw[1]),
         );
-      case 101:
+      case 108:
         return Event_MappingDetached(
           dco_decode_box_autoadd_mapping_detached(raw[1]),
         );
@@ -9706,6 +10228,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return (raw as List<dynamic>)
         .map(dco_decode_controller_mapping_info)
         .toList();
+  }
+
+  @protected
+  List<CrossfaderPresetOption> dco_decode_list_crossfader_preset_option(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_crossfader_preset_option)
+        .toList();
+  }
+
+  @protected
+  List<CurveGroupSpec> dco_decode_list_curve_group_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_curve_group_spec).toList();
+  }
+
+  @protected
+  List<CurvePointSpec> dco_decode_list_curve_point_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_curve_point_spec).toList();
+  }
+
+  @protected
+  List<CurveRefSpec> dco_decode_list_curve_ref_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_curve_ref_spec).toList();
+  }
+
+  @protected
+  List<CurveSegmentSpec> dco_decode_list_curve_segment_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_curve_segment_spec).toList();
+  }
+
+  @protected
+  List<CurveSetSpec> dco_decode_list_curve_set_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_curve_set_spec).toList();
+  }
+
+  @protected
+  List<CurveSpecSpec> dco_decode_list_curve_spec_spec(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_curve_spec_spec).toList();
   }
 
   @protected
@@ -10548,6 +11116,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetChannelFaderCurve dco_decode_set_channel_fader_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SetChannelFaderCurve(id: dco_decode_String(arr[0]));
+  }
+
+  @protected
   SetCrossfader dco_decode_set_crossfader(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -10568,6 +11145,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return SetCrossfaderAssign(
       deck: dco_decode_u_16(arr[0]),
       assignment: dco_decode_crossfader_assign(arr[1]),
+    );
+  }
+
+  @protected
+  SetCrossfaderBehavior dco_decode_set_crossfader_behavior(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SetCrossfaderBehavior(
+      hamster: dco_decode_bool(arr[0]),
+      disabled: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
+  SetCrossfaderCurve dco_decode_set_crossfader_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SetCrossfaderCurve(id: dco_decode_String(arr[0]));
+  }
+
+  @protected
+  SetCrossfaderCurveAmount dco_decode_set_crossfader_curve_amount(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return SetCrossfaderCurveAmount(
+      set_: dco_decode_String(arr[0]),
+      amount: dco_decode_f_32(arr[1]),
+      softTakeover: dco_decode_bool(arr[2]),
     );
   }
 
@@ -10602,6 +11213,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       volume: dco_decode_f_32(arr[0]),
       softTakeover: dco_decode_bool(arr[1]),
     );
+  }
+
+  @protected
+  SetCurveLibrary dco_decode_set_curve_library(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SetCurveLibrary(library_: dco_decode_curve_library_spec(arr[0]));
   }
 
   @protected
@@ -10655,6 +11275,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       filter: dco_decode_f_32(arr[1]),
       softTakeover: dco_decode_bool(arr[2]),
     );
+  }
+
+  @protected
+  SetFxLevelCurve dco_decode_set_fx_level_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return SetFxLevelCurve(id: dco_decode_String(arr[0]));
   }
 
   @protected
@@ -10911,6 +11540,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetTempoCurve dco_decode_set_tempo_curve(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SetTempoCurve(
+      deck: dco_decode_u_16(arr[0]),
+      id: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
   SetTempoRange dco_decode_set_tempo_range(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -11146,6 +11787,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
+  }
+
+  @protected
+  VirtualDjCurveExport dco_decode_virtual_dj_curve_export(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return VirtualDjCurveExport(
+      crossfaderCurve: dco_decode_String(arr[0]),
+      crossfaderCustom: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  VirtualDjCurveImport dco_decode_virtual_dj_curve_import(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return VirtualDjCurveImport(
+      group: dco_decode_curve_group_spec(arr[0]),
+      suggestedName: dco_decode_String(arr[1]),
+      crossfaderCurve: dco_decode_String(arr[2]),
+      hamster: dco_decode_bool(arr[3]),
+      disabled: dco_decode_bool(arr[4]),
+    );
   }
 
   @protected
@@ -11513,6 +12181,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_defaultOuterJogMode = sse_decode_jog_mode_setting(deserializer);
     var var_defaultTempoRange = sse_decode_f_32(deserializer);
     var var_tempoRangeSteps = sse_decode_list_prim_f_32_strict(deserializer);
+    var var_defaultTempoCurve = sse_decode_String(deserializer);
+    var var_defaultFxLevelCurve = sse_decode_String(deserializer);
+    var var_defaultCrossfaderCurve = sse_decode_String(deserializer);
+    var var_crossfaderBehavior = sse_decode_crossfader_behavior_setting(
+      deserializer,
+    );
+    var var_curveLibrary = sse_decode_curve_library_spec(deserializer);
     var var_defaultKeyLock = sse_decode_bool(deserializer);
     var var_vinylBrakePause = sse_decode_bool(deserializer);
     var var_vinylBrakeStopSecs = sse_decode_f_32(deserializer);
@@ -11572,6 +12247,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultOuterJogMode: var_defaultOuterJogMode,
       defaultTempoRange: var_defaultTempoRange,
       tempoRangeSteps: var_tempoRangeSteps,
+      defaultTempoCurve: var_defaultTempoCurve,
+      defaultFxLevelCurve: var_defaultFxLevelCurve,
+      defaultCrossfaderCurve: var_defaultCrossfaderCurve,
+      crossfaderBehavior: var_crossfaderBehavior,
+      curveLibrary: var_curveLibrary,
       defaultKeyLock: var_defaultKeyLock,
       vinylBrakePause: var_vinylBrakePause,
       vinylBrakeStopSecs: var_vinylBrakeStopSecs,
@@ -11826,6 +12506,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_controller_channel_pair(deserializer));
+  }
+
+  @protected
+  CurveGroupSpec sse_decode_box_autoadd_curve_group_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_curve_group_spec(deserializer));
+  }
+
+  @protected
+  CurveLibrarySpec sse_decode_box_autoadd_curve_library_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_curve_library_spec(deserializer));
   }
 
   @protected
@@ -12255,6 +12951,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetChannelFaderCurve sse_decode_box_autoadd_set_channel_fader_curve(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_channel_fader_curve(deserializer));
+  }
+
+  @protected
   SetCrossfader sse_decode_box_autoadd_set_crossfader(
     SseDeserializer deserializer,
   ) {
@@ -12268,6 +12972,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_set_crossfader_assign(deserializer));
+  }
+
+  @protected
+  SetCrossfaderBehavior sse_decode_box_autoadd_set_crossfader_behavior(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_crossfader_behavior(deserializer));
+  }
+
+  @protected
+  SetCrossfaderCurve sse_decode_box_autoadd_set_crossfader_curve(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_crossfader_curve(deserializer));
+  }
+
+  @protected
+  SetCrossfaderCurveAmount sse_decode_box_autoadd_set_crossfader_curve_amount(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_crossfader_curve_amount(deserializer));
   }
 
   @protected
@@ -12290,6 +13018,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_set_cue_volume(deserializer));
+  }
+
+  @protected
+  SetCurveLibrary sse_decode_box_autoadd_set_curve_library(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_curve_library(deserializer));
   }
 
   @protected
@@ -12316,6 +13052,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SetFilter sse_decode_box_autoadd_set_filter(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_set_filter(deserializer));
+  }
+
+  @protected
+  SetFxLevelCurve sse_decode_box_autoadd_set_fx_level_curve(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_fx_level_curve(deserializer));
   }
 
   @protected
@@ -12474,6 +13218,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_set_stem_eq_enabled(deserializer));
+  }
+
+  @protected
+  SetTempoCurve sse_decode_box_autoadd_set_tempo_curve(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_tempo_curve(deserializer));
   }
 
   @protected
@@ -12772,6 +13524,137 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return CrossfaderAssign.values[inner];
+  }
+
+  @protected
+  CrossfaderBehaviorSetting sse_decode_crossfader_behavior_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_disabled = sse_decode_bool(deserializer);
+    var var_hamster = sse_decode_bool(deserializer);
+    return CrossfaderBehaviorSetting(
+      disabled: var_disabled,
+      hamster: var_hamster,
+    );
+  }
+
+  @protected
+  CrossfaderCurveStatus sse_decode_crossfader_curve_status(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_morph = sse_decode_f_32(deserializer);
+    var var_hamster = sse_decode_bool(deserializer);
+    var var_disabled = sse_decode_bool(deserializer);
+    return CrossfaderCurveStatus(
+      id: var_id,
+      displayName: var_displayName,
+      morph: var_morph,
+      hamster: var_hamster,
+      disabled: var_disabled,
+    );
+  }
+
+  @protected
+  CrossfaderPresetOption sse_decode_crossfader_preset_option(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_available = sse_decode_bool(deserializer);
+    return CrossfaderPresetOption(
+      id: var_id,
+      displayName: var_displayName,
+      available: var_available,
+    );
+  }
+
+  @protected
+  CurveGroupSpec sse_decode_curve_group_spec(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_curves = sse_decode_list_curve_spec_spec(deserializer);
+    return CurveGroupSpec(
+      id: var_id,
+      displayName: var_displayName,
+      curves: var_curves,
+    );
+  }
+
+  @protected
+  CurveLibrarySpec sse_decode_curve_library_spec(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_groups = sse_decode_list_curve_group_spec(deserializer);
+    var var_sets = sse_decode_list_curve_set_spec(deserializer);
+    return CurveLibrarySpec(groups: var_groups, sets: var_sets);
+  }
+
+  @protected
+  CurvePointSpec sse_decode_curve_point_spec(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_x = sse_decode_f_32(deserializer);
+    var var_y = sse_decode_f_32(deserializer);
+    return CurvePointSpec(x: var_x, y: var_y);
+  }
+
+  @protected
+  CurveRefSpec sse_decode_curve_ref_spec(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_parameter = sse_decode_opt_box_autoadd_f_32(deserializer);
+    return CurveRefSpec(id: var_id, parameter: var_parameter);
+  }
+
+  @protected
+  CurveSegmentKind sse_decode_curve_segment_kind(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return CurveSegmentKind.values[inner];
+  }
+
+  @protected
+  CurveSegmentSpec sse_decode_curve_segment_spec(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_curve_segment_kind(deserializer);
+    var var_rate = sse_decode_f_32(deserializer);
+    var var_c1X = sse_decode_f_32(deserializer);
+    var var_c1Y = sse_decode_f_32(deserializer);
+    var var_c2X = sse_decode_f_32(deserializer);
+    var var_c2Y = sse_decode_f_32(deserializer);
+    return CurveSegmentSpec(
+      kind: var_kind,
+      rate: var_rate,
+      c1X: var_c1X,
+      c1Y: var_c1Y,
+      c2X: var_c2X,
+      c2Y: var_c2Y,
+    );
+  }
+
+  @protected
+  CurveSetSpec sse_decode_curve_set_spec(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_members = sse_decode_list_curve_ref_spec(deserializer);
+    return CurveSetSpec(
+      id: var_id,
+      displayName: var_displayName,
+      members: var_members,
+    );
+  }
+
+  @protected
+  CurveSpecSpec sse_decode_curve_spec_spec(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_points = sse_decode_list_curve_point_spec(deserializer);
+    var var_segments = sse_decode_list_curve_segment_spec(deserializer);
+    return CurveSpecSpec(points: var_points, segments: var_segments);
   }
 
   @protected
@@ -13144,6 +14027,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_cueMix = sse_decode_f_32(deserializer);
     var var_masterCue = sse_decode_bool(deserializer);
     var var_masterDeck = sse_decode_u_16(deserializer);
+    var var_crossfaderCurve = sse_decode_crossfader_curve_status(deserializer);
     var var_decks = sse_decode_list_deck_snapshot(deserializer);
     return EngineStatus(
       running: var_running,
@@ -13154,6 +14038,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       cueMix: var_cueMix,
       masterCue: var_masterCue,
       masterDeck: var_masterDeck,
+      crossfaderCurve: var_crossfaderCurve,
       decks: var_decks,
     );
   }
@@ -13241,291 +14126,322 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_field0 = sse_decode_box_autoadd_set_tempo_range(deserializer);
         return Event_SetTempoRange(var_field0);
       case 18:
+        var var_field0 = sse_decode_box_autoadd_set_tempo_curve(deserializer);
+        return Event_SetTempoCurve(var_field0);
+      case 19:
         var var_field0 = sse_decode_box_autoadd_set_key_lock(deserializer);
         return Event_SetKeyLock(var_field0);
-      case 19:
+      case 20:
         var var_field0 = sse_decode_box_autoadd_set_key_shift(deserializer);
         return Event_SetKeyShift(var_field0);
-      case 20:
+      case 21:
         var var_field0 = sse_decode_box_autoadd_set_keyboard_root(deserializer);
         return Event_SetKeyboardRoot(var_field0);
-      case 21:
+      case 22:
         var var_field0 = sse_decode_box_autoadd_set_keyboard_page(deserializer);
         return Event_SetKeyboardPage(var_field0);
-      case 22:
+      case 23:
         var var_field0 = sse_decode_box_autoadd_set_key_shift_page(
           deserializer,
         );
         return Event_SetKeyShiftPage(var_field0);
-      case 23:
+      case 24:
         var var_field0 = sse_decode_box_autoadd_toggle_sync(deserializer);
         return Event_ToggleSync(var_field0);
-      case 24:
+      case 25:
         var var_field0 = sse_decode_box_autoadd_set_master_deck(deserializer);
         return Event_SetMasterDeck(var_field0);
-      case 25:
+      case 26:
         var var_field0 = sse_decode_box_autoadd_set_cue_point(deserializer);
         return Event_SetCuePoint(var_field0);
-      case 26:
+      case 27:
         var var_field0 = sse_decode_box_autoadd_begin_cue_hold(deserializer);
         return Event_BeginCueHold(var_field0);
-      case 27:
+      case 28:
         var var_field0 = sse_decode_box_autoadd_end_cue_hold(deserializer);
         return Event_EndCueHold(var_field0);
-      case 28:
+      case 29:
         var var_field0 = sse_decode_box_autoadd_set_quantize(deserializer);
         return Event_SetQuantize(var_field0);
-      case 29:
+      case 30:
         var var_field0 = sse_decode_box_autoadd_toggle_quantize(deserializer);
         return Event_ToggleQuantize(var_field0);
-      case 30:
+      case 31:
         var var_field0 = sse_decode_box_autoadd_set_slip(deserializer);
         return Event_SetSlip(var_field0);
-      case 31:
+      case 32:
         var var_field0 = sse_decode_box_autoadd_toggle_slip(deserializer);
         return Event_ToggleSlip(var_field0);
-      case 32:
+      case 33:
         var var_field0 = sse_decode_box_autoadd_set_auto_loop(deserializer);
         return Event_SetAutoLoop(var_field0);
-      case 33:
+      case 34:
         var var_field0 = sse_decode_box_autoadd_loop_in(deserializer);
         return Event_LoopIn(var_field0);
-      case 34:
+      case 35:
         var var_field0 = sse_decode_box_autoadd_loop_out(deserializer);
         return Event_LoopOut(var_field0);
-      case 35:
+      case 36:
         var var_field0 = sse_decode_box_autoadd_exit_loop(deserializer);
         return Event_ExitLoop(var_field0);
-      case 36:
+      case 37:
         var var_field0 = sse_decode_box_autoadd_recall_saved_loop(deserializer);
         return Event_RecallSavedLoop(var_field0);
-      case 37:
+      case 38:
         var var_field0 = sse_decode_box_autoadd_begin_loop_roll(deserializer);
         return Event_BeginLoopRoll(var_field0);
-      case 38:
+      case 39:
         var var_field0 = sse_decode_box_autoadd_end_loop_roll(deserializer);
         return Event_EndLoopRoll(var_field0);
-      case 39:
+      case 40:
         var var_field0 = sse_decode_box_autoadd_beat_jump(deserializer);
         return Event_BeatJump(var_field0);
-      case 40:
+      case 41:
         var var_field0 = sse_decode_box_autoadd_set_pad_mode(deserializer);
         return Event_SetPadMode(var_field0);
-      case 41:
+      case 42:
         var var_field0 = sse_decode_box_autoadd_pad_press(deserializer);
         return Event_PadPress(var_field0);
-      case 42:
+      case 43:
         var var_field0 = sse_decode_box_autoadd_pad_release(deserializer);
         return Event_PadRelease(var_field0);
-      case 43:
+      case 44:
         var var_field0 = sse_decode_box_autoadd_hot_cue_pad_press(deserializer);
         return Event_HotCuePadPress(var_field0);
-      case 44:
+      case 45:
         var var_field0 = sse_decode_box_autoadd_hot_cue_pad_release(
           deserializer,
         );
         return Event_HotCuePadRelease(var_field0);
-      case 45:
+      case 46:
         var var_field0 = sse_decode_box_autoadd_loop_roll_pad_press(
           deserializer,
         );
         return Event_LoopRollPadPress(var_field0);
-      case 46:
+      case 47:
         var var_field0 = sse_decode_box_autoadd_loop_roll_pad_release(
           deserializer,
         );
         return Event_LoopRollPadRelease(var_field0);
-      case 47:
+      case 48:
         var var_field0 = sse_decode_box_autoadd_beat_jump_pad_press(
           deserializer,
         );
         return Event_BeatJumpPadPress(var_field0);
-      case 48:
+      case 49:
         var var_field0 = sse_decode_box_autoadd_beat_jump_pad_release(
           deserializer,
         );
         return Event_BeatJumpPadRelease(var_field0);
-      case 49:
+      case 50:
         var var_field0 = sse_decode_box_autoadd_sampler_pad_press(deserializer);
         return Event_SamplerPadPress(var_field0);
-      case 50:
+      case 51:
         var var_field0 = sse_decode_box_autoadd_sampler_pad_release(
           deserializer,
         );
         return Event_SamplerPadRelease(var_field0);
-      case 51:
+      case 52:
         var var_field0 = sse_decode_box_autoadd_keyboard_pad_press(
           deserializer,
         );
         return Event_KeyboardPadPress(var_field0);
-      case 52:
+      case 53:
         var var_field0 = sse_decode_box_autoadd_keyboard_pad_release(
           deserializer,
         );
         return Event_KeyboardPadRelease(var_field0);
-      case 53:
+      case 54:
         var var_field0 = sse_decode_box_autoadd_key_shift_pad_press(
           deserializer,
         );
         return Event_KeyShiftPadPress(var_field0);
-      case 54:
+      case 55:
         var var_field0 = sse_decode_box_autoadd_key_shift_pad_release(
           deserializer,
         );
         return Event_KeyShiftPadRelease(var_field0);
-      case 55:
+      case 56:
         var var_field0 = sse_decode_box_autoadd_trigger_hot_cue(deserializer);
         return Event_TriggerHotCue(var_field0);
-      case 56:
+      case 57:
         var var_field0 = sse_decode_box_autoadd_save_deck_hot_cue(deserializer);
         return Event_SaveDeckHotCue(var_field0);
-      case 57:
+      case 58:
         var var_field0 = sse_decode_box_autoadd_delete_deck_hot_cue(
           deserializer,
         );
         return Event_DeleteDeckHotCue(var_field0);
-      case 58:
+      case 59:
         var var_field0 = sse_decode_box_autoadd_assign_sampler(deserializer);
         return Event_AssignSampler(var_field0);
-      case 59:
+      case 60:
         var var_field0 = sse_decode_box_autoadd_assign_sampler_track(
           deserializer,
         );
         return Event_AssignSamplerTrack(var_field0);
-      case 60:
+      case 61:
         var var_field0 = sse_decode_box_autoadd_clear_sampler(deserializer);
         return Event_ClearSampler(var_field0);
-      case 61:
+      case 62:
         var var_field0 = sse_decode_box_autoadd_jog_touch(deserializer);
         return Event_JogTouch(var_field0);
-      case 62:
+      case 63:
         var var_field0 = sse_decode_box_autoadd_jog_turn(deserializer);
         return Event_JogTurn(var_field0);
-      case 63:
+      case 64:
         var var_field0 = sse_decode_box_autoadd_set_jog_mode(deserializer);
         return Event_SetJogMode(var_field0);
-      case 64:
+      case 65:
         var var_field0 = sse_decode_box_autoadd_set_crossfader(deserializer);
         return Event_SetCrossfader(var_field0);
-      case 65:
+      case 66:
         var var_field0 = sse_decode_box_autoadd_set_master_volume(deserializer);
         return Event_SetMasterVolume(var_field0);
-      case 66:
+      case 67:
         var var_field0 = sse_decode_box_autoadd_set_cue_volume(deserializer);
         return Event_SetCueVolume(var_field0);
-      case 67:
+      case 68:
         var var_field0 = sse_decode_box_autoadd_set_cue_mix(deserializer);
         return Event_SetCueMix(var_field0);
-      case 68:
+      case 69:
         var var_field0 = sse_decode_box_autoadd_set_master_cue(deserializer);
         return Event_SetMasterCue(var_field0);
-      case 69:
+      case 70:
         var var_field0 = sse_decode_box_autoadd_toggle_master_cue(deserializer);
         return Event_ToggleMasterCue(var_field0);
-      case 70:
+      case 71:
+        var var_field0 = sse_decode_box_autoadd_set_curve_library(deserializer);
+        return Event_SetCurveLibrary(var_field0);
+      case 72:
+        var var_field0 = sse_decode_box_autoadd_set_crossfader_curve(
+          deserializer,
+        );
+        return Event_SetCrossfaderCurve(var_field0);
+      case 73:
+        var var_field0 = sse_decode_box_autoadd_set_crossfader_curve_amount(
+          deserializer,
+        );
+        return Event_SetCrossfaderCurveAmount(var_field0);
+      case 74:
+        var var_field0 = sse_decode_box_autoadd_set_crossfader_behavior(
+          deserializer,
+        );
+        return Event_SetCrossfaderBehavior(var_field0);
+      case 75:
+        var var_field0 = sse_decode_box_autoadd_set_channel_fader_curve(
+          deserializer,
+        );
+        return Event_SetChannelFaderCurve(var_field0);
+      case 76:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_slot(deserializer);
         return Event_SetFxUnitSlot(var_field0);
-      case 71:
+      case 77:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_slot_enabled(
           deserializer,
         );
         return Event_SetFxUnitSlotEnabled(var_field0);
-      case 72:
+      case 78:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_wet(deserializer);
         return Event_SetFxUnitWet(var_field0);
-      case 73:
+      case 79:
+        var var_field0 = sse_decode_box_autoadd_set_fx_level_curve(
+          deserializer,
+        );
+        return Event_SetFxLevelCurve(var_field0);
+      case 80:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_param(deserializer);
         return Event_SetFxUnitParam(var_field0);
-      case 74:
+      case 81:
         var var_field0 = sse_decode_box_autoadd_set_deck_fx_routed(
           deserializer,
         );
         return Event_SetDeckFxRouted(var_field0);
-      case 75:
+      case 82:
         var var_field0 = sse_decode_box_autoadd_deck_updated(deserializer);
         return Event_DeckUpdated(var_field0);
-      case 76:
+      case 83:
         var var_field0 = sse_decode_box_autoadd_deck_position(deserializer);
         return Event_DeckPosition(var_field0);
-      case 77:
+      case 84:
         var var_field0 = sse_decode_box_autoadd_deck_levels(deserializer);
         return Event_DeckLevels(var_field0);
-      case 78:
+      case 85:
         var var_field0 = sse_decode_box_autoadd_engine_snapshot(deserializer);
         return Event_EngineSnapshot(var_field0);
-      case 79:
+      case 86:
         var var_field0 = sse_decode_box_autoadd_error(deserializer);
         return Event_Error(var_field0);
-      case 80:
+      case 87:
         var var_field0 = sse_decode_box_autoadd_notice(deserializer);
         return Event_Notice(var_field0);
-      case 81:
+      case 88:
         var var_field0 = sse_decode_box_autoadd_analyze_track(deserializer);
         return Event_AnalyzeTrack(var_field0);
-      case 82:
+      case 89:
         var var_field0 = sse_decode_box_autoadd_generate_stems(deserializer);
         return Event_GenerateStems(var_field0);
-      case 83:
+      case 90:
         var var_field0 = sse_decode_box_autoadd_refresh_track(deserializer);
         return Event_RefreshTrack(var_field0);
-      case 84:
+      case 91:
         var var_field0 = sse_decode_box_autoadd_save_beat_grid(deserializer);
         return Event_SaveBeatGrid(var_field0);
-      case 85:
+      case 92:
         var var_field0 = sse_decode_box_autoadd_save_track_hot_cue(
           deserializer,
         );
         return Event_SaveTrackHotCue(var_field0);
-      case 86:
+      case 93:
         var var_field0 = sse_decode_box_autoadd_delete_track_hot_cue(
           deserializer,
         );
         return Event_DeleteTrackHotCue(var_field0);
-      case 87:
+      case 94:
         var var_field0 = sse_decode_box_autoadd_save_track_loop(deserializer);
         return Event_SaveTrackLoop(var_field0);
-      case 88:
+      case 95:
         var var_field0 = sse_decode_box_autoadd_delete_track_loop(deserializer);
         return Event_DeleteTrackLoop(var_field0);
-      case 89:
+      case 96:
         var var_field0 = sse_decode_box_autoadd_track_analyzed(deserializer);
         return Event_TrackAnalyzed(var_field0);
-      case 90:
+      case 97:
         var var_field0 = sse_decode_box_autoadd_track_updated(deserializer);
         return Event_TrackUpdated(var_field0);
-      case 91:
+      case 98:
         var var_field0 = sse_decode_box_autoadd_track_progress(deserializer);
         return Event_TrackProgress(var_field0);
-      case 92:
+      case 99:
         var var_field0 = sse_decode_box_autoadd_hot_cues_changed(deserializer);
         return Event_HotCuesChanged(var_field0);
-      case 93:
+      case 100:
         var var_field0 = sse_decode_box_autoadd_loops_changed(deserializer);
         return Event_LoopsChanged(var_field0);
-      case 94:
+      case 101:
         var var_field0 = sse_decode_box_autoadd_beat_grid_changed(deserializer);
         return Event_BeatGridChanged(var_field0);
-      case 95:
+      case 102:
         var var_field0 = sse_decode_box_autoadd_history_session_updated(
           deserializer,
         );
         return Event_HistorySessionUpdated(var_field0);
-      case 96:
+      case 103:
         var var_field0 = sse_decode_box_autoadd_navigate(deserializer);
         return Event_Navigate(var_field0);
-      case 97:
+      case 104:
         var var_field0 = sse_decode_box_autoadd_focus(deserializer);
         return Event_Focus(var_field0);
-      case 98:
+      case 105:
         var var_field0 = sse_decode_box_autoadd_load(deserializer);
         return Event_Load(var_field0);
-      case 99:
+      case 106:
         var var_field0 = sse_decode_box_autoadd_mapping_offer(deserializer);
         return Event_MappingOffer(var_field0);
-      case 100:
+      case 107:
         var var_field0 = sse_decode_box_autoadd_mapping_attached(deserializer);
         return Event_MappingAttached(var_field0);
-      case 101:
+      case 108:
         var var_field0 = sse_decode_box_autoadd_mapping_detached(deserializer);
         return Event_MappingDetached(var_field0);
       default:
@@ -14020,6 +14936,104 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <ControllerMappingInfo>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_controller_mapping_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CrossfaderPresetOption> sse_decode_list_crossfader_preset_option(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CrossfaderPresetOption>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_crossfader_preset_option(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CurveGroupSpec> sse_decode_list_curve_group_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CurveGroupSpec>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_curve_group_spec(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CurvePointSpec> sse_decode_list_curve_point_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CurvePointSpec>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_curve_point_spec(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CurveRefSpec> sse_decode_list_curve_ref_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CurveRefSpec>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_curve_ref_spec(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CurveSegmentSpec> sse_decode_list_curve_segment_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CurveSegmentSpec>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_curve_segment_spec(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CurveSetSpec> sse_decode_list_curve_set_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CurveSetSpec>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_curve_set_spec(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CurveSpecSpec> sse_decode_list_curve_spec_spec(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CurveSpecSpec>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_curve_spec_spec(deserializer));
     }
     return ans_;
   }
@@ -15087,6 +16101,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetChannelFaderCurve sse_decode_set_channel_fader_curve(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    return SetChannelFaderCurve(id: var_id);
+  }
+
+  @protected
   SetCrossfader sse_decode_set_crossfader(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_position = sse_decode_f_32(deserializer);
@@ -15105,6 +16128,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_deck = sse_decode_u_16(deserializer);
     var var_assignment = sse_decode_crossfader_assign(deserializer);
     return SetCrossfaderAssign(deck: var_deck, assignment: var_assignment);
+  }
+
+  @protected
+  SetCrossfaderBehavior sse_decode_set_crossfader_behavior(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_hamster = sse_decode_bool(deserializer);
+    var var_disabled = sse_decode_bool(deserializer);
+    return SetCrossfaderBehavior(hamster: var_hamster, disabled: var_disabled);
+  }
+
+  @protected
+  SetCrossfaderCurve sse_decode_set_crossfader_curve(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    return SetCrossfaderCurve(id: var_id);
+  }
+
+  @protected
+  SetCrossfaderCurveAmount sse_decode_set_crossfader_curve_amount(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_set_ = sse_decode_String(deserializer);
+    var var_amount = sse_decode_f_32(deserializer);
+    var var_softTakeover = sse_decode_bool(deserializer);
+    return SetCrossfaderCurveAmount(
+      set_: var_set_,
+      amount: var_amount,
+      softTakeover: var_softTakeover,
+    );
   }
 
   @protected
@@ -15128,6 +16185,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_volume = sse_decode_f_32(deserializer);
     var var_softTakeover = sse_decode_bool(deserializer);
     return SetCueVolume(volume: var_volume, softTakeover: var_softTakeover);
+  }
+
+  @protected
+  SetCurveLibrary sse_decode_set_curve_library(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_library_ = sse_decode_curve_library_spec(deserializer);
+    return SetCurveLibrary(library_: var_library_);
   }
 
   @protected
@@ -15174,6 +16238,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       filter: var_filter,
       softTakeover: var_softTakeover,
     );
+  }
+
+  @protected
+  SetFxLevelCurve sse_decode_set_fx_level_curve(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    return SetFxLevelCurve(id: var_id);
   }
 
   @protected
@@ -15368,6 +16439,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_deck = sse_decode_u_16(deserializer);
     var var_enabled = sse_decode_bool(deserializer);
     return SetStemEqEnabled(deck: var_deck, enabled: var_enabled);
+  }
+
+  @protected
+  SetTempoCurve sse_decode_set_tempo_curve(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deck = sse_decode_u_16(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    return SetTempoCurve(deck: var_deck, id: var_id);
   }
 
   @protected
@@ -15596,6 +16675,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  VirtualDjCurveExport sse_decode_virtual_dj_curve_export(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_crossfaderCurve = sse_decode_String(deserializer);
+    var var_crossfaderCustom = sse_decode_String(deserializer);
+    return VirtualDjCurveExport(
+      crossfaderCurve: var_crossfaderCurve,
+      crossfaderCustom: var_crossfaderCustom,
+    );
+  }
+
+  @protected
+  VirtualDjCurveImport sse_decode_virtual_dj_curve_import(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_group = sse_decode_curve_group_spec(deserializer);
+    var var_suggestedName = sse_decode_String(deserializer);
+    var var_crossfaderCurve = sse_decode_String(deserializer);
+    var var_hamster = sse_decode_bool(deserializer);
+    var var_disabled = sse_decode_bool(deserializer);
+    return VirtualDjCurveImport(
+      group: var_group,
+      suggestedName: var_suggestedName,
+      crossfaderCurve: var_crossfaderCurve,
+      hamster: var_hamster,
+      disabled: var_disabled,
+    );
   }
 
   @protected
@@ -15990,6 +17101,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_jog_mode_setting(self.defaultOuterJogMode, serializer);
     sse_encode_f_32(self.defaultTempoRange, serializer);
     sse_encode_list_prim_f_32_strict(self.tempoRangeSteps, serializer);
+    sse_encode_String(self.defaultTempoCurve, serializer);
+    sse_encode_String(self.defaultFxLevelCurve, serializer);
+    sse_encode_String(self.defaultCrossfaderCurve, serializer);
+    sse_encode_crossfader_behavior_setting(self.crossfaderBehavior, serializer);
+    sse_encode_curve_library_spec(self.curveLibrary, serializer);
     sse_encode_bool(self.defaultKeyLock, serializer);
     sse_encode_bool(self.vinylBrakePause, serializer);
     sse_encode_f_32(self.vinylBrakeStopSecs, serializer);
@@ -16257,6 +17373,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_controller_channel_pair(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_curve_group_spec(
+    CurveGroupSpec self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_curve_group_spec(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_curve_library_spec(
+    CurveLibrarySpec self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_curve_library_spec(self, serializer);
   }
 
   @protected
@@ -16749,6 +17883,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_set_channel_fader_curve(
+    SetChannelFaderCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_channel_fader_curve(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_set_crossfader(
     SetCrossfader self,
     SseSerializer serializer,
@@ -16764,6 +17907,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_set_crossfader_assign(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_crossfader_behavior(
+    SetCrossfaderBehavior self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_crossfader_behavior(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_crossfader_curve(
+    SetCrossfaderCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_crossfader_curve(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_crossfader_curve_amount(
+    SetCrossfaderCurveAmount self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_crossfader_curve_amount(self, serializer);
   }
 
   @protected
@@ -16791,6 +17961,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_set_cue_volume(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_curve_library(
+    SetCurveLibrary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_curve_library(self, serializer);
   }
 
   @protected
@@ -16824,6 +18003,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_set_filter(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_fx_level_curve(
+    SetFxLevelCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_fx_level_curve(self, serializer);
   }
 
   @protected
@@ -17010,6 +18198,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_set_stem_eq_enabled(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_tempo_curve(
+    SetTempoCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_tempo_curve(self, serializer);
   }
 
   @protected
@@ -17298,6 +18495,119 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_crossfader_behavior_setting(
+    CrossfaderBehaviorSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.disabled, serializer);
+    sse_encode_bool(self.hamster, serializer);
+  }
+
+  @protected
+  void sse_encode_crossfader_curve_status(
+    CrossfaderCurveStatus self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_f_32(self.morph, serializer);
+    sse_encode_bool(self.hamster, serializer);
+    sse_encode_bool(self.disabled, serializer);
+  }
+
+  @protected
+  void sse_encode_crossfader_preset_option(
+    CrossfaderPresetOption self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_bool(self.available, serializer);
+  }
+
+  @protected
+  void sse_encode_curve_group_spec(
+    CurveGroupSpec self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_list_curve_spec_spec(self.curves, serializer);
+  }
+
+  @protected
+  void sse_encode_curve_library_spec(
+    CurveLibrarySpec self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_curve_group_spec(self.groups, serializer);
+    sse_encode_list_curve_set_spec(self.sets, serializer);
+  }
+
+  @protected
+  void sse_encode_curve_point_spec(
+    CurvePointSpec self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_32(self.x, serializer);
+    sse_encode_f_32(self.y, serializer);
+  }
+
+  @protected
+  void sse_encode_curve_ref_spec(CurveRefSpec self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_opt_box_autoadd_f_32(self.parameter, serializer);
+  }
+
+  @protected
+  void sse_encode_curve_segment_kind(
+    CurveSegmentKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_curve_segment_spec(
+    CurveSegmentSpec self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_curve_segment_kind(self.kind, serializer);
+    sse_encode_f_32(self.rate, serializer);
+    sse_encode_f_32(self.c1X, serializer);
+    sse_encode_f_32(self.c1Y, serializer);
+    sse_encode_f_32(self.c2X, serializer);
+    sse_encode_f_32(self.c2Y, serializer);
+  }
+
+  @protected
+  void sse_encode_curve_set_spec(CurveSetSpec self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_list_curve_ref_spec(self.members, serializer);
+  }
+
+  @protected
+  void sse_encode_curve_spec_spec(
+    CurveSpecSpec self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_curve_point_spec(self.points, serializer);
+    sse_encode_list_curve_segment_spec(self.segments, serializer);
+  }
+
+  @protected
   void sse_encode_deck_eq(DeckEq self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_32(self.low, serializer);
@@ -17530,6 +18840,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.cueMix, serializer);
     sse_encode_bool(self.masterCue, serializer);
     sse_encode_u_16(self.masterDeck, serializer);
+    sse_encode_crossfader_curve_status(self.crossfaderCurve, serializer);
     sse_encode_list_deck_snapshot(self.decks, serializer);
   }
 
@@ -17605,257 +18916,278 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case Event_SetTempoRange(field0: final field0):
         sse_encode_i_32(17, serializer);
         sse_encode_box_autoadd_set_tempo_range(field0, serializer);
-      case Event_SetKeyLock(field0: final field0):
+      case Event_SetTempoCurve(field0: final field0):
         sse_encode_i_32(18, serializer);
+        sse_encode_box_autoadd_set_tempo_curve(field0, serializer);
+      case Event_SetKeyLock(field0: final field0):
+        sse_encode_i_32(19, serializer);
         sse_encode_box_autoadd_set_key_lock(field0, serializer);
       case Event_SetKeyShift(field0: final field0):
-        sse_encode_i_32(19, serializer);
+        sse_encode_i_32(20, serializer);
         sse_encode_box_autoadd_set_key_shift(field0, serializer);
       case Event_SetKeyboardRoot(field0: final field0):
-        sse_encode_i_32(20, serializer);
+        sse_encode_i_32(21, serializer);
         sse_encode_box_autoadd_set_keyboard_root(field0, serializer);
       case Event_SetKeyboardPage(field0: final field0):
-        sse_encode_i_32(21, serializer);
+        sse_encode_i_32(22, serializer);
         sse_encode_box_autoadd_set_keyboard_page(field0, serializer);
       case Event_SetKeyShiftPage(field0: final field0):
-        sse_encode_i_32(22, serializer);
+        sse_encode_i_32(23, serializer);
         sse_encode_box_autoadd_set_key_shift_page(field0, serializer);
       case Event_ToggleSync(field0: final field0):
-        sse_encode_i_32(23, serializer);
+        sse_encode_i_32(24, serializer);
         sse_encode_box_autoadd_toggle_sync(field0, serializer);
       case Event_SetMasterDeck(field0: final field0):
-        sse_encode_i_32(24, serializer);
+        sse_encode_i_32(25, serializer);
         sse_encode_box_autoadd_set_master_deck(field0, serializer);
       case Event_SetCuePoint(field0: final field0):
-        sse_encode_i_32(25, serializer);
+        sse_encode_i_32(26, serializer);
         sse_encode_box_autoadd_set_cue_point(field0, serializer);
       case Event_BeginCueHold(field0: final field0):
-        sse_encode_i_32(26, serializer);
+        sse_encode_i_32(27, serializer);
         sse_encode_box_autoadd_begin_cue_hold(field0, serializer);
       case Event_EndCueHold(field0: final field0):
-        sse_encode_i_32(27, serializer);
+        sse_encode_i_32(28, serializer);
         sse_encode_box_autoadd_end_cue_hold(field0, serializer);
       case Event_SetQuantize(field0: final field0):
-        sse_encode_i_32(28, serializer);
+        sse_encode_i_32(29, serializer);
         sse_encode_box_autoadd_set_quantize(field0, serializer);
       case Event_ToggleQuantize(field0: final field0):
-        sse_encode_i_32(29, serializer);
+        sse_encode_i_32(30, serializer);
         sse_encode_box_autoadd_toggle_quantize(field0, serializer);
       case Event_SetSlip(field0: final field0):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(31, serializer);
         sse_encode_box_autoadd_set_slip(field0, serializer);
       case Event_ToggleSlip(field0: final field0):
-        sse_encode_i_32(31, serializer);
+        sse_encode_i_32(32, serializer);
         sse_encode_box_autoadd_toggle_slip(field0, serializer);
       case Event_SetAutoLoop(field0: final field0):
-        sse_encode_i_32(32, serializer);
+        sse_encode_i_32(33, serializer);
         sse_encode_box_autoadd_set_auto_loop(field0, serializer);
       case Event_LoopIn(field0: final field0):
-        sse_encode_i_32(33, serializer);
+        sse_encode_i_32(34, serializer);
         sse_encode_box_autoadd_loop_in(field0, serializer);
       case Event_LoopOut(field0: final field0):
-        sse_encode_i_32(34, serializer);
+        sse_encode_i_32(35, serializer);
         sse_encode_box_autoadd_loop_out(field0, serializer);
       case Event_ExitLoop(field0: final field0):
-        sse_encode_i_32(35, serializer);
+        sse_encode_i_32(36, serializer);
         sse_encode_box_autoadd_exit_loop(field0, serializer);
       case Event_RecallSavedLoop(field0: final field0):
-        sse_encode_i_32(36, serializer);
+        sse_encode_i_32(37, serializer);
         sse_encode_box_autoadd_recall_saved_loop(field0, serializer);
       case Event_BeginLoopRoll(field0: final field0):
-        sse_encode_i_32(37, serializer);
+        sse_encode_i_32(38, serializer);
         sse_encode_box_autoadd_begin_loop_roll(field0, serializer);
       case Event_EndLoopRoll(field0: final field0):
-        sse_encode_i_32(38, serializer);
+        sse_encode_i_32(39, serializer);
         sse_encode_box_autoadd_end_loop_roll(field0, serializer);
       case Event_BeatJump(field0: final field0):
-        sse_encode_i_32(39, serializer);
+        sse_encode_i_32(40, serializer);
         sse_encode_box_autoadd_beat_jump(field0, serializer);
       case Event_SetPadMode(field0: final field0):
-        sse_encode_i_32(40, serializer);
+        sse_encode_i_32(41, serializer);
         sse_encode_box_autoadd_set_pad_mode(field0, serializer);
       case Event_PadPress(field0: final field0):
-        sse_encode_i_32(41, serializer);
+        sse_encode_i_32(42, serializer);
         sse_encode_box_autoadd_pad_press(field0, serializer);
       case Event_PadRelease(field0: final field0):
-        sse_encode_i_32(42, serializer);
+        sse_encode_i_32(43, serializer);
         sse_encode_box_autoadd_pad_release(field0, serializer);
       case Event_HotCuePadPress(field0: final field0):
-        sse_encode_i_32(43, serializer);
+        sse_encode_i_32(44, serializer);
         sse_encode_box_autoadd_hot_cue_pad_press(field0, serializer);
       case Event_HotCuePadRelease(field0: final field0):
-        sse_encode_i_32(44, serializer);
+        sse_encode_i_32(45, serializer);
         sse_encode_box_autoadd_hot_cue_pad_release(field0, serializer);
       case Event_LoopRollPadPress(field0: final field0):
-        sse_encode_i_32(45, serializer);
+        sse_encode_i_32(46, serializer);
         sse_encode_box_autoadd_loop_roll_pad_press(field0, serializer);
       case Event_LoopRollPadRelease(field0: final field0):
-        sse_encode_i_32(46, serializer);
+        sse_encode_i_32(47, serializer);
         sse_encode_box_autoadd_loop_roll_pad_release(field0, serializer);
       case Event_BeatJumpPadPress(field0: final field0):
-        sse_encode_i_32(47, serializer);
+        sse_encode_i_32(48, serializer);
         sse_encode_box_autoadd_beat_jump_pad_press(field0, serializer);
       case Event_BeatJumpPadRelease(field0: final field0):
-        sse_encode_i_32(48, serializer);
+        sse_encode_i_32(49, serializer);
         sse_encode_box_autoadd_beat_jump_pad_release(field0, serializer);
       case Event_SamplerPadPress(field0: final field0):
-        sse_encode_i_32(49, serializer);
+        sse_encode_i_32(50, serializer);
         sse_encode_box_autoadd_sampler_pad_press(field0, serializer);
       case Event_SamplerPadRelease(field0: final field0):
-        sse_encode_i_32(50, serializer);
+        sse_encode_i_32(51, serializer);
         sse_encode_box_autoadd_sampler_pad_release(field0, serializer);
       case Event_KeyboardPadPress(field0: final field0):
-        sse_encode_i_32(51, serializer);
+        sse_encode_i_32(52, serializer);
         sse_encode_box_autoadd_keyboard_pad_press(field0, serializer);
       case Event_KeyboardPadRelease(field0: final field0):
-        sse_encode_i_32(52, serializer);
+        sse_encode_i_32(53, serializer);
         sse_encode_box_autoadd_keyboard_pad_release(field0, serializer);
       case Event_KeyShiftPadPress(field0: final field0):
-        sse_encode_i_32(53, serializer);
+        sse_encode_i_32(54, serializer);
         sse_encode_box_autoadd_key_shift_pad_press(field0, serializer);
       case Event_KeyShiftPadRelease(field0: final field0):
-        sse_encode_i_32(54, serializer);
+        sse_encode_i_32(55, serializer);
         sse_encode_box_autoadd_key_shift_pad_release(field0, serializer);
       case Event_TriggerHotCue(field0: final field0):
-        sse_encode_i_32(55, serializer);
+        sse_encode_i_32(56, serializer);
         sse_encode_box_autoadd_trigger_hot_cue(field0, serializer);
       case Event_SaveDeckHotCue(field0: final field0):
-        sse_encode_i_32(56, serializer);
+        sse_encode_i_32(57, serializer);
         sse_encode_box_autoadd_save_deck_hot_cue(field0, serializer);
       case Event_DeleteDeckHotCue(field0: final field0):
-        sse_encode_i_32(57, serializer);
+        sse_encode_i_32(58, serializer);
         sse_encode_box_autoadd_delete_deck_hot_cue(field0, serializer);
       case Event_AssignSampler(field0: final field0):
-        sse_encode_i_32(58, serializer);
+        sse_encode_i_32(59, serializer);
         sse_encode_box_autoadd_assign_sampler(field0, serializer);
       case Event_AssignSamplerTrack(field0: final field0):
-        sse_encode_i_32(59, serializer);
+        sse_encode_i_32(60, serializer);
         sse_encode_box_autoadd_assign_sampler_track(field0, serializer);
       case Event_ClearSampler(field0: final field0):
-        sse_encode_i_32(60, serializer);
+        sse_encode_i_32(61, serializer);
         sse_encode_box_autoadd_clear_sampler(field0, serializer);
       case Event_JogTouch(field0: final field0):
-        sse_encode_i_32(61, serializer);
+        sse_encode_i_32(62, serializer);
         sse_encode_box_autoadd_jog_touch(field0, serializer);
       case Event_JogTurn(field0: final field0):
-        sse_encode_i_32(62, serializer);
+        sse_encode_i_32(63, serializer);
         sse_encode_box_autoadd_jog_turn(field0, serializer);
       case Event_SetJogMode(field0: final field0):
-        sse_encode_i_32(63, serializer);
+        sse_encode_i_32(64, serializer);
         sse_encode_box_autoadd_set_jog_mode(field0, serializer);
       case Event_SetCrossfader(field0: final field0):
-        sse_encode_i_32(64, serializer);
+        sse_encode_i_32(65, serializer);
         sse_encode_box_autoadd_set_crossfader(field0, serializer);
       case Event_SetMasterVolume(field0: final field0):
-        sse_encode_i_32(65, serializer);
+        sse_encode_i_32(66, serializer);
         sse_encode_box_autoadd_set_master_volume(field0, serializer);
       case Event_SetCueVolume(field0: final field0):
-        sse_encode_i_32(66, serializer);
+        sse_encode_i_32(67, serializer);
         sse_encode_box_autoadd_set_cue_volume(field0, serializer);
       case Event_SetCueMix(field0: final field0):
-        sse_encode_i_32(67, serializer);
+        sse_encode_i_32(68, serializer);
         sse_encode_box_autoadd_set_cue_mix(field0, serializer);
       case Event_SetMasterCue(field0: final field0):
-        sse_encode_i_32(68, serializer);
+        sse_encode_i_32(69, serializer);
         sse_encode_box_autoadd_set_master_cue(field0, serializer);
       case Event_ToggleMasterCue(field0: final field0):
-        sse_encode_i_32(69, serializer);
-        sse_encode_box_autoadd_toggle_master_cue(field0, serializer);
-      case Event_SetFxUnitSlot(field0: final field0):
         sse_encode_i_32(70, serializer);
+        sse_encode_box_autoadd_toggle_master_cue(field0, serializer);
+      case Event_SetCurveLibrary(field0: final field0):
+        sse_encode_i_32(71, serializer);
+        sse_encode_box_autoadd_set_curve_library(field0, serializer);
+      case Event_SetCrossfaderCurve(field0: final field0):
+        sse_encode_i_32(72, serializer);
+        sse_encode_box_autoadd_set_crossfader_curve(field0, serializer);
+      case Event_SetCrossfaderCurveAmount(field0: final field0):
+        sse_encode_i_32(73, serializer);
+        sse_encode_box_autoadd_set_crossfader_curve_amount(field0, serializer);
+      case Event_SetCrossfaderBehavior(field0: final field0):
+        sse_encode_i_32(74, serializer);
+        sse_encode_box_autoadd_set_crossfader_behavior(field0, serializer);
+      case Event_SetChannelFaderCurve(field0: final field0):
+        sse_encode_i_32(75, serializer);
+        sse_encode_box_autoadd_set_channel_fader_curve(field0, serializer);
+      case Event_SetFxUnitSlot(field0: final field0):
+        sse_encode_i_32(76, serializer);
         sse_encode_box_autoadd_set_fx_unit_slot(field0, serializer);
       case Event_SetFxUnitSlotEnabled(field0: final field0):
-        sse_encode_i_32(71, serializer);
+        sse_encode_i_32(77, serializer);
         sse_encode_box_autoadd_set_fx_unit_slot_enabled(field0, serializer);
       case Event_SetFxUnitWet(field0: final field0):
-        sse_encode_i_32(72, serializer);
+        sse_encode_i_32(78, serializer);
         sse_encode_box_autoadd_set_fx_unit_wet(field0, serializer);
+      case Event_SetFxLevelCurve(field0: final field0):
+        sse_encode_i_32(79, serializer);
+        sse_encode_box_autoadd_set_fx_level_curve(field0, serializer);
       case Event_SetFxUnitParam(field0: final field0):
-        sse_encode_i_32(73, serializer);
+        sse_encode_i_32(80, serializer);
         sse_encode_box_autoadd_set_fx_unit_param(field0, serializer);
       case Event_SetDeckFxRouted(field0: final field0):
-        sse_encode_i_32(74, serializer);
+        sse_encode_i_32(81, serializer);
         sse_encode_box_autoadd_set_deck_fx_routed(field0, serializer);
       case Event_DeckUpdated(field0: final field0):
-        sse_encode_i_32(75, serializer);
+        sse_encode_i_32(82, serializer);
         sse_encode_box_autoadd_deck_updated(field0, serializer);
       case Event_DeckPosition(field0: final field0):
-        sse_encode_i_32(76, serializer);
+        sse_encode_i_32(83, serializer);
         sse_encode_box_autoadd_deck_position(field0, serializer);
       case Event_DeckLevels(field0: final field0):
-        sse_encode_i_32(77, serializer);
+        sse_encode_i_32(84, serializer);
         sse_encode_box_autoadd_deck_levels(field0, serializer);
       case Event_EngineSnapshot(field0: final field0):
-        sse_encode_i_32(78, serializer);
+        sse_encode_i_32(85, serializer);
         sse_encode_box_autoadd_engine_snapshot(field0, serializer);
       case Event_Error(field0: final field0):
-        sse_encode_i_32(79, serializer);
+        sse_encode_i_32(86, serializer);
         sse_encode_box_autoadd_error(field0, serializer);
       case Event_Notice(field0: final field0):
-        sse_encode_i_32(80, serializer);
+        sse_encode_i_32(87, serializer);
         sse_encode_box_autoadd_notice(field0, serializer);
       case Event_AnalyzeTrack(field0: final field0):
-        sse_encode_i_32(81, serializer);
+        sse_encode_i_32(88, serializer);
         sse_encode_box_autoadd_analyze_track(field0, serializer);
       case Event_GenerateStems(field0: final field0):
-        sse_encode_i_32(82, serializer);
+        sse_encode_i_32(89, serializer);
         sse_encode_box_autoadd_generate_stems(field0, serializer);
       case Event_RefreshTrack(field0: final field0):
-        sse_encode_i_32(83, serializer);
+        sse_encode_i_32(90, serializer);
         sse_encode_box_autoadd_refresh_track(field0, serializer);
       case Event_SaveBeatGrid(field0: final field0):
-        sse_encode_i_32(84, serializer);
+        sse_encode_i_32(91, serializer);
         sse_encode_box_autoadd_save_beat_grid(field0, serializer);
       case Event_SaveTrackHotCue(field0: final field0):
-        sse_encode_i_32(85, serializer);
+        sse_encode_i_32(92, serializer);
         sse_encode_box_autoadd_save_track_hot_cue(field0, serializer);
       case Event_DeleteTrackHotCue(field0: final field0):
-        sse_encode_i_32(86, serializer);
+        sse_encode_i_32(93, serializer);
         sse_encode_box_autoadd_delete_track_hot_cue(field0, serializer);
       case Event_SaveTrackLoop(field0: final field0):
-        sse_encode_i_32(87, serializer);
+        sse_encode_i_32(94, serializer);
         sse_encode_box_autoadd_save_track_loop(field0, serializer);
       case Event_DeleteTrackLoop(field0: final field0):
-        sse_encode_i_32(88, serializer);
+        sse_encode_i_32(95, serializer);
         sse_encode_box_autoadd_delete_track_loop(field0, serializer);
       case Event_TrackAnalyzed(field0: final field0):
-        sse_encode_i_32(89, serializer);
+        sse_encode_i_32(96, serializer);
         sse_encode_box_autoadd_track_analyzed(field0, serializer);
       case Event_TrackUpdated(field0: final field0):
-        sse_encode_i_32(90, serializer);
+        sse_encode_i_32(97, serializer);
         sse_encode_box_autoadd_track_updated(field0, serializer);
       case Event_TrackProgress(field0: final field0):
-        sse_encode_i_32(91, serializer);
+        sse_encode_i_32(98, serializer);
         sse_encode_box_autoadd_track_progress(field0, serializer);
       case Event_HotCuesChanged(field0: final field0):
-        sse_encode_i_32(92, serializer);
+        sse_encode_i_32(99, serializer);
         sse_encode_box_autoadd_hot_cues_changed(field0, serializer);
       case Event_LoopsChanged(field0: final field0):
-        sse_encode_i_32(93, serializer);
+        sse_encode_i_32(100, serializer);
         sse_encode_box_autoadd_loops_changed(field0, serializer);
       case Event_BeatGridChanged(field0: final field0):
-        sse_encode_i_32(94, serializer);
+        sse_encode_i_32(101, serializer);
         sse_encode_box_autoadd_beat_grid_changed(field0, serializer);
       case Event_HistorySessionUpdated(field0: final field0):
-        sse_encode_i_32(95, serializer);
+        sse_encode_i_32(102, serializer);
         sse_encode_box_autoadd_history_session_updated(field0, serializer);
       case Event_Navigate(field0: final field0):
-        sse_encode_i_32(96, serializer);
+        sse_encode_i_32(103, serializer);
         sse_encode_box_autoadd_navigate(field0, serializer);
       case Event_Focus(field0: final field0):
-        sse_encode_i_32(97, serializer);
+        sse_encode_i_32(104, serializer);
         sse_encode_box_autoadd_focus(field0, serializer);
       case Event_Load(field0: final field0):
-        sse_encode_i_32(98, serializer);
+        sse_encode_i_32(105, serializer);
         sse_encode_box_autoadd_load(field0, serializer);
       case Event_MappingOffer(field0: final field0):
-        sse_encode_i_32(99, serializer);
+        sse_encode_i_32(106, serializer);
         sse_encode_box_autoadd_mapping_offer(field0, serializer);
       case Event_MappingAttached(field0: final field0):
-        sse_encode_i_32(100, serializer);
+        sse_encode_i_32(107, serializer);
         sse_encode_box_autoadd_mapping_attached(field0, serializer);
       case Event_MappingDetached(field0: final field0):
-        sse_encode_i_32(101, serializer);
+        sse_encode_i_32(108, serializer);
         sse_encode_box_autoadd_mapping_detached(field0, serializer);
     }
   }
@@ -18263,6 +19595,90 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_controller_mapping_info(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_crossfader_preset_option(
+    List<CrossfaderPresetOption> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_crossfader_preset_option(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_curve_group_spec(
+    List<CurveGroupSpec> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_curve_group_spec(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_curve_point_spec(
+    List<CurvePointSpec> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_curve_point_spec(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_curve_ref_spec(
+    List<CurveRefSpec> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_curve_ref_spec(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_curve_segment_spec(
+    List<CurveSegmentSpec> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_curve_segment_spec(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_curve_set_spec(
+    List<CurveSetSpec> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_curve_set_spec(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_curve_spec_spec(
+    List<CurveSpecSpec> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_curve_spec_spec(item, serializer);
     }
   }
 
@@ -19204,6 +20620,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_set_channel_fader_curve(
+    SetChannelFaderCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+  }
+
+  @protected
   void sse_encode_set_crossfader(SetCrossfader self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_32(self.position, serializer);
@@ -19218,6 +20643,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self.deck, serializer);
     sse_encode_crossfader_assign(self.assignment, serializer);
+  }
+
+  @protected
+  void sse_encode_set_crossfader_behavior(
+    SetCrossfaderBehavior self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.hamster, serializer);
+    sse_encode_bool(self.disabled, serializer);
+  }
+
+  @protected
+  void sse_encode_set_crossfader_curve(
+    SetCrossfaderCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+  }
+
+  @protected
+  void sse_encode_set_crossfader_curve_amount(
+    SetCrossfaderCurveAmount self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.set_, serializer);
+    sse_encode_f_32(self.amount, serializer);
+    sse_encode_bool(self.softTakeover, serializer);
   }
 
   @protected
@@ -19238,6 +20693,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_f_32(self.volume, serializer);
     sse_encode_bool(self.softTakeover, serializer);
+  }
+
+  @protected
+  void sse_encode_set_curve_library(
+    SetCurveLibrary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_curve_library_spec(self.library_, serializer);
   }
 
   @protected
@@ -19274,6 +20738,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_16(self.deck, serializer);
     sse_encode_f_32(self.filter, serializer);
     sse_encode_bool(self.softTakeover, serializer);
+  }
+
+  @protected
+  void sse_encode_set_fx_level_curve(
+    SetFxLevelCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
   }
 
   @protected
@@ -19459,6 +20932,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self.deck, serializer);
     sse_encode_bool(self.enabled, serializer);
+  }
+
+  @protected
+  void sse_encode_set_tempo_curve(
+    SetTempoCurve self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.deck, serializer);
+    sse_encode_String(self.id, serializer);
   }
 
   @protected
@@ -19651,6 +21134,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_virtual_dj_curve_export(
+    VirtualDjCurveExport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.crossfaderCurve, serializer);
+    sse_encode_String(self.crossfaderCustom, serializer);
+  }
+
+  @protected
+  void sse_encode_virtual_dj_curve_import(
+    VirtualDjCurveImport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_curve_group_spec(self.group, serializer);
+    sse_encode_String(self.suggestedName, serializer);
+    sse_encode_String(self.crossfaderCurve, serializer);
+    sse_encode_bool(self.hamster, serializer);
+    sse_encode_bool(self.disabled, serializer);
   }
 
   @protected
@@ -20100,6 +21606,33 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
     assignment: assignment,
   );
 
+  /// Set the hamster (A/B swap) and curve-bypass flags together.
+  Future<void> setCrossfaderBehavior({
+    required bool hamster,
+    required bool disabled,
+  }) => RustLib.instance.api.crateApiEngineEngineTransportSetCrossfaderBehavior(
+    that: this,
+    hamster: hamster,
+    disabled: disabled,
+  );
+
+  /// Select a crossfader preset, custom group, or curve set by canonical id.
+  Future<void> setCrossfaderCurve({required String id}) => RustLib.instance.api
+      .crateApiEngineEngineTransportSetCrossfaderCurve(that: this, id: id);
+
+  /// Sweep the curve set `set` to morph `amount` (`0..1`).
+  Future<void> setCrossfaderCurveAmount({
+    required String set_,
+    required double amount,
+    required bool softTakeover,
+  }) => RustLib.instance.api
+      .crateApiEngineEngineTransportSetCrossfaderCurveAmount(
+        that: this,
+        set_: set_,
+        amount: amount,
+        softTakeover: softTakeover,
+      );
+
   /// Cue/master headphone mix `0..1`.
   Future<void> setCueMix({required double mix}) => RustLib.instance.api
       .crateApiEngineEngineTransportSetCueMix(that: this, mix: mix);
@@ -20110,6 +21643,13 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
   /// Cue/headphone bus volume `0..1`.
   Future<void> setCueVolume({required double volume}) => RustLib.instance.api
       .crateApiEngineEngineTransportSetCueVolume(that: this, volume: volume);
+
+  /// Replace the custom curve library (duplicate ids reject the update).
+  Future<void> setCurveLibrary({required CurveLibrarySpec library_}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportSetCurveLibrary(
+        that: this,
+        library_: library_,
+      );
 
   /// Route deck `deck_id` through the shared FX unit.
   Future<void> setDeckFxRouted({required int deckId, required bool routed}) =>

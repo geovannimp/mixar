@@ -5,11 +5,25 @@ import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
+import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 /// Built-in offline separation models (must match analyzer-stems).
 const kStemModels = ['htdemucs_mixxx_v1', 'scnet_int8_v1'];
 const kDefaultStemModel = 'htdemucs_mixxx_v1';
+
+/// Canonical crossfader preset ids shipped today, in catalog order.
+///
+/// Mirrors `engine_core::curve_presets::available_presets()`; the Rust side
+/// pins that list to `bus_api::CROSSFADER_CURVE_CYCLE`, and
+/// `settings_defaults_test` pins this one to the same order. Reserved catalog
+/// names (`full`, `slow_cut`, …) are intentionally absent: they cannot be
+/// selected yet.
+const kCrossfaderCurvePresets = <String>[
+  'constant_power',
+  'linear',
+  'fast_cut',
+];
 
 WaveformDisplayMode waveformModeFromSettings(WaveformDisplayModeSetting mode) {
   return switch (mode) {
@@ -145,6 +159,14 @@ AppSettings defaultAppSettings() {
     defaultOuterJogMode: JogModeSetting.pitchBend,
     defaultTempoRange: kDefaultTempoRange,
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
+    defaultTempoCurve: 'linear',
+    defaultFxLevelCurve: 'linear',
+    defaultCrossfaderCurve: 'constant_power',
+    crossfaderBehavior: const CrossfaderBehaviorSetting(
+      disabled: false,
+      hamster: false,
+    ),
+    curveLibrary: const CurveLibrarySpec(groups: [], sets: []),
     defaultKeyLock: false,
     vinylBrakePause: false,
     vinylBrakeStopSecs: kDefaultVinylBrakeStopSecs,
@@ -269,6 +291,11 @@ AppSettings copyAppSettings(
   JogModeSetting? defaultOuterJogMode,
   double? defaultTempoRange,
   Float32List? tempoRangeSteps,
+  String? defaultTempoCurve,
+  String? defaultFxLevelCurve,
+  String? defaultCrossfaderCurve,
+  CrossfaderBehaviorSetting? crossfaderBehavior,
+  CurveLibrarySpec? curveLibrary,
   bool? defaultKeyLock,
   bool? vinylBrakePause,
   double? vinylBrakeStopSecs,
@@ -325,6 +352,12 @@ AppSettings copyAppSettings(
     defaultOuterJogMode: defaultOuterJogMode ?? base.defaultOuterJogMode,
     defaultTempoRange: defaultTempoRange ?? base.defaultTempoRange,
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
+    defaultTempoCurve: defaultTempoCurve ?? base.defaultTempoCurve,
+    defaultFxLevelCurve: defaultFxLevelCurve ?? base.defaultFxLevelCurve,
+    defaultCrossfaderCurve:
+        defaultCrossfaderCurve ?? base.defaultCrossfaderCurve,
+    crossfaderBehavior: crossfaderBehavior ?? base.crossfaderBehavior,
+    curveLibrary: curveLibrary ?? base.curveLibrary,
     defaultKeyLock: defaultKeyLock ?? base.defaultKeyLock,
     vinylBrakePause: vinylBrakePause ?? base.vinylBrakePause,
     vinylBrakeStopSecs: vinylBrakeStopSecs ?? base.vinylBrakeStopSecs,
@@ -385,6 +418,11 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultTopJogMode != baseline.defaultTopJogMode ||
       draft.defaultOuterJogMode != baseline.defaultOuterJogMode ||
       draft.defaultTempoRange != baseline.defaultTempoRange ||
+      draft.defaultTempoCurve != baseline.defaultTempoCurve ||
+      draft.defaultFxLevelCurve != baseline.defaultFxLevelCurve ||
+      draft.defaultCrossfaderCurve != baseline.defaultCrossfaderCurve ||
+      draft.crossfaderBehavior != baseline.crossfaderBehavior ||
+      !_sameCurveLibrary(draft.curveLibrary, baseline.curveLibrary) ||
       draft.defaultKeyLock != baseline.defaultKeyLock ||
       draft.vinylBrakePause != baseline.vinylBrakePause ||
       !_sameDuration(draft.vinylBrakeStopSecs, baseline.vinylBrakeStopSecs) ||
@@ -438,17 +476,68 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
 /// on a tolerance far below the 0.05 step so a genuine change still reads dirty.
 bool _sameDuration(double a, double b) => (a - b).abs() <= 1e-6;
 
-bool _sameList<T>(List<T> a, List<T> b) {
+bool _sameList<T>(List<T> a, List<T> b, [bool Function(T, T)? equals]) {
   if (identical(a, b)) {
     return true;
   }
   if (a.length != b.length) {
     return false;
   }
+  final same = equals ?? (T left, T right) => left == right;
   for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) {
+    if (!same(a[i], b[i])) {
       return false;
     }
   }
   return true;
+}
+
+/// Deep equality for the curve library.
+///
+/// The generated wire classes compare their nested lists by identity, so a
+/// re-created but identical library would otherwise read as a settings change.
+bool _sameCurveLibrary(CurveLibrarySpec a, CurveLibrarySpec b) {
+  return identical(a, b) ||
+      (_sameList(a.groups, b.groups, _sameCurveGroup) &&
+          _sameList(a.sets, b.sets, _sameCurveSet));
+}
+
+bool _sameCurveGroup(CurveGroupSpec a, CurveGroupSpec b) {
+  return identical(a, b) ||
+      (a.id == b.id &&
+          a.displayName == b.displayName &&
+          _sameList(a.curves, b.curves, _sameCurveSpec));
+}
+
+bool _sameCurveSet(CurveSetSpec a, CurveSetSpec b) {
+  return identical(a, b) ||
+      (a.id == b.id &&
+          a.displayName == b.displayName &&
+          _sameList(
+            a.members,
+            b.members,
+            (CurveRefSpec left, CurveRefSpec right) =>
+                left.id == right.id && left.parameter == right.parameter,
+          ));
+}
+
+bool _sameCurveSpec(CurveSpecSpec a, CurveSpecSpec b) {
+  return identical(a, b) ||
+      (_sameList(
+            a.points,
+            b.points,
+            (CurvePointSpec left, CurvePointSpec right) =>
+                left.x == right.x && left.y == right.y,
+          ) &&
+          _sameList(
+            a.segments,
+            b.segments,
+            (CurveSegmentSpec left, CurveSegmentSpec right) =>
+                left.kind == right.kind &&
+                left.rate == right.rate &&
+                left.c1X == right.c1X &&
+                left.c1Y == right.c1Y &&
+                left.c2X == right.c2X &&
+                left.c2Y == right.c2Y,
+          ));
 }

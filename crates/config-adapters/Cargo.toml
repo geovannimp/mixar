@@ -1,0 +1,20 @@
+[package]
+name = "config-adapters"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Third-party application settings adapters for Mixar (VirtualDJ, …)"
+
+[features]
+default = ["virtualdj"]
+# VirtualDJ `settings.xml` options migration (crossfader curve and behavior).
+virtualdj = []
+
+[dependencies]
+audio-core = { path = "../audio-core" }
+curve-core = { path = "../curve-core" }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

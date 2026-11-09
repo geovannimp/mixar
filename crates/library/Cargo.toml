@@ -44,6 +44,7 @@ stems-webgpu = ["stems", "analyzer-stems/webgpu"]
 [dev-dependencies]
 tempfile = "3.0"
 lofty = "0.25.5"
+curve-core = { path = "../curve-core" }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp"] }
 
 [lints]

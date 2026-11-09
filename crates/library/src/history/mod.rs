@@ -4,9 +4,7 @@ pub mod store;
 pub mod xspf;
 
 pub use export::{export_document, render_document, HistoryExportFormat};
-pub use recorder::{
-    crossfader_gain, DeckPlaySnapshot, HistoryRecorder, HistoryRestorePrompt, HistorySettings,
-};
+pub use recorder::{DeckPlaySnapshot, HistoryRecorder, HistoryRestorePrompt, HistorySettings};
 pub use store::{history_dir_for_db, HistorySessionRow};
 pub use xspf::{HistoryDocument, HistoryEntry};
 
@@ -37,6 +35,11 @@ impl LibraryManager {
     pub fn history_on_crossfader(&mut self, crossfader: f32) -> Result<()> {
         self.history.on_crossfader(&self.db, crossfader)?;
         self.emit_history_session_updated_if_dirty()
+    }
+
+    /// Install the mixer's resolved crossfader tables in the history gate.
+    pub fn history_set_crossfader_curve(&mut self, curve: audio_core::ResolvedCrossfaderCurve) {
+        self.history.set_crossfader_curve(curve);
     }
 
     pub fn history_on_deck_updated(

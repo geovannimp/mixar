@@ -478,6 +478,16 @@ fn apply_master_feedback(eng: &Arc<Mutex<ControllerEngine>>, enabled: bool) {
     ctrl.set_master_cue(enabled);
 }
 
+fn apply_crossfader_curve(
+    eng: &Arc<Mutex<ControllerEngine>>,
+    curve: &bus_api::CrossfaderCurveStatus,
+) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_crossfader_curve(&curve.id, curve.hamster, curve.disabled);
+}
+
 fn apply_hot_cues(
     eng: &Arc<Mutex<ControllerEngine>>,
     deck: u16,
@@ -646,6 +656,7 @@ fn apply_engine_mirror(
                 }
             }
             apply_master_feedback(controller, status.master_cue);
+            apply_crossfader_curve(controller, &status.crossfader_curve);
             if let Some(deck) = status.decks.first() {
                 apply_fx_slots(controller, &deck.fx);
             }

@@ -94,6 +94,8 @@ void main() {
     expect(realtimeSwitch, findsOneWidget);
     expect(tester.widget<SettingsHeaderSwitch>(realtimeSwitch).value, isFalse);
 
+    await tester.ensureVisible(realtimeSwitch);
+    await tester.pumpAndSettle();
     await tester.tap(realtimeSwitch);
     await tester.pumpAndSettle();
     expect(changed.single.realtimeStems, isTrue);
@@ -174,6 +176,8 @@ void main() {
     );
     expect(find.byIcon(LucideIcons.badgeCheck), findsOneWidget);
 
+    await tester.ensureVisible(realtimeSwitch);
+    await tester.pumpAndSettle();
     await tester.tap(realtimeSwitch);
     await tester.pumpAndSettle();
     expect(changed.single.realtimeStems, isTrue);
@@ -232,5 +236,39 @@ void main() {
 
     expect(find.textContaining('model download failed'), findsOneWidget);
     expect(_realtimeSwitch(), findsNothing);
+  }, semanticsEnabled: false);
+
+  testWidgets('crossfader card selects a preset and toggles the flags', (
+    tester,
+  ) async {
+    final changed = <AppSettings>[];
+    await _pumpPanel(tester, changed: changed);
+
+    expect(find.text('Crossfader'), findsOneWidget);
+    expect(find.text('Constant power'), findsOneWidget);
+    expect(find.text('Linear'), findsOneWidget);
+    expect(find.text('Fast cut'), findsOneWidget);
+
+    final linear = find.text('Linear');
+    await tester.ensureVisible(linear);
+    await tester.pumpAndSettle();
+    await tester.tap(linear);
+    await tester.pumpAndSettle();
+    expect(changed.last.defaultCrossfaderCurve, 'linear');
+
+    final invert = find.text('Invert (swap A and B)');
+    await tester.ensureVisible(invert);
+    await tester.pumpAndSettle();
+    await tester.tap(invert);
+    await tester.pumpAndSettle();
+    expect(changed.last.crossfaderBehavior.hamster, isTrue);
+    expect(changed.last.crossfaderBehavior.disabled, isFalse);
+
+    final disable = find.text('Disable the crossfader');
+    await tester.ensureVisible(disable);
+    await tester.pumpAndSettle();
+    await tester.tap(disable);
+    await tester.pumpAndSettle();
+    expect(changed.last.crossfaderBehavior.disabled, isTrue);
   }, semanticsEnabled: false);
 }

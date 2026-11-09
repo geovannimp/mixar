@@ -7,6 +7,8 @@ members = [
     "backend-cpal",
     "engine-core",
     "engine-dsp",
+    "curve-core",
+    "config-adapters",
     "codec",
     "resampler",
     "stretch",

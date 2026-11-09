@@ -1,0 +1,13 @@
+[package]
+name = "curve-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Target-agnostic curve engine for normalized control mapping"
+
+[dependencies]
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

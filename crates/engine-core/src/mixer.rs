@@ -1,10 +1,11 @@
 use anyhow::Result;
+use audio_core::{CrossfaderAssign, CrossfaderCurveBehavior, ResolvedCrossfaderCurve};
+use curve_core::CurveGroup;
 use engine_dsp::DeckEqGains;
 
+use crate::curve_presets::CrossfaderPreset;
 use crate::engine::DeckStripNorms;
 use crate::engine::Engine;
-
-use audio_core::CrossfaderAssign;
 impl Engine {
     /// Snapshot pre-fader stereo peaks for all decks (read from their mixer channels).
     pub fn deck_level_snapshot(&self) -> Vec<(usize, f32, f32)> {
@@ -170,14 +171,24 @@ impl Engine {
 
     /// FX unit slot wet/dry readback. The unit is shared across decks, so deck 0
     /// is canonical (see [`Self::for_each_fx_slot`]).
+    ///
+    /// This is the post-curve mix the DSP applies, not the control position.
     pub fn fx_unit_wet(&self, slot: u8) -> Option<f32> {
+        self.fx_unit_value(slot, |s| s.wet())
+    }
+
+    /// FX unit slot control position (`0..1`) before the level curve.
+    ///
+    /// Soft takeover compares in this domain so a curve cannot make the knob
+    /// and the engine disagree about where the control is.
+    pub fn fx_unit_level(&self, slot: u8) -> Option<f32> {
+        self.fx_unit_value(slot, |s| s.level())
+    }
+
+    fn fx_unit_value(&self, slot: u8, f: impl FnOnce(&engine_dsp::FxSlot) -> f32) -> Option<f32> {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
-        dsp.mixer()
-            .channel(0)?
-            .fx()
-            .slot(slot as usize)
-            .map(|s| s.wet())
+        dsp.mixer().channel(0)?.fx().slot(slot as usize).map(f)
     }
 
     /// FX unit slot knob, applied to every deck's chain.
@@ -260,6 +271,103 @@ impl Engine {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
         Some(dsp.mixer().crossfader())
+    }
+
+    /// Resolved A/B gains for the installed curve at the current crossfader position.
+    pub fn resolved_crossfader_gains(&self) -> Option<(f32, f32)> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().resolved_crossfader_gains())
+    }
+
+    /// Install an already-compiled crossfader curve without restarting audio.
+    ///
+    /// Resolve and compile before calling; this only swaps the prepared tables.
+    pub fn set_crossfader_curve(&mut self, curve: ResolvedCrossfaderCurve) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
+        dsp.mixer_mut().set_crossfader_curve(curve);
+        Ok(())
+    }
+
+    /// Resolve a preset, compile it, and install it while keeping the behavior flags.
+    pub fn set_crossfader_preset(&mut self, preset: CrossfaderPreset) -> Result<()> {
+        // Build and compile on the control thread, before taking the DSP mutex.
+        let curve = ResolvedCrossfaderCurve::from_group(preset.curve_group()?)?;
+        self.install_curves_keeping_behavior(curve)?;
+        let display_name = crate::curve_presets::preset_info(preset.id())
+            .map(|info| info.display_name)
+            .unwrap_or(preset.id());
+        self.crossfader_selection = crate::curve_library::CrossfaderCurveSelection {
+            id: preset.id().to_string(),
+            display_name: display_name.to_string(),
+        };
+        Ok(())
+    }
+
+    /// Compile every member of a curve set and install it, keeping behavior flags.
+    ///
+    /// The morph position starts at the first member; use
+    /// [`Self::set_crossfader_curve_morph`] to sweep it. This low-level form has
+    /// no id, so [`Self::crossfader_curve_selection`] keeps the previous name;
+    /// use [`Self::select_crossfader_curve`] for a named set.
+    pub fn set_crossfader_curve_set(&mut self, groups: Vec<CurveGroup>) -> Result<()> {
+        let curve = ResolvedCrossfaderCurve::from_groups(&groups)?;
+        self.install_curves_keeping_behavior(curve)
+    }
+
+    /// Install a prepared curve while preserving the current behavior flags.
+    pub(crate) fn install_curves_keeping_behavior(
+        &mut self,
+        mut curve: ResolvedCrossfaderCurve,
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
+        curve.set_behavior(dsp.mixer().crossfader_curve_behavior());
+        dsp.mixer_mut().set_crossfader_curve(curve);
+        Ok(())
+    }
+
+    /// Crossfader behavior flags (`disabled` / `hamster`).
+    pub fn crossfader_behavior(&self) -> Option<CrossfaderCurveBehavior> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().crossfader_curve_behavior())
+    }
+
+    /// Replace crossfader behavior flags without rebuilding the gain tables.
+    pub fn set_crossfader_behavior(&mut self, behavior: CrossfaderCurveBehavior) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
+        dsp.mixer_mut().set_crossfader_curve_behavior(behavior);
+        Ok(())
+    }
+
+    /// Curve-set morph position in `0..=1`.
+    pub fn crossfader_curve_morph(&self) -> Option<f32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().crossfader_curve_morph())
+    }
+
+    /// Set the curve-set morph position, clamped to `0..=1`.
+    pub fn set_crossfader_curve_morph(&mut self, morph: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().expect("DSP engine mutex poisoned");
+        dsp.mixer_mut().set_crossfader_curve_morph(morph);
+        Ok(())
     }
 
     /// Set master bus volume (0.0 … 1.0).

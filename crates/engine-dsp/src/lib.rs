@@ -30,11 +30,16 @@ pub use deck::{
 };
 pub use eq::{clamp_gain_db, DeckEqGains, ThreeBandEq, EQ_MAX_DB, EQ_MIN_DB};
 pub use filter::{db_to_linear, DjFilter};
-pub use fx::{FxChain, FxKind, FxSlot, FX_PARAM_COUNT, FX_SLOT_COUNT};
+pub use fx::{
+    linear_fx_level_curve, FxChain, FxKind, FxLevelCurve, FxSlot, FX_LEVEL_CHANNELS,
+    FX_PARAM_COUNT, FX_SLOT_COUNT,
+};
 pub use headphone_monitor::HeadphoneMonitor;
 pub use level_meter::{measure_stereo_peaks, LevelPeaks};
 pub use mixer::Mixer;
-pub use mixer_channel::{MixerChannel, AUTO_GAIN_CLAMP_DB};
+pub use mixer_channel::{
+    linear_fader_curve, MixerChannel, AUTO_GAIN_CLAMP_DB, CHANNEL_FADER_CHANNELS,
+};
 pub use mixer_lane::MixerLane;
 pub use platter_motion::{MotionMode, PlatterMotion};
 pub use sampler::{
@@ -42,6 +47,7 @@ pub use sampler::{
 };
 /// Shared session key-shift bound (also used by the engine control layer).
 pub use stretch::KEY_SHIFT_SEMITONE_LIMIT;
+pub use tempo::{linear_tempo_curve, TempoCurve, DEFAULT_TEMPO_RANGE, TEMPO_CURVE_CHANNELS};
 pub use transport::DeckTransportEvent;
 
 /// DSP engine that manages all audio processing components
