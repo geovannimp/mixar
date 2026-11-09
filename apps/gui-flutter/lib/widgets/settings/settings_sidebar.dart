@@ -16,6 +16,9 @@ class SettingsSidebar extends StatelessWidget {
     final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
     return DecoratedBox(
+      // Foreground: otherwise a selected / hovered nav item's fill covers the
+      // divider along the sidebar's right edge.
+      position: DecorationPosition.foreground,
       decoration: BoxDecoration(
         border: Border(right: BorderSide(color: theme.colors.border)),
       ),
