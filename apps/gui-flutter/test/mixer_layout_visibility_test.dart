@@ -3,13 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/core/utils/ui_layout.dart';
+import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'package:gui_flutter/widgets/mixer/deck_grid.dart';
 import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
 import 'package:gui_flutter/widgets/mixer/fx_bar.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
@@ -24,6 +24,10 @@ import 'helpers/collection_tracks_override.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
+  // The deck row is the mixer's content slot; its key replaces `DeckGrid` as
+  // the handle on the row's rectangle.
+  final contentRow = find.byKey(const ValueKey('mixer-content-row'));
+
   const collection = LibraryCollectionSummary(
     id: 'c1',
     name: 'samples',
@@ -32,9 +36,13 @@ void main() {
     trackCount: 0,
   );
 
-  Future<void> pumpMixer(WidgetTester tester, AppSettings settings) async {
+  Future<void> pumpMixer(
+    WidgetTester tester,
+    AppSettings settings, {
+    Size size = const Size(1200, 800),
+  }) async {
     final theme = MixarThemeData.dark();
-    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -67,10 +75,12 @@ void main() {
     await pumpMixer(tester, defaultAppSettings());
     expect(find.byType(MultiPane), findsWidgets);
     expect(find.byType(WaveformSection), findsOneWidget);
-    expect(find.byType(DeckGrid), findsOneWidget);
+    expect(contentRow, findsOneWidget);
     expect(find.byType(MixerStrip), findsOneWidget);
     expect(find.byType(LibraryPanel), findsOneWidget);
     expect(find.byType(FxBar), findsOneWidget);
+    // Two decks at 1200x800 dock the library: the remainder clears its floor.
+    expect(tester.getSize(find.byType(LibraryPanel)).height, greaterThan(100));
   });
 
   testWidgets('hiding the waveform drops the vertical split', (tester) async {
@@ -79,11 +89,21 @@ void main() {
       copyAppSettings(defaultAppSettings(), showWaveform: false),
     );
     expect(find.byType(WaveformSection), findsNothing);
-    expect(find.byType(DeckGrid), findsOneWidget);
+    expect(contentRow, findsOneWidget);
     expect(find.byType(LibraryPanel), findsOneWidget);
     // The deck pane now starts at the top of the page, where the waveform pane
     // used to sit.
-    expect(tester.getTopLeft(find.byType(DeckGrid)).dy, lessThan(1));
+    expect(tester.getTopLeft(contentRow).dy, lessThan(1));
+  });
+
+  testWidgets('a short window sends the library to the drawer', (tester) async {
+    await pumpMixer(tester, defaultAppSettings(), size: const Size(1200, 600));
+    expect(find.byType(LibraryPanel), findsNothing);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MixerPage)),
+    );
+    expect(container.read(mixerLibraryForcedDrawerProvider), isTrue);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('hiding the FX bar keeps decks and library', (tester) async {
@@ -92,7 +112,7 @@ void main() {
       copyAppSettings(defaultAppSettings(), showFxBar: false),
     );
     expect(find.byType(FxBar), findsNothing);
-    expect(find.byType(DeckGrid), findsOneWidget);
+    expect(contentRow, findsOneWidget);
     expect(find.byType(LibraryPanel), findsOneWidget);
   });
 
@@ -103,7 +123,7 @@ void main() {
       tester,
       copyAppSettings(defaultAppSettings(), showMixer: false),
     );
-    expect(find.byType(DeckGrid), findsOneWidget);
+    expect(contentRow, findsOneWidget);
     expect(find.byType(MixerStrip), findsNothing);
     expect(find.byType(LibraryPanel), findsOneWidget);
     // The two decks still share the row: deck B keeps its place beside A.
@@ -117,7 +137,7 @@ void main() {
       tester,
       copyAppSettings(defaultAppSettings(), libraryDrawerEnabled: true),
     );
-    expect(find.byType(DeckGrid), findsOneWidget);
+    expect(contentRow, findsOneWidget);
     // The drawer is a route: the docked panel is gone until it is opened.
     expect(find.byType(LibraryPanel), findsNothing);
     expect(find.byType(MixerStrip), findsOneWidget);
@@ -177,7 +197,7 @@ void main() {
       applyLayoutPreset(defaultAppSettings(), LayoutPreset.mobile),
     );
     final lane = find.descendant(
-      of: find.byType(DeckGrid),
+      of: contentRow,
       matching: find.byType(WaveformSection),
     );
     expect(lane, findsOneWidget);

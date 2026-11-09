@@ -22,16 +22,17 @@ import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
-import 'package:gui_flutter/widgets/mixer/deck_grid.dart';
 import 'package:gui_flutter/widgets/mixer/deck_panel.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/mixer/fx_bar.dart';
+import 'package:gui_flutter/widgets/mixer/layout/mixer_slot.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
 import 'package:gui_flutter/widgets/mixer/master_strip.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
 import 'package:gui_flutter/widgets/mixer/pads/loop_roll_pads.dart';
+import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
@@ -119,6 +120,10 @@ List<Override> _settingsOverrides([AppSettings? settings]) => [
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // The deck row is the mixer's content slot; its key replaces `DeckGrid` as
+  // the handle on the row's rectangle.
+  final mixerContentRow = find.byKey(const ValueKey('mixer-content-row'));
 
   test('overlapping deck loads stay in flight until the last one finishes', () {
     final container = ProviderContainer();
@@ -209,7 +214,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('four decks keep the docked library reachable at minimum size', (
+  testWidgets('four decks send the library to the drawer at 1024x768', (
     tester,
   ) async {
     await pumpShell(
@@ -218,20 +223,26 @@ void main() {
       settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
     );
     expect(tester.takeException(), isNull);
-    expect(
-      tester.getSize(find.byType(LibraryPanel)).height,
-      greaterThanOrEqualTo(120),
+    // The library cannot dock at this size, so it leaves the body entirely.
+    expect(find.byType(LibraryPanel), findsNothing);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AppShell)),
     );
-    await tester.ensureVisible(find.byType(LibraryPanel));
-    await tester.pumpAndSettle();
+    expect(container.read(mixerLibraryForcedDrawerProvider), isTrue);
+    // The decks take its room: only the band and the FX bar keep theirs.
+    final content = tester.getRect(mixerContentRow);
+    expect(tester.getRect(find.byType(WaveformSection)).bottom, content.top);
+    expect(tester.getRect(find.byType(FxBar)).top, content.bottom);
+    expect(content.height, greaterThan(500));
     expect(
-      tester.getBottomLeft(find.byType(LibraryPanel)).dy,
-      lessThanOrEqualTo(768),
+      Scrollable.maybeOf(tester.element(mixerContentRow)),
+      isNull,
+      reason: 'the body must not scroll',
     );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the deck cover scrolls the docked library into view', (
+  testWidgets('the deck cover opens the drawer a short window forces', (
     tester,
   ) async {
     await pumpShell(
@@ -239,19 +250,19 @@ void main() {
       size: const Size(1024, 600),
       settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
     );
-    // A short window leaves the docked library below the fold.
-    expect(
-      tester.getBottomLeft(find.byType(LibraryPanel)).dy,
-      greaterThan(600),
+    expect(find.byType(LibraryPanel), findsNothing);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AppShell)),
     );
+    expect(container.read(mixerLibraryForcedDrawerProvider), isTrue);
 
     await tester.tap(find.byType(DeckCover).first);
     await tester.pumpAndSettle();
 
     expect(
-      tester.getBottomLeft(find.byType(LibraryPanel)).dy,
-      lessThanOrEqualTo(600),
-      reason: 'opening the library from the cover must bring it on screen',
+      find.byType(LibraryPanel),
+      findsOneWidget,
+      reason: 'the cover must reach a library that has no docked pane',
     );
     expect(tester.takeException(), isNull);
   });
@@ -259,16 +270,17 @@ void main() {
   testWidgets('pad scrolling stays isolated from library drag scrolling', (
     tester,
   ) async {
-    await pumpShell(
-      tester,
-      size: const Size(1024, 768),
-      settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
-    );
+    await pumpShell(tester, size: const Size(1024, 768));
     expect(
-      ScrollConfiguration.of(tester.element(find.byType(PadGrid).first))
+      ScrollConfiguration.of(tester.element(find.byType(PadButton).first))
           .dragDevices,
       isEmpty,
       reason: 'a press-drag on a pad must never become a scroll',
+    );
+    expect(
+      Scrollable.maybeOf(tester.element(mixerContentRow)),
+      isNull,
+      reason: 'the body does not scroll, so a pad press has nothing to drag',
     );
     expect(
       ScrollConfiguration.of(tester.element(find.byType(LibraryPanel)))
@@ -720,9 +732,9 @@ void main() {
     expect(hiKnobs(), findsWidgets);
     expect(xfader(), findsOneWidget);
 
-    // DeckGrid hands the strip its gutter on both sides; the rule bleeds into
-    // it so it reaches the deck card borders.
-    const gutter = DeckGrid.rowSpacing + DeckGrid.inset;
+    // The mixer slot frame keeps the strip's gutter on both sides; the rule
+    // bleeds into it so it reaches the deck card borders.
+    const gutter = MixerPaneMetrics.mixerBleed;
     final stripWidth = tester.getSize(find.byType(MixerStrip)).width;
     final rule = find.byKey(const ValueKey('crossfader-rule'));
     expect(tester.getSize(rule).width, stripWidth + 2 * gutter);
@@ -909,7 +921,6 @@ void main() {
   ) async {
     await pumpShell(tester);
 
-    final hairline = MixarThemeData.light().style.borderWidth;
     final rail = find.descendant(
       of: _deck('DECK A'),
       matching: find.byType(DeckTempoPanel),
@@ -922,7 +933,7 @@ void main() {
     );
     expect(
       tester.getBottomLeft(rail).dy,
-      tester.getTopLeft(find.byType(LibraryPanel)).dy - hairline,
+      tester.getTopLeft(find.byType(LibraryPanel)).dy,
       reason: 'the rail meets the divider above the docked library',
     );
     expect(tester.takeException(), isNull);
@@ -948,7 +959,11 @@ void main() {
 
     final wave = find.byType(WaveformSection);
     final header = tester.getRect(find.byType(AppHeader));
-    final foot = tester.getRect(find.byKey(const ValueKey('waveform-foot')));
+    // The deck row's leading rule overlays the slot edge; the waveform pane
+    // still ends where the deck row starts.
+    final foot = tester.getRect(
+      find.byKey(const ValueKey('mixer-rule-content')),
+    );
 
     // The top hairline belongs to the header so Settings gets it too; the
     // waveform pane starts flush against it.
@@ -956,9 +971,9 @@ void main() {
     expect(headerHairline(), expected);
     expect(tester.getTopLeft(wave).dy, header.bottom);
 
-    expect(foot.width, tester.getSize(wave).width);
+    expect(foot.width, tester.getSize(mixerContentRow).width);
     expect(foot.height, hairline);
-    expect(foot.bottom, tester.getBottomLeft(wave).dy);
+    expect(foot.top, tester.getBottomLeft(wave).dy);
 
     // The reported gap: Settings had no line under the tab bar because the
     // hairline lived on the mixer's waveform pane.
@@ -990,7 +1005,7 @@ void main() {
           .widget<ColoredBox>(
             find
                 .ancestor(
-                  of: find.byType(DeckGrid),
+                  of: mixerContentRow,
                   matching: find.byType(ColoredBox),
                 )
                 .first,
@@ -1021,7 +1036,7 @@ void main() {
     expect(split.bottom, deckC.top);
     expect(
       split.left,
-      tester.getTopLeft(find.byType(DeckGrid)).dx,
+      tester.getTopLeft(mixerContentRow).dx,
       reason: 'the split runs to the window edge, not the deck card edge',
     );
     expect(
@@ -1040,7 +1055,7 @@ void main() {
     );
     expect(
       rightSplit.right,
-      tester.getBottomRight(find.byType(DeckGrid)).dx,
+      tester.getBottomRight(mixerContentRow).dx,
       reason: 'the right column runs the rule to the window edge',
     );
     expect(tester.takeException(), isNull);
@@ -1056,9 +1071,12 @@ void main() {
       settings: copyAppSettings(defaultAppSettings(), numDecks: 4),
     );
 
-    final splitTop = tester
-        .getTopLeft(find.byKey(const ValueKey('deck-split-0')))
-        .dy;
+    // The pair rounds the split against its own origin: the deck row itself
+    // starts at a fraction of the body, so only the offset inside the column
+    // can be snapped.
+    final splitTop =
+        tester.getTopLeft(find.byKey(const ValueKey('deck-split-0'))).dy -
+        tester.getTopLeft(_deck('DECK A')).dy;
     final devicePixels = splitTop * dpr;
 
     expect(
@@ -1099,7 +1117,7 @@ void main() {
     final hairline = MixarThemeData.light().style.borderWidth;
     expect(
       tester.getBottomLeft(find.byType(WaveformSection)).dy,
-      tester.getTopLeft(find.byType(DeckGrid)).dy,
+      tester.getTopLeft(mixerContentRow).dy,
       reason: 'the deck row starts where the waveform pane ends',
     );
     expect(find.byType(VerticalWaveformLane), findsNothing);
@@ -1127,8 +1145,8 @@ void main() {
     expect(wave, findsOneWidget);
     expect(
       tester.getTopLeft(wave).dy,
-      tester.getBottomLeft(find.byType(DeckGrid)).dy + hairline,
-      reason: 'the band follows the deck row',
+      tester.getBottomLeft(mixerContentRow).dy,
+      reason: 'the band follows the deck row; its rule overlays its first row',
     );
     expect(
       tester.getBottomLeft(wave).dy + hairline,
@@ -1157,7 +1175,7 @@ void main() {
     final wave = find.byType(WaveformSection);
     expect(wave, findsOneWidget);
     final lane = tester.getRect(wave);
-    final deckRow = tester.getRect(find.byType(DeckGrid));
+    final deckRow = tester.getRect(mixerContentRow);
     expect(lane.top, deckRow.top);
     // The mixer is gone, but its foot stays: the crossfader sits under the
     // lanes, spanning the same column.
@@ -1192,7 +1210,7 @@ void main() {
     final lanes = find.byType(VerticalWaveformLane);
     expect(lanes, findsNWidgets(2));
 
-    final deckRow = tester.getRect(find.byType(DeckGrid));
+    final deckRow = tester.getRect(mixerContentRow);
     final crossfader = tester.getRect(find.byType(CrossfaderPanel));
     for (final lane in [lanes.at(0), lanes.at(1)]) {
       final rect = tester.getRect(lane);
@@ -1262,7 +1280,7 @@ void main() {
     // it spans the deck card, not an inset inside it, and reaches the border.
     final deck = tester.getRect(_deck('DECK A'));
     final split = tester.getRect(find.byKey(const ValueKey('deck-split-0')));
-    expect(split.left, tester.getTopLeft(find.byType(DeckGrid)).dx);
+    expect(split.left, tester.getTopLeft(mixerContentRow).dx);
     expect(split.right, deck.right);
     expect(
       split.right,
@@ -1297,7 +1315,7 @@ void main() {
         ),
       );
 
-      final deckRow = tester.getRect(find.byType(DeckGrid));
+      final deckRow = tester.getRect(mixerContentRow);
       final crossfader = find.byWidgetPredicate(
         (w) => w is FaderSlider && w.orientation == FaderOrientation.horizontal,
       );
@@ -1350,7 +1368,7 @@ void main() {
         reason: '$position lost the mixer with the waveform hidden',
       );
       expect(
-        tester.getTopLeft(find.byType(DeckGrid)).dy,
+        tester.getTopLeft(mixerContentRow).dy,
         tester.getBottomLeft(find.byType(AppHeader)).dy,
         reason: '$position left a gap where the waveform pane used to be',
       );

@@ -118,6 +118,11 @@ class DeckPadsPanel extends StatelessWidget {
 
   bool get _controlsDisabled => disabled || !hasTrack;
 
+  /// Shortest panel that can hold the mode header above a usable pad grid;
+  /// under it the pads keep the whole panel. The header itself is ~32 px and
+  /// the compact header test pumps this panel at 70.
+  static const _headerMinHeight = 64;
+
   String get _effectivePlayMode {
     for (final bank in samplerBanks) {
       if (bank.id == activeBankId) {
@@ -141,74 +146,77 @@ class DeckPadsPanel extends StatelessWidget {
     // its frame above the content, so they need no inset.
     final frameInset = bordered ? theme.style.borderWidth : 0.0;
 
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: theme.colors.border)),
-          ),
-          // The config button shares the header row so it never takes height
-          // from the pads: every mode's grid sees the same box. It lives in a
-          // positioned cell that spans the header (top to divider, flush to the
-          // panel edge) so the whole corner is the button, not a floating icon.
-          child: Stack(
+    // A squeezed deck keeps its pads: the mode header is the first thing to
+    // go when the panel is too short to hold it and any pad at all.
+    final header = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: theme.colors.border)),
+      ),
+      // The config button shares the header row so it never takes height
+      // from the pads: every mode's grid sees the same box. It lives in a
+      // positioned cell that spans the header (top to divider, flush to the
+      // panel edge) so the whole corner is the button, not a floating icon.
+      child: Stack(
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: MixarSelect<PadMode>(
-                      dialogTitle: 'Pad mode',
-                      value: padMode,
-                      options: kPadModes,
-                      labelBuilder: (mode) => _modeLabel(mode, l10n),
-                      optionLabelBuilder: padModeShortLabel,
-                      labelSpanBuilder: (mode) => _modeLabelSpan(
-                        mode,
-                        theme.colors.mutedForeground,
-                        l10n,
-                      ),
-                      unfocusAfterPointerSelection: true,
-                      // Only shapes the focus ring: the header divider and the
-                      // card frame draw every stroke.
-                      borderRadius: _showsConfig
-                          ? null
-                          : BorderRadius.only(
-                              topRight: theme.style.borderRadius.sm.topRight,
-                            ),
-                      borderColor: theme.colors.border,
-                      // The header divider and the card frame draw every edge
-                      // from the same border token. A stroke of its own would
-                      // paint a second, differently blended shade over the
-                      // divider.
-                      borderSides: const <MixarBorderSide>{},
-                      onChanged: onPadMode,
-                      enabled: !disabled,
-                    ),
-                  ),
-                  // Reserve the gear's cell so the selector's chevron stays out
-                  // of its hit area.
-                  if (_showsConfig) const SizedBox(width: _kConfigCellWidth),
-                ],
-              ),
-              if (_showsConfig)
-                Positioned(
-                  // The select ends where the reserved cell begins; the insets
-                  // only trim the cell back inside the header, so the two never
-                  // overlap. The bottom always clears the divider, which the
-                  // panel paints itself in both framed and tabs-hosted layouts;
-                  // the top and right only need clearing inside a card frame.
-                  top: frameInset,
-                  bottom: theme.style.borderWidth,
-                  right: frameInset,
-                  width: _kConfigCellWidth - frameInset,
-                  child: _configButton(context),
+              Expanded(
+                child: MixarSelect<PadMode>(
+                  dialogTitle: 'Pad mode',
+                  value: padMode,
+                  options: kPadModes,
+                  labelBuilder: (mode) => _modeLabel(mode, l10n),
+                  optionLabelBuilder: padModeShortLabel,
+                  labelSpanBuilder: (mode) =>
+                      _modeLabelSpan(mode, theme.colors.mutedForeground, l10n),
+                  unfocusAfterPointerSelection: true,
+                  // Only shapes the focus ring: the header divider and the
+                  // card frame draw every stroke.
+                  borderRadius: _showsConfig
+                      ? null
+                      : BorderRadius.only(
+                          topRight: theme.style.borderRadius.sm.topRight,
+                        ),
+                  borderColor: theme.colors.border,
+                  // The header divider and the card frame draw every edge
+                  // from the same border token. A stroke of its own would
+                  // paint a second, differently blended shade over the
+                  // divider.
+                  borderSides: const <MixarBorderSide>{},
+                  onChanged: onPadMode,
+                  enabled: !disabled,
                 ),
+              ),
+              // Reserve the gear's cell so the selector's chevron stays out
+              // of its hit area.
+              if (_showsConfig) const SizedBox(width: _kConfigCellWidth),
             ],
           ),
-        ),
-        Expanded(child: _modeBody()),
-      ],
+          if (_showsConfig)
+            Positioned(
+              // The select ends where the reserved cell begins; the insets
+              // only trim the cell back inside the header, so the two never
+              // overlap. The bottom always clears the divider, which the
+              // panel paints itself in both framed and tabs-hosted layouts;
+              // the top and right only need clearing inside a card frame.
+              top: frameInset,
+              bottom: theme.style.borderWidth,
+              right: frameInset,
+              width: _kConfigCellWidth - frameInset,
+              child: _configButton(context),
+            ),
+        ],
+      ),
+    );
+
+    final body = LayoutBuilder(
+      builder: (context, constraints) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (constraints.maxHeight >= _headerMinHeight) header,
+          Expanded(child: _modeBody()),
+        ],
+      ),
     );
 
     if (!bordered) {

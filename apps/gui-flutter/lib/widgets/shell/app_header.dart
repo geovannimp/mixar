@@ -40,6 +40,11 @@ class AppHeader extends ConsumerWidget {
         .watch(appSettingsProvider)
         .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
     final drawerOpen = ref.watch(libraryDrawerOpenProvider);
+    // The mixer forces the drawer when the body leaves too little room to dock
+    // the library, so the toggle has to appear even with docked mode set.
+    final drawerAvailable =
+        settings.libraryDrawerEnabled ||
+        ref.watch(mixerLibraryForcedDrawerProvider);
 
     // Card, not the app canvas: the header sits directly on the decks/mixer
     // panel, so both read as one piece of chrome in every theme.
@@ -88,10 +93,9 @@ class AppHeader extends ConsumerWidget {
                   child: const SizedBox.expand(),
                 ),
               ),
-              // Only in drawer mode, and only on the mixer: the docked library
-              // mode has nothing to toggle. Hidden while settings load, since
-              // `defaultAppSettings` has the drawer off.
-              if (settings.libraryDrawerEnabled && tab == ShellTab.mixer)
+              // Only when the library lives in a drawer, and only on the
+              // mixer: the docked mode has nothing to toggle.
+              if (drawerAvailable && tab == ShellTab.mixer)
                 AppTooltip(
                   tip: drawerOpen ? 'Close library' : 'Open library',
                   child: AppButton.icon(
