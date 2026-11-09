@@ -95,6 +95,15 @@ void main() {
       expect(right.padding, const EdgeInsets.only(right: 10));
     });
 
+    test('a waveform centre also keeps only the window-edge inset', () {
+      final plan = _plan(_config(kind: MixerLayoutKind.centreHorizontal));
+      final left = plan.content!.left!.content as DeckContent;
+      final right = plan.content!.right!.content as DeckContent;
+
+      expect(left.padding, const EdgeInsets.only(left: 10));
+      expect(right.padding, const EdgeInsets.only(right: 10));
+    });
+
     test('four decks stack in pairs without a divider inset', () {
       final plan = _plan(_config(numDecks: 4));
       final left = plan.content!.left!.content as DeckPairContent;

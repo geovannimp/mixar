@@ -744,6 +744,7 @@ void main() {
 
     // Both endpoints take the gutter on their outer side and the full height
     // below the rule; neither leaves a dead band around the chip.
+    final footTop = tester.getRect(rule).bottom;
     final assignA = find.byKey(const ValueKey('crossfader-assign-a'));
     final assignB = find.byKey(const ValueKey('crossfader-assign-b'));
     for (final cell in [assignA, assignB]) {
@@ -754,15 +755,11 @@ void main() {
         reason: 'endpoint must fill the gutter',
       );
       expect(rect.height, 64, reason: 'endpoint must fill the foot height');
+      expect(rect.top, footTop);
+      expect(rect.bottom, stripRect.bottom);
     }
-    final aRect = tester.getRect(assignA);
-    final bRect = tester.getRect(assignB);
-    expect(aRect.left, stripRect.left);
-    expect(aRect.top, tester.getRect(rule).bottom);
-    expect(aRect.bottom, stripRect.bottom);
-    expect(bRect.right, stripRect.right);
-    expect(bRect.top, tester.getRect(rule).bottom);
-    expect(bRect.bottom, stripRect.bottom);
+    expect(tester.getRect(assignA).left, stripRect.left);
+    expect(tester.getRect(assignB).right, stripRect.right);
 
     // The crossfader row sits centred between the rule and the panel bottom.
     final ruleBottom = tester.getRect(rule).bottom;
