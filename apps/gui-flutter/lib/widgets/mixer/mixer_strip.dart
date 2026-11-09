@@ -9,6 +9,7 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
+import 'package:gui_flutter/widgets/mixer/layout/mixer_slot.dart';
 import 'package:gui_flutter/widgets/mixer/level_meter.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
@@ -38,18 +39,18 @@ const _gainHeaderHeight = 8.0 + 2.0 + 36.0;
 
 /// Center mixer: Tauri `DeckMixer` layout wired to [EngineTransport].
 class MixerStrip extends ConsumerWidget {
-  const new({this.bleed = 0, super.key});
+  const new({super.key});
 
-  /// Vertical breathing room at the top and foot of the mixer cell. The
-  /// waveform center column keeps the same foot spacing under its crossfader.
+  /// Vertical breathing room at the top of the mixer cell. The crossfader foot
+  /// runs all the way to the cell's bottom edge.
   static const verticalInset = 8.0;
 
-  /// Horizontal space the mixer slot frame reserves between the strip and
-  /// each deck card. The crossfader rule bleeds into it so it runs border to
-  /// border.
-  final double bleed;
+  /// Deck gutter the strip owns on each side. It keeps the mixer's inner
+  /// columns in place while the crossfader endpoint cells fill the space up to
+  /// the deck card borders.
+  static const gutter = MixerPaneMetrics.mixerBleed;
 
-  /// The strip's own width, without the slot frame's gutters.
+  /// The strip's own width, without the deck gutters.
   static double widthFor({required bool fourDecks, required bool meters}) =>
       fourDecks
       ? _mixerInnerWidthFour
@@ -69,9 +70,14 @@ class MixerStrip extends ConsumerWidget {
       meters: showMeters,
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: MixerStrip.verticalInset),
+      padding: EdgeInsets.only(
+        top: MixerStrip.verticalInset,
+        // With no foot the column keeps the old bottom breathing room; the
+        // crossfader panel itself runs to the cell's bottom edge.
+        bottom: showCrossfader ? 0 : MixerStrip.verticalInset,
+      ),
       child: SizedBox(
-        width: innerWidth,
+        width: innerWidth + 2 * gutter,
         child: Column(
           spacing: 8,
           children: [
@@ -91,7 +97,7 @@ class MixerStrip extends ConsumerWidget {
               ),
             ),
             // Settings → Layout → Crossfader: the foot goes with the rule.
-            if (showCrossfader) CrossfaderPanel(bleed: bleed),
+            if (showCrossfader) const CrossfaderPanel(edgeFill: gutter),
           ],
         ),
       ),
@@ -104,39 +110,27 @@ class MixerStrip extends ConsumerWidget {
 /// Shared with the waveform center column, which keeps the crossfader under the
 /// lanes instead of hiding it with the rest of the mixer.
 class CrossfaderPanel extends StatelessWidget {
-  const new({this.bleed = 0, this.contentPadding = EdgeInsets.zero, super.key});
+  const new({this.edgeFill = 0, super.key});
 
-  /// Horizontal space to paint the rule past the panel, into the deck gutter.
-  final double bleed;
-
-  /// Inset around the crossfader strip itself (the rule still spans the panel).
-  /// The waveform center column uses it to keep the mixer's gutter spacing.
-  final EdgeInsets contentPadding;
+  /// Extra width each endpoint cell takes on its outer side, so the A/B chips
+  /// fill the deck gutter while the fader keeps its width.
+  final double edgeFill;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      spacing: 8,
       children: [
-        _SectionRule(bleed: bleed),
-        // 16px under the rule (the column spacing plus this padding's top);
-        // the foot inset comes from the caller's contentPadding.
-        Padding(
-          padding: contentPadding.add(const EdgeInsets.symmetric(vertical: 8)),
-          child: const _CrossfaderStrip(),
-        ),
+        const _SectionRule(),
+        _CrossfaderStrip(edgeFill: edgeFill),
       ],
     );
   }
 }
 
-/// Section hairline that runs past the strip's own width into the deck gutter,
-/// so it spans the mixer cell border to border.
+/// Section hairline spanning the whole mixer foot, deck card to deck card.
 class _SectionRule extends StatelessWidget {
-  const new({required this.bleed});
-
-  final double bleed;
+  const new();
 
   @override
   Widget build(BuildContext context) {
@@ -144,20 +138,9 @@ class _SectionRule extends StatelessWidget {
     return SizedBox(
       height: theme.style.borderWidth,
       width: double.infinity,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            left: -bleed,
-            right: -bleed,
-            top: 0,
-            bottom: 0,
-            child: ColoredBox(
-              key: const ValueKey('crossfader-rule'),
-              color: theme.colors.border,
-            ),
-          ),
-        ],
+      child: ColoredBox(
+        key: const ValueKey('crossfader-rule'),
+        color: theme.colors.border,
       ),
     );
   }
@@ -230,37 +213,67 @@ class _MixerChannels extends ConsumerWidget {
   }
 }
 
+/// Base width of a crossfader assignment cell.
+///
+/// Each endpoint adds the gutter on its outer side ([CrossfaderPanel.edgeFill]),
+/// and [CrossAxisAlignment.stretch] makes both cells fill the foot height.
+const _crossfaderAssignExtent = 32.0;
+
+/// Height of the crossfader foot below the section rule.
+///
+/// The old chrome (spacing + vertical padding + foot inset) added up to the
+/// same band; now the A/B cells fill every pixel of it, border to border.
+const _crossfaderFootHeight = 64.0;
+
 class _CrossfaderStrip extends ConsumerWidget {
-  const new();
+  const new({required this.edgeFill});
+
+  /// Extra width the outer side of each endpoint cell takes from the gutter.
+  final double edgeFill;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(engineRunningProvider);
     final crossfader = ref.watch(crossfaderProvider) * 100;
     return SizedBox(
-      height: 20,
+      height: _crossfaderFootHeight,
       child: Row(
-        spacing: 10,
+        spacing: 4,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _CrossfaderAssignmentMenu(side: CrossfaderAssign.a),
+          _CrossfaderAssignmentMenu(
+            key: const ValueKey('crossfader-assign-a'),
+            side: CrossfaderAssign.a,
+            width: _crossfaderAssignExtent + edgeFill,
+          ),
           Expanded(
-            child: FaderSlider(
-              orientation: .horizontal,
-              value: crossfader,
-              step: 0.05,
-              showIndicator: false,
-              showMarkers: true,
-              centerNotch: true,
-              crossfaderTrack: true,
-              disabled: !enabled,
-              onValueChange: (next) {
-                unawaited(
-                  _mixerCmd(context, () => setCrossfader(ref, next / 100)),
-                );
-              },
+            child: Center(
+              child: SizedBox(
+                height: _crossfaderAssignExtent,
+                width: double.infinity,
+                child: FaderSlider(
+                  orientation: .horizontal,
+                  value: crossfader,
+                  step: 0.05,
+                  showIndicator: false,
+                  showMarkers: true,
+                  centerNotch: true,
+                  crossfaderTrack: true,
+                  disabled: !enabled,
+                  onValueChange: (next) {
+                    unawaited(
+                      _mixerCmd(context, () => setCrossfader(ref, next / 100)),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
-          const _CrossfaderAssignmentMenu(side: CrossfaderAssign.b),
+          _CrossfaderAssignmentMenu(
+            key: const ValueKey('crossfader-assign-b'),
+            side: CrossfaderAssign.b,
+            width: _crossfaderAssignExtent + edgeFill,
+          ),
         ],
       ),
     );
@@ -268,9 +281,10 @@ class _CrossfaderStrip extends ConsumerWidget {
 }
 
 class _CrossfaderAssignmentMenu extends ConsumerWidget {
-  const new({required this.side});
+  const new({required this.side, required this.width, super.key});
 
   final CrossfaderAssign side;
+  final double width;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -289,8 +303,8 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
         semanticsLabel: 'Crossfader $label deck assignments',
         onPress: enabled ? controller.toggle : null,
         builder: (context, state) => SizedBox(
-          width: 32,
-          height: 24,
+          width: width,
+          height: _crossfaderFootHeight,
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: state.active ? theme.colors.selection : null,

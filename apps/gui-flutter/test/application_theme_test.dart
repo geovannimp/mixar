@@ -37,7 +37,18 @@ void main() {
   setUp(() => debugOverrideDesktopWindow = false);
   tearDown(() => debugOverrideDesktopWindow = null);
 
+  // `Application` enforces a 1024×768 minimum window; the default 800×600
+  // test surface squeezes the deck pads header below its supported width on
+  // the first frame.
+  void useShellWindow(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   Future<void> pumpApp(WidgetTester tester, AppSettings settings) async {
+    useShellWindow(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: appStubs(settings),
@@ -89,6 +100,7 @@ void main() {
         addTearDown(container.dispose);
         await preloadAppSettings(container);
 
+        useShellWindow(tester);
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
