@@ -1401,11 +1401,11 @@ abstract class AppLocalizations {
   /// **'Default curve'**
   String get settingsMixerCrossfaderCurve;
 
-  /// No description provided for @settingsMixerCrossfaderHamster.
+  /// No description provided for @settingsMixerCrossfaderInvert.
   ///
   /// In en, this message translates to:
-  /// **'Hamster (swap A and B)'**
-  String get settingsMixerCrossfaderHamster;
+  /// **'Invert (swap A and B)'**
+  String get settingsMixerCrossfaderInvert;
 
   /// No description provided for @settingsMixerCrossfaderDisable.
   ///
@@ -1752,7 +1752,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsIntegrationsDescription.
   ///
   /// In en, this message translates to:
-  /// **'Read another DJ application into your library.'**
+  /// **'Read another DJ application\'s library and curve settings.'**
   String get settingsIntegrationsDescription;
 
   /// No description provided for @settingsLibraryAnalysisTitle.
@@ -2898,6 +2898,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move custom crossfader curves to and from VirtualDJ through the settings adapter.'**
   String get curvesImportExportDescription;
+
+  /// No description provided for @curvesExportCurveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Curve'**
+  String get curvesExportCurveLabel;
 
   /// No description provided for @curvesNew.
   ///

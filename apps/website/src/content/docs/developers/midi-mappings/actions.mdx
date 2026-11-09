@@ -168,7 +168,7 @@ The `n` argument is not capped at eight. Any `n:1+` is accepted, and numbered al
 | `set_fx_level_curve` | `id:<curve-id>` | Select the shared FX level/depth preset or custom one-channel group by canonical snake_case id on press. An unknown or multi-channel id installs `linear` and raises a notice. |
 | `cycle_crossfader_curve` | – | Step to the next available preset (`constant_power` → `linear` → `fast_cut`, wrapping). A custom selection steps back to `constant_power`. |
 | `set_crossfader_curve_amount` | `set:<set-id>` | Absolute knob sweep `0..1` across the named curve set. Listed in the absolute catalog, so bindings default to soft-takeover. |
-| `set_crossfader_hamster` | – | Toggle the hamster flag (swap A/B gains) on press. |
+| `set_crossfader_hamster` | – | Toggle the invert flag (wire name `hamster`; swaps A/B gains) on press. |
 | `set_crossfader_disabled` | – | Toggle curve bypass (both sides full gain) on press. |
 
 ### Engine

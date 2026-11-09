@@ -482,7 +482,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
-      SettingsSection.integrations => const SettingsIntegrationsPanel(),
+      SettingsSection.integrations => SettingsIntegrationsPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
       SettingsSection.storage => const SettingsStoragePanel(),
       SettingsSection.session => SettingsSessionPanel(
         draft: draft,

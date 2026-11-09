@@ -34,4 +34,19 @@ extension SettingsSectionLabel on SettingsSection {
   };
 }
 
-const List<SettingsSection> kSettingsSections = SettingsSection.values;
+/// Sections shown in Settings. The curve editor is intentionally absent until
+/// the dedicated editor ships.
+const List<SettingsSection> kSettingsSections = [
+  SettingsSection.ui,
+  SettingsSection.layout,
+  SettingsSection.audio,
+  SettingsSection.mixer,
+  SettingsSection.waveform,
+  SettingsSection.deck,
+  SettingsSection.library,
+  SettingsSection.integrations,
+  SettingsSection.storage,
+  SettingsSection.session,
+  SettingsSection.controllers,
+  SettingsSection.privacy,
+];

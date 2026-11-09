@@ -6,7 +6,6 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
-import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -246,17 +245,21 @@ void main() {
     await _pumpPanel(tester, changed: changed);
 
     expect(find.text('Crossfader'), findsOneWidget);
-    final select = tester.widget<SettingsSelect<String>>(
-      find.byType(SettingsSelect<String>),
-    );
-    expect(select.options, kCrossfaderCurvePresets);
-    expect(select.value, 'constant_power');
     expect(find.text('Constant power'), findsOneWidget);
+    expect(find.text('Linear'), findsOneWidget);
+    expect(find.text('Fast cut'), findsOneWidget);
 
-    final hamster = find.text('Hamster (swap A and B)');
-    await tester.ensureVisible(hamster);
+    final linear = find.text('Linear');
+    await tester.ensureVisible(linear);
     await tester.pumpAndSettle();
-    await tester.tap(hamster);
+    await tester.tap(linear);
+    await tester.pumpAndSettle();
+    expect(changed.last.defaultCrossfaderCurve, 'linear');
+
+    final invert = find.text('Invert (swap A and B)');
+    await tester.ensureVisible(invert);
+    await tester.pumpAndSettle();
+    await tester.tap(invert);
     await tester.pumpAndSettle();
     expect(changed.last.crossfaderBehavior.hamster, isTrue);
     expect(changed.last.crossfaderBehavior.disabled, isFalse);

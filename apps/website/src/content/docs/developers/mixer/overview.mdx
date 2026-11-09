@@ -56,14 +56,14 @@ Selection ids are canonical snake_case everywhere: settings, bus payloads, contr
 | ----- | ------- | ------ |
 | `SetCrossfaderCurve` | `id` | Select a preset, custom group, or curve set. Answers with `EngineStatus`. |
 | `SetCrossfaderCurveAmount` | `set`, `amount`, `soft_takeover` | Install `set` when it is not active, then sweep its morph. Gated by mixer soft takeover. |
-| `SetCrossfaderBehavior` | `hamster`, `disabled` | Apply both flags without rebuilding the gain tables. |
+| `SetCrossfaderBehavior` | `hamster`, `disabled` | Apply both flags without rebuilding the gain tables. `hamster` is the wire name for the user-facing **Invert** flag. |
 | `SetCurveLibrary` | `library` | Validate and replace the custom curve library. |
 
 `EngineStatus.crossfader_curve` reports the active id, display name, morph position, and both flags, so a controller can drive a curve button or knob and mirror its state back as LEDs.
 
 Settings persist the same defaults under `audio.default_crossfader_curve`, `audio.crossfader_behavior`, and `audio.curve_library` in the engine config, which the app fills from **Settings → Mixer → Crossfader**. That is why a headless start and a GUI start agree on the active curve.
 
-The visual editor is **Settings → Curves**. It edits the settings draft's `CurveLibrarySpec` directly: `apps/gui-flutter/lib/widgets/curves/curve_group_editor.dart` owns point dragging and per-segment interpolation, `curve_set_editor.dart` owns member order and the morph preview, and `settings_curves_panel.dart` owns create/rename/delete. Ids and points are validated in Dart before the settings save reaches `SetCurveLibrary`, so an invalid edit never replaces the active library. VirtualDJ import/export lives in `crates/host-flutter/src/api/curve_editor.rs`; it calls `config-adapters`, and an imported custom point script arrives as a native two-channel group the editor can change like any other custom curve.
+The point/segment editor and curve-set editor exist under `apps/gui-flutter/lib/widgets/curves/`, but the full **Settings → Curves** section is intentionally not exposed in the app yet. Until it ships, VirtualDJ import/export lives in **Settings → Integrations** through `crates/host-flutter/src/api/curve_editor.rs`, which calls `config-adapters`. An imported custom point script arrives as a native two-channel group and can be selected as the default curve like any other group.
 
 ## Filter smoothing
 

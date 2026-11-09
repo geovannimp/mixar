@@ -49,7 +49,7 @@ void main() {
 
   Future<void> pumpIntegrations(WidgetTester tester) => pumpPanel(
     tester,
-    const SettingsIntegrationsPanel(),
+    SettingsIntegrationsPanel(draft: defaultAppSettings(), onChanged: (_) {}),
     overrides: [
       mixxxDatabasePathProvider.overrideWith((ref) async => null),
       rekordboxDatabasePathProvider.overrideWith((ref) async => null),
@@ -63,15 +63,20 @@ void main() {
     settle: false,
   );
 
-  testWidgets('Integrations panel hosts both library imports', (tester) async {
+  testWidgets('Integrations panel hosts library and curve imports', (
+    tester,
+  ) async {
     await pumpIntegrations(tester);
     expect(find.text('Integrations'), findsOneWidget);
     expect(
-      find.text('Read another DJ application into your library.'),
+      find.text("Read another DJ application's library and curve settings."),
       findsOneWidget,
     );
     expect(find.text('Import from Mixxx'), findsOneWidget);
     expect(find.text('Import from Rekordbox'), findsOneWidget);
+    expect(find.text('Import & export'), findsOneWidget);
+    expect(find.text('Import VirtualDJ'), findsOneWidget);
+    expect(find.text('Export to VirtualDJ'), findsOneWidget);
     expect(
       find.byType(MixxxImportPanel),
       findsOneWidget,

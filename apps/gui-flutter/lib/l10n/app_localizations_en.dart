@@ -731,7 +731,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsMixerCrossfaderCurve => 'Default curve';
 
   @override
-  String get settingsMixerCrossfaderHamster => 'Hamster (swap A and B)';
+  String get settingsMixerCrossfaderInvert => 'Invert (swap A and B)';
 
   @override
   String get settingsMixerCrossfaderDisable => 'Disable the crossfader';
@@ -928,7 +928,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsIntegrationsDescription =>
-      'Read another DJ application into your library.';
+      'Read another DJ application\'s library and curve settings.';
 
   @override
   String get settingsLibraryAnalysisTitle => 'Analysis';
@@ -1737,6 +1737,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get curvesImportExportDescription =>
       'Move custom crossfader curves to and from VirtualDJ through the settings adapter.';
+
+  @override
+  String get curvesExportCurveLabel => 'Curve';
 
   @override
   String get curvesNew => 'New curve';
