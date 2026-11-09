@@ -44,9 +44,18 @@ class MixerStrip extends ConsumerWidget {
   /// waveform center column keeps the same foot spacing under its crossfader.
   static const verticalInset = 8.0;
 
-  /// Horizontal space [DeckGrid] reserves between the strip and each deck card.
-  /// The crossfader rule bleeds into it so it runs border to border.
+  /// Horizontal space the mixer slot frame reserves between the strip and
+  /// each deck card. The crossfader rule bleeds into it so it runs border to
+  /// border.
   final double bleed;
+
+  /// The strip's own width, without the slot frame's gutters.
+  static double widthFor({required bool fourDecks, required bool meters}) =>
+      fourDecks
+      ? _mixerInnerWidthFour
+      : meters
+      ? _mixerInnerWidthWithMeters
+      : _mixerInnerWidthNoMeters;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,11 +64,10 @@ class MixerStrip extends ConsumerWidget {
     final showMeters = showsDeckMeters(settings);
     final showCrossfader = settings?.showCrossfader ?? true;
     final numDecks = settings?.numDecks ?? 2;
-    final innerWidth = numDecks == 4
-        ? _mixerInnerWidthFour
-        : showMeters
-        ? _mixerInnerWidthWithMeters
-        : _mixerInnerWidthNoMeters;
+    final innerWidth = MixerStrip.widthFor(
+      fourDecks: numDecks == 4,
+      meters: showMeters,
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: MixerStrip.verticalInset),
       child: SizedBox(
@@ -75,7 +83,13 @@ class MixerStrip extends ConsumerWidget {
                 color: theme.colors.mutedForeground,
               ),
             ),
-            const Expanded(child: _MixerChannels()),
+            Expanded(
+              child: _MixerChannels(
+                numDecks: numDecks,
+                showMeters: showMeters,
+                mono: deckMetersMono(settings),
+              ),
+            ),
             // Settings → Layout → Crossfader: the foot goes with the rule.
             if (showCrossfader) CrossfaderPanel(bleed: bleed),
           ],
@@ -150,15 +164,22 @@ class _SectionRule extends StatelessWidget {
 }
 
 class _MixerChannels extends ConsumerWidget {
-  const new();
+  const new({
+    required this.numDecks,
+    required this.showMeters,
+    required this.mono,
+  });
+
+  /// Deck count, meter switch and meter mode, all from [MixerStrip]'s build:
+  /// the strip sets its own width from the same values, so the columns can
+  /// never be laid out for a deck count the width was not sized for.
+  final int numDecks;
+  final bool showMeters;
+  final bool mono;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(engineRunningProvider);
-    final settings = ref.watch(appSettingsProvider).value;
-    final showMeters = showsDeckMeters(settings);
-    final mono = deckMetersMono(settings);
-    final numDecks = settings?.numDecks ?? 2;
     if (numDecks == 2) {
       return Row(
         mainAxisAlignment: .center,

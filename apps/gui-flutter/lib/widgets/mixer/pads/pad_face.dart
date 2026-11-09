@@ -94,43 +94,51 @@ class PadFace extends StatelessWidget {
           );
 
     return LayoutBuilder(
-      builder: (context, constraints) => Padding(
-        padding: EdgeInsets.all(
-          constraints.maxWidth < 16 || constraints.maxHeight < 16
-              ? 0
-              : constraints.maxWidth < 40 || constraints.maxHeight < 40
-              ? 3
-              : 8,
-        ),
-        child: Column(
-          children: [
-            ?header,
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    // Keep the centred label above the footer so they never
-                    // overlap on small pads.
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: footer == null ? 0 : 14),
-                      child: Center(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: labelWidth == null
-                              ? label
-                              : SizedBox(width: labelWidth, child: label),
+      builder: (context, constraints) {
+        final pad = constraints.maxWidth < 16 || constraints.maxHeight < 16
+            ? 0.0
+            : constraints.maxWidth < 40 || constraints.maxHeight < 40
+            ? 3.0
+            : 8.0;
+        // The dot slot and its gap take a fixed 13 px, and the caption needs a
+        // little on top of that. A pad narrower than 16 px keeps its body and
+        // drops the header rather than overflowing — squares shrink with the
+        // deck, and a short deck can leave them this small.
+        final fitsHeader = constraints.maxWidth - 2 * pad >= 16;
+        return Padding(
+          padding: EdgeInsets.all(pad),
+          child: Column(
+            children: [
+              if (header != null && fitsHeader) header,
+              Expanded(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      // Keep the centred label above the footer so they never
+                      // overlap on small pads.
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          bottom: footer == null ? 0 : 14,
+                        ),
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: labelWidth == null
+                                ? label
+                                : SizedBox(width: labelWidth, child: label),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  if (footer != null)
-                    Positioned(right: 0, bottom: 0, child: footer!),
-                ],
+                    if (footer != null)
+                      Positioned(right: 0, bottom: 0, child: footer!),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 

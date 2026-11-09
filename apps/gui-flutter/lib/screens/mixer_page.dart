@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,58 +6,89 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'package:gui_flutter/widgets/mixer/deck_grid.dart';
 import 'package:gui_flutter/widgets/mixer/fx_bar.dart';
+import 'package:gui_flutter/widgets/mixer/layout/mixer_layout_config.dart';
+import 'package:gui_flutter/widgets/mixer/layout/mixer_layout_solver.dart';
+import 'package:gui_flutter/widgets/mixer/layout/mixer_panes.dart';
+import 'package:gui_flutter/widgets/mixer/layout/mixer_plan.dart';
+import 'package:gui_flutter/widgets/mixer/layout/mixer_slot.dart';
 import 'package:gui_flutter/widgets/mixer/library_drawer.dart';
-import 'package:gui_flutter/widgets/mixer/library_panel.dart';
-import 'package:gui_flutter/widgets/mixer/waveform_section.dart';
-import 'package:gui_flutter/widgets/shell/m_divider.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:panes/panes.dart';
 
-/// Mixer page with resizable regions ([MultiPane]).
+/// Mixer page: two fixed pane stacks whose slots hold the panels.
 ///
-/// Vertical: waveforms | (fixed decks + library). Decks are not a resizable
-/// region — only the waveform/library split moves. Sizes are session-local
-/// (no [PaneController.save] / [PaneController.load]).
+/// The stacks never change — band, deck row, bottom slot, FX bar, and inside
+/// the deck row deck(s) | centre | deck(s). What changes with settings is what
+/// each slot holds, decided by [mixerPlanFor], and how tall each slot is,
+/// decided by [solveMixerLayout]. The body never scrolls: when the library
+/// would get too little room it moves to the drawer instead, and the deck row
+/// takes the space back.
 ///
-/// When the library drawer setting is on, the docked library is replaced by the
-/// [showLibraryDrawer] route and the deck row fills the pane; the drawer itself
-/// lives outside this layout. The pane ids and controller stay the same, so
-/// pane sizes survive the mode switch.
+/// Sizes are session-local (no [PaneController.save] / [PaneController.load]).
+/// The drawer is its own route, so opening it is not a layout concern.
 class MixerPage extends ConsumerStatefulWidget {
   const new({super.key});
-
-  static const _waveformDefault = 160.0;
-  static const _waveformMin = 110.0;
 
   @override
   ConsumerState<MixerPage> createState() => _MixerPageState();
 }
 
 class _MixerPageState extends ConsumerState<MixerPage> {
-  late final PaneController _controller;
-  final _compactScroll = ScrollController();
+  late final PaneController _main;
+  late final PaneController _content;
+
+  /// The body height and settings the controllers were last solved for.
+  (double, MixerLayoutConfig)? _solvedFor;
+
+  /// The split waiting to be applied, after the frame that solved it.
+  MixerLayoutSolution? _pending;
 
   @override
   void initState() {
     super.initState();
-    _controller = PaneController(
+    _main = PaneController(
       entries: [
         PaneEntry(
-          id: 'waveforms',
-          initialSize: PaneSize.pixel(MixerPage._waveformDefault),
-          minSize: PaneSize.pixel(MixerPage._waveformMin),
+          id: MixerPaneIds.top,
+          initialSize: PaneSize.fraction(0.22),
+          minSize: PaneSize.pixel(MixerPaneMetrics.bandMin),
         ),
-        PaneEntry(id: 'decks_library', initialSize: PaneSize.fraction(1)),
+        PaneEntry(
+          id: MixerPaneIds.content,
+          initialSize: PaneSize.fraction(0.56),
+          minSize: PaneSize.pixel(MixerPaneMetrics.contentFloorTwo),
+        ),
+        PaneEntry(
+          id: MixerPaneIds.bottom,
+          initialSize: PaneSize.fraction(0.22),
+          minSize: PaneSize.pixel(MixerPaneMetrics.libraryMin),
+        ),
+        PaneEntry(
+          id: MixerPaneIds.bar,
+          initialSize: PaneSize.pixel(FxBar.height),
+          minSize: PaneSize.pixel(FxBar.height),
+          maxSize: PaneSize.pixel(FxBar.height),
+        ),
+      ],
+    );
+    _content = PaneController(
+      entries: [
+        PaneEntry(id: MixerPaneIds.left, initialSize: PaneSize.fraction(1)),
+        PaneEntry(
+          id: MixerPaneIds.center,
+          initialSize: PaneSize.pixel(MixerPaneMetrics.laneWidthTwo),
+          minSize: PaneSize.pixel(MixerPaneMetrics.laneWidthTwo),
+          maxSize: PaneSize.pixel(MixerPaneMetrics.laneWidthTwo),
+        ),
+        PaneEntry(id: MixerPaneIds.right, initialSize: PaneSize.fraction(1)),
       ],
     );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
-    _compactScroll.dispose();
+    _main.dispose();
+    _content.dispose();
     super.dispose();
   }
 
@@ -88,180 +118,134 @@ class _MixerPageState extends ConsumerState<MixerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
-    final settingsState = ref.watch(appSettingsProvider);
-    final settings = settingsState.value ?? defaultAppSettings();
-    // Settings → Layout. The deck row is always there; these two switches only
-    // trim the panels around it. The library is never hidden: the drawer
-    // setting only decides whether it is docked or drawn.
-    final showFxBar = settings.showFxBar;
-    final drawerMode = settings.libraryDrawerEnabled;
-    final deckRowHeight = settings.numDecks == 4 ? 560.0 : 410.0;
-    final waveformPosition = settings.waveformPosition;
-    final showWaveform = settings.showWaveform;
-    // The band takes the waveform pane's place inside the pane column, so the
-    // compact scroll has to clear it before the library comes into view.
-    final bandHeight =
-        showWaveform && waveformPosition == WaveformPositionSetting.bottom
-        ? MixerPage._waveformDefault
-        : 0.0;
+    final settings =
+        ref.watch(appSettingsProvider).value ?? defaultAppSettings();
+    // Value type with equality over every field, so the solve key below reads
+    // "the same layout" rather than "the same object".
+    final config = MixerLayoutConfig.fromSettings(settings);
 
-    // The drawer is its own route, so opening it is not a layout concern: the
-    // panes below only decide whether the docked library is there at all.
     ref.listen(libraryDrawerOpenProvider, (_, open) {
-      if (open && drawerMode) {
-        _resetDrawerTuck();
-        unawaited(_showDrawer(settings.libraryDrawerSide));
-      }
-    });
-
-    // Docked library: a deck action (cover click) scrolls the compact pane to
-    // the library instead of opening a drawer that does not exist here.
-    ref.listen(libraryRevealProvider, (_, _) {
-      if (drawerMode || !_compactScroll.hasClients) {
+      if (!open) {
         return;
       }
-      final target = math.min(
-        deckRowHeight +
-            bandHeight +
-            (bandHeight > 0 ? 2 : 1) * theme.style.borderWidth,
-        _compactScroll.position.maxScrollExtent,
-      );
-      _compactScroll.animateTo(
-        target,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
+      final drawerAvailable =
+          settings.libraryDrawerEnabled ||
+          ref.read(mixerLibraryForcedDrawerProvider);
+      if (!drawerAvailable) {
+        return;
+      }
+      _resetDrawerTuck();
+      unawaited(_showDrawer(settings.libraryDrawerSide));
     });
 
-    final decksAndLibrary = _decksAndLibrary(
-      theme: theme,
-      drawerMode: drawerMode,
-      showFxBar: showFxBar,
-      deckRowHeight: deckRowHeight,
-      bandHeight: bandHeight,
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bandFraction =
+            _main.getFractionalSize(MixerPaneIds.top) ??
+            (MixerPaneMetrics.bandDefault /
+                (constraints.maxHeight - (config.showFxBar ? FxBar.height : 0))
+                    .clamp(1, double.infinity));
+        final solution = solveMixerLayout(
+          height: constraints.maxHeight,
+          config: config,
+          bandFraction: bandFraction,
+        );
+        final plan = mixerPlanFor(config, solution);
 
-    // Middle positions own their own row placement: the waveform leaves the
-    // pane stack, so there is no split to drag. Hiding it removes the pane for
-    // every position.
-    if (!showWaveform || waveformPosition != WaveformPositionSetting.top) {
-      return decksAndLibrary;
-    }
+        final solvedFor = (constraints.maxHeight.roundToDouble(), config);
+        // A zero-height body has nothing to split; applying it would only move
+        // the controllers to a degenerate state before the window exists.
+        if (constraints.maxHeight > 0 && _solvedFor != solvedFor) {
+          _solvedFor = solvedFor;
+          _pending = solution;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) {
+              return;
+            }
+            final pending = _pending;
+            if (pending != null) {
+              _apply(pending, plan, config);
+            }
+          });
+        }
 
-    // Invisible chrome; keep a grab hit-area (was library divider:none).
-    return PaneTheme(
-      data: const PaneThemeData(
-        resizerColor: Color(0x00000000),
-        resizerHoverColor: Color(0x00000000),
-        resizerFocusedColor: Color(0x00000000),
-        resizerThickness: 0,
-        resizerHitTestThickness: 8,
-      ),
-      child: MultiPane(
-        direction: Axis.vertical,
-        controller: _controller,
-        paneBuilder: (context, id, _) => switch (id) {
-          'waveforms' => const WaveformSection(),
-          'decks_library' => decksAndLibrary,
-          _ => const SizedBox.shrink(),
-        },
-      ),
+        return MixerPanes(main: _main, content: _content, plan: plan);
+      },
     );
   }
 
-  /// Deck row, optional middle waveform band, docked library, and the FX bar,
-  /// stacked in a card that scrolls when the window is shorter than the deck
-  /// row plus a usable library.
-  Widget _decksAndLibrary({
-    required MixarThemeData theme,
-    required bool drawerMode,
-    required bool showFxBar,
-    required double deckRowHeight,
-    required double bandHeight,
-  }) {
-    final band = bandHeight > 0;
-    final docked = !drawerMode;
-    final border = MDivider(padding: .zero, color: theme.colors.border);
-    return ColoredBox(
-      color: theme.colors.card,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final minHeight = drawerMode
-              ? constraints.maxHeight
-              : deckRowHeight +
-                    bandHeight +
-                    (showFxBar ? FxBar.height : 0) +
-                    120 +
-                    2 * theme.style.borderWidth;
-          final height = constraints.maxHeight < minHeight
-              ? minHeight
-              : constraints.maxHeight;
-          final scrollBehavior = ScrollConfiguration.of(context);
-          return ScrollConfiguration(
-            // Pad presses must never double as scroll drags; the library
-            // is re-wrapped below so its lists keep default drag scrolling.
-            behavior: scrollBehavior.copyWith(dragDevices: const {}),
-            child: RawScrollbar(
-              controller: _compactScroll,
-              interactive: true,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _compactScroll,
-                child: SizedBox(
-                  height: height,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // In drawer mode the deck row fills the pane: the library
-                      // moves to the drawer, so there is no split and no dead
-                      // band below the decks.
-                      if (drawerMode)
-                        const Expanded(child: ClipRect(child: DeckGrid()))
-                      else
-                        SizedBox(
-                          height: deckRowHeight,
-                          child: const ClipRect(child: DeckGrid()),
-                        ),
-                      // Bottom: the horizontal lanes sit between the decks and
-                      // the library instead of above the deck row.
-                      if (band) ...[
-                        border,
-                        SizedBox(
-                          height: bandHeight,
-                          child: const ClipRect(
-                            child: WaveformSection(showFootDivider: false),
-                          ),
-                        ),
-                        // The band closes before whatever follows it: the
-                        // docked library, or the FX bar. With the drawer on and
-                        // no FX bar, nothing follows, so the band ends the pane.
-                        if (docked) border,
-                      ],
-                      if (docked) ...[
-                        // Split the library from the mixer above it in the same
-                        // border colour as the rest of the library chrome.
-                        if (!band) border,
-                        Expanded(
-                          child: ScrollConfiguration(
-                            behavior: scrollBehavior,
-                            child: const LibraryPanel(),
-                          ),
-                        ),
-                      ],
-                      // The FX bar rides at the pane's foot in both layouts.
-                      if (showFxBar) ...[
-                        border,
-                        const SizedBox(height: FxBar.height, child: FxBar()),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+  /// Puts the solved split on the controllers: hidden slots go away, the rest
+  /// take their fraction, and the deck row's floor follows the deck count.
+  void _apply(
+    MixerLayoutSolution solution,
+    MixerPlan plan,
+    MixerLayoutConfig config,
+  ) {
+    final contentEntry = _main.entries.firstWhere(
+      (entry) => entry.id == MixerPaneIds.content,
+    );
+    _main.updatePane(
+      contentEntry.copyWith(
+        minSize: PaneSize.pixel(
+          config.fourDecks
+              ? MixerPaneMetrics.contentFloorFour
+              : MixerPaneMetrics.contentFloorTwo,
+        ),
       ),
     );
+    _setPane(_main, MixerPaneIds.top, solution.topFraction);
+    _setPane(_main, MixerPaneIds.content, solution.contentFraction);
+    _setPane(_main, MixerPaneIds.bottom, solution.bottomFraction);
+    _setVisible(_main, MixerPaneIds.bar, solution.barVisible);
+
+    final row = plan.content;
+    final center = row?.center;
+    _setVisible(_content, MixerPaneIds.center, center != null);
+    if (row != null && center != null) {
+      final centerEntry = _content.entries.firstWhere(
+        (entry) => entry.id == MixerPaneIds.center,
+      );
+      _content
+        ..updatePane(
+          centerEntry.copyWith(
+            initialSize: PaneSize.pixel(row.centerWidth),
+            minSize: PaneSize.pixel(row.centerWidth),
+            maxSize: PaneSize.pixel(row.centerWidth),
+          ),
+        )
+        ..updateSize(MixerPaneIds.center, PaneSize.pixel(row.centerWidth));
+    }
+
+    // The library forces the drawer when the body has no room to dock it; a
+    // drawer that was opened for that reason closes again once it fits. Only a
+    // drawer *this* flag forced is closed, and closing it flips nothing here —
+    // `forced` depends on the split alone — so the two cannot ping-pong.
+    final forced = config.preferDockedLibrary && !solution.libraryDocked;
+    final wasForced = ref.read(mixerLibraryForcedDrawerProvider);
+    ref.read(mixerLibraryForcedDrawerProvider.notifier).set(forced);
+    if (wasForced && !forced && ref.read(libraryDrawerOpenProvider)) {
+      ref.read(libraryDrawerOpenProvider.notifier).set(false);
+    }
+  }
+
+  /// [fraction] `null` hides the slot; otherwise it shows at that fraction.
+  void _setPane(PaneController controller, String id, double? fraction) {
+    if (fraction == null) {
+      controller.hide(id);
+      return;
+    }
+    // One cascade, one notification per call; two statements on the same
+    // receiver trip `cascade_invocations`.
+    controller
+      ..show(id)
+      ..updateSize(id, PaneSize.fraction(fraction));
+  }
+
+  void _setVisible(PaneController controller, String id, bool visible) {
+    if (visible) {
+      controller.show(id);
+    } else {
+      controller.hide(id);
+    }
   }
 }

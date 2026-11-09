@@ -137,7 +137,7 @@ void main() {
     expect(find.byIcon(LucideIcons.plus), findsOneWidget);
   });
 
-  testWidgets('with the docked library, the cover asks it into view', (
+  testWidgets('with the docked library, the cover does nothing', (
     tester,
   ) async {
     await _pump(tester);
@@ -145,9 +145,9 @@ void main() {
     await tester.tap(find.byType(DeckCover));
     await tester.pumpAndSettle();
 
-    final container = _container(tester);
-    expect(container.read(libraryRevealProvider), 1);
-    expect(container.read(libraryDrawerOpenProvider), isFalse);
+    // The docked library is already on screen and the body does not scroll,
+    // so a cover click has nowhere to bring it.
+    expect(_container(tester).read(libraryDrawerOpenProvider), isFalse);
   });
 
   testWidgets('hovering a loaded cover grows the eject chip to the cover', (
