@@ -1041,6 +1041,45 @@ void main() {
     }
   });
 
+  testWidgets('settings header shares the window bar surface in both themes', (
+    tester,
+  ) async {
+    for (final theme in [MixarThemeData.dark(), MixarThemeData.light()]) {
+      await pumpShell(tester, theme: theme);
+      await tester.tap(find.byIcon(LucideIcons.settings));
+      await tester.pumpAndSettle();
+
+      final windowBarSurface = tester
+          .widget<ColoredBox>(
+            find
+                .descendant(
+                  of: find.byType(AppHeader),
+                  matching: find.byType(ColoredBox),
+                )
+                .first,
+          )
+          .color;
+      final settingsHeader = tester.widget<DecoratedBox>(
+        find
+            .ancestor(
+              of: find.text('SETTINGS'),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      final settingsSurface =
+          (settingsHeader.decoration as BoxDecoration).color;
+
+      expect(
+        settingsSurface,
+        windowBarSurface,
+        reason:
+            'the settings header must continue the window bar, not the canvas',
+      );
+      expect(settingsSurface, theme.colors.card);
+    }
+  });
+
   testWidgets('stacked decks are split by a hairline across the column', (
     tester,
   ) async {
