@@ -762,10 +762,9 @@ void main() {
     expect(tester.getRect(assignB).right, stripRect.right);
 
     // The crossfader row sits centred between the rule and the panel bottom.
-    final ruleBottom = tester.getRect(rule).bottom;
     final rowCentre = tester.getRect(xfader()).center.dy;
     expect(
-      rowCentre - ruleBottom,
+      rowCentre - footTop,
       closeTo(tester.getRect(strip).bottom - rowCentre, 0.5),
     );
   });
