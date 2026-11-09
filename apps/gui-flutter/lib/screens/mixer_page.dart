@@ -120,6 +120,8 @@ class _MixerPageState extends ConsumerState<MixerPage> {
   Widget build(BuildContext context) {
     final settings =
         ref.watch(appSettingsProvider).value ?? defaultAppSettings();
+    // Value type with equality over every field, so the solve key below reads
+    // "the same layout" rather than "the same object".
     final config = MixerLayoutConfig.fromSettings(settings);
 
     ref.listen(libraryDrawerOpenProvider, (_, open) {
@@ -151,7 +153,9 @@ class _MixerPageState extends ConsumerState<MixerPage> {
         final plan = mixerPlanFor(config, solution);
 
         final solvedFor = (constraints.maxHeight.roundToDouble(), config);
-        if (_solvedFor != solvedFor) {
+        // A zero-height body has nothing to split; applying it would only move
+        // the controllers to a degenerate state before the window exists.
+        if (constraints.maxHeight > 0 && _solvedFor != solvedFor) {
           _solvedFor = solvedFor;
           _pending = solution;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -213,7 +217,9 @@ class _MixerPageState extends ConsumerState<MixerPage> {
     }
 
     // The library forces the drawer when the body has no room to dock it; a
-    // drawer that was opened for that reason closes again once it fits.
+    // drawer that was opened for that reason closes again once it fits. Only a
+    // drawer *this* flag forced is closed, and closing it flips nothing here —
+    // `forced` depends on the split alone — so the two cannot ping-pong.
     final forced = config.preferDockedLibrary && !solution.libraryDocked;
     final wasForced = ref.read(mixerLibraryForcedDrawerProvider);
     ref.read(mixerLibraryForcedDrawerProvider.notifier).set(forced);
@@ -228,6 +234,8 @@ class _MixerPageState extends ConsumerState<MixerPage> {
       controller.hide(id);
       return;
     }
+    // One cascade, one notification per call; two statements on the same
+    // receiver trip `cascade_invocations`.
     controller
       ..show(id)
       ..updateSize(id, PaneSize.fraction(fraction));

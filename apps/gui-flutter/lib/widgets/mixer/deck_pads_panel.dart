@@ -118,10 +118,11 @@ class DeckPadsPanel extends StatelessWidget {
 
   bool get _controlsDisabled => disabled || !hasTrack;
 
-  /// Shortest panel that can hold the mode header above a usable pad grid;
-  /// under it the pads keep the whole panel. The header itself is ~32 px and
-  /// the compact header test pumps this panel at 70.
-  static const _headerMinHeight = 64;
+  /// Shortest panel that can hold the mode header (~32 px) with a sliver of
+  /// pad grid under it. Below it, and at it, the pads keep the whole panel:
+  /// showing the header at the boundary would leave the grid no height at all.
+  /// The compact header test pumps this panel at 70.
+  static const _headerMinHeight = 48;
 
   String get _effectivePlayMode {
     for (final bank in samplerBanks) {
@@ -213,7 +214,7 @@ class DeckPadsPanel extends StatelessWidget {
       builder: (context, constraints) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (constraints.maxHeight >= _headerMinHeight) header,
+          if (constraints.maxHeight > _headerMinHeight) header,
           Expanded(child: _modeBody()),
         ],
       ),

@@ -200,6 +200,20 @@ void main() {
     expect(s.topFraction, isNull);
     expect(s.bottomFraction, isNull);
     expect(s.contentFraction, 1);
+    // The bar slot still follows its switch, so the page and the plan agree.
+    expect(s.barVisible, isTrue);
+    _expectSumsToOne(s);
+  });
+
+  test('a body shorter than the FX bar keeps the bar switch as it is', () {
+    final s = solveMixerLayout(
+      height: FxBar.height - 1,
+      config: _config(showFxBar: false),
+      bandFraction: 0.22,
+    );
+
+    expect(s.barVisible, isFalse);
+    expect(s.contentFraction, 1);
     _expectSumsToOne(s);
   });
 }

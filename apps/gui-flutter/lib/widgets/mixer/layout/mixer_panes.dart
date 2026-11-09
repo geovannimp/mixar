@@ -65,7 +65,7 @@ class MixerPanes extends StatelessWidget {
       MixerPaneIds.content => _frame(
         context,
         id,
-        _contentRow(context),
+        _contentRow(),
         leadingRule: plan.top != null,
       ),
       MixerPaneIds.bottom => _frame(
@@ -86,7 +86,10 @@ class MixerPanes extends StatelessWidget {
 
   /// Decks | centre | decks. The centre pane is pinned by the page; the decks
   /// share what is left.
-  Widget _contentRow(BuildContext context) => MultiPane(
+  ///
+  /// Takes no context of its own: each pane builds with the context `MultiPane`
+  /// hands its builder, so there is nothing to shadow.
+  Widget _contentRow() => MultiPane(
     key: const ValueKey('mixer-content-row'),
     direction: Axis.horizontal,
     controller: content,

@@ -84,22 +84,23 @@ final mixerLibraryForcedDrawerProvider =
 /// deck).
 void openLibrary(WidgetRef ref) {
   final settings = ref.read(appSettingsProvider).asData?.value;
-  final drawerAvailable =
-      _drawerMode(settings) || ref.read(mixerLibraryForcedDrawerProvider);
-  if (!drawerAvailable) {
+  if (!_drawerAvailable(settings, ref.read(mixerLibraryForcedDrawerProvider))) {
     return;
   }
   ref.read(libraryDrawerOpenProvider.notifier).set(true);
 }
 
-/// Whether the library lives in a drawer (Settings → UI, or the mixer forced
-/// it there). Docked mode has nothing to open or dismiss.
-bool _drawerMode(AppSettings? settings) =>
-    settings?.libraryDrawerEnabled ?? false;
+/// The one place the drawer rule lives: the setting, or the mixer forcing it
+/// when the body left too little room to dock the library.
+bool _drawerAvailable(AppSettings? settings, bool forced) =>
+    (settings?.libraryDrawerEnabled ?? false) || forced;
 
-bool _libraryLivesInDrawer(Ref ref) =>
-    _drawerMode(ref.read(appSettingsProvider).asData?.value) ||
-    ref.read(mixerLibraryForcedDrawerProvider);
+/// Whether the library lives in a drawer. Docked mode has nothing to open or
+/// dismiss.
+bool _libraryLivesInDrawer(Ref ref) => _drawerAvailable(
+  ref.read(appSettingsProvider).asData?.value,
+  ref.read(mixerLibraryForcedDrawerProvider),
+);
 
 /// Brings the drawer up for a forward controller focus step — the DDJ-400's
 /// library knob press — so its rotary then moves a cursor the user can see.

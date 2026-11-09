@@ -69,12 +69,15 @@ MixerLayoutSolution solveMixerLayout({
   final barPx = config.showFxBar ? FxBar.height : 0.0;
   final avail = height > barPx ? height - barPx : 0.0;
   if (avail == 0) {
-    return const MixerLayoutSolution(
+    // Nothing to split, but the bar's slot still follows the switch: a hidden
+    // bar here would disagree with the plan the page builds from the same
+    // config.
+    return MixerLayoutSolution(
       topFraction: null,
       contentFraction: 1,
       bottomFraction: null,
       libraryDocked: false,
-      barVisible: false,
+      barVisible: config.showFxBar,
     );
   }
 
