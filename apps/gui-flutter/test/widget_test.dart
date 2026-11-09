@@ -33,7 +33,6 @@ import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_strip.dart';
 import 'package:gui_flutter/widgets/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
-import 'package:gui_flutter/widgets/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/widgets/mixer/rotary_knob.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
