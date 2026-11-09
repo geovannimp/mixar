@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/curve_editor.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/theme/mixar_colors.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
@@ -416,8 +417,8 @@ class _CurveChoice extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final colors = [
-      theme.colors.primary,
-      theme.colors.primary.withValues(alpha: 0.45),
+      deckInk(DeckAccent.a, theme.colors.brightness),
+      deckInk(DeckAccent.b, theme.colors.brightness),
     ];
     return MTappable(
       onPress: () => onSelected(id),
@@ -448,8 +449,8 @@ class _CurveChoice extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 SizedBox(
-                  width: 96,
-                  height: 42,
+                  width: 80,
+                  height: 34,
                   child: CustomPaint(
                     painter: _CurvePreviewPainter(
                       channels: channels,
