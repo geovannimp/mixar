@@ -41,4 +41,26 @@ void main() {
     await tester.pump();
     expect(selected, SettingsSection.mixer);
   });
+
+  testWidgets('selected row tints only its icon with the accent', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpSidebar(tester, active: SettingsSection.ui, onSelect: (_) {});
+
+    final icons = tester.widgetList<Icon>(find.byType(Icon)).toList();
+    expect(icons, hasLength(kSettingsSections.length));
+    expect(
+      icons.where((icon) => icon.color == theme.colors.primary),
+      hasLength(1),
+    );
+    expect(
+      icons.where((icon) => icon.color == theme.colors.selectionForeground),
+      isEmpty,
+    );
+    expect(
+      icons.where((icon) => icon.color == theme.colors.mutedForeground),
+      hasLength(kSettingsSections.length - 1),
+    );
+  });
 }
