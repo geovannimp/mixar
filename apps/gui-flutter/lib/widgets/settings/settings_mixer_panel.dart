@@ -449,8 +449,8 @@ class _CurveChoice extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 SizedBox(
-                  width: 80,
-                  height: 34,
+                  width: 64,
+                  height: 28,
                   child: CustomPaint(
                     painter: _CurvePreviewPainter(
                       channels: channels,
@@ -524,7 +524,7 @@ class _CurvePreviewPainter extends CustomPainter {
       final paint = Paint()
         ..color = colors[channel % colors.length]
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
+        ..strokeWidth = 1.6
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
         ..isAntiAlias = true;
