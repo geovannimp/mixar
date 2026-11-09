@@ -8,4 +8,14 @@ ignore = [
     # rust_decimal 1.42 still pulls rkyv 0.7; advisory wants >=0.8.17.
     # Track with sea-orm / rust_decimal; not introduced by controller/midir.
     "RUSTSEC-2026-0235",
+    # libsqlite3-sys 0.36 comes with rusqlite 0.38, which is pinned by
+    # sea-query-rusqlite 0.8.0 (`rusqlite = "^0.38"`) — the latest release,
+    # itself required by sea-orm-sync 2.0.4 (latest). The fix ships in
+    # libsqlite3-sys >=0.39, only reachable through rusqlite >=0.41, so a bump
+    # needs an upstream sea-query-rusqlite release first (open upstream issue:
+    # https://github.com/SeaQL/sea-query/issues/1130). Note also that this
+    # workspace builds rusqlite's `bundled-sqlcipher` feature, and the advisory
+    # states 0.39.0/0.39.1 still bundle affected SQLite 3.53.4 there; re-check
+    # when sea-query-rusqlite and sqlcipher-src catch up.
+    "RUSTSEC-2026-0459",
 ]
