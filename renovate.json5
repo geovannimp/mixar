@@ -1,0 +1,96 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  // config:recommended includes the dependency dashboard, monorepo grouping
+  // and semantic commit prefixes. The helper keeps SHA-pinned actions paired
+  // with a readable version comment.
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigestsToSemver",
+  ],
+
+  "timezone": "UTC",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 0,
+
+  // Wait three days before proposing a release, to blunt supply-chain attacks.
+  "minimumReleaseAge": "3 days",
+
+  // Generated cargokit glue: its pubspecs and Gradle files are maintained by
+  // Flutter/build tooling, not by Renovate. See
+  // apps/gui-flutter/rust_builder/README.md.
+  "ignorePaths": [
+    "apps/gui-flutter/rust_builder/**",
+  ],
+
+  "packageRules": [
+    // Minor/patch updates are grouped per ecosystem so the PR queue stays
+    // reviewable; majors remain individual.
+    {
+      "description": "Group minor and patch updates per ecosystem",
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "cargo minor/patch",
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm minor/patch",
+    },
+    {
+      "matchManagers": ["pub"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "pub minor/patch",
+    },
+    {
+      "matchManagers": ["gradle", "gradle-wrapper"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "gradle minor/patch",
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "github-actions minor/patch",
+    },
+    {
+      "matchManagers": ["mise"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "mise tools",
+    },
+
+    // Intentionally unpinned in mise.toml; the CI workflow pins its own
+    // version in .github/workflows/opencodereview.yml.
+    {
+      "description": "codegraph is intentionally tracked as latest in mise.toml",
+      "matchManagers": ["mise"],
+      "matchPackageNames": [
+        "npm:@colbymchenry/codegraph",
+        "@colbymchenry/codegraph",
+      ],
+      "enabled": false,
+    },
+
+    // Runner labels are intentionally floating. Pinning them (or letting
+    // Renovate move them) can break builds when GitHub retires a runner image.
+    {
+      "description": "Keep runs-on labels floating (ubuntu-latest, macos-latest, windows-latest)",
+      "matchDatasources": ["github-runners"],
+      "enabled": false,
+    },
+
+    // Source of truth: apps/gui-flutter/android/settings.gradle.kts
+    // (flutter-plugin-loader) and app/build.gradle.kts (flutter-gradle-plugin).
+    // These IDs come from the Flutter SDK includeBuild, not a version catalog.
+    // Renovate cannot import Kotlin constants, so keep this list in step when
+    // Flutter changes its plugin IDs; updating them independently causes skew.
+    {
+      "description": "Flutter supplies these Gradle plugins from its SDK",
+      "matchManagers": ["gradle"],
+      "matchPackageNames": [
+        "dev.flutter.flutter-plugin-loader",
+        "dev.flutter.flutter-gradle-plugin",
+      ],
+      "enabled": false,
+    },
+  ],
+}
