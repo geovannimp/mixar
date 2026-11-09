@@ -199,6 +199,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
+                color: theme.colors.card,
                 border: Border(bottom: BorderSide(color: theme.colors.border)),
               ),
               child: Padding(
