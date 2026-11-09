@@ -103,7 +103,11 @@ class _CurveImportExportCardState extends State<CurveImportExportCard> {
     final l10n = AppLocalizations.of(context)!;
     showMixarToast(
       context: context,
-      title: Text(l10n.curvesImported(_groupName(imported.id))),
+      title: Text(
+        l10n.curvesImported(
+          imported.displayName.isEmpty ? imported.id : imported.displayName,
+        ),
+      ),
     );
   }
 
