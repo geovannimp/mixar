@@ -430,7 +430,7 @@ class _CurveChoice extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? theme.colors.selection : theme.colors.card,
             border: Border.all(color: border, width: selected ? 1.5 : 1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: theme.style.borderRadius.md,
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
