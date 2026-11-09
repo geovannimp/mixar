@@ -329,15 +329,13 @@ class SettingsMixerPanel extends StatelessWidget {
       for (var i = 0; i < samples; i++) at(i / (samples - 1)),
     ];
     return [
-      [for (final values in samplesAtX) _firstOrZero(values)],
-      [for (final values in samplesAtX) _secondOrZero(values)],
+      [for (final values in samplesAtX) _valueOrZero(values, 0)],
+      [for (final values in samplesAtX) _valueOrZero(values, 1)],
     ];
   }
 
-  double _firstOrZero(List<double> values) => values.isEmpty ? 0.0 : values[0];
-
-  double _secondOrZero(List<double> values) =>
-      values.length < 2 ? 0.0 : values[1];
+  double _valueOrZero(List<double> values, int index) =>
+      index < values.length ? values[index] : 0.0;
 }
 
 /// Replaces the switch until the device has a passing measurement.
