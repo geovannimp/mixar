@@ -321,7 +321,13 @@ class SettingsMixerPanel extends StatelessWidget {
       return const [0, 0];
     }
 
-    return [for (var i = 0; i < samples; i++) at(i / (samples - 1))];
+    final samplesAtX = [
+      for (var i = 0; i < samples; i++) at(i / (samples - 1)),
+    ];
+    return [
+      [for (final values in samplesAtX) values[0]],
+      [for (final values in samplesAtX) values[1]],
+    ];
   }
 }
 
@@ -409,7 +415,10 @@ class _CurveChoice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final colors = [theme.colors.primary, theme.colors.cueOn];
+    final colors = [
+      theme.colors.primary,
+      theme.colors.primary.withValues(alpha: 0.45),
+    ];
     return MTappable(
       onPress: () => onSelected(id),
       selected: selected,
@@ -420,10 +429,10 @@ class _CurveChoice extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? theme.colors.selection : theme.colors.card,
             border: Border.all(color: border, width: selected ? 1.5 : 1),
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 _RadioMark(selected: selected),
@@ -439,8 +448,8 @@ class _CurveChoice extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 SizedBox(
-                  width: 72,
-                  height: 36,
+                  width: 96,
+                  height: 42,
                   child: CustomPaint(
                     painter: _CurvePreviewPainter(
                       channels: channels,
@@ -502,11 +511,9 @@ class _CurvePreviewPainter extends CustomPainter {
     if (channels.isEmpty || size.isEmpty) {
       return;
     }
-    final grid = Paint()
-      ..color = colors.first.withValues(alpha: 0.14)
-      ..strokeWidth = 1;
-    final middle = size.height / 2;
-    canvas.drawLine(Offset(0, middle), Offset(size.width, middle), grid);
+    const inset = 1.5;
+    final width = size.width - inset * 2;
+    final height = size.height - inset * 2;
 
     for (var channel = 0; channel < channels.length; channel++) {
       final values = channels[channel];
@@ -516,13 +523,14 @@ class _CurvePreviewPainter extends CustomPainter {
       final paint = Paint()
         ..color = colors[channel % colors.length]
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
+        ..strokeWidth = 2
         ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
         ..isAntiAlias = true;
       final path = Path();
       for (var index = 0; index < values.length; index++) {
-        final x = size.width * index / (values.length - 1);
-        final y = size.height - values[index].clamp(0.0, 1.0) * size.height;
+        final x = inset + width * index / (values.length - 1);
+        final y = inset + height * (1 - values[index].clamp(0.0, 1.0));
         if (index == 0) {
           path.moveTo(x, y);
         } else {
