@@ -86,26 +86,24 @@ void main() {
       expect(plan.bottom, isNull);
     });
 
-    test('the deck facing the mixer keeps its inner inset', () {
+    test('decks keep only the window-edge inset', () {
       final plan = _plan(_config());
       final left = plan.content!.left!.content as DeckContent;
       final right = plan.content!.right!.content as DeckContent;
 
-      expect(left.padding, const EdgeInsets.only(left: 10, right: 10));
-      expect(right.padding, const EdgeInsets.only(left: 10, right: 10));
+      expect(left.padding, const EdgeInsets.only(left: 10));
+      expect(right.padding, const EdgeInsets.only(right: 10));
     });
 
-    test('four decks stack in pairs with a divider inset', () {
+    test('four decks stack in pairs without a divider inset', () {
       final plan = _plan(_config(numDecks: 4));
       final left = plan.content!.left!.content as DeckPairContent;
       final right = plan.content!.right!.content as DeckPairContent;
 
       expect(left.topId, 0);
       expect(left.bottomId, 2);
-      expect(left.dividerPadding, const EdgeInsets.only(right: 10));
       expect(right.topId, 1);
       expect(right.bottomId, 3);
-      expect(right.dividerPadding, const EdgeInsets.only(left: 10));
       expect(plan.content!.centerWidth, 196);
     });
   });
@@ -216,11 +214,11 @@ void main() {
       expect(right.padding, const EdgeInsets.only(right: 10));
     });
 
-    test('four decks close their split at the seam edge', () {
+    test('four decks keep only the window inset when the mixer is off', () {
       final plan = _plan(_config(showMixer: false, numDecks: 4));
       final left = plan.content!.left!.content as DeckPairContent;
 
-      expect(left.dividerPadding, EdgeInsets.zero);
+      expect(left.padding, const EdgeInsets.only(left: 10));
     });
 
     test('the middle placements keep a centre even with the mixer off', () {

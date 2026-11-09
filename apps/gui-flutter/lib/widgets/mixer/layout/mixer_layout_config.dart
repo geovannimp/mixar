@@ -56,9 +56,9 @@ class MixerLayoutConfig {
       showCrossfader: settings.showCrossfader,
       showFxBar: settings.showFxBar,
       preferDockedLibrary: !settings.libraryDrawerEnabled,
-      // The mixer column carries the strip's own gutters in the slot frame;
-      // the centre pane is pinned to the whole width.
-      mixerColumnWidth: mixerWidth + 2 * MixerPaneMetrics.slotGap,
+      // The mixer strip owns the deck gutter on each side; the centre pane is
+      // pinned to its full outer width.
+      mixerColumnWidth: mixerWidth + 2 * MixerPaneMetrics.mixerBleed,
       laneColumnWidth: fourDecks
           ? MixerPaneMetrics.laneWidthFour
           : MixerPaneMetrics.laneWidthTwo,

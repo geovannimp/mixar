@@ -39,17 +39,11 @@ final class DeckContent extends MixerContent {
 /// Two deck cards stacked in one column, split by a hairline that spans the
 /// panes edge to edge.
 final class DeckPairContent extends MixerContent {
-  const new(
-    this.topId,
-    this.bottomId, {
-    required this.padding,
-    required this.dividerPadding,
-  });
+  const new(this.topId, this.bottomId, {required this.padding});
 
   final int topId;
   final int bottomId;
   final EdgeInsets padding;
-  final EdgeInsets dividerPadding;
 }
 
 /// The channel strip between the decks.
@@ -125,36 +119,20 @@ Widget buildMixerContent(BuildContext context, MixerContent? content) =>
         padding: padding,
         child: _deck(deckId),
       ),
-      DeckPairContent(
-        :final topId,
-        :final bottomId,
-        :final padding,
-        :final dividerPadding,
-      ) =>
-        _split(
-          context,
-          topId,
-          bottomId,
-          padding: padding,
-          dividerPadding: dividerPadding,
-        ),
+      DeckPairContent(:final topId, :final bottomId, :final padding) => _split(
+        context,
+        topId,
+        bottomId,
+        padding: padding,
+      ),
       MixerStripContent(:final width) => OverflowBox(
         alignment: Alignment.center,
         minWidth: width,
         maxWidth: double.infinity,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: MixerPaneMetrics.slotGap),
-          child: RepaintBoundary(
-            child: MixerStrip(bleed: MixerPaneMetrics.mixerBleed),
-          ),
-        ),
+        child: const RepaintBoundary(child: MixerStrip()),
       ),
       CrossfaderContent() => const CrossfaderPanel(
-        contentPadding: EdgeInsets.only(
-          left: MixerPaneMetrics.mixerBleed,
-          right: MixerPaneMetrics.mixerBleed,
-          bottom: MixerStrip.verticalInset,
-        ),
+        edgeFill: MixerPaneMetrics.mixerBleed,
       ),
       LibraryContent() => const LibraryPanel(),
       FxBarContent() => const FxBar(),
@@ -206,15 +184,11 @@ Widget _lanes(BuildContext context) {
 /// edge. The top pane gives up the odd pixel so the split starts on a whole
 /// device pixel instead of antialiasing across two rows, including at
 /// fractional display scaling.
-///
-/// The divider follows the panes' insets except at the window edge, where the
-/// caller passes no padding so the rule runs to the border.
 Widget _split(
   BuildContext context,
   int topId,
   int bottomId, {
   required EdgeInsets padding,
-  required EdgeInsets dividerPadding,
 }) {
   final theme = context.theme;
   final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
@@ -229,13 +203,10 @@ Widget _split(
             height: floored.isNegative ? 0 : floored,
             child: pane(topId),
           ),
-          Padding(
-            padding: dividerPadding,
-            child: MDivider(
-              key: ValueKey('deck-split-$topId'),
-              padding: EdgeInsets.zero,
-              color: theme.colors.border,
-            ),
+          MDivider(
+            key: ValueKey('deck-split-$topId'),
+            padding: EdgeInsets.zero,
+            color: theme.colors.border,
           ),
           Expanded(child: pane(bottomId)),
         ],

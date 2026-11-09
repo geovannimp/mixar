@@ -99,9 +99,8 @@ MixerPlan mixerPlanFor(MixerLayoutConfig config, MixerLayoutSolution solution) {
       (config.kind == MixerLayoutKind.centreHorizontal ||
           config.kind == MixerLayoutKind.centreVertical);
   final mixerCentre = !lanes && config.showMixer;
-  // The centre column is the mixer, so the decks keep their gutter against it;
-  // a waveform centre hands that gutter to the lanes.
-  final innerInset = mixerCentre;
+  // The mixer strip owns the deck gutter on each side, so the deck cards sit
+  // flush against the centre column and keep only the window-edge inset.
   const inset = MixerPaneMetrics.deckInset;
 
   final top = config.kind == MixerLayoutKind.waveformTop && config.showWaveform
@@ -111,33 +110,17 @@ MixerPlan mixerPlanFor(MixerLayoutConfig config, MixerLayoutSolution solution) {
         )
       : null;
 
-  final leftPadding = EdgeInsets.only(
-    left: inset,
-    right: innerInset ? inset : 0,
-  );
-  final rightPadding = EdgeInsets.only(
-    left: innerInset ? inset : 0,
-    right: inset,
-  );
+  final leftPadding = EdgeInsets.only(left: inset);
+  final rightPadding = EdgeInsets.only(right: inset);
   final left = config.fourDecks
       ? MixerSlotSpec(
-          content: DeckPairContent(
-            0,
-            2,
-            padding: leftPadding,
-            dividerPadding: EdgeInsets.only(right: innerInset ? inset : 0),
-          ),
+          content: DeckPairContent(0, 2, padding: leftPadding),
           minPx: 0,
         )
       : MixerSlotSpec(content: DeckContent(0, padding: leftPadding), minPx: 0);
   final right = config.fourDecks
       ? MixerSlotSpec(
-          content: DeckPairContent(
-            1,
-            3,
-            padding: rightPadding,
-            dividerPadding: EdgeInsets.only(left: innerInset ? inset : 0),
-          ),
+          content: DeckPairContent(1, 3, padding: rightPadding),
           minPx: 0,
         )
       : MixerSlotSpec(content: DeckContent(1, padding: rightPadding), minPx: 0);

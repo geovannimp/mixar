@@ -718,7 +718,7 @@ void main() {
     expect(engine.cueMixes.last, inInclusiveRange(0.0, 1.0));
   });
 
-  testWidgets('crossfader rule bleeds the deck gutter; row is centred', (
+  testWidgets('crossfader foot spans the deck gutter; row is centred', (
     tester,
   ) async {
     await pumpShell(tester);
@@ -731,22 +731,46 @@ void main() {
     expect(hiKnobs(), findsWidgets);
     expect(xfader(), findsOneWidget);
 
-    // The mixer slot frame keeps the strip's gutter on both sides; the rule
-    // bleeds into it so it reaches the deck card borders.
-    const gutter = MixerPaneMetrics.mixerBleed;
-    final stripWidth = tester.getSize(find.byType(MixerStrip)).width;
+    // The strip owns the deck gutter on both sides, so the rule spans its full
+    // width and its endpoint cells (not dead space) fill down to the cards.
+    final strip = find.byType(MixerStrip);
+    final stripRect = tester.getRect(strip);
+    expect(stripRect.left, tester.getRect(_deck('DECK A')).right);
+    expect(stripRect.right, tester.getRect(_deck('DECK B')).left);
+
     final rule = find.byKey(const ValueKey('crossfader-rule'));
-    expect(tester.getSize(rule).width, stripWidth + 2 * gutter);
-    expect(
-      tester.getTopLeft(rule).dx,
-      tester.getTopLeft(find.byType(MixerStrip)).dx - gutter,
-    );
+    expect(tester.getSize(rule).width, stripRect.width);
+    expect(tester.getTopLeft(rule).dx, stripRect.left);
+
+    // Both endpoints take the gutter on their outer side and the full height
+    // below the rule; neither leaves a dead band around the chip.
+    final assignA = find.byKey(const ValueKey('crossfader-assign-a'));
+    final assignB = find.byKey(const ValueKey('crossfader-assign-b'));
+    for (final cell in [assignA, assignB]) {
+      final rect = tester.getRect(cell);
+      expect(
+        rect.width,
+        32 + MixerPaneMetrics.mixerBleed,
+        reason: 'endpoint must fill the gutter',
+      );
+      expect(rect.height, 64, reason: 'endpoint must fill the foot height');
+    }
+    final aRect = tester.getRect(assignA);
+    final bRect = tester.getRect(assignB);
+    expect(aRect.left, stripRect.left);
+    expect(aRect.top, tester.getRect(rule).bottom);
+    expect(aRect.bottom, stripRect.bottom);
+    expect(bRect.right, stripRect.right);
+    expect(bRect.top, tester.getRect(rule).bottom);
+    expect(bRect.bottom, stripRect.bottom);
 
     // The crossfader row sits centred between the rule and the panel bottom.
     final ruleBottom = tester.getRect(rule).bottom;
     final rowCentre = tester.getRect(xfader()).center.dy;
-    final panelBottom = tester.getRect(find.byType(MixerStrip)).bottom;
-    expect(rowCentre - ruleBottom, closeTo(panelBottom - rowCentre, 0.5));
+    expect(
+      rowCentre - ruleBottom,
+      closeTo(tester.getRect(strip).bottom - rowCentre, 0.5),
+    );
   });
 
   testWidgets('hiding mixer meters narrows the strip', (tester) async {
@@ -757,7 +781,11 @@ void main() {
         mixerMeters: MixerMetersSetting.none,
       ),
     );
-    expect(tester.getSize(find.byType(MixerStrip)).width, 168);
+    // The strip carries the deck gutter inside its own box now.
+    expect(
+      tester.getSize(find.byType(MixerStrip)).width,
+      168 + 2 * MixerPaneMetrics.mixerBleed,
+    );
     expect(find.byKey(const ValueKey('master-meter')), findsOneWidget);
   });
 
