@@ -18,6 +18,7 @@ class SettingsSidebar extends StatefulWidget {
     required this.active,
     required this.onSelect,
     required this.onQueryChanged,
+    this.onSearchSelect,
     super.key,
   });
 
@@ -26,6 +27,14 @@ class SettingsSidebar extends StatefulWidget {
 
   /// Reports the live search text so the active panel can filter its cards.
   final ValueChanged<String> onQueryChanged;
+
+  /// Selection changes the search makes on its own: auto-picking the first
+  /// match, or restoring the pre-search section when the query clears.
+  ///
+  /// Defaults to [onSelect]. The page passes a handler that leaves the one-shot
+  /// deep-link preview glow and scroll alone — neither is a user pick, so a
+  /// type-then-clear must not consume them.
+  final ValueChanged<SettingsSection>? onSearchSelect;
 
   @override
   State<SettingsSidebar> createState() => _SettingsSidebarState();
@@ -86,15 +95,20 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
       return;
     }
     _sectionBeforeSearch ??= widget.active;
-    widget.onSelect(matches.first);
+    _notifySearchSelection(matches.first);
   }
+
+  /// Reports a search-driven move (auto-pick or restore) without the explicit
+  /// pick path, so callers can keep user-pick side effects out of it.
+  void _notifySearchSelection(SettingsSection section) =>
+      (widget.onSearchSelect ?? widget.onSelect)(section);
 
   /// Returns to the section the search hid, if the query was cleared.
   void _restoreSectionAfterSearch() {
     final restore = _sectionBeforeSearch;
     _sectionBeforeSearch = null;
     if (restore != null) {
-      widget.onSelect(restore);
+      _notifySearchSelection(restore);
     }
   }
 

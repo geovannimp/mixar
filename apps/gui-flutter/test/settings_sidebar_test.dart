@@ -33,6 +33,32 @@ void main() {
     );
   }
 
+  /// Pumps a sidebar that owns its active section, like the settings page does.
+  ///
+  /// Returns a getter for the live section so a test can follow search-driven
+  /// moves and row picks across rebuilds.
+  Future<ValueGetter<SettingsSection>> pumpStatefulSidebar(
+    WidgetTester tester, {
+    SettingsSection initial = SettingsSection.audio,
+  }) async {
+    var active = initial;
+    await tester.pumpWidget(
+      mixarTestMaterialApp(
+        theme: MixarThemeData.dark(),
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => SettingsSidebar(
+              active: active,
+              onSelect: (section) => setState(() => active = section),
+              onQueryChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    return () => active;
+  }
+
   testWidgets('lists section labels and reports onSelect', (tester) async {
     SettingsSection? selected;
     await pumpSidebar(
@@ -127,52 +153,24 @@ void main() {
   testWidgets('clearing the search goes back to the section it hid', (
     tester,
   ) async {
-    var active = SettingsSection.audio;
-    await tester.pumpWidget(
-      mixarTestMaterialApp(
-        theme: MixarThemeData.dark(),
-        home: Scaffold(
-          body: StatefulBuilder(
-            builder: (context, setState) => SettingsSidebar(
-              active: active,
-              onSelect: (section) => setState(() => active = section),
-              onQueryChanged: (_) {},
-            ),
-          ),
-        ),
-      ),
-    );
+    final active = await pumpStatefulSidebar(tester);
 
     // 'theme' hides Audio, so the sidebar auto-selects UI to keep the panel in
     // sync with the filtered list.
     await tester.enterText(find.byType(MixarInput), 'theme');
     await tester.pump();
-    expect(active, SettingsSection.ui);
+    expect(active(), SettingsSection.ui);
 
     // Clearing puts the user back in the section the search took them out of.
     await tester.tap(find.byIcon(LucideIcons.x));
     await tester.pump();
-    expect(active, SettingsSection.audio);
+    expect(active(), SettingsSection.audio);
   });
 
   testWidgets('a row picked while searching survives the clear', (
     tester,
   ) async {
-    var active = SettingsSection.audio;
-    await tester.pumpWidget(
-      mixarTestMaterialApp(
-        theme: MixarThemeData.dark(),
-        home: Scaffold(
-          body: StatefulBuilder(
-            builder: (context, setState) => SettingsSidebar(
-              active: active,
-              onSelect: (section) => setState(() => active = section),
-              onQueryChanged: (_) {},
-            ),
-          ),
-        ),
-      ),
-    );
+    final active = await pumpStatefulSidebar(tester);
     final l10n = lookupAppLocalizations(const Locale('en'));
 
     await tester.enterText(find.byType(MixarInput), 'theme');
@@ -182,7 +180,7 @@ void main() {
 
     await tester.tap(find.byIcon(LucideIcons.x));
     await tester.pump();
-    expect(active, SettingsSection.ui);
+    expect(active(), SettingsSection.ui);
   });
 
   testWidgets(

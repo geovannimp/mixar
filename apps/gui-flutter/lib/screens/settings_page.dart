@@ -133,6 +133,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
+  /// Search-driven section move (auto-pick, or restore when the query clears).
+  ///
+  /// Not a user pick: the one-shot deep-link glow stays armed, and landing back
+  /// on Audio re-arms its pending scroll in case the first attempt was skipped
+  /// while another section owned the pane.
+  void _selectFromSearch(SettingsSection section) {
+    setState(() => _section = section);
+    if (section == SettingsSection.audio && widget.scrollToPreviewBus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
+    }
+  }
+
   /// Post-frame poll until the Preview bus card is mounted (settings may still
   /// be loading on the first frame). Not called from [build].
   void _tryPreviewScroll() {
@@ -287,6 +299,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     active: _section,
                     onQueryChanged: (query) =>
                         setState(() => _searchQuery = query),
+                    onSearchSelect: _selectFromSearch,
                     onSelect: (section) => setState(() {
                       if (section != _section) {
                         // One-shot deep-link glow; don't kill on re-tap.
