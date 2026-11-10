@@ -59,7 +59,11 @@ void main() {
 
   Future<void> pumpUi(WidgetTester tester) => pumpPanel(
     tester,
-    SettingsUiPanel(draft: defaultAppSettings(), onChanged: (_) {}),
+    SettingsUiPanel(
+      draft: defaultAppSettings(),
+      savedAccentPalette: defaultAppSettings().accentPalette,
+      onChanged: (_) {},
+    ),
     // The UI panel's own tests drive animations frame by frame.
     settle: false,
   );

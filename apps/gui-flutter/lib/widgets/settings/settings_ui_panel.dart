@@ -18,7 +18,7 @@ class SettingsUiPanel extends StatelessWidget {
   const new({
     required this.draft,
     required this.onChanged,
-    this.savedAccentPalette,
+    required this.savedAccentPalette,
     super.key,
   });
 
@@ -30,7 +30,7 @@ class SettingsUiPanel extends StatelessWidget {
   /// The theme previews paint the mixed window in this palette so the accent
   /// they show only switches after a save; the picker below still previews the
   /// draft's own swatch.
-  final AccentPaletteSetting? savedAccentPalette;
+  final AccentPaletteSetting savedAccentPalette;
 
   static const List<UiLanguageSetting> _languages = UiLanguageSetting.values;
 
@@ -87,9 +87,7 @@ class SettingsUiPanel extends StatelessWidget {
                     label: themeSettingLabel(l10n, theme),
                     preview: ThemeSwatch(
                       value: theme,
-                      palette: accentPaletteFromSettings(
-                        savedAccentPalette ?? draft.accentPalette,
-                      ),
+                      palette: accentPaletteFromSettings(savedAccentPalette),
                     ),
                   ),
               ],

@@ -107,14 +107,12 @@ class SettingsMixerPanel extends StatelessWidget {
                       SettingsVisualOption<String>(
                         value: id,
                         label: _curveLabel(draft, id, l10n),
-                        preview: CustomPaint(
-                          painter: _CurvePreviewPainter(
-                            channels: _previewChannels(draft, id),
-                            colors: [
-                              deckInk(DeckAccent.a, theme.colors.brightness),
-                              deckInk(DeckAccent.b, theme.colors.brightness),
-                            ],
-                          ),
+                        preview: _CurvePreview(
+                          channels: _previewChannels(draft, id),
+                          colors: [
+                            deckInk(DeckAccent.a, theme.colors.brightness),
+                            deckInk(DeckAccent.b, theme.colors.brightness),
+                          ],
                         ),
                       ),
                   ],
@@ -440,6 +438,19 @@ class _CapabilityStatus {
   final Color color;
   final Color fill;
   final Color border;
+}
+
+/// The two deck curves as the crossfader draws them.
+class _CurvePreview extends StatelessWidget {
+  const new({required this.channels, required this.colors});
+
+  final List<List<double>> channels;
+  final List<Color> colors;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _CurvePreviewPainter(channels: channels, colors: colors),
+  );
 }
 
 class _CurvePreviewPainter extends CustomPainter {

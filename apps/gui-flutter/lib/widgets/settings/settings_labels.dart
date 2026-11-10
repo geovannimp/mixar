@@ -27,3 +27,21 @@ String accentPaletteLabel(AppLocalizations l10n, AccentPaletteSetting value) =>
       AccentPaletteSetting.orange => l10n.settingsUiAccentOrange,
       AccentPaletteSetting.pink => l10n.settingsUiAccentPink,
     };
+
+String selectStyleSettingLabel(
+  AppLocalizations l10n,
+  SelectStyleSetting value,
+) => switch (value) {
+  SelectStyleSetting.auto => l10n.settingsUiSelectStyleAuto,
+  SelectStyleSetting.desktop => l10n.settingsUiSelectStyleDesktop,
+  SelectStyleSetting.mobile => l10n.settingsUiSelectStyleMobile,
+};
+
+String selectStyleSettingSubtitle(
+  AppLocalizations l10n,
+  SelectStyleSetting value,
+) => switch (value) {
+  SelectStyleSetting.auto => l10n.settingsUiSelectStyleAutoSubtitle,
+  SelectStyleSetting.desktop => l10n.settingsUiSelectStyleDesktopSubtitle,
+  SelectStyleSetting.mobile => l10n.settingsUiSelectStyleMobileSubtitle,
+};

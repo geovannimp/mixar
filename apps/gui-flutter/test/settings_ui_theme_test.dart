@@ -22,7 +22,7 @@ void main() {
     AppSettings? draft,
     ValueChanged<AppSettings>? onChanged,
     Key? captureKey,
-    AccentPaletteSetting? savedAccentPalette,
+    AccentPaletteSetting savedAccentPalette = AccentPaletteSetting.teal,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -91,12 +91,13 @@ void main() {
     AppSettings? changed;
     await pumpPanel(tester, onChanged: (settings) => changed = settings);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(SettingsVisualChoice<ThemeSetting>),
-        matching: find.text('Dark'),
-      ),
+    final darkOption = find.descendant(
+      of: find.byType(SettingsVisualChoice<ThemeSetting>),
+      matching: find.text('Dark'),
     );
+    await tester.ensureVisible(darkOption);
+    await tester.pumpAndSettle();
+    await tester.tap(darkOption);
     await tester.pumpAndSettle();
 
     expect(changed?.theme, ThemeSetting.dark);

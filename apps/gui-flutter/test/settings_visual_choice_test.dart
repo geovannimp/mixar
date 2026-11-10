@@ -66,7 +66,12 @@ void main() {
     String? changed;
     await pumpChoice(tester, value: 'alpha', onChanged: (v) => changed = v);
 
-    await tester.tap(find.text('Beta'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SettingsVisualChoice<String>),
+        matching: find.text('Beta'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(changed, 'beta');

@@ -6,6 +6,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
+import 'package:gui_flutter/widgets/settings/settings_labels.dart';
 import 'package:gui_flutter/widgets/settings/settings_preview_block.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
@@ -57,24 +58,6 @@ class SettingsLayoutPanel extends StatelessWidget {
     LibraryDrawerSideSetting.right => l10n.settingsLayoutLibraryDrawerRight,
     LibraryDrawerSideSetting.top => l10n.settingsLayoutLibraryDrawerTop,
     LibraryDrawerSideSetting.bottom => l10n.settingsLayoutLibraryDrawerBottom,
-  };
-
-  static String _selectStyleLabel(
-    AppLocalizations l10n,
-    SelectStyleSetting value,
-  ) => switch (value) {
-    SelectStyleSetting.auto => l10n.settingsUiSelectStyleAuto,
-    SelectStyleSetting.desktop => l10n.settingsUiSelectStyleDesktop,
-    SelectStyleSetting.mobile => l10n.settingsUiSelectStyleMobile,
-  };
-
-  static String _selectStyleSubtitle(
-    AppLocalizations l10n,
-    SelectStyleSetting value,
-  ) => switch (value) {
-    SelectStyleSetting.auto => l10n.settingsUiSelectStyleAutoSubtitle,
-    SelectStyleSetting.desktop => l10n.settingsUiSelectStyleDesktopSubtitle,
-    SelectStyleSetting.mobile => l10n.settingsUiSelectStyleMobileSubtitle,
   };
 
   /// A labelled select: in this panel the field label is also the dialog title,
@@ -275,8 +258,8 @@ class SettingsLayoutPanel extends StatelessWidget {
               SelectStyleSetting.desktop,
               SelectStyleSetting.mobile,
             ],
-            labelBuilder: (mode) => _selectStyleLabel(l10n, mode),
-            subtitleBuilder: (mode) => _selectStyleSubtitle(l10n, mode),
+            labelBuilder: (mode) => selectStyleSettingLabel(l10n, mode),
+            subtitleBuilder: (mode) => selectStyleSettingSubtitle(l10n, mode),
             onChanged: (mode) =>
                 onChanged(copyAppSettings(draft, selectStyle: mode)),
           ),

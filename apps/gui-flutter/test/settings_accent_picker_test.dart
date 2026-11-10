@@ -20,6 +20,7 @@ void main() {
     AppSettings? draft,
     ValueChanged<AppSettings>? onChanged,
   }) async {
+    final settings = draft ?? defaultAppSettings();
     await tester.pumpWidget(
       ProviderScope(
         child: mixarTestMaterialApp(
@@ -27,7 +28,8 @@ void main() {
           home: Scaffold(
             body: SingleChildScrollView(
               child: SettingsUiPanel(
-                draft: draft ?? defaultAppSettings(),
+                draft: settings,
+                savedAccentPalette: settings.accentPalette,
                 onChanged: onChanged ?? (_) {},
               ),
             ),
