@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/settings/settings_labels.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -24,13 +25,7 @@ class SettingsAccentPicker extends StatelessWidget {
   ];
 
   static String _label(AppLocalizations l10n, AccentPaletteSetting option) =>
-      switch (option) {
-        AccentPaletteSetting.teal => l10n.settingsUiAccentTeal,
-        AccentPaletteSetting.blue => l10n.settingsUiAccentBlue,
-        AccentPaletteSetting.violet => l10n.settingsUiAccentViolet,
-        AccentPaletteSetting.orange => l10n.settingsUiAccentOrange,
-        AccentPaletteSetting.pink => l10n.settingsUiAccentPink,
-      };
+      accentPaletteLabel(l10n, option);
 
   @override
   Widget build(BuildContext context) {

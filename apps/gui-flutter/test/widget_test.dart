@@ -803,7 +803,7 @@ void main() {
 
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(
-      find.text('Brightness and the accent color used by brand chrome.'),
+      find.text('Brightness of the app window.'),
       findsOneWidget,
       reason: 'the UI section is the default landing tab',
     );

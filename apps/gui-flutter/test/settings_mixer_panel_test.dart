@@ -6,6 +6,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -245,6 +246,7 @@ void main() {
     await _pumpPanel(tester, changed: changed);
 
     expect(find.text('Crossfader'), findsOneWidget);
+    expect(find.byType(SettingsVisualChoice<String>), findsOneWidget);
     expect(find.text('Constant power'), findsOneWidget);
     expect(find.text('Linear'), findsOneWidget);
     expect(find.text('Fast cut'), findsOneWidget);
@@ -270,5 +272,32 @@ void main() {
     await tester.tap(disable);
     await tester.pumpAndSettle();
     expect(changed.last.crossfaderBehavior.disabled, isTrue);
+  }, semanticsEnabled: false);
+
+  testWidgets('the mixer panel offers the meter width as radio rows', (
+    tester,
+  ) async {
+    final changed = <AppSettings>[];
+    await _pumpPanel(tester, changed: changed);
+
+    final meters = tester.widget<SettingsVisualChoice<MixerMetersSetting>>(
+      find.byType(SettingsVisualChoice<MixerMetersSetting>),
+    );
+    expect(meters.value, MixerMetersSetting.mono);
+    expect(meters.options.map((option) => option.value), [
+      MixerMetersSetting.mono,
+      MixerMetersSetting.stereo,
+    ]);
+
+    final stereo = find.descendant(
+      of: find.byType(SettingsVisualChoice<MixerMetersSetting>),
+      matching: find.text('Stereo'),
+    );
+    await tester.ensureVisible(stereo);
+    await tester.pumpAndSettle();
+    await tester.tap(stereo);
+    await tester.pumpAndSettle();
+
+    expect(changed.last.mixerMeters, MixerMetersSetting.stereo);
   }, semanticsEnabled: false);
 }

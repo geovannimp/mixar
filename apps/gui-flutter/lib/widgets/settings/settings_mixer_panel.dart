@@ -11,11 +11,12 @@ import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
+import 'package:gui_flutter/widgets/settings/settings_preview_block.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
+import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
-import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -33,6 +34,22 @@ class SettingsMixerPanel extends StatelessWidget {
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
+
+  static String _metersLabel(AppLocalizations l10n, MixerMetersSetting value) =>
+      switch (value) {
+        MixerMetersSetting.none => l10n.settingsLayoutMixerMetersNone,
+        MixerMetersSetting.mono => l10n.settingsLayoutMixerMetersMono,
+        MixerMetersSetting.stereo => l10n.settingsLayoutMixerMetersStereo,
+      };
+
+  static String _metersSubtitle(
+    AppLocalizations l10n,
+    MixerMetersSetting value,
+  ) => switch (value) {
+    MixerMetersSetting.none => l10n.settingsLayoutMixerMetersNoneSubtitle,
+    MixerMetersSetting.mono => l10n.settingsLayoutMixerMetersMonoSubtitle,
+    MixerMetersSetting.stereo => l10n.settingsLayoutMixerMetersStereoSubtitle,
+  };
 
   /// Last measured CPU capability; `null` until this device has run a probe.
   final RealtimeStemsCapability? capability;
@@ -83,24 +100,27 @@ class SettingsMixerPanel extends StatelessWidget {
             children: [
               SettingsField(
                 label: l10n.settingsMixerCrossfaderCurve,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: 8,
-                  children: [
+                child: SettingsVisualChoice<String>(
+                  value: draft.defaultCrossfaderCurve,
+                  options: [
                     for (final id in _curveOptions(draft))
-                      _CurveChoice(
-                        id: id,
+                      SettingsVisualOption<String>(
+                        value: id,
                         label: _curveLabel(draft, id, l10n),
-                        selected: draft.defaultCrossfaderCurve == id,
-                        channels: _previewChannels(draft, id),
-                        onSelected: (selectedId) => onChanged(
-                          copyAppSettings(
-                            draft,
-                            defaultCrossfaderCurve: selectedId,
+                        preview: CustomPaint(
+                          painter: _CurvePreviewPainter(
+                            channels: _previewChannels(draft, id),
+                            colors: [
+                              deckInk(DeckAccent.a, theme.colors.brightness),
+                              deckInk(DeckAccent.b, theme.colors.brightness),
+                            ],
                           ),
                         ),
                       ),
                   ],
+                  onChanged: (selectedId) => onChanged(
+                    copyAppSettings(draft, defaultCrossfaderCurve: selectedId),
+                  ),
                 ),
               ),
               SettingsCheckbox(
@@ -130,6 +150,28 @@ class SettingsMixerPanel extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsLayoutMixerMeters,
+          child: SettingsVisualChoice<MixerMetersSetting>(
+            value: draft.mixerMeters,
+            // `None` is the Layout checkbox; these rows pick the width and
+            // turn the meters on.
+            options: [
+              for (final mode in const [
+                MixerMetersSetting.mono,
+                MixerMetersSetting.stereo,
+              ])
+                SettingsVisualOption<MixerMetersSetting>(
+                  value: mode,
+                  label: _metersLabel(l10n, mode),
+                  subtitle: _metersSubtitle(l10n, mode),
+                  preview: _MixerMetersPreview(mode: mode),
+                ),
+            ],
+            onChanged: (mode) =>
+                onChanged(copyAppSettings(draft, mixerMeters: mode)),
           ),
         ),
         SettingsSectionCard(
@@ -403,110 +445,6 @@ class _CapabilityStatus {
   final Color border;
 }
 
-/// One radio-style default-curve choice with a small A/B preview.
-class _CurveChoice extends StatelessWidget {
-  const new({
-    required this.id,
-    required this.label,
-    required this.selected,
-    required this.channels,
-    required this.onSelected,
-  });
-
-  final String id;
-  final String label;
-  final bool selected;
-  final List<List<double>> channels;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final colors = [
-      deckInk(DeckAccent.a, theme.colors.brightness),
-      deckInk(DeckAccent.b, theme.colors.brightness),
-    ];
-    return MTappable(
-      onPress: () => onSelected(id),
-      selected: selected,
-      semanticsLabel: label,
-      builder: (context, state) {
-        final border = selected ? theme.colors.primary : theme.colors.border;
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: selected ? theme.colors.selection : theme.colors.card,
-            border: Border.all(color: border, width: selected ? 1.5 : 1),
-            borderRadius: theme.style.borderRadius.md,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                _RadioMark(selected: selected),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.typography.body.sm.copyWith(
-                      color: theme.colors.foreground,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 64,
-                  height: 28,
-                  child: CustomPaint(
-                    painter: _CurvePreviewPainter(
-                      channels: channels,
-                      colors: colors,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _RadioMark extends StatelessWidget {
-  const new({required this.selected});
-
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Container(
-      width: 16,
-      height: 16,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: selected ? theme.colors.primary : theme.colors.border,
-          width: 1.5,
-        ),
-      ),
-      child: Center(
-        child: selected
-            ? Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: theme.colors.primary,
-                ),
-              )
-            : null,
-      ),
-    );
-  }
-}
-
 class _CurvePreviewPainter extends CustomPainter {
   const new({required this.channels, required this.colors});
 
@@ -583,6 +521,64 @@ class _CapabilityBadge extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Two channel strips; each carries as many meter ladders as the mode asks
+/// for, so `Mono` shows one and `Stereo` two.
+class _MixerMetersPreview extends StatelessWidget {
+  const new({required this.mode});
+
+  final MixerMetersSetting mode;
+
+  /// Same lit ramp as the real `LevelMeter`: teal at the bottom, amber near
+  /// the top, red at the top. Ordered top-down, as the ladder paints.
+  static const _segmentColors = <Color>[
+    Color(0xFFEF4444),
+    Color(0xFFFBBF24),
+    Color(0xFF14B8A6),
+    Color(0xFF14B8A6),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final lanes = mode == MixerMetersSetting.stereo ? 2 : 1;
+
+    Widget ladder(int count) => Row(
+      spacing: 1,
+      children: [
+        for (var lane = 0; lane < count; lane++)
+          SizedBox(
+            width: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 1,
+              children: [
+                for (
+                  var segment = 0;
+                  segment < _segmentColors.length;
+                  segment++
+                )
+                  Expanded(
+                    child: SettingsPreviewBlock(color: _segmentColors[segment]),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    return Center(
+      child: SizedBox(
+        height: 22,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 10,
+          children: [for (var strip = 0; strip < 2; strip++) ladder(lanes)],
         ),
       ),
     );

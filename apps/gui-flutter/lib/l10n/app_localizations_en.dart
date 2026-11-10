@@ -162,7 +162,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLayoutShowCrossfader => 'Crossfader';
 
   @override
-  String get settingsLayoutMixerMeters => 'Mixer meters';
+  String get settingsLayoutMixerMeters => 'Meters';
 
   @override
   String get settingsLayoutMixerMetersNone => 'None';
@@ -266,18 +266,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Theme, language, hover tips, and control presentation.';
 
   @override
-  String get settingsUiChromeTitle => 'Chrome and controls';
+  String get settingsUiChromeTitle => 'Language and tooltips';
 
   @override
   String get settingsUiChromeDescription =>
-      'Language, hover tips, and how selects open.';
+      'Interface language and hover tips.';
 
   @override
   String get settingsUiThemeTitle => 'Theme';
 
   @override
-  String get settingsUiThemeDescription =>
-      'Brightness and the accent color used by brand chrome.';
+  String get settingsUiThemeDescription => 'Brightness of the app window.';
 
   @override
   String get settingsUiTheme => 'Theme';
@@ -290,6 +289,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsUiAccentColor => 'Accent color';
+
+  @override
+  String get settingsUiAccentDescription =>
+      'Color used by buttons, highlights, and deck chrome.';
 
   @override
   String get settingsUiAccentTeal => 'Teal';

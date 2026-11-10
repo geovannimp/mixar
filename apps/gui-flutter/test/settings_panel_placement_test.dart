@@ -107,11 +107,23 @@ void main() {
     );
   }, semanticsEnabled: false);
 
-  testWidgets('UI panel keeps theme and chrome only', (tester) async {
+  testWidgets('UI panel keeps language, theme, and accent only', (
+    tester,
+  ) async {
     await pumpUi(tester);
-    expect(find.text('Chrome and controls'), findsOneWidget);
-    // The meters went inside Layout → Mixer strip with the rest of the strip.
-    expect(find.text('Mixer meters'), findsNothing);
+    expect(find.text('Language and tooltips'), findsOneWidget);
+    // The language card is the first section in the UI panel.
+    expect(
+      tester
+          .widget<SettingsSectionCard>(find.byType(SettingsSectionCard).first)
+          .title,
+      'Language and tooltips',
+    );
+    // Select style moved to Layout.
+    expect(find.text('SELECT STYLE'), findsNothing);
+    // The meters' on/off lives in Layout → Mixer strip; the width lives in
+    // the Mixer panel.
+    expect(find.text('Meters'), findsNothing);
     expect(find.text('METER MODE'), findsNothing);
     // Panel visibility and the library drawer moved to Layout.
     expect(find.text('Library drawer'), findsNothing);
@@ -253,7 +265,7 @@ void main() {
     );
   }, semanticsEnabled: false);
 
-  testWidgets('UI panel keeps theme and accent in their own card', (
+  testWidgets('UI panel keeps theme and accent in separate cards', (
     tester,
   ) async {
     await pumpUi(tester);
@@ -265,13 +277,20 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: themeCard, matching: find.text('ACCENT COLOR')),
+      find.descendant(of: themeCard, matching: find.text('Accent color')),
+      findsNothing,
+    );
+
+    final accentCard = find.widgetWithText(SettingsSectionCard, 'Accent color');
+    expect(accentCard, findsOne);
+    expect(
+      find.descendant(of: accentCard, matching: find.text('Teal')),
       findsOneWidget,
     );
 
     final chromeCard = find.widgetWithText(
       SettingsSectionCard,
-      'Chrome and controls',
+      'Language and tooltips',
     );
     expect(
       find.descendant(of: chromeCard, matching: find.text('LANGUAGE')),
@@ -282,7 +301,7 @@ void main() {
       findsNothing,
     );
     expect(
-      find.descendant(of: chromeCard, matching: find.text('ACCENT COLOR')),
+      find.descendant(of: chromeCard, matching: find.text('Accent color')),
       findsNothing,
     );
   }, semanticsEnabled: false);

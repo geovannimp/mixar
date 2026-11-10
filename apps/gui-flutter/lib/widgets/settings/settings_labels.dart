@@ -18,3 +18,12 @@ String uiLanguageSettingLabel(AppLocalizations l10n, UiLanguageSetting value) =>
       UiLanguageSetting.en => l10n.settingsLanguageEn,
       UiLanguageSetting.ptBr => l10n.settingsLanguagePtBr,
     };
+
+String accentPaletteLabel(AppLocalizations l10n, AccentPaletteSetting value) =>
+    switch (value) {
+      AccentPaletteSetting.teal => l10n.settingsUiAccentTeal,
+      AccentPaletteSetting.blue => l10n.settingsUiAccentBlue,
+      AccentPaletteSetting.violet => l10n.settingsUiAccentViolet,
+      AccentPaletteSetting.orange => l10n.settingsUiAccentOrange,
+      AccentPaletteSetting.pink => l10n.settingsUiAccentPink,
+    };

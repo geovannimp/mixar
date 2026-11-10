@@ -390,7 +390,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsLayoutMixerMeters.
   ///
   /// In en, this message translates to:
-  /// **'Mixer meters'**
+  /// **'Meters'**
   String get settingsLayoutMixerMeters;
 
   /// No description provided for @settingsLayoutMixerMetersNone.
@@ -582,13 +582,13 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiChromeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Chrome and controls'**
+  /// **'Language and tooltips'**
   String get settingsUiChromeTitle;
 
   /// No description provided for @settingsUiChromeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Language, hover tips, and how selects open.'**
+  /// **'Interface language and hover tips.'**
   String get settingsUiChromeDescription;
 
   /// No description provided for @settingsUiThemeTitle.
@@ -600,7 +600,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsUiThemeDescription.
   ///
   /// In en, this message translates to:
-  /// **'Brightness and the accent color used by brand chrome.'**
+  /// **'Brightness of the app window.'**
   String get settingsUiThemeDescription;
 
   /// No description provided for @settingsUiTheme.
@@ -626,6 +626,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Accent color'**
   String get settingsUiAccentColor;
+
+  /// No description provided for @settingsUiAccentDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Color used by buttons, highlights, and deck chrome.'**
+  String get settingsUiAccentDescription;
 
   /// No description provided for @settingsUiAccentTeal.
   ///

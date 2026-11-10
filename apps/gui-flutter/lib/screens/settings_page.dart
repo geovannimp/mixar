@@ -295,6 +295,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       child: _SettingsSectionPanel(
                         section: _section,
                         draft: draft,
+                        baseline: baseline,
                         highlightPreviewBus: _highlightPreviewBus,
                         previewBusCardKey: _previewBusCardKey,
                         realtimeStemsCapability: benchmark.capability,
@@ -445,6 +446,7 @@ class _SettingsSectionPanel extends StatelessWidget {
   const new({
     required this.section,
     required this.draft,
+    required this.baseline,
     required this.onChanged,
     required this.previewBusCardKey,
     required this.realtimeStemsCapability,
@@ -457,6 +459,11 @@ class _SettingsSectionPanel extends StatelessWidget {
 
   final SettingsSection section;
   final AppSettings draft;
+
+  /// Saved settings the app is running with, for fields that must not preview
+  /// an unsaved edit.
+  final AppSettings baseline;
+
   final ValueChanged<AppSettings> onChanged;
   final GlobalKey previewBusCardKey;
   final RealtimeStemsCapability? realtimeStemsCapability;
@@ -496,7 +503,11 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
-      SettingsSection.ui => SettingsUiPanel(draft: draft, onChanged: onChanged),
+      SettingsSection.ui => SettingsUiPanel(
+        draft: draft,
+        savedAccentPalette: baseline.accentPalette,
+        onChanged: onChanged,
+      ),
       SettingsSection.layout => SettingsLayoutPanel(
         draft: draft,
         onChanged: onChanged,
