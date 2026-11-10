@@ -1,7 +1,7 @@
 //! Control thread: cmd dispatch and high-rate evt egress.
 
 use crate::engine::Engine;
-use crate::fader_start::FaderStartAction;
+use crate::fader_start::{FaderStartAction, OnNonZeroAction, OnZeroAction};
 use crate::soft_takeover;
 use crate::transport::TransportEvent;
 use anyhow::anyhow;
@@ -337,6 +337,9 @@ fn deck_of(event: &Event) -> Option<u16> {
         Event::SetCuePoint(e) => Some(e.deck),
         Event::BeginCueHold(e) => Some(e.deck),
         Event::EndCueHold(e) => Some(e.deck),
+        Event::FaderStart(e) => Some(e.deck),
+        Event::FaderStop(e) => Some(e.deck),
+        Event::SetFaderStartNative(e) => Some(e.deck),
         Event::SetQuantize(e) => Some(e.deck),
         Event::ToggleQuantize(e) => Some(e.deck),
         Event::SetSlip(e) => Some(e.deck),
@@ -556,6 +559,36 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
             }
             Ok(CmdOutcome::DeckUpdated(id))
         }),
+        Event::FaderStart(bus_api::FaderStart { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            if !eng.fader_start_cfg.enabled {
+                return Ok(CmdOutcome::Silent);
+            }
+            let action = match eng.fader_start_cfg.on_non_zero {
+                OnNonZeroAction::Nothing => return Ok(CmdOutcome::Silent),
+                OnNonZeroAction::Play => FaderStartAction::Play,
+                OnNonZeroAction::TogglePlay => FaderStartAction::TogglePlay,
+            };
+            apply_fader_start_action(eng, *deck, action)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::FaderStop(bus_api::FaderStop { deck }) => deck_cmd(*deck, engine, |eng, id| {
+            if !eng.fader_start_cfg.enabled {
+                return Ok(CmdOutcome::Silent);
+            }
+            let action = match eng.fader_start_cfg.on_zero {
+                OnZeroAction::Nothing => return Ok(CmdOutcome::Silent),
+                OnZeroAction::Pause => FaderStartAction::Pause,
+                OnZeroAction::PauseAndCue => FaderStartAction::PauseAndCue,
+            };
+            apply_fader_start_action(eng, *deck, action)?;
+            Ok(CmdOutcome::DeckUpdated(id))
+        }),
+        Event::SetFaderStartNative(bus_api::SetFaderStartNative { deck, native }) => {
+            deck_cmd(*deck, engine, |eng, _id| {
+                eng.set_fader_start_native(*deck, *native);
+                Ok(CmdOutcome::Silent)
+            })
+        }
         Event::SetEq(bus_api::SetEq {
             deck,
             low,

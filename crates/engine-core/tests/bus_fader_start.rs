@@ -4,11 +4,12 @@
 mod common;
 
 use bus_api::Event;
-use bus_api::{Play, Seek, SetCuePoint, SetVolume};
+use bus_api::{FaderStart, FaderStop, Play, Seek, SetCuePoint, SetFaderStartNative, SetVolume};
 use common::{recv_updated, short_tone_fixture};
 use engine_core::fader_start::FaderStartConfig;
 use engine_core::{AudioConfig, EngineConfig, EngineSession};
 use library_core::{AudioSource, FileAudioSource};
+use std::time::{Duration, Instant};
 
 fn enabled_config() -> EngineConfig {
     EngineConfig {
@@ -295,4 +296,100 @@ fn pause_and_cue_returns_to_the_loaded_cue() {
     let down = recv_updated(&mut evt);
     assert!(!down.playing);
     assert_eq!(down.position_ms, Some(0));
+}
+
+/// A deck that silently emits no `DeckUpdated` for `timeout` (native/disabled
+/// paths publish nothing instead of an error or a spurious update).
+fn assert_no_deck_updated(sub: &mut common::TestReceiver, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return;
+        }
+        match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(None) => {}
+            Ok(Some(event)) => {
+                if matches!(event, Event::DeckUpdated(_)) {
+                    panic!("expected no DeckUpdated, got {event:?}");
+                }
+            }
+            Err(error) => panic!("evt bus disconnected: {error}"),
+        }
+    }
+}
+
+#[test]
+fn native_events_run_the_configured_actions() {
+    let session = EngineSession::new(enabled_config()).expect("session");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+    session.with_engine(|engine| engine.start()).expect("start");
+    load_short_tone(&session);
+
+    publish(&session, Event::FaderStart(FaderStart { deck: 0 }));
+    let started = recv_updated(&mut evt);
+    assert!(started.playing, "FaderStart on_non_zero must play the deck");
+
+    publish(&session, Event::FaderStop(FaderStop { deck: 0 }));
+    let stopped = recv_updated(&mut evt);
+    assert!(!stopped.playing, "FaderStop on_zero must pause the deck");
+    assert_eq!(stopped.position_ms, Some(0));
+}
+
+#[test]
+fn native_deck_ignores_the_software_threshold() {
+    let session = EngineSession::new(enabled_config()).expect("session");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+    session.with_engine(|engine| engine.start()).expect("start");
+    load_short_tone(&session);
+
+    publish(
+        &session,
+        Event::SetFaderStartNative(SetFaderStartNative {
+            deck: 0,
+            native: true,
+        }),
+    );
+    // Silent: it clears the latch and only flips the per-deck flag.
+    assert_no_deck_updated(&mut evt, Duration::from_millis(200));
+
+    publish(
+        &session,
+        Event::SetVolume(SetVolume {
+            deck: 0,
+            volume: 0.0,
+            soft_takeover: false,
+        }),
+    );
+    let _ = recv_updated(&mut evt);
+
+    publish(
+        &session,
+        Event::SetVolume(SetVolume {
+            deck: 0,
+            volume: 0.8,
+            soft_takeover: false,
+        }),
+    );
+    let up = recv_updated(&mut evt);
+    assert!(
+        !up.playing,
+        "native deck must ignore the software fader threshold"
+    );
+
+    publish(&session, Event::FaderStart(FaderStart { deck: 0 }));
+    let playing = recv_updated(&mut evt);
+    assert!(playing.playing, "controller-native FaderStart must play");
+}
+
+#[test]
+fn native_events_respect_a_disabled_config() {
+    let session = EngineSession::new(disabled_config()).expect("session");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+    session.with_engine(|engine| engine.start()).expect("start");
+    load_short_tone(&session);
+
+    publish(&session, Event::FaderStart(FaderStart { deck: 0 }));
+    publish(&session, Event::FaderStop(FaderStop { deck: 0 }));
+    assert_no_deck_updated(&mut evt, Duration::from_millis(250));
 }

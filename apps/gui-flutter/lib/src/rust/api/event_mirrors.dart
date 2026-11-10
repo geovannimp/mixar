@@ -1303,6 +1303,10 @@ sealed class Event with _$Event {
   const factory Event.setCuePoint(SetCuePoint field0) = Event_SetCuePoint;
   const factory Event.beginCueHold(BeginCueHold field0) = Event_BeginCueHold;
   const factory Event.endCueHold(EndCueHold field0) = Event_EndCueHold;
+  const factory Event.faderStart(FaderStart field0) = Event_FaderStart;
+  const factory Event.faderStop(FaderStop field0) = Event_FaderStop;
+  const factory Event.setFaderStartNative(SetFaderStartNative field0) =
+      Event_SetFaderStartNative;
   const factory Event.setQuantize(SetQuantize field0) = Event_SetQuantize;
   const factory Event.toggleQuantize(ToggleQuantize field0) =
       Event_ToggleQuantize;
@@ -1436,6 +1440,38 @@ class ExitLoop {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ExitLoop &&
+          runtimeType == other.runtimeType &&
+          deck == other.deck;
+}
+
+class FaderStart {
+  final int deck;
+
+  const FaderStart({required this.deck});
+
+  @override
+  int get hashCode => deck.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FaderStart &&
+          runtimeType == other.runtimeType &&
+          deck == other.deck;
+}
+
+class FaderStop {
+  final int deck;
+
+  const FaderStop({required this.deck});
+
+  @override
+  int get hashCode => deck.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FaderStop &&
           runtimeType == other.runtimeType &&
           deck == other.deck;
 }
@@ -2601,6 +2637,24 @@ class SetEqBand {
           band == other.band &&
           gain == other.gain &&
           softTakeover == other.softTakeover;
+}
+
+class SetFaderStartNative {
+  final int deck;
+  final bool native;
+
+  const SetFaderStartNative({required this.deck, required this.native});
+
+  @override
+  int get hashCode => deck.hashCode ^ native.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SetFaderStartNative &&
+          runtimeType == other.runtimeType &&
+          deck == other.deck &&
+          native == other.native;
 }
 
 class SetFilter {

@@ -8361,6 +8361,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FaderStart dco_decode_box_autoadd_fader_start(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_fader_start(raw);
+  }
+
+  @protected
+  FaderStop dco_decode_box_autoadd_fader_stop(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_fader_stop(raw);
+  }
+
+  @protected
   Focus dco_decode_box_autoadd_focus(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_focus(raw);
@@ -8728,6 +8740,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SetEqBand dco_decode_box_autoadd_set_eq_band(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_set_eq_band(raw);
+  }
+
+  @protected
+  SetFaderStartNative dco_decode_box_autoadd_set_fader_start_native(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_set_fader_start_native(raw);
   }
 
   @protected
@@ -9665,266 +9685,274 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 28:
         return Event_EndCueHold(dco_decode_box_autoadd_end_cue_hold(raw[1]));
       case 29:
-        return Event_SetQuantize(dco_decode_box_autoadd_set_quantize(raw[1]));
+        return Event_FaderStart(dco_decode_box_autoadd_fader_start(raw[1]));
       case 30:
+        return Event_FaderStop(dco_decode_box_autoadd_fader_stop(raw[1]));
+      case 31:
+        return Event_SetFaderStartNative(
+          dco_decode_box_autoadd_set_fader_start_native(raw[1]),
+        );
+      case 32:
+        return Event_SetQuantize(dco_decode_box_autoadd_set_quantize(raw[1]));
+      case 33:
         return Event_ToggleQuantize(
           dco_decode_box_autoadd_toggle_quantize(raw[1]),
         );
-      case 31:
-        return Event_SetSlip(dco_decode_box_autoadd_set_slip(raw[1]));
-      case 32:
-        return Event_ToggleSlip(dco_decode_box_autoadd_toggle_slip(raw[1]));
-      case 33:
-        return Event_SetAutoLoop(dco_decode_box_autoadd_set_auto_loop(raw[1]));
       case 34:
-        return Event_LoopIn(dco_decode_box_autoadd_loop_in(raw[1]));
+        return Event_SetSlip(dco_decode_box_autoadd_set_slip(raw[1]));
       case 35:
-        return Event_LoopOut(dco_decode_box_autoadd_loop_out(raw[1]));
+        return Event_ToggleSlip(dco_decode_box_autoadd_toggle_slip(raw[1]));
       case 36:
-        return Event_ExitLoop(dco_decode_box_autoadd_exit_loop(raw[1]));
+        return Event_SetAutoLoop(dco_decode_box_autoadd_set_auto_loop(raw[1]));
       case 37:
+        return Event_LoopIn(dco_decode_box_autoadd_loop_in(raw[1]));
+      case 38:
+        return Event_LoopOut(dco_decode_box_autoadd_loop_out(raw[1]));
+      case 39:
+        return Event_ExitLoop(dco_decode_box_autoadd_exit_loop(raw[1]));
+      case 40:
         return Event_RecallSavedLoop(
           dco_decode_box_autoadd_recall_saved_loop(raw[1]),
         );
-      case 38:
+      case 41:
         return Event_BeginLoopRoll(
           dco_decode_box_autoadd_begin_loop_roll(raw[1]),
         );
-      case 39:
-        return Event_EndLoopRoll(dco_decode_box_autoadd_end_loop_roll(raw[1]));
-      case 40:
-        return Event_BeatJump(dco_decode_box_autoadd_beat_jump(raw[1]));
-      case 41:
-        return Event_SetPadMode(dco_decode_box_autoadd_set_pad_mode(raw[1]));
       case 42:
-        return Event_PadPress(dco_decode_box_autoadd_pad_press(raw[1]));
+        return Event_EndLoopRoll(dco_decode_box_autoadd_end_loop_roll(raw[1]));
       case 43:
-        return Event_PadRelease(dco_decode_box_autoadd_pad_release(raw[1]));
+        return Event_BeatJump(dco_decode_box_autoadd_beat_jump(raw[1]));
       case 44:
+        return Event_SetPadMode(dco_decode_box_autoadd_set_pad_mode(raw[1]));
+      case 45:
+        return Event_PadPress(dco_decode_box_autoadd_pad_press(raw[1]));
+      case 46:
+        return Event_PadRelease(dco_decode_box_autoadd_pad_release(raw[1]));
+      case 47:
         return Event_HotCuePadPress(
           dco_decode_box_autoadd_hot_cue_pad_press(raw[1]),
         );
-      case 45:
+      case 48:
         return Event_HotCuePadRelease(
           dco_decode_box_autoadd_hot_cue_pad_release(raw[1]),
         );
-      case 46:
+      case 49:
         return Event_LoopRollPadPress(
           dco_decode_box_autoadd_loop_roll_pad_press(raw[1]),
         );
-      case 47:
+      case 50:
         return Event_LoopRollPadRelease(
           dco_decode_box_autoadd_loop_roll_pad_release(raw[1]),
         );
-      case 48:
+      case 51:
         return Event_BeatJumpPadPress(
           dco_decode_box_autoadd_beat_jump_pad_press(raw[1]),
         );
-      case 49:
+      case 52:
         return Event_BeatJumpPadRelease(
           dco_decode_box_autoadd_beat_jump_pad_release(raw[1]),
         );
-      case 50:
+      case 53:
         return Event_SamplerPadPress(
           dco_decode_box_autoadd_sampler_pad_press(raw[1]),
         );
-      case 51:
+      case 54:
         return Event_SamplerPadRelease(
           dco_decode_box_autoadd_sampler_pad_release(raw[1]),
         );
-      case 52:
+      case 55:
         return Event_KeyboardPadPress(
           dco_decode_box_autoadd_keyboard_pad_press(raw[1]),
         );
-      case 53:
+      case 56:
         return Event_KeyboardPadRelease(
           dco_decode_box_autoadd_keyboard_pad_release(raw[1]),
         );
-      case 54:
+      case 57:
         return Event_KeyShiftPadPress(
           dco_decode_box_autoadd_key_shift_pad_press(raw[1]),
         );
-      case 55:
+      case 58:
         return Event_KeyShiftPadRelease(
           dco_decode_box_autoadd_key_shift_pad_release(raw[1]),
         );
-      case 56:
+      case 59:
         return Event_TriggerHotCue(
           dco_decode_box_autoadd_trigger_hot_cue(raw[1]),
         );
-      case 57:
+      case 60:
         return Event_SaveDeckHotCue(
           dco_decode_box_autoadd_save_deck_hot_cue(raw[1]),
         );
-      case 58:
+      case 61:
         return Event_DeleteDeckHotCue(
           dco_decode_box_autoadd_delete_deck_hot_cue(raw[1]),
         );
-      case 59:
+      case 62:
         return Event_AssignSampler(
           dco_decode_box_autoadd_assign_sampler(raw[1]),
         );
-      case 60:
+      case 63:
         return Event_AssignSamplerTrack(
           dco_decode_box_autoadd_assign_sampler_track(raw[1]),
         );
-      case 61:
-        return Event_ClearSampler(dco_decode_box_autoadd_clear_sampler(raw[1]));
-      case 62:
-        return Event_JogTouch(dco_decode_box_autoadd_jog_touch(raw[1]));
-      case 63:
-        return Event_JogTurn(dco_decode_box_autoadd_jog_turn(raw[1]));
       case 64:
-        return Event_SetJogMode(dco_decode_box_autoadd_set_jog_mode(raw[1]));
+        return Event_ClearSampler(dco_decode_box_autoadd_clear_sampler(raw[1]));
       case 65:
+        return Event_JogTouch(dco_decode_box_autoadd_jog_touch(raw[1]));
+      case 66:
+        return Event_JogTurn(dco_decode_box_autoadd_jog_turn(raw[1]));
+      case 67:
+        return Event_SetJogMode(dco_decode_box_autoadd_set_jog_mode(raw[1]));
+      case 68:
         return Event_SetCrossfader(
           dco_decode_box_autoadd_set_crossfader(raw[1]),
         );
-      case 66:
+      case 69:
         return Event_SetMasterVolume(
           dco_decode_box_autoadd_set_master_volume(raw[1]),
         );
-      case 67:
+      case 70:
         return Event_SetCueVolume(
           dco_decode_box_autoadd_set_cue_volume(raw[1]),
         );
-      case 68:
+      case 71:
         return Event_SetCueMix(dco_decode_box_autoadd_set_cue_mix(raw[1]));
-      case 69:
+      case 72:
         return Event_SetMasterCue(
           dco_decode_box_autoadd_set_master_cue(raw[1]),
         );
-      case 70:
+      case 73:
         return Event_ToggleMasterCue(
           dco_decode_box_autoadd_toggle_master_cue(raw[1]),
         );
-      case 71:
+      case 74:
         return Event_SetCurveLibrary(
           dco_decode_box_autoadd_set_curve_library(raw[1]),
         );
-      case 72:
+      case 75:
         return Event_SetCrossfaderCurve(
           dco_decode_box_autoadd_set_crossfader_curve(raw[1]),
         );
-      case 73:
+      case 76:
         return Event_SetCrossfaderCurveAmount(
           dco_decode_box_autoadd_set_crossfader_curve_amount(raw[1]),
         );
-      case 74:
+      case 77:
         return Event_SetCrossfaderBehavior(
           dco_decode_box_autoadd_set_crossfader_behavior(raw[1]),
         );
-      case 75:
+      case 78:
         return Event_SetChannelFaderCurve(
           dco_decode_box_autoadd_set_channel_fader_curve(raw[1]),
         );
-      case 76:
+      case 79:
         return Event_SetFxUnitSlot(
           dco_decode_box_autoadd_set_fx_unit_slot(raw[1]),
         );
-      case 77:
+      case 80:
         return Event_SetFxUnitSlotEnabled(
           dco_decode_box_autoadd_set_fx_unit_slot_enabled(raw[1]),
         );
-      case 78:
+      case 81:
         return Event_SetFxUnitWet(
           dco_decode_box_autoadd_set_fx_unit_wet(raw[1]),
         );
-      case 79:
+      case 82:
         return Event_SetFxLevelCurve(
           dco_decode_box_autoadd_set_fx_level_curve(raw[1]),
         );
-      case 80:
+      case 83:
         return Event_SetFxUnitParam(
           dco_decode_box_autoadd_set_fx_unit_param(raw[1]),
         );
-      case 81:
+      case 84:
         return Event_SetDeckFxRouted(
           dco_decode_box_autoadd_set_deck_fx_routed(raw[1]),
         );
-      case 82:
-        return Event_DeckUpdated(dco_decode_box_autoadd_deck_updated(raw[1]));
-      case 83:
-        return Event_DeckPosition(dco_decode_box_autoadd_deck_position(raw[1]));
-      case 84:
-        return Event_DeckLevels(dco_decode_box_autoadd_deck_levels(raw[1]));
       case 85:
+        return Event_DeckUpdated(dco_decode_box_autoadd_deck_updated(raw[1]));
+      case 86:
+        return Event_DeckPosition(dco_decode_box_autoadd_deck_position(raw[1]));
+      case 87:
+        return Event_DeckLevels(dco_decode_box_autoadd_deck_levels(raw[1]));
+      case 88:
         return Event_EngineSnapshot(
           dco_decode_box_autoadd_engine_snapshot(raw[1]),
         );
-      case 86:
-        return Event_Error(dco_decode_box_autoadd_error(raw[1]));
-      case 87:
-        return Event_Notice(dco_decode_box_autoadd_notice(raw[1]));
-      case 88:
-        return Event_AnalyzeTrack(dco_decode_box_autoadd_analyze_track(raw[1]));
       case 89:
+        return Event_Error(dco_decode_box_autoadd_error(raw[1]));
+      case 90:
+        return Event_Notice(dco_decode_box_autoadd_notice(raw[1]));
+      case 91:
+        return Event_AnalyzeTrack(dco_decode_box_autoadd_analyze_track(raw[1]));
+      case 92:
         return Event_GenerateStems(
           dco_decode_box_autoadd_generate_stems(raw[1]),
         );
-      case 90:
+      case 93:
         return Event_RefreshTrack(dco_decode_box_autoadd_refresh_track(raw[1]));
-      case 91:
+      case 94:
         return Event_SaveBeatGrid(
           dco_decode_box_autoadd_save_beat_grid(raw[1]),
         );
-      case 92:
+      case 95:
         return Event_SaveTrackCue(
           dco_decode_box_autoadd_save_track_cue(raw[1]),
         );
-      case 93:
+      case 96:
         return Event_SaveTrackHotCue(
           dco_decode_box_autoadd_save_track_hot_cue(raw[1]),
         );
-      case 94:
+      case 97:
         return Event_DeleteTrackHotCue(
           dco_decode_box_autoadd_delete_track_hot_cue(raw[1]),
         );
-      case 95:
+      case 98:
         return Event_SaveTrackLoop(
           dco_decode_box_autoadd_save_track_loop(raw[1]),
         );
-      case 96:
+      case 99:
         return Event_DeleteTrackLoop(
           dco_decode_box_autoadd_delete_track_loop(raw[1]),
         );
-      case 97:
+      case 100:
         return Event_TrackAnalyzed(
           dco_decode_box_autoadd_track_analyzed(raw[1]),
         );
-      case 98:
+      case 101:
         return Event_TrackUpdated(dco_decode_box_autoadd_track_updated(raw[1]));
-      case 99:
+      case 102:
         return Event_TrackProgress(
           dco_decode_box_autoadd_track_progress(raw[1]),
         );
-      case 100:
+      case 103:
         return Event_HotCuesChanged(
           dco_decode_box_autoadd_hot_cues_changed(raw[1]),
         );
-      case 101:
+      case 104:
         return Event_LoopsChanged(dco_decode_box_autoadd_loops_changed(raw[1]));
-      case 102:
+      case 105:
         return Event_BeatGridChanged(
           dco_decode_box_autoadd_beat_grid_changed(raw[1]),
         );
-      case 103:
+      case 106:
         return Event_HistorySessionUpdated(
           dco_decode_box_autoadd_history_session_updated(raw[1]),
         );
-      case 104:
-        return Event_Navigate(dco_decode_box_autoadd_navigate(raw[1]));
-      case 105:
-        return Event_Focus(dco_decode_box_autoadd_focus(raw[1]));
-      case 106:
-        return Event_Load(dco_decode_box_autoadd_load(raw[1]));
       case 107:
-        return Event_MappingOffer(dco_decode_box_autoadd_mapping_offer(raw[1]));
+        return Event_Navigate(dco_decode_box_autoadd_navigate(raw[1]));
       case 108:
+        return Event_Focus(dco_decode_box_autoadd_focus(raw[1]));
+      case 109:
+        return Event_Load(dco_decode_box_autoadd_load(raw[1]));
+      case 110:
+        return Event_MappingOffer(dco_decode_box_autoadd_mapping_offer(raw[1]));
+      case 111:
         return Event_MappingAttached(
           dco_decode_box_autoadd_mapping_attached(raw[1]),
         );
-      case 109:
+      case 112:
         return Event_MappingDetached(
           dco_decode_box_autoadd_mapping_detached(raw[1]),
         );
@@ -9952,6 +9980,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double dco_decode_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as double;
+  }
+
+  @protected
+  FaderStart dco_decode_fader_start(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return FaderStart(deck: dco_decode_u_16(arr[0]));
+  }
+
+  @protected
+  FaderStop dco_decode_fader_stop(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return FaderStop(deck: dco_decode_u_16(arr[0]));
   }
 
   @protected
@@ -11435,6 +11481,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetFaderStartNative dco_decode_set_fader_start_native(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SetFaderStartNative(
+      deck: dco_decode_u_16(arr[0]),
+      native: dco_decode_bool(arr[1]),
+    );
+  }
+
+  @protected
   SetFilter dco_decode_set_filter(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -12861,6 +12919,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FaderStart sse_decode_box_autoadd_fader_start(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_fader_start(deserializer));
+  }
+
+  @protected
+  FaderStop sse_decode_box_autoadd_fader_stop(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_fader_stop(deserializer));
+  }
+
+  @protected
   Focus sse_decode_box_autoadd_focus(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_focus(deserializer));
@@ -13292,6 +13362,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SetEqBand sse_decode_box_autoadd_set_eq_band(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_set_eq_band(deserializer));
+  }
+
+  @protected
+  SetFaderStartNative sse_decode_box_autoadd_set_fader_start_native(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_set_fader_start_native(deserializer));
   }
 
   @protected
@@ -14411,290 +14489,301 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_field0 = sse_decode_box_autoadd_end_cue_hold(deserializer);
         return Event_EndCueHold(var_field0);
       case 29:
+        var var_field0 = sse_decode_box_autoadd_fader_start(deserializer);
+        return Event_FaderStart(var_field0);
+      case 30:
+        var var_field0 = sse_decode_box_autoadd_fader_stop(deserializer);
+        return Event_FaderStop(var_field0);
+      case 31:
+        var var_field0 = sse_decode_box_autoadd_set_fader_start_native(
+          deserializer,
+        );
+        return Event_SetFaderStartNative(var_field0);
+      case 32:
         var var_field0 = sse_decode_box_autoadd_set_quantize(deserializer);
         return Event_SetQuantize(var_field0);
-      case 30:
+      case 33:
         var var_field0 = sse_decode_box_autoadd_toggle_quantize(deserializer);
         return Event_ToggleQuantize(var_field0);
-      case 31:
+      case 34:
         var var_field0 = sse_decode_box_autoadd_set_slip(deserializer);
         return Event_SetSlip(var_field0);
-      case 32:
+      case 35:
         var var_field0 = sse_decode_box_autoadd_toggle_slip(deserializer);
         return Event_ToggleSlip(var_field0);
-      case 33:
+      case 36:
         var var_field0 = sse_decode_box_autoadd_set_auto_loop(deserializer);
         return Event_SetAutoLoop(var_field0);
-      case 34:
+      case 37:
         var var_field0 = sse_decode_box_autoadd_loop_in(deserializer);
         return Event_LoopIn(var_field0);
-      case 35:
+      case 38:
         var var_field0 = sse_decode_box_autoadd_loop_out(deserializer);
         return Event_LoopOut(var_field0);
-      case 36:
+      case 39:
         var var_field0 = sse_decode_box_autoadd_exit_loop(deserializer);
         return Event_ExitLoop(var_field0);
-      case 37:
+      case 40:
         var var_field0 = sse_decode_box_autoadd_recall_saved_loop(deserializer);
         return Event_RecallSavedLoop(var_field0);
-      case 38:
+      case 41:
         var var_field0 = sse_decode_box_autoadd_begin_loop_roll(deserializer);
         return Event_BeginLoopRoll(var_field0);
-      case 39:
+      case 42:
         var var_field0 = sse_decode_box_autoadd_end_loop_roll(deserializer);
         return Event_EndLoopRoll(var_field0);
-      case 40:
+      case 43:
         var var_field0 = sse_decode_box_autoadd_beat_jump(deserializer);
         return Event_BeatJump(var_field0);
-      case 41:
+      case 44:
         var var_field0 = sse_decode_box_autoadd_set_pad_mode(deserializer);
         return Event_SetPadMode(var_field0);
-      case 42:
+      case 45:
         var var_field0 = sse_decode_box_autoadd_pad_press(deserializer);
         return Event_PadPress(var_field0);
-      case 43:
+      case 46:
         var var_field0 = sse_decode_box_autoadd_pad_release(deserializer);
         return Event_PadRelease(var_field0);
-      case 44:
+      case 47:
         var var_field0 = sse_decode_box_autoadd_hot_cue_pad_press(deserializer);
         return Event_HotCuePadPress(var_field0);
-      case 45:
+      case 48:
         var var_field0 = sse_decode_box_autoadd_hot_cue_pad_release(
           deserializer,
         );
         return Event_HotCuePadRelease(var_field0);
-      case 46:
+      case 49:
         var var_field0 = sse_decode_box_autoadd_loop_roll_pad_press(
           deserializer,
         );
         return Event_LoopRollPadPress(var_field0);
-      case 47:
+      case 50:
         var var_field0 = sse_decode_box_autoadd_loop_roll_pad_release(
           deserializer,
         );
         return Event_LoopRollPadRelease(var_field0);
-      case 48:
+      case 51:
         var var_field0 = sse_decode_box_autoadd_beat_jump_pad_press(
           deserializer,
         );
         return Event_BeatJumpPadPress(var_field0);
-      case 49:
+      case 52:
         var var_field0 = sse_decode_box_autoadd_beat_jump_pad_release(
           deserializer,
         );
         return Event_BeatJumpPadRelease(var_field0);
-      case 50:
+      case 53:
         var var_field0 = sse_decode_box_autoadd_sampler_pad_press(deserializer);
         return Event_SamplerPadPress(var_field0);
-      case 51:
+      case 54:
         var var_field0 = sse_decode_box_autoadd_sampler_pad_release(
           deserializer,
         );
         return Event_SamplerPadRelease(var_field0);
-      case 52:
+      case 55:
         var var_field0 = sse_decode_box_autoadd_keyboard_pad_press(
           deserializer,
         );
         return Event_KeyboardPadPress(var_field0);
-      case 53:
+      case 56:
         var var_field0 = sse_decode_box_autoadd_keyboard_pad_release(
           deserializer,
         );
         return Event_KeyboardPadRelease(var_field0);
-      case 54:
+      case 57:
         var var_field0 = sse_decode_box_autoadd_key_shift_pad_press(
           deserializer,
         );
         return Event_KeyShiftPadPress(var_field0);
-      case 55:
+      case 58:
         var var_field0 = sse_decode_box_autoadd_key_shift_pad_release(
           deserializer,
         );
         return Event_KeyShiftPadRelease(var_field0);
-      case 56:
+      case 59:
         var var_field0 = sse_decode_box_autoadd_trigger_hot_cue(deserializer);
         return Event_TriggerHotCue(var_field0);
-      case 57:
+      case 60:
         var var_field0 = sse_decode_box_autoadd_save_deck_hot_cue(deserializer);
         return Event_SaveDeckHotCue(var_field0);
-      case 58:
+      case 61:
         var var_field0 = sse_decode_box_autoadd_delete_deck_hot_cue(
           deserializer,
         );
         return Event_DeleteDeckHotCue(var_field0);
-      case 59:
+      case 62:
         var var_field0 = sse_decode_box_autoadd_assign_sampler(deserializer);
         return Event_AssignSampler(var_field0);
-      case 60:
+      case 63:
         var var_field0 = sse_decode_box_autoadd_assign_sampler_track(
           deserializer,
         );
         return Event_AssignSamplerTrack(var_field0);
-      case 61:
+      case 64:
         var var_field0 = sse_decode_box_autoadd_clear_sampler(deserializer);
         return Event_ClearSampler(var_field0);
-      case 62:
+      case 65:
         var var_field0 = sse_decode_box_autoadd_jog_touch(deserializer);
         return Event_JogTouch(var_field0);
-      case 63:
+      case 66:
         var var_field0 = sse_decode_box_autoadd_jog_turn(deserializer);
         return Event_JogTurn(var_field0);
-      case 64:
+      case 67:
         var var_field0 = sse_decode_box_autoadd_set_jog_mode(deserializer);
         return Event_SetJogMode(var_field0);
-      case 65:
+      case 68:
         var var_field0 = sse_decode_box_autoadd_set_crossfader(deserializer);
         return Event_SetCrossfader(var_field0);
-      case 66:
+      case 69:
         var var_field0 = sse_decode_box_autoadd_set_master_volume(deserializer);
         return Event_SetMasterVolume(var_field0);
-      case 67:
+      case 70:
         var var_field0 = sse_decode_box_autoadd_set_cue_volume(deserializer);
         return Event_SetCueVolume(var_field0);
-      case 68:
+      case 71:
         var var_field0 = sse_decode_box_autoadd_set_cue_mix(deserializer);
         return Event_SetCueMix(var_field0);
-      case 69:
+      case 72:
         var var_field0 = sse_decode_box_autoadd_set_master_cue(deserializer);
         return Event_SetMasterCue(var_field0);
-      case 70:
+      case 73:
         var var_field0 = sse_decode_box_autoadd_toggle_master_cue(deserializer);
         return Event_ToggleMasterCue(var_field0);
-      case 71:
+      case 74:
         var var_field0 = sse_decode_box_autoadd_set_curve_library(deserializer);
         return Event_SetCurveLibrary(var_field0);
-      case 72:
+      case 75:
         var var_field0 = sse_decode_box_autoadd_set_crossfader_curve(
           deserializer,
         );
         return Event_SetCrossfaderCurve(var_field0);
-      case 73:
+      case 76:
         var var_field0 = sse_decode_box_autoadd_set_crossfader_curve_amount(
           deserializer,
         );
         return Event_SetCrossfaderCurveAmount(var_field0);
-      case 74:
+      case 77:
         var var_field0 = sse_decode_box_autoadd_set_crossfader_behavior(
           deserializer,
         );
         return Event_SetCrossfaderBehavior(var_field0);
-      case 75:
+      case 78:
         var var_field0 = sse_decode_box_autoadd_set_channel_fader_curve(
           deserializer,
         );
         return Event_SetChannelFaderCurve(var_field0);
-      case 76:
+      case 79:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_slot(deserializer);
         return Event_SetFxUnitSlot(var_field0);
-      case 77:
+      case 80:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_slot_enabled(
           deserializer,
         );
         return Event_SetFxUnitSlotEnabled(var_field0);
-      case 78:
+      case 81:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_wet(deserializer);
         return Event_SetFxUnitWet(var_field0);
-      case 79:
+      case 82:
         var var_field0 = sse_decode_box_autoadd_set_fx_level_curve(
           deserializer,
         );
         return Event_SetFxLevelCurve(var_field0);
-      case 80:
+      case 83:
         var var_field0 = sse_decode_box_autoadd_set_fx_unit_param(deserializer);
         return Event_SetFxUnitParam(var_field0);
-      case 81:
+      case 84:
         var var_field0 = sse_decode_box_autoadd_set_deck_fx_routed(
           deserializer,
         );
         return Event_SetDeckFxRouted(var_field0);
-      case 82:
+      case 85:
         var var_field0 = sse_decode_box_autoadd_deck_updated(deserializer);
         return Event_DeckUpdated(var_field0);
-      case 83:
+      case 86:
         var var_field0 = sse_decode_box_autoadd_deck_position(deserializer);
         return Event_DeckPosition(var_field0);
-      case 84:
+      case 87:
         var var_field0 = sse_decode_box_autoadd_deck_levels(deserializer);
         return Event_DeckLevels(var_field0);
-      case 85:
+      case 88:
         var var_field0 = sse_decode_box_autoadd_engine_snapshot(deserializer);
         return Event_EngineSnapshot(var_field0);
-      case 86:
+      case 89:
         var var_field0 = sse_decode_box_autoadd_error(deserializer);
         return Event_Error(var_field0);
-      case 87:
+      case 90:
         var var_field0 = sse_decode_box_autoadd_notice(deserializer);
         return Event_Notice(var_field0);
-      case 88:
+      case 91:
         var var_field0 = sse_decode_box_autoadd_analyze_track(deserializer);
         return Event_AnalyzeTrack(var_field0);
-      case 89:
+      case 92:
         var var_field0 = sse_decode_box_autoadd_generate_stems(deserializer);
         return Event_GenerateStems(var_field0);
-      case 90:
+      case 93:
         var var_field0 = sse_decode_box_autoadd_refresh_track(deserializer);
         return Event_RefreshTrack(var_field0);
-      case 91:
+      case 94:
         var var_field0 = sse_decode_box_autoadd_save_beat_grid(deserializer);
         return Event_SaveBeatGrid(var_field0);
-      case 92:
+      case 95:
         var var_field0 = sse_decode_box_autoadd_save_track_cue(deserializer);
         return Event_SaveTrackCue(var_field0);
-      case 93:
+      case 96:
         var var_field0 = sse_decode_box_autoadd_save_track_hot_cue(
           deserializer,
         );
         return Event_SaveTrackHotCue(var_field0);
-      case 94:
+      case 97:
         var var_field0 = sse_decode_box_autoadd_delete_track_hot_cue(
           deserializer,
         );
         return Event_DeleteTrackHotCue(var_field0);
-      case 95:
+      case 98:
         var var_field0 = sse_decode_box_autoadd_save_track_loop(deserializer);
         return Event_SaveTrackLoop(var_field0);
-      case 96:
+      case 99:
         var var_field0 = sse_decode_box_autoadd_delete_track_loop(deserializer);
         return Event_DeleteTrackLoop(var_field0);
-      case 97:
+      case 100:
         var var_field0 = sse_decode_box_autoadd_track_analyzed(deserializer);
         return Event_TrackAnalyzed(var_field0);
-      case 98:
+      case 101:
         var var_field0 = sse_decode_box_autoadd_track_updated(deserializer);
         return Event_TrackUpdated(var_field0);
-      case 99:
+      case 102:
         var var_field0 = sse_decode_box_autoadd_track_progress(deserializer);
         return Event_TrackProgress(var_field0);
-      case 100:
+      case 103:
         var var_field0 = sse_decode_box_autoadd_hot_cues_changed(deserializer);
         return Event_HotCuesChanged(var_field0);
-      case 101:
+      case 104:
         var var_field0 = sse_decode_box_autoadd_loops_changed(deserializer);
         return Event_LoopsChanged(var_field0);
-      case 102:
+      case 105:
         var var_field0 = sse_decode_box_autoadd_beat_grid_changed(deserializer);
         return Event_BeatGridChanged(var_field0);
-      case 103:
+      case 106:
         var var_field0 = sse_decode_box_autoadd_history_session_updated(
           deserializer,
         );
         return Event_HistorySessionUpdated(var_field0);
-      case 104:
+      case 107:
         var var_field0 = sse_decode_box_autoadd_navigate(deserializer);
         return Event_Navigate(var_field0);
-      case 105:
+      case 108:
         var var_field0 = sse_decode_box_autoadd_focus(deserializer);
         return Event_Focus(var_field0);
-      case 106:
+      case 109:
         var var_field0 = sse_decode_box_autoadd_load(deserializer);
         return Event_Load(var_field0);
-      case 107:
+      case 110:
         var var_field0 = sse_decode_box_autoadd_mapping_offer(deserializer);
         return Event_MappingOffer(var_field0);
-      case 108:
+      case 111:
         var var_field0 = sse_decode_box_autoadd_mapping_attached(deserializer);
         return Event_MappingAttached(var_field0);
-      case 109:
+      case 112:
         var var_field0 = sse_decode_box_autoadd_mapping_detached(deserializer);
         return Event_MappingDetached(var_field0);
       default:
@@ -14719,6 +14808,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double sse_decode_f_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  FaderStart sse_decode_fader_start(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deck = sse_decode_u_16(deserializer);
+    return FaderStart(deck: var_deck);
+  }
+
+  @protected
+  FaderStop sse_decode_fader_stop(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deck = sse_decode_u_16(deserializer);
+    return FaderStop(deck: var_deck);
   }
 
   @protected
@@ -16517,6 +16620,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SetFaderStartNative sse_decode_set_fader_start_native(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deck = sse_decode_u_16(deserializer);
+    var var_native = sse_decode_bool(deserializer);
+    return SetFaderStartNative(deck: var_deck, native: var_native);
+  }
+
+  @protected
   SetFilter sse_decode_set_filter(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_deck = sse_decode_u_16(deserializer);
@@ -17834,6 +17947,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_fader_start(
+    FaderStart self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_fader_start(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_fader_stop(
+    FaderStop self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_fader_stop(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_focus(Focus self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_focus(self, serializer);
@@ -18329,6 +18460,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_set_eq_band(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_set_fader_start_native(
+    SetFaderStartNative self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_set_fader_start_native(self, serializer);
   }
 
   @protected
@@ -19286,248 +19426,257 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case Event_EndCueHold(field0: final field0):
         sse_encode_i_32(28, serializer);
         sse_encode_box_autoadd_end_cue_hold(field0, serializer);
-      case Event_SetQuantize(field0: final field0):
+      case Event_FaderStart(field0: final field0):
         sse_encode_i_32(29, serializer);
+        sse_encode_box_autoadd_fader_start(field0, serializer);
+      case Event_FaderStop(field0: final field0):
+        sse_encode_i_32(30, serializer);
+        sse_encode_box_autoadd_fader_stop(field0, serializer);
+      case Event_SetFaderStartNative(field0: final field0):
+        sse_encode_i_32(31, serializer);
+        sse_encode_box_autoadd_set_fader_start_native(field0, serializer);
+      case Event_SetQuantize(field0: final field0):
+        sse_encode_i_32(32, serializer);
         sse_encode_box_autoadd_set_quantize(field0, serializer);
       case Event_ToggleQuantize(field0: final field0):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(33, serializer);
         sse_encode_box_autoadd_toggle_quantize(field0, serializer);
       case Event_SetSlip(field0: final field0):
-        sse_encode_i_32(31, serializer);
+        sse_encode_i_32(34, serializer);
         sse_encode_box_autoadd_set_slip(field0, serializer);
       case Event_ToggleSlip(field0: final field0):
-        sse_encode_i_32(32, serializer);
+        sse_encode_i_32(35, serializer);
         sse_encode_box_autoadd_toggle_slip(field0, serializer);
       case Event_SetAutoLoop(field0: final field0):
-        sse_encode_i_32(33, serializer);
+        sse_encode_i_32(36, serializer);
         sse_encode_box_autoadd_set_auto_loop(field0, serializer);
       case Event_LoopIn(field0: final field0):
-        sse_encode_i_32(34, serializer);
+        sse_encode_i_32(37, serializer);
         sse_encode_box_autoadd_loop_in(field0, serializer);
       case Event_LoopOut(field0: final field0):
-        sse_encode_i_32(35, serializer);
+        sse_encode_i_32(38, serializer);
         sse_encode_box_autoadd_loop_out(field0, serializer);
       case Event_ExitLoop(field0: final field0):
-        sse_encode_i_32(36, serializer);
+        sse_encode_i_32(39, serializer);
         sse_encode_box_autoadd_exit_loop(field0, serializer);
       case Event_RecallSavedLoop(field0: final field0):
-        sse_encode_i_32(37, serializer);
+        sse_encode_i_32(40, serializer);
         sse_encode_box_autoadd_recall_saved_loop(field0, serializer);
       case Event_BeginLoopRoll(field0: final field0):
-        sse_encode_i_32(38, serializer);
+        sse_encode_i_32(41, serializer);
         sse_encode_box_autoadd_begin_loop_roll(field0, serializer);
       case Event_EndLoopRoll(field0: final field0):
-        sse_encode_i_32(39, serializer);
+        sse_encode_i_32(42, serializer);
         sse_encode_box_autoadd_end_loop_roll(field0, serializer);
       case Event_BeatJump(field0: final field0):
-        sse_encode_i_32(40, serializer);
+        sse_encode_i_32(43, serializer);
         sse_encode_box_autoadd_beat_jump(field0, serializer);
       case Event_SetPadMode(field0: final field0):
-        sse_encode_i_32(41, serializer);
+        sse_encode_i_32(44, serializer);
         sse_encode_box_autoadd_set_pad_mode(field0, serializer);
       case Event_PadPress(field0: final field0):
-        sse_encode_i_32(42, serializer);
+        sse_encode_i_32(45, serializer);
         sse_encode_box_autoadd_pad_press(field0, serializer);
       case Event_PadRelease(field0: final field0):
-        sse_encode_i_32(43, serializer);
+        sse_encode_i_32(46, serializer);
         sse_encode_box_autoadd_pad_release(field0, serializer);
       case Event_HotCuePadPress(field0: final field0):
-        sse_encode_i_32(44, serializer);
+        sse_encode_i_32(47, serializer);
         sse_encode_box_autoadd_hot_cue_pad_press(field0, serializer);
       case Event_HotCuePadRelease(field0: final field0):
-        sse_encode_i_32(45, serializer);
+        sse_encode_i_32(48, serializer);
         sse_encode_box_autoadd_hot_cue_pad_release(field0, serializer);
       case Event_LoopRollPadPress(field0: final field0):
-        sse_encode_i_32(46, serializer);
+        sse_encode_i_32(49, serializer);
         sse_encode_box_autoadd_loop_roll_pad_press(field0, serializer);
       case Event_LoopRollPadRelease(field0: final field0):
-        sse_encode_i_32(47, serializer);
+        sse_encode_i_32(50, serializer);
         sse_encode_box_autoadd_loop_roll_pad_release(field0, serializer);
       case Event_BeatJumpPadPress(field0: final field0):
-        sse_encode_i_32(48, serializer);
+        sse_encode_i_32(51, serializer);
         sse_encode_box_autoadd_beat_jump_pad_press(field0, serializer);
       case Event_BeatJumpPadRelease(field0: final field0):
-        sse_encode_i_32(49, serializer);
+        sse_encode_i_32(52, serializer);
         sse_encode_box_autoadd_beat_jump_pad_release(field0, serializer);
       case Event_SamplerPadPress(field0: final field0):
-        sse_encode_i_32(50, serializer);
+        sse_encode_i_32(53, serializer);
         sse_encode_box_autoadd_sampler_pad_press(field0, serializer);
       case Event_SamplerPadRelease(field0: final field0):
-        sse_encode_i_32(51, serializer);
+        sse_encode_i_32(54, serializer);
         sse_encode_box_autoadd_sampler_pad_release(field0, serializer);
       case Event_KeyboardPadPress(field0: final field0):
-        sse_encode_i_32(52, serializer);
+        sse_encode_i_32(55, serializer);
         sse_encode_box_autoadd_keyboard_pad_press(field0, serializer);
       case Event_KeyboardPadRelease(field0: final field0):
-        sse_encode_i_32(53, serializer);
+        sse_encode_i_32(56, serializer);
         sse_encode_box_autoadd_keyboard_pad_release(field0, serializer);
       case Event_KeyShiftPadPress(field0: final field0):
-        sse_encode_i_32(54, serializer);
+        sse_encode_i_32(57, serializer);
         sse_encode_box_autoadd_key_shift_pad_press(field0, serializer);
       case Event_KeyShiftPadRelease(field0: final field0):
-        sse_encode_i_32(55, serializer);
+        sse_encode_i_32(58, serializer);
         sse_encode_box_autoadd_key_shift_pad_release(field0, serializer);
       case Event_TriggerHotCue(field0: final field0):
-        sse_encode_i_32(56, serializer);
+        sse_encode_i_32(59, serializer);
         sse_encode_box_autoadd_trigger_hot_cue(field0, serializer);
       case Event_SaveDeckHotCue(field0: final field0):
-        sse_encode_i_32(57, serializer);
+        sse_encode_i_32(60, serializer);
         sse_encode_box_autoadd_save_deck_hot_cue(field0, serializer);
       case Event_DeleteDeckHotCue(field0: final field0):
-        sse_encode_i_32(58, serializer);
+        sse_encode_i_32(61, serializer);
         sse_encode_box_autoadd_delete_deck_hot_cue(field0, serializer);
       case Event_AssignSampler(field0: final field0):
-        sse_encode_i_32(59, serializer);
+        sse_encode_i_32(62, serializer);
         sse_encode_box_autoadd_assign_sampler(field0, serializer);
       case Event_AssignSamplerTrack(field0: final field0):
-        sse_encode_i_32(60, serializer);
+        sse_encode_i_32(63, serializer);
         sse_encode_box_autoadd_assign_sampler_track(field0, serializer);
       case Event_ClearSampler(field0: final field0):
-        sse_encode_i_32(61, serializer);
+        sse_encode_i_32(64, serializer);
         sse_encode_box_autoadd_clear_sampler(field0, serializer);
       case Event_JogTouch(field0: final field0):
-        sse_encode_i_32(62, serializer);
+        sse_encode_i_32(65, serializer);
         sse_encode_box_autoadd_jog_touch(field0, serializer);
       case Event_JogTurn(field0: final field0):
-        sse_encode_i_32(63, serializer);
+        sse_encode_i_32(66, serializer);
         sse_encode_box_autoadd_jog_turn(field0, serializer);
       case Event_SetJogMode(field0: final field0):
-        sse_encode_i_32(64, serializer);
+        sse_encode_i_32(67, serializer);
         sse_encode_box_autoadd_set_jog_mode(field0, serializer);
       case Event_SetCrossfader(field0: final field0):
-        sse_encode_i_32(65, serializer);
+        sse_encode_i_32(68, serializer);
         sse_encode_box_autoadd_set_crossfader(field0, serializer);
       case Event_SetMasterVolume(field0: final field0):
-        sse_encode_i_32(66, serializer);
+        sse_encode_i_32(69, serializer);
         sse_encode_box_autoadd_set_master_volume(field0, serializer);
       case Event_SetCueVolume(field0: final field0):
-        sse_encode_i_32(67, serializer);
+        sse_encode_i_32(70, serializer);
         sse_encode_box_autoadd_set_cue_volume(field0, serializer);
       case Event_SetCueMix(field0: final field0):
-        sse_encode_i_32(68, serializer);
+        sse_encode_i_32(71, serializer);
         sse_encode_box_autoadd_set_cue_mix(field0, serializer);
       case Event_SetMasterCue(field0: final field0):
-        sse_encode_i_32(69, serializer);
+        sse_encode_i_32(72, serializer);
         sse_encode_box_autoadd_set_master_cue(field0, serializer);
       case Event_ToggleMasterCue(field0: final field0):
-        sse_encode_i_32(70, serializer);
+        sse_encode_i_32(73, serializer);
         sse_encode_box_autoadd_toggle_master_cue(field0, serializer);
       case Event_SetCurveLibrary(field0: final field0):
-        sse_encode_i_32(71, serializer);
+        sse_encode_i_32(74, serializer);
         sse_encode_box_autoadd_set_curve_library(field0, serializer);
       case Event_SetCrossfaderCurve(field0: final field0):
-        sse_encode_i_32(72, serializer);
+        sse_encode_i_32(75, serializer);
         sse_encode_box_autoadd_set_crossfader_curve(field0, serializer);
       case Event_SetCrossfaderCurveAmount(field0: final field0):
-        sse_encode_i_32(73, serializer);
+        sse_encode_i_32(76, serializer);
         sse_encode_box_autoadd_set_crossfader_curve_amount(field0, serializer);
       case Event_SetCrossfaderBehavior(field0: final field0):
-        sse_encode_i_32(74, serializer);
+        sse_encode_i_32(77, serializer);
         sse_encode_box_autoadd_set_crossfader_behavior(field0, serializer);
       case Event_SetChannelFaderCurve(field0: final field0):
-        sse_encode_i_32(75, serializer);
+        sse_encode_i_32(78, serializer);
         sse_encode_box_autoadd_set_channel_fader_curve(field0, serializer);
       case Event_SetFxUnitSlot(field0: final field0):
-        sse_encode_i_32(76, serializer);
+        sse_encode_i_32(79, serializer);
         sse_encode_box_autoadd_set_fx_unit_slot(field0, serializer);
       case Event_SetFxUnitSlotEnabled(field0: final field0):
-        sse_encode_i_32(77, serializer);
+        sse_encode_i_32(80, serializer);
         sse_encode_box_autoadd_set_fx_unit_slot_enabled(field0, serializer);
       case Event_SetFxUnitWet(field0: final field0):
-        sse_encode_i_32(78, serializer);
+        sse_encode_i_32(81, serializer);
         sse_encode_box_autoadd_set_fx_unit_wet(field0, serializer);
       case Event_SetFxLevelCurve(field0: final field0):
-        sse_encode_i_32(79, serializer);
+        sse_encode_i_32(82, serializer);
         sse_encode_box_autoadd_set_fx_level_curve(field0, serializer);
       case Event_SetFxUnitParam(field0: final field0):
-        sse_encode_i_32(80, serializer);
+        sse_encode_i_32(83, serializer);
         sse_encode_box_autoadd_set_fx_unit_param(field0, serializer);
       case Event_SetDeckFxRouted(field0: final field0):
-        sse_encode_i_32(81, serializer);
+        sse_encode_i_32(84, serializer);
         sse_encode_box_autoadd_set_deck_fx_routed(field0, serializer);
       case Event_DeckUpdated(field0: final field0):
-        sse_encode_i_32(82, serializer);
+        sse_encode_i_32(85, serializer);
         sse_encode_box_autoadd_deck_updated(field0, serializer);
       case Event_DeckPosition(field0: final field0):
-        sse_encode_i_32(83, serializer);
+        sse_encode_i_32(86, serializer);
         sse_encode_box_autoadd_deck_position(field0, serializer);
       case Event_DeckLevels(field0: final field0):
-        sse_encode_i_32(84, serializer);
+        sse_encode_i_32(87, serializer);
         sse_encode_box_autoadd_deck_levels(field0, serializer);
       case Event_EngineSnapshot(field0: final field0):
-        sse_encode_i_32(85, serializer);
+        sse_encode_i_32(88, serializer);
         sse_encode_box_autoadd_engine_snapshot(field0, serializer);
       case Event_Error(field0: final field0):
-        sse_encode_i_32(86, serializer);
+        sse_encode_i_32(89, serializer);
         sse_encode_box_autoadd_error(field0, serializer);
       case Event_Notice(field0: final field0):
-        sse_encode_i_32(87, serializer);
+        sse_encode_i_32(90, serializer);
         sse_encode_box_autoadd_notice(field0, serializer);
       case Event_AnalyzeTrack(field0: final field0):
-        sse_encode_i_32(88, serializer);
+        sse_encode_i_32(91, serializer);
         sse_encode_box_autoadd_analyze_track(field0, serializer);
       case Event_GenerateStems(field0: final field0):
-        sse_encode_i_32(89, serializer);
+        sse_encode_i_32(92, serializer);
         sse_encode_box_autoadd_generate_stems(field0, serializer);
       case Event_RefreshTrack(field0: final field0):
-        sse_encode_i_32(90, serializer);
+        sse_encode_i_32(93, serializer);
         sse_encode_box_autoadd_refresh_track(field0, serializer);
       case Event_SaveBeatGrid(field0: final field0):
-        sse_encode_i_32(91, serializer);
+        sse_encode_i_32(94, serializer);
         sse_encode_box_autoadd_save_beat_grid(field0, serializer);
       case Event_SaveTrackCue(field0: final field0):
-        sse_encode_i_32(92, serializer);
+        sse_encode_i_32(95, serializer);
         sse_encode_box_autoadd_save_track_cue(field0, serializer);
       case Event_SaveTrackHotCue(field0: final field0):
-        sse_encode_i_32(93, serializer);
+        sse_encode_i_32(96, serializer);
         sse_encode_box_autoadd_save_track_hot_cue(field0, serializer);
       case Event_DeleteTrackHotCue(field0: final field0):
-        sse_encode_i_32(94, serializer);
+        sse_encode_i_32(97, serializer);
         sse_encode_box_autoadd_delete_track_hot_cue(field0, serializer);
       case Event_SaveTrackLoop(field0: final field0):
-        sse_encode_i_32(95, serializer);
+        sse_encode_i_32(98, serializer);
         sse_encode_box_autoadd_save_track_loop(field0, serializer);
       case Event_DeleteTrackLoop(field0: final field0):
-        sse_encode_i_32(96, serializer);
+        sse_encode_i_32(99, serializer);
         sse_encode_box_autoadd_delete_track_loop(field0, serializer);
       case Event_TrackAnalyzed(field0: final field0):
-        sse_encode_i_32(97, serializer);
+        sse_encode_i_32(100, serializer);
         sse_encode_box_autoadd_track_analyzed(field0, serializer);
       case Event_TrackUpdated(field0: final field0):
-        sse_encode_i_32(98, serializer);
+        sse_encode_i_32(101, serializer);
         sse_encode_box_autoadd_track_updated(field0, serializer);
       case Event_TrackProgress(field0: final field0):
-        sse_encode_i_32(99, serializer);
+        sse_encode_i_32(102, serializer);
         sse_encode_box_autoadd_track_progress(field0, serializer);
       case Event_HotCuesChanged(field0: final field0):
-        sse_encode_i_32(100, serializer);
+        sse_encode_i_32(103, serializer);
         sse_encode_box_autoadd_hot_cues_changed(field0, serializer);
       case Event_LoopsChanged(field0: final field0):
-        sse_encode_i_32(101, serializer);
+        sse_encode_i_32(104, serializer);
         sse_encode_box_autoadd_loops_changed(field0, serializer);
       case Event_BeatGridChanged(field0: final field0):
-        sse_encode_i_32(102, serializer);
+        sse_encode_i_32(105, serializer);
         sse_encode_box_autoadd_beat_grid_changed(field0, serializer);
       case Event_HistorySessionUpdated(field0: final field0):
-        sse_encode_i_32(103, serializer);
+        sse_encode_i_32(106, serializer);
         sse_encode_box_autoadd_history_session_updated(field0, serializer);
       case Event_Navigate(field0: final field0):
-        sse_encode_i_32(104, serializer);
+        sse_encode_i_32(107, serializer);
         sse_encode_box_autoadd_navigate(field0, serializer);
       case Event_Focus(field0: final field0):
-        sse_encode_i_32(105, serializer);
+        sse_encode_i_32(108, serializer);
         sse_encode_box_autoadd_focus(field0, serializer);
       case Event_Load(field0: final field0):
-        sse_encode_i_32(106, serializer);
+        sse_encode_i_32(109, serializer);
         sse_encode_box_autoadd_load(field0, serializer);
       case Event_MappingOffer(field0: final field0):
-        sse_encode_i_32(107, serializer);
+        sse_encode_i_32(110, serializer);
         sse_encode_box_autoadd_mapping_offer(field0, serializer);
       case Event_MappingAttached(field0: final field0):
-        sse_encode_i_32(108, serializer);
+        sse_encode_i_32(111, serializer);
         sse_encode_box_autoadd_mapping_attached(field0, serializer);
       case Event_MappingDetached(field0: final field0):
-        sse_encode_i_32(109, serializer);
+        sse_encode_i_32(112, serializer);
         sse_encode_box_autoadd_mapping_detached(field0, serializer);
     }
   }
@@ -19548,6 +19697,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_f_64(double self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_fader_start(FaderStart self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.deck, serializer);
+  }
+
+  @protected
+  void sse_encode_fader_stop(FaderStop self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.deck, serializer);
   }
 
   @protected
@@ -21102,6 +21263,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_eq_band(self.band, serializer);
     sse_encode_f_32(self.gain, serializer);
     sse_encode_bool(self.softTakeover, serializer);
+  }
+
+  @protected
+  void sse_encode_set_fader_start_native(
+    SetFaderStartNative self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_16(self.deck, serializer);
+    sse_encode_bool(self.native, serializer);
   }
 
   @protected

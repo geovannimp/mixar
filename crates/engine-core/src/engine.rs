@@ -629,6 +629,19 @@ impl Engine {
         self.fader_start_cfg = cfg.clamp();
     }
 
+    /// Mark a deck's fader start as controller-native (or re-arm software).
+    ///
+    /// Attach/detach concern the whole mapping, so flipping the flag clears the
+    /// entire software latch rather than just the referenced deck.
+    pub fn set_fader_start_native(&mut self, deck: u16, native: bool) {
+        let idx = deck as usize;
+        if idx >= self.fader_start_native.len() {
+            self.fader_start_native.resize(idx + 1, false);
+        }
+        self.fader_start_native[idx] = native;
+        self.reset_fader_start();
+    }
+
     /// Resolve a fader volume into a transport action, if any.
     ///
     /// Decks marked as `fader_start_native` are skipped so controller-native

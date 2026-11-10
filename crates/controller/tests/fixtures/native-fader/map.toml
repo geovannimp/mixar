@@ -1,0 +1,9 @@
+schema_version = 1
+
+[toml-schema]
+version = "1.0.0"
+location = "../../../../../schemas/map.tosd"
+
+[inputs.deck_1]
+fader_start = "Deck(_)::fader_start"
+fader_stop = "Deck(_)::fader_stop"

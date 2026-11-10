@@ -102,6 +102,8 @@ const DECK_ALIASES: &[&str] = &[
     "pad_mode_stems",
     "pad_mode_keyboard",
     "pad_mode_key_shift",
+    "fader_start",
+    "fader_stop",
 ];
 
 const MASTER_ALIASES: &[&str] = &[
@@ -218,6 +220,8 @@ const DECK_LEAVES: &[&str] = &[
     "trigger_sampler",
     "keyboard_pad",
     "key_shift_pad",
+    "fader_start",
+    "fader_stop",
 ];
 
 /// Boolean feedback signals a `[outputs.*]` binding may name (`signal = "…"`).

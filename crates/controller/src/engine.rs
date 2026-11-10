@@ -779,6 +779,18 @@ impl ControllerEngine {
             &port_name,
         );
         let device_id = bundle.device.id.clone();
+        // Decks whose mapping binds the `fader_start` leaf own fader start natively.
+        let native_fader_decks: Vec<u16> = bundle
+            .map
+            .inputs
+            .iter()
+            .filter(|(_, bindings)| bindings.contains_key("fader_start"))
+            .filter_map(|(section, _)| match section.as_str() {
+                "deck_1" => Some(0u16),
+                "deck_2" => Some(1u16),
+                _ => None,
+            })
+            .collect();
         let mut session = MappingSession::from_bundle(bundle)?;
         let mut send_gate = crate::report::FailureGate::default();
         {
@@ -834,6 +846,13 @@ impl ControllerEngine {
                 mapping_id: mapping_id.to_string(),
                 port_name,
             }));
+        for deck in native_fader_decks {
+            self.events
+                .push_back(Event::SetFaderStartNative(bus_api::SetFaderStartNative {
+                    deck,
+                    native: true,
+                }));
+        }
         Ok(())
     }
 
@@ -886,6 +905,14 @@ impl ControllerEngine {
                 mapping_id: attached.mapping_id,
                 port_name: port_name.to_string(),
             }));
+        // A removed mapping no longer owns fader start; re-arm the software threshold.
+        for deck in [0u16, 1u16] {
+            self.events
+                .push_back(Event::SetFaderStartNative(bus_api::SetFaderStartNative {
+                    deck,
+                    native: false,
+                }));
+        }
         self.refresh_pending_offers_cache();
         Ok(())
     }

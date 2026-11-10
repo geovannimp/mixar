@@ -334,6 +334,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  FaderStart dco_decode_box_autoadd_fader_start(dynamic raw);
+
+  @protected
+  FaderStop dco_decode_box_autoadd_fader_stop(dynamic raw);
+
+  @protected
   Focus dco_decode_box_autoadd_focus(dynamic raw);
 
   @protected
@@ -521,6 +527,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetEqBand dco_decode_box_autoadd_set_eq_band(dynamic raw);
+
+  @protected
+  SetFaderStartNative dco_decode_box_autoadd_set_fader_start_native(
+    dynamic raw,
+  );
 
   @protected
   SetFilter dco_decode_box_autoadd_set_filter(dynamic raw);
@@ -778,6 +789,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double dco_decode_f_64(dynamic raw);
+
+  @protected
+  FaderStart dco_decode_fader_start(dynamic raw);
+
+  @protected
+  FaderStop dco_decode_fader_stop(dynamic raw);
 
   @protected
   Focus dco_decode_focus(dynamic raw);
@@ -1263,6 +1280,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetEqBand dco_decode_set_eq_band(dynamic raw);
+
+  @protected
+  SetFaderStartNative dco_decode_set_fader_start_native(dynamic raw);
 
   @protected
   SetFilter dco_decode_set_filter(dynamic raw);
@@ -1760,6 +1780,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  FaderStart sse_decode_box_autoadd_fader_start(SseDeserializer deserializer);
+
+  @protected
+  FaderStop sse_decode_box_autoadd_fader_stop(SseDeserializer deserializer);
+
+  @protected
   Focus sse_decode_box_autoadd_focus(SseDeserializer deserializer);
 
   @protected
@@ -2015,6 +2041,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SetEqBand sse_decode_box_autoadd_set_eq_band(SseDeserializer deserializer);
+
+  @protected
+  SetFaderStartNative sse_decode_box_autoadd_set_fader_start_native(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SetFilter sse_decode_box_autoadd_set_filter(SseDeserializer deserializer);
@@ -2346,6 +2377,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
+
+  @protected
+  FaderStart sse_decode_fader_start(SseDeserializer deserializer);
+
+  @protected
+  FaderStop sse_decode_fader_stop(SseDeserializer deserializer);
 
   @protected
   Focus sse_decode_focus(SseDeserializer deserializer);
@@ -2937,6 +2974,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SetEqBand sse_decode_set_eq_band(SseDeserializer deserializer);
 
   @protected
+  SetFaderStartNative sse_decode_set_fader_start_native(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SetFilter sse_decode_set_filter(SseDeserializer deserializer);
 
   @protected
@@ -3518,6 +3560,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_fader_start(
+    FaderStart self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_fader_stop(
+    FaderStop self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_focus(Focus self, SseSerializer serializer);
 
   @protected
@@ -3832,6 +3886,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_set_eq_band(
     SetEqBand self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_set_fader_start_native(
+    SetFaderStartNative self,
     SseSerializer serializer,
   );
 
@@ -4269,6 +4329,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_fader_start(FaderStart self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_fader_stop(FaderStop self, SseSerializer serializer);
 
   @protected
   void sse_encode_focus(Focus self, SseSerializer serializer);
@@ -5013,6 +5079,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_set_eq_band(SetEqBand self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_set_fader_start_native(
+    SetFaderStartNative self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_set_filter(SetFilter self, SseSerializer serializer);

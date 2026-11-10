@@ -36,6 +36,11 @@ fn session() -> controller::MappingSession {
     controller::MappingSession::from_bundle(b).unwrap()
 }
 
+fn native_fader_session() -> controller::MappingSession {
+    let b = controller::load_bundle(Path::new("tests/fixtures/native-fader")).unwrap();
+    controller::MappingSession::from_bundle(b).unwrap()
+}
+
 #[test]
 fn note_toggle_play_publishes_toggle_play() {
     let mut s = session();
@@ -235,4 +240,29 @@ fn rotary_press_publishes_pane_focus_evt() {
     // Release is not a focus step.
     s.handle_midi(&[0x86, 0x41, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.evts.len(), 2);
+}
+
+#[test]
+fn fader_start_leaves_map_to_the_native_events() {
+    let mut s = native_fader_session();
+    let mut bus = CaptureBus {
+        cmds: vec![],
+        evts: vec![],
+    };
+    let mut midi = NullMidi;
+
+    // deck 1 note 0x66 -> FaderStart, note 0x52 -> FaderStop.
+    s.handle_midi(&[0x90, 0x66, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(
+        bus.cmds[0],
+        Event::FaderStart(bus_api::FaderStart { deck: 0 })
+    );
+
+    s.handle_midi(&[0x90, 0x52, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 2);
+    assert_eq!(
+        bus.cmds[1],
+        Event::FaderStop(bus_api::FaderStop { deck: 0 })
+    );
 }
