@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
@@ -171,6 +172,27 @@ void main() {
       reason: 'engine updates must not send commands',
     );
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('crossfader side hover paints the shared hover wash', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await _pumpStrip(tester);
+
+    final endpoint = _endpoint('A');
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+
+    await gesture.moveTo(tester.getCenter(endpoint));
+    await tester.pumpAndSettle();
+
+    final box = tester.widget<DecoratedBox>(
+      find.ancestor(of: endpoint, matching: find.byType(DecoratedBox)).first,
+    );
+    expect((box.decoration as BoxDecoration).color, theme.hoverWash);
   });
 
   testWidgets('two-deck routing hides inactive decks', (tester) async {

@@ -63,7 +63,7 @@ class SettingsAccentPicker extends StatelessWidget {
         final highlighted = ringed || state.hovered;
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: state.hovered ? theme.colors.muted : null,
+            color: state.hovered ? theme.hoverWash : null,
             borderRadius: theme.style.borderRadius.md,
           ),
           child: Padding(

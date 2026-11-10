@@ -57,6 +57,11 @@ class MixarThemeData {
   final MixarColors colors;
   final MixarTypography typography;
   final MixarStyle style;
+
+  /// Translucent neutral hover wash shared by the accent picker and ghost
+  /// buttons. Alpha (not a solid step) so the same wash reads on card,
+  /// secondary, and background surfaces.
+  Color get hoverWash => colors.foreground.withValues(alpha: 0.05);
 }
 
 /// Provides [MixarThemeData] and a body [DefaultTextStyle] (Forui `FTheme` parity).

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
@@ -380,5 +381,26 @@ void main() {
       (0, 0, fxDivisionNorm(4)),
       (0, 0, fxDivisionNorm(5)),
     ]);
+  });
+
+  testWidgets('master meter hover paints the shared hover wash', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpBar(tester);
+
+    final meter = find.byKey(const ValueKey('master-meter'));
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+
+    await gesture.moveTo(tester.getCenter(meter));
+    await tester.pumpAndSettle();
+
+    final box = tester.widget<DecoratedBox>(
+      find.descendant(of: meter, matching: find.byType(DecoratedBox)).first,
+    );
+    expect((box.decoration as BoxDecoration).color, theme.hoverWash);
   });
 }

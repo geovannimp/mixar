@@ -35,8 +35,9 @@ class MasterMeterBar extends ConsumerWidget {
           );
         },
         builder: (context, state) {
-          // Plain button chrome: square, primary tint only while active.
-          final wash = state.active ? theme.colors.primaryTint : null;
+          // Plain button chrome: square, neutral hover wash shared with ghost
+          // buttons.
+          final wash = state.active ? theme.hoverWash : null;
           return DecoratedBox(
             decoration: BoxDecoration(color: wash),
             child: Padding(

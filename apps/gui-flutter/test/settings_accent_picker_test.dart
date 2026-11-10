@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -173,4 +174,40 @@ void main() {
     expect(focused.top.width, 2);
     expect(focused.top.color, MixarThemeData.dark().colors.foreground);
   }, semanticsEnabled: false);
+
+  testWidgets('hovering a cell paints the shared hover wash', (tester) async {
+    final theme = MixarThemeData.dark();
+    await tester.pumpWidget(
+      ProviderScope(
+        child: mixarTestMaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: SettingsAccentPicker(
+              value: AccentPaletteSetting.teal,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cell = find
+        .descendant(
+          of: find.byType(SettingsAccentPicker),
+          matching: find.byType(MTappable),
+        )
+        .first;
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await tester.pump();
+
+    await gesture.moveTo(tester.getCenter(cell));
+    await tester.pumpAndSettle();
+
+    final box = tester.widget<DecoratedBox>(
+      find.descendant(of: cell, matching: find.byType(DecoratedBox)).first,
+    );
+    expect((box.decoration as BoxDecoration).color, theme.hoverWash);
+  });
 }
