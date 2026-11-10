@@ -285,6 +285,7 @@ void main() {
     );
     expect(meters.value, MixerMetersSetting.mono);
     expect(meters.options.map((option) => option.value), [
+      MixerMetersSetting.none,
       MixerMetersSetting.mono,
       MixerMetersSetting.stereo,
     ]);
@@ -299,5 +300,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(changed.last.mixerMeters, MixerMetersSetting.stereo);
+
+    final off = find.descendant(
+      of: find.byType(SettingsVisualChoice<MixerMetersSetting>),
+      matching: find.text('None'),
+    );
+    await tester.ensureVisible(off);
+    await tester.pumpAndSettle();
+    await tester.tap(off);
+    await tester.pumpAndSettle();
+
+    expect(changed.last.mixerMeters, MixerMetersSetting.none);
+  }, semanticsEnabled: false);
+
+  testWidgets('the meter rows highlight Off when the meters are off', (
+    tester,
+  ) async {
+    await _pumpPanel(
+      tester,
+      changed: [],
+      draft: copyAppSettings(
+        defaultAppSettings(),
+        mixerMeters: MixerMetersSetting.none,
+      ),
+    );
+
+    final meters = tester.widget<SettingsVisualChoice<MixerMetersSetting>>(
+      find.byType(SettingsVisualChoice<MixerMetersSetting>),
+    );
+    expect(meters.value, MixerMetersSetting.none);
   }, semanticsEnabled: false);
 }

@@ -156,13 +156,10 @@ class SettingsMixerPanel extends StatelessWidget {
           title: l10n.settingsLayoutMixerMeters,
           child: SettingsVisualChoice<MixerMetersSetting>(
             value: draft.mixerMeters,
-            // `None` is the Layout checkbox; these rows pick the width and
-            // turn the meters on.
+            // Off, mono, and stereo all live here so the value is always
+            // reachable and the selected row always exists.
             options: [
-              for (final mode in const [
-                MixerMetersSetting.mono,
-                MixerMetersSetting.stereo,
-              ])
+              for (final mode in MixerMetersSetting.values)
                 SettingsVisualOption<MixerMetersSetting>(
                   value: mode,
                   label: _metersLabel(l10n, mode),
@@ -546,6 +543,12 @@ class _MixerMetersPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lanes = mode == MixerMetersSetting.stereo ? 2 : 1;
+    final colors = mode == MixerMetersSetting.none
+        ? List<Color>.filled(
+            _segmentColors.length,
+            context.theme.colors.mutedForeground.withValues(alpha: 0.18),
+          )
+        : _segmentColors;
 
     Widget ladder(int count) => Row(
       spacing: 1,
@@ -562,9 +565,7 @@ class _MixerMetersPreview extends StatelessWidget {
                   segment < _segmentColors.length;
                   segment++
                 )
-                  Expanded(
-                    child: SettingsPreviewBlock(color: _segmentColors[segment]),
-                  ),
+                  Expanded(child: SettingsPreviewBlock(color: colors[segment])),
               ],
             ),
           ),

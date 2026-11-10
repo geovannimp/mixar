@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/core/utils/ui_layout.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
@@ -19,6 +20,22 @@ class SettingsLayoutPanel extends StatelessWidget {
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
+
+  static String _presetLabel(AppLocalizations l10n, LayoutPreset preset) =>
+      switch (preset) {
+        LayoutPreset.desktop => l10n.settingsLayoutPresetDesktop,
+        LayoutPreset.tablet => l10n.settingsLayoutPresetTablet,
+        LayoutPreset.mobile => l10n.settingsLayoutPresetMobile,
+        LayoutPreset.custom => l10n.settingsLayoutPresetCustom,
+      };
+
+  static String _presetSubtitle(AppLocalizations l10n, LayoutPreset preset) =>
+      switch (preset) {
+        LayoutPreset.desktop => l10n.settingsLayoutPresetDesktopSubtitle,
+        LayoutPreset.tablet => l10n.settingsLayoutPresetTabletSubtitle,
+        LayoutPreset.mobile => l10n.settingsLayoutPresetMobileSubtitle,
+        LayoutPreset.custom => l10n.settingsLayoutPresetCustomSubtitle,
+      };
 
   static String _positionLabel(
     AppLocalizations l10n,
@@ -69,8 +86,10 @@ class SettingsLayoutPanel extends StatelessWidget {
     required String Function(T value) labelBuilder,
     required ValueChanged<T> onChanged,
     String Function(T value)? subtitleBuilder,
+    String? hint,
   }) => SettingsField(
     label: label,
+    hint: hint,
     child: SettingsSelect<T>(
       dialogTitle: label,
       value: value,
@@ -106,6 +125,7 @@ class SettingsLayoutPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final preset = layoutPresetFor(draft);
     // The crossfader rides at the foot of whichever center column exists: under
     // the mixer channels, or under a middle waveform that took the column. Its
     // switch stays reachable while either column is on screen. The meters are
@@ -120,6 +140,23 @@ class SettingsLayoutPanel extends StatelessWidget {
       title: l10n.settingsSectionLayout,
       description: l10n.settingsLayoutDescription,
       cards: [
+        SettingsSectionCard(
+          title: l10n.settingsLayoutPresetTitle,
+          subtitle: l10n.settingsLayoutPresetDescription,
+          child: _labeledSelect<LayoutPreset>(
+            label: l10n.settingsLayoutPreset,
+            hint: preset == LayoutPreset.custom
+                ? l10n.settingsLayoutPresetCustomSubtitle
+                : null,
+            value: preset,
+            // `custom` is a result, not a choice: it only ever shows as the
+            // collapsed value once the toggles below stop matching a preset.
+            options: kLayoutPresets,
+            labelBuilder: (value) => _presetLabel(l10n, value),
+            subtitleBuilder: (value) => _presetSubtitle(l10n, value),
+            onChanged: (value) => onChanged(applyLayoutPreset(draft, value)),
+          ),
+        ),
         SettingsSectionCard(
           title: l10n.settingsLayoutDeckCount,
           subtitle: l10n.settingsLayoutDeckCountDescription,
@@ -157,19 +194,6 @@ class SettingsLayoutPanel extends StatelessWidget {
                         copyAppSettings(draft, showCrossfader: value),
                       ),
                     ),
-                    if (draft.showMixer && !centeredWaveform)
-                      SettingsCheckbox(
-                        label: l10n.settingsLayoutMixerMeters,
-                        value: draft.mixerMeters != MixerMetersSetting.none,
-                        onChanged: (enabled) => onChanged(
-                          copyAppSettings(
-                            draft,
-                            mixerMeters: enabled
-                                ? MixerMetersSetting.mono
-                                : MixerMetersSetting.none,
-                          ),
-                        ),
-                      ),
                   ],
                 )
               : null,

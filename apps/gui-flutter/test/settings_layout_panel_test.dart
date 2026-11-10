@@ -4,9 +4,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/core/utils/ui_layout.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_layout_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
@@ -71,6 +71,11 @@ void main() {
   Finder drawerChoice() =>
       find.byType(SettingsVisualChoice<LibraryDrawerSideSetting>);
 
+  SettingsSelect<LayoutPreset> presetSelect(WidgetTester tester) =>
+      tester.widget<SettingsSelect<LayoutPreset>>(
+        find.byType(SettingsSelect<LayoutPreset>),
+      );
+
   Finder choiceOption(Finder choice, String label) =>
       find.descendant(of: choice, matching: find.text(label));
 
@@ -99,6 +104,56 @@ void main() {
         reason: 'missing $label option',
       );
     }
+  }, semanticsEnabled: false);
+
+  testWidgets('the default layout reads as the Desktop preset', (tester) async {
+    await pumpPanel(tester);
+    expect(find.text('Presets'), findsOneWidget);
+    expect(presetSelect(tester).value, LayoutPreset.desktop);
+  }, semanticsEnabled: false);
+
+  testWidgets('picking Tablet bundles the tablet panels', (tester) async {
+    AppSettings? changed;
+    await pumpPanel(tester, onChanged: (next) => changed = next);
+
+    presetSelect(tester).onChanged(LayoutPreset.tablet);
+    await tester.pump();
+
+    expect(changed?.showWaveform, isTrue);
+    expect(changed?.showMixer, isTrue);
+    expect(changed?.showFxBar, isTrue);
+    expect(changed?.libraryDrawerEnabled, isTrue);
+    expect(changed?.libraryDrawerSide, LibraryDrawerSideSetting.bottom);
+  }, semanticsEnabled: false);
+
+  testWidgets('picking Mobile centers the waveform and drops the mixer', (
+    tester,
+  ) async {
+    AppSettings? changed;
+    await pumpPanel(tester, onChanged: (next) => changed = next);
+
+    presetSelect(tester).onChanged(LayoutPreset.mobile);
+    await tester.pump();
+
+    expect(changed?.showWaveform, isTrue);
+    expect(changed?.waveformPosition, WaveformPositionSetting.middleHorizontal);
+    expect(changed?.showMixer, isFalse);
+    // The FX bar stays: it is the only entry to the Levels dialog.
+    expect(changed?.showFxBar, isTrue);
+    expect(changed?.libraryDrawerEnabled, isTrue);
+  }, semanticsEnabled: false);
+
+  testWidgets('toggles that match no preset read as Custom', (tester) async {
+    await pumpPanel(
+      tester,
+      draft: copyAppSettings(defaultAppSettings(), showFxBar: false),
+    );
+    expect(presetSelect(tester).value, LayoutPreset.custom);
+    expect(find.text('Custom'), findsOneWidget);
+    expect(
+      find.text('No preset matches the visible panels below.'),
+      findsOneWidget,
+    );
   }, semanticsEnabled: false);
 
   testWidgets('choosing middle vertical emits the position', (tester) async {
@@ -148,7 +203,7 @@ void main() {
   ) async {
     await pumpPanel(tester);
     expect(find.text('Layout'), findsOneWidget);
-    expect(find.text('Presets'), findsNothing);
+    expect(find.text('Presets'), findsOneWidget);
     expect(find.text('Deck layout'), findsOneWidget);
     expect(find.text('Mixer strip'), findsOneWidget);
     expect(find.text('FX bar'), findsOneWidget);
@@ -218,84 +273,28 @@ void main() {
     expect(find.text('Crossfader'), findsNothing);
   }, semanticsEnabled: false);
 
-  testWidgets('the meters checkbox starts checked and turns meters off', (
-    tester,
-  ) async {
-    AppSettings? changed;
-    await pumpPanel(tester, onChanged: (next) => changed = next);
-
-    final meters = tester.widget<SettingsCheckbox>(
-      find.widgetWithText(SettingsCheckbox, 'Meters'),
-    );
-    expect(meters.value, isTrue);
-
-    await tapAndSettle(tester, find.text('Meters'));
-    expect(changed?.mixerMeters, MixerMetersSetting.none);
-  }, semanticsEnabled: false);
-
-  testWidgets('the meters checkbox turns mono meters back on', (tester) async {
+  testWidgets('the crossfader switch survives the strip', (tester) async {
     AppSettings? changed;
     await pumpPanel(
       tester,
       draft: copyAppSettings(
         defaultAppSettings(),
-        mixerMeters: MixerMetersSetting.none,
+        showMixer: false,
+        waveformPosition: WaveformPositionSetting.middleHorizontal,
       ),
       onChanged: (next) => changed = next,
     );
 
-    final meters = tester.widget<SettingsCheckbox>(
-      find.widgetWithText(SettingsCheckbox, 'Meters'),
-    );
-    expect(meters.value, isFalse);
+    // A middle waveform keeps the center column and its foot.
+    final crossfader = find.text('Crossfader');
+    expect(crossfader, findsOneWidget);
 
-    await tapAndSettle(tester, find.text('Meters'));
-    expect(changed?.mixerMeters, MixerMetersSetting.mono);
-  }, semanticsEnabled: false);
+    await tester.ensureVisible(crossfader);
+    await tester.pumpAndSettle();
+    await tester.tap(crossfader);
+    await tester.pump();
 
-  testWidgets(
-    'the crossfader switch survives the strip and the meters do not',
-    (tester) async {
-      AppSettings? changed;
-      await pumpPanel(
-        tester,
-        draft: copyAppSettings(
-          defaultAppSettings(),
-          showMixer: false,
-          waveformPosition: WaveformPositionSetting.middleHorizontal,
-        ),
-        onChanged: (next) => changed = next,
-      );
-
-      // A middle waveform keeps the center column and its foot.
-      final crossfader = find.text('Crossfader');
-      expect(crossfader, findsOneWidget);
-      expect(find.text('Meters'), findsNothing);
-
-      await tester.ensureVisible(crossfader);
-      await tester.pumpAndSettle();
-      await tester.tap(crossfader);
-      await tester.pump();
-
-      expect(changed?.showCrossfader, isFalse);
-    },
-    semanticsEnabled: false,
-  );
-
-  testWidgets('a middle waveform hides the meters with the strip', (
-    tester,
-  ) async {
-    // The strip switch stays on, but the lanes hold the column, so the meter
-    // select would be inert: it goes with the strip's channels.
-    await pumpPanel(
-      tester,
-      draft: copyAppSettings(
-        defaultAppSettings(),
-        waveformPosition: WaveformPositionSetting.middleVertical,
-      ),
-    );
-    expect(find.text('Crossfader'), findsOneWidget);
-    expect(find.text('Meters'), findsNothing);
+    expect(changed?.showCrossfader, isFalse);
   }, semanticsEnabled: false);
 
   testWidgets('without any center column the crossfader card is empty', (
@@ -310,7 +309,6 @@ void main() {
       ),
     );
     expect(find.text('Crossfader'), findsNothing);
-    expect(find.text('Meters'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('toggling a panel off emits just that field', (tester) async {
