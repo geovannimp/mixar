@@ -144,6 +144,7 @@ class _RekordboxImportPanelState extends ConsumerState<RekordboxImportPanel> {
     showMixarToast(
       context: context,
       title: Text(rekordboxImportSummary(l10n, report)),
+      variant: MixarToastVariant.success,
     );
   }
 

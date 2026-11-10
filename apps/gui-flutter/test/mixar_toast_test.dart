@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
@@ -170,5 +171,87 @@ void main() {
       findsNothing,
       reason: 'Cancel dismiss callback must close the toast',
     );
+  });
+
+  testWidgets('showMixarToast stacks newer toasts above the corner', (
+    tester,
+  ) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => Column(
+          children: [
+            GestureDetector(
+              onTap: () => showMixarToast(
+                context: context,
+                duration: null,
+                title: const Text('First notice'),
+              ),
+              child: const Text('Show first'),
+            ),
+            GestureDetector(
+              onTap: () => showMixarToast(
+                context: context,
+                duration: null,
+                title: const Text('Second notice'),
+              ),
+              child: const Text('Show second'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Show first'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show second'));
+    await tester.pumpAndSettle();
+
+    final firstTop = tester.getTopLeft(find.text('First notice')).dy;
+    final secondTop = tester.getTopLeft(find.text('Second notice')).dy;
+    expect(firstTop, lessThan(secondTop));
+    expect(
+      tester.getBottomLeft(find.text('First notice')).dy,
+      lessThan(secondTop),
+      reason: 'toasts must stack, not overlap',
+    );
+  });
+
+  testWidgets('toast variant picks its glyph', (tester) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => Column(
+          children: [
+            GestureDetector(
+              onTap: () => showMixarToast(
+                context: context,
+                duration: null,
+                title: const Text('Saved'),
+                variant: MixarToastVariant.success,
+              ),
+              child: const Text('Show success'),
+            ),
+            GestureDetector(
+              onTap: () => showMixarToast(
+                context: context,
+                duration: null,
+                title: const Text('Failed'),
+                variant: MixarToastVariant.destructive,
+              ),
+              child: const Text('Show error'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Show success'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(LucideIcons.check), findsOneWidget);
+
+    await tester.tap(find.text('Show error'));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(LucideIcons.circleAlert), findsOneWidget);
   });
 }

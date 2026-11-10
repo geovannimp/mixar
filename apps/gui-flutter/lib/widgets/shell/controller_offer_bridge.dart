@@ -395,6 +395,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       showMixarToast(
         context: context,
         title: Text('Audio outputs switched to $label'),
+        variant: MixarToastVariant.success,
       );
     } catch (e, st) {
       _audioAskedPorts.remove(portName);

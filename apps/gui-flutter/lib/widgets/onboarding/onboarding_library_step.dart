@@ -79,7 +79,7 @@ class _OnboardingLibraryStepState extends ConsumerState<OnboardingLibraryStep> {
         ),
         description: notice == null ? null : Text(notice.message),
         variant: imported && notice == null
-            ? MixarToastVariant.primary
+            ? MixarToastVariant.success
             : MixarToastVariant.destructive,
       );
     } on Object catch (e) {
