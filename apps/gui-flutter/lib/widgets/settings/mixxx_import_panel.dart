@@ -1,10 +1,12 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
+import 'package:gui_flutter/core/utils/settings_search.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/library/deck_import_refresh.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/settings/settings_searchable_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
@@ -23,11 +25,21 @@ final mixxxDatabasePathProvider = FutureProvider<String?>((ref) async {
 /// Settings → Library: import tracks, playlists, and crates from Mixxx.
 ///
 /// The database is auto-detected; the action stays disabled until one is found.
-class MixxxImportPanel extends ConsumerStatefulWidget {
+class MixxxImportPanel extends ConsumerStatefulWidget
+    implements SettingsSearchableCard {
   const new({this.decorated = true, super.key});
 
   /// Band chrome; setup steps turn it off.
   final bool decorated;
+
+  @override
+  bool matchesSettingsSearch(BuildContext context, String foldedQuery) {
+    final l10n = AppLocalizations.of(context)!;
+    return settingsSearchMatches(
+      '${l10n.mixxxImportTitle} ${l10n.mixxxImportDescription}',
+      foldedQuery,
+    );
+  }
 
   @override
   ConsumerState<MixxxImportPanel> createState() => _MixxxImportPanelState();

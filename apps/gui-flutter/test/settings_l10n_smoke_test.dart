@@ -58,7 +58,11 @@ void main() {
         theme: theme,
         locale: const Locale('pt', 'BR'),
         home: Scaffold(
-          body: SettingsSidebar(active: SettingsSection.ui, onSelect: (_) {}),
+          body: SettingsSidebar(
+            active: SettingsSection.ui,
+            onSelect: (_) {},
+            onQueryChanged: (_) {},
+          ),
         ),
       ),
     );

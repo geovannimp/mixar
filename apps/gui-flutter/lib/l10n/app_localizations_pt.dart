@@ -17,6 +17,17 @@ class AppLocalizationsPt extends AppLocalizations {
       'Salvar reinicia a engine automaticamente se ela estiver em execução.';
 
   @override
+  String get settingsSearchHint => 'Pesquisar configurações';
+
+  @override
+  String get settingsSearchNoResults => 'Nenhuma configuração correspondente';
+
+  @override
+  String settingsSearchNoResultsFor(String query) {
+    return 'Nenhuma configuração disponível para a sua pesquisa: \"$query\"';
+  }
+
+  @override
   String get settingsLoading => 'Carregando configurações…';
 
   @override

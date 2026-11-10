@@ -1,20 +1,83 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-class SettingsSidebar extends StatelessWidget {
-  const new({required this.active, required this.onSelect, super.key});
+class SettingsSidebar extends StatefulWidget {
+  const new({
+    required this.active,
+    required this.onSelect,
+    required this.onQueryChanged,
+    super.key,
+  });
 
   final SettingsSection active;
   final ValueChanged<SettingsSection> onSelect;
+
+  /// Reports the live search text so the active panel can filter its cards.
+  final ValueChanged<String> onQueryChanged;
+
+  @override
+  State<SettingsSidebar> createState() => _SettingsSidebarState();
+}
+
+class _SettingsSidebarState extends State<SettingsSidebar> {
+  final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  void _select(SettingsSection section) {
+    _searchFocus.unfocus();
+    widget.onSelect(section);
+  }
+
+  List<SettingsSection> _filteredSections(AppLocalizations l10n) =>
+      matchingSettingsSections(_searchController.text, l10n);
+
+  void _onSearchChanged(String query) {
+    setState(() {});
+    widget.onQueryChanged(query);
+    _ensureSelectionMatches();
+  }
+
+  void _ensureSelectionMatches() {
+    final l10n = AppLocalizations.of(context)!;
+    final matches = _filteredSections(l10n);
+    if (matches.isEmpty || matches.contains(widget.active)) {
+      return;
+    }
+    widget.onSelect(matches.first);
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {});
+    widget.onQueryChanged('');
+    _searchFocus.requestFocus();
+  }
+
+  void _submitSearch(List<SettingsSection> matches) {
+    if (matches.isEmpty) {
+      return;
+    }
+    _select(matches.first);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     final l10n = AppLocalizations.of(context)!;
+    final matches = _filteredSections(l10n);
     return DecoratedBox(
       // Foreground: otherwise a selected / hovered nav item's fill covers the
       // divider along the sidebar's right edge.
@@ -24,19 +87,71 @@ class SettingsSidebar extends StatelessWidget {
       ),
       child: SizedBox(
         width: 176,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final section in kSettingsSections)
-                _SettingsNavItem(
-                  label: section.label(l10n),
-                  icon: _iconFor(section),
-                  selected: section == active,
-                  onPress: () => onSelect(section),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Pinned above the scrolling list: the field is the first thing in
+            // the menu and stays reachable however far the sections scroll.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+              child: MixarInput(
+                controller: _searchController,
+                focusNode: _searchFocus,
+                hint: l10n.settingsSearchHint,
+                style: theme.typography.body.sm,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                textInputAction: TextInputAction.search,
+                leading: Icon(
+                  LucideIcons.search,
+                  size: 14,
+                  color: theme.colors.mutedForeground,
                 ),
-            ],
-          ),
+                trailing: _searchController.text.isEmpty
+                    ? null
+                    : MTappable.child(
+                        onPress: _clearSearch,
+                        semanticsLabel: l10n.commonClear,
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Icon(
+                            LucideIcons.x,
+                            size: 12,
+                            color: theme.colors.mutedForeground,
+                          ),
+                        ),
+                      ),
+                onChanged: _onSearchChanged,
+                onSubmitted: (_) => _submitSearch(matches),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (matches.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+                        child: Text(
+                          l10n.settingsSearchNoResults,
+                          style: theme.typography.body.sm.copyWith(
+                            color: theme.colors.mutedForeground,
+                          ),
+                        ),
+                      )
+                    else
+                      for (final section in matches)
+                        _SettingsNavItem(
+                          label: section.label(l10n),
+                          icon: _iconFor(section),
+                          selected: section == widget.active,
+                          onPress: () => _select(section),
+                        ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -111,6 +111,24 @@ abstract class AppLocalizations {
   /// **'Saving restarts the engine automatically if it\'s running.'**
   String get settingsSubtitle;
 
+  /// Placeholder of the Settings sidebar search field
+  ///
+  /// In en, this message translates to:
+  /// **'Search settings'**
+  String get settingsSearchHint;
+
+  /// Shown when the Settings sidebar search matches no section
+  ///
+  /// In en, this message translates to:
+  /// **'No matching settings'**
+  String get settingsSearchNoResults;
+
+  /// Shown in the settings content pane when the sidebar search matches no section
+  ///
+  /// In en, this message translates to:
+  /// **'No settings available for your \"{query}\"'**
+  String settingsSearchNoResultsFor(String query);
+
   /// No description provided for @settingsLoading.
   ///
   /// In en, this message translates to:

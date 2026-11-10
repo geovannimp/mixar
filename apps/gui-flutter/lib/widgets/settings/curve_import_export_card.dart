@@ -1,11 +1,13 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/curve_editor.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/core/utils/settings_search.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/curves/curve_import_export_dialog.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
+import 'package:gui_flutter/widgets/settings/settings_searchable_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
@@ -16,7 +18,8 @@ import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 ///
 /// The full curve editor stays out of the application for now; this card only
 /// moves an imported curve in and out and lets it become the default.
-class CurveImportExportCard extends StatefulWidget {
+class CurveImportExportCard extends StatefulWidget
+    implements SettingsSearchableCard {
   const new({
     required this.draft,
     required this.onChanged,
@@ -29,6 +32,15 @@ class CurveImportExportCard extends StatefulWidget {
   final ValueChanged<AppSettings> onChanged;
   final VirtualDjCurveImporter? importer;
   final VirtualDjCurveExporter? exporter;
+
+  @override
+  bool matchesSettingsSearch(BuildContext context, String foldedQuery) {
+    final l10n = AppLocalizations.of(context)!;
+    return settingsSearchMatches(
+      '${l10n.curvesImportExportTitle} ${l10n.curvesImportExportDescription}',
+      foldedQuery,
+    );
+  }
 
   @override
   State<CurveImportExportCard> createState() => _CurveImportExportCardState();

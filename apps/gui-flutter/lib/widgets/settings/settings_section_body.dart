@@ -1,5 +1,8 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/settings_search.dart';
 import 'package:gui_flutter/widgets/settings/settings_insets.dart';
+import 'package:gui_flutter/widgets/settings/settings_search_scope.dart';
+import 'package:gui_flutter/widgets/settings/settings_searchable_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 
 /// Full-bleed settings section: an inset header above cards that run to the
@@ -28,9 +31,31 @@ class SettingsSectionBody extends StatelessWidget {
 
   final List<Widget> cards;
 
+  List<Widget> _visibleCards(BuildContext context, String foldedQuery) {
+    if (foldedQuery.isEmpty) {
+      return cards;
+    }
+    final matching = <Widget>[
+      for (final card in cards)
+        if (card is SettingsSearchableCard &&
+            (card as SettingsSearchableCard).matchesSettingsSearch(
+              context,
+              foldedQuery,
+            ))
+          card,
+    ];
+    // The section itself matched the query; when no card advertises the term,
+    // keep the whole section visible instead of showing an empty pane.
+    return matching.isEmpty ? cards : matching;
+  }
+
   @override
   Widget build(BuildContext context) {
     final before = this.before;
+    final query = foldSettingsSearchText(
+      SettingsSearchScope.queryOf(context).trim(),
+    );
+    final visibleCards = _visibleCards(context, query);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -55,7 +80,7 @@ class SettingsSectionBody extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: _cardGap,
-          children: cards,
+          children: visibleCards,
         ),
       ],
     );

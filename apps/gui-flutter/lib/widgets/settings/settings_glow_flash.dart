@@ -1,15 +1,27 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/widgets/settings/settings_searchable_card.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Primary border flash that holds briefly then fades out (~1s).
 ///
 /// Animates only a border overlay; [child] is built once and not rebuilt
 /// on each animation tick.
-class SettingsGlowFlash extends StatefulWidget {
+class SettingsGlowFlash extends StatefulWidget
+    implements SettingsSearchableCard {
   const new({required this.child, this.active = false, super.key});
 
   final Widget child;
   final bool active;
+
+  @override
+  bool matchesSettingsSearch(BuildContext context, String foldedQuery) {
+    final child = this.child;
+    return child is SettingsSearchableCard &&
+        (child as SettingsSearchableCard).matchesSettingsSearch(
+          context,
+          foldedQuery,
+        );
+  }
 
   @override
   State<SettingsGlowFlash> createState() => _SettingsGlowFlashState();

@@ -1,6 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/settings_search.dart';
 import 'package:gui_flutter/widgets/settings/settings_insets.dart';
+import 'package:gui_flutter/widgets/settings/settings_searchable_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -58,7 +60,8 @@ class _BodyClip extends CustomClipper<Rect> {
 /// Full-bleed band: no side chrome, only a top and bottom hairline, so cards
 /// stack as a striped list rather than separate boxes. It already owns its
 /// edges — do not wrap it in `MCard`, which would double the hairlines.
-class SettingsSectionCard extends StatelessWidget {
+class SettingsSectionCard extends StatelessWidget
+    implements SettingsSearchableCard {
   const new({
     required this.title,
     this.subtitle = '',
@@ -86,6 +89,10 @@ class SettingsSectionCard extends StatelessWidget {
   final Widget? titleBadge;
   final Widget? trailing;
   final Widget? child;
+
+  @override
+  bool matchesSettingsSearch(BuildContext context, String foldedQuery) =>
+      settingsSearchMatches('$title $subtitle', foldedQuery);
 
   @override
   Widget build(BuildContext context) {
