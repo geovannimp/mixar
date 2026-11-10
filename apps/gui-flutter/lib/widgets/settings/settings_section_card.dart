@@ -23,6 +23,15 @@ const settingsCardSideInset = 24.0;
 /// Tests use it to check the rule spans the band and disappears with the body.
 const Key settingsCardRuleKey = ValueKey('settings-card-rule');
 
+/// Inset shared by a card's header block and its fields.
+///
+/// The rule between the two runs full-bleed, so each block carries the inset
+/// itself instead of one padded column wrapping both.
+const _cardBlockPadding = EdgeInsets.symmetric(
+  horizontal: settingsCardSideInset,
+  vertical: _cardInset,
+);
+
 /// Room the collapsing body keeps outside its own box.
 ///
 /// Fields paint their focus ring outside their bounds (shad inflates the ring
@@ -138,23 +147,12 @@ class SettingsSectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: settingsCardSideInset,
-                vertical: _cardInset,
-              ),
-              child: headerRow(),
-            ),
+            Padding(padding: _cardBlockPadding, child: headerRow()),
             _CollapsibleCardBody(
               showRule: true,
               // The rule spans the band, so the fields carry the band's side
               // and bottom inset themselves instead of the card padding them.
-              contentPadding: const EdgeInsets.fromLTRB(
-                settingsCardSideInset,
-                _cardInset,
-                settingsCardSideInset,
-                _cardInset,
-              ),
+              contentPadding: _cardBlockPadding,
               child: child,
             ),
           ],

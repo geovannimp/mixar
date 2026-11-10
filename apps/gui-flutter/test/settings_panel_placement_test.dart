@@ -206,21 +206,17 @@ void main() {
 
     // The bands have no side chrome, so the inset is the only breathing room:
     // the section header and the card's fields share it.
-    expect(
-      tester.getTopLeft(find.text('Theme')).dx - card.left,
+    void expectCardInset(Finder finder) => expect(
+      tester.getTopLeft(finder).dx - card.left,
       settingsCardSideInset,
+      reason: 'content shares the card side inset',
     );
-    expect(
-      tester
-              .getTopLeft(
-                find.descendant(
-                  of: find.byType(SettingsSectionHeader).first,
-                  matching: find.text('UI'),
-                ),
-              )
-              .dx -
-          card.left,
-      settingsCardSideInset,
+    expectCardInset(find.text('Theme'));
+    expectCardInset(
+      find.descendant(
+        of: find.byType(SettingsSectionHeader).first,
+        matching: find.text('UI'),
+      ),
     );
   }, semanticsEnabled: false);
 
