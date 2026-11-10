@@ -23,6 +23,7 @@ void main() {
             body: SingleChildScrollView(
               child: SettingsUiPanel(
                 draft: draft,
+                savedAccentPalette: draft.accentPalette,
                 onChanged: onChanged ?? (_) {},
               ),
             ),

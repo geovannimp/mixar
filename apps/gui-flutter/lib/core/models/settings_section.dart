@@ -71,7 +71,6 @@ extension SettingsSectionLabel on SettingsSection {
       l10n.settingsShowTooltips,
       l10n.settingsUiAccentColor,
       l10n.settingsUiLanguageLabel,
-      l10n.settingsUiSelectStyle,
     ],
     SettingsSection.layout => [
       l10n.settingsLayoutPresetTitle,
@@ -86,7 +85,7 @@ extension SettingsSectionLabel on SettingsSection {
       l10n.settingsLayoutWaveformDescription,
       l10n.settingsLayoutLibraryDrawerTitle,
       l10n.settingsLayoutLibraryDrawerDescription,
-      l10n.settingsLayoutMixerMeters,
+      l10n.settingsUiSelectStyle,
     ],
     SettingsSection.audio => [
       l10n.settingsAudioEngineTitle,
@@ -99,6 +98,7 @@ extension SettingsSectionLabel on SettingsSection {
       l10n.settingsAudioBufferSize,
     ],
     SettingsSection.mixer => [
+      l10n.settingsLayoutMixerMeters,
       l10n.settingsMixerCrossfaderTitle,
       l10n.settingsMixerCrossfaderDescription,
       l10n.settingsMixerNormalizerTitle,

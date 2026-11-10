@@ -175,7 +175,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsLayoutShowCrossfader => 'Crossfader';
 
   @override
-  String get settingsLayoutMixerMeters => 'Medidores do mixer';
+  String get settingsLayoutMixerMeters => 'Medidores';
 
   @override
   String get settingsLayoutMixerMetersNone => 'Nenhum';
@@ -279,18 +279,17 @@ class AppLocalizationsPt extends AppLocalizations {
       'Tema, idioma, dicas ao passar o mouse e apresentação dos controles.';
 
   @override
-  String get settingsUiChromeTitle => 'Chrome e controles';
+  String get settingsUiChromeTitle => 'Idioma e dicas';
 
   @override
   String get settingsUiChromeDescription =>
-      'Idioma, dicas ao passar o mouse e como os seletores abrem.';
+      'Idioma da interface e dicas ao passar o mouse.';
 
   @override
   String get settingsUiThemeTitle => 'Tema';
 
   @override
-  String get settingsUiThemeDescription =>
-      'Brilho e a cor de destaque usada pela interface da marca.';
+  String get settingsUiThemeDescription => 'Brilho da janela do aplicativo.';
 
   @override
   String get settingsUiTheme => 'Tema';
@@ -303,6 +302,10 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsUiAccentColor => 'Cor de destaque';
+
+  @override
+  String get settingsUiAccentDescription =>
+      'Cor usada por botões, destaques e o chrome dos decks.';
 
   @override
   String get settingsUiAccentTeal => 'Turquesa';

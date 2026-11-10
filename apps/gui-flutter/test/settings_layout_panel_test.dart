@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
@@ -8,6 +11,8 @@ import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_layout_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
+import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
+import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -19,6 +24,7 @@ void main() {
     WidgetTester tester, {
     AppSettings? draft,
     ValueChanged<AppSettings>? onChanged,
+    Key? captureKey,
   }) async {
     final settings = draft ?? defaultAppSettings();
     await tester.pumpWidget(
@@ -37,9 +43,12 @@ void main() {
           theme: MixarThemeData.dark(),
           home: Scaffold(
             body: SingleChildScrollView(
-              child: SettingsLayoutPanel(
-                draft: settings,
-                onChanged: onChanged ?? (_) {},
+              child: RepaintBoundary(
+                key: captureKey,
+                child: SettingsLayoutPanel(
+                  draft: settings,
+                  onChanged: onChanged ?? (_) {},
+                ),
               ),
             ),
           ),
@@ -57,10 +66,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Finder waveformChoice() =>
+      find.byType(SettingsVisualChoice<WaveformPositionSetting>);
+  Finder drawerChoice() =>
+      find.byType(SettingsVisualChoice<LibraryDrawerSideSetting>);
+
   SettingsSelect<LayoutPreset> presetSelect(WidgetTester tester) =>
       tester.widget<SettingsSelect<LayoutPreset>>(
         find.byType(SettingsSelect<LayoutPreset>),
       );
+
+  Finder choiceOption(Finder choice, String label) =>
+      find.descendant(of: choice, matching: find.text(label));
 
   /// Header switch of the card titled [title].
   Finder panelSwitch(String title) => find.descendant(
@@ -70,41 +87,88 @@ void main() {
     matching: find.byType(SettingsHeaderSwitch),
   );
 
-  Future<void> openSelect(WidgetTester tester) async {
-    final select = find.byType(ShadSelect<WaveformPositionSetting>);
-    // The waveform card sits below the preset and panel cards.
-    await tapAndSettle(tester, select);
-  }
-
   testWidgets('layout panel exposes the waveform position', (tester) async {
     await pumpPanel(tester);
     expect(find.text('Waveform position'), findsOneWidget);
     expect(find.text('POSITION'), findsOneWidget);
-    expect(find.text('Top'), findsOneWidget);
 
-    await openSelect(tester);
     for (final label in [
       'Top',
       'Middle horizontal',
       'Middle vertical',
       'Bottom',
     ]) {
-      expect(find.text(label), findsWidgets, reason: 'missing $label option');
+      expect(
+        choiceOption(waveformChoice(), label),
+        findsOneWidget,
+        reason: 'missing $label option',
+      );
     }
+  }, semanticsEnabled: false);
+
+  testWidgets('the default layout reads as the Desktop preset', (tester) async {
+    await pumpPanel(tester);
+    expect(find.text('Presets'), findsOneWidget);
+    expect(presetSelect(tester).value, LayoutPreset.desktop);
+  }, semanticsEnabled: false);
+
+  testWidgets('picking Tablet bundles the tablet panels', (tester) async {
+    AppSettings? changed;
+    await pumpPanel(tester, onChanged: (next) => changed = next);
+
+    presetSelect(tester).onChanged(LayoutPreset.tablet);
+    await tester.pump();
+
+    expect(changed?.showWaveform, isTrue);
+    expect(changed?.showMixer, isTrue);
+    expect(changed?.showFxBar, isTrue);
+    expect(changed?.libraryDrawerEnabled, isTrue);
+    expect(changed?.libraryDrawerSide, LibraryDrawerSideSetting.bottom);
+  }, semanticsEnabled: false);
+
+  testWidgets('picking Mobile centers the waveform and drops the mixer', (
+    tester,
+  ) async {
+    AppSettings? changed;
+    await pumpPanel(tester, onChanged: (next) => changed = next);
+
+    presetSelect(tester).onChanged(LayoutPreset.mobile);
+    await tester.pump();
+
+    expect(changed?.showWaveform, isTrue);
+    expect(changed?.waveformPosition, WaveformPositionSetting.middleHorizontal);
+    expect(changed?.showMixer, isFalse);
+    // The FX bar stays: it is the only entry to the Levels dialog.
+    expect(changed?.showFxBar, isTrue);
+    expect(changed?.libraryDrawerEnabled, isTrue);
+  }, semanticsEnabled: false);
+
+  testWidgets('toggles that match no preset read as Custom', (tester) async {
+    await pumpPanel(
+      tester,
+      draft: copyAppSettings(defaultAppSettings(), showFxBar: false),
+    );
+    expect(presetSelect(tester).value, LayoutPreset.custom);
+    expect(find.text('Custom'), findsOneWidget);
+    expect(
+      find.text('No preset matches the visible panels below.'),
+      findsOneWidget,
+    );
   }, semanticsEnabled: false);
 
   testWidgets('choosing middle vertical emits the position', (tester) async {
     AppSettings? changed;
     await pumpPanel(tester, onChanged: (next) => changed = next);
 
-    await openSelect(tester);
-    await tester.tap(find.text('Middle vertical'));
-    await tester.pumpAndSettle();
+    await tapAndSettle(
+      tester,
+      choiceOption(waveformChoice(), 'Middle vertical'),
+    );
 
     expect(changed?.waveformPosition, WaveformPositionSetting.middleVertical);
   }, semanticsEnabled: false);
 
-  testWidgets('hiding the waveform drops the position select', (tester) async {
+  testWidgets('hiding the waveform drops the position choice', (tester) async {
     AppSettings? changed;
     await pumpPanel(
       tester,
@@ -112,7 +176,10 @@ void main() {
       onChanged: (next) => changed = next,
     );
 
-    expect(find.byType(ShadSelect<WaveformPositionSetting>), findsNothing);
+    expect(
+      find.byType(SettingsVisualChoice<WaveformPositionSetting>),
+      findsNothing,
+    );
     expect(find.text('POSITION'), findsNothing);
 
     await tapAndSettle(tester, panelSwitch('Waveform position'));
@@ -131,7 +198,7 @@ void main() {
     expect(changed?.showWaveform, isFalse);
   }, semanticsEnabled: false);
 
-  testWidgets('layout panel hosts presets, panels, waveform, and drawer', (
+  testWidgets('layout panel hosts panels, waveform, and drawer', (
     tester,
   ) async {
     await pumpPanel(tester);
@@ -142,6 +209,8 @@ void main() {
     expect(find.text('FX bar'), findsOneWidget);
     expect(find.text('Waveform position'), findsOneWidget);
     expect(find.text('Library drawer'), findsOneWidget);
+    expect(find.text('Select style'), findsOneWidget);
+    expect(find.byType(SettingsSelect<SelectStyleSetting>), findsOneWidget);
     // The crossfader lives inside the mixer strip card.
     expect(find.text('Crossfader'), findsOneWidget);
     expect(panelSwitch('Mixer strip'), findsOneWidget);
@@ -204,117 +273,28 @@ void main() {
     expect(find.text('Crossfader'), findsNothing);
   }, semanticsEnabled: false);
 
-  testWidgets('the meters select offers none, mono, and stereo', (
-    tester,
-  ) async {
+  testWidgets('the crossfader switch survives the strip', (tester) async {
     AppSettings? changed;
-    await pumpPanel(tester, onChanged: (next) => changed = next);
-
-    expect(find.text('MIXER METERS'), findsOneWidget);
-    final meters = tester.widget<SettingsSelect<MixerMetersSetting>>(
-      find.byType(SettingsSelect<MixerMetersSetting>),
-    );
-    expect(meters.value, MixerMetersSetting.mono);
-    expect(meters.options, [
-      MixerMetersSetting.none,
-      MixerMetersSetting.mono,
-      MixerMetersSetting.stereo,
-    ]);
-
-    meters.onChanged(MixerMetersSetting.none);
-    await tester.pump();
-    expect(changed?.mixerMeters, MixerMetersSetting.none);
-
-    meters.onChanged(MixerMetersSetting.stereo);
-    await tester.pump();
-    expect(changed?.mixerMeters, MixerMetersSetting.stereo);
-
-    // The popover offers the three modes, None included.
-    await tapAndSettle(tester, find.byType(ShadSelect<MixerMetersSetting>));
-    for (final label in ['None', 'Mono', 'Stereo']) {
-      expect(find.text(label), findsWidgets, reason: 'missing $label option');
-    }
-  }, semanticsEnabled: false);
-
-  testWidgets('the default layout reads as the Desktop preset', (tester) async {
-    await pumpPanel(tester);
-    expect(presetSelect(tester).value, LayoutPreset.desktop);
-  }, semanticsEnabled: false);
-
-  testWidgets('picking Tablet bundles the tablet panels', (tester) async {
-    AppSettings? changed;
-    await pumpPanel(tester, onChanged: (next) => changed = next);
-
-    presetSelect(tester).onChanged(LayoutPreset.tablet);
-    await tester.pump();
-
-    expect(changed?.showWaveform, isTrue);
-    expect(changed?.showMixer, isTrue);
-    expect(changed?.showFxBar, isTrue);
-    expect(changed?.libraryDrawerEnabled, isTrue);
-    expect(changed?.libraryDrawerSide, LibraryDrawerSideSetting.bottom);
-  }, semanticsEnabled: false);
-
-  testWidgets('picking Mobile centers the waveform and drops the mixer', (
-    tester,
-  ) async {
-    AppSettings? changed;
-    await pumpPanel(tester, onChanged: (next) => changed = next);
-
-    presetSelect(tester).onChanged(LayoutPreset.mobile);
-    await tester.pump();
-
-    expect(changed?.showWaveform, isTrue);
-    expect(changed?.waveformPosition, WaveformPositionSetting.middleHorizontal);
-    expect(changed?.showMixer, isFalse);
-    // The FX bar stays: it is the only entry to the Levels dialog.
-    expect(changed?.showFxBar, isTrue);
-    expect(changed?.libraryDrawerEnabled, isTrue);
-  }, semanticsEnabled: false);
-
-  testWidgets(
-    'the crossfader switch survives the strip and the meters do not',
-    (tester) async {
-      AppSettings? changed;
-      await pumpPanel(
-        tester,
-        draft: copyAppSettings(
-          defaultAppSettings(),
-          showMixer: false,
-          waveformPosition: WaveformPositionSetting.middleHorizontal,
-        ),
-        onChanged: (next) => changed = next,
-      );
-
-      // A middle waveform keeps the center column and its foot.
-      final crossfader = find.text('Crossfader');
-      expect(crossfader, findsOneWidget);
-      expect(find.text('MIXER METERS'), findsNothing);
-
-      await tester.ensureVisible(crossfader);
-      await tester.pumpAndSettle();
-      await tester.tap(crossfader);
-      await tester.pump();
-
-      expect(changed?.showCrossfader, isFalse);
-    },
-    semanticsEnabled: false,
-  );
-
-  testWidgets('a middle waveform hides the meters with the strip', (
-    tester,
-  ) async {
-    // The strip switch stays on, but the lanes hold the column, so the meter
-    // select would be inert: it goes with the strip's channels.
     await pumpPanel(
       tester,
       draft: copyAppSettings(
         defaultAppSettings(),
-        waveformPosition: WaveformPositionSetting.middleVertical,
+        showMixer: false,
+        waveformPosition: WaveformPositionSetting.middleHorizontal,
       ),
+      onChanged: (next) => changed = next,
     );
-    expect(find.text('Crossfader'), findsOneWidget);
-    expect(find.text('MIXER METERS'), findsNothing);
+
+    // A middle waveform keeps the center column and its foot.
+    final crossfader = find.text('Crossfader');
+    expect(crossfader, findsOneWidget);
+
+    await tester.ensureVisible(crossfader);
+    await tester.pumpAndSettle();
+    await tester.tap(crossfader);
+    await tester.pump();
+
+    expect(changed?.showCrossfader, isFalse);
   }, semanticsEnabled: false);
 
   testWidgets('without any center column the crossfader card is empty', (
@@ -329,7 +309,6 @@ void main() {
       ),
     );
     expect(find.text('Crossfader'), findsNothing);
-    expect(find.text('MIXER METERS'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('toggling a panel off emits just that field', (tester) async {
@@ -343,25 +322,13 @@ void main() {
     expect(changed?.showWaveform, isTrue);
   }, semanticsEnabled: false);
 
-  testWidgets('toggles that match no preset read as Custom', (tester) async {
-    await pumpPanel(
-      tester,
-      draft: copyAppSettings(defaultAppSettings(), showFxBar: false),
-    );
-    expect(presetSelect(tester).value, LayoutPreset.custom);
-    expect(find.text('Custom'), findsOneWidget);
-    expect(
-      find.text('No preset matches the visible panels below.'),
-      findsOneWidget,
-    );
-  }, semanticsEnabled: false);
-
   testWidgets('the drawer card hides its position until the drawer is on', (
     tester,
   ) async {
     await pumpPanel(tester);
     // Only the waveform card shows a position label while the drawer is off.
     expect(find.text('POSITION'), findsOneWidget);
+    expect(drawerChoice(), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('the drawer position shows when the drawer is enabled', (
@@ -373,6 +340,104 @@ void main() {
     );
     // Waveform position and drawer position, both on screen.
     expect(find.text('POSITION'), findsNWidgets(2));
-    expect(find.text('Bottom'), findsOneWidget);
+    expect(
+      tester
+          .widget<SettingsVisualChoice<LibraryDrawerSideSetting>>(
+            drawerChoice(),
+          )
+          .axis,
+      Axis.horizontal,
+    );
+    expect(choiceOption(drawerChoice(), 'Bottom'), findsOneWidget);
   }, semanticsEnabled: false);
+
+  testWidgets('choosing a drawer edge emits it', (tester) async {
+    AppSettings? changed;
+    await pumpPanel(
+      tester,
+      draft: copyAppSettings(defaultAppSettings(), libraryDrawerEnabled: true),
+      onChanged: (next) => changed = next,
+    );
+
+    await tapAndSettle(tester, choiceOption(drawerChoice(), 'Left'));
+
+    expect(changed?.libraryDrawerSide, LibraryDrawerSideSetting.left);
+  }, semanticsEnabled: false);
+
+  testWidgets('select style keeps the bottom stroke of its focus ring', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final captureKey = GlobalKey();
+    await pumpPanel(tester, captureKey: captureKey);
+
+    // The select style control ends its card body, so the ring's bottom stroke
+    // must survive the card body's clip.
+    final select = find.byType(MixarSelect<SelectStyleSetting>);
+    expect(select, findsOneWidget);
+    await _focusSelect(tester, select);
+
+    final rect = tester.getRect(select);
+    final capture = await _capturePanel(tester, captureKey);
+    final primary = MixarThemeData.dark().colors.primary;
+    final column = (rect.center.dx - capture.origin.dx).round();
+    final bottomEdge = (rect.bottom - capture.origin.dy).round();
+    final strokeRows = [
+      for (final offset in const [1, 2, 3, 4])
+        if (_hasColor(
+          capture.rgba,
+          capture.stride,
+          column,
+          bottomEdge + offset,
+          primary,
+        ))
+          offset,
+    ];
+    expect(strokeRows, isNotEmpty, reason: 'the bottom ring stroke is clipped');
+  }, semanticsEnabled: false);
+}
+
+/// Focuses the shad control inside [select] and lets the focus ring settle.
+Future<void> _focusSelect(WidgetTester tester, Finder select) async {
+  tester
+      .widget<ShadFocusable>(
+        find.descendant(of: select, matching: find.byType(ShadFocusable)),
+      )
+      .focusNode
+      ?.requestFocus();
+  await tester.pumpAndSettle();
+}
+
+/// RGBA pixels of the panel captured under [captureKey], with its global
+/// origin so test rects can be turned into raster coordinates.
+Future<({Uint8List rgba, int stride, Offset origin})> _capturePanel(
+  WidgetTester tester,
+  GlobalKey captureKey,
+) async {
+  final boundary =
+      captureKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  final origin = boundary.localToGlobal(Offset.zero);
+  // Rasterizing needs the real event loop; toImage deadlocks inside the
+  // fake-async zone tester.runAsync would otherwise keep.
+  final raster = await tester.runAsync(() async {
+    final image = await boundary.toImage();
+    try {
+      final data = await image.toByteData();
+      return (rgba: data!.buffer.asUint8List(), width: image.width);
+    } finally {
+      image.dispose();
+    }
+  });
+  return (rgba: raster!.rgba, stride: raster.width * 4, origin: origin);
+}
+
+/// Whether the pixel at ([x], [y]) matches [color].
+bool _hasColor(Uint8List rgba, int stride, int x, int y, Color color) {
+  final argb = color.toARGB32();
+  final i = y * stride + x * 4;
+  return rgba[i] == ((argb >> 16) & 0xFF) &&
+      rgba[i + 1] == ((argb >> 8) & 0xFF) &&
+      rgba[i + 2] == (argb & 0xFF);
 }

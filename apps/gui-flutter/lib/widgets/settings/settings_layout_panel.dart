@@ -6,12 +6,16 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_checkbox.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
 import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
+import 'package:gui_flutter/widgets/settings/settings_labels.dart';
+import 'package:gui_flutter/widgets/settings/settings_preview_block.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
+import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
-/// Settings → Layout: named presets, which mixer panels are visible, where the
-/// waveform sits, and how the library opens.
+/// Settings → Layout: which mixer panels are visible, where the waveform sits,
+/// and how the library opens.
 class SettingsLayoutPanel extends StatelessWidget {
   const new({required this.draft, required this.onChanged, super.key});
 
@@ -44,22 +48,6 @@ class SettingsLayoutPanel extends StatelessWidget {
     WaveformPositionSetting.middleVertical =>
       l10n.settingsLayoutWaveformMiddleVertical,
     WaveformPositionSetting.bottom => l10n.settingsLayoutWaveformBottom,
-  };
-
-  static String _metersLabel(AppLocalizations l10n, MixerMetersSetting value) =>
-      switch (value) {
-        MixerMetersSetting.none => l10n.settingsLayoutMixerMetersNone,
-        MixerMetersSetting.mono => l10n.settingsLayoutMixerMetersMono,
-        MixerMetersSetting.stereo => l10n.settingsLayoutMixerMetersStereo,
-      };
-
-  static String _metersSubtitle(
-    AppLocalizations l10n,
-    MixerMetersSetting value,
-  ) => switch (value) {
-    MixerMetersSetting.none => l10n.settingsLayoutMixerMetersNoneSubtitle,
-    MixerMetersSetting.mono => l10n.settingsLayoutMixerMetersMonoSubtitle,
-    MixerMetersSetting.stereo => l10n.settingsLayoutMixerMetersStereoSubtitle,
   };
 
   static String _drawerSideLabel(
@@ -172,7 +160,6 @@ class SettingsLayoutPanel extends StatelessWidget {
         _toggleCard(
           title: l10n.settingsLayoutMixerTitle,
           subtitle: l10n.settingsLayoutMixerDescription,
-          searchTerms: [l10n.settingsLayoutMixerMeters],
           value: draft.showMixer,
           semanticsLabel: l10n.settingsLayoutMixerEnable,
           onChanged: (value) =>
@@ -192,17 +179,6 @@ class SettingsLayoutPanel extends StatelessWidget {
                         copyAppSettings(draft, showCrossfader: value),
                       ),
                     ),
-                    if (draft.showMixer && !centeredWaveform)
-                      _labeledSelect<MixerMetersSetting>(
-                        label: l10n.settingsLayoutMixerMeters,
-                        value: draft.mixerMeters,
-                        options: MixerMetersSetting.values,
-                        labelBuilder: (mode) => _metersLabel(l10n, mode),
-                        subtitleBuilder: (mode) => _metersSubtitle(l10n, mode),
-                        onChanged: (mode) => onChanged(
-                          copyAppSettings(draft, mixerMeters: mode),
-                        ),
-                      ),
                   ],
                 )
               : null,
@@ -224,13 +200,23 @@ class SettingsLayoutPanel extends StatelessWidget {
               onChanged(copyAppSettings(draft, showWaveform: show)),
           // The position only matters while something is drawn.
           child: draft.showWaveform
-              ? _labeledSelect<WaveformPositionSetting>(
+              ? SettingsField(
                   label: l10n.settingsLayoutWaveformPosition,
-                  value: draft.waveformPosition,
-                  options: WaveformPositionSetting.values,
-                  labelBuilder: (position) => _positionLabel(l10n, position),
-                  onChanged: (position) => onChanged(
-                    copyAppSettings(draft, waveformPosition: position),
+                  child: SettingsVisualChoice<WaveformPositionSetting>(
+                    value: draft.waveformPosition,
+                    axis: Axis.horizontal,
+                    previewAspectRatio: 16 / 9,
+                    options: [
+                      for (final value in WaveformPositionSetting.values)
+                        SettingsVisualOption<WaveformPositionSetting>(
+                          value: value,
+                          label: _positionLabel(l10n, value),
+                          preview: _WaveformPositionPreview(position: value),
+                        ),
+                    ],
+                    onChanged: (position) => onChanged(
+                      copyAppSettings(draft, waveformPosition: position),
+                    ),
                   ),
                 )
               : null,
@@ -243,18 +229,164 @@ class SettingsLayoutPanel extends StatelessWidget {
           onChanged: (value) =>
               onChanged(copyAppSettings(draft, libraryDrawerEnabled: value)),
           child: draft.libraryDrawerEnabled
-              ? _labeledSelect<LibraryDrawerSideSetting>(
+              ? SettingsField(
                   label: l10n.settingsLayoutLibraryDrawerPosition,
-                  value: draft.libraryDrawerSide,
-                  options: LibraryDrawerSideSetting.values,
-                  labelBuilder: (side) => _drawerSideLabel(l10n, side),
-                  onChanged: (side) => onChanged(
-                    copyAppSettings(draft, libraryDrawerSide: side),
+                  child: SettingsVisualChoice<LibraryDrawerSideSetting>(
+                    value: draft.libraryDrawerSide,
+                    axis: Axis.horizontal,
+                    previewAspectRatio: 16 / 9,
+                    options: [
+                      for (final value in LibraryDrawerSideSetting.values)
+                        SettingsVisualOption<LibraryDrawerSideSetting>(
+                          value: value,
+                          label: _drawerSideLabel(l10n, value),
+                          preview: _LibraryDrawerSidePreview(side: value),
+                        ),
+                    ],
+                    onChanged: (side) => onChanged(
+                      copyAppSettings(draft, libraryDrawerSide: side),
+                    ),
                   ),
                 )
               : null,
         ),
+        SettingsSectionCard(
+          title: l10n.settingsUiSelectStyle,
+          child: SettingsSelect<SelectStyleSetting>(
+            dialogTitle: l10n.settingsUiSelectStyle,
+            value: draft.selectStyle,
+            options: const [
+              SelectStyleSetting.auto,
+              SelectStyleSetting.desktop,
+              SelectStyleSetting.mobile,
+            ],
+            labelBuilder: (mode) => selectStyleSettingLabel(l10n, mode),
+            subtitleBuilder: (mode) => selectStyleSettingSubtitle(l10n, mode),
+            onChanged: (mode) =>
+                onChanged(copyAppSettings(draft, selectStyle: mode)),
+          ),
+        ),
       ],
     );
+  }
+}
+
+/// Miniature of the deck row with the waveform band in its chosen slot.
+class _WaveformPositionPreview extends StatelessWidget {
+  const new({required this.position});
+
+  final WaveformPositionSetting position;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final block = colors.mutedForeground.withValues(alpha: 0.35);
+    final accent = colors.primary;
+    final soft = colors.primary.withValues(alpha: 0.38);
+
+    Widget sized(int flex, Color color) => Expanded(
+      flex: flex,
+      child: SettingsPreviewBlock(color: color),
+    );
+    Widget band(double height, Color color) => SizedBox(
+      height: height,
+      child: SettingsPreviewBlock(color: color),
+    );
+    Widget deckRow() => Expanded(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [sized(3, block), sized(2, soft), sized(3, block)],
+      ),
+    );
+    Widget stackedLanes() => Expanded(
+      flex: 4,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [
+          Expanded(child: SettingsPreviewBlock(color: accent)),
+          Expanded(child: SettingsPreviewBlock(color: accent)),
+        ],
+      ),
+    );
+    Widget sideBySideLanes() => Expanded(
+      flex: 4,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [
+          Expanded(child: SettingsPreviewBlock(color: accent)),
+          Expanded(child: SettingsPreviewBlock(color: accent)),
+        ],
+      ),
+    );
+
+    return switch (position) {
+      WaveformPositionSetting.top => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [band(6, accent), deckRow()],
+      ),
+      WaveformPositionSetting.bottom => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [deckRow(), band(6, accent)],
+      ),
+      WaveformPositionSetting.middleHorizontal => Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [sized(3, block), stackedLanes(), sized(3, block)],
+      ),
+      WaveformPositionSetting.middleVertical => Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [sized(3, block), sideBySideLanes(), sized(3, block)],
+      ),
+    };
+  }
+}
+
+/// Miniature of the pane with the library band on the chosen edge.
+class _LibraryDrawerSidePreview extends StatelessWidget {
+  const new({required this.side});
+
+  final LibraryDrawerSideSetting side;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    final block = colors.mutedForeground.withValues(alpha: 0.35);
+    final accent = colors.primary;
+
+    Widget body() => Expanded(child: SettingsPreviewBlock(color: block));
+    Widget edge({double? width, double? height}) => SizedBox(
+      width: width,
+      height: height,
+      child: SettingsPreviewBlock(color: accent),
+    );
+
+    return switch (side) {
+      LibraryDrawerSideSetting.left => Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [edge(width: 14), body()],
+      ),
+      LibraryDrawerSideSetting.right => Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [body(), edge(width: 14)],
+      ),
+      LibraryDrawerSideSetting.top => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [edge(height: 7), body()],
+      ),
+      LibraryDrawerSideSetting.bottom => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 2,
+        children: [body(), edge(height: 7)],
+      ),
+    };
   }
 }
