@@ -38,8 +38,11 @@ import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/vertical_lane.dart';
 import 'package:gui_flutter/widgets/mixer/waveform_section.dart';
+import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
+import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
+import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_switch.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -47,11 +50,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import 'helpers/collection_tracks_override.dart';
-
-import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
-import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
-import 'package:gui_flutter/widgets/shell/mixar_input.dart';
-
 import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';

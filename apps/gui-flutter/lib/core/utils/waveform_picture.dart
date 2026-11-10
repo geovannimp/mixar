@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';

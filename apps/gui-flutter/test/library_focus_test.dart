@@ -1,16 +1,15 @@
-import 'package:flutter/widgets.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
-import 'package:gui_flutter/src/rust/api/fs_browser.dart';
-import 'package:gui_flutter/widgets/library/drive_pane.dart';
-import 'package:gui_flutter/core/theme/material_theme.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' as bus;
+import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/drive_pane.dart';
+import 'package:gui_flutter/widgets/library/library_nav_row.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'helpers/collection_tracks_override.dart';
 import 'support/fake_library_transport.dart';

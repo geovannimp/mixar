@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/library_drag_card.dart';
 import 'package:gui_flutter/widgets/library/library_nav_row.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_header.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Library surface width at or above which the sidebar + content split shows.
 /// Below it the surface pages: the sidebar first, then the content pane.

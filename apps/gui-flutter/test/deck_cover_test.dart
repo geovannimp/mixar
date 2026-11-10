@@ -3,7 +3,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
-
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -12,11 +11,9 @@ import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_drop_hover.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-
-import 'support/bus_events.dart';
-
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
 import 'support/mixar_material_app.dart';
 

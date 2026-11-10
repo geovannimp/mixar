@@ -8,9 +8,10 @@ import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
-import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
+import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -18,9 +19,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
 
 import 'helpers/collection_tracks_override.dart';
-
-import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
-
 import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
 

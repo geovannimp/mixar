@@ -12,16 +12,15 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/library/track_list_menu_button.dart';
 import 'package:gui_flutter/widgets/library/track_list_pane.dart';
+import 'package:gui_flutter/widgets/library/track_list_view.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_checkbox.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_segments.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
-
-import 'package:gui_flutter/widgets/library/track_list_menu_button.dart';
-import 'package:gui_flutter/widgets/library/track_list_view.dart';
-import 'package:gui_flutter/widgets/shell/mixar_menu_segments.dart';
 
 import 'support/fake_library_transport.dart';
 import 'support/mixar_material_app.dart';

@@ -19,6 +19,9 @@ import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/create_collection_dialog.dart';
 import 'package:gui_flutter/widgets/library/history_comfortable_entry_row.dart';
+import 'package:gui_flutter/widgets/library/history_deck_badge.dart';
+import 'package:gui_flutter/widgets/library/history_index_badge.dart';
+import 'package:gui_flutter/widgets/library/history_row_layout.dart';
 import 'package:gui_flutter/widgets/library/history_session_actions_menu.dart';
 import 'package:gui_flutter/widgets/library/library_layout_scope.dart';
 import 'package:gui_flutter/widgets/library/library_list_message.dart';
@@ -31,9 +34,6 @@ import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:gui_flutter/widgets/library/history_deck_badge.dart';
-import 'package:gui_flutter/widgets/library/history_index_badge.dart';
-import 'package:gui_flutter/widgets/library/history_row_layout.dart';
 
 /// Width of the leading `#` column.
 /// Session detail: entry list + session actions.

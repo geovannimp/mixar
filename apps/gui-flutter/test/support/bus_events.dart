@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 
 /// Bus events built for tests.
