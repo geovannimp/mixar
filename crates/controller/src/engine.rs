@@ -79,6 +79,27 @@ struct Attached {
     output: Option<MidiOutputConnection>,
     send_gate: crate::report::FailureGate,
     lifecycle_gate: crate::report::FailureGate,
+    /// Decks this attachment owns for native fader start (deck 0/1 sections
+    /// whose `[inputs.*]` bind the `fader_start` leaf).
+    native_fader_decks: Vec<u16>,
+}
+
+/// Decks that must release native fader-start ownership after an attachment
+/// owning `removed_decks` detaches. `remaining` are the native decks still owned
+/// by live attachments; a deck is released only when none of them owns it.
+fn native_decks_to_release<'a>(
+    removed_decks: &[u16],
+    remaining: impl IntoIterator<Item = &'a [u16]>,
+) -> Vec<u16> {
+    let mut still_owned: HashSet<u16> = HashSet::new();
+    for decks in remaining {
+        still_owned.extend(decks.iter().copied());
+    }
+    removed_decks
+        .iter()
+        .copied()
+        .filter(|deck| !still_owned.contains(deck))
+        .collect()
 }
 
 struct MidiSink<'a> {
@@ -837,6 +858,7 @@ impl ControllerEngine {
                 output,
                 send_gate,
                 lifecycle_gate: crate::report::FailureGate::default(),
+                native_fader_decks: native_fader_decks.clone(),
             },
         );
         self.refresh_pending_offers_cache();
@@ -877,6 +899,7 @@ impl ControllerEngine {
         let Some(mut attached) = self.attached.remove(port_name) else {
             return Ok(());
         };
+        let removed_native_decks = attached.native_fader_decks.clone();
         if suppress {
             self.suppressed_ports.insert(port_name.to_string());
         }
@@ -905,8 +928,15 @@ impl ControllerEngine {
                 mapping_id: attached.mapping_id,
                 port_name: port_name.to_string(),
             }));
-        // A removed mapping no longer owns fader start; re-arm the software threshold.
-        for deck in [0u16, 1u16] {
+        // Release native fader-start ownership only for decks whose last live
+        // owner just detached; a sibling attachment may still own the deck.
+        let released = native_decks_to_release(
+            &removed_native_decks,
+            self.attached
+                .values()
+                .map(|a| a.native_fader_decks.as_slice()),
+        );
+        for deck in released {
             self.events
                 .push_back(Event::SetFaderStartNative(bus_api::SetFaderStartNative {
                     deck,
@@ -1450,5 +1480,34 @@ mod tests {
             &parsed(&[1, 2], true),
             &parsed(&[1, 2], true)
         ));
+    }
+
+    #[test]
+    fn native_ownership_survives_while_a_sibling_owns_the_deck() {
+        // Two ports attach mappings that both own deck 0. Detaching one must not
+        // release deck 0 while the surviving attachment still owns it.
+        let survivor = [0u16];
+        let none: [u16; 0] = [];
+        let released = native_decks_to_release(&[0], [survivor.as_slice(), none.as_slice()]);
+        assert!(
+            released.is_empty(),
+            "sibling still owns deck 0; must not release: {released:?}"
+        );
+    }
+
+    #[test]
+    fn last_native_owner_detaching_releases_only_its_unowned_decks() {
+        // Deck 0's last owner detaches while a sibling still owns deck 1.
+        let sibling = [1u16];
+        let released = native_decks_to_release(&[0, 1], [sibling.as_slice()]);
+        assert_eq!(released, vec![0]);
+    }
+
+    #[test]
+    fn unrelated_detach_releases_no_native_ownership() {
+        let owner_a = [0u16];
+        let owner_b = [1u16];
+        let released = native_decks_to_release(&[], [owner_a.as_slice(), owner_b.as_slice()]);
+        assert!(released.is_empty());
     }
 }
