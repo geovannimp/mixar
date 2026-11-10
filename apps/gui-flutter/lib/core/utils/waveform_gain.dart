@@ -16,3 +16,17 @@ WaveformBandGain waveformBandGainFor(MixerChannelUi channel) => (
   (channel.eqMid * 2).clamp(0.0, 2.0),
   (channel.eqHigh * 2).clamp(0.0, 2.0),
 );
+
+/// The lane painter's amplitude multipliers for [channel].
+///
+/// With [shaped] off (Settings → Waveform) the lane draws the stored peaks at
+/// unity, so moving the volume fader or an EQ knob leaves it unchanged.
+({double gain, WaveformBandGain bandGain}) waveformGainsFor(
+  MixerChannelUi channel, {
+  bool shaped = true,
+}) => shaped
+    ? (
+        gain: channel.volume.clamp(0.0, 1.0),
+        bandGain: waveformBandGainFor(channel),
+      )
+    : (gain: 1.0, bandGain: flatWaveformBandGain);

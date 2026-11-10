@@ -823,6 +823,17 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsWaveformModeFiltered => 'Filtrado';
 
   @override
+  String get settingsWaveformShapingTitle => 'Modelagem por EQ e ganho';
+
+  @override
+  String get settingsWaveformShapingDescription =>
+      'Escala as barras da faixa com o fader do canal e o EQ do deck. Desligado desenha os picos gravados sem alteração.';
+
+  @override
+  String get settingsWaveformShapingEnable =>
+      'Modelar a forma de onda com EQ e ganho';
+
+  @override
   String get settingsDeckDescription =>
       'Comportamento padrão de jog, tempo, travão e sampler para novos decks.';
 

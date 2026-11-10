@@ -460,6 +460,10 @@ class _StripLayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channel = ref.watch(deckMixerChannelProvider(deckId));
+    final gains = waveformGainsFor(
+      channel,
+      shaped: ref.watch(waveformGainEqShapingProvider),
+    );
     return SizedBox(
       width: strip.widthPx.toDouble(),
       height: height,
@@ -468,8 +472,8 @@ class _StripLayer extends ConsumerWidget {
           strip: strip,
           background: context.theme.colors.waveformBackground,
           mode: ref.watch(waveformDisplayModeProvider),
-          gain: channel.volume.clamp(0.0, 1.0),
-          bandGain: waveformBandGainFor(channel),
+          gain: gains.gain,
+          bandGain: gains.bandGain,
           beatGrid: beatGrid,
           loops: loops,
           activeLoop: activeLoop,

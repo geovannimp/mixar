@@ -816,6 +816,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsWaveformModeFiltered => 'Filtered';
 
   @override
+  String get settingsWaveformShapingTitle => 'EQ & gain shaping';
+
+  @override
+  String get settingsWaveformShapingDescription =>
+      'Scale the lane bars with the channel fader and the deck EQ. Off draws the recorded peaks at unity.';
+
+  @override
+  String get settingsWaveformShapingEnable =>
+      'Shape the waveform with EQ and gain';
+
+  @override
   String get settingsDeckDescription =>
       'Default jog, tempo, brake, and sampler behavior for new decks.';
 

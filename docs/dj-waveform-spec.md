@@ -35,7 +35,7 @@ Mixar waveform architecture, storage, and rendering decisions. Industry research
 | **Spectral color** | Offline 3-band split (low / mid / high) drives RGB-style color |
 | **Scrolling view** | Fixed center playhead; waveform data scrolls horizontally. Zoom defines seconds visible. |
 | **Two resolutions** | Detailed waveform for scrolling + low-res **overview** for full-track navigation. |
-| **EQ affects display?** | **Yes** — deck EQ and channel gain shape the scrolling lane (shader uniforms, §8.6). The overview stays a static track map. |
+| **EQ affects display?** | **Yes, by default** — deck EQ and channel gain shape the scrolling lane (shader uniforms, §8.6), and Settings → Waveform → *EQ & gain shaping* turns that off to draw the stored peaks at unity. The overview stays a static track map either way. |
 | **When computed** | Overview at library import; scroll **window** detail at deck load / seek (background). |
 | **Mixar storage** | **Overview only** in `library.db` (`track_waveform` table); hi-res window in memory; progressive UI (§8.4). |
 
@@ -138,6 +138,8 @@ fn color_and_height(
 ```
 
 Implemented in Flutter: `waveformBandGainFor(MixerChannelUi)` maps the deck's EQ knobs (0..1, 0.5 flat) to per-band multipliers and the channel volume to `uGain`; the shader multiplies the sampled band amplitudes, so killing a band collapses its bars and a boost doubles them **before the amplitude is clamped to the bar range** (a bar already at full height stops growing). A flat channel renders 1.0 and matches the stored peaks exactly.
+
+`waveformGainsFor(channel, shaped: …)` bundles the two multipliers. `shaped` comes from the persisted `waveform_gain_eq_shaping` setting (Settings → Waveform, default on): when it is off both multipliers are unity, so the lane keeps painting the stored peaks and no knob move repaints it. The shader and the EQ-to-multiplier mapping are unchanged either way.
 
 ### 8.4 Progressive resolution (agreed design)
 

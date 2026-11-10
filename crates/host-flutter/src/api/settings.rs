@@ -614,6 +614,9 @@ fn default_vinyl_brake_stop_secs() -> f32 {
 fn default_show_waveform() -> bool {
     true
 }
+fn default_waveform_gain_eq_shaping() -> bool {
+    true
+}
 fn default_show_mixer() -> bool {
     true
 }
@@ -719,6 +722,11 @@ pub struct AppSettings {
     #[serde(default = "default_vinyl_brake_stop_secs")]
     pub vinyl_brake_stop_secs: f32,
     pub waveform_display_mode: WaveformDisplayModeSetting,
+    /// Shape the scrolling lane with the deck's channel gain and EQ
+    /// (Settings → Waveform). Off draws the recorded peaks at unity, so the
+    /// lane stays still while the knobs move.
+    #[serde(default = "default_waveform_gain_eq_shaping")]
+    pub waveform_gain_eq_shaping: bool,
     #[serde(default)]
     pub key_display_mode: KeyDisplayModeSetting,
     #[serde(default)]
@@ -817,6 +825,7 @@ struct SettingsHost {
     default_top_jog_mode: JogModeSetting,
     default_outer_jog_mode: JogModeSetting,
     waveform_display_mode: WaveformDisplayModeSetting,
+    waveform_gain_eq_shaping: bool,
     key_display_mode: KeyDisplayModeSetting,
     key_color_mode: KeyColorModeSetting,
     trusted_controller_device_ids: Vec<String>,
@@ -866,6 +875,7 @@ impl Default for SettingsHost {
             default_top_jog_mode: JogModeSetting::Vinyl,
             default_outer_jog_mode: JogModeSetting::PitchBend,
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
+            waveform_gain_eq_shaping: default_waveform_gain_eq_shaping(),
             key_display_mode: KeyDisplayModeSetting::Musical,
             key_color_mode: KeyColorModeSetting::Off,
             trusted_controller_device_ids: Vec::new(),
@@ -1290,6 +1300,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         vinyl_brake_pause: config.vinyl_brake_pause(),
         vinyl_brake_stop_secs: config.vinyl_brake_stop_secs(),
         waveform_display_mode: host.waveform_display_mode,
+        waveform_gain_eq_shaping: host.waveform_gain_eq_shaping,
         key_display_mode: host.key_display_mode,
         key_color_mode: host.key_color_mode,
         trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
@@ -1362,6 +1373,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.default_top_jog_mode = settings.default_top_jog_mode;
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
     host.waveform_display_mode = settings.waveform_display_mode;
+    host.waveform_gain_eq_shaping = settings.waveform_gain_eq_shaping;
     host.key_display_mode = settings.key_display_mode;
     host.key_color_mode = settings.key_color_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
@@ -1675,6 +1687,7 @@ mod tests {
         assert_eq!(parsed.stems_format, "opus");
         assert_eq!(parsed.stems_model, library::DEFAULT_STEMS_MODEL);
         assert!(!parsed.realtime_stems);
+        assert!(parsed.waveform_gain_eq_shaping);
     }
 
     #[test]
@@ -2337,6 +2350,30 @@ mod tests {
         let settings: AppSettings =
             serde_json::from_value(settings_without_key("show_waveform")).expect("parse");
         assert!(settings.show_waveform);
+    }
+
+    #[test]
+    fn missing_waveform_gain_eq_shaping_defaults_on() {
+        let settings: AppSettings =
+            serde_json::from_value(settings_without_key("waveform_gain_eq_shaping"))
+                .expect("parse");
+        assert!(
+            settings.waveform_gain_eq_shaping,
+            "older files keep shaping on, as #668 shipped it"
+        );
+    }
+
+    #[test]
+    fn waveform_gain_eq_shaping_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.waveform_gain_eq_shaping = false;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.waveform_gain_eq_shaping);
     }
 
     #[test]

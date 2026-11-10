@@ -276,6 +276,25 @@ void main() {
     );
   });
 
+  test('shaping off draws the stored peaks at unity', () {
+    // Settings → Waveform off must leave the lane static, so a killed band, a
+    // boosted band and a half-open fader all render exactly what was stored.
+    const channel = MixerChannelUi(
+      eqLow: 0,
+      eqMid: 1,
+      eqHigh: 0.25,
+      volume: 0.3,
+    );
+    final shaped = waveformGainsFor(channel);
+    expect(shaped.gain, 0.3);
+    expect(shaped.bandGain, (0, 2, 0.5));
+
+    final flat = waveformGainsFor(channel, shaped: false);
+    expect(flat.gain, 1);
+    expect(flat.bandGain, (1, 1, 1));
+    expect(flat.bandGain, flatWaveformBandGain);
+  });
+
   test('a graph wider than the GPU limit is max-pooled, not dropped', () async {
     // Vulkan only guarantees maxImageDimension2D = 4096 while the library emits
     // up to 16384 overview buckets; a wider texture would fail to decode and
