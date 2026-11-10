@@ -59,23 +59,6 @@ Widget _app(Widget body) {
   );
 }
 
-/// One platter on the themed scaffold.
-Widget _platterApp({
-  Uint8List? artwork,
-  double? bpm = 120,
-  bool enabled = true,
-  bool jogTouching = false,
-  int positionMs = 0,
-}) => _app(
-  _platterFace(
-    artwork: artwork,
-    bpm: bpm,
-    enabled: enabled,
-    jogTouching: jogTouching,
-    positionMs: positionMs,
-  ),
-);
-
 void main() {
   Future<void> pumpPlatter(
     WidgetTester tester, {
@@ -83,7 +66,7 @@ void main() {
     bool jogTouching = true,
   }) async {
     await tester.pumpWidget(
-      _platterApp(positionMs: positionMs, jogTouching: jogTouching),
+      _app(_platterFace(positionMs: positionMs, jogTouching: jogTouching)),
     );
   }
 
@@ -176,7 +159,7 @@ void main() {
     tester,
   ) async {
     Future<void> pumpWithArtwork(Uint8List? artwork) async {
-      await tester.pumpWidget(_platterApp(artwork: artwork));
+      await tester.pumpWidget(_app(_platterFace(artwork: artwork)));
       await tester.pump();
     }
 
