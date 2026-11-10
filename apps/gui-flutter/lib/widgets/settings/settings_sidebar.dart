@@ -113,16 +113,16 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
             //
             // Full-bleed and square, like the nav rows below it: rounded field
             // chrome would read as a form control dropped into the column. The
-            // wash lifts one solid step (background → secondary → card) and the
-            // hairline turns accent while the field owns the keyboard, which is
-            // the only border this field needs.
+            // wash lifts one solid step (background → secondary → card) while
+            // the field owns the keyboard; the bottom hairline stays the
+            // sidebar's neutral divider in both states.
             DecoratedBox(
               key: kSettingsSearchBandKey,
               decoration: BoxDecoration(
                 color: searchFocused ? colors.card : colors.secondary,
                 border: Border(
                   bottom: BorderSide(
-                    color: searchFocused ? colors.primary : colors.border,
+                    color: colors.border,
                     width: theme.style.borderWidth,
                   ),
                 ),

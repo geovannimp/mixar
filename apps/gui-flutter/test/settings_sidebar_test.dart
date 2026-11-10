@@ -112,15 +112,15 @@ void main() {
       theme.colors.border,
     );
 
-    // Typing focuses the field: the band lifts one solid step and the hairline
-    // turns accent — that hairline is the flat field's whole focus cue.
+    // Typing focuses the field: the band lifts one solid step while the
+    // hairline stays the sidebar's neutral divider — no accent underline.
     await tester.enterText(find.byType(MixarInput), 'theme');
     await tester.pump();
 
     expect(bandDecoration().color, theme.colors.card);
     expect(
       (bandDecoration().border! as Border).bottom.color,
-      theme.colors.primary,
+      theme.colors.border,
     );
   });
 
