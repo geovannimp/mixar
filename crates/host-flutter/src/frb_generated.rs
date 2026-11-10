@@ -10214,6 +10214,12 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_vinylBrakeStopSecs = <f32>::sse_decode(deserializer);
         let mut var_autoCue = <bool>::sse_decode(deserializer);
         let mut var_cueThresholdDb = <f32>::sse_decode(deserializer);
+        let mut var_faderStartEnabled = <bool>::sse_decode(deserializer);
+        let mut var_faderStartThresholdPct = <u8>::sse_decode(deserializer);
+        let mut var_faderStartOnNonZero =
+            <crate::api::settings::FaderStartOnNonZeroSetting>::sse_decode(deserializer);
+        let mut var_faderStartOnZero =
+            <crate::api::settings::FaderStartOnZeroSetting>::sse_decode(deserializer);
         let mut var_waveformDisplayMode =
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
         let mut var_waveformGainEqShaping = <bool>::sse_decode(deserializer);
@@ -10286,6 +10292,10 @@ impl SseDecode for crate::api::settings::AppSettings {
             vinyl_brake_stop_secs: var_vinylBrakeStopSecs,
             auto_cue: var_autoCue,
             cue_threshold_db: var_cueThresholdDb,
+            fader_start_enabled: var_faderStartEnabled,
+            fader_start_threshold_pct: var_faderStartThresholdPct,
+            fader_start_on_non_zero: var_faderStartOnNonZero,
+            fader_start_on_zero: var_faderStartOnZero,
             waveform_display_mode: var_waveformDisplayMode,
             waveform_gain_eq_shaping: var_waveformGainEqShaping,
             track_end_warning: var_trackEndWarning,
@@ -11887,6 +11897,32 @@ impl SseDecode for crate::api::event_mirrors::FaderStart {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_deck = <u16>::sse_decode(deserializer);
         return crate::api::event_mirrors::FaderStart { deck: var_deck };
+    }
+}
+
+impl SseDecode for crate::api::settings::FaderStartOnNonZeroSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::FaderStartOnNonZeroSetting::Nothing,
+            1 => crate::api::settings::FaderStartOnNonZeroSetting::Play,
+            2 => crate::api::settings::FaderStartOnNonZeroSetting::TogglePlay,
+            _ => unreachable!("Invalid variant for FaderStartOnNonZeroSetting: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::settings::FaderStartOnZeroSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::FaderStartOnZeroSetting::Nothing,
+            1 => crate::api::settings::FaderStartOnZeroSetting::Pause,
+            2 => crate::api::settings::FaderStartOnZeroSetting::PauseAndCue,
+            _ => unreachable!("Invalid variant for FaderStartOnZeroSetting: {}", inner),
+        };
     }
 }
 
@@ -15848,6 +15884,10 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.vinyl_brake_stop_secs.into_into_dart().into_dart(),
             self.auto_cue.into_into_dart().into_dart(),
             self.cue_threshold_db.into_into_dart().into_dart(),
+            self.fader_start_enabled.into_into_dart().into_dart(),
+            self.fader_start_threshold_pct.into_into_dart().into_dart(),
+            self.fader_start_on_non_zero.into_into_dart().into_dart(),
+            self.fader_start_on_zero.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
             self.waveform_gain_eq_shaping.into_into_dart().into_dart(),
             self.track_end_warning.into_into_dart().into_dart(),
@@ -17532,6 +17572,50 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::event_mirrors::Fad
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::event_mirrors::FaderStart> {
         self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::FaderStartOnNonZeroSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Nothing => 0.into_dart(),
+            Self::Play => 1.into_dart(),
+            Self::TogglePlay => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::FaderStartOnNonZeroSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::FaderStartOnNonZeroSetting>
+    for crate::api::settings::FaderStartOnNonZeroSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::FaderStartOnNonZeroSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::FaderStartOnZeroSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Nothing => 0.into_dart(),
+            Self::Pause => 1.into_dart(),
+            Self::PauseAndCue => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::FaderStartOnZeroSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::FaderStartOnZeroSetting>
+    for crate::api::settings::FaderStartOnZeroSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::FaderStartOnZeroSetting {
+        self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -20834,6 +20918,16 @@ impl SseEncode for crate::api::settings::AppSettings {
         <f32>::sse_encode(self.vinyl_brake_stop_secs, serializer);
         <bool>::sse_encode(self.auto_cue, serializer);
         <f32>::sse_encode(self.cue_threshold_db, serializer);
+        <bool>::sse_encode(self.fader_start_enabled, serializer);
+        <u8>::sse_encode(self.fader_start_threshold_pct, serializer);
+        <crate::api::settings::FaderStartOnNonZeroSetting>::sse_encode(
+            self.fader_start_on_non_zero,
+            serializer,
+        );
+        <crate::api::settings::FaderStartOnZeroSetting>::sse_encode(
+            self.fader_start_on_zero,
+            serializer,
+        );
         <crate::api::settings::WaveformDisplayModeSetting>::sse_encode(
             self.waveform_display_mode,
             serializer,
@@ -22021,6 +22115,40 @@ impl SseEncode for crate::api::event_mirrors::FaderStart {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u16>::sse_encode(self.deck, serializer);
+    }
+}
+
+impl SseEncode for crate::api::settings::FaderStartOnNonZeroSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::FaderStartOnNonZeroSetting::Nothing => 0,
+                crate::api::settings::FaderStartOnNonZeroSetting::Play => 1,
+                crate::api::settings::FaderStartOnNonZeroSetting::TogglePlay => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::settings::FaderStartOnZeroSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::FaderStartOnZeroSetting::Nothing => 0,
+                crate::api::settings::FaderStartOnZeroSetting::Pause => 1,
+                crate::api::settings::FaderStartOnZeroSetting::PauseAndCue => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

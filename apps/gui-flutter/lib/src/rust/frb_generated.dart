@@ -7934,8 +7934,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 61)
-      throw Exception('unexpected arr length: expect 61 but see ${arr.length}');
+    if (arr.length != 65)
+      throw Exception('unexpected arr length: expect 65 but see ${arr.length}');
     return AppSettings(
       bufferSize: dco_decode_u_32(arr[0]),
       resamplerQuality: dco_decode_String(arr[1]),
@@ -7966,39 +7966,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       vinylBrakeStopSecs: dco_decode_f_32(arr[26]),
       autoCue: dco_decode_bool(arr[27]),
       cueThresholdDb: dco_decode_f_32(arr[28]),
-      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[29]),
-      waveformGainEqShaping: dco_decode_bool(arr[30]),
-      trackEndWarning: dco_decode_bool(arr[31]),
-      trackEndWarningSecs: dco_decode_u_32(arr[32]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[33]),
-      keyColorMode: dco_decode_key_color_mode_setting(arr[34]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[35]),
-      alwaysSwitchAudioDeviceIds: dco_decode_list_String(arr[36]),
+      faderStartEnabled: dco_decode_bool(arr[29]),
+      faderStartThresholdPct: dco_decode_u_8(arr[30]),
+      faderStartOnNonZero: dco_decode_fader_start_on_non_zero_setting(arr[31]),
+      faderStartOnZero: dco_decode_fader_start_on_zero_setting(arr[32]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[33]),
+      waveformGainEqShaping: dco_decode_bool(arr[34]),
+      trackEndWarning: dco_decode_bool(arr[35]),
+      trackEndWarningSecs: dco_decode_u_32(arr[36]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[37]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[38]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[39]),
+      alwaysSwitchAudioDeviceIds: dco_decode_list_String(arr[40]),
       controllerAudioOverride:
-          dco_decode_opt_box_autoadd_controller_audio_override(arr[37]),
-      historyEnabled: dco_decode_bool(arr[38]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[39]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[40]),
-      historyMinDeckVolume: dco_decode_f_32(arr[41]),
-      showTooltips: dco_decode_bool(arr[42]),
-      mixerMeters: dco_decode_mixer_meters_setting(arr[43]),
-      selectStyle: dco_decode_select_style_setting(arr[44]),
-      dimPlayedTracks: dco_decode_bool(arr[45]),
-      stemsFormat: dco_decode_String(arr[46]),
-      stemsModel: dco_decode_String(arr[47]),
-      realtimeStems: dco_decode_bool(arr[48]),
-      uiLanguage: dco_decode_ui_language_setting(arr[49]),
-      theme: dco_decode_theme_setting(arr[50]),
-      accentPalette: dco_decode_accent_palette_setting(arr[51]),
-      libraryDrawerEnabled: dco_decode_bool(arr[52]),
-      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[53]),
-      waveformPosition: dco_decode_waveform_position_setting(arr[54]),
-      showWaveform: dco_decode_bool(arr[55]),
-      showMixer: dco_decode_bool(arr[56]),
-      showFxBar: dco_decode_bool(arr[57]),
-      showCrossfader: dco_decode_bool(arr[58]),
-      analyticsEnabled: dco_decode_bool(arr[59]),
-      onboardingCompleted: dco_decode_bool(arr[60]),
+          dco_decode_opt_box_autoadd_controller_audio_override(arr[41]),
+      historyEnabled: dco_decode_bool(arr[42]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[43]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[44]),
+      historyMinDeckVolume: dco_decode_f_32(arr[45]),
+      showTooltips: dco_decode_bool(arr[46]),
+      mixerMeters: dco_decode_mixer_meters_setting(arr[47]),
+      selectStyle: dco_decode_select_style_setting(arr[48]),
+      dimPlayedTracks: dco_decode_bool(arr[49]),
+      stemsFormat: dco_decode_String(arr[50]),
+      stemsModel: dco_decode_String(arr[51]),
+      realtimeStems: dco_decode_bool(arr[52]),
+      uiLanguage: dco_decode_ui_language_setting(arr[53]),
+      theme: dco_decode_theme_setting(arr[54]),
+      accentPalette: dco_decode_accent_palette_setting(arr[55]),
+      libraryDrawerEnabled: dco_decode_bool(arr[56]),
+      libraryDrawerSide: dco_decode_library_drawer_side_setting(arr[57]),
+      waveformPosition: dco_decode_waveform_position_setting(arr[58]),
+      showWaveform: dco_decode_bool(arr[59]),
+      showMixer: dco_decode_bool(arr[60]),
+      showFxBar: dco_decode_bool(arr[61]),
+      showCrossfader: dco_decode_bool(arr[62]),
+      analyticsEnabled: dco_decode_bool(arr[63]),
+      onboardingCompleted: dco_decode_bool(arr[64]),
     );
   }
 
@@ -9989,6 +9993,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return FaderStart(deck: dco_decode_u_16(arr[0]));
+  }
+
+  @protected
+  FaderStartOnNonZeroSetting dco_decode_fader_start_on_non_zero_setting(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return FaderStartOnNonZeroSetting.values[raw as int];
+  }
+
+  @protected
+  FaderStartOnZeroSetting dco_decode_fader_start_on_zero_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return FaderStartOnZeroSetting.values[raw as int];
   }
 
   @protected
@@ -12421,6 +12439,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_vinylBrakeStopSecs = sse_decode_f_32(deserializer);
     var var_autoCue = sse_decode_bool(deserializer);
     var var_cueThresholdDb = sse_decode_f_32(deserializer);
+    var var_faderStartEnabled = sse_decode_bool(deserializer);
+    var var_faderStartThresholdPct = sse_decode_u_8(deserializer);
+    var var_faderStartOnNonZero = sse_decode_fader_start_on_non_zero_setting(
+      deserializer,
+    );
+    var var_faderStartOnZero = sse_decode_fader_start_on_zero_setting(
+      deserializer,
+    );
     var var_waveformDisplayMode = sse_decode_waveform_display_mode_setting(
       deserializer,
     );
@@ -12490,6 +12516,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       vinylBrakeStopSecs: var_vinylBrakeStopSecs,
       autoCue: var_autoCue,
       cueThresholdDb: var_cueThresholdDb,
+      faderStartEnabled: var_faderStartEnabled,
+      faderStartThresholdPct: var_faderStartThresholdPct,
+      faderStartOnNonZero: var_faderStartOnNonZero,
+      faderStartOnZero: var_faderStartOnZero,
       waveformDisplayMode: var_waveformDisplayMode,
       waveformGainEqShaping: var_waveformGainEqShaping,
       trackEndWarning: var_trackEndWarning,
@@ -14815,6 +14845,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_deck = sse_decode_u_16(deserializer);
     return FaderStart(deck: var_deck);
+  }
+
+  @protected
+  FaderStartOnNonZeroSetting sse_decode_fader_start_on_non_zero_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return FaderStartOnNonZeroSetting.values[inner];
+  }
+
+  @protected
+  FaderStartOnZeroSetting sse_decode_fader_start_on_zero_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return FaderStartOnZeroSetting.values[inner];
   }
 
   @protected
@@ -17513,6 +17561,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.vinylBrakeStopSecs, serializer);
     sse_encode_bool(self.autoCue, serializer);
     sse_encode_f_32(self.cueThresholdDb, serializer);
+    sse_encode_bool(self.faderStartEnabled, serializer);
+    sse_encode_u_8(self.faderStartThresholdPct, serializer);
+    sse_encode_fader_start_on_non_zero_setting(
+      self.faderStartOnNonZero,
+      serializer,
+    );
+    sse_encode_fader_start_on_zero_setting(self.faderStartOnZero, serializer);
     sse_encode_waveform_display_mode_setting(
       self.waveformDisplayMode,
       serializer,
@@ -19703,6 +19758,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_fader_start(FaderStart self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self.deck, serializer);
+  }
+
+  @protected
+  void sse_encode_fader_start_on_non_zero_setting(
+    FaderStartOnNonZeroSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_fader_start_on_zero_setting(
+    FaderStartOnZeroSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

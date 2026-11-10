@@ -796,6 +796,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FaderStart dco_decode_fader_start(dynamic raw);
 
   @protected
+  FaderStartOnNonZeroSetting dco_decode_fader_start_on_non_zero_setting(
+    dynamic raw,
+  );
+
+  @protected
+  FaderStartOnZeroSetting dco_decode_fader_start_on_zero_setting(dynamic raw);
+
+  @protected
   FaderStop dco_decode_fader_stop(dynamic raw);
 
   @protected
@@ -2382,6 +2390,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   FaderStart sse_decode_fader_start(SseDeserializer deserializer);
+
+  @protected
+  FaderStartOnNonZeroSetting sse_decode_fader_start_on_non_zero_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FaderStartOnZeroSetting sse_decode_fader_start_on_zero_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   FaderStop sse_decode_fader_stop(SseDeserializer deserializer);
@@ -4334,6 +4352,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_fader_start(FaderStart self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_fader_start_on_non_zero_setting(
+    FaderStartOnNonZeroSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_fader_start_on_zero_setting(
+    FaderStartOnZeroSetting self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_fader_stop(FaderStop self, SseSerializer serializer);

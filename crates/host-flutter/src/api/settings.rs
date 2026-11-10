@@ -8,6 +8,7 @@ use crate::frb_generated::StreamSink;
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use bus_api::JogMode;
 use engine_core::{
+    fader_start::{FaderStartConfig, OnNonZeroAction, OnZeroAction},
     validate_buffer_size, AnalysisDurationMode, AudioConfig, EngineConfig,
     SamplerStripRouteSetting, DEFAULT_TEMPO_RANGE, DEFAULT_TEMPO_RANGE_STEPS,
 };
@@ -392,6 +393,64 @@ pub enum SamplerPlayModeSetting {
     Loop,
 }
 
+/// Channel-fader rising-edge action (maps to [`OnNonZeroAction`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FaderStartOnNonZeroSetting {
+    Nothing,
+    Play,
+    TogglePlay,
+}
+
+impl From<FaderStartOnNonZeroSetting> for OnNonZeroAction {
+    fn from(value: FaderStartOnNonZeroSetting) -> Self {
+        match value {
+            FaderStartOnNonZeroSetting::Nothing => Self::Nothing,
+            FaderStartOnNonZeroSetting::Play => Self::Play,
+            FaderStartOnNonZeroSetting::TogglePlay => Self::TogglePlay,
+        }
+    }
+}
+
+impl From<OnNonZeroAction> for FaderStartOnNonZeroSetting {
+    fn from(value: OnNonZeroAction) -> Self {
+        match value {
+            OnNonZeroAction::Nothing => Self::Nothing,
+            OnNonZeroAction::Play => Self::Play,
+            OnNonZeroAction::TogglePlay => Self::TogglePlay,
+        }
+    }
+}
+
+/// Channel-fader falling-edge action (maps to [`OnZeroAction`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FaderStartOnZeroSetting {
+    Nothing,
+    Pause,
+    PauseAndCue,
+}
+
+impl From<FaderStartOnZeroSetting> for OnZeroAction {
+    fn from(value: FaderStartOnZeroSetting) -> Self {
+        match value {
+            FaderStartOnZeroSetting::Nothing => Self::Nothing,
+            FaderStartOnZeroSetting::Pause => Self::Pause,
+            FaderStartOnZeroSetting::PauseAndCue => Self::PauseAndCue,
+        }
+    }
+}
+
+impl From<OnZeroAction> for FaderStartOnZeroSetting {
+    fn from(value: OnZeroAction) -> Self {
+        match value {
+            OnZeroAction::Nothing => Self::Nothing,
+            OnZeroAction::Pause => Self::Pause,
+            OnZeroAction::PauseAndCue => Self::PauseAndCue,
+        }
+    }
+}
+
 /// Sampler ↔ channel-strip routing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -619,6 +678,18 @@ pub enum MixerMetersSetting {
 fn default_vinyl_brake_stop_secs() -> f32 {
     0.5
 }
+fn default_fader_start_enabled() -> bool {
+    false
+}
+fn default_fader_start_threshold_pct() -> u8 {
+    5
+}
+fn default_fader_start_on_non_zero() -> FaderStartOnNonZeroSetting {
+    FaderStartOnNonZeroSetting::Play
+}
+fn default_fader_start_on_zero() -> FaderStartOnZeroSetting {
+    FaderStartOnZeroSetting::PauseAndCue
+}
 fn default_show_waveform() -> bool {
     true
 }
@@ -749,6 +820,14 @@ pub struct AppSettings {
     /// Silence threshold (dBFS) for analysis cue detection.
     #[serde(default = "default_cue_threshold_db")]
     pub cue_threshold_db: f32,
+    #[serde(default = "default_fader_start_enabled")]
+    pub fader_start_enabled: bool,
+    #[serde(default = "default_fader_start_threshold_pct")]
+    pub fader_start_threshold_pct: u8,
+    #[serde(default = "default_fader_start_on_non_zero")]
+    pub fader_start_on_non_zero: FaderStartOnNonZeroSetting,
+    #[serde(default = "default_fader_start_on_zero")]
+    pub fader_start_on_zero: FaderStartOnZeroSetting,
     pub waveform_display_mode: WaveformDisplayModeSetting,
     /// Shape the scrolling lane with the deck's channel gain and EQ
     /// (Settings → Waveform). Off draws the recorded peaks at unity, so the
@@ -1133,6 +1212,7 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     } else {
         0.5
     };
+    settings.fader_start_threshold_pct = settings.fader_start_threshold_pct.clamp(1, 20);
 
     if !settings.cue_threshold_db.is_finite() {
         errors.push("cue_threshold_db must be finite".into());
@@ -1359,6 +1439,10 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_key_lock: config.default_key_lock(),
         vinyl_brake_pause: config.vinyl_brake_pause(),
         vinyl_brake_stop_secs: config.vinyl_brake_stop_secs(),
+        fader_start_enabled: config.fader_start().enabled,
+        fader_start_threshold_pct: config.fader_start().threshold_pct,
+        fader_start_on_non_zero: config.fader_start().on_non_zero.into(),
+        fader_start_on_zero: config.fader_start().on_zero.into(),
         waveform_display_mode: host.waveform_display_mode,
         waveform_gain_eq_shaping: host.waveform_gain_eq_shaping,
         track_end_warning: host.track_end_warning,
@@ -1421,7 +1505,15 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         default_fx_level_curve: Some(settings.default_fx_level_curve.clone()),
         crossfader_behavior: Some(settings.crossfader_behavior),
         curve_library: Some(settings.curve_library.clone()),
-        fader_start: None,
+        fader_start: Some(
+            FaderStartConfig {
+                enabled: settings.fader_start_enabled,
+                threshold_pct: settings.fader_start_threshold_pct,
+                on_non_zero: settings.fader_start_on_non_zero.into(),
+                on_zero: settings.fader_start_on_zero.into(),
+            }
+            .clamp(),
+        ),
     });
     config.validate().bridge()?;
     host.engine_config = config;
@@ -2248,6 +2340,74 @@ mod tests {
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert!(restored.default_key_lock);
+    }
+
+    #[test]
+    fn fader_start_settings_round_trip_through_the_engine_config() {
+        let mut host = SettingsHost::default();
+        let mut settings = settings_from_host(&host);
+        settings.fader_start_enabled = true;
+        settings.fader_start_threshold_pct = 9;
+        settings.fader_start_on_non_zero = FaderStartOnNonZeroSetting::TogglePlay;
+        settings.fader_start_on_zero = FaderStartOnZeroSetting::Pause;
+        apply_to_host(&mut host, settings).expect("apply");
+
+        let restored = settings_from_host(&host);
+        assert!(restored.fader_start_enabled);
+        assert_eq!(restored.fader_start_threshold_pct, 9);
+        assert_eq!(
+            restored.fader_start_on_non_zero,
+            FaderStartOnNonZeroSetting::TogglePlay
+        );
+        assert_eq!(restored.fader_start_on_zero, FaderStartOnZeroSetting::Pause);
+    }
+
+    #[test]
+    fn fader_start_threshold_is_clamped_on_save() {
+        let mut settings = sample_settings();
+        settings.fader_start_threshold_pct = 0;
+        let parsed = parse_settings(settings).expect("parse");
+        assert_eq!(parsed.fader_start_threshold_pct, 1);
+        assert!(!parsed.fader_start_enabled);
+        assert_eq!(
+            parsed.fader_start_on_non_zero,
+            FaderStartOnNonZeroSetting::Play
+        );
+        assert_eq!(
+            parsed.fader_start_on_zero,
+            FaderStartOnZeroSetting::PauseAndCue
+        );
+
+        let mut settings = sample_settings();
+        settings.fader_start_threshold_pct = 99;
+        let parsed = parse_settings(settings).expect("parse");
+        assert_eq!(parsed.fader_start_threshold_pct, 20);
+    }
+
+    #[test]
+    fn old_settings_files_default_to_features_off() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        let object = value.as_object_mut().expect("object");
+        object.remove("fader_start_enabled");
+        object.remove("fader_start_threshold_pct");
+        object.remove("fader_start_on_non_zero");
+        object.remove("fader_start_on_zero");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.fader_start_enabled);
+        assert_eq!(restored.fader_start_threshold_pct, 5);
+        assert_eq!(
+            restored.fader_start_on_non_zero,
+            FaderStartOnNonZeroSetting::Play
+        );
+        assert_eq!(
+            restored.fader_start_on_zero,
+            FaderStartOnZeroSetting::PauseAndCue
+        );
     }
 
     #[test]
