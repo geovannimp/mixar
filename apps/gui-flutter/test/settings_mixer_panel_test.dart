@@ -67,6 +67,18 @@ Future<void> _pumpPanel(
   );
 }
 
+/// Taps a row in the mixer meters card, scrolling it into view first.
+Future<void> _tapMeterOption(WidgetTester tester, String label) async {
+  final option = find.descendant(
+    of: find.byType(SettingsVisualChoice<MixerMetersSetting>),
+    matching: find.text(label),
+  );
+  await tester.ensureVisible(option);
+  await tester.pumpAndSettle();
+  await tester.tap(option);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('mixer settings exposes the realtime stems opt-in', (
     tester,
@@ -290,25 +302,11 @@ void main() {
       MixerMetersSetting.stereo,
     ]);
 
-    final stereo = find.descendant(
-      of: find.byType(SettingsVisualChoice<MixerMetersSetting>),
-      matching: find.text('Stereo'),
-    );
-    await tester.ensureVisible(stereo);
-    await tester.pumpAndSettle();
-    await tester.tap(stereo);
-    await tester.pumpAndSettle();
+    await _tapMeterOption(tester, 'Stereo');
 
     expect(changed.last.mixerMeters, MixerMetersSetting.stereo);
 
-    final off = find.descendant(
-      of: find.byType(SettingsVisualChoice<MixerMetersSetting>),
-      matching: find.text('None'),
-    );
-    await tester.ensureVisible(off);
-    await tester.pumpAndSettle();
-    await tester.tap(off);
-    await tester.pumpAndSettle();
+    await _tapMeterOption(tester, 'None');
 
     expect(changed.last.mixerMeters, MixerMetersSetting.none);
   }, semanticsEnabled: false);
