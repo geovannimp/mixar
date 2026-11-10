@@ -6,6 +6,7 @@ import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_field.dart';
+import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
@@ -46,6 +47,17 @@ class SettingsWaveformPanel extends StatelessWidget {
               ],
               onChanged: (mode) =>
                   onChanged(copyAppSettings(draft, waveformDisplayMode: mode)),
+            ),
+          ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsWaveformShapingTitle,
+          subtitle: l10n.settingsWaveformShapingDescription,
+          trailing: SettingsHeaderSwitch(
+            value: draft.waveformGainEqShaping,
+            semanticsLabel: l10n.settingsWaveformShapingEnable,
+            onChanged: (shaped) => onChanged(
+              copyAppSettings(draft, waveformGainEqShaping: shaped),
             ),
           ),
         ),

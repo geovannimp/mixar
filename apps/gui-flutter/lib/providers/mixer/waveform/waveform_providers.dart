@@ -125,3 +125,11 @@ final waveformDisplayModeProvider = Provider<WaveformDisplayMode>((ref) {
         ),
   );
 });
+
+/// Shape the lane bars with the deck's channel gain and EQ (Settings →
+/// Waveform). Off draws the stored peaks at unity.
+final waveformGainEqShapingProvider = Provider<bool>((ref) {
+  return ref
+      .watch(appSettingsProvider)
+      .maybeWhen(data: (s) => s.waveformGainEqShaping, orElse: () => true);
+});

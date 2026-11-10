@@ -10066,6 +10066,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_vinylBrakeStopSecs = <f32>::sse_decode(deserializer);
         let mut var_waveformDisplayMode =
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
+        let mut var_waveformGainEqShaping = <bool>::sse_decode(deserializer);
         let mut var_keyDisplayMode =
             <crate::api::settings::KeyDisplayModeSetting>::sse_decode(deserializer);
         let mut var_keyColorMode =
@@ -10132,6 +10133,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             vinyl_brake_pause: var_vinylBrakePause,
             vinyl_brake_stop_secs: var_vinylBrakeStopSecs,
             waveform_display_mode: var_waveformDisplayMode,
+            waveform_gain_eq_shaping: var_waveformGainEqShaping,
             key_display_mode: var_keyDisplayMode,
             key_color_mode: var_keyColorMode,
             trusted_controller_device_ids: var_trustedControllerDeviceIds,
@@ -15527,6 +15529,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.vinyl_brake_pause.into_into_dart().into_dart(),
             self.vinyl_brake_stop_secs.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
+            self.waveform_gain_eq_shaping.into_into_dart().into_dart(),
             self.key_display_mode.into_into_dart().into_dart(),
             self.key_color_mode.into_into_dart().into_dart(),
             self.trusted_controller_device_ids
@@ -20363,6 +20366,7 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.waveform_display_mode,
             serializer,
         );
+        <bool>::sse_encode(self.waveform_gain_eq_shaping, serializer);
         <crate::api::settings::KeyDisplayModeSetting>::sse_encode(
             self.key_display_mode,
             serializer,

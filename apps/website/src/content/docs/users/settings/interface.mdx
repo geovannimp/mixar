@@ -1,11 +1,11 @@
 ---
 title: "Interface"
-description: "Theme and accent colour, language and controls, first-run setup, layout presets, panels, waveform position, library drawer, and waveform display."
+description: "Theme and accent colour, language and controls, first-run setup, layout presets, panels, waveform position, waveform display, and EQ/gain shaping."
 section: "Settings"
 order: 605
 ---
 
-**UI** holds the theme, language, control presentation, and first-run setup cards. **Layout** holds the presets, the deck count, the panels the mixer shows, where the waveform sits, and how the library opens. **Waveform** is a single card.
+**UI** holds the theme, language, control presentation, and first-run setup cards. **Layout** holds the presets, the deck count, the panels the mixer shows, where the waveform sits, and how the library opens. **Waveform** holds the display mode and the EQ/gain shaping switch.
 
 **Save** writes these preferences. The theme, the accent color, and the layout controls apply without restarting the engine, since they only change how the app paints. **Deck layout** asks for confirmation and restarts it.
 
@@ -160,3 +160,13 @@ Section and card subtitle are the same sentence: "RGB mixes low/mid/high into on
 | **Display mode** | select | **RGB** / **Filtered** | RGB | How the three bands are drawn. |
 
 RGB blends the low, mid and high bands into one colour; Filtered stacks them as three separate bands. Both draw the same analysed data. Saving the display mode restarts the engine. See [Jog and waveform](/docs/users/decks/jog-and-waveform) for what the display shows.
+
+## Waveform → EQ & gain shaping
+
+Card subtitle: "Scale the lane bars with the channel gain and the deck EQ. Off keeps the waveform still while you move them."
+
+| Control | Type | Values | Default | Effect |
+| --- | --- | --- | --- | --- |
+| **EQ & gain shaping** | switch | on / off | on | Whether the scrolling lane follows the channel gain and the deck EQ. |
+
+On, the lane bars scale with the channel's **gain** knob and the deck's EQ knobs: killing a band collapses its bars, a boost doubles them, and a flat channel matches the stored peaks. The channel fader is a mix move and never reshapes the lane. Off, the lane draws the recorded peaks unchanged, so moving gain or an EQ knob leaves the waveform still. The overview strip never follows either control. See [Jog and waveform](/docs/users/decks/jog-and-waveform).

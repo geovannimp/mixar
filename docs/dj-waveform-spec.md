@@ -35,7 +35,7 @@ Mixar waveform architecture, storage, and rendering decisions. Industry research
 | **Spectral color** | Offline 3-band split (low / mid / high) drives RGB-style color |
 | **Scrolling view** | Fixed center playhead; waveform data scrolls horizontally. Zoom defines seconds visible. |
 | **Two resolutions** | Detailed waveform for scrolling + low-res **overview** for full-track navigation. |
-| **EQ affects display?** | **Yes** — deck EQ and channel gain shape the scrolling lane (shader uniforms, §8.6). The overview stays a static track map. |
+| **EQ affects display?** | **Yes, by default** — deck EQ and channel gain shape the scrolling lane (shader uniforms, §8.6), and Settings → Waveform → *EQ & gain shaping* turns that off to draw the stored peaks at unity. The overview stays a static track map either way. |
 | **When computed** | Overview at library import; scroll **window** detail at deck load / seek (background). |
 | **Mixar storage** | **Overview only** in `library.db` (`track_waveform` table); hi-res window in memory; progressive UI (§8.4). |
 
@@ -59,8 +59,8 @@ They are **not** intended to reflect post-EQ or post-filter audio with perfect a
 ## 3 — Mixar amplitude & EQ policy
 
 - **Peak** is the Mixar amplitude metric for overview and scrolling windows.
-- **Lane waveforms follow the deck's EQ and channel gain** at render time: stored peaks are immutable and the shader multiplies band amplitudes by *mapped* gain factors — the knob is not used raw, 0.5 (flat) maps to 1.0 and 1.0 to 2.0, before clamping (§8.6).
-- **The overview strip stays a static track map** — EQ-shaping a whole-track navigation aid would hide the map exactly when a channel is faded or EQ-killed.
+- **Lane waveforms follow the deck's EQ and channel gain** at render time: stored peaks are immutable and the shader multiplies band amplitudes by *mapped* gain factors — the knob is not used raw, 0.5 (flat) maps to 1.0 and 1.0 to 2.0, before clamping (§8.6). The channel fader is not part of the mapping; it is a mix move and leaves the shape alone.
+- **The overview strip stays a static track map** — EQ-shaping a whole-track navigation aid would hide the map exactly when a channel is EQ-killed.
 
 ---
 
@@ -137,7 +137,9 @@ fn color_and_height(
 }
 ```
 
-Implemented in Flutter: `waveformBandGainFor(MixerChannelUi)` maps the deck's EQ knobs (0..1, 0.5 flat) to per-band multipliers and the channel volume to `uGain`; the shader multiplies the sampled band amplitudes, so killing a band collapses its bars and a boost doubles them **before the amplitude is clamped to the bar range** (a bar already at full height stops growing). A flat channel renders 1.0 and matches the stored peaks exactly.
+Implemented in Flutter: `waveformBandGainFor(MixerChannelUi)` maps the deck's EQ knobs (0..1, 0.5 flat) to per-band multipliers and the channel **gain** knob (`gainTrim`, 0.5 flat) to `uGain`; the shader multiplies the sampled band amplitudes, so killing a band collapses its bars and a boost doubles them **before the amplitude is clamped to the bar range** (a bar already at full height stops growing). A flat channel renders 1.0 and matches the stored peaks exactly. The channel **fader** (`volume`) is deliberately not part of the mapping: it is a mix move, so the lane shape holds while the fader rides.
+
+`waveformGainsFor(channel, shaped: …)` bundles the two multipliers. `shaped` comes from the persisted `waveform_gain_eq_shaping` setting (Settings → Waveform, default on): when it is off both multipliers are unity, so the lane keeps painting the stored peaks and no gain or EQ move repaints it. The shader and the EQ-to-multiplier mapping are unchanged either way.
 
 ### 8.4 Progressive resolution (agreed design)
 

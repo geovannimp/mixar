@@ -276,6 +276,41 @@ void main() {
     );
   });
 
+  test('shaping follows the gain knob, never the fader', () {
+    // `gainTrim` is how hot the deck arrives: 0.5 is the knob centre and maps
+    // to unity, full doubles the bars, and the channel fader is a mix move
+    // that must leave the lane alone.
+    const channel = MixerChannelUi(gainTrim: 0.75, volume: 0.3);
+    final shaped = waveformGainsFor(channel);
+    expect(shaped.gain, 1.5);
+    expect(
+      waveformGainsFor(const MixerChannelUi(gainTrim: 0)).gain,
+      0,
+      reason: 'a closed gain collapses the bars',
+    );
+
+    // The fader moved, the gain did not: the shape is unchanged.
+    const quieter = MixerChannelUi(gainTrim: 0.75, volume: 0.1);
+    expect(waveformGainsFor(quieter).gain, shaped.gain);
+  });
+
+  test('shaping off draws the stored peaks at unity', () {
+    // Settings → Waveform off must leave the lane static, so a killed band, a
+    // boosted band and a hot gain knob all render exactly what was stored.
+    const channel = MixerChannelUi(
+      eqLow: 0,
+      eqMid: 1,
+      eqHigh: 0.25,
+      gainTrim: 0.9,
+    );
+    expect(waveformGainsFor(channel).bandGain, (0, 2, 0.5));
+
+    final flat = waveformGainsFor(channel, shaped: false);
+    expect(flat.gain, 1);
+    expect(flat.bandGain, (1, 1, 1));
+    expect(flat.bandGain, flatWaveformBandGain);
+  });
+
   test('a graph wider than the GPU limit is max-pooled, not dropped', () async {
     // Vulkan only guarantees maxImageDimension2D = 4096 while the library emits
     // up to 16384 overview buckets; a wider texture would fail to decode and

@@ -171,6 +171,7 @@ AppSettings defaultAppSettings() {
     vinylBrakePause: false,
     vinylBrakeStopSecs: kDefaultVinylBrakeStopSecs,
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
+    waveformGainEqShaping: true,
     keyDisplayMode: KeyDisplayModeSetting.musical,
     keyColorMode: KeyColorModeSetting.off,
     trustedControllerDeviceIds: const [],
@@ -300,6 +301,7 @@ AppSettings copyAppSettings(
   bool? vinylBrakePause,
   double? vinylBrakeStopSecs,
   WaveformDisplayModeSetting? waveformDisplayMode,
+  bool? waveformGainEqShaping,
   KeyDisplayModeSetting? keyDisplayMode,
   KeyColorModeSetting? keyColorMode,
   List<String>? trustedControllerDeviceIds,
@@ -362,6 +364,7 @@ AppSettings copyAppSettings(
     vinylBrakePause: vinylBrakePause ?? base.vinylBrakePause,
     vinylBrakeStopSecs: vinylBrakeStopSecs ?? base.vinylBrakeStopSecs,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
+    waveformGainEqShaping: waveformGainEqShaping ?? base.waveformGainEqShaping,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
     keyColorMode: keyColorMode ?? base.keyColorMode,
     trustedControllerDeviceIds:
@@ -427,6 +430,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.vinylBrakePause != baseline.vinylBrakePause ||
       !_sameDuration(draft.vinylBrakeStopSecs, baseline.vinylBrakeStopSecs) ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
+      draft.waveformGainEqShaping != baseline.waveformGainEqShaping ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||
       draft.keyColorMode != baseline.keyColorMode ||
       draft.historyEnabled != baseline.historyEnabled ||

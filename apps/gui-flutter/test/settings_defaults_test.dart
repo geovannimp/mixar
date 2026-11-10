@@ -343,6 +343,25 @@ void main() {
     );
   });
 
+  test('waveform gain/EQ shaping defaults on and is dirty when off', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.waveformGainEqShaping, isTrue);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, waveformGainEqShaping: false),
+        baseline,
+      ),
+      isTrue,
+    );
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, waveformGainEqShaping: true),
+        baseline,
+      ),
+      isFalse,
+    );
+  });
+
   test('accent palette defaults teal and is dirty only when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.accentPalette, AccentPaletteSetting.teal);

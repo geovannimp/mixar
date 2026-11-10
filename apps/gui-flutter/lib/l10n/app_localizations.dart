@@ -1551,6 +1551,24 @@ abstract class AppLocalizations {
   /// **'Filtered'**
   String get settingsWaveformModeFiltered;
 
+  /// No description provided for @settingsWaveformShapingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'EQ & gain shaping'**
+  String get settingsWaveformShapingTitle;
+
+  /// No description provided for @settingsWaveformShapingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale the lane bars with the channel gain and the deck EQ. Off keeps the waveform still while you move them.'**
+  String get settingsWaveformShapingDescription;
+
+  /// No description provided for @settingsWaveformShapingEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Shape the waveform with EQ and gain'**
+  String get settingsWaveformShapingEnable;
+
   /// No description provided for @settingsDeckDescription.
   ///
   /// In en, this message translates to:

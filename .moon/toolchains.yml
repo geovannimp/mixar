@@ -6,9 +6,10 @@ rust: {}
 javascript: {}
 
 node:
-  # Astro 7.4 requires >=22.23.4; keep this in sync with .node-version.
+  # Node 24 LTS; keep this in sync with .node-version.
+  # Astro 7.4 requires >=22.23.4.
   # Oxfmt/Oxlint TS configs need Node ^20.19 || >=22.18
-  version: '22.23.4'
+  version: '24.22.2'
   packageManager: 'npm'
 
 npm: {}
