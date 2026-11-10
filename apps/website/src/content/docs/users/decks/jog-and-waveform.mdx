@@ -10,7 +10,7 @@ Seek, scrub, and scratch a deck from the waveform and the platter. The waveform 
 | Display | Where | Shows |
 | --- | --- | --- |
 | Overview strip | Along the bottom of the deck's track info, 36 px tall | The whole track in one bar, plus its loop and cue markers |
-| Scrolling lane | The waveform pane at the top of the mixer, one lane per deck | A zoomed window (about 24 seconds at normal pitch) with the playhead pinned in the middle |
+| Scrolling lane | The waveform pane at the top of the mixer, one lane per deck | A window of the track at the current zoom (24 seconds by default) with the playhead pinned in the middle |
 
 With no tracks loaded, the waveform pane reads **Load tracks to see waveforms.**
 
@@ -25,6 +25,14 @@ With no tracks loaded, the waveform pane reads **Load tracks to see waveforms.**
 2. Or drag the scrolling lane to scrub. Watch the lane follow your finger.
 
 Dragging the lane sends seeks while you move, throttled so a fast drag does not flood the engine. A final seek follows on release. Between gestures the playhead eases back onto the engine's position rather than jumping. Small drift is corrected gradually; only a real jump (180 ms or more, or any pause) snaps it.
+
+## Zooming
+
+Scroll over any scrolling lane with the mouse wheel or a two-finger trackpad scroll to zoom. Scroll up zooms in, scroll down zooms out. The playhead stays in the middle, so zooming changes how much time sits on either side of it rather than where the track is.
+
+The zoom level is shared by every deck, so both lanes stay aligned for beat matching, and it runs from 2 seconds to 120 seconds of source time. Tempo changes widen or narrow the window on their own so the musical span stays about the same. Double-click a lane to go back to the default 24 seconds.
+
+Zoomed-in detail is fetched on demand. The window already on screen stays until the new peaks arrive, so zooming sharpens in place instead of flashing a coarser preview.
 
 ## Colours
 

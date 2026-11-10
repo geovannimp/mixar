@@ -1,9 +1,9 @@
 import 'dart:ui';
 
 import 'package:flutter/painting.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
-import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
@@ -85,7 +85,8 @@ void _paintPhaseArrow(
 
 Picture recordLoopPicture({
   required List<SavedLoop> loops,
-  required int durationMs,
+  required int originMs,
+  required int spanMs,
   required Size size,
 }) {
   final recorder = PictureRecorder();
@@ -102,7 +103,8 @@ Picture recordLoopPicture({
     final rect = loopRegionRect(
       inMs: loop.inMs,
       outMs: loop.outMs,
-      durationMs: durationMs,
+      originMs: originMs,
+      spanMs: spanMs,
       width: size.width,
       height: size.height,
     );
@@ -118,7 +120,8 @@ Picture recordLoopPicture({
 /// Returns null when there is no engaged active loop to draw.
 Picture? recordActiveLoopPicture({
   required LoopRegion? loop,
-  required int durationMs,
+  required int originMs,
+  required int spanMs,
   required Size size,
 }) {
   if (loop == null || !loop.active) {
@@ -127,7 +130,8 @@ Picture? recordActiveLoopPicture({
   final rect = loopRegionRect(
     inMs: loop.inMs,
     outMs: loop.outMs,
-    durationMs: durationMs,
+    originMs: originMs,
+    spanMs: spanMs,
     width: size.width,
     height: size.height,
   );
@@ -156,13 +160,19 @@ Picture? recordActiveLoopPicture({
 /// Vertical amber marker for a pending Loop In (no active region yet).
 Picture? recordPendingLoopInPicture({
   required int? pendingInMs,
-  required int durationMs,
+  required int originMs,
+  required int spanMs,
   required Size size,
 }) {
-  if (pendingInMs == null || durationMs <= 0) {
+  if (pendingInMs == null || spanMs <= 0) {
     return null;
   }
-  final x = msToX(ms: pendingInMs, durationMs: durationMs, width: size.width);
+  final x = msToX(
+    ms: pendingInMs,
+    originMs: originMs,
+    spanMs: spanMs,
+    width: size.width,
+  );
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder, Offset.zero & size);
   final line = Paint()
@@ -184,7 +194,8 @@ Picture? recordPendingLoopInPicture({
 
 Picture recordCuePicture({
   required List<DeckHotCue> cues,
-  required int durationMs,
+  required int originMs,
+  required int spanMs,
   required Size size,
 }) {
   final recorder = PictureRecorder();
@@ -192,7 +203,8 @@ Picture recordCuePicture({
   for (final cue in cues) {
     final x = msToX(
       ms: cue.positionMs,
-      durationMs: durationMs,
+      originMs: originMs,
+      spanMs: spanMs,
       width: size.width,
     );
     final color = hotCueAccent(cue.slot).border.withValues(alpha: 1);

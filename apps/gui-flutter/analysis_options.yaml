@@ -43,3 +43,7 @@ linter:
     # setter preference fights that and riverpod_lint's
     # avoid_public_notifier_properties.
     use_setters_to_change_properties: false
+    # Explicit types are load-bearing in a few switches: without the annotation
+    # an `AsyncData([])` arm degrades the whole expression to Object, so the
+    # `dart fix --apply` quickfix for this lint breaks compilation.
+    omit_local_variable_types: false

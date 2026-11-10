@@ -376,7 +376,8 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | When computed | JIT via library overview / window APIs on deck load |
 | Cache | In-memory per path + bucket count |
 | Resolution | Adaptive 4096–16384 buckets (~13 ms/bucket) |
-| Display | Dual-lane GLSL fragment-shader renderer over cached peak textures (lane fill, display mode and EQ gain are uniforms), center playhead, 24 s window |
+| Display | Dual-lane GLSL fragment-shader renderer over cached peak textures (lane fill, display mode and EQ gain are uniforms), center playhead, 24 s default window; wheel zoom 2–120 s shared by all lanes, double-click resets |
+| Zoom | Scroll over a lane sets the visible span; the lane records a windowed peak strip (`getWaveformWindow`, `kMaxPeakTextureWidth` buckets over the window, playhead-centered, refreshed when the playhead nears an edge) and keeps the previous window painted until the new peaks land. Overlays (beat grid, cues, loops) are recorded in the same window coordinates **at the painted width**, not at the texture width, so 1 px beat hairlines are never resampled away by the zoom scale. No coarse whole-track fallback is drawn, so zoom never swaps resolutions. |
 | EQ link | Lane bars scale with deck EQ + channel gain (uniforms; the overview map does not) |
 | Overview strip | Implemented in Flutter (`overview_strip.dart`) |
 | Beat grid overlay | Implemented when analysis present |
