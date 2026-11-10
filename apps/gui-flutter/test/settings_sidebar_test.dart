@@ -124,6 +124,67 @@ void main() {
     );
   });
 
+  testWidgets('clearing the search goes back to the section it hid', (
+    tester,
+  ) async {
+    var active = SettingsSection.audio;
+    await tester.pumpWidget(
+      mixarTestMaterialApp(
+        theme: MixarThemeData.dark(),
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => SettingsSidebar(
+              active: active,
+              onSelect: (section) => setState(() => active = section),
+              onQueryChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 'theme' hides Audio, so the sidebar auto-selects UI to keep the panel in
+    // sync with the filtered list.
+    await tester.enterText(find.byType(MixarInput), 'theme');
+    await tester.pump();
+    expect(active, SettingsSection.ui);
+
+    // Clearing puts the user back in the section the search took them out of.
+    await tester.tap(find.byIcon(LucideIcons.x));
+    await tester.pump();
+    expect(active, SettingsSection.audio);
+  });
+
+  testWidgets('a row picked while searching survives the clear', (
+    tester,
+  ) async {
+    var active = SettingsSection.audio;
+    await tester.pumpWidget(
+      mixarTestMaterialApp(
+        theme: MixarThemeData.dark(),
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => SettingsSidebar(
+              active: active,
+              onSelect: (section) => setState(() => active = section),
+              onQueryChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    final l10n = lookupAppLocalizations(const Locale('en'));
+
+    await tester.enterText(find.byType(MixarInput), 'theme');
+    await tester.pump();
+    await tester.tap(find.text(SettingsSection.ui.label(l10n)));
+    await tester.pump();
+
+    await tester.tap(find.byIcon(LucideIcons.x));
+    await tester.pump();
+    expect(active, SettingsSection.ui);
+  });
+
   testWidgets(
     'auto-selects the first match when the active section is hidden',
     (tester) async {

@@ -35,6 +35,14 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
 
+  /// Section the user was on when the search first hid it.
+  ///
+  /// Typing filters the nav and may select a match; clearing the query puts the
+  /// user back where they started instead of stranding them on a section the
+  /// search picked. An explicit row press (or Enter) clears this: the user
+  /// chose that section, so it survives the clear.
+  SettingsSection? _sectionBeforeSearch;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +61,7 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
   void _onSearchFocusChanged() => setState(() {});
 
   void _select(SettingsSection section) {
+    _sectionBeforeSearch = null;
     _searchFocus.unfocus();
     widget.onSelect(section);
   }
@@ -63,6 +72,10 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
   void _onSearchChanged(String query) {
     setState(() {});
     widget.onQueryChanged(query);
+    if (query.trim().isEmpty) {
+      _restoreSectionAfterSearch();
+      return;
+    }
     _ensureSelectionMatches();
   }
 
@@ -72,13 +85,24 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
     if (matches.isEmpty || matches.contains(widget.active)) {
       return;
     }
+    _sectionBeforeSearch ??= widget.active;
     widget.onSelect(matches.first);
+  }
+
+  /// Returns to the section the search hid, if the query was cleared.
+  void _restoreSectionAfterSearch() {
+    final restore = _sectionBeforeSearch;
+    _sectionBeforeSearch = null;
+    if (restore != null) {
+      widget.onSelect(restore);
+    }
   }
 
   void _clearSearch() {
     _searchController.clear();
     setState(() {});
     widget.onQueryChanged('');
+    _restoreSectionAfterSearch();
     _searchFocus.requestFocus();
   }
 

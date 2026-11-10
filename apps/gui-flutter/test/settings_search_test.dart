@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
+import 'package:gui_flutter/core/utils/settings_search.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
@@ -179,5 +180,33 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  group('settingsSearchFuzzyScore', () {
+    test('identical text scores 100', () {
+      expect(settingsSearchFuzzyScore('rekordbox', ['Rekordbox']), 100);
+    });
+
+    test('queries under three characters are ignored', () {
+      expect(settingsSearchFuzzyScore('re', ['Rekordbox']), 0);
+    });
+
+    test('a transposed typo clears the threshold', () {
+      expect(
+        settingsSearchFuzzyScore('rekordbxo', ['Rekordbox']),
+        greaterThanOrEqualTo(settingsSearchFuzzyThreshold),
+      );
+    });
+
+    test('unrelated text stays below the threshold', () {
+      expect(
+        settingsSearchFuzzyScore('zzzz', ['Rekordbox']),
+        lessThan(settingsSearchFuzzyThreshold),
+      );
+    });
+
+    test('empty candidates score zero', () {
+      expect(settingsSearchFuzzyScore('rekordbox', const []), 0);
+    });
   });
 }

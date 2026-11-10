@@ -130,6 +130,10 @@ const _accentFolds = <String, String>{
 
 /// Lowercases [value] and replaces accented Latin letters with their ASCII
 /// counterparts so settings search ignores case and diacritics.
+///
+/// The fold table covers the Latin letters the shipped locales (en, pt-BR)
+/// use. A locale with other diacritics needs entries added here; pulling in
+/// ICU/`intl` folding is not warranted until one ships.
 String foldSettingsSearchText(String value) {
   final buffer = StringBuffer();
   for (final char in value.toLowerCase().split('')) {
