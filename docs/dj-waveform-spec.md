@@ -82,7 +82,7 @@ They are **not** intended to reflect post-EQ or post-filter audio with perfect a
 2. **Window:** `visible_duration` (e.g. 8–30 s); map each pixel column → time → visual sample index.
 3. **Interpolate** between visual samples when zoomed in.
 4. **Color:** function of `(low, mid, high)` amplitudes at that column.
-5. **Overlays:** beat grid (from beat grid analysis), cues, loop regions — separate render passes.
+5. **Overlays:** beat grid (from beat grid analysis), phase arrows (one per bar, anchored on the first downbeat), cues, loop regions — separate render passes.
 6. **Update rate:** 60 fps during playback; position from engine (may interpolate between status polls).
 
 ### 8.2 Overview waveform

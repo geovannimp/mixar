@@ -8,6 +8,29 @@ import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
 void main() {
+  test('recordBeatGridPicture paints arrows on both lane edges', () async {
+    const size = Size(120, 40);
+    final picture = recordBeatGridPicture(
+      marks: const [],
+      phaseArrows: const [60],
+      size: size,
+    );
+    final image = await picture.toImage(120, 40);
+    final bytes = await image.toByteData(format: ImageByteFormat.rawRgba);
+    int alphaAt(int x, int y) => bytes!.getUint8((y * 120 + x) * 4 + 3);
+
+    // Top and bottom triangles converge on the arrow column.
+    expect(alphaAt(60, 1), greaterThan(0));
+    expect(alphaAt(60, 39), greaterThan(0));
+    // The bar line runs between them.
+    expect(alphaAt(60, 20), greaterThan(0));
+    // Neighbouring columns stay clean.
+    expect(alphaAt(20, 1), 0);
+    expect(alphaAt(20, 39), 0);
+    picture.dispose();
+    image.dispose();
+  });
+
   test('msToX maps mid-window to half width', () {
     expect(
       msToX(ms: 30_000, originMs: 0, spanMs: 60_000, width: 200),
