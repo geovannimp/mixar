@@ -1,17 +1,15 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
-import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show FxSlotState;
 
 import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
+import 'support/fx_events.dart';
 
 void main() {
   group('sendDeckPlaying', () {
@@ -294,30 +292,6 @@ void main() {
         ),
       );
       return captured!;
-    }
-
-    /// Echo slot as the engine publishes it, shared by the FX republish tests.
-    FxSlotState echoSlot() => FxSlotState(
-      kind: FxKind.echo,
-      enabled: false,
-      wet: 0.5,
-      params: Float32List.fromList([0.5, 0.5, 0.0]),
-    );
-
-    /// Republishes a whole FX unit the way a deck update carries it.
-    void applyDeckFx(
-      ProviderContainer container,
-      List<FxSlotState> fx, {
-      int deck = 0,
-    }) {
-      container
-          .read(engineUiProvider.notifier)
-          .apply(
-            deckUpdatedEvent(
-              deck: deck,
-              update: deckUpdated(deck: deck, fx: fx),
-            ),
-          );
     }
 
     void expectDivisionMirror(ProviderContainer container, int index) {
