@@ -3,6 +3,7 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
@@ -130,5 +131,25 @@ void main() {
     await tester.tap(find.text('Chip'), buttons: kSecondaryMouseButton);
     await tester.pump();
     expect(secondary, 0);
+  });
+
+  test('ghost hover paints the shared accent-picker wash', () {
+    final theme = MixarThemeData.dark();
+    final look = resolveMixarButtonLook(
+      theme: theme,
+      variant: MixarButtonVariant.ghost,
+      size: MixarButtonSize.sm,
+      density: MixarButtonDensity.app,
+      state: const MTappableState(
+        hovered: true,
+        pressed: false,
+        focused: false,
+        disabled: false,
+        selected: false,
+      ),
+      icon: false,
+    );
+    expect(look.decoration.color, theme.hoverWash);
+    expect(look.decoration.color, isNot(theme.colors.selection));
   });
 }

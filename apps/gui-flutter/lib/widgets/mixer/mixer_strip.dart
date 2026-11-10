@@ -307,7 +307,7 @@ class _CrossfaderAssignmentMenu extends ConsumerWidget {
           height: _crossfaderFootHeight,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: state.active ? theme.colors.selection : null,
+              color: state.active ? theme.hoverWash : null,
               borderRadius: theme.style.borderRadius.sm,
             ),
             child: Center(

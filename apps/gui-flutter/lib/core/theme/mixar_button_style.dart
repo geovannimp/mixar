@@ -118,12 +118,12 @@ MixarButtonLook resolveMixarButtonLook({
       colors.disable(colors.secondaryForeground),
     ),
     MixarButtonVariant.ghost => (
-      // Transparent at rest; solid teal tint on hover/press so the wash reads
-      // on secondary, muted, and card surfaces (secondary-on-secondary was
-      // invisible in dark).
+      // Transparent at rest; the shared translucent hover wash reads on card,
+      // secondary, and background surfaces (a solid `muted` fill disappears
+      // into the library's `secondary` chrome).
       _fill(
         const Color(0x00000000),
-        colors.selection,
+        theme.hoverWash,
         const Color(0x00000000),
         state,
       ),
