@@ -31,7 +31,7 @@ cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked   # once, if
 From the repo root (`dashmonx` wraps `flutter run` and hot-reloads on `lib/` changes):
 
 ```sh
-npm run flutter:dev
+npm run app:linux
 # or: moon run gui-flutter:dev-linux
 ```
 
@@ -64,7 +64,7 @@ rustup target add aarch64-linux-android x86_64-linux-android
 Then, with a device or emulator up (`flutter emulators --launch Pixel_7_Pro_API_36`, `adb devices`):
 
 ```sh
-npm run flutter:android               # moon run gui-flutter:dev-android
+npm run app:android                   # moon run gui-flutter:dev-android
 moon run gui-flutter:build-android    # debug APK in build/app/outputs/flutter-apk/
 ```
 
