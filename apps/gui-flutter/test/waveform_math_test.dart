@@ -269,6 +269,18 @@ void main() {
     expect(beatsPerBarFrom(downbeats: [0], bpm: 120), 4);
   });
 
+  test('beatsPerBarFrom ignores a skipped downbeat', () {
+    // First stored pair spans four bars (a skipped downbeat at 2.5 s); the
+    // median gap still reads 4/4 at 96 bpm instead of 16 beats per bar.
+    expect(beatsPerBarFrom(downbeats: [0, 10, 12.5, 15, 17.5, 20], bpm: 96), 4);
+    expect(
+      barPeriodMs(downbeats: [0, 10, 12.5, 15, 17.5, 20], bpm: 96),
+      closeTo(2500, 1e-6),
+    );
+    // No usable BPM and one gap only: the stored spacing is still the bar.
+    expect(barPeriodMs(downbeats: [0, 2.6]), closeTo(2600, 1e-6));
+  });
+
   test('phaseMarkXs yields nothing without a grid', () {
     expect(
       phaseMarkXs(

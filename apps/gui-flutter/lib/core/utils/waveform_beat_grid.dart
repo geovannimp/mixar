@@ -41,8 +41,30 @@ class BeatMark {
   int get hashCode => Object.hash(x, isBar);
 }
 
+/// Median spacing between consecutive [times], ignoring non-positive gaps.
+///
+/// Only the first [sample] entries are read: enough to be robust, cheap on the
+/// grid-change path.
+double medianGapSecs(List<double> times, {int sample = 16}) {
+  final end = times.length < sample ? times.length : sample;
+  final gaps = <double>[];
+  for (var i = 1; i < end; i++) {
+    final gap = times[i] - times[i - 1];
+    if (gap > 0 && gap.isFinite) {
+      gaps.add(gap);
+    }
+  }
+  if (gaps.isEmpty) {
+    return 0;
+  }
+  gaps.sort();
+  final mid = gaps.length ~/ 2;
+  return gaps.length.isOdd ? gaps[mid] : (gaps[mid - 1] + gaps[mid]) / 2;
+}
+
 /// Beats per bar implied by the downbeat spacing, so arrows land on real bar
-/// starts in 3/4 or 7/8 instead of assuming 4/4. Falls back to 4 when the grid
+/// starts in 3/4 or 7/8 instead of assuming 4/4. The median gap keeps one
+/// skipped downbeat from doubling the meter. Falls back to 4 when the grid
 /// carries fewer than two downbeats.
 int beatsPerBarFrom({required List<double> downbeats, double? bpm}) {
   final gridBpm = bpm;
@@ -51,11 +73,11 @@ int beatsPerBarFrom({required List<double> downbeats, double? bpm}) {
       !(gridBpm > 20 && gridBpm < 400)) {
     return 4;
   }
-  final barSecs = downbeats[1] - downbeats[0];
-  final beatSecs = 60 / gridBpm;
-  if (!(barSecs > 0) || !(beatSecs > 0)) {
+  final barSecs = medianGapSecs(downbeats);
+  if (!(barSecs > 0)) {
     return 4;
   }
+  final beatSecs = 60 / gridBpm;
   return (barSecs / beatSecs).round().clamp(1, 16);
 }
 
@@ -70,13 +92,45 @@ double? barPeriodMs({required List<double> downbeats, double? bpm}) {
         60_000 /
         gridBpm;
   }
-  if (downbeats.length >= 2) {
-    final spacingMs = (downbeats[1] - downbeats[0]) * 1000;
-    if (spacingMs > 0) {
-      return spacingMs;
-    }
+  final spacingMs = medianGapSecs(downbeats) * 1000;
+  if (spacingMs > 0) {
+    return spacingMs;
   }
   return null;
+}
+
+/// Evenly spaced marks of a constant-tempo grid, as buffer x positions paired
+/// with the grid index that produced them.
+///
+/// [firstIndex] is the index of the first mark to consider; it keeps the phase
+/// of the grid relative to [anchorMs]. Marks outside the buffer or the window
+/// are dropped.
+List<({int index, double x})> evenGridXs({
+  required double anchorMs,
+  required double stepMs,
+  required double originMs,
+  required double spanMs,
+  required double width,
+  required int firstIndex,
+}) {
+  final marks = <({int index, double x})>[];
+  if (!(stepMs > 0) || spanMs <= 0 || width <= 0) {
+    return marks;
+  }
+  final pxPerMs = width / spanMs;
+  final endMs = originMs + spanMs;
+  var index = firstIndex;
+  for (var n = 0; n < 10000; n++, index++) {
+    final ms = anchorMs + index * stepMs;
+    if (ms > endMs + 1e-6) {
+      break;
+    }
+    final x = (ms - originMs) * pxPerMs;
+    if (x >= 0 && x <= width) {
+      marks.add((index: index, x: x));
+    }
+  }
+  return marks;
 }
 
 /// X positions of the phase arrows in the scrolling buffer (origin at the left
@@ -96,9 +150,6 @@ List<double> phaseMarkXs({
   required double spanMs,
   required double width,
 }) {
-  if (spanMs <= 0 || width <= 0) {
-    return const [];
-  }
   final barMs = barPeriodMs(downbeats: downbeatsSecs, bpm: bpm);
   if (barMs == null || !(barMs > 0)) {
     return const [];
@@ -106,24 +157,19 @@ List<double> phaseMarkXs({
   final anchorMs = downbeatsSecs.isNotEmpty
       ? downbeatsSecs.first * 1000
       : firstBeatSecs * 1000;
-  final pxPerMs = width / spanMs;
-  final endMs = originMs + spanMs;
-  final marks = <double>[];
-  var index = ((originMs - anchorMs) / barMs).ceil();
-  if (index < 0) {
-    index = 0;
-  }
-  for (var n = 0; n < 10000; n++, index++) {
-    final ms = anchorMs + index * barMs;
-    if (ms > endMs + 1e-6) {
-      break;
-    }
-    final x = (ms - originMs) * pxPerMs;
-    if (x >= 0 && x <= width) {
-      marks.add(x);
-    }
-  }
-  return marks;
+  // Index 0 is the first downbeat, so nothing is drawn before it.
+  final firstIndex = ((originMs - anchorMs) / barMs).ceil();
+  return [
+    for (final mark in evenGridXs(
+      anchorMs: anchorMs,
+      stepMs: barMs,
+      originMs: originMs,
+      spanMs: spanMs,
+      width: width,
+      firstIndex: firstIndex < 0 ? 0 : firstIndex,
+    ))
+      mark.x,
+  ];
 }
 
 /// Beat x positions in the scrolling buffer (origin at the left edge).
@@ -145,22 +191,15 @@ List<BeatMark> beatGridXs({
   }
   final beatPeriodMs = 60_000 / bpm;
   final phaseMs = firstBeatSecs * 1000;
-  final pxPerMs = width / spanMs;
-  final endMs = originMs + spanMs;
-  var beatIndex = ((originMs - phaseMs) / beatPeriodMs).floor();
-  final marks = <BeatMark>[];
-  for (var i = 0; i < 10000; i++) {
-    final beatMs = phaseMs + beatIndex * beatPeriodMs;
-    if (beatMs > endMs + beatPeriodMs) {
-      break;
-    }
-    if (beatMs >= originMs - 1e-6 && beatMs <= endMs + 1e-6) {
-      final x = (beatMs - originMs) * pxPerMs;
-      if (x >= 0 && x <= width) {
-        marks.add(BeatMark(x: x, isBar: beatIndex % 4 == 0));
-      }
-    }
-    beatIndex += 1;
-  }
-  return marks;
+  return [
+    for (final mark in evenGridXs(
+      anchorMs: phaseMs,
+      stepMs: beatPeriodMs,
+      originMs: originMs,
+      spanMs: spanMs,
+      width: width,
+      firstIndex: ((originMs - phaseMs) / beatPeriodMs).floor(),
+    ))
+      BeatMark(x: mark.x, isBar: mark.index % 4 == 0),
+  ];
 }
