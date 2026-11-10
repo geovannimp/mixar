@@ -7,6 +7,12 @@ import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+/// The full-bleed filter band pinned above the settings nav list.
+///
+/// Tests read its decoration to check the idle/focused wash without depending
+/// on where the field sits in the column.
+const Key kSettingsSearchBandKey = ValueKey('settings-search-band');
+
 class SettingsSidebar extends StatefulWidget {
   const new({
     required this.active,
@@ -30,11 +36,21 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
   final _searchFocus = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    _searchFocus.addListener(_onSearchFocusChanged);
+  }
+
+  @override
   void dispose() {
+    _searchFocus.removeListener(_onSearchFocusChanged);
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
   }
+
+  /// The band's wash and hairline follow keyboard focus.
+  void _onSearchFocusChanged() => setState(() {});
 
   void _select(SettingsSection section) {
     _searchFocus.unfocus();
@@ -76,6 +92,8 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final colors = theme.colors;
+    final searchFocused = _searchFocus.hasFocus;
     final l10n = AppLocalizations.of(context)!;
     final matches = _filteredSections(l10n);
     return DecoratedBox(
@@ -90,38 +108,59 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Pinned above the scrolling list: the field is the first thing in
+            // Pinned above the scrolling list: the filter is the first thing in
             // the menu and stays reachable however far the sections scroll.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
-              child: MixarInput(
-                controller: _searchController,
-                focusNode: _searchFocus,
-                hint: l10n.settingsSearchHint,
-                style: theme.typography.body.sm,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                textInputAction: TextInputAction.search,
-                leading: Icon(
-                  LucideIcons.search,
-                  size: 14,
-                  color: theme.colors.mutedForeground,
+            //
+            // Full-bleed and square, like the nav rows below it: rounded field
+            // chrome would read as a form control dropped into the column. The
+            // wash lifts one solid step (background → secondary → card) and the
+            // hairline turns accent while the field owns the keyboard, which is
+            // the only border this field needs.
+            DecoratedBox(
+              key: kSettingsSearchBandKey,
+              decoration: BoxDecoration(
+                color: searchFocused ? colors.card : colors.secondary,
+                border: Border(
+                  bottom: BorderSide(
+                    color: searchFocused ? colors.primary : colors.border,
+                    width: theme.style.borderWidth,
+                  ),
                 ),
-                trailing: _searchController.text.isEmpty
-                    ? null
-                    : MTappable.child(
-                        onPress: _clearSearch,
-                        semanticsLabel: l10n.commonClear,
-                        child: Padding(
-                          padding: const EdgeInsets.all(2),
-                          child: Icon(
-                            LucideIcons.x,
-                            size: 12,
-                            color: theme.colors.mutedForeground,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: MixarInput(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  hint: l10n.settingsSearchHint,
+                  borderless: true,
+                  style: theme.typography.body.sm,
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  textInputAction: TextInputAction.search,
+                  leading: Icon(
+                    LucideIcons.search,
+                    size: 16,
+                    color: searchFocused
+                        ? colors.foreground
+                        : colors.mutedForeground,
+                  ),
+                  trailing: _searchController.text.isEmpty
+                      ? null
+                      : MTappable.child(
+                          onPress: _clearSearch,
+                          semanticsLabel: l10n.commonClear,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              LucideIcons.x,
+                              size: 14,
+                              color: colors.mutedForeground,
+                            ),
                           ),
                         ),
-                      ),
-                onChanged: _onSearchChanged,
-                onSubmitted: (_) => _submitSearch(matches),
+                  onChanged: _onSearchChanged,
+                  onSubmitted: (_) => _submitSearch(matches),
+                ),
               ),
             ),
             Expanded(
@@ -131,7 +170,7 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
                   children: [
                     if (matches.isEmpty)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                         child: Text(
                           l10n.settingsSearchNoResults,
                           style: theme.typography.body.sm.copyWith(

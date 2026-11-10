@@ -87,6 +87,38 @@ void main() {
     expect(find.text(SettingsSection.privacy.label(l10n)), findsNothing);
   });
 
+  testWidgets('search band is flush with the nav and marks focus', (
+    tester,
+  ) async {
+    await pumpSidebar(tester, active: SettingsSection.ui, onSelect: (_) {});
+    final theme = MixarThemeData.dark();
+    final band = find.byKey(kSettingsSearchBandKey);
+    BoxDecoration bandDecoration() =>
+        tester.widget<DecoratedBox>(band).decoration as BoxDecoration;
+
+    expect(
+      tester.getRect(band).width,
+      tester.getRect(find.byType(SettingsSidebar)).width,
+    );
+    expect(bandDecoration().borderRadius, isNull);
+    expect(bandDecoration().color, theme.colors.secondary);
+    expect(
+      (bandDecoration().border! as Border).bottom.color,
+      theme.colors.border,
+    );
+
+    // Typing focuses the field: the band lifts one solid step and the hairline
+    // turns accent — that hairline is the flat field's whole focus cue.
+    await tester.enterText(find.byType(MixarInput), 'theme');
+    await tester.pump();
+
+    expect(bandDecoration().color, theme.colors.card);
+    expect(
+      (bandDecoration().border! as Border).bottom.color,
+      theme.colors.primary,
+    );
+  });
+
   testWidgets(
     'auto-selects the first match when the active section is hidden',
     (tester) async {
