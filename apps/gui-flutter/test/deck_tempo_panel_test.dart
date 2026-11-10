@@ -14,6 +14,7 @@ import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -112,6 +113,21 @@ void main() {
       expect(beats, isEmpty);
     },
   );
+
+  testWidgets('tempo header keeps 12px vertical padding around the readout', (
+    tester,
+  ) async {
+    await pumpPanel(tester, trackBpm: 128, isMaster: true);
+
+    final header = tester.getRect(
+      find.byWidgetPredicate((widget) => widget is Skeletonizer),
+    );
+    final bpm = tester.getRect(find.text(formatBpm(effectiveBpm(128, 0.5))));
+    final crown = tester.getRect(find.byIcon(LucideIcons.crown));
+
+    expect(bpm.top - header.top, moreOrLessEquals(12));
+    expect(header.bottom - crown.bottom, moreOrLessEquals(12));
+  });
 
   testWidgets('master deck BPM tap does not toggle sync', (tester) async {
     final beats = <bool>[];

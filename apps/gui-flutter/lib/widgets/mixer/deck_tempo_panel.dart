@@ -141,7 +141,7 @@ class DeckTempoPanel extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 4,
-                          vertical: 8,
+                          vertical: 12,
                         ),
                         child: Column(
                           mainAxisSize: .min,
