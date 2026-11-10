@@ -76,7 +76,7 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
           onChanged: (value) =>
               ref.read(trackFilterProvider.notifier).set(value),
           trailing: [
-            TrackListSortMenu(),
+            const TrackListSortMenu(),
             const SizedBox(width: 4),
             LibraryRowDensityButton(density: density),
             // Collection actions in the topbar, mirroring the history session
@@ -404,7 +404,7 @@ class _CompactRow extends StatelessWidget {
   }
 }
 
-/// Progress bars only — pills live in the row via [_TrackStatusPills].
+/// Progress bars only — pills live in the row via `_TrackStatusPills`.
 ///
 /// Lives as a row overlay so a progress tick rebuilds the bars without the
 /// whole list, and so bars can paint flush on the row bottom edge.

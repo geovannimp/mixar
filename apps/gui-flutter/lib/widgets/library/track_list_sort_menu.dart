@@ -14,6 +14,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// One click selects a field (ascending); another click on the active field
 /// flips direction, like a table column header.
 class TrackListSortMenu extends ConsumerWidget {
+  const new({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
@@ -82,7 +84,6 @@ class TrackListSortMenu extends ConsumerWidget {
           semanticsLabel: 'Sort tracks',
           onPress: handle.toggle,
           variant: .ghost,
-          size: .md,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
           // `AppButton` defaults to MainAxisSize.max, which would stretch the
           // button to the cap above instead of hugging its label.

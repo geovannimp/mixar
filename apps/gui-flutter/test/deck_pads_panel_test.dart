@@ -246,7 +246,6 @@ void main() {
       padMode: PadMode.stems,
       stemsReady: true,
       stemsLive: true,
-      realtimeStemsEnabled: false,
     );
     expect(find.text('Stems'), findsOneWidget);
     expect(padLabel('Stems (Realtime)'), findsNothing);

@@ -18,7 +18,7 @@ class _Harness {
 
   final AppSettings baseline;
   final FakeSettingsTransport settings;
-  var engineReads = 0;
+  int engineReads = 0;
   late WidgetRef ref;
 
   Future<void> pump(WidgetTester tester) async {

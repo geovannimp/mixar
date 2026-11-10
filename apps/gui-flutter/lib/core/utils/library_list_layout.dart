@@ -20,8 +20,8 @@ Color libraryListSelectedRowColor(MixarThemeData theme) =>
 /// The cursor stays put (so a focus step back to this pane lands where it left
 /// off) but drops the selection colour that marks the focused pane — with the
 /// sidebar owning focus, a bright cursor in the track list would contradict it.
-/// A solid [MixarColors.muted] recess rather than an alpha blend, so it does not
-/// shift with the surface underneath.
+/// A solid `MixarColors.muted` recess rather than an alpha blend, so it
+/// does not shift with the surface underneath.
 Color libraryListCursorRowColor(MixarThemeData theme) => theme.colors.muted;
 
 /// Whether a row paints a rating pill (ratings are 1-5; 0 means unrated).
@@ -231,7 +231,7 @@ const kMetaPillPadding = EdgeInsets.symmetric(
 /// Widest a pill may get before its padding leaves no room for a glyph.
 const kMetaPillIconMinWidth = 40.0;
 
-/// Leading glyph/loader (~12) + gap (4) inside a [MetaPill]. Shared with tests
+/// Leading glyph/loader (~12) + gap (4) inside a `MetaPill`. Shared with tests
 /// that assert content-sized pill chrome width.
 const kMetaPillLeadingExtent = 16.0;
 
@@ -291,7 +291,7 @@ const kArtworkGap = 10.0;
 
 /// Partition analysis / stem lanes and synthesise queued jobs.
 ///
-/// Shared by in-flow [_TrackStatusPills] and the bars-only overlay so lane
+/// Shared by in-flow `_TrackStatusPills` and the bars-only overlay so lane
 /// order cannot drift between the two surfaces.
 List<TrackProgressInfo> trackStatusInfos({
   required List<TrackProgressInfo> jobs,

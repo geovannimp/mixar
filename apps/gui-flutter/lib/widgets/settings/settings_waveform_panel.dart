@@ -119,7 +119,7 @@ class _WaveformDisplayModePainter extends CustomPainter {
         continue;
       }
 
-      final amplitude = math.max(low, math.max(mid, high)).toDouble();
+      final amplitude = math.max(low, math.max(mid, high));
       if (amplitude <= 0.01) continue;
       final total = low + mid + high + 1e-6;
       final alpha = (0.65 + amplitude * 0.35).clamp(0.0, 1.0);
@@ -178,9 +178,10 @@ class _WaveformDisplayModePainter extends CustomPainter {
   final sweep = t * math.pi * 5;
 
   double band(double offset) =>
-      ((0.22 + 0.78 * (0.5 + 0.5 * math.sin(sweep + offset))) * envelope)
-          .clamp(0.0, 1.0)
-          .toDouble();
+      ((0.22 + 0.78 * (0.5 + 0.5 * math.sin(sweep + offset))) * envelope).clamp(
+        0.0,
+        1.0,
+      );
 
   return (band(0), band(2.1), band(4.2));
 }

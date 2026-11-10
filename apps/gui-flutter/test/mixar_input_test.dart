@@ -36,8 +36,8 @@ void main() {
     (tester) async {
       await pumpInput(
         tester,
-        MixarInput(
-          label: const Text('BPM'),
+        const MixarInput(
+          label: Text('BPM'),
           errorText: 'BPM must be a positive number',
         ),
       );

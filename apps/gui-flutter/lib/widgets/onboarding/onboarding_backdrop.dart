@@ -96,7 +96,7 @@ class _AnimatedPaint extends StatelessWidget {
       child: AnimatedBuilder(
         animation: controller,
         // No size: the caller's tight constraints stretch it to the stage.
-        builder: (_, __) => CustomPaint(painter: painter(controller.value)),
+        builder: (_, _) => CustomPaint(painter: painter(controller.value)),
       ),
     );
   }

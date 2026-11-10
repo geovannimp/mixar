@@ -520,7 +520,7 @@ bool _sameCurveSet(CurveSetSpec a, CurveSetSpec b) {
           _sameList(
             a.members,
             b.members,
-            (CurveRefSpec left, CurveRefSpec right) =>
+            (left, right) =>
                 left.id == right.id && left.parameter == right.parameter,
           ));
 }
@@ -530,13 +530,12 @@ bool _sameCurveSpec(CurveSpecSpec a, CurveSpecSpec b) {
       (_sameList(
             a.points,
             b.points,
-            (CurvePointSpec left, CurvePointSpec right) =>
-                left.x == right.x && left.y == right.y,
+            (left, right) => left.x == right.x && left.y == right.y,
           ) &&
           _sameList(
             a.segments,
             b.segments,
-            (CurveSegmentSpec left, CurveSegmentSpec right) =>
+            (left, right) =>
                 left.kind == right.kind &&
                 left.rate == right.rate &&
                 left.c1X == right.c1X &&

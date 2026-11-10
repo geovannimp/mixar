@@ -110,8 +110,8 @@ MixerPlan mixerPlanFor(MixerLayoutConfig config, MixerLayoutSolution solution) {
         )
       : null;
 
-  final leftPadding = EdgeInsets.only(left: inset);
-  final rightPadding = EdgeInsets.only(right: inset);
+  const leftPadding = EdgeInsets.only(left: inset);
+  const rightPadding = EdgeInsets.only(right: inset);
   MixerSlotSpec deckColumn(int topId, int bottomId, EdgeInsets padding) =>
       config.fourDecks
       ? MixerSlotSpec(

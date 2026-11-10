@@ -164,9 +164,7 @@ void main() {
       previousDeckCount: 4,
       deckCount: 2,
       restart: () async {
-        container
-            .read(engineUiProvider.notifier)
-            .apply(deckUpdatedEvent(deck: 0));
+        container.read(engineUiProvider.notifier).apply(deckUpdatedEvent());
       },
       loadLibraryTrack: ({required deckId, required trackId}) async {
         loads.add(trackId);

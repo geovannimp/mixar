@@ -64,8 +64,7 @@ void main() {
       ..apply(engineSnapshotEvent(running: running))
       ..apply(
         deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, fx: fxSlots ?? const [], fxRouted: true),
+          update: deckUpdated(fx: fxSlots ?? const [], fxRouted: true),
         ),
       );
 
@@ -183,9 +182,7 @@ void main() {
         .read(engineUiProvider.notifier)
         .apply(
           deckUpdatedEvent(
-            deck: 0,
             update: deckUpdated(
-              deck: 0,
               fx: [echoSlot(enabled: true, divisionNorm: 1)],
               fxRouted: true,
             ),
@@ -227,9 +224,7 @@ void main() {
           .read(engineUiProvider.notifier)
           .apply(
             deckUpdatedEvent(
-              deck: 0,
               update: deckUpdated(
-                deck: 0,
                 fx: [echoSlot(enabled: true)],
                 fxRouted: true,
               ),
@@ -264,8 +259,7 @@ void main() {
         .read(engineUiProvider.notifier)
         .apply(
           deckUpdatedEvent(
-            deck: 0,
-            update: deckUpdated(deck: 0, fx: [reverbSlot()], fxRouted: true),
+            update: deckUpdated(fx: [reverbSlot()], fxRouted: true),
           ),
         );
     await tester.pumpAndSettle();
@@ -298,12 +292,7 @@ void main() {
         .read(engineUiProvider.notifier)
         .apply(
           deckUpdatedEvent(
-            deck: 0,
-            update: deckUpdated(
-              deck: 0,
-              fx: [echoSlot(wet: 0.9)],
-              fxRouted: true,
-            ),
+            update: deckUpdated(fx: [echoSlot(wet: 0.9)], fxRouted: true),
           ),
         );
     await tester.pumpAndSettle();

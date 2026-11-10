@@ -71,12 +71,7 @@ class _SeedEngineUi extends EngineUi {
   EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
     deckUpdatedEvent(
-      deck: 0,
-      update: deckUpdated(
-        deck: 0,
-        trackPath: '/music/file.flac',
-        durationMs: 1000,
-      ),
+      update: deckUpdated(trackPath: '/music/file.flac', durationMs: 1000),
     ),
   );
 }
@@ -85,6 +80,6 @@ class _DurationOnlyEngineUi extends EngineUi {
   @override
   EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
-    deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, durationMs: 1000)),
+    deckUpdatedEvent(update: deckUpdated(durationMs: 1000)),
   );
 }

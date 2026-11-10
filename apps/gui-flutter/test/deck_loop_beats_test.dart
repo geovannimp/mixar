@@ -45,9 +45,7 @@ void main() {
     var snap = applyEngineEvent(
       EngineUiSnapshot.empty,
       deckUpdatedEvent(
-        deck: 0,
         update: deckUpdated(
-          deck: 0,
           durationMs: 1000,
           activeLoop: const LoopRegion(inMs: 10, outMs: 20, active: true),
         ),
@@ -57,7 +55,7 @@ void main() {
 
     snap = applyEngineEvent(
       snap,
-      deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, durationMs: 1000)),
+      deckUpdatedEvent(update: deckUpdated(durationMs: 1000)),
     );
     expect(snap.activeLoopFor(0), isNull);
 
@@ -65,9 +63,7 @@ void main() {
     snap = applyEngineEvent(
       snap,
       deckUpdatedEvent(
-        deck: 0,
         update: deckUpdated(
-          deck: 0,
           durationMs: 1000,
           activeLoop: const LoopRegion(inMs: 1, outMs: 2, active: false),
         ),
@@ -80,15 +76,14 @@ void main() {
     var snap = applyEngineEvent(
       EngineUiSnapshot.empty,
       deckUpdatedEvent(
-        deck: 0,
-        update: deckUpdated(deck: 0, durationMs: 1000, pendingLoopInMs: 1500),
+        update: deckUpdated(durationMs: 1000, pendingLoopInMs: 1500),
       ),
     );
     expect(snap.pendingLoopInMsFor(0), 1500);
 
     snap = applyEngineEvent(
       snap,
-      deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, durationMs: 1000)),
+      deckUpdatedEvent(update: deckUpdated(durationMs: 1000)),
     );
     expect(snap.pendingLoopInMsFor(0), isNull);
   });

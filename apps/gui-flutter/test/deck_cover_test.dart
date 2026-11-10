@@ -31,9 +31,7 @@ class _LoadedEngineUi extends EngineUi {
   EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
     deckUpdatedEvent(
-      deck: _deckId,
       update: deckUpdated(
-        deck: _deckId,
         trackPath: '/music/a.wav',
         trackId: 't1',
         durationMs: 180000,

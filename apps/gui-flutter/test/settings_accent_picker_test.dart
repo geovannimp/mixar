@@ -177,7 +177,7 @@ void main() {
     // Teal is selected, so it already carries the ring; the second tab lands on
     // Blue, which is unselected and must gain one from focus alone.
     expect(ringOf(0).top.width, 2);
-    expect(ringOf(1).top.width, MixarStyle().borderWidth);
+    expect(ringOf(1).top.width, const MixarStyle().borderWidth);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();

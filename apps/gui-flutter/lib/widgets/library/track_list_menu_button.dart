@@ -6,7 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// The 3-dot row menu button. The menu body is built lazily so its
 /// `ref.watch`es only run while it is open. Public so a pane or test can mount
-/// the menu on its own, not just inside a [TrackListView].
+/// the menu on its own, not just inside a `TrackListView`.
 class TrackListMenuButton extends StatelessWidget {
   const new({
     required this.menuBuilder,

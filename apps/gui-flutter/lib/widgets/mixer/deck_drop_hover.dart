@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Whether a drag is currently over this deck's [TrackDropZone].
+/// Whether a drag is currently over this deck's `TrackDropZone`.
 ///
 /// The drop target stays deck-wide; the track-info card reads this to paint
 /// the hover chrome without lighting up the whole deck.

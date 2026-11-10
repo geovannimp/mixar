@@ -16,6 +16,7 @@ class MTabHeader extends StatelessWidget {
     required this.child,
     required this.theme,
     required this.paintSelected,
+    super.key,
   });
 
   final bool selected;

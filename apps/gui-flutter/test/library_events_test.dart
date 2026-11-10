@@ -470,10 +470,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             collectionsProvider.overrideWith(
-              (ref) async => [
-                _collection(id: 'col-1'),
-                _collection(id: 'col-2'),
-              ],
+              (ref) async => [_collection(), _collection(id: 'col-2')],
             ),
             overrideCollectionTracks((ref) async {
               trackLoads++;
@@ -509,10 +506,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             collectionsProvider.overrideWith(
-              (ref) async => [
-                _collection(id: 'col-1'),
-                _collection(id: 'col-2'),
-              ],
+              (ref) async => [_collection(), _collection(id: 'col-2')],
             ),
             overrideCollectionTracks((ref) async {
               trackLoads++;

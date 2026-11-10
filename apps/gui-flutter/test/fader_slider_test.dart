@@ -567,7 +567,7 @@ void main() {
     expect(
       countOf(raster, MixarSky.s500),
       greaterThan(0),
-      reason: 'grip plate takes the deck\'s dark step',
+      reason: "grip plate takes the deck's dark step",
     );
     expect(
       countOf(raster, MixarSky.s900),
@@ -598,7 +598,7 @@ void main() {
     expect(
       countOf(raster, MixarSky.s300),
       greaterThan(0),
-      reason: 'grip plate takes the deck\'s light step',
+      reason: "grip plate takes the deck's light step",
     );
     expect(
       countOf(raster, MixarSky.s300),

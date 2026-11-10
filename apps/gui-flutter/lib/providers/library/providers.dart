@@ -118,7 +118,8 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     return tracks;
   }
 
-  /// Apply a [LibraryEvtKind.trackUpdated] / [LibraryEvtKind.trackAnalyzed] row.
+  /// Apply a `LibraryEvtKind.trackUpdated` / `LibraryEvtKind.trackAnalyzed`
+  /// row.
   void scheduleTrackRowEvent(LibraryTrackSummary? track) {
     var queued = false;
     if (track == null) {

@@ -134,11 +134,11 @@ void main() {
     await pumpPanel(
       tester,
       isMaster: true,
-      trackBpm: 128.0,
+      trackBpm: 128,
       onToggleSync: beats.add,
     );
 
-    final bpmText = formatBpm(effectiveBpm(128.0, 0.5, kDefaultTempoRange));
+    final bpmText = formatBpm(effectiveBpm(128, 0.5));
     await tester.tap(find.text(bpmText));
     await tester.pumpAndSettle();
     expect(beats, isEmpty);
@@ -178,9 +178,9 @@ void main() {
 
   testWidgets('BPM area of sync button also toggles sync', (tester) async {
     final beats = <bool>[];
-    await pumpPanel(tester, trackBpm: 128.0, onToggleSync: beats.add);
+    await pumpPanel(tester, trackBpm: 128, onToggleSync: beats.add);
 
-    final bpmText = formatBpm(effectiveBpm(128.0, 0.5, kDefaultTempoRange));
+    final bpmText = formatBpm(effectiveBpm(128, 0.5));
     await tester.tap(find.text(bpmText));
     await tester.pumpAndSettle();
     expect(beats, [false]);

@@ -12,7 +12,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 /// regenerating the row. [IgnorePointer] keeps selection and drag-to-deck on
 /// the row; menus stay on the actions slot.
 class TrackStatusPills extends ConsumerWidget {
-  const new({required this.trackId});
+  const new({required this.trackId, super.key});
 
   final String trackId;
 

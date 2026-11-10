@@ -24,9 +24,7 @@ class _SeededEngineUi extends EngineUi {
   EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
     deckUpdatedEvent(
-      deck: 0,
       update: deckUpdated(
-        deck: 0,
         trackPath: '/t.flac',
         trackId: 't1',
         durationMs: 156000,

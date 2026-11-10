@@ -7,7 +7,7 @@ import 'package:gui_flutter/core/utils/android_media_access.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final channel = MethodChannel(androidMediaAccessChannel);
+  const channel = MethodChannel(androidMediaAccessChannel);
   final calls = <MethodCall>[];
 
   /// Runs the next call as Android, with [handler] answering the channel. A

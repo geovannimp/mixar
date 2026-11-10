@@ -59,7 +59,7 @@ class _RefProbe extends ConsumerWidget {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  final channel = MethodChannel(androidMediaAccessChannel);
+  const channel = MethodChannel(androidMediaAccessChannel);
   const request = CreateCollectionResult(
     name: 'Music',
     type: CreateCollectionType.folder,

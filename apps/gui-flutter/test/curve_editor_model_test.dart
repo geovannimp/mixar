@@ -52,17 +52,20 @@ void main() {
     test('rejects missing endpoints and non-increasing x', () {
       expect(
         curveValidationError(
-          _curve([CurvePointSpec(x: 0.1, y: 0), CurvePointSpec(x: 1, y: 1)]),
+          _curve([
+            const CurvePointSpec(x: 0.1, y: 0),
+            const CurvePointSpec(x: 1, y: 1),
+          ]),
         ),
         contains('start at x = 0'),
       );
       expect(
         curveValidationError(
           _curve([
-            CurvePointSpec(x: 0, y: 0),
-            CurvePointSpec(x: 0.5, y: 0.5),
-            CurvePointSpec(x: 0.5, y: 0.6),
-            CurvePointSpec(x: 1, y: 1),
+            const CurvePointSpec(x: 0, y: 0),
+            const CurvePointSpec(x: 0.5, y: 0.5),
+            const CurvePointSpec(x: 0.5, y: 0.6),
+            const CurvePointSpec(x: 1, y: 1),
           ]),
         ),
         contains('must be greater'),
@@ -72,16 +75,22 @@ void main() {
     test('rejects out-of-range values and segment parameters', () {
       expect(
         curveValidationError(
-          _curve([CurvePointSpec(x: 0, y: -0.1), CurvePointSpec(x: 1, y: 1)]),
+          _curve([
+            const CurvePointSpec(x: 0, y: -0.1),
+            const CurvePointSpec(x: 1, y: 1),
+          ]),
         ),
         contains('between 0 and 1'),
       );
       expect(
         curveValidationError(
           _curve(
-            [CurvePointSpec(x: 0, y: 0), CurvePointSpec(x: 1, y: 1)],
             [
-              CurveSegmentSpec(
+              const CurvePointSpec(x: 0, y: 0),
+              const CurvePointSpec(x: 1, y: 1),
+            ],
+            [
+              const CurveSegmentSpec(
                 kind: CurveSegmentKind.exponential,
                 rate: 21,
                 c1X: 0,
@@ -97,9 +106,12 @@ void main() {
       expect(
         curveValidationError(
           _curve(
-            [CurvePointSpec(x: 0, y: 0), CurvePointSpec(x: 1, y: 1)],
             [
-              CurveSegmentSpec(
+              const CurvePointSpec(x: 0, y: 0),
+              const CurvePointSpec(x: 1, y: 1),
+            ],
+            [
+              const CurveSegmentSpec(
                 kind: CurveSegmentKind.cubicBezier,
                 rate: 0,
                 c1X: 0.2,
@@ -146,9 +158,9 @@ void main() {
   group('point editing', () {
     test('moves internal points without crossing neighbours', () {
       var curve = _curve([
-        CurvePointSpec(x: 0, y: 0),
-        CurvePointSpec(x: 0.5, y: 0.5),
-        CurvePointSpec(x: 1, y: 1),
+        const CurvePointSpec(x: 0, y: 0),
+        const CurvePointSpec(x: 0.5, y: 0.5),
+        const CurvePointSpec(x: 1, y: 1),
       ]);
       curve = moveCurvePoint(curve, 1, 0.9, 0.1);
       expect(curve.points[1].x, 0.9);
@@ -182,10 +194,13 @@ void main() {
 
     test('insert preserves the segment kind on both new spans', () {
       final curve = _curve(
-        [CurvePointSpec(x: 0, y: 0), CurvePointSpec(x: 1, y: 1)],
+        [const CurvePointSpec(x: 0, y: 0), const CurvePointSpec(x: 1, y: 1)],
         [curveSegment(CurveSegmentKind.exponential, rate: 2)],
       );
-      final inserted = insertCurvePoint(curve, CurvePointSpec(x: 0.4, y: 0.2));
+      final inserted = insertCurvePoint(
+        curve,
+        const CurvePointSpec(x: 0.4, y: 0.2),
+      );
       expect(inserted.points.length, 3);
       expect(inserted.segments.length, 2);
       expect(inserted.segments[0].kind, CurveSegmentKind.exponential);
@@ -209,7 +224,7 @@ void main() {
       final library = CurveLibrarySpec(
         groups: [first, inverted],
         sets: [
-          CurveSetSpec(
+          const CurveSetSpec(
             id: 'sweep',
             displayName: 'Sweep',
             members: [
@@ -230,7 +245,7 @@ void main() {
       final library = CurveLibrarySpec(
         groups: [scalar],
         sets: [
-          CurveSetSpec(
+          const CurveSetSpec(
             id: 'broken',
             displayName: 'Broken',
             members: [
@@ -242,7 +257,7 @@ void main() {
       );
       expect(curveLibraryValidationError(library), contains('does not exist'));
 
-      final short = CurveLibrarySpec(
+      const short = CurveLibrarySpec(
         groups: [],
         sets: [
           CurveSetSpec(
@@ -257,7 +272,7 @@ void main() {
       final scalarMember = CurveLibrarySpec(
         groups: [scalar],
         sets: [
-          CurveSetSpec(
+          const CurveSetSpec(
             id: 'scalar_set',
             displayName: 'Scalar set',
             members: [

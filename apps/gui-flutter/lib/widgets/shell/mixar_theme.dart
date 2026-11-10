@@ -67,7 +67,7 @@ class MixarThemeData {
 /// Provides [MixarThemeData] and a body [DefaultTextStyle] (Forui `FTheme` parity).
 ///
 /// Without [DefaultTextStyle], [Text] inherits MaterialApp's debug error style
-/// (yellow underline) wherever the tree skips [Material]/[Scaffold].
+/// (yellow underline) wherever the tree skips `Material`/`Scaffold`.
 class MixarTheme extends StatelessWidget {
   const new({required this.data, required this.child, super.key});
 

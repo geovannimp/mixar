@@ -4,7 +4,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Static, non-interactive menu row (section header / disabled label).
 ///
-/// Unlike [MixarMenuItem] this never wraps in an interactive widget, so it is
+/// Unlike `MixarMenuItem` this never wraps in an interactive widget, so it is
 /// not announced as a button and stays in normal reading order. Use it for
 /// labels like "Load to deck" that head a group of actions.
 class MixarMenuLabel extends StatelessWidget {

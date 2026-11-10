@@ -22,6 +22,7 @@ class HistoryComfortableEntryRow extends StatelessWidget {
     required this.keyDisplayMode,
     required this.keyColorMode,
     required this.actionsSlot,
+    super.key,
   });
 
   final int index;

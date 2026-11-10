@@ -17,7 +17,8 @@ class _FaderTick {
   final _TickSize size;
 }
 
-/// Hierarchical ticks every 10%: major at ends; mid is minor unless [centerNotch].
+/// Hierarchical ticks every 10%: major at ends; mid is minor unless
+/// `centerNotch`.
 const _faderTicks = <_FaderTick>[
   _FaderTick(0, _TickSize.major),
   _FaderTick(10, _TickSize.minor),
@@ -97,7 +98,8 @@ double snapFaderToStep(double value, double step, {double origin = 0.0}) {
   return snapped == 0 ? 0.0 : snapped;
 }
 
-/// Soft-snap toward mid when [centerNotch] is enabled (Tauri parity on 0–100 scale).
+/// Soft-snap toward mid when `centerNotch` is enabled (Tauri parity on
+/// 0–100 scale).
 double snapTowardCenter(
   double value,
   double min,

@@ -36,7 +36,6 @@ class ThemeSwatch extends StatelessWidget {
           ),
           Positioned.fill(
             child: Align(
-              alignment: Alignment.center,
               child: SizedBox(
                 width: 1,
                 height: double.infinity,

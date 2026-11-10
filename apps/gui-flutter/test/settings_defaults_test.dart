@@ -28,11 +28,11 @@ void main() {
           curves: [
             CurveSpecSpec(
               points: [
-                CurvePointSpec(x: 0, y: 1),
+                const CurvePointSpec(x: 0, y: 1),
                 CurvePointSpec(x: 1, y: endY),
               ],
               segments: [
-                CurveSegmentSpec(
+                const CurveSegmentSpec(
                   kind: CurveSegmentKind.linear,
                   rate: 0,
                   c1X: 0,
@@ -135,7 +135,7 @@ void main() {
     );
   });
 
-  test('row fields default to today\'s pills and are dirty when changed', () {
+  test("row fields default to today's pills and are dirty when changed", () {
     final baseline = defaultAppSettings();
     expect(baseline.libraryRowFields, kDefaultLibraryRowFields);
     expect(

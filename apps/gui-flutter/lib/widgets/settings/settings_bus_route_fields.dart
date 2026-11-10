@@ -17,6 +17,7 @@ class SettingsBusRouteFields extends StatelessWidget {
     required this.devices,
     required this.devicesLoading,
     required this.onChanged,
+    super.key,
     this.siblingBus,
   });
 

@@ -26,11 +26,7 @@ void main() {
         container
             .read(engineUiProvider.notifier)
             .apply(
-              deckPositionEvent(
-                deck: 0,
-                positionMs: 1234,
-                slipShadowPositionMs: 100,
-              ),
+              deckPositionEvent(positionMs: 1234, slipShadowPositionMs: 100),
             );
 
         expect(container.read(deckPlayheadsProvider)[0], 1234);
@@ -119,9 +115,9 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final ui = container.read(engineUiProvider.notifier);
-      ui.apply(deckPositionEvent(deck: 0, positionMs: 500));
+      ui.apply(deckPositionEvent(positionMs: 500));
       final map = container.read(deckPlayheadsProvider);
-      ui.apply(deckPositionEvent(deck: 0, positionMs: 500));
+      ui.apply(deckPositionEvent(positionMs: 500));
       expect(identical(container.read(deckPlayheadsProvider), map), isTrue);
     });
 
@@ -144,9 +140,7 @@ void main() {
           .read(engineUiProvider.notifier)
           .apply(
             deckUpdatedEvent(
-              deck: 0,
               update: deckUpdated(
-                deck: 0,
                 trackPath: '/a.wav',
                 trackId: 't',
                 durationMs: 8000,
@@ -191,20 +185,14 @@ void main() {
       expect(container.read(engineUiProvider).stemEqEnabledFor(0), isFalse);
       ui.apply(
         deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, durationMs: 1000, stemEqEnabled: true),
+          update: deckUpdated(durationMs: 1000, stemEqEnabled: true),
         ),
       );
       expect(container.read(engineUiProvider).stemEqEnabledFor(0), isTrue);
       // Per deck: another deck stays off.
       expect(container.read(engineUiProvider).stemEqEnabledFor(1), isFalse);
 
-      ui.apply(
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, durationMs: 1000, stemEqEnabled: false),
-        ),
-      );
+      ui.apply(deckUpdatedEvent(update: deckUpdated(durationMs: 1000)));
       expect(container.read(engineUiProvider).stemEqEnabledFor(0), isFalse);
     });
 
@@ -214,10 +202,7 @@ void main() {
       final ui = container.read(engineUiProvider.notifier);
 
       ui.apply(
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, stemEq: const [0.25, 0.35, 0.75]),
-        ),
+        deckUpdatedEvent(update: deckUpdated(stemEq: const [0.25, 0.35, 0.75])),
       );
       final channel = container.read(engineUiProvider).channelFor(0);
       expect(channel.stemEqLow, closeTo(0.25, 1e-6));
@@ -235,21 +220,12 @@ void main() {
         addTearDown(container.dispose);
         final ui = container.read(engineUiProvider.notifier);
         ui.apply(
-          deckPositionEvent(
-            deck: 0,
-            positionMs: 2200,
-            slipShadowPositionMs: 1800,
-          ),
+          deckPositionEvent(positionMs: 2200, slipShadowPositionMs: 1800),
         );
         expect(container.read(deckPlayheadsProvider), containsPair(0, 2200));
         expect(container.read(deckSlipShadowsProvider), containsPair(0, 1800));
 
-        ui.apply(
-          deckUpdatedEvent(
-            deck: 0,
-            update: deckUpdated(deck: 0, positionMs: 0),
-          ),
-        );
+        ui.apply(deckUpdatedEvent(update: deckUpdated(positionMs: 0)));
 
         expect(container.read(deckPlayheadsProvider).containsKey(0), isFalse);
         expect(container.read(deckSlipShadowsProvider).containsKey(0), isFalse);
@@ -263,25 +239,17 @@ void main() {
       addTearDown(container.dispose);
       final ui = container.read(engineUiProvider.notifier);
       // Boundary: a null shadow before any set removes a non-existent key.
-      ui.apply(deckPositionEvent(deck: 0, positionMs: 1000));
+      ui.apply(deckPositionEvent(positionMs: 1000));
       expect(container.read(deckSlipShadowMsProvider(0)), isNull);
       expect(container.read(deckSlipShadowsProvider), isEmpty);
-      ui.apply(
-        deckPositionEvent(deck: 0, positionMs: 1234, slipShadowPositionMs: 100),
-      );
+      ui.apply(deckPositionEvent(positionMs: 1234, slipShadowPositionMs: 100));
       expect(container.read(deckSlipShadowMsProvider(0)), 100);
-      ui.apply(deckPositionEvent(deck: 0, positionMs: 1300));
+      ui.apply(deckPositionEvent(positionMs: 1300));
       expect(container.read(deckSlipShadowMsProvider(0)), isNull);
       expect(container.read(deckPlayheadsProvider)[0], 1300);
       // Round-trip: a later non-null shadow re-arms after the clear, so the
       // remove path cannot leave stale state in the provider map.
-      ui.apply(
-        deckPositionEvent(
-          deck: 0,
-          positionMs: 1400,
-          slipShadowPositionMs: 1350,
-        ),
-      );
+      ui.apply(deckPositionEvent(positionMs: 1400, slipShadowPositionMs: 1350));
       expect(container.read(deckSlipShadowMsProvider(0)), 1350);
     });
 
@@ -292,9 +260,7 @@ void main() {
       // Boundary: a null shadow before any set removes a non-existent key.
       ui.apply(
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             trackPath: '/a.wav',
             trackId: 't',
             durationMs: 8000,
@@ -307,9 +273,7 @@ void main() {
       expect(container.read(deckSlipShadowsProvider), isEmpty);
       ui.apply(
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             trackPath: '/a.wav',
             trackId: 't',
             durationMs: 8000,
@@ -322,9 +286,7 @@ void main() {
       expect(container.read(deckSlipShadowMsProvider(0)), 400);
       ui.apply(
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             trackPath: '/a.wav',
             trackId: 't',
             durationMs: 8000,
@@ -338,9 +300,7 @@ void main() {
       // Round-trip: a later non-null shadow re-arms after the clear.
       ui.apply(
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             trackPath: '/a.wav',
             trackId: 't',
             durationMs: 8000,
@@ -389,13 +349,10 @@ void main() {
           .read(engineUiProvider.notifier)
           .apply(
             deckUpdatedEvent(
-              deck: 0,
               update: deckUpdated(
-                deck: 0,
                 trackPath: '/a.wav',
                 trackId: 't',
                 durationMs: 60000,
-                playing: false,
                 positionMs: 1000,
               ),
             ),
@@ -426,9 +383,7 @@ void main() {
           .read(engineUiProvider.notifier)
           .apply(
             deckUpdatedEvent(
-              deck: 0,
               update: deckUpdated(
-                deck: 0,
                 trackPath: '/a.wav',
                 trackId: 't',
                 durationMs: 60000,
@@ -457,9 +412,7 @@ void main() {
           .read(engineUiProvider.notifier)
           .apply(
             deckUpdatedEvent(
-              deck: 0,
               update: deckUpdated(
-                deck: 0,
                 fxRouted: true,
                 fx: [
                   FxSlotState(
@@ -499,9 +452,7 @@ void main() {
       addTearDown(container.dispose);
       final ui = container.read(engineUiProvider.notifier);
       Event echoEvt({required bool enabled}) => deckUpdatedEvent(
-        deck: 0,
         update: deckUpdated(
-          deck: 0,
           fx: [
             FxSlotState(
               kind: FxKind.echo,
@@ -534,9 +485,7 @@ void main() {
       final ui = container.read(engineUiProvider.notifier);
       ui.apply(
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             fx: [
               FxSlotState(
                 kind: FxKind.echo,
@@ -553,9 +502,7 @@ void main() {
 
       // Every deck update carries the whole unit, so an update published with
       // the engine's boot state replaces the slots rather than leaving them.
-      ui.apply(
-        deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, volume: 0.4)),
-      );
+      ui.apply(deckUpdatedEvent(update: deckUpdated(volume: 0.4)));
 
       final after = container.read(engineUiProvider).fxSlots;
       expect(after, isNot(same(before)));

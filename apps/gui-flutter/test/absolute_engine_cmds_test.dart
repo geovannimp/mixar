@@ -65,7 +65,7 @@ void main() {
       // Controller published absolute pause.
       container
           .read(engineUiProvider.notifier)
-          .apply(deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0)));
+          .apply(deckUpdatedEvent(update: deckUpdated()));
       expect(container.read(engineUiProvider).isPlaying(0), isFalse);
 
       // UI click captured wantPlaying=true from prior chrome; absolute set.
@@ -95,17 +95,7 @@ void main() {
       expect(container.read(engineUiProvider).keyLockFor(0), isTrue);
 
       // MIDI races the opposite polarity before the evt from our cmds.
-      ui.apply(
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(
-            deck: 0,
-            quantize: true,
-            slipEnabled: false,
-            keyLock: false,
-          ),
-        ),
-      );
+      ui.apply(deckUpdatedEvent(update: deckUpdated()));
       expect(container.read(engineUiProvider).quantizeFor(0), isTrue);
       expect(container.read(engineUiProvider).slipEnabledFor(0), isFalse);
       expect(container.read(engineUiProvider).keyLockFor(0), isFalse);
@@ -132,12 +122,7 @@ void main() {
         expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isTrue);
 
         // MIDI confirms the same absolute play state.
-        ui.apply(
-          deckUpdatedEvent(
-            deck: 0,
-            update: deckUpdated(deck: 0, playing: true),
-          ),
-        );
+        ui.apply(deckUpdatedEvent(update: deckUpdated(playing: true)));
         expect(
           ui.isOptimisticCurrent(OptimisticField.playing, 0, gen),
           isFalse,
@@ -360,9 +345,7 @@ void main() {
       );
       container
           .read(engineUiProvider.notifier)
-          .apply(
-            deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, fx: [slot])),
-          );
+          .apply(deckUpdatedEvent(update: deckUpdated(fx: [slot])));
 
       // Tap while the transport is still resolving.
       final pending = setFxUnitDivision(ref, 0, 4);
@@ -391,9 +374,7 @@ void main() {
           .read(engineUiProvider.notifier)
           .apply(
             deckUpdatedEvent(
-              deck: 0,
               update: deckUpdated(
-                deck: 0,
                 fx: [
                   FxSlotState(
                     kind: FxKind.echo,

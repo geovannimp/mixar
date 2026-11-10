@@ -75,9 +75,7 @@ class _SeededEngineUi extends EngineUi {
   EngineUiSnapshot build() => applyEngineEvent(
     EngineUiSnapshot.empty,
     deckUpdatedEvent(
-      deck: 0,
       update: deckUpdated(
-        deck: 0,
         trackPath: '/seeded.flac',
         trackId: 't1',
         durationMs: 180000,
@@ -334,10 +332,7 @@ void main() {
     ProviderScope.containerOf(tester.element(find.byType(AppShell)))
         .read(engineUiProvider.notifier)
         .apply(
-          deckUpdatedEvent(
-            deck: 0,
-            update: deckUpdated(deck: 0, padMode: PadMode.loopRoll),
-          ),
+          deckUpdatedEvent(update: deckUpdated(padMode: PadMode.loopRoll)),
         );
     await tester.pumpAndSettle();
 

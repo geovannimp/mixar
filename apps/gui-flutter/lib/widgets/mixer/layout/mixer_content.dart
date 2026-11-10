@@ -126,7 +126,6 @@ Widget buildMixerContent(BuildContext context, MixerContent? content) =>
         padding: padding,
       ),
       MixerStripContent(:final width) => OverflowBox(
-        alignment: Alignment.center,
         minWidth: width,
         maxWidth: double.infinity,
         child: const RepaintBoundary(child: MixerStrip()),

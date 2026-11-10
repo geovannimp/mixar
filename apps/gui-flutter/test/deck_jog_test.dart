@@ -107,7 +107,6 @@ void main() {
                     hasTrack: true,
                     bpm: 120,
                     enabled: true,
-                    jogTouching: false,
                     positionMs: positionMs,
                     durationMs: 180_000,
                   ),

@@ -5,7 +5,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 ///
 /// The set is closed on the Rust side too (`library_core::ColorLabel`), so an
 /// arbitrary hex value has no representation to round-trip.
-final colorLabelNames = LibraryColorLabel.values;
+const colorLabelNames = LibraryColorLabel.values;
 
 /// Display label for a canonical name (`"pink"` → `"Pink"`).
 String colorLabelDisplayName(LibraryColorLabel? label) {

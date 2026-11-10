@@ -37,6 +37,7 @@ class TrackListComfortableRow extends StatelessWidget {
     required this.artSize,
     required this.actionsSlot,
     required this.fields,
+    super.key,
   });
 
   final LibraryTrackSummary track;

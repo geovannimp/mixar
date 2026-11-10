@@ -11,6 +11,7 @@ class MTabBar extends StatelessWidget {
     required this.children,
     required this.onSelect,
     required this.theme,
+    super.key,
     this.barBottomBorder,
   });
 

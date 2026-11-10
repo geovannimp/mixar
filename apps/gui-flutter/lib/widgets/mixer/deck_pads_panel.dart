@@ -109,7 +109,7 @@ class DeckPadsPanel extends StatelessWidget {
   final int keyboardRootHotCue;
   final ValueChanged<int>? onSelectRoot;
 
-  /// Jumps the active Keyboard / Key Shift mode to [page].
+  /// Jumps the active Keyboard / Key Shift mode to `page`.
   final ValueChanged<int> onSelectPage;
 
   final bool hasTrack;
@@ -298,7 +298,7 @@ class DeckPadsPanel extends StatelessWidget {
       padMode == PadMode.keyShift;
 
   /// Mode label parts: the selected mode can carry a bank / page / source
-  /// suffix. The suffix is rendered muted; [labelBuilder] keeps the plain
+  /// suffix. The suffix is rendered muted; `labelBuilder` keeps the plain
   /// string for semantics and fallback.
   ({String label, String? suffix}) _modeParts(
     PadMode mode,
