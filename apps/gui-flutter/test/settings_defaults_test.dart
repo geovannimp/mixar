@@ -525,6 +525,21 @@ void main() {
     );
   });
 
+  test('copyAppSettings carries all four fader start fields', () {
+    final baseline = defaultAppSettings();
+    final copy = copyAppSettings(
+      baseline,
+      faderStartEnabled: true,
+      faderStartThresholdPct: 12,
+      faderStartOnNonZero: FaderStartOnNonZeroSetting.togglePlay,
+      faderStartOnZero: FaderStartOnZeroSetting.nothing,
+    );
+    expect(copy.faderStartEnabled, isTrue);
+    expect(copy.faderStartThresholdPct, 12);
+    expect(copy.faderStartOnNonZero, FaderStartOnNonZeroSetting.togglePlay);
+    expect(copy.faderStartOnZero, FaderStartOnZeroSetting.nothing);
+  });
+
   test('waveform position defaults top and is dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.waveformPosition, WaveformPositionSetting.top);

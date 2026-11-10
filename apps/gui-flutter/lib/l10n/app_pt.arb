@@ -310,6 +310,20 @@
       }
     }
   },
+  "settingsDeckFaderStart": "Arranque pelo fader",
+  "settingsDeckFaderStartHint": "Inicia ou pára a reprodução ao mover o fader do canal para longe ou de volta à base.",
+  "settingsDeckFaderStartToggle": "Arranque pelo fader",
+  "settingsDeckFaderStartThreshold": "Limiar do fader",
+  "settingsDeckFaderStartThresholdHint": "Quão alto o fader deve subir antes de contar como aberto.",
+  "settingsDeckFaderStartThresholdPercent": "{percent} %",
+  "settingsDeckFaderStartOnNonZero": "Quando o fader abre",
+  "settingsDeckFaderStartOnZero": "Quando o fader fecha",
+  "settingsDeckFaderStartOnNonZeroPlay": "Tocar",
+  "settingsDeckFaderStartOnNonZeroTogglePlay": "Alternar reprodução",
+  "settingsDeckFaderStartOnNonZeroNothing": "Nada",
+  "settingsDeckFaderStartOnZeroPause": "Pausar",
+  "settingsDeckFaderStartOnZeroPauseAndCue": "Pausar e voltar ao cue",
+  "settingsDeckFaderStartOnZeroNothing": "Nada",
   "settingsStepperIncrease": "Aumentar {field}",
   "@settingsStepperIncrease": {
     "description": "Screen-reader label for a numeric stepper's increment button.",

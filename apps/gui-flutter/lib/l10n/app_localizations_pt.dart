@@ -956,6 +956,53 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get settingsDeckFaderStart => 'Arranque pelo fader';
+
+  @override
+  String get settingsDeckFaderStartHint =>
+      'Inicia ou pára a reprodução ao mover o fader do canal para longe ou de volta à base.';
+
+  @override
+  String get settingsDeckFaderStartToggle => 'Arranque pelo fader';
+
+  @override
+  String get settingsDeckFaderStartThreshold => 'Limiar do fader';
+
+  @override
+  String get settingsDeckFaderStartThresholdHint =>
+      'Quão alto o fader deve subir antes de contar como aberto.';
+
+  @override
+  String settingsDeckFaderStartThresholdPercent(int percent) {
+    return '$percent %';
+  }
+
+  @override
+  String get settingsDeckFaderStartOnNonZero => 'Quando o fader abre';
+
+  @override
+  String get settingsDeckFaderStartOnZero => 'Quando o fader fecha';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroPlay => 'Tocar';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroTogglePlay => 'Alternar reprodução';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroNothing => 'Nada';
+
+  @override
+  String get settingsDeckFaderStartOnZeroPause => 'Pausar';
+
+  @override
+  String get settingsDeckFaderStartOnZeroPauseAndCue =>
+      'Pausar e voltar ao cue';
+
+  @override
+  String get settingsDeckFaderStartOnZeroNothing => 'Nada';
+
+  @override
   String settingsStepperDecrease(String field) {
     return 'Diminuir $field';
   }
@@ -2157,6 +2204,53 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get settingsDeckEndWarningToggle => 'Piscar antes do fim da faixa';
+
+  @override
+  String get settingsDeckFaderStart => 'Início pelo fader';
+
+  @override
+  String get settingsDeckFaderStartHint =>
+      'Inicia ou para a reprodução ao mover o fader do canal para longe ou de volta ao fundo.';
+
+  @override
+  String get settingsDeckFaderStartToggle => 'Início pelo fader';
+
+  @override
+  String get settingsDeckFaderStartThreshold => 'Limiar do fader';
+
+  @override
+  String get settingsDeckFaderStartThresholdHint =>
+      'Quão alto o fader precisa subir antes de contar como aberto.';
+
+  @override
+  String settingsDeckFaderStartThresholdPercent(int percent) {
+    return '$percent %';
+  }
+
+  @override
+  String get settingsDeckFaderStartOnNonZero => 'Quando o fader abre';
+
+  @override
+  String get settingsDeckFaderStartOnZero => 'Quando o fader fecha';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroPlay => 'Tocar';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroTogglePlay => 'Alternar reprodução';
+
+  @override
+  String get settingsDeckFaderStartOnNonZeroNothing => 'Nada';
+
+  @override
+  String get settingsDeckFaderStartOnZeroPause => 'Pausar';
+
+  @override
+  String get settingsDeckFaderStartOnZeroPauseAndCue =>
+      'Pausar e voltar ao cue';
+
+  @override
+  String get settingsDeckFaderStartOnZeroNothing => 'Nada';
 
   @override
   String settingsStepperDecrease(String field) {
