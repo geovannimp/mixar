@@ -1,6 +1,7 @@
 //! Control thread: cmd dispatch and high-rate evt egress.
 
 use crate::engine::Engine;
+use crate::fader_start::FaderStartAction;
 use crate::soft_takeover;
 use crate::transport::TransportEvent;
 use anyhow::anyhow;
@@ -448,6 +449,37 @@ fn deck_cmd(
     with_engine_mut(engine, |eng| f(eng, usize::from(deck)))
 }
 
+/// Apply a fader-start transport action. No-ops are deliberate: an unloaded
+/// deck, a disabled feature, or a `Nothing` action must never surface an error.
+fn apply_fader_start_action(eng: &mut Engine, deck: u16, action: FaderStartAction) -> Result<()> {
+    let id = deck as usize;
+    match action {
+        FaderStartAction::Play => {
+            if !eng.deck_has_audio_loaded(id).unwrap_or(false) {
+                return Ok(());
+            }
+            eng.play(id)?;
+        }
+        FaderStartAction::TogglePlay => {
+            if eng.deck_is_playing(id).unwrap_or(false) {
+                eng.pause(id)?;
+            } else if eng.deck_has_audio_loaded(id).unwrap_or(false) {
+                eng.play(id)?;
+            }
+        }
+        FaderStartAction::Pause => {
+            eng.pause(id)?;
+        }
+        FaderStartAction::PauseAndCue => {
+            eng.pause(id)?;
+            if let Some(ms) = eng.deck_snapshot(id).and_then(|s| s.cue_point_ms) {
+                eng.seek_deck(id, ms)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Apply one stem-EQ band with soft-takeover gating; `Ok(false)` = gated out.
 fn apply_stem_eq_band(
     eng: &mut Engine,
@@ -519,6 +551,9 @@ fn dispatch_cmd(event: &Event, engine: &EngineHandle) -> Result<CmdOutcome> {
                 return Ok(CmdOutcome::Silent);
             }
             eng.set_deck_volume(id, *volume)?;
+            if let Some(action) = eng.fader_start_action(*deck, *volume) {
+                apply_fader_start_action(eng, *deck, action)?;
+            }
             Ok(CmdOutcome::DeckUpdated(id))
         }),
         Event::SetEq(bus_api::SetEq {

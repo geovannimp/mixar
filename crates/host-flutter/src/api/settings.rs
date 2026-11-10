@@ -1042,6 +1042,7 @@ fn default_engine_config() -> EngineConfig {
             default_fx_level_curve: Some(bus_api::DEFAULT_FX_LEVEL_CURVE_ID.to_string()),
             crossfader_behavior: Some(bus_api::CrossfaderBehaviorSetting::default()),
             curve_library: Some(bus_api::CurveLibrarySpec::default()),
+            fader_start: None,
         }),
         buses: vec![bus_config(
             MASTER_BUS_ID,
@@ -1420,6 +1421,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         default_fx_level_curve: Some(settings.default_fx_level_curve.clone()),
         crossfader_behavior: Some(settings.crossfader_behavior),
         curve_library: Some(settings.curve_library.clone()),
+        fader_start: None,
     });
     config.validate().bridge()?;
     host.engine_config = config;

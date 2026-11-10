@@ -51,7 +51,7 @@ impl FaderStartConfig {
     }
 
     pub fn release_band(&self) -> f32 {
-        (self.threshold_pct + 2).min(100) as f32 / 100.0
+        ((u16::from(self.threshold_pct) + 2).min(100) as f32) / 100.0
     }
 }
 

@@ -701,6 +701,7 @@ fn empty_audio() -> crate::config::AudioConfig {
         default_fx_level_curve: None,
         crossfader_behavior: None,
         curve_library: None,
+        fader_start: None,
     }
 }
 
