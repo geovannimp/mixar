@@ -48,6 +48,7 @@ class SettingsUiPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsUiThemeTitle,
           subtitle: l10n.settingsUiThemeDescription,
+          searchTerms: [l10n.settingsUiAccentColor],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,
@@ -77,6 +78,11 @@ class SettingsUiPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsUiChromeTitle,
           subtitle: l10n.settingsUiChromeDescription,
+          searchTerms: [
+            l10n.settingsUiLanguageLabel,
+            l10n.settingsShowTooltips,
+            l10n.settingsUiSelectStyle,
+          ],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,

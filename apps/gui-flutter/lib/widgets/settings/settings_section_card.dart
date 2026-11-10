@@ -71,6 +71,7 @@ class SettingsSectionCard extends StatelessWidget
     this.subtitleBuilder,
     this.titleBadge,
     this.decorated = true,
+    this.searchTerms = const [],
   });
 
   /// Paint the band chrome (card fill + top/bottom hairlines).
@@ -90,9 +91,20 @@ class SettingsSectionCard extends StatelessWidget
   final Widget? trailing;
   final Widget? child;
 
+  /// Field labels the card owns that are not in [title] or [subtitle].
+  ///
+  /// A section's `SettingsSection.searchTerms` surfaces the section for a
+  /// field-label query; these keep the card that owns the field visible once
+  /// the panel filters its cards, instead of showing only a sibling whose
+  /// title happens to match.
+  final List<String> searchTerms;
+
   @override
   bool matchesSettingsSearch(BuildContext context, String foldedQuery) =>
-      settingsSearchMatches('$title $subtitle', foldedQuery);
+      settingsSearchMatches(
+        '$title $subtitle ${searchTerms.join(' ')}',
+        foldedQuery,
+      );
 
   @override
   Widget build(BuildContext context) {

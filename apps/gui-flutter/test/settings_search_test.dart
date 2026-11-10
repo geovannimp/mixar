@@ -6,6 +6,9 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/rekordbox_import_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_search_scope.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -126,6 +129,41 @@ void main() {
     expect(find.text(l10n.settingsAudioPreviewBusTitle), findsOneWidget);
     expect(find.text(l10n.settingsAudioEngineTitle), findsNothing);
     expect(find.text(l10n.settingsAudioMasterBus), findsNothing);
+  });
+
+  testWidgets('field-label terms keep the owning card in the panel', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      mixarTestMaterialApp(
+        theme: MixarThemeData.dark(),
+        home: const Scaffold(
+          body: SettingsSearchScope(
+            query: 'fader',
+            child: SettingsSectionBody(
+              title: 'Mixer',
+              description: '',
+              cards: [
+                SettingsSectionCard(title: 'Fader curve', child: Text('curve')),
+                SettingsSectionCard(
+                  title: 'Channel meters',
+                  searchTerms: ['fader taper'],
+                  child: Text('meters'),
+                ),
+                SettingsSectionCard(title: 'Output', child: Text('out')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 'fader' hits one card by title and one by a field label it owns; the
+    // label-matched card must survive the filter rather than losing to the
+    // title match.
+    expect(find.text('Fader curve'), findsOneWidget);
+    expect(find.text('Channel meters'), findsOneWidget);
+    expect(find.text('Output'), findsNothing);
   });
 
   testWidgets('finds sections despite typos', (tester) async {

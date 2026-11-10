@@ -106,9 +106,11 @@ class SettingsLayoutPanel extends StatelessWidget {
     required String semanticsLabel,
     required ValueChanged<bool> onChanged,
     Widget? child,
+    List<String> searchTerms = const [],
   }) => SettingsSectionCard(
     title: title,
     subtitle: subtitle,
+    searchTerms: searchTerms,
     trailing: SettingsHeaderSwitch(
       value: value,
       semanticsLabel: semanticsLabel,
@@ -170,6 +172,7 @@ class SettingsLayoutPanel extends StatelessWidget {
         _toggleCard(
           title: l10n.settingsLayoutMixerTitle,
           subtitle: l10n.settingsLayoutMixerDescription,
+          searchTerms: [l10n.settingsLayoutMixerMeters],
           value: draft.showMixer,
           semanticsLabel: l10n.settingsLayoutMixerEnable,
           onChanged: (value) =>
