@@ -85,16 +85,14 @@ void main() {
   testWidgets('the shaping switch reflects the draft and emits the flip', (
     tester,
   ) async {
+    bool switchValue() => tester
+        .widget<SettingsHeaderSwitch>(find.byType(SettingsHeaderSwitch))
+        .value;
+
     AppSettings? changed;
     await pumpPanel(tester, onChanged: (next) => changed = next);
 
-    expect(
-      tester
-          .widget<SettingsHeaderSwitch>(find.byType(SettingsHeaderSwitch))
-          .value,
-      isTrue,
-      reason: 'shaping ships on, as #668 drew it',
-    );
+    expect(switchValue(), isTrue, reason: 'shaping ships on, as #668 drew it');
 
     await tester.tap(find.byType(SettingsHeaderSwitch));
     await tester.pumpAndSettle();
@@ -109,11 +107,6 @@ void main() {
         waveformGainEqShaping: false,
       ),
     );
-    expect(
-      tester
-          .widget<SettingsHeaderSwitch>(find.byType(SettingsHeaderSwitch))
-          .value,
-      isFalse,
-    );
+    expect(switchValue(), isFalse);
   }, semanticsEnabled: false);
 }
