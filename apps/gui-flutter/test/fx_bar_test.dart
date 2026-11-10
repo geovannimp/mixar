@@ -40,6 +40,14 @@ FxSlotState reverbSlot() => FxSlotState(
   params: Float32List.fromList([0.5, 0.5, 0.0]),
 );
 
+/// Sends the whole FX unit as an engine echo. Every deck update in this file
+/// carries the routed unit, so one helper keeps the five call sites aligned.
+void applyDeckFx(ProviderContainer container, List<FxSlotState> fx) {
+  container
+      .read(engineUiProvider.notifier)
+      .apply(deckUpdatedEvent(update: deckUpdated(fx: fx, fxRouted: true)));
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -60,13 +68,10 @@ void main() {
     // The deck update always carries the unit; an unspecified list is the
     // "no evt yet" case, so the mirror stays empty and the strip falls back to
     // the engine's own default.
-    container.read(engineUiProvider.notifier)
-      ..apply(engineSnapshotEvent(running: running))
-      ..apply(
-        deckUpdatedEvent(
-          update: deckUpdated(fx: fxSlots ?? const [], fxRouted: true),
-        ),
-      );
+    container
+        .read(engineUiProvider.notifier)
+        .apply(engineSnapshotEvent(running: running));
+    applyDeckFx(container, fxSlots ?? const []);
 
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -178,16 +183,7 @@ void main() {
     );
 
     // The engine echo shows the new division: the readout follows it.
-    container
-        .read(engineUiProvider.notifier)
-        .apply(
-          deckUpdatedEvent(
-            update: deckUpdated(
-              fx: [echoSlot(enabled: true, divisionNorm: 1)],
-              fxRouted: true,
-            ),
-          ),
-        );
+    applyDeckFx(container, [echoSlot(enabled: true, divisionNorm: 1)]);
     await tester.pumpAndSettle();
     expect(find.text('2/1'), findsOneWidget);
 
@@ -220,16 +216,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(engine.fxUnitSlotEnabled, [(0, true)]);
 
-      container
-          .read(engineUiProvider.notifier)
-          .apply(
-            deckUpdatedEvent(
-              update: deckUpdated(
-                fx: [echoSlot(enabled: true)],
-                fxRouted: true,
-              ),
-            ),
-          );
+      applyDeckFx(container, [echoSlot(enabled: true)]);
       await tester.pumpAndSettle();
       expect(find.bySemanticsLabel(RegExp('FX on')), findsOneWidget);
       expect(find.bySemanticsLabel(RegExp('FX off')), findsNothing);
@@ -255,13 +242,7 @@ void main() {
     expect(container.read(fxSlotsProvider), isEmpty, reason: 'no evt yet');
 
     // The engine echoes the selection back; reverb has no beat time to step.
-    container
-        .read(engineUiProvider.notifier)
-        .apply(
-          deckUpdatedEvent(
-            update: deckUpdated(fx: [reverbSlot()], fxRouted: true),
-          ),
-        );
+    applyDeckFx(container, [reverbSlot()]);
     await tester.pumpAndSettle();
     expect(find.text('Reverb'), findsOneWidget);
     expect(find.byIcon(LucideIcons.chevronLeft), findsNothing);
@@ -288,13 +269,7 @@ void main() {
 
     // A hardware knob reaches the app as a DeckUpdated echo. The thumb must
     // follow it; ShadSlider alone ignores external value changes.
-    harness.container
-        .read(engineUiProvider.notifier)
-        .apply(
-          deckUpdatedEvent(
-            update: deckUpdated(fx: [echoSlot(wet: 0.9)], fxRouted: true),
-          ),
-        );
+    applyDeckFx(harness.container, [echoSlot(wet: 0.9)]);
     await tester.pumpAndSettle();
 
     expect(
