@@ -296,6 +296,30 @@ void main() {
       return captured!;
     }
 
+    /// Echo slot as the engine publishes it, shared by the FX republish tests.
+    FxSlotState echoSlot() => FxSlotState(
+      kind: FxKind.echo,
+      enabled: false,
+      wet: 0.5,
+      params: Float32List.fromList([0.5, 0.5, 0.0]),
+    );
+
+    /// Republishes a whole FX unit the way a deck update carries it.
+    void applyDeckFx(
+      ProviderContainer container,
+      List<FxSlotState> fx, {
+      int deck = 0,
+    }) {
+      container
+          .read(engineUiProvider.notifier)
+          .apply(
+            deckUpdatedEvent(
+              deck: deck,
+              update: deckUpdated(deck: deck, fx: fx),
+            ),
+          );
+    }
+
     void expectDivisionMirror(ProviderContainer container, int index) {
       expect(
         fxDivisionIndexFrom(container.read(fxSlotsProvider).single.params),
@@ -337,24 +361,13 @@ void main() {
       final gate = Completer<EngineTransport?>();
       final (container, ref) = await captureEngine(tester, () => gate.future);
 
-      final slot = FxSlotState(
-        kind: FxKind.echo,
-        enabled: false,
-        wet: 0.5,
-        params: Float32List.fromList([0.5, 0.5, 0.0]),
-      );
-      container
-          .read(engineUiProvider.notifier)
-          .apply(deckUpdatedEvent(update: deckUpdated(fx: [slot])));
+      final slot = echoSlot();
+      applyDeckFx(container, [slot]);
 
       // Tap while the transport is still resolving.
       final pending = setFxUnitDivision(ref, 0, 4);
       // The other deck's update republishes the unchanged unit.
-      container
-          .read(engineUiProvider.notifier)
-          .apply(
-            deckUpdatedEvent(deck: 1, update: deckUpdated(deck: 1, fx: [slot])),
-          );
+      applyDeckFx(container, [slot], deck: 1);
 
       // The evt merge must not discard the owned division: the stepper
       // derives its next target from this mirror.
@@ -370,22 +383,7 @@ void main() {
       final engine = FakeEngineTransport();
       final (container, ref) = await captureEngine(tester, () async => engine);
 
-      container
-          .read(engineUiProvider.notifier)
-          .apply(
-            deckUpdatedEvent(
-              update: deckUpdated(
-                fx: [
-                  FxSlotState(
-                    kind: FxKind.echo,
-                    enabled: false,
-                    wet: 0.5,
-                    params: Float32List.fromList([0.5, 0.5, 0.0]),
-                  ),
-                ],
-              ),
-            ),
-          );
+      applyDeckFx(container, [echoSlot()]);
       expect(container.read(fxSlotsProvider).single.enabled, isFalse);
       await setFxUnitSlotEnabled(ref, 0, true);
       expect(container.read(fxSlotsProvider).single.enabled, isTrue);

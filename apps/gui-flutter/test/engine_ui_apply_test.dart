@@ -192,7 +192,17 @@ void main() {
       // Per deck: another deck stays off.
       expect(container.read(engineUiProvider).stemEqEnabledFor(1), isFalse);
 
-      ui.apply(deckUpdatedEvent(update: deckUpdated(durationMs: 1000)));
+      ui.apply(
+        deckUpdatedEvent(
+          update: deckUpdated(
+            durationMs: 1000,
+            // Explicit false, not the builder default: this proves an event
+            // carrying the flag off clears it.
+            // ignore: avoid_redundant_argument_values
+            stemEqEnabled: false,
+          ),
+        ),
+      );
       expect(container.read(engineUiProvider).stemEqEnabledFor(0), isFalse);
     });
 
