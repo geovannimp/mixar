@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
@@ -8,12 +9,12 @@ import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
-import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
+import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
@@ -128,28 +129,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
     final slipOn = ref.watch(deckSlipEnabledProvider(widget.deckId));
     final slipShadowMs = ref.watch(deckSlipShadowMsProvider(widget.deckId));
-    final strip = trackId == null || durationMs <= 0
-        ? null
-        : ref.watch(waveformStripProvider((trackId, durationMs)));
-    final beatGrid = trackId == null || durationMs <= 0
-        ? null
-        : ref.watch(stripBeatGridPictureProvider((trackId, durationMs)));
-    final loops = trackId == null || durationMs <= 0
-        ? null
-        : ref.watch(stripLoopPictureProvider((trackId, durationMs)));
-    final activeLoop = durationMs <= 0
-        ? null
-        : ref.watch(
-            stripActiveLoopPictureProvider((widget.deckId, durationMs)),
-          );
-    final pendingLoopIn = durationMs <= 0
-        ? null
-        : ref.watch(
-            stripPendingLoopInPictureProvider((widget.deckId, durationMs)),
-          );
-    final cues = trackId == null || durationMs <= 0
-        ? null
-        : ref.watch(stripCuePictureProvider((trackId, durationMs)));
+    final zoomMs = ref.watch(waveformZoomProvider);
 
     // Do not watch deckPositionMsProvider here — ~30Hz Position ticks would
     // rebuild LayoutBuilder/Listener/Stack. Seed pause/vinyl on play/jog
@@ -237,12 +217,22 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         if (width <= 0 || height <= 0) {
           return const SizedBox.expand();
         }
-        final basePxPerMs = strip?.pxPerMs ?? stripPxPerMs(durationMs);
-        final pxPerMs = stripDisplayPxPerMs(pxPerMs: basePxPerMs, speed: speed);
-        final speedScale = waveformSpeedScale(speed);
+        // Source time on screen: zoom is shared, tempo widens the source span
+        // so the musical span holds.
+        final visibleSpanMs = visibleSourceMs(speed, zoomMs);
+        final pxPerMs = width / visibleSpanMs;
         final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
 
         return Listener(
+          onPointerSignal: durationMs <= 0
+              ? null
+              : (event) {
+                  if (event is PointerScrollEvent) {
+                    ref
+                        .read(waveformZoomProvider.notifier)
+                        .zoomBy(event.scrollDelta.dy);
+                  }
+                },
           onPointerDown: durationMs <= 0
               ? null
               : (e) {
@@ -259,11 +249,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               anchorPosMs: _scrubAnchorMs,
               deltaX: e.localPosition.dx - _scrubAnchorX,
               width: width,
-              spanMs: cropVisibleMs(
-                durationMs: durationMs,
-                viewportWidth: width,
-                speed: speed,
-              ).toDouble(),
+              spanMs: visibleSpanMs.toDouble(),
             );
             _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
             _throttledSeek(ms.round());
@@ -278,11 +264,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     anchorPosMs: _scrubAnchorMs,
                     deltaX: e.localPosition.dx - _scrubAnchorX,
                     width: width,
-                    spanMs: cropVisibleMs(
-                      durationMs: durationMs,
-                      viewportWidth: width,
-                      speed: speed,
-                    ).toDouble(),
+                    spanMs: visibleSpanMs.toDouble(),
                   ).round();
             _scrubbing = false;
             if (durationMs > 0) {
@@ -307,99 +289,84 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
           },
           child: ExcludeSemantics(
             child: ClipRect(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ColoredBox(color: theme.colors.waveformBackground),
-                  if (strip != null)
-                    AnimatedBuilder(
-                      animation: _playhead,
-                      builder: (context, child) {
-                        final positionMs = _displayMs(durationMs);
-                        final displayWidth = strip.widthPx / speedScale;
-                        return Positioned(
-                          left: snapPx(
-                            stripTranslateX(
-                              positionMs: positionMs,
-                              viewportWidth: width,
-                              pxPerMs: pxPerMs,
-                            ),
-                            dpr,
-                          ),
-                          top: 0,
-                          bottom: 0,
-                          width: displayWidth,
-                          child: FittedBox(
-                            fit: BoxFit.fill,
-                            child: SizedBox(
-                              width: strip.widthPx.toDouble(),
-                              height: height,
-                              child: child ?? const SizedBox.shrink(),
-                            ),
-                          ),
-                        );
-                      },
-                      child: RepaintBoundary(
-                        child: _StripLayer(
-                          deckId: widget.deckId,
-                          strip: strip,
-                          height: height,
-                          beatGrid: beatGrid,
-                          loops: loops,
-                          activeLoop: activeLoop,
-                          pendingLoopIn: pendingLoopIn,
-                          cues: cues,
-                        ),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onDoubleTap: durationMs <= 0
+                    ? null
+                    : () => ref.read(waveformZoomProvider.notifier).reset(),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: theme.colors.waveformBackground),
+                    if (trackId != null && durationMs > 0)
+                      _LaneStrip(
+                        deckId: widget.deckId,
+                        trackId: trackId,
+                        durationMs: durationMs,
+                        width: width,
+                        height: height,
+                        pxPerMs: pxPerMs,
+                        playhead: _playhead,
+                        displayMs: () => _displayMs(durationMs),
+                        dpr: dpr,
                       ),
-                    ),
-                  Align(
-                    child: ColoredBox(
-                      color: theme.colors.foreground.withValues(alpha: 0.9),
-                      child: const SizedBox(width: 1, height: double.infinity),
-                    ),
-                  ),
-                  if (slipOn && slipShadowMs != null && strip != null)
-                    AnimatedBuilder(
-                      animation: _playhead,
-                      builder: (context, _) {
-                        final audibleMs = _displayMs(durationMs);
-                        final delta = slipShadowMs - audibleMs;
-                        if (delta.abs() < 3) {
-                          return const SizedBox.shrink();
-                        }
-                        return Positioned(
-                          left: snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
-                          top: 0,
-                          bottom: 0,
-                          width: 1,
-                          child: ColoredBox(
-                            color: theme.colors.primary.withValues(alpha: 0.65),
-                          ),
-                        );
-                      },
-                    ),
-                  if (widget.label case final label?)
                     Align(
-                      alignment: Alignment.centerLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text(
-                          label.toUpperCase(),
-                          style: theme.typography.display.xs.copyWith(
-                            fontFamily: MixarFonts.spaceGrotesk,
-                            color: deckInk(
-                              deckAccentFor(widget.deckId) ??
-                                  DeckAccent.neutral,
-                              theme.colors.brightness,
-                            ).withValues(alpha: 0.55),
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.6,
-                            height: 1,
-                          ),
+                      child: ColoredBox(
+                        color: theme.colors.foreground.withValues(alpha: 0.9),
+                        child: const SizedBox(
+                          width: 1,
+                          height: double.infinity,
                         ),
                       ),
                     ),
-                ],
+                    if (slipOn && slipShadowMs != null && trackId != null)
+                      AnimatedBuilder(
+                        animation: _playhead,
+                        builder: (context, _) {
+                          final audibleMs = _displayMs(durationMs);
+                          final delta = slipShadowMs - audibleMs;
+                          if (delta.abs() < 3) {
+                            return const SizedBox.shrink();
+                          }
+                          return Positioned(
+                            left: snapPx(
+                              width / 2 + delta * pxPerMs - 0.5,
+                              dpr,
+                            ),
+                            top: 0,
+                            bottom: 0,
+                            width: 1,
+                            child: ColoredBox(
+                              color: theme.colors.primary.withValues(
+                                alpha: 0.65,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    if (widget.label case final label?)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            label.toUpperCase(),
+                            style: theme.typography.display.xs.copyWith(
+                              fontFamily: MixarFonts.spaceGrotesk,
+                              color: deckInk(
+                                deckAccentFor(widget.deckId) ??
+                                    DeckAccent.neutral,
+                                theme.colors.brightness,
+                              ).withValues(alpha: 0.55),
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -436,26 +403,139 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   }
 }
 
-class _StripLayer extends ConsumerWidget {
+/// The windowed waveform picture, positioned so the playhead sits at center.
+///
+/// Splitting it out keeps the ~30Hz playhead animation away from the lane's
+/// build: only the [Positioned] moves each frame, the strip and its overlays
+/// are rebuilt when the window or the strip changes.
+class _LaneStrip extends ConsumerWidget {
   const new({
     required this.deckId,
-    required this.strip,
+    required this.trackId,
+    required this.durationMs,
+    required this.width,
     required this.height,
-    required this.beatGrid,
-    required this.loops,
-    required this.activeLoop,
-    required this.pendingLoopIn,
-    required this.cues,
+    required this.pxPerMs,
+    required this.playhead,
+    required this.displayMs,
+    required this.dpr,
   });
+
+  final int deckId;
+  final String trackId;
+  final int durationMs;
+  final double width;
+  final double height;
+  final double pxPerMs;
+  final Animation<double> playhead;
+  final double Function() displayMs;
+  final double dpr;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The strip owns its window (origin/span) and rebuilds itself when the
+    // playhead slides or the zoom changes, keeping the painted window until the
+    // new peaks land. Nothing coarse is ever drawn in between.
+    final strip = ref.watch(
+      waveformStripProvider((trackId, durationMs, deckId)),
+    );
+    if (strip == null) {
+      return const SizedBox.shrink();
+    }
+    final stripOrigin = strip.originMs;
+    final stripSpan = strip.spanMs;
+    final stripWidth = strip.widthPx;
+    // Overlays are recorded at the width they are painted at. Recording them at
+    // the (fixed) peak-texture width and scaling that picture would resample
+    // 1 px beat lines, and an anti-alias-free hairline drawn at a fractional
+    // scale drops out at some zoom levels.
+    final displayWidth = (stripSpan * pxPerMs).round();
+    final beatGrid = ref.watch(
+      stripBeatGridPictureProvider((
+        trackId,
+        stripOrigin,
+        stripSpan,
+        displayWidth,
+      )),
+    );
+    final loops = ref.watch(
+      stripLoopPictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
+    );
+    final activeLoop = ref.watch(
+      stripActiveLoopPictureProvider((
+        deckId,
+        stripOrigin,
+        stripSpan,
+        displayWidth,
+      )),
+    );
+    final pendingLoopIn = ref.watch(
+      stripPendingLoopInPictureProvider((
+        deckId,
+        stripOrigin,
+        stripSpan,
+        displayWidth,
+      )),
+    );
+    final cues = ref.watch(
+      stripCuePictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
+    );
+
+    return AnimatedBuilder(
+      animation: playhead,
+      builder: (context, child) => Positioned(
+        left: snapPx(
+          stripTranslateX(
+            positionMs: displayMs(),
+            originMs: stripOrigin,
+            viewportWidth: width,
+            pxPerMs: pxPerMs,
+          ),
+          dpr,
+        ),
+        top: 0,
+        bottom: 0,
+        width: displayWidth.toDouble(),
+        child: child!,
+      ),
+      child: RepaintBoundary(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            FittedBox(
+              fit: BoxFit.fill,
+              child: SizedBox(
+                width: stripWidth.toDouble(),
+                height: height,
+                child: _StripWaveform(
+                  deckId: deckId,
+                  strip: strip,
+                  height: height,
+                ),
+              ),
+            ),
+            CustomPaint(
+              painter: _StripOverlayPainter(
+                beatGrid: beatGrid,
+                loops: loops,
+                activeLoop: activeLoop,
+                pendingLoopIn: pendingLoopIn,
+                cues: cues,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StripWaveform extends ConsumerWidget {
+  const new({required this.deckId, required this.strip, required this.height});
 
   final int deckId;
   final WaveformStrip strip;
   final double height;
-  final Picture? beatGrid;
-  final Picture? loops;
-  final Picture? activeLoop;
-  final Picture? pendingLoopIn;
-  final Picture? cues;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -468,17 +548,12 @@ class _StripLayer extends ConsumerWidget {
       width: strip.widthPx.toDouble(),
       height: height,
       child: CustomPaint(
-        painter: _StripPainter(
+        painter: _WaveformPainter(
           strip: strip,
           background: context.theme.colors.waveformBackground,
           mode: ref.watch(waveformDisplayModeProvider),
           gain: gains.gain,
           bandGain: gains.bandGain,
-          beatGrid: beatGrid,
-          loops: loops,
-          activeLoop: activeLoop,
-          pendingLoopIn: pendingLoopIn,
-          cues: cues,
         ),
         size: Size(strip.widthPx.toDouble(), height),
       ),
@@ -486,13 +561,9 @@ class _StripLayer extends ConsumerWidget {
   }
 }
 
-class _StripPainter extends CustomPainter {
+/// Beat grid, loops and cues, replayed at the width they were recorded at.
+class _StripOverlayPainter extends CustomPainter {
   new({
-    required this.strip,
-    required this.background,
-    required this.mode,
-    required this.gain,
-    required this.bandGain,
     required this.beatGrid,
     required this.loops,
     required this.activeLoop,
@@ -500,16 +571,52 @@ class _StripPainter extends CustomPainter {
     required this.cues,
   });
 
-  final WaveformStrip strip;
-  final Color background;
-  final WaveformDisplayMode mode;
-  final double gain;
-  final WaveformBandGain bandGain;
   final Picture? beatGrid;
   final Picture? loops;
   final Picture? activeLoop;
   final Picture? pendingLoopIn;
   final Picture? cues;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) {
+      return;
+    }
+    // Overlays are authored at strip height; scale only vertically so their
+    // horizontal placement stays one picture pixel per canvas pixel.
+    canvas.save();
+    canvas.scale(1, size.height / kWaveformStripHeight);
+    for (final picture in [beatGrid, loops, activeLoop, pendingLoopIn, cues]) {
+      if (picture != null) {
+        canvas.drawPicture(picture);
+      }
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_StripOverlayPainter oldDelegate) =>
+      !identical(beatGrid, oldDelegate.beatGrid) ||
+      !identical(loops, oldDelegate.loops) ||
+      !identical(activeLoop, oldDelegate.activeLoop) ||
+      !identical(pendingLoopIn, oldDelegate.pendingLoopIn) ||
+      !identical(cues, oldDelegate.cues);
+}
+
+class _WaveformPainter extends CustomPainter {
+  new({
+    required this.strip,
+    required this.background,
+    required this.mode,
+    required this.gain,
+    required this.bandGain,
+  });
+
+  final WaveformStrip strip;
+  final Color background;
+  final WaveformDisplayMode mode;
+  final double gain;
+  final WaveformBandGain bandGain;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -523,49 +630,21 @@ class _StripPainter extends CustomPainter {
     // Painted live, not replayed from a recorded picture: gains and the
     // display mode are uniforms, so a deck's EQ or a settings flip costs one
     // quad instead of a re-recorded strip.
-    _paintBars(canvas, strip.l0, strip.widthPx.toDouble(), laneHeight);
-    for (final tile in strip.tiles) {
-      canvas.save();
-      canvas.translate(tile.startPx, 0);
-      _paintBars(canvas, tile.texture, tile.widthPx, laneHeight);
-      canvas.restore();
-    }
-    // Overlays are authored at strip height; scale with the waveform.
-    for (final picture in [beatGrid, loops, activeLoop, pendingLoopIn, cues]) {
-      if (picture != null) {
-        canvas.drawPicture(picture);
-      }
-    }
-    canvas.restore();
-  }
-
-  /// One lane quad sampling [texture]; L0 and every tile share the lane fill,
-  /// display mode and gains, so their wiring lives in one place.
-  void _paintBars(
-    Canvas canvas,
-    WaveformPeaksTexture texture,
-    double width,
-    double laneHeight,
-  ) {
     WaveformShaderPainter(
-      texture: texture,
+      texture: strip.texture,
       background: background,
       mode: mode,
       gain: gain,
       bandGain: bandGain,
-    ).paint(canvas, Size(width, laneHeight));
+    ).paint(canvas, Size(strip.widthPx.toDouble(), laneHeight));
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_StripPainter oldDelegate) =>
+  bool shouldRepaint(_WaveformPainter oldDelegate) =>
       !identical(strip, oldDelegate.strip) ||
       background != oldDelegate.background ||
       mode != oldDelegate.mode ||
       gain != oldDelegate.gain ||
-      bandGain != oldDelegate.bandGain ||
-      !identical(beatGrid, oldDelegate.beatGrid) ||
-      !identical(loops, oldDelegate.loops) ||
-      !identical(activeLoop, oldDelegate.activeLoop) ||
-      !identical(pendingLoopIn, oldDelegate.pendingLoopIn) ||
-      !identical(cues, oldDelegate.cues);
+      bandGain != oldDelegate.bandGain;
 }

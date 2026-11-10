@@ -12,8 +12,8 @@ import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/history_refresh.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/providers/shell/bus_providers.dart';
-import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
+import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
 
@@ -570,7 +570,10 @@ enum LibraryFocusZone { sidebar, trackList }
 
 /// Focus step order. Two panes today, so next and previous both land on the
 /// other one; walking an ordered list keeps adding a pane from changing callers.
-const _focusZoneOrder = [LibraryFocusZone.sidebar, LibraryFocusZone.trackList];
+const List<LibraryFocusZone> _focusZoneOrder = [
+  LibraryFocusZone.sidebar,
+  LibraryFocusZone.trackList,
+];
 
 class LibraryFocusZoneNotifier extends Notifier<LibraryFocusZone> {
   @override

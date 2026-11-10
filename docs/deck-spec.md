@@ -75,7 +75,7 @@ Typical deck layout:
 | Area | Status | Notes / tracking |
 |------|--------|------------------|
 | Deck panel | Partial | Load, play/pause, metadata, transport, pads, sync, sampler, slip, key lock; layout polish → [#310](https://github.com/geovannimp/mixar/issues/310) |
-| Waveforms | Partial | Dual-lane scroll + overview, beat grid, cue/loop overlays; zoom → [#210](https://github.com/geovannimp/mixar/issues/210) |
+| Waveforms | Partial | Dual-lane scroll + overview, beat grid, cue/loop overlays, wheel zoom 2–120 s; richer zoom UI → [#210](https://github.com/geovannimp/mixar/issues/210) |
 | Mixer strip | Implemented | Volume, 3-band EQ, filter, gain trim, crossfader, cue/PFL, VU |
 | Jog / scratch | Implemented | Engine jog + GUI platter ([#43](https://github.com/geovannimp/mixar/issues/43)) |
 | Engine start | Implemented | Auto-start on Decks via FRB `EngineTransport.start` |

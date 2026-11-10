@@ -64,33 +64,29 @@ void main() {
     expect(visibleSourceMs(2), kWaveformVisibleMs * 2);
     expect(visibleSourceMs(8), kWaveformVisibleMs * 2);
     expect(visibleSourceMs(0), kWaveformVisibleMs);
+    expect(visibleSourceMs(1, kWaveformMinVisibleMs), kWaveformMinVisibleMs);
   });
 
-  test('strip display pxPerMs zooms out when tempo increases', () {
-    const base = 1 / 13;
-    expect(stripDisplayPxPerMs(pxPerMs: base, speed: 1), closeTo(base, 1e-12));
+  test('zoomedVisibleMs scrolls in on wheel up and clamps to the range', () {
+    final zoomedIn = zoomedVisibleMs(
+      visibleMs: kWaveformVisibleMs,
+      scrollDeltaY: -120,
+    );
+    expect(zoomedIn, lessThan(kWaveformVisibleMs));
+    final zoomedOut = zoomedVisibleMs(
+      visibleMs: kWaveformVisibleMs,
+      scrollDeltaY: 120,
+    );
+    expect(zoomedOut, greaterThan(kWaveformVisibleMs));
     expect(
-      stripDisplayPxPerMs(pxPerMs: base, speed: 2),
-      closeTo(base / 2, 1e-12),
+      zoomedVisibleMs(visibleMs: kWaveformMinVisibleMs, scrollDeltaY: -5000),
+      kWaveformMinVisibleMs,
     );
     expect(
-      stripDisplayPxPerMs(pxPerMs: base, speed: 0.5),
-      closeTo(base / 0.5, 1e-12),
+      zoomedVisibleMs(visibleMs: kWaveformMaxVisibleMs, scrollDeltaY: 5000),
+      kWaveformMaxVisibleMs,
     );
-    expect(
-      stripDisplayPxPerMs(pxPerMs: base, speed: 8),
-      closeTo(base / 2, 1e-12),
-    );
-  });
-
-  test('cropVisibleMs widens with faster tempo', () {
-    final atOne = cropVisibleMs(durationMs: 180_000, viewportWidth: 800);
-    final atTwo = cropVisibleMs(
-      durationMs: 180_000,
-      viewportWidth: 800,
-      speed: 2,
-    );
-    expect(atTwo, closeTo(atOne * 2, 2));
+    expect(zoomedVisibleMs(visibleMs: 5000, scrollDeltaY: 0), 5000);
   });
 
   test('l1Range clamps to the track so t=0 maps to the first L1 peak', () {
@@ -213,28 +209,29 @@ void main() {
     expect(snapPx(1.4, 2), 1.5);
   });
 
-  test('strip width depends on duration, not viewport', () {
-    expect(stripWidthPx(180_000), (180_000 / 13).ceil());
-    expect(stripWidthPx(60_000), (60_000 / 13).ceil());
-    expect(stripWidthPx(180_000), inInclusiveRange(2048, 16384));
-  });
-
-  test('strip crop shows more time in a wider viewport', () {
-    final narrow = cropVisibleMs(durationMs: 180_000, viewportWidth: 800);
-    final wide = cropVisibleMs(durationMs: 180_000, viewportWidth: 1600);
-    expect(wide, closeTo(narrow * 2, 2));
-  });
-
   test('stripTranslateX keeps the playhead at the viewport center', () {
     const width = 1920.0;
     const pxPerMs = 0.08;
     const pos = 10_000.0;
     final dx = stripTranslateX(
       positionMs: pos,
+      originMs: 0,
       viewportWidth: width,
       pxPerMs: pxPerMs,
     );
     expect(dx + pos * pxPerMs, closeTo(width / 2, 1e-6));
+  });
+
+  test('stripTranslateX is origin relative', () {
+    const width = 1920.0;
+    const pxPerMs = 0.08;
+    final dx = stripTranslateX(
+      positionMs: 10_000,
+      originMs: 9_000,
+      viewportWidth: width,
+      pxPerMs: pxPerMs,
+    );
+    expect(dx, closeTo(width / 2 - 1_000 * pxPerMs, 1e-6));
   });
 
   test(

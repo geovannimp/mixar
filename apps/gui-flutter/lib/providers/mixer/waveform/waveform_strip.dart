@@ -1,235 +1,207 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show NotifierProviderFamily;
 import 'package:gui_flutter/core/models/waveform_peaks.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
-import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/owned_resource.dart';
-import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/waveform_window.dart';
 
-class WaveformTile {
-  const new({
-    required this.startPx,
+/// Peaks for one source-time window at the finest density the lane can show.
+///
+/// Zoom swaps the window instead of scaling a whole-track picture: the strip
+/// only ever holds detail for the time on screen, so bars stay crisp at any
+/// zoom. There is no coarse whole-track fallback — a lane paints nothing until
+/// its first window lands, and keeps the previous window (at its own density)
+/// while the next one is fetched, so zooming never swaps resolutions.
+class WaveformStrip implements OwnedResource {
+  new({
+    required this.originMs,
+    required this.spanMs,
     required this.widthPx,
+    required this.heightPx,
     required this.texture,
   });
 
-  final double startPx;
-  final double widthPx;
-  final WaveformPeaksTexture texture;
-}
+  /// Track time at the strip's left edge.
+  final int originMs;
 
-class WaveformStrip implements OwnedResource {
-  new({
-    required this.durationMs,
-    required this.widthPx,
-    required this.heightPx,
-    required this.l0,
-    this.tiles = const [],
-  });
+  /// Track time covered by the strip.
+  final int spanMs;
 
-  final int durationMs;
   final int widthPx;
   final int heightPx;
-  final WaveformPeaksTexture l0;
-  final List<WaveformTile> tiles;
+  final WaveformPeaksTexture texture;
+
   var _disposed = false;
-  var _relinquished = false;
 
-  double get pxPerMs => widthPx / durationMs;
-
-  /// Hands the textures this strip holds to a derived strip (`withTile`).
-  ///
-  /// The derived strip owns them and disposes them once, so disposing this one
-  /// releases nothing. Kept separate from [_disposed]: "ownership handed off" is
-  /// not "already disposed", and conflating them would make a strip that is
-  /// relinquished but never superseded leak silently.
-  void relinquish() {
-    _relinquished = true;
-  }
-
-  WaveformStrip withTile(WaveformTile tile) => WaveformStrip(
-    durationMs: durationMs,
-    widthPx: widthPx,
-    heightPx: heightPx,
-    l0: l0,
-    tiles: [...tiles, tile],
-  );
-
+  @override
   void dispose() {
     if (_disposed) {
       return;
     }
     _disposed = true;
-    if (_relinquished) {
-      // A derived strip owns these now.
-      return;
-    }
-    l0.dispose();
-    for (final tile in tiles) {
-      tile.texture.dispose();
-    }
+    texture.dispose();
   }
 }
+
+/// (track, track duration, deck)
+typedef WaveformStripKey = (String, int, int);
 
 class WaveformStripNotifier extends Notifier<WaveformStrip?>
     with OwnedResourceNotifier<WaveformStrip> {
   new(this.arg);
 
-  final (String, int) arg;
+  final WaveformStripKey arg;
+
+  /// Window and analysis epoch already requested, in flight or published, so a
+  /// rebuild for anything else does not queue the same fetch twice.
+  (int, int, int, int)? _recordedFor;
+
+  /// Whether the fetch for [_recordedFor] is still running. A released or
+  /// failed strip leaves nothing painted, and the next build must fetch again
+  /// even though the window key did not change.
+  var _requesting = false;
+
+  /// Set by the release registered with `ref.onDispose`; a rebuild clears it so
+  /// the strip on screen is not dropped just because a dependency changed.
+  var _releasePending = false;
 
   @override
   WaveformStrip? build() {
-    final (trackId, durationMs) = arg;
-    final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
-    // Lane fill and display mode are paint-time uniforms: watching them here
-    // would re-encode the texture on every theme flip or mode switch.
-    ref.onDispose(releaseOwned);
-    // Bump first: any recording still in flight is superseded by this build,
-    // including the one that decides to render nothing.
-    final gen = supersede();
+    // Riverpod runs `onDispose` listeners before every rebuild, so a rebuild
+    // would otherwise free the strip it is about to keep painting.
+    _releasePending = false;
+    ref.onDispose(_releaseUnlessRebuilt);
+    final (trackId, durationMs, deckId) = arg;
+    final window = ref.watch(waveformWindowProvider(deckId));
     final previous = owned;
-    if (peaks == null || peaks.isEmpty || durationMs <= 0) {
+    if (durationMs <= 0 || window.spanMs <= 0) {
+      // Bump before dropping: a fetch still in flight for the old window must
+      // not publish over the empty state.
+      supersede();
+      _recordedFor = null;
+      _requesting = false;
       releaseIfOwned(previous);
       return null;
     }
-    unawaited(_recordL0(trackId, peaks, durationMs, gen));
-    // Keep the strip that is already on screen until the new one is encoded:
-    // blanking the lane for a frame or more on every peaks refresh reads as a
-    // glitch, and the peaks behind the old strip are the same track.
+    final key = (
+      window.originMs,
+      window.spanMs,
+      kMaxPeakTextureWidth,
+      ref.watch(libraryAnalysisEpochProvider),
+    );
+    // `_requesting` keeps the first paint from firing a second fetch, while the
+    // `previous == null` arm recovers a strip that a release or a failed fetch
+    // left unpainted.
+    if (_recordedFor != key || (previous == null && !_requesting)) {
+      _recordedFor = key;
+      _requesting = true;
+      final gen = supersede();
+      unawaited(
+        _record(
+          trackId,
+          durationMs,
+          window.originMs,
+          window.spanMs,
+          gen,
+        ).whenComplete(() {
+          if (isCurrent(gen)) {
+            _requesting = false;
+          }
+        }),
+      );
+    }
+    // The previous window stays on screen until the new one is encoded: a zoom
+    // or a slide must not blank the lane while peaks are fetched.
     return previous;
   }
 
-  Future<void> _recordL0(
-    String trackId,
-    List<SpectralPeak> overview,
-    int durationMs,
-    int gen,
-  ) async {
-    final width = stripWidthPx(durationMs);
-    const height = kWaveformStripHeight;
-    final WaveformPeaksTexture l0;
-    try {
-      l0 = await encodeWaveformTexture(overview);
-    } on Object catch (error) {
-      // Nothing to show for this track, but a failed encode must not escape as
-      // an uncaught async error; the lane keeps its fill.
-      debugPrint('waveform strip encode failed: $error');
-      return;
-    }
-    if (!ref.mounted || !isCurrent(gen)) {
-      l0.dispose();
-      return;
-    }
-    final strip = WaveformStrip(
-      durationMs: durationMs,
-      widthPx: width,
-      heightPx: height.round(),
-      l0: l0,
-    );
-    publish(strip);
-    unawaited(_fillL1(trackId, durationMs, width, gen));
+  /// Releases the strip only when the provider is really gone: the callback
+  /// also fires on rebuild, and the rebuild that follows clears the flag.
+  void _releaseUnlessRebuilt() {
+    _releasePending = true;
+    // Riverpod also runs dispose listeners when a provider is *invalidated*,
+    // and the rebuild that follows can happen later in the same frame. A
+    // post-frame check therefore sees the rebuild (which clears the flag)
+    // before dropping the strip; a real dispose has no rebuild to cancel it.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!_releasePending) {
+        return;
+      }
+      _releasePending = false;
+      releaseOwned();
+    });
   }
 
-  Future<void> _fillL1(
+  Future<void> _record(
     String trackId,
     int durationMs,
-    int width,
+    int originMs,
+    int spanMs,
     int gen,
   ) async {
-    final lib = await ref.read(libraryTransportProvider.future);
-    if (!ref.mounted || !isCurrent(gen)) {
+    final endMs = (originMs + spanMs).clamp(0, durationMs);
+    if (endMs <= originMs) {
       return;
     }
-    const tileW = kWaveformStripTilePx;
-    final n = (width / tileW).ceil();
-    final focusPx = _focusPx(trackId, width, durationMs);
-    final order = [for (var i = 0; i < n; i++) i]
-      ..sort((a, b) {
-        final ca = (a + 0.5) * tileW;
-        final cb = (b + 0.5) * tileW;
-        return (ca - focusPx).abs().compareTo((cb - focusPx).abs());
-      });
-    for (final i in order) {
+    final WaveformPeaksTexture texture;
+    try {
+      final lib = await ref.read(libraryTransportProvider.future);
       if (!ref.mounted || !isCurrent(gen)) {
         return;
       }
-      final startPx = i * tileW;
-      final remaining = width - startPx;
-      if (remaining < 1) {
-        continue;
-      }
-      final w = remaining < tileW ? remaining : tileW;
-      final startMs = (startPx / width * durationMs).round();
-      final endMs = ((startPx + w) / width * durationMs).round().clamp(
-        startMs + 1,
-        durationMs,
+      final packed = await lib.getWaveformWindow(
+        trackId: trackId,
+        startMs: originMs,
+        endMs: endMs,
+        buckets: kMaxPeakTextureWidth,
       );
-      try {
-        final packed = await lib.getWaveformWindow(
-          trackId: trackId,
-          startMs: startMs,
-          endMs: endMs,
-          buckets: w,
-        );
-        if (!ref.mounted || !isCurrent(gen)) {
-          return;
-        }
-        final peaks = decodeRgbPeaks(packed.rgb);
-        if (peaks.isEmpty) {
-          continue;
-        }
-        final texture = await encodeWaveformTexture(peaks);
-        final cur = owned;
-        if (cur == null || !isCurrent(gen)) {
-          texture.dispose();
-          return;
-        }
-        final next = cur.withTile(
-          WaveformTile(
-            startPx: startPx.toDouble(),
-            widthPx: w.toDouble(),
-            texture: texture,
-          ),
-        );
-        // The new strip shares L0 and the earlier tiles, so the old strip must
-        // release them rather than dispose them.
-        cur.relinquish();
-        publish(next);
-      } catch (_) {
-        continue;
+      if (!ref.mounted || !isCurrent(gen)) {
+        return;
       }
-      await Future<void>.delayed(Duration.zero);
-    }
-  }
-
-  double _focusPx(String trackId, int width, int durationMs) {
-    final ids = ref.read(engineUiProvider).trackIds;
-    final heads = ref.read(deckPlayheadsProvider);
-    for (final e in ids.entries) {
-      if (e.value == trackId) {
-        return (heads[e.key] ?? 0) / durationMs * width;
+      final peaks = decodeRgbPeaks(packed.rgb);
+      if (peaks.isEmpty) {
+        return;
       }
+      texture = await encodeWaveformTexture(peaks);
+    } on Object catch (error) {
+      // A failed fetch leaves the previous window in place; the lane's hot path
+      // must not toast.
+      debugPrint('waveform window fetch failed: $error');
+      return;
     }
-    return 0;
+    if (!ref.mounted || !isCurrent(gen)) {
+      texture.dispose();
+      return;
+    }
+    publish(
+      WaveformStrip(
+        originMs: originMs,
+        // The track may be shorter than the requested window; publishing the
+        // requested span would stretch the peaks over time the track lacks.
+        spanMs: endMs - originMs,
+        widthPx: kMaxPeakTextureWidth,
+        heightPx: kWaveformStripHeight.round(),
+        texture: texture,
+      ),
+    );
   }
 }
 
-// autoDispose so unloading a deck releases the strip and its
-// waveformOverviewProvider watch (otherwise every loaded track pins peaks).
-/// Only the peak texture is cached; lane fill, display mode and gains are
-/// uniforms, so neither a theme flip nor an EQ move re-records a strip.
+// autoDispose so unloading a deck releases the strip. The window (origin/span)
+// is a dependency, not part of the key: zooming and sliding rebuild this
+// provider and keep the strip already painted until the new peaks land.
 final NotifierProviderFamily<
   WaveformStripNotifier,
   WaveformStrip?,
-  (String, int)
+  WaveformStripKey
 >
 waveformStripProvider = NotifierProvider.autoDispose
-    .family<WaveformStripNotifier, WaveformStrip?, (String, int)>(
+    .family<WaveformStripNotifier, WaveformStrip?, WaveformStripKey>(
       WaveformStripNotifier.new,
     );

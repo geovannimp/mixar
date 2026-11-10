@@ -1,20 +1,20 @@
-// Doc comment reference only — layout helpers do not construct controllers.
-import 'package:flutter/animation.dart' show AnimationController;
+// Layout helpers only — no widget or controller is constructed here.
+import 'dart:math' as math;
 
+/// Default source time on screen before tempo scaling.
 const kWaveformVisibleMs = 24000;
-const kWaveformBufferRatio = 1.0;
+
+/// User zoom range for the source time on screen.
+const kWaveformMinVisibleMs = 2000;
+const kWaveformMaxVisibleMs = 120000;
+
+/// Exponent per scroll pixel: one mouse notch (~53 px) zooms ~1.17x.
+const kWaveformZoomSensitivity = 0.003;
+
 const kWaveformRefreshMargin = 0.35;
 const kWaveformSeekSnapMs = 180.0;
 const kWaveformDriftCorrectMs = 60.0;
-const kWaveformStripMsPerPx = 13.0;
-const kWaveformStripMinPx = 2048;
-const kWaveformStripMaxPx = 16384;
 const kWaveformStripHeight = 128.0;
-const kWaveformStripTilePx = 2048;
-
-int visibleSourceMs(double speed) {
-  return (kWaveformVisibleMs * waveformSpeedScale(speed)).round();
-}
 
 /// Playback-ratio factor for waveform zoom (faster → show more source time).
 double waveformSpeedScale(double speed) {
@@ -22,9 +22,20 @@ double waveformSpeedScale(double speed) {
   return clamped.clamp(0.5, 2.0);
 }
 
-/// Strip density scaled so tempo changes zoom the scrolling viewport.
-double stripDisplayPxPerMs({required double pxPerMs, required double speed}) =>
-    pxPerMs / waveformSpeedScale(speed);
+/// Source time on screen for [visibleMs] at [speed], so tempo changes zoom the
+/// viewport instead of changing the musical span.
+int visibleSourceMs(double speed, [int visibleMs = kWaveformVisibleMs]) =>
+    (visibleMs * waveformSpeedScale(speed)).round();
+
+/// Applies one scroll event to the visible span: scroll up zooms in.
+int zoomedVisibleMs({required int visibleMs, required double scrollDeltaY}) {
+  if (scrollDeltaY == 0 || !scrollDeltaY.isFinite) {
+    return visibleMs;
+  }
+  final next = (visibleMs * math.exp(scrollDeltaY * kWaveformZoomSensitivity))
+      .round();
+  return next.clamp(kWaveformMinVisibleMs, kWaveformMaxVisibleMs);
+}
 
 double centerScrubMs({
   required double anchorPosMs,
@@ -49,44 +60,17 @@ double snapPx(double x, double dpr) {
   return (x * scale).round() / scale;
 }
 
-int stripWidthPx(int durationMs) {
-  if (durationMs <= 0) {
-    return kWaveformStripMinPx;
-  }
-  return (durationMs / kWaveformStripMsPerPx).ceil().clamp(
-    kWaveformStripMinPx,
-    kWaveformStripMaxPx,
-  );
-}
-
-double stripPxPerMs(int durationMs) {
-  final width = stripWidthPx(durationMs);
-  if (durationMs <= 0) {
-    return 0;
-  }
-  return width / durationMs;
-}
-
 double stripTranslateX({
   required double positionMs,
+  required int originMs,
   required double viewportWidth,
   required double pxPerMs,
-}) => viewportWidth / 2 - positionMs * pxPerMs;
-
-int cropVisibleMs({
-  required int durationMs,
-  required double viewportWidth,
-  double speed = 1.0,
-}) {
-  final px = stripDisplayPxPerMs(
-    pxPerMs: stripPxPerMs(durationMs),
-    speed: speed,
-  );
-  if (px <= 0) {
-    return kWaveformVisibleMs;
-  }
-  return (viewportWidth / px).round().clamp(1, durationMs);
-}
+}) => playheadDx(
+  positionMs: positionMs,
+  originMs: originMs.toDouble(),
+  width: viewportWidth,
+  pxPerMs: pxPerMs,
+);
 
 /// Engine estimate at this frame: last poll plus time elapsed at [speed].
 double engineEstimateMs({
@@ -95,7 +79,7 @@ double engineEstimateMs({
   required double speed,
 }) => anchorMs + ageMs * speed;
 
-/// Wall-clock duration for an [AnimationController] whose 0..1 value is
+/// Wall-clock duration for an `AnimationController` whose 0..1 value is
 /// track progress, so `forward()` reaches the end in `durationMs / speed`.
 Duration playheadWallDuration({
   required int durationMs,

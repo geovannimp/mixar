@@ -1,5 +1,4 @@
-import 'dart:ui';
-
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/engine_ui.dart';
@@ -11,6 +10,7 @@ import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
+import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -26,10 +26,11 @@ const _stripWidthPx = 1000;
 const _stripHeightPx = 64;
 
 Future<WaveformStrip> _strip() async => WaveformStrip(
-  durationMs: _durationMs,
+  originMs: 0,
+  spanMs: _durationMs,
   widthPx: _stripWidthPx,
   heightPx: _stripHeightPx,
-  l0: await encodeWaveformTexture(const [
+  texture: await encodeWaveformTexture(const [
     SpectralPeak(low: 0.4, mid: 0.2, high: 0.1),
   ]),
 );
@@ -45,13 +46,10 @@ class _SeededEngineUi extends EngineUi {
     var snap = applyEngineEvent(
       EngineUiSnapshot.empty,
       deckUpdatedEvent(
-        deck: 0,
         update: deckUpdated(
-          deck: 0,
           trackPath: '/t.flac',
           trackId: 't1',
           durationMs: _durationMs,
-          speed: 0.5,
           tempoRange: 0.08,
         ),
       ),
@@ -60,8 +58,7 @@ class _SeededEngineUi extends EngineUi {
       snap = applyEngineEvent(
         snap,
         deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, durationMs: _durationMs, playing: true),
+          update: deckUpdated(durationMs: _durationMs, playing: true),
         ),
       );
     }
@@ -69,12 +66,7 @@ class _SeededEngineUi extends EngineUi {
       snap = applyEngineEvent(
         snap,
         deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(
-            deck: 0,
-            durationMs: _durationMs,
-            jogTouching: true,
-          ),
+          update: deckUpdated(durationMs: _durationMs, jogTouching: true),
         ),
       );
     }
@@ -97,13 +89,11 @@ class _FixedStrip extends WaveformStripNotifier {
 }
 
 double _expectedLeft(double positionMs, {double speed = 1.0}) {
-  final pxPerMs = stripDisplayPxPerMs(
-    pxPerMs: _stripWidthPx / _durationMs,
-    speed: speed,
-  );
+  final pxPerMs = _viewportWidth / visibleSourceMs(speed);
   return snapPx(
     stripTranslateX(
       positionMs: positionMs,
+      originMs: 0,
       viewportWidth: _viewportWidth,
       pxPerMs: pxPerMs,
     ),
@@ -115,7 +105,7 @@ Positioned _stripPositioned(WidgetTester tester) {
   final positioned = find.descendant(
     of: find.byType(ScrollingLane),
     matching: find.byWidgetPredicate(
-      (w) => w is Positioned && w.width == _stripWidthPx.toDouble(),
+      (w) => w is Positioned && (w.width ?? 0) > 1,
     ),
   );
   expect(positioned, findsOneWidget);
@@ -179,7 +169,7 @@ Future<ProviderContainer> _pumpLane(
 void _applyPosition(ProviderContainer container, int ms) {
   container
       .read(engineUiProvider.notifier)
-      .apply(deckPositionEvent(deck: 0, positionMs: ms));
+      .apply(deckPositionEvent(positionMs: ms));
 }
 
 typedef _LaneRebuildProbe = ({int Function() count, void Function() stop});
@@ -211,6 +201,47 @@ void main() {
     await tester.pump();
 
     expect(_stripPositioned(tester).left, closeTo(_expectedLeft(25000), 0.5));
+  });
+
+  testWidgets('wheel over the lane zooms the shared span in', (tester) async {
+    final container = await _pumpLane(tester, playing: false, strip: _strip);
+    expect(container.read(waveformZoomProvider), kWaveformVisibleMs);
+    final widthBefore = _stripPositioned(tester).width ?? 0;
+
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        position: tester.getCenter(find.byType(ScrollingLane)),
+        scrollDelta: const Offset(0, -120),
+      ),
+    );
+    await tester.pump();
+
+    expect(container.read(waveformZoomProvider), lessThan(kWaveformVisibleMs));
+    expect(
+      _stripPositioned(tester).width ?? 0,
+      greaterThan(widthBefore),
+      reason: 'zooming in shows fewer milliseconds, so the strip paints wider',
+    );
+  });
+
+  testWidgets('double tap resets the zoom to the default span', (tester) async {
+    final container = await _pumpLane(tester, playing: false, strip: _strip);
+    container.read(waveformZoomProvider.notifier).zoomBy(-400);
+    await tester.pump();
+    expect(container.read(waveformZoomProvider), lessThan(kWaveformVisibleMs));
+
+    final detector = tester.widget<GestureDetector>(
+      find
+          .descendant(
+            of: find.byType(ScrollingLane),
+            matching: find.byType(GestureDetector),
+          )
+          .first,
+    );
+    detector.onDoubleTap!();
+    await tester.pump();
+
+    expect(container.read(waveformZoomProvider), kWaveformVisibleMs);
   });
 
   testWidgets('vinyl jogTouching position ticks move strip translate', (
@@ -367,6 +398,9 @@ void main() {
       await tester.pump();
       expect(engine.seeks.length, 3);
       expect(engine.seeks.every((s) => s.$1 == 0), isTrue);
+
+      // The double-tap zoom reset recognizer arms a timer on each tap.
+      await tester.pump(const Duration(milliseconds: 400));
     },
   );
 }

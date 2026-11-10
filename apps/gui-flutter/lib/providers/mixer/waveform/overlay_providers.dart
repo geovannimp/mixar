@@ -9,6 +9,7 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
+import 'package:riverpod/src/providers/notifier.dart';
 
 void _dropPictureAfterFrame(Picture? picture) {
   if (picture == null) {
@@ -19,34 +20,41 @@ void _dropPictureAfterFrame(Picture? picture) {
   });
 }
 
-Size _stripSize(int durationMs) =>
-    Size(stripWidthPx(durationMs).toDouble(), kWaveformStripHeight);
+/// Overlays live in the same source-time window as the strip, so they re-record
+/// (cheaply) whenever the lane recentres or zooms; peaks are not involved.
+Size _stripSize(int widthPx) => Size(widthPx.toDouble(), kWaveformStripHeight);
+
+/// (track, window origin, window span, picture width)
+typedef StripWindowKey = (String, int, int, int);
+
+/// (deck, window origin, window span, picture width)
+typedef DeckStripWindowKey = (int, int, int, int);
 
 class StripBeatGridPictureNotifier extends Notifier<Picture?> {
   new(this.arg);
 
-  final (String, int) arg;
+  final StripWindowKey arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (trackId, durationMs) = arg;
+    final (trackId, originMs, spanMs, widthPx) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
     final grid = ref.watch(beatGridProvider(trackId));
-    if (grid == null || grid.bpm == null || durationMs <= 0) {
+    if (grid == null || grid.bpm == null || spanMs <= 0 || widthPx <= 0) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
     }
-    final size = _stripSize(durationMs);
+    final size = _stripSize(widthPx);
     final marks = beatGridXs(
       bpm: grid.bpm!,
       firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
-      originMs: 0,
-      spanMs: durationMs.toDouble(),
+      originMs: originMs.toDouble(),
+      spanMs: spanMs.toDouble(),
       width: size.width,
     );
     final next = recordBeatGridPicture(marks: marks, size: size);
@@ -59,17 +67,17 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?> {
 class StripLoopPictureNotifier extends Notifier<Picture?> {
   new(this.arg);
 
-  final (String, int) arg;
+  final StripWindowKey arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (trackId, durationMs) = arg;
+    final (trackId, originMs, spanMs, widthPx) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    if (durationMs <= 0) {
+    if (spanMs <= 0 || widthPx <= 0) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
@@ -84,8 +92,9 @@ class StripLoopPictureNotifier extends Notifier<Picture?> {
     }
     final next = recordLoopPicture(
       loops: loops,
-      durationMs: durationMs,
-      size: _stripSize(durationMs),
+      originMs: originMs,
+      spanMs: spanMs,
+      size: _stripSize(widthPx),
     );
     _dropPictureAfterFrame(_owned);
     _owned = next;
@@ -96,17 +105,17 @@ class StripLoopPictureNotifier extends Notifier<Picture?> {
 class StripActiveLoopPictureNotifier extends Notifier<Picture?> {
   new(this.arg);
 
-  final (int, int) arg;
+  final DeckStripWindowKey arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (deckId, durationMs) = arg;
+    final (deckId, originMs, spanMs, widthPx) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    if (durationMs <= 0) {
+    if (spanMs <= 0 || widthPx <= 0) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
@@ -114,8 +123,9 @@ class StripActiveLoopPictureNotifier extends Notifier<Picture?> {
     final loop = ref.watch(deckActiveLoopProvider(deckId));
     final next = recordActiveLoopPicture(
       loop: loop,
-      durationMs: durationMs,
-      size: _stripSize(durationMs),
+      originMs: originMs,
+      spanMs: spanMs,
+      size: _stripSize(widthPx),
     );
     _dropPictureAfterFrame(_owned);
     _owned = next;
@@ -126,17 +136,17 @@ class StripActiveLoopPictureNotifier extends Notifier<Picture?> {
 class StripPendingLoopInPictureNotifier extends Notifier<Picture?> {
   new(this.arg);
 
-  final (int, int) arg;
+  final DeckStripWindowKey arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (deckId, durationMs) = arg;
+    final (deckId, originMs, spanMs, widthPx) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    if (durationMs <= 0) {
+    if (spanMs <= 0 || widthPx <= 0) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
@@ -144,8 +154,9 @@ class StripPendingLoopInPictureNotifier extends Notifier<Picture?> {
     final pending = ref.watch(deckPendingLoopInMsProvider(deckId));
     final next = recordPendingLoopInPicture(
       pendingInMs: pending,
-      durationMs: durationMs,
-      size: _stripSize(durationMs),
+      originMs: originMs,
+      spanMs: spanMs,
+      size: _stripSize(widthPx),
     );
     _dropPictureAfterFrame(_owned);
     _owned = next;
@@ -156,17 +167,17 @@ class StripPendingLoopInPictureNotifier extends Notifier<Picture?> {
 class StripCuePictureNotifier extends Notifier<Picture?> {
   new(this.arg);
 
-  final (String, int) arg;
+  final StripWindowKey arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (trackId, durationMs) = arg;
+    final (trackId, originMs, spanMs, widthPx) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    if (durationMs <= 0) {
+    if (spanMs <= 0 || widthPx <= 0) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
@@ -187,8 +198,9 @@ class StripCuePictureNotifier extends Notifier<Picture?> {
     ];
     final next = recordCuePicture(
       cues: cues,
-      durationMs: durationMs,
-      size: _stripSize(durationMs),
+      originMs: originMs,
+      spanMs: spanMs,
+      size: _stripSize(widthPx),
     );
     _dropPictureAfterFrame(_owned);
     _owned = next;
@@ -196,27 +208,44 @@ class StripCuePictureNotifier extends Notifier<Picture?> {
   }
 }
 
-final stripBeatGridPictureProvider = NotifierProvider.autoDispose
-    .family<StripBeatGridPictureNotifier, Picture?, (String, int)>(
+final NotifierProviderFamily<
+  StripBeatGridPictureNotifier,
+  Picture?,
+  StripWindowKey
+>
+stripBeatGridPictureProvider = NotifierProvider.autoDispose
+    .family<StripBeatGridPictureNotifier, Picture?, StripWindowKey>(
       StripBeatGridPictureNotifier.new,
     );
 
-final stripLoopPictureProvider = NotifierProvider.autoDispose
-    .family<StripLoopPictureNotifier, Picture?, (String, int)>(
+final NotifierProviderFamily<StripLoopPictureNotifier, Picture?, StripWindowKey>
+stripLoopPictureProvider = NotifierProvider.autoDispose
+    .family<StripLoopPictureNotifier, Picture?, StripWindowKey>(
       StripLoopPictureNotifier.new,
     );
 
-final stripActiveLoopPictureProvider = NotifierProvider.autoDispose
-    .family<StripActiveLoopPictureNotifier, Picture?, (int, int)>(
+final NotifierProviderFamily<
+  StripActiveLoopPictureNotifier,
+  Picture?,
+  DeckStripWindowKey
+>
+stripActiveLoopPictureProvider = NotifierProvider.autoDispose
+    .family<StripActiveLoopPictureNotifier, Picture?, DeckStripWindowKey>(
       StripActiveLoopPictureNotifier.new,
     );
 
-final stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
-    .family<StripPendingLoopInPictureNotifier, Picture?, (int, int)>(
+final NotifierProviderFamily<
+  StripPendingLoopInPictureNotifier,
+  Picture?,
+  DeckStripWindowKey
+>
+stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
+    .family<StripPendingLoopInPictureNotifier, Picture?, DeckStripWindowKey>(
       StripPendingLoopInPictureNotifier.new,
     );
 
-final stripCuePictureProvider = NotifierProvider.autoDispose
-    .family<StripCuePictureNotifier, Picture?, (String, int)>(
+final NotifierProviderFamily<StripCuePictureNotifier, Picture?, StripWindowKey>
+stripCuePictureProvider = NotifierProvider.autoDispose
+    .family<StripCuePictureNotifier, Picture?, StripWindowKey>(
       StripCuePictureNotifier.new,
     );
