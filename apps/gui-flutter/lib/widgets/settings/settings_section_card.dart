@@ -1,22 +1,12 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/widgets/settings/settings_insets.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Vertical rhythm inside a card: outer padding, the header-to-body gap and the
 /// breathing room kept below a revealed body.
 const _cardInset = 16.0;
-
-/// Horizontal inset inside a card: the gap between a field (or the card title)
-/// and the band's hairline edges.
-///
-/// Wider than [_cardInset] because the bands run full-bleed to the pane edges:
-/// the sides have no outer margin to breathe, so the content needs more room
-/// than the top and bottom, which already sit next to another band.
-///
-/// The section header above the first card uses the same inset, so titles
-/// across the page share one left edge.
-const settingsCardSideInset = 24.0;
 
 /// Key for the hairline a decorated card paints between its header and fields.
 ///

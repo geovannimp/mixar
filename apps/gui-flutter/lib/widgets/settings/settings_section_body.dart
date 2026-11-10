@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
+import 'package:gui_flutter/widgets/settings/settings_insets.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 
 /// Full-bleed settings section: an inset header above cards that run to the
