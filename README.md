@@ -31,7 +31,7 @@ git clone https://github.com/geovannimp/mixar.git
 cd mixar
 mise install
 npm install
-npm run flutter:dev
+npm run app:linux
 ```
 
 Sample tracks live in `samples/`. Headless tests can use `backend = "null"` so they do not need an audio device.
