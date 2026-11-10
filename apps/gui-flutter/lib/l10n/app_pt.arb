@@ -266,7 +266,7 @@
   "settingsWaveformModeRgb": "RGB",
   "settingsWaveformModeFiltered": "Filtrado",
   "settingsWaveformShapingTitle": "Modelagem por EQ e ganho",
-  "settingsWaveformShapingDescription": "Escala as barras da faixa com o fader do canal e o EQ do deck. Desligado desenha os picos gravados sem alteração.",
+  "settingsWaveformShapingDescription": "Escala as barras da faixa com o fader do canal e o EQ do deck. Desligado mantém a forma de onda parada quando você os move.",
   "settingsWaveformShapingEnable": "Modelar a forma de onda com EQ e ganho",
   "settingsDeckDescription": "Comportamento padrão de jog, tempo, travão e sampler para novos decks.",
   "settingsDeckJogTitle": "Jog wheel",

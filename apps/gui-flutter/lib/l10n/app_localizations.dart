@@ -1560,7 +1560,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsWaveformShapingDescription.
   ///
   /// In en, this message translates to:
-  /// **'Scale the lane bars with the channel fader and the deck EQ. Off draws the recorded peaks at unity.'**
+  /// **'Scale the lane bars with the channel fader and the deck EQ. Off keeps the waveform still while you move them.'**
   String get settingsWaveformShapingDescription;
 
   /// No description provided for @settingsWaveformShapingEnable.
