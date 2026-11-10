@@ -9,7 +9,6 @@ import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
-import 'package:riverpod/src/providers/notifier.dart';
 
 void _dropPictureAfterFrame(Picture? picture) {
   if (picture == null) {
@@ -214,44 +213,27 @@ class StripCuePictureNotifier extends Notifier<Picture?> with _OverlayPicture {
   }
 }
 
-final NotifierProviderFamily<
-  StripBeatGridPictureNotifier,
-  Picture?,
-  StripWindowKey
->
-stripBeatGridPictureProvider = NotifierProvider.autoDispose
+final stripBeatGridPictureProvider = NotifierProvider.autoDispose
     .family<StripBeatGridPictureNotifier, Picture?, StripWindowKey>(
       StripBeatGridPictureNotifier.new,
     );
 
-final NotifierProviderFamily<StripLoopPictureNotifier, Picture?, StripWindowKey>
-stripLoopPictureProvider = NotifierProvider.autoDispose
+final stripLoopPictureProvider = NotifierProvider.autoDispose
     .family<StripLoopPictureNotifier, Picture?, StripWindowKey>(
       StripLoopPictureNotifier.new,
     );
 
-final NotifierProviderFamily<
-  StripActiveLoopPictureNotifier,
-  Picture?,
-  DeckStripWindowKey
->
-stripActiveLoopPictureProvider = NotifierProvider.autoDispose
+final stripActiveLoopPictureProvider = NotifierProvider.autoDispose
     .family<StripActiveLoopPictureNotifier, Picture?, DeckStripWindowKey>(
       StripActiveLoopPictureNotifier.new,
     );
 
-final NotifierProviderFamily<
-  StripPendingLoopInPictureNotifier,
-  Picture?,
-  DeckStripWindowKey
->
-stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
+final stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
     .family<StripPendingLoopInPictureNotifier, Picture?, DeckStripWindowKey>(
       StripPendingLoopInPictureNotifier.new,
     );
 
-final NotifierProviderFamily<StripCuePictureNotifier, Picture?, StripWindowKey>
-stripCuePictureProvider = NotifierProvider.autoDispose
+final stripCuePictureProvider = NotifierProvider.autoDispose
     .family<StripCuePictureNotifier, Picture?, StripWindowKey>(
       StripCuePictureNotifier.new,
     );

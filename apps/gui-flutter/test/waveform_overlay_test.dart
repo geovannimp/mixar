@@ -16,7 +16,7 @@ void main() {
       size: size,
     );
     final image = await picture.toImage(120, 40);
-    final bytes = await image.toByteData(format: ImageByteFormat.rawRgba);
+    final bytes = await image.toByteData();
     int alphaAt(int x, int y) => bytes!.getUint8((y * 120 + x) * 4 + 3);
 
     // Top and bottom triangles converge on the arrow column.
