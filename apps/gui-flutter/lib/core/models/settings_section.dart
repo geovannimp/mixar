@@ -219,20 +219,32 @@ List<SettingsSection> matchingSettingsSections(
   if (needle.isEmpty) {
     return kSettingsSections;
   }
-  final bySection = kSettingsSections
-      .where((section) => section.matchesSectionSearch(needle, l10n))
-      .toList();
+  final bySection = _filterSections(
+    (section) => section.matchesSectionSearch(needle, l10n),
+  );
   if (bySection.isNotEmpty) {
     return bySection;
   }
-  final byCard = kSettingsSections
-      .where((section) => section.matchesCardSearch(needle, l10n))
-      .toList();
+  final byCard = _filterSections(
+    (section) => section.matchesCardSearch(needle, l10n),
+  );
   if (byCard.isNotEmpty) {
     return byCard;
   }
   return _fuzzyMatchingSections(needle, l10n);
 }
+
+/// [kSettingsSections] narrowed to those satisfying [test].
+///
+/// Shared by every match tier in [matchingSettingsSections] so a new fallback
+/// stays a one-line addition instead of another copy of the filter-and-return
+/// shape.
+List<SettingsSection> _filterSections(
+  bool Function(SettingsSection section) test,
+) => [
+  for (final section in kSettingsSections)
+    if (test(section)) section,
+];
 
 /// Typo-tolerant fallback: Jaro-Winkler scores the query against section
 /// labels and card terms, returning the best matches above
