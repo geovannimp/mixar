@@ -135,7 +135,7 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
                   hint: l10n.settingsSearchHint,
                   borderless: true,
                   style: theme.typography.body.sm,
-                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
                   textInputAction: TextInputAction.search,
                   leading: Icon(
                     LucideIcons.search,

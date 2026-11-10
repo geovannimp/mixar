@@ -100,6 +100,11 @@ void main() {
       tester.getRect(band).width,
       tester.getRect(find.byType(SettingsSidebar)).width,
     );
+    // Taller than a nav row: the filter is the column's primary control.
+    expect(
+      tester.getRect(band).height,
+      greaterThanOrEqualTo(tester.getRect(find.byType(MTappable).first).height),
+    );
     expect(bandDecoration().borderRadius, isNull);
     expect(bandDecoration().color, theme.colors.secondary);
     expect(
