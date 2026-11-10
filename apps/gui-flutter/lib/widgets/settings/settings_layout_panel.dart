@@ -94,9 +94,11 @@ class SettingsLayoutPanel extends StatelessWidget {
     required String semanticsLabel,
     required ValueChanged<bool> onChanged,
     Widget? child,
+    List<String> searchTerms = const [],
   }) => SettingsSectionCard(
     title: title,
     subtitle: subtitle,
+    searchTerms: searchTerms,
     trailing: SettingsHeaderSwitch(
       value: value,
       semanticsLabel: semanticsLabel,

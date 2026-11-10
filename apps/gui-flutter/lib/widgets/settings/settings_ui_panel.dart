@@ -44,6 +44,10 @@ class SettingsUiPanel extends StatelessWidget {
         SettingsSectionCard(
           title: l10n.settingsUiChromeTitle,
           subtitle: l10n.settingsUiChromeDescription,
+          searchTerms: [
+            l10n.settingsUiLanguageLabel,
+            l10n.settingsShowTooltips,
+          ],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,

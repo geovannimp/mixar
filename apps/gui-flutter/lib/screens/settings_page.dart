@@ -17,6 +17,7 @@ import 'package:gui_flutter/widgets/settings/settings_layout_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_privacy_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_search_scope.dart';
 import 'package:gui_flutter/widgets/settings/settings_session_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
 import 'package:gui_flutter/widgets/settings/settings_storage_panel.dart';
@@ -68,6 +69,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   var _busy = false;
   var _didSchedulePreviewScroll = false;
   var _previewScrollAttempts = 0;
+  var _searchQuery = '';
 
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
@@ -129,6 +131,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     if (widget.scrollToPreviewBus) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
     }
+  }
+
+  /// Search-driven section move (auto-pick, or restore when the query clears).
+  ///
+  /// Not a user pick: the one-shot deep-link glow stays armed, and landing back
+  /// on Audio re-arms its pending scroll in case the first attempt was skipped
+  /// while another section owned the pane.
+  void _selectFromSearch(SettingsSection section) {
+    setState(() => _section = section);
+    if (section != SettingsSection.audio ||
+        !widget.scrollToPreviewBus ||
+        _didSchedulePreviewScroll) {
+      return;
+    }
+    // A previous poll may have spent its attempts while another section owned
+    // the pane; restart the budget so this re-arm can actually reach the card.
+    _previewScrollAttempts = 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
   }
 
   /// Post-frame poll until the Preview bus card is mounted (settings may still
@@ -194,6 +214,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         final draft = _draft!;
         final baseline = _baseline!;
         final dirty = _isDirty(draft, baseline);
+        final searchQuery = _searchQuery.trim();
+        final noSectionMatches = matchingSettingsSections(
+          _searchQuery,
+          l10n,
+        ).isEmpty;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -278,6 +303,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 children: [
                   SettingsSidebar(
                     active: _section,
+                    onQueryChanged: (query) =>
+                        setState(() => _searchQuery = query),
+                    onSearchSelect: _selectFromSearch,
                     onSelect: (section) => setState(() {
                       if (section != _section) {
                         // One-shot deep-link glow; don't kill on re-tap.
@@ -292,21 +320,39 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       // Full-bleed width: the panel owns the header inset and
                       // lets its cards run to the pane edges.
                       padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: _SettingsSectionPanel(
-                        section: _section,
-                        draft: draft,
-                        baseline: baseline,
-                        highlightPreviewBus: _highlightPreviewBus,
-                        previewBusCardKey: _previewBusCardKey,
-                        realtimeStemsCapability: benchmark.capability,
-                        benchmarkRunning: benchmark.running,
-                        benchmarkFraction: benchmark.fraction,
-                        benchmarkError: benchmark.error,
-                        onRunRealtimeStemsBenchmark: () => ref
-                            .read(realtimeStemsBenchmarkProvider.notifier)
-                            .run(),
-                        onChanged: (next) => setState(() => _draft = next),
-                      ),
+                      child: noSectionMatches
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(
+                                l10n.settingsSearchNoResultsFor(searchQuery),
+                                style: theme.typography.body.sm.copyWith(
+                                  color: theme.colors.mutedForeground,
+                                ),
+                              ),
+                            )
+                          : SettingsSearchScope(
+                              query: _searchQuery,
+                              child: _SettingsSectionPanel(
+                                section: _section,
+                                draft: draft,
+                                baseline: baseline,
+                                highlightPreviewBus: _highlightPreviewBus,
+                                previewBusCardKey: _previewBusCardKey,
+                                realtimeStemsCapability: benchmark.capability,
+                                benchmarkRunning: benchmark.running,
+                                benchmarkFraction: benchmark.fraction,
+                                benchmarkError: benchmark.error,
+                                onRunRealtimeStemsBenchmark: () => ref
+                                    .read(
+                                      realtimeStemsBenchmarkProvider.notifier,
+                                    )
+                                    .run(),
+                                onChanged: (next) =>
+                                    setState(() => _draft = next),
+                              ),
+                            ),
                     ),
                   ),
                 ],

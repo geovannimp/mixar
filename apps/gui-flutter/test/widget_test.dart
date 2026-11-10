@@ -49,6 +49,8 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'helpers/collection_tracks_override.dart';
 
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
+import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
+import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 
 import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
@@ -591,6 +593,65 @@ void main() {
     final afterTop = tester.getRect(find.text('Preview bus')).top;
     expect(afterTop, lessThan(520));
     expect(find.text('Preview bus').hitTestable(), findsOneWidget);
+    expect(
+      tester.widget<SettingsGlowFlash>(find.byType(SettingsGlowFlash)).active,
+      isTrue,
+    );
+  }, semanticsEnabled: false);
+
+  testWidgets('searching and clearing keeps the deep-link preview glow', (
+    tester,
+  ) async {
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
+    tester.view.physicalSize = const Size(900, 520);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _settingsOverrides(),
+        child: mixarTestMaterialApp(
+          theme: MixarThemeData.dark(),
+          home: const SizedBox(
+            width: 900,
+            height: 520,
+            child: SettingsPage(
+              initialSection: SettingsSection.audio,
+              scrollToPreviewBus: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<SettingsGlowFlash>(find.byType(SettingsGlowFlash)).active,
+      isTrue,
+    );
+
+    // The search moves the pane on its own; it must not consume the one-shot
+    // deep-link glow owned by the Audio preview card.
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(SettingsSidebar),
+        matching: find.byType(MixarInput),
+      ),
+      'theme',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Preview bus'), findsNothing);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SettingsSidebar),
+        matching: find.byIcon(LucideIcons.x),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Preview bus'), findsOneWidget);
     expect(
       tester.widget<SettingsGlowFlash>(find.byType(SettingsGlowFlash)).active,
       isTrue,

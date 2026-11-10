@@ -47,6 +47,10 @@ class SettingsAudioPanel extends ConsumerWidget {
         SettingsSectionCard(
           title: l10n.settingsAudioEngineTitle,
           subtitle: l10n.settingsAudioEngineDescription,
+          searchTerms: [
+            l10n.settingsAudioResamplerQuality,
+            l10n.settingsAudioBufferSize,
+          ],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 16,

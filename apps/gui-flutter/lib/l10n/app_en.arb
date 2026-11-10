@@ -5,6 +5,23 @@
     "description": "Settings page header title"
   },
   "settingsSubtitle": "Saving restarts the engine automatically if it's running.",
+  "settingsSearchHint": "Search",
+  "@settingsSearchHint": {
+    "description": "Placeholder of the Settings sidebar search field"
+  },
+  "settingsSearchNoResults": "No matching settings",
+  "@settingsSearchNoResults": {
+    "description": "Shown when the Settings sidebar search matches no section"
+  },
+  "settingsSearchNoResultsFor": "No settings available for your \"{query}\"",
+  "@settingsSearchNoResultsFor": {
+    "description": "Shown in the settings content pane when the sidebar search matches no section",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "settingsLoading": "Loading settings…",
   "settingsCloseSemantics": "Close",
   "settingsSave": "Save",

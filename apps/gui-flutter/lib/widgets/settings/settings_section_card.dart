@@ -1,6 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/settings_search.dart';
 import 'package:gui_flutter/widgets/settings/settings_insets.dart';
+import 'package:gui_flutter/widgets/settings/settings_searchable_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -58,7 +60,8 @@ class _BodyClip extends CustomClipper<Rect> {
 /// Full-bleed band: no side chrome, only a top and bottom hairline, so cards
 /// stack as a striped list rather than separate boxes. It already owns its
 /// edges — do not wrap it in `MCard`, which would double the hairlines.
-class SettingsSectionCard extends StatelessWidget {
+class SettingsSectionCard extends StatelessWidget
+    implements SettingsSearchableCard {
   const new({
     required this.title,
     this.subtitle = '',
@@ -68,6 +71,7 @@ class SettingsSectionCard extends StatelessWidget {
     this.subtitleBuilder,
     this.titleBadge,
     this.decorated = true,
+    this.searchTerms = const [],
   });
 
   /// Paint the band chrome (card fill + top/bottom hairlines).
@@ -86,6 +90,21 @@ class SettingsSectionCard extends StatelessWidget {
   final Widget? titleBadge;
   final Widget? trailing;
   final Widget? child;
+
+  /// Field labels the card owns that are not in [title] or [subtitle].
+  ///
+  /// A section's `SettingsSection.searchTerms` surfaces the section for a
+  /// field-label query; these keep the card that owns the field visible once
+  /// the panel filters its cards, instead of showing only a sibling whose
+  /// title happens to match.
+  final List<String> searchTerms;
+
+  @override
+  bool matchesSettingsSearch(BuildContext context, String foldedQuery) =>
+      settingsSearchMatches(
+        '$title $subtitle ${searchTerms.join(' ')}',
+        foldedQuery,
+      );
 
   @override
   Widget build(BuildContext context) {

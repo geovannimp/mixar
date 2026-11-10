@@ -1,20 +1,139 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
+import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-class SettingsSidebar extends StatelessWidget {
-  const new({required this.active, required this.onSelect, super.key});
+/// The full-bleed filter band pinned above the settings nav list.
+///
+/// Tests read its decoration to check the idle/focused wash without depending
+/// on where the field sits in the column.
+const Key kSettingsSearchBandKey = ValueKey('settings-search-band');
+
+class SettingsSidebar extends StatefulWidget {
+  const new({
+    required this.active,
+    required this.onSelect,
+    required this.onSearchSelect,
+    required this.onQueryChanged,
+    super.key,
+  });
 
   final SettingsSection active;
   final ValueChanged<SettingsSection> onSelect;
 
+  /// Reports the live search text so the active panel can filter its cards.
+  final ValueChanged<String> onQueryChanged;
+
+  /// Selection changes the search makes on its own: auto-picking the first
+  /// match, or restoring the pre-search section when the query clears.
+  ///
+  /// Kept separate from [onSelect] because a programmatic move is not a user
+  /// pick — the page must not consume its one-shot deep-link glow. Required, so
+  /// a new host has to decide rather than inherit [onSelect] by omission.
+  final ValueChanged<SettingsSection> onSearchSelect;
+
+  @override
+  State<SettingsSidebar> createState() => _SettingsSidebarState();
+}
+
+class _SettingsSidebarState extends State<SettingsSidebar> {
+  final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  /// Section the user was on when the search first hid it.
+  ///
+  /// Typing filters the nav and may select a match; clearing the query puts the
+  /// user back where they started instead of stranding them on a section the
+  /// search picked. An explicit row press (or Enter) clears this: the user
+  /// chose that section, so it survives the clear.
+  SettingsSection? _sectionBeforeSearch;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocus.addListener(_onSearchFocusChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchFocus.removeListener(_onSearchFocusChanged);
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  /// The band's wash and hairline follow keyboard focus.
+  void _onSearchFocusChanged() => setState(() {});
+
+  void _select(SettingsSection section) {
+    _sectionBeforeSearch = null;
+    _searchFocus.unfocus();
+    widget.onSelect(section);
+  }
+
+  List<SettingsSection> _filteredSections(AppLocalizations l10n) =>
+      matchingSettingsSections(_searchController.text, l10n);
+
+  void _onSearchChanged(String query) {
+    setState(() {});
+    widget.onQueryChanged(query);
+    if (query.trim().isEmpty) {
+      _restoreSectionAfterSearch();
+      return;
+    }
+    _ensureSelectionMatches();
+  }
+
+  void _ensureSelectionMatches() {
+    final l10n = AppLocalizations.of(context)!;
+    final matches = _filteredSections(l10n);
+    if (matches.isEmpty || matches.contains(widget.active)) {
+      return;
+    }
+    _sectionBeforeSearch ??= widget.active;
+    _notifySearchSelection(matches.first);
+  }
+
+  /// Reports a search-driven move (auto-pick or restore) without the explicit
+  /// pick path, so callers can keep user-pick side effects out of it.
+  void _notifySearchSelection(SettingsSection section) =>
+      widget.onSearchSelect(section);
+
+  /// Returns to the section the search hid, if the query was cleared.
+  void _restoreSectionAfterSearch() {
+    final restore = _sectionBeforeSearch;
+    _sectionBeforeSearch = null;
+    if (restore != null) {
+      _notifySearchSelection(restore);
+    }
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {});
+    widget.onQueryChanged('');
+    _restoreSectionAfterSearch();
+    _searchFocus.requestFocus();
+  }
+
+  void _submitSearch(List<SettingsSection> matches) {
+    if (matches.isEmpty) {
+      return;
+    }
+    _select(matches.first);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final colors = theme.colors;
+    final searchFocused = _searchFocus.hasFocus;
     final l10n = AppLocalizations.of(context)!;
+    final matches = _filteredSections(l10n);
     return DecoratedBox(
       // Foreground: otherwise a selected / hovered nav item's fill covers the
       // divider along the sidebar's right edge.
@@ -24,19 +143,92 @@ class SettingsSidebar extends StatelessWidget {
       ),
       child: SizedBox(
         width: 176,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final section in kSettingsSections)
-                _SettingsNavItem(
-                  label: section.label(l10n),
-                  icon: _iconFor(section),
-                  selected: section == active,
-                  onPress: () => onSelect(section),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Pinned above the scrolling list: the filter is the first thing in
+            // the menu and stays reachable however far the sections scroll.
+            //
+            // Full-bleed and square, like the nav rows below it: rounded field
+            // chrome would read as a form control dropped into the column. The
+            // wash lifts one solid step (background → secondary → card) while
+            // the field owns the keyboard; the bottom hairline stays the
+            // sidebar's neutral divider in both states.
+            DecoratedBox(
+              key: kSettingsSearchBandKey,
+              decoration: BoxDecoration(
+                color: searchFocused ? colors.card : colors.secondary,
+                border: Border(
+                  bottom: BorderSide(
+                    color: colors.border,
+                    width: theme.style.borderWidth,
+                  ),
                 ),
-            ],
-          ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: MixarInput(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  hint: l10n.settingsSearchHint,
+                  borderless: true,
+                  style: theme.typography.body.sm,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  textInputAction: TextInputAction.search,
+                  leading: Icon(
+                    LucideIcons.search,
+                    size: 16,
+                    color: searchFocused
+                        ? colors.foreground
+                        : colors.mutedForeground,
+                  ),
+                  trailing: _searchController.text.isEmpty
+                      ? null
+                      : MTappable.child(
+                          onPress: _clearSearch,
+                          semanticsLabel: l10n.commonClear,
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              LucideIcons.x,
+                              size: 14,
+                              color: colors.mutedForeground,
+                            ),
+                          ),
+                        ),
+                  onChanged: _onSearchChanged,
+                  onSubmitted: (_) => _submitSearch(matches),
+                ),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (matches.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                        child: Text(
+                          l10n.settingsSearchNoResults,
+                          style: theme.typography.body.sm.copyWith(
+                            color: theme.colors.mutedForeground,
+                          ),
+                        ),
+                      )
+                    else
+                      for (final section in matches)
+                        _SettingsNavItem(
+                          label: section.label(l10n),
+                          icon: _iconFor(section),
+                          selected: section == widget.active,
+                          onPress: () => _select(section),
+                        ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

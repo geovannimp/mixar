@@ -90,6 +90,7 @@ class _SettingsControllersPanelState
         SettingsSectionCard(
           title: l10n.settingsControllersMappingsTitle,
           subtitle: l10n.settingsControllersMappingsDescription,
+          searchTerms: [l10n.settingsControllersAudio],
           trailing: AppButton(
             variant: .outline,
             size: .sm,
