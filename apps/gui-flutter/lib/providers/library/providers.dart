@@ -1340,15 +1340,16 @@ const _kSortNumericDigits = 16;
 /// so MIDI "load focused row" targets the row the user is looking at.
 final libraryTableTracksProvider =
     Provider<AsyncValue<List<LibraryTrackSummary>>>((ref) {
-      // Explicit type, not inferred: the switch mixes three AsyncValue
-      // sources, and without it the history arm's empty literal degrades the
-      // whole expression to Object/dynamic.
-      final AsyncValue<List<LibraryTrackSummary>> source = switch (ref.watch(
-        librarySourceTabProvider,
-      )) {
+      // The history arm types its empty list explicitly so the switch infers
+      // AsyncValue<List<LibraryTrackSummary>> on its own. A local type
+      // annotation does the same job, but `dart fix` strips locals
+      // (omit_local_variable_types) and takes the inference with it.
+      final source = switch (ref.watch(librarySourceTabProvider)) {
         LibrarySourceTab.collections => ref.watch(filteredTracksProvider),
         LibrarySourceTab.drive => ref.watch(driveTableTracksProvider),
-        LibrarySourceTab.history => const AsyncData([]),
+        LibrarySourceTab.history => const AsyncData<List<LibraryTrackSummary>>(
+          [],
+        ),
       };
       final (field, ascending) = ref.watch(librarySortProvider);
       return source.whenData(

@@ -1,7 +1,9 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/core/theme/mixar_palette.dart';
 import 'package:gui_flutter/core/utils/jog_ticks.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
@@ -32,12 +34,22 @@ bool debugReadJogPlatterDragging(State state) {
   return state.debugDragging;
 }
 
+/// Centre label diameter, as a fraction of the disc diameter. The needle takes
+/// its start from the same number, so it always begins at the label edge.
+const double _labelDiameterFraction = 0.36;
+
+/// Platter angles are tracked in degrees (matching the jog tick maths); the
+/// painter and the turning label both convert through here so they cannot
+/// drift apart.
+double _degreesToRadians(double degrees) => degrees * math.pi / 180;
+
 class JogPlatter extends StatefulWidget {
   const new({
     required this.accent,
     required this.playing,
     required this.hasTrack,
     this.bpm,
+    this.artwork,
     this.enabled = false,
     this.jogTouching = false,
     this.positionMs = 0,
@@ -52,6 +64,10 @@ class JogPlatter extends StatefulWidget {
   final bool playing;
   final double? bpm;
   final bool hasTrack;
+
+  /// Cover art for the centre label (the loaded track's artwork bytes). Null
+  /// falls back to a plain label disc.
+  final Uint8List? artwork;
   final bool enabled;
   final bool jogTouching;
   final int positionMs;
@@ -210,13 +226,18 @@ class _JogPlatterState extends State<JogPlatter> {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final accent = deckInk(widget.accent, theme.colors.brightness);
+    // Rim ring is neutral on purpose: the plate is the instrument, the deck's
+    // colour only marks the elapsed part of the ring and the touch state.
+    final ring = theme.colors.brightness == Brightness.dark
+        ? MixarZinc.s700
+        : MixarZinc.s300;
     final progress =
         widget.hasTrack && widget.durationMs != null && widget.durationMs! > 0
         ? (widget.positionMs / widget.durationMs!).clamp(0.0, 1.0)
         : 0.0;
 
     return Padding(
-      padding: const .symmetric(vertical: 12),
+      padding: const .symmetric(vertical: 8),
       child: Semantics(
         label: 'Jog wheel',
         child: AspectRatio(
@@ -224,25 +245,56 @@ class _JogPlatterState extends State<JogPlatter> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final size = Size(constraints.maxWidth, constraints.maxHeight);
-              return Listener(
-                behavior: HitTestBehavior.opaque,
-                onPointerDown: _interactive
-                    ? (e) => _pointerDown(e, size)
-                    : null,
-                onPointerMove: _interactive
-                    ? (e) => _pointerMove(e, size)
-                    : null,
-                onPointerUp: _interactive ? (_) => _pointerUp() : null,
-                onPointerCancel: _interactive ? (_) => _pointerUp() : null,
-                child: CustomPaint(
-                  painter: _JogPainter(
-                    border: theme.colors.border,
-                    fill: theme.colors.background.withValues(alpha: 0.9),
-                    accent: accent,
-                    progress: progress,
-                    rotationDeg: _rotationDeg,
-                    hasTrack: widget.hasTrack,
-                    touching: widget.jogTouching || _dragging,
+              final labelSide = size.shortestSide * _labelDiameterFraction;
+              return MouseRegion(
+                cursor: _interactive
+                    ? (_dragging
+                          ? SystemMouseCursors.grabbing
+                          : SystemMouseCursors.grab)
+                    : MouseCursor.defer,
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: _interactive
+                      ? (e) => _pointerDown(e, size)
+                      : null,
+                  onPointerMove: _interactive
+                      ? (e) => _pointerMove(e, size)
+                      : null,
+                  onPointerUp: _interactive ? (_) => _pointerUp() : null,
+                  onPointerCancel: _interactive ? (_) => _pointerUp() : null,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          painter: _JogPainter(
+                            border: theme.colors.border,
+                            plate: theme.colors.card,
+                            ring: ring,
+                            accent: accent,
+                            marker: theme.colors.foreground,
+                            progress: progress,
+                            rotationDeg: _rotationDeg,
+                            hasTrack: widget.hasTrack,
+                            touching: widget.jogTouching || _dragging,
+                          ),
+                        ),
+                      ),
+                      Center(
+                        child: SizedBox.square(
+                          dimension: labelSide,
+                          child: RepaintBoundary(
+                            child: _JogLabel(
+                              artwork: widget.artwork,
+                              fill: theme.colors.card,
+                              border: theme.colors.border,
+                              accent: widget.hasTrack ? accent : null,
+                              rotationDeg: _rotationDeg,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -254,11 +306,17 @@ class _JogPlatterState extends State<JogPlatter> {
   }
 }
 
+/// Draws the deck's platter: a flat dark disc, a thick neutral rim ring whose
+/// elapsed part is painted in the deck's colour, and a barred position marker.
+/// The centre label (track artwork) sits on top as a widget, so it turns with
+/// the record instead of being repainted here.
 class _JogPainter extends CustomPainter {
-  new({
+  const new({
     required this.border,
-    required this.fill,
+    required this.plate,
+    required this.ring,
     required this.accent,
+    required this.marker,
     required this.progress,
     required this.rotationDeg,
     required this.hasTrack,
@@ -266,69 +324,117 @@ class _JogPainter extends CustomPainter {
   });
 
   final Color border;
-  final Color fill;
+
+  /// Disc body over the panel floor.
+  final Color plate;
+
+  /// Neutral band that reads as the platter's rim.
+  final Color ring;
   final Color accent;
+
+  /// Ink for the position marker (`foreground`): the one near-white element on
+  /// the plate, so the angle reads first.
+  final Color marker;
   final double progress;
   final double rotationDeg;
   final bool hasTrack;
   final bool touching;
 
+  static const double _top = -math.pi / 2;
+
+  /// Rim ring: centre line and thickness, as fractions of the disc radius.
+  static const double _ringRadius = 0.90;
+  static const double _ringWidth = 0.12;
+
+  /// Below this sweep the elapsed arc is not worth a pixel: drawing it would
+  /// only stack stroke ends at 12 o'clock.
+  static const double _minSweep = 0.01;
+
+  /// Marker end, as a fraction of the radius: it runs into the rim ring, which
+  /// paints over its tip — so the needle reads as passing behind the ring
+  /// instead of stopping short of it. It ends inside the band (not past it) so
+  /// no tip pokes out at the disc edge. The start is derived from the label
+  /// size in [paint], so the needle always begins at the label edge.
+  static const double _markerEnd = 0.95;
+
   @override
   void paint(Canvas canvas, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
-    final r = size.shortestSide / 2;
-    canvas.drawCircle(c, r - 1.5, Paint()..color = fill);
+    final discR = size.shortestSide / 2 - 1.5;
+    if (discR <= 0) {
+      return;
+    }
+
+    // Flat plate: depth comes from the rim ring, not a gradient, so the wheel
+    // keeps the deck's flat-surface language.
+    canvas.drawCircle(c, discR, Paint()..color = plate);
+
+    // The label is a disc of `_labelDiameterFraction` of the size, so its
+    // radius in disc-radius units comes straight out of that same constant.
+    final markerStart = _labelDiameterFraction * size.shortestSide / 2 / discR;
+
+    // Marker first, so the rim ring and the elapsed arc paint over it: the
+    // needle reads as passing behind the ring instead of being clipped by it.
+    _paintMarker(canvas, c, discR, markerStart);
+
+    // Rim ring, and the elapsed part of it in the deck's colour.
+    final ringR = discR * _ringRadius;
+    final ringW = discR * _ringWidth;
     canvas.drawCircle(
       c,
-      r - 1.5,
+      ringR,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = touching ? 3 : 2
-        ..color = touching ? accent.withValues(alpha: 0.7) : border,
+        ..strokeWidth = ringW
+        ..color = ring,
     );
 
-    final ringR = r * 0.92;
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..color = accent.withValues(alpha: 0.12);
-    canvas.drawCircle(c, ringR, ring);
-    if (hasTrack && progress > 0) {
-      final sweep = progress * 2 * math.pi;
+    // Square ends: a round cap turns a near-zero sweep into a large dot at
+    // 12 o'clock, which reads as a stuck control at the very start of a track.
+    final sweep = hasTrack ? progress * 2 * math.pi : 0.0;
+    if (sweep > _minSweep) {
       canvas.drawArc(
         Rect.fromCircle(center: c, radius: ringR),
-        -math.pi / 2,
+        _top,
         sweep,
         false,
-        ring..color = accent.withValues(alpha: 0.55),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = ringW
+          ..color = accent,
       );
     }
 
+    // Bezel hairline: the disc edge, and the tell that a hand is on the wheel.
     canvas.drawCircle(
       c,
-      r * 0.72,
+      discR,
       Paint()
         ..style = PaintingStyle.stroke
-        ..color = border.withValues(alpha: 0.6),
+        ..strokeWidth = touching ? 2.5 : 1.5
+        ..color = touching ? accent : border,
     );
+  }
 
-    if (hasTrack) {
-      canvas.save();
-      canvas.translate(c.dx, c.dy);
-      canvas.rotate(rotationDeg * math.pi / 180);
-      canvas.drawLine(
-        Offset.zero,
-        Offset(0, -r * 0.38),
-        Paint()
-          ..color = accent
-          ..strokeWidth = 2
-          ..strokeCap = StrokeCap.round,
-      );
-      canvas.restore();
+  /// Position marker: a bar rather than a hairline, so the angle is readable
+  /// across a booth without adding weight to the rest of the wheel. [start] is
+  /// a fraction of [radius], taken from the centre label's edge.
+  void _paintMarker(Canvas canvas, Offset c, double radius, double start) {
+    if (!hasTrack) {
+      return;
     }
-
-    canvas.drawCircle(c, 3.5, Paint()..color = hasTrack ? accent : border);
+    canvas
+      ..save()
+      ..translate(c.dx, c.dy)
+      ..rotate(_degreesToRadians(rotationDeg))
+      ..drawLine(
+        Offset(0, -radius * start),
+        Offset(0, -radius * _markerEnd),
+        Paint()
+          ..color = marker
+          ..strokeWidth = math.max<double>(4, radius * 0.06),
+      )
+      ..restore();
   }
 
   @override
@@ -339,5 +445,72 @@ class _JogPainter extends CustomPainter {
       old.touching != touching ||
       old.accent != accent ||
       old.border != border ||
-      old.fill != fill;
+      old.plate != plate ||
+      old.ring != ring ||
+      old.marker != marker;
+}
+
+/// Centre label of the record: the loaded track's artwork clipped to a circle
+/// and turning with the platter. Without artwork it falls back to a plain label
+/// disc with one pin, so the centre never reads as empty.
+class _JogLabel extends StatelessWidget {
+  const new({
+    required this.artwork,
+    required this.fill,
+    required this.border,
+    required this.accent,
+    required this.rotationDeg,
+  });
+
+  final Uint8List? artwork;
+  final Color fill;
+  final Color border;
+
+  /// Null on an empty deck: the pin stays hairline-quiet.
+  final Color? accent;
+  final double rotationDeg;
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = artwork;
+    return DecoratedBox(
+      decoration: BoxDecoration(shape: BoxShape.circle, color: fill),
+      child: ClipOval(
+        // Empty bytes fail to decode just like corrupt ones, so both take the
+        // plain-label path rather than asking the decoder to guess.
+        child: bytes == null || bytes.isEmpty
+            ? _emptyLabel()
+            : Transform.rotate(
+                angle: _degreesToRadians(rotationDeg),
+                child: Image.memory(
+                  bytes,
+                  fit: BoxFit.cover,
+                  gaplessPlayback: true,
+                  // A corrupt cover must not blank the centre: fall back to
+                  // the same disc the empty deck draws.
+                  errorBuilder: (context, error, stackTrace) => _emptyLabel(),
+                ),
+              ),
+      ),
+    );
+  }
+
+  /// Plain label with one pin, turning with the record so it still reads as
+  /// spinning when there is no artwork to carry the motion.
+  Widget _emptyLabel() {
+    return Transform.rotate(
+      angle: _degreesToRadians(rotationDeg),
+      child: Center(
+        child: SizedBox.square(
+          dimension: 8,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent ?? border,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
