@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
+import 'package:gui_flutter/providers/library/artwork_cache.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/widgets/mixer/jog_platter.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -24,11 +25,20 @@ class DeckJogHost extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The deck's cover art, for the platter's centre label. DeckTrackInfo owns
+    // the prefetch for this same track id, so this read only has to pick the
+    // bytes up — a cold cache shows the plain label for a frame.
+    final trackId = ref.watch(deckTrackIdProvider(deckId));
+    final artwork = trackId == null
+        ? null
+        : ref.watch(artworkCacheProvider.select((cache) => cache[trackId]));
+
     return JogPlatter(
       accent: accent,
       playing: ref.watch(deckPlayingProvider(deckId)),
       bpm: ref.watch(deckBpmProvider(deckId)),
       hasTrack: hasTrack,
+      artwork: artwork,
       enabled: !disabled && hasTrack,
       jogTouching: ref.watch(deckJogTouchingProvider(deckId)),
       positionMs: ref.watch(deckPositionMsProvider(deckId)),
