@@ -82,7 +82,10 @@ class _SettingsNavItem extends StatelessWidget {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
+            // A roomier row than the default chrome: the nav is a long list
+            // read top to bottom, so taller rows and a wider icon gap keep the
+            // labels from crowding each other and the pane's edge.
+            padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
             child: Row(
               children: [
                 Icon(
@@ -92,7 +95,7 @@ class _SettingsNavItem extends StatelessWidget {
                   // label stays selection-foreground so it reads as chrome.
                   color: selected ? colors.primary : colors.mutedForeground,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     label,

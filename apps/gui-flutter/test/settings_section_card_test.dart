@@ -27,6 +27,46 @@ void main() {
     expect(find.byType(Row), findsNothing);
   }, semanticsEnabled: false);
 
+  testWidgets('rules off the header from its fields', (tester) async {
+    Future<void> pump({Widget? child, bool decorated = true}) =>
+        tester.pumpWidget(
+          mixarTestMaterialApp(
+            theme: MixarThemeData.dark(),
+            home: Scaffold(
+              body: SettingsSectionCard(
+                title: 'Theme',
+                subtitle:
+                    'Brightness and the accent color used by brand chrome.',
+                decorated: decorated,
+                child: child,
+              ),
+            ),
+          ),
+        );
+
+    await pump(child: const Text('field-body'));
+    final card = tester.getRect(find.byType(SettingsSectionCard));
+    final title = tester.getRect(find.text('Theme'));
+    final rule = tester.getRect(find.byKey(settingsCardRuleKey));
+    final body = tester.getRect(find.text('field-body'));
+
+    // Full-bleed, like the card's own hairlines, and between the two blocks.
+    expect(rule.width, card.width);
+    expect(rule.top, greaterThan(title.bottom));
+    expect(body.top, greaterThan(rule.bottom));
+
+    // Header-only cards (toggle off, nothing to configure) have no body and
+    // must not show a stray line once the fields have collapsed away.
+    await pump();
+    await tester.pumpAndSettle();
+    expect(find.byKey(settingsCardRuleKey), findsNothing);
+
+    // The setup stage turns the band off; the rule is band chrome too.
+    await pump(child: const Text('field-body'), decorated: false);
+    expect(find.byKey(settingsCardRuleKey), findsNothing);
+    expect(find.text('field-body'), findsOneWidget);
+  }, semanticsEnabled: false);
+
   testWidgets(
     'lines a narrow body up with the header instead of centering it',
     (tester) async {

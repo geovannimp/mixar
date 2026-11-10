@@ -6,6 +6,7 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/widgets/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/widgets/settings/rekordbox_import_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_insets.dart';
 import 'package:gui_flutter/widgets/settings/settings_integrations_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_library_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
@@ -203,6 +204,21 @@ void main() {
     final scroll = tester.getRect(find.byKey(kSettingsContentScrollKey));
     final header = tester.getRect(find.byType(SettingsSectionHeader).first);
     expect(header.top - scroll.top, card.top - header.bottom);
+
+    // The bands have no side chrome, so the inset is the only breathing room:
+    // the section header and the card's fields share it.
+    void expectCardInset(Finder finder) => expect(
+      tester.getTopLeft(finder).dx - card.left,
+      settingsCardSideInset,
+      reason: 'content shares the card side inset',
+    );
+    expectCardInset(find.text('Theme'));
+    expectCardInset(
+      find.descendant(
+        of: find.byType(SettingsSectionHeader).first,
+        matching: find.text('UI'),
+      ),
+    );
   }, semanticsEnabled: false);
 
   testWidgets('section body renders the before slot above the cards', (
