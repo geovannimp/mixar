@@ -202,51 +202,73 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 color: theme.colors.card,
                 border: Border(bottom: BorderSide(color: theme.colors.border)),
               ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 24, 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 12,
-                  children: [
-                    if (widget.onClose != null)
-                      AppButton.icon(
-                        variant: .ghost,
-                        size: .sm,
-                        semanticsLabel: l10n.settingsCloseSemantics,
-                        onPress: _busy ? null : () => _close(dirty),
-                        child: const Icon(LucideIcons.x),
-                      ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.settingsTitle,
-                            style: theme.typography.body.xs.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 2,
-                            ),
+              // IntrinsicHeight lets the close button stretch to the header's
+              // full height (the row itself sits in an unbounded Column).
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 0, 24, 0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (widget.onClose != null)
+                        // Square corner cell: the row stretch gives it the
+                        // header height, and the ratio turns that into width.
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: AppButton.icon(
+                            variant: .ghost,
+                            size: .sm,
+                            semanticsLabel: l10n.settingsCloseSemantics,
+                            onPress: _busy ? null : () => _close(dirty),
+                            child: const Icon(LucideIcons.x),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            l10n.settingsSubtitle,
-                            style: theme.typography.body.sm.copyWith(
-                              color: theme.colors.mutedForeground,
-                            ),
+                        ),
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            widget.onClose == null ? 12 : 4,
+                            12,
+                            0,
+                            12,
                           ),
-                        ],
-                      ),
-                    ),
-                    if (dirty)
-                      AppButton(
-                        size: .sm,
-                        mainAxisSize: .min,
-                        onPress: _busy ? null : () => _save(draft),
-                        child: Text(
-                          _busy ? l10n.settingsSaving : l10n.settingsSave,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.settingsTitle,
+                                style: theme.typography.body.xs.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                l10n.settingsSubtitle,
+                                style: theme.typography.body.sm.copyWith(
+                                  color: theme.colors.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                  ],
+                      if (dirty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: AppButton(
+                              size: .sm,
+                              mainAxisSize: .min,
+                              onPress: _busy ? null : () => _save(draft),
+                              child: Text(
+                                _busy ? l10n.settingsSaving : l10n.settingsSave,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),

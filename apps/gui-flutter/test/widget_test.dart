@@ -1080,6 +1080,40 @@ void main() {
     }
   });
 
+  testWidgets('settings close button fills the header corner', (tester) async {
+    await pumpShell(tester);
+    await tester.tap(find.byIcon(LucideIcons.settings));
+    await tester.pumpAndSettle();
+
+    final header = find
+        .ancestor(
+          of: find.text('SETTINGS'),
+          matching: find.byType(DecoratedBox),
+        )
+        .first;
+    final close = find
+        .descendant(
+          of: header,
+          matching: find.widgetWithIcon(AppButton, LucideIcons.x),
+        )
+        .first;
+
+    final headerRect = tester.getRect(header);
+    final closeRect = tester.getRect(close);
+    final titleRect = tester.getRect(find.text('SETTINGS'));
+
+    expect(closeRect.top, moreOrLessEquals(headerRect.top));
+    expect(closeRect.bottom, moreOrLessEquals(headerRect.bottom));
+    expect(closeRect.height, greaterThan(32));
+    expect(closeRect.left, moreOrLessEquals(headerRect.left));
+    expect(closeRect.width, moreOrLessEquals(closeRect.height));
+    expect(
+      titleRect.left - headerRect.left,
+      moreOrLessEquals(closeRect.width + 4),
+      reason: 'the square close cell keeps a 4px gap before the title',
+    );
+  });
+
   testWidgets('stacked decks are split by a hairline across the column', (
     tester,
   ) async {
