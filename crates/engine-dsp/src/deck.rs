@@ -452,6 +452,8 @@ impl Deck {
 
     /// Pause playback
     pub fn pause(&mut self) -> Result<()> {
+        // A pause pressed while the platter is held cuts instantly: the brake is
+        // never deferred to the release (see `set_jog_touch`).
         if self.state == DeckState::Playing && self.vinyl_brake_enabled && !self.motion.touching() {
             self.start_brake();
         }
@@ -638,16 +640,9 @@ impl Deck {
             // Slip cursor arms at scratch start; idle playback keeps none.
             self.shadow_position_frac = Some(self.position_frac);
         }
-        // Lifting the finger off a deck paused under brake must still spin the
-        // platter down; otherwise the pause that happened while holding the jog
-        // cuts instantly on release.
-        if !touching
-            && self.state == DeckState::Paused
-            && self.vinyl_brake_enabled
-            && self.brake.is_none()
-        {
-            self.start_brake();
-        }
+        // A release never starts a brake: the brake belongs to the transport
+        // Pause gesture alone. Lifting the platter on an already-paused deck must
+        // stay silent instead of spinning audio down a second time.
     }
 
     pub fn jog_turn(&mut self, delta: i32) {
@@ -3792,9 +3787,9 @@ mod tests {
     }
 
     #[test]
-    fn vinyl_brake_starts_when_platter_released_after_paused_touch() {
+    fn vinyl_brake_does_not_start_on_platter_release_after_paused_touch() {
         let mut deck = brake_test_deck();
-        // Pause while the finger owns the platter: no brake may start yet.
+        // Pause while the finger owns the platter: no brake starts.
         deck.set_jog_touch(true);
         deck.pause().unwrap();
         assert!(deck.brake.is_none(), "touch suppresses the brake");
@@ -3808,20 +3803,19 @@ mod tests {
         deck.set_jog_touch(false);
 
         assert!(
-            deck.brake.is_some(),
-            "releasing a paused platter must start the brake"
+            deck.brake.is_none(),
+            "releasing a paused platter must not start a brake"
         );
+        assert!(!deck.jog_driving_audio(), "released paused deck is idle");
         assert_eq!(deck.state, DeckState::Paused);
-        let mut elapsed = 0usize;
-        while elapsed < ENGINE_RATE as usize / 2 {
-            assert!(
-                deck.jog_driving_audio(),
-                "brake must drive audio at elapsed {elapsed}"
-            );
-            deck.process(CHUNK).unwrap();
-            elapsed += CHUNK;
-        }
-        assert!(!deck.jog_driving_audio(), "brake ends after stop_secs");
+        let position = deck.position_frames();
+        let out = deck.process(CHUNK).unwrap();
+        assert!(out.iter().all(|s| *s == 0.0), "paused deck stays silent");
+        assert_eq!(
+            deck.position_frames(),
+            position,
+            "a released paused deck must not keep moving"
+        );
     }
 
     #[test]
