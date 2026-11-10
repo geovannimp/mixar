@@ -34,6 +34,10 @@ bool debugReadJogPlatterDragging(State state) {
   return state.debugDragging;
 }
 
+/// Centre label diameter, as a fraction of the disc diameter. The needle takes
+/// its start from the same number, so it always begins at the label edge.
+const double _labelDiameterFraction = 0.36;
+
 /// Platter angles are tracked in degrees (matching the jog tick maths); the
 /// painter and the turning label both convert through here so they cannot
 /// drift apart.
@@ -241,8 +245,7 @@ class _JogPlatterState extends State<JogPlatter> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final size = Size(constraints.maxWidth, constraints.maxHeight);
-              // Vinyl label: about a third of the disc, turning with it.
-              final labelSide = size.shortestSide * 0.36;
+              final labelSide = size.shortestSide * _labelDiameterFraction;
               return MouseRegion(
                 cursor: _interactive
                     ? (_dragging
@@ -347,11 +350,11 @@ class _JogPainter extends CustomPainter {
   /// only stack stroke ends at 12 o'clock.
   static const double _minSweep = 0.01;
 
-  /// Marker span, as fractions of the radius: it leaves the label edge and
-  /// runs into the rim ring, which paints over its tip — so the needle reads
-  /// as passing behind the ring instead of stopping short of it. It ends
-  /// inside the band (not past it) so no tip pokes out at the disc edge.
-  static const double _markerStart = 0.24;
+  /// Marker end, as a fraction of the radius: it runs into the rim ring, which
+  /// paints over its tip — so the needle reads as passing behind the ring
+  /// instead of stopping short of it. It ends inside the band (not past it) so
+  /// no tip pokes out at the disc edge. The start is derived from the label
+  /// size in [paint], so the needle always begins at the label edge.
   static const double _markerEnd = 0.95;
 
   @override
@@ -366,9 +369,13 @@ class _JogPainter extends CustomPainter {
     // keeps the deck's flat-surface language.
     canvas.drawCircle(c, discR, Paint()..color = plate);
 
+    // The label is a disc of `_labelDiameterFraction` of the size, so its
+    // radius in disc-radius units comes straight out of that same constant.
+    final markerStart = _labelDiameterFraction * size.shortestSide / 2 / discR;
+
     // Marker first, so the rim ring and the elapsed arc paint over it: the
     // needle reads as passing behind the ring instead of being clipped by it.
-    _paintMarker(canvas, c, discR);
+    _paintMarker(canvas, c, discR, markerStart);
 
     // Rim ring, and the elapsed part of it in the deck's colour.
     final ringR = discR * _ringRadius;
@@ -410,8 +417,9 @@ class _JogPainter extends CustomPainter {
   }
 
   /// Position marker: a bar rather than a hairline, so the angle is readable
-  /// across a booth without adding weight to the rest of the wheel.
-  void _paintMarker(Canvas canvas, Offset c, double radius) {
+  /// across a booth without adding weight to the rest of the wheel. [start] is
+  /// a fraction of [radius], taken from the centre label's edge.
+  void _paintMarker(Canvas canvas, Offset c, double radius, double start) {
     if (!hasTrack) {
       return;
     }
@@ -420,7 +428,7 @@ class _JogPainter extends CustomPainter {
       ..translate(c.dx, c.dy)
       ..rotate(_degreesToRadians(rotationDeg))
       ..drawLine(
-        Offset(0, -radius * _markerStart),
+        Offset(0, -radius * start),
         Offset(0, -radius * _markerEnd),
         Paint()
           ..color = marker
