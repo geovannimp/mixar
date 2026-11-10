@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// Phase shift applied when nudging the beat grid (matches Serato/Traktor fine nudge).
@@ -27,6 +28,7 @@ double? parseGridBpm(String raw) {
   return v.clamp(20.01, 399.99);
 }
 
+@immutable
 class BeatMark {
   const new({required this.x, required this.isBar});
 

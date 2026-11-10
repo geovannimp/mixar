@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Matches `codec` `SUPPORTED_AUDIO_EXTENSIONS`.
 const supportedAudioExtensions = [
   'mp3',
@@ -17,6 +19,7 @@ enum TrackDragSource { library, filesystem }
 
 enum TrackLoadKind { library, path }
 
+@immutable
 class TrackDragPayload {
   const new({
     required this.source,

@@ -13,6 +13,7 @@ import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
         SyncMode;
 import 'package:gui_flutter/widgets/mixer/level_meter.dart';
 
+@immutable
 class MixerChannelUi {
   const new({
     this.volume = 1.0,
@@ -28,25 +29,6 @@ class MixerChannelUi {
     this.headphoneCue = false,
     this.crossfaderAssign = CrossfaderAssign.a,
   });
-
-  static const defaults = MixerChannelUi();
-
-  final double volume;
-  final double eqLow;
-  final double eqMid;
-  final double eqHigh;
-
-  /// Stem EQ positions, shown instead of the channel EQ while the deck's stem
-  /// EQ toggle is on and it is really playing stems.
-  final double stemEqLow;
-  final double stemEqMid;
-  final double stemEqHigh;
-
-  final double filter;
-  final double gainTrim;
-  final bool fxRouted;
-  final bool headphoneCue;
-  final CrossfaderAssign crossfaderAssign;
 
   /// Channel state from a full deck snapshot.
   factory fromDeckUpdate(bus.DeckUpdated update) {
@@ -67,6 +49,25 @@ class MixerChannelUi {
       crossfaderAssign: update.crossfaderAssign,
     );
   }
+
+  static const defaults = MixerChannelUi();
+
+  final double volume;
+  final double eqLow;
+  final double eqMid;
+  final double eqHigh;
+
+  /// Stem EQ positions, shown instead of the channel EQ while the deck's stem
+  /// EQ toggle is on and it is really playing stems.
+  final double stemEqLow;
+  final double stemEqMid;
+  final double stemEqHigh;
+
+  final double filter;
+  final double gainTrim;
+  final bool fxRouted;
+  final bool headphoneCue;
+  final CrossfaderAssign crossfaderAssign;
 
   /// Optimistic write for the FX routing switch (engine evts supersede it).
   MixerChannelUi withFxRouted(bool value) => MixerChannelUi(

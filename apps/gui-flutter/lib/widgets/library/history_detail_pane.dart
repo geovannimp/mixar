@@ -189,6 +189,7 @@ class HistoryDetailPane extends ConsumerWidget {
       // Read the transport before any await: `ref` may be gone once the
       // dialogs return, and a disposed widget must not be touched again.
       final transport = await ref.read(libraryTransportProvider.future);
+      if (!context.mounted) return;
       final format = await showMixarDialog<HistoryExportFormatSetting?>(
         context: context,
         builder: (context) {

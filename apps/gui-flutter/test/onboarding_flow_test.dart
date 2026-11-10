@@ -494,7 +494,7 @@ void main() {
       tester,
       settings: FakeSettingsTransport(
         defaultAppSettings(),
-        saveError: StateError('disk full'),
+        saveError: Exception('disk full'),
       ),
     );
 

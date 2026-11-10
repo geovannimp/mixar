@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:anchor_ui/anchor_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
@@ -37,15 +39,17 @@ class MenuDialogController extends MixarOverlayController {
       return;
     }
     _dialogFuture = future;
-    future.whenComplete(() {
-      if (!identical(_dialogFuture, future)) return;
-      _dialogFuture = null;
-      _dialogNavigator = null;
-      if (_disposed) return;
-      if (!_open) return;
-      _open = false;
-      _notify();
-    });
+    unawaited(
+      future.whenComplete(() {
+        if (!identical(_dialogFuture, future)) return;
+        _dialogFuture = null;
+        _dialogNavigator = null;
+        if (_disposed) return;
+        if (!_open) return;
+        _open = false;
+        _notify();
+      }),
+    );
   }
 
   @override
@@ -84,7 +88,7 @@ class MenuDialogController extends MixarOverlayController {
 
 /// Primary-button outside tap dismisses (manual [Anchor] has no TapRegion dismiss).
 class MixarOverlayDismissBackdrop extends StatelessWidget {
-  const new({required this.onDismiss});
+  const new({required this.onDismiss, super.key});
 
   final VoidCallback onDismiss;
 

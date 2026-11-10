@@ -35,7 +35,8 @@ analyzer:
 
 linter:
   # Override rules from very_good_analysis here as needed.
-  # Suppress at line/file with // ignore: rule_name or // ignore_for_file: rule_name.
+  # Suppress at line/file with // ignore: rule_name or
+  # // ignore_for_file: rule_name.
   rules:
     # App package: skip public API docs noise.
     public_member_api_docs: false
@@ -43,7 +44,17 @@ linter:
     # setter preference fights that and riverpod_lint's
     # avoid_public_notifier_properties.
     use_setters_to_change_properties: false
-    # Explicit types are load-bearing in a few switches: without the annotation
-    # an `AsyncData([])` arm degrades the whole expression to Object, so the
-    # `dart fix --apply` quickfix for this lint breaks compilation.
+    # Explicit local types are load-bearing in a few switches: `dart fix`
+    # applied this rule to libraryTableTracksProvider and degraded its
+    # three-arm AsyncValue switch to Object/dynamic (an `AsyncData([])` arm
+    # has no type to infer from), so the quickfix broke compilation twice
+    # with `whenData` undefined and argument_type_not_assignable.
+    # Inference-sensitive code keeps its annotation on purpose.
     omit_local_variable_types: false
+    # Forces explicit types onto public Riverpod declarations, which means
+    # naming ProviderFamily / NotifierProviderFamily. Those are only reachable
+    # via package:riverpod/src/..., so the rule manufactures
+    # `implementation_imports` + `depend_on_referenced_packages` diagnostics,
+    # and `dart fix` answers those by adding an unpinned `riverpod: any`
+    # dependency. Not worth 22 annotations on provider declarations.
+    specify_nonobvious_property_types: false

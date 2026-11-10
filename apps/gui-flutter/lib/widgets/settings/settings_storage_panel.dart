@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
@@ -34,7 +36,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
   @override
   void initState() {
     super.initState();
-    _refresh();
+    unawaited(_refresh());
   }
 
   Future<void> _refresh() async {
@@ -75,11 +77,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
           value: false,
           variant: MixarButtonVariant.outline,
         ),
-        MixarDialogAction(
-          label: l10n.commonSync,
-          value: true,
-          variant: MixarButtonVariant.primary,
-        ),
+        MixarDialogAction(label: l10n.commonSync, value: true),
       ],
     );
     if (confirmed != true || !mounted) {
@@ -234,7 +232,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
                     color: _kStemCacheColor,
                     label: l10n.settingsStorageStemCache,
                     sizeLabel: ready ? formatStorageBytes(stems) : '…',
-                    onSync: !clearEnabled ? null : () => _confirmSyncStems(),
+                    onSync: !clearEnabled ? null : _confirmSyncStems,
                     onClear: !clearEnabled
                         ? null
                         : () => _confirmClear(

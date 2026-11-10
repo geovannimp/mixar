@@ -40,7 +40,7 @@ void main() {
 
   Future<({FakeLibraryTransport transport, int Function() loads})> pumpPane(
     WidgetTester tester, {
-    Object? addError,
+    Exception? addError,
   }) async {
     final transport = FakeLibraryTransport(collections: collections)
       ..addCollectionEntryError = addError;

@@ -18,7 +18,7 @@ const _playlist = LibraryCollectionSummary(
   trackCount: 3,
 );
 
-FakeLibraryTransport _newTransport({Object? deleteCollectionError}) {
+FakeLibraryTransport _newTransport({Exception? deleteCollectionError}) {
   final transport = FakeLibraryTransport(
     collections: const [_playlist],
     deleteCollectionError: deleteCollectionError,
