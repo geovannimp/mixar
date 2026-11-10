@@ -7,6 +7,22 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 /// breathing room kept below a revealed body.
 const _cardInset = 16.0;
 
+/// Horizontal inset inside a card: the gap between a field (or the card title)
+/// and the band's hairline edges.
+///
+/// Wider than [_cardInset] because the bands run full-bleed to the pane edges:
+/// the sides have no outer margin to breathe, so the content needs more room
+/// than the top and bottom, which already sit next to another band.
+///
+/// The section header above the first card uses the same inset, so titles
+/// across the page share one left edge.
+const settingsCardSideInset = 24.0;
+
+/// Key for the hairline a decorated card paints between its header and fields.
+///
+/// Tests use it to check the rule spans the band and disappears with the body.
+const Key settingsCardRuleKey = ValueKey('settings-card-rule');
+
 /// Room the collapsing body keeps outside its own box.
 ///
 /// Fields paint their focus ring outside their bounds (shad inflates the ring
@@ -85,29 +101,28 @@ class SettingsSectionCard extends StatelessWidget {
       color: theme.colors.border,
       width: theme.style.borderWidth,
     );
-    Widget content({required EdgeInsets padding}) => Padding(
-      padding: padding,
-      child: Column(
-        crossAxisAlignment: .start,
-        children: [
-          if (trailing == null)
-            header
-          else
-            Row(
-              crossAxisAlignment: .start,
-              spacing: 12,
-              children: [
-                Expanded(child: header),
-                trailing!,
-              ],
-            ),
-          _CollapsibleCardBody(child: child),
-        ],
-      ),
-    );
+    Widget headerRow() => trailing == null
+        ? header
+        : Row(
+            crossAxisAlignment: .start,
+            spacing: 12,
+            children: [
+              Expanded(child: header),
+              trailing!,
+            ],
+          );
 
     if (!decorated) {
-      return content(padding: const EdgeInsets.symmetric(vertical: _cardInset));
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: _cardInset),
+        child: Column(
+          crossAxisAlignment: .start,
+          children: [
+            headerRow(),
+            _CollapsibleCardBody(child: child),
+          ],
+        ),
+      );
     }
     // Foreground border: the card fill would otherwise paint over the stroke,
     // and it costs no layout space between stacked cards.
@@ -118,7 +133,32 @@ class SettingsSectionCard extends StatelessWidget {
       ),
       child: ColoredBox(
         color: theme.colors.card,
-        child: content(padding: const EdgeInsets.all(_cardInset)),
+        // The header keeps its own inset so the rule under it can run the full
+        // band width, matching the card's own hairlines.
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: settingsCardSideInset,
+                vertical: _cardInset,
+              ),
+              child: headerRow(),
+            ),
+            _CollapsibleCardBody(
+              showRule: true,
+              // The rule spans the band, so the fields carry the band's side
+              // and bottom inset themselves instead of the card padding them.
+              contentPadding: const EdgeInsets.fromLTRB(
+                settingsCardSideInset,
+                _cardInset,
+                settingsCardSideInset,
+                _cardInset,
+              ),
+              child: child,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -131,9 +171,22 @@ class SettingsSectionCard extends StatelessWidget {
 /// absent the transition still sits in the tree at zero height, so the first
 /// open animates too.
 class _CollapsibleCardBody extends StatefulWidget {
-  const new({this.child});
+  const new({this.child, this.contentPadding, this.showRule = false});
 
   final Widget? child;
+
+  /// Space around the fields; the header already owns its own inset.
+  ///
+  /// Defaults to the top gap only, for cards that sit inside a padded stage.
+  final EdgeInsets? contentPadding;
+
+  /// Paints a hairline across the full body width, above the fields: the card
+  /// header (title + subtitle) reads as its own band instead of running into
+  /// the first field.
+  ///
+  /// The rule lives inside the collapsible body so a card whose fields are
+  /// hidden shows no stray line, and it fades and shrinks with them.
+  final bool showRule;
 
   @override
   State<_CollapsibleCardBody> createState() => _CollapsibleCardBodyState();
@@ -308,6 +361,7 @@ class _CollapsibleCardBodyState extends State<_CollapsibleCardBody>
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
     final body = _body;
     return ClipRect(
       clipper: const _BodyClip(),
@@ -331,9 +385,27 @@ class _CollapsibleCardBodyState extends State<_CollapsibleCardBody>
                   child: IgnorePointer(
                     // Collapsing fields must not take taps.
                     ignoring: widget.child == null,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: _cardInset),
-                      child: body,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (widget.showRule)
+                          // Full band width, like the card's own hairlines; the
+                          // fields below keep their intrinsic width so a short
+                          // body still hugs the left edge.
+                          SizedBox(
+                            key: settingsCardRuleKey,
+                            width: double.infinity,
+                            height: theme.style.borderWidth,
+                            child: ColoredBox(color: theme.colors.border),
+                          ),
+                        Padding(
+                          padding:
+                              widget.contentPadding ??
+                              const EdgeInsets.only(top: _cardInset),
+                          child: body,
+                        ),
+                      ],
                     ),
                   ),
                 ),

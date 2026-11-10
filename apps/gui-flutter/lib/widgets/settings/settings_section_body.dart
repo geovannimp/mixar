@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_header.dart';
 
 /// Full-bleed settings section: an inset header above cards that run to the
@@ -35,13 +36,20 @@ class SettingsSectionBody extends StatelessWidget {
       children: [
         // Only the header keeps the horizontal inset; the cards are full-bleed.
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: settingsCardSideInset,
+          ),
           child: SettingsSectionHeader(title: title, description: description),
         ),
         const SizedBox(height: _headerGap),
         if (before != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, _headerGap),
+            padding: const EdgeInsets.fromLTRB(
+              settingsCardSideInset,
+              0,
+              settingsCardSideInset,
+              _headerGap,
+            ),
             child: before,
           ),
         Column(
