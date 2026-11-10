@@ -41,6 +41,91 @@ class BeatMark {
   int get hashCode => Object.hash(x, isBar);
 }
 
+/// Beats per bar implied by the downbeat spacing, so arrows land on real bar
+/// starts in 3/4 or 7/8 instead of assuming 4/4. Falls back to 4 when the grid
+/// carries fewer than two downbeats.
+int beatsPerBarFrom({required List<double> downbeats, double? bpm}) {
+  final gridBpm = bpm;
+  if (downbeats.length < 2 ||
+      gridBpm == null ||
+      !(gridBpm > 20 && gridBpm < 400)) {
+    return 4;
+  }
+  final barSecs = downbeats[1] - downbeats[0];
+  final beatSecs = 60 / gridBpm;
+  if (!(barSecs > 0) || !(beatSecs > 0)) {
+    return 4;
+  }
+  return (barSecs / beatSecs).round().clamp(1, 16);
+}
+
+/// Bar period in ms: the meter times `bpm` when the BPM is usable, so arrows
+/// share the period of the beat grid lines instead of trusting a single
+/// downbeat pair. Falls back to the stored downbeat spacing when the track has
+/// no BPM.
+double? barPeriodMs({required List<double> downbeats, double? bpm}) {
+  final gridBpm = bpm;
+  if (gridBpm != null && gridBpm > 20 && gridBpm < 400) {
+    return beatsPerBarFrom(downbeats: downbeats, bpm: gridBpm) *
+        60_000 /
+        gridBpm;
+  }
+  if (downbeats.length >= 2) {
+    final spacingMs = (downbeats[1] - downbeats[0]) * 1000;
+    if (spacingMs > 0) {
+      return spacingMs;
+    }
+  }
+  return null;
+}
+
+/// X positions of the phase arrows in the scrolling buffer (origin at the left
+/// edge): one arrow per bar, anchored on the first downbeat rather than the
+/// track start.
+///
+/// The stored grid only covers the analyzed span (often the first 30 s), so the
+/// arrows are stepped from the bar period across the whole buffer instead of
+/// stopping with the stored downbeats. The first downbeat sets the phase; the
+/// meter comes from the downbeat spacing, falling back to 4/4 from `bpm` and
+/// `firstBeatSecs`.
+List<double> phaseMarkXs({
+  required double? bpm,
+  required List<double> downbeatsSecs,
+  required double firstBeatSecs,
+  required double originMs,
+  required double spanMs,
+  required double width,
+}) {
+  if (spanMs <= 0 || width <= 0) {
+    return const [];
+  }
+  final barMs = barPeriodMs(downbeats: downbeatsSecs, bpm: bpm);
+  if (barMs == null || !(barMs > 0)) {
+    return const [];
+  }
+  final anchorMs = downbeatsSecs.isNotEmpty
+      ? downbeatsSecs.first * 1000
+      : firstBeatSecs * 1000;
+  final pxPerMs = width / spanMs;
+  final endMs = originMs + spanMs;
+  final marks = <double>[];
+  var index = ((originMs - anchorMs) / barMs).ceil();
+  if (index < 0) {
+    index = 0;
+  }
+  for (var n = 0; n < 10000; n++, index++) {
+    final ms = anchorMs + index * barMs;
+    if (ms > endMs + 1e-6) {
+      break;
+    }
+    final x = (ms - originMs) * pxPerMs;
+    if (x >= 0 && x <= width) {
+      marks.add(x);
+    }
+  }
+  return marks;
+}
+
 /// Beat x positions in the scrolling buffer (origin at the left edge).
 ///
 /// shortcut: constant-tempo grid. Beats are extrapolated from `bpm` and a

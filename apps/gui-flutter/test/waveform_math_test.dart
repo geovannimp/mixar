@@ -179,6 +179,110 @@ void main() {
     },
   );
 
+  test('phaseMarkXs anchors on the first downbeat, one arrow per bar', () {
+    // 120 bpm, 4/4: one bar every 2 s, so arrows run 2 s apart from the first
+    // downbeat (1 s here), never before it.
+    final xs = phaseMarkXs(
+      bpm: 120,
+      downbeatsSecs: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19],
+      firstBeatSecs: 1,
+      originMs: 0,
+      spanMs: 40_000,
+      width: 400,
+    );
+    expect(xs.take(4), [
+      closeTo(10, 1e-6), // 1 s
+      closeTo(30, 1e-6), // 3 s
+      closeTo(50, 1e-6), // 5 s
+      closeTo(70, 1e-6), // 7 s
+    ]);
+    // Extrapolated past the stored downbeats (they stop at 19 s).
+    expect(xs, hasLength(20));
+    expect(xs.last, closeTo(390, 1e-6)); // 39 s
+  });
+
+  test('phaseMarkXs keeps arrowing past the analyzed span', () {
+    // Stored grids stop at the analysis window (30 s here) on a 200 s track:
+    // arrows still run the whole buffer at the detected 4/4 bar period.
+    final xs = phaseMarkXs(
+      bpm: 96,
+      downbeatsSecs: [for (var i = 0; i < 12; i++) 0.6888549 + 2.5 * i],
+      firstBeatSecs: 0.06385487,
+      originMs: 0,
+      spanMs: 200_000,
+      width: 200,
+    );
+    // 1 bar at 96 bpm = 2.5 s = 2.5 px here.
+    expect(xs, hasLength(80));
+    expect(xs.first, closeTo(0.69, 0.01));
+    expect(xs.last, closeTo(198.19, 0.01));
+    for (var i = 1; i < xs.length; i++) {
+      expect(xs[i] - xs[i - 1], closeTo(2.5, 1e-6));
+    }
+  });
+
+  test('phaseMarkXs follows the meter in the downbeats, not 4/4', () {
+    // 3/4 at 60 bpm: downbeats every 3 s, so arrows land every 3 s.
+    final xs = phaseMarkXs(
+      bpm: 60,
+      downbeatsSecs: [0, 3, 6, 9, 12, 15, 18, 21, 24],
+      firstBeatSecs: 0,
+      originMs: 0,
+      spanMs: 30_000,
+      width: 300,
+    );
+    expect(xs.take(3), [
+      closeTo(0, 1e-6),
+      closeTo(30, 1e-6),
+      closeTo(60, 1e-6),
+    ]);
+    // 0..30 s inclusive, one bar (3 s) each.
+    expect(xs, hasLength(11));
+    expect(beatsPerBarFrom(downbeats: [0, 3, 6], bpm: 60), 3);
+  });
+
+  test('phaseMarkXs falls back to an even 4/4 grid without downbeats', () {
+    // 120 bpm, no downbeats: first bar at the first beat, one arrow per bar.
+    final xs = phaseMarkXs(
+      bpm: 120,
+      downbeatsSecs: const [],
+      firstBeatSecs: 0.5,
+      originMs: 0,
+      spanMs: 20_000,
+      width: 200,
+    );
+    expect(xs.take(3), [
+      closeTo(5, 1e-6),
+      closeTo(25, 1e-6),
+      closeTo(45, 1e-6),
+    ]);
+    expect(xs, hasLength(10));
+  });
+
+  test('barPeriodMs falls back to downbeat spacing without a BPM', () {
+    // No BPM: the meter cannot be derived, so the stored spacing is the bar.
+    expect(barPeriodMs(downbeats: [0, 3, 6]), closeTo(3000, 1e-6));
+    expect(barPeriodMs(downbeats: const []), isNull);
+    expect(barPeriodMs(downbeats: [0, 2.5, 5], bpm: 96), closeTo(2500, 1e-6));
+    expect(beatsPerBarFrom(downbeats: [0, 3, 6], bpm: 60), 3);
+    expect(beatsPerBarFrom(downbeats: [0, 2, 4], bpm: 120), 4);
+    expect(beatsPerBarFrom(downbeats: [0], bpm: 120), 4);
+  });
+
+  test('phaseMarkXs yields nothing without a grid', () {
+    expect(
+      phaseMarkXs(
+        bpm: null,
+        downbeatsSecs: const [],
+        firstBeatSecs: 0,
+        originMs: 0,
+        spanMs: 20_000,
+        width: 200,
+      ),
+      isEmpty,
+    );
+  });
+
   test('late engine poll under 60ms does not yank the playhead', () {
     expect(correctPlayheadDrift(displayMs: 1040, estimateMs: 1000), 1040);
   });
