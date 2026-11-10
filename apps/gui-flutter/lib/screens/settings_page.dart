@@ -140,9 +140,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// while another section owned the pane.
   void _selectFromSearch(SettingsSection section) {
     setState(() => _section = section);
-    if (section == SettingsSection.audio && widget.scrollToPreviewBus) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
+    if (section != SettingsSection.audio ||
+        !widget.scrollToPreviewBus ||
+        _didSchedulePreviewScroll) {
+      return;
     }
+    // A previous poll may have spent its attempts while another section owned
+    // the pane; restart the budget so this re-arm can actually reach the card.
+    _previewScrollAttempts = 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
   }
 
   /// Post-frame poll until the Preview bus card is mounted (settings may still

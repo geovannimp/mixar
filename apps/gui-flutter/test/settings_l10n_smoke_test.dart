@@ -61,6 +61,7 @@ void main() {
           body: SettingsSidebar(
             active: SettingsSection.ui,
             onSelect: (_) {},
+            onSearchSelect: (_) {},
             onQueryChanged: (_) {},
           ),
         ),

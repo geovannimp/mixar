@@ -26,6 +26,7 @@ void main() {
           body: SettingsSidebar(
             active: active,
             onSelect: onSelect,
+            onSearchSelect: onSelect,
             onQueryChanged: (_) {},
           ),
         ),
@@ -50,6 +51,7 @@ void main() {
             builder: (context, setState) => SettingsSidebar(
               active: active,
               onSelect: (section) => setState(() => active = section),
+              onSearchSelect: (section) => setState(() => active = section),
               onQueryChanged: (_) {},
             ),
           ),
@@ -277,6 +279,7 @@ void main() {
             child: SettingsSidebar(
               active: SettingsSection.ui,
               onSelect: (_) {},
+              onSearchSelect: (_) {},
               onQueryChanged: (_) {},
             ),
           ),

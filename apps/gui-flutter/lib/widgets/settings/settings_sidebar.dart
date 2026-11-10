@@ -17,8 +17,8 @@ class SettingsSidebar extends StatefulWidget {
   const new({
     required this.active,
     required this.onSelect,
+    required this.onSearchSelect,
     required this.onQueryChanged,
-    this.onSearchSelect,
     super.key,
   });
 
@@ -31,10 +31,10 @@ class SettingsSidebar extends StatefulWidget {
   /// Selection changes the search makes on its own: auto-picking the first
   /// match, or restoring the pre-search section when the query clears.
   ///
-  /// Defaults to [onSelect]. The page passes a handler that leaves the one-shot
-  /// deep-link preview glow and scroll alone — neither is a user pick, so a
-  /// type-then-clear must not consume them.
-  final ValueChanged<SettingsSection>? onSearchSelect;
+  /// Kept separate from [onSelect] because a programmatic move is not a user
+  /// pick — the page must not consume its one-shot deep-link glow. Required, so
+  /// a new host has to decide rather than inherit [onSelect] by omission.
+  final ValueChanged<SettingsSection> onSearchSelect;
 
   @override
   State<SettingsSidebar> createState() => _SettingsSidebarState();
@@ -101,7 +101,7 @@ class _SettingsSidebarState extends State<SettingsSidebar> {
   /// Reports a search-driven move (auto-pick or restore) without the explicit
   /// pick path, so callers can keep user-pick side effects out of it.
   void _notifySearchSelection(SettingsSection section) =>
-      (widget.onSearchSelect ?? widget.onSelect)(section);
+      widget.onSearchSelect(section);
 
   /// Returns to the section the search hid, if the query was cleared.
   void _restoreSectionAfterSearch() {
