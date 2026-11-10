@@ -17,7 +17,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Saving restarts the engine automatically if it\'s running.';
 
   @override
-  String get settingsSearchHint => 'Search settings';
+  String get settingsSearchHint => 'Search';
 
   @override
   String get settingsSearchNoResults => 'No matching settings';

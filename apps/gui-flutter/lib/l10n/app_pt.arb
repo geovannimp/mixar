@@ -2,7 +2,7 @@
   "@@locale": "pt",
   "settingsTitle": "CONFIGURAÇÕES",
   "settingsSubtitle": "Salvar reinicia a engine automaticamente se ela estiver em execução.",
-  "settingsSearchHint": "Pesquisar configurações",
+  "settingsSearchHint": "Pesquisar",
   "settingsSearchNoResults": "Nenhuma configuração correspondente",
   "settingsSearchNoResultsFor": "Nenhuma configuração disponível para a sua pesquisa: \"{query}\"",
   "settingsLoading": "Carregando configurações…",

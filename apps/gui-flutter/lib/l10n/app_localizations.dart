@@ -114,7 +114,7 @@ abstract class AppLocalizations {
   /// Placeholder of the Settings sidebar search field
   ///
   /// In en, this message translates to:
-  /// **'Search settings'**
+  /// **'Search'**
   String get settingsSearchHint;
 
   /// Shown when the Settings sidebar search matches no section
