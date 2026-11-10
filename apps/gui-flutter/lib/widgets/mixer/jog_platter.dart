@@ -34,6 +34,11 @@ bool debugReadJogPlatterDragging(State state) {
   return state.debugDragging;
 }
 
+/// Platter angles are tracked in degrees (matching the jog tick maths); the
+/// painter and the turning label both convert through here so they cannot
+/// drift apart.
+double _degreesToRadians(double degrees) => degrees * math.pi / 180;
+
 class JogPlatter extends StatefulWidget {
   const new({
     required this.accent,
@@ -413,7 +418,7 @@ class _JogPainter extends CustomPainter {
     canvas
       ..save()
       ..translate(c.dx, c.dy)
-      ..rotate(rotationDeg * math.pi / 180)
+      ..rotate(_degreesToRadians(rotationDeg))
       ..drawLine(
         Offset(0, -radius * _markerStart),
         Offset(0, -radius * _markerEnd),
@@ -463,26 +468,40 @@ class _JogLabel extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(shape: BoxShape.circle, color: fill),
       child: ClipOval(
-        child: bytes == null
-            ? Center(
-                child: SizedBox.square(
-                  dimension: 8,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: accent ?? border,
-                    ),
-                  ),
-                ),
-              )
+        // Empty bytes fail to decode just like corrupt ones, so both take the
+        // plain-label path rather than asking the decoder to guess.
+        child: bytes == null || bytes.isEmpty
+            ? _emptyLabel()
             : Transform.rotate(
-                angle: rotationDeg * math.pi / 180,
+                angle: _degreesToRadians(rotationDeg),
                 child: Image.memory(
                   bytes,
                   fit: BoxFit.cover,
                   gaplessPlayback: true,
+                  // A corrupt cover must not blank the centre: fall back to
+                  // the same disc the empty deck draws.
+                  errorBuilder: (context, error, stackTrace) => _emptyLabel(),
                 ),
               ),
+      ),
+    );
+  }
+
+  /// Plain label with one pin, turning with the record so it still reads as
+  /// spinning when there is no artwork to carry the motion.
+  Widget _emptyLabel() {
+    return Transform.rotate(
+      angle: _degreesToRadians(rotationDeg),
+      child: Center(
+        child: SizedBox.square(
+          dimension: 8,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent ?? border,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -23,6 +23,31 @@ final _kTinyPngArtwork = Uint8List.fromList(const [
   0x44, 0xAE, 0x42, 0x60, 0x82,
 ]);
 
+/// One platter on a themed scaffold, with the cover art the label should show.
+Widget _platterApp(Uint8List? artwork) {
+  final theme = MixarThemeData.dark();
+  return MaterialApp(
+    theme: materialUiThemeFromMixar(theme),
+    builder: mixarMaterialAppBuilder(theme),
+    home: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: 200,
+          height: 200,
+          child: JogPlatter(
+            accent: DeckAccent.a,
+            playing: false,
+            hasTrack: true,
+            enabled: true,
+            artwork: artwork,
+            durationMs: 180_000,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 void main() {
   Future<void> pumpPlatter(
     WidgetTester tester, {
@@ -162,29 +187,7 @@ void main() {
     tester,
   ) async {
     Future<void> pumpWithArtwork(Uint8List? artwork) async {
-      final theme = MixarThemeData.dark();
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 200,
-                height: 200,
-                child: JogPlatter(
-                  accent: DeckAccent.a,
-                  playing: false,
-                  hasTrack: true,
-                  enabled: true,
-                  artwork: artwork,
-                  durationMs: 180_000,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_platterApp(artwork));
       await tester.pump();
     }
 
@@ -200,6 +203,13 @@ void main() {
       find.byType(Image),
       findsNothing,
       reason: 'without artwork the label falls back to a plain disc',
+    );
+
+    await pumpWithArtwork(Uint8List(0));
+    expect(
+      find.byType(Image),
+      findsNothing,
+      reason: 'empty artwork bytes must not reach the decoder',
     );
   });
 }
