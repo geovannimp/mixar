@@ -15,10 +15,10 @@ import 'support/mixar_material_app.dart';
 OutputDevice _device({
   required String id,
   required String name,
-  bool isDefault = false,
-  int maxChannels = 2,
   required List<int> rates,
   required List<SampleRateRange> ranges,
+  bool isDefault = false,
+  int maxChannels = 2,
   int? mixRate,
 }) => OutputDevice(
   id: id,

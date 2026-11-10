@@ -2,12 +2,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/core/theme/mixar_palette.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
+import 'package:gui_flutter/core/theme/mixar_palette.dart';
 import 'package:gui_flutter/widgets/mixer/fader_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:gui_flutter/core/theme/deck_accent.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -567,7 +567,7 @@ void main() {
     expect(
       countOf(raster, MixarSky.s500),
       greaterThan(0),
-      reason: 'grip plate takes the deck\'s dark step',
+      reason: "grip plate takes the deck's dark step",
     );
     expect(
       countOf(raster, MixarSky.s900),
@@ -598,7 +598,7 @@ void main() {
     expect(
       countOf(raster, MixarSky.s300),
       greaterThan(0),
-      reason: 'grip plate takes the deck\'s light step',
+      reason: "grip plate takes the deck's light step",
     );
     expect(
       countOf(raster, MixarSky.s300),

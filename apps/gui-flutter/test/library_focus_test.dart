@@ -1,16 +1,15 @@
-import 'package:flutter/widgets.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
-import 'package:gui_flutter/src/rust/api/fs_browser.dart';
-import 'package:gui_flutter/widgets/library/drive_pane.dart';
-import 'package:gui_flutter/core/theme/material_theme.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
-import 'package:gui_flutter/widgets/library/library_nav_row.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' as bus;
+import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/widgets/library/drive_pane.dart';
+import 'package:gui_flutter/widgets/library/library_nav_row.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'helpers/collection_tracks_override.dart';
 import 'support/fake_library_transport.dart';
@@ -33,7 +32,7 @@ void main() {
     path: '/tmp/beta',
     trackCount: 1,
   );
-  final sessionA = HistorySessionSummary(
+  const sessionA = HistorySessionSummary(
     id: 's1',
     title: 'Friday',
     startedAt: '2026-09-04T22:00:00Z',
@@ -41,7 +40,7 @@ void main() {
     closed: true,
     entryCount: 3,
   );
-  final sessionB = HistorySessionSummary(
+  const sessionB = HistorySessionSummary(
     id: 's2',
     title: 'Saturday',
     startedAt: '2026-09-05T22:00:00Z',
@@ -53,7 +52,7 @@ void main() {
     FsEntry(name: 'a', path: '/tmp/samples/a'),
     FsEntry(name: 'b', path: '/tmp/samples/b'),
   ];
-  final listing = const FsDirectoryListing(
+  const listing = FsDirectoryListing(
     path: '/tmp/samples',
     parent: '/tmp',
     directories: folders,
@@ -359,8 +358,8 @@ void main() {
       'first row', (tester) async {
     // A tree deep enough that the listing follows the open folder, the way the
     // real filesystem browser does.
-    final subA = const FsEntry(name: 'a1', path: '/tmp/samples/a/a1');
-    final subB = const FsEntry(name: 'b1', path: '/tmp/samples/b/b1');
+    const subA = FsEntry(name: 'a1', path: '/tmp/samples/a/a1');
+    const subB = FsEntry(name: 'b1', path: '/tmp/samples/b/b1');
     FsDirectoryListing listingFor(String path) {
       if (path == folders[0].path) {
         return FsDirectoryListing(
@@ -414,7 +413,7 @@ void main() {
   });
   testWidgets('an "up" row press parks focus and the cursor like any other '
       'row', (tester) async {
-    final subA = const FsEntry(name: 'a1', path: '/tmp/samples/a/a1');
+    const subA = FsEntry(name: 'a1', path: '/tmp/samples/a/a1');
     FsDirectoryListing listingFor(String path) {
       if (path == folders[0].path) {
         return FsDirectoryListing(

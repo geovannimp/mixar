@@ -2,6 +2,8 @@
 ///
 /// They live in the mirrored event module rather than `api/engine.dart`, so
 /// this barrel is what UI code imports instead of reaching into codegen output.
+library;
+
 export 'package:gui_flutter/src/rust/api/event_mirrors.dart'
     show
         CrossfaderAssign,

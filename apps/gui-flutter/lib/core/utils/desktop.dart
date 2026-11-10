@@ -4,10 +4,11 @@ import 'package:gui_flutter/core/utils/desktop_stub.dart'
     if (dart.library.io) 'package:gui_flutter/core/utils/desktop_io.dart'
     as platform;
 
-/// Test override — set `false` in widget tests that don't init [window_manager].
+/// Test override — set `false` in widget tests that don't init
+/// `window_manager`.
 bool? debugOverrideDesktopWindow;
 
-/// Desktop hosts where [window_manager] applies (not web / mobile).
+/// Desktop hosts where `window_manager` applies (not web / mobile).
 bool get isDesktopWindow =>
     debugOverrideDesktopWindow ?? (!kIsWeb && platform.ioIsDesktop);
 

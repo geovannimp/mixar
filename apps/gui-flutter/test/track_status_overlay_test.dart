@@ -12,17 +12,15 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/library_pane_toolbar.dart';
 import 'package:gui_flutter/widgets/library/meta_pill.dart';
 import 'package:gui_flutter/widgets/library/track_list_pane.dart';
+import 'package:gui_flutter/widgets/library/track_list_row.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'helpers/collection_tracks_override.dart';
-
-import 'package:gui_flutter/widgets/library/track_list_row.dart';
-import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
-
 import 'support/mixar_material_app.dart';
 
 // Both widget types are used elsewhere in the app (m_tabs.dart renders

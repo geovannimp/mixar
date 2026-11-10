@@ -8,7 +8,7 @@ class FakeSettingsTransport implements SettingsTransport {
   AppSettings stored;
 
   /// When set, [saveSettings] throws it instead of storing.
-  Object? saveError;
+  Exception? saveError;
 
   @override
   void dispose() {}

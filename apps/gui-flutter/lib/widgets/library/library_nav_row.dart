@@ -4,7 +4,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Selected fill shared by library sidebar rows and track/history list rows.
 ///
-/// Solid [MixarColors.selection] (teal-100 / teal-950) — same on every
+/// Solid `MixarColors.selection` (teal-100 / teal-950) — same on every
 /// surface, no alphaBlend that drifts with the base.
 Color librarySelectedRowColor(MixarThemeData theme) => theme.colors.selection;
 
@@ -170,7 +170,6 @@ class _ScrollFocusedIntoViewState extends State<_ScrollFocusedIntoView> {
           context,
           duration: const Duration(milliseconds: 120),
           alignment: 0.5,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
           curve: Curves.easeOutCubic,
         );
       });

@@ -13,7 +13,7 @@ import 'package:gui_flutter/widgets/shell/mixar_menu_item.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class HistorySessionActionsMenu extends ConsumerWidget {
-  const new({required this.sessionId, required this.session});
+  const new({required this.sessionId, required this.session, super.key});
 
   final String sessionId;
   final HistorySessionSummary? session;

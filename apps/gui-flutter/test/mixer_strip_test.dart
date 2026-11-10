@@ -225,9 +225,7 @@ void main() {
         .read(engineUiProvider.notifier)
         .apply(
           deckUpdatedEvent(
-            deck: 0,
             update: deckUpdated(
-              deck: 0,
               trackPath: '/song.wav',
               durationMs: 180000,
               stemsAudible: true,
@@ -260,12 +258,9 @@ void main() {
         .read(engineUiProvider.notifier)
         .apply(
           deckUpdatedEvent(
-            deck: 0,
             update: deckUpdated(
-              deck: 0,
               trackPath: '/song.wav',
               durationMs: 180000,
-              stemEqEnabled: false,
               eq: const DeckEq(low: 0.1, mid: 0.2, high: 0.3),
             ),
           ),

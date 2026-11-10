@@ -1,4 +1,3 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
@@ -37,8 +36,8 @@ void main() {
     (tester) async {
       await pumpInput(
         tester,
-        MixarInput(
-          label: const Text('BPM'),
+        const MixarInput(
+          label: Text('BPM'),
           errorText: 'BPM must be a positive number',
         ),
       );

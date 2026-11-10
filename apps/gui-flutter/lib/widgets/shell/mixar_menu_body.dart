@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_dialog_chrome.dart';
 
-/// Column of [MixarMenuGroup]s with hairline separators between groups.
+/// Column of `MixarMenuGroup`s with hairline separators between groups.
 class MixarMenuBody extends StatelessWidget {
   const new({required this.groups, super.key});
 

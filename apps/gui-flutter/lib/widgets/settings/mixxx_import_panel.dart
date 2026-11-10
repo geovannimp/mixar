@@ -170,9 +170,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
       trailing: AppButton(
         size: MixarButtonSize.sm,
         onPress: onPress,
-        child: Text(
-          (_importing ? l10n.mixxxImporting : l10n.mixxxImportButton),
-        ),
+        child: Text(_importing ? l10n.mixxxImporting : l10n.mixxxImportButton),
       ),
       child: Text(
         status,

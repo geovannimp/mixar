@@ -6,7 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Artwork thumbnail for a list row (tracks + history).
 class TrackArtworkThumb extends ConsumerWidget {
-  const new({required this.trackId, required this.size});
+  const new({required this.trackId, required this.size, super.key});
 
   final String trackId;
   final double size;

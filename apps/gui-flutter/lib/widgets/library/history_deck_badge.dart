@@ -5,7 +5,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Deck A/B, tinted with the fader accent so it matches the deck panels.
 class DeckBadge extends StatelessWidget {
-  const new({required this.deck});
+  const new({required this.deck, super.key});
 
   final int deck;
 

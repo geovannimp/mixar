@@ -7,6 +7,7 @@ enum LevelMeterMode { mono, stereo }
 
 enum LevelMeterOrientation { vertical, horizontal }
 
+@immutable
 class DeckLevels {
   const new({
     required this.peakL,

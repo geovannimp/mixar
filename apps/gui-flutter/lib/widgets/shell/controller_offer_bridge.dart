@@ -52,7 +52,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   }
 
   void _bind(ControllerTransport? transport) {
-    _events?.cancel();
+    unawaited(_events?.cancel());
     _retry?.cancel();
     if (transport == null) {
       return;
@@ -614,7 +614,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   void dispose() {
     _listen?.close();
     _busListen?.close();
-    _events?.cancel();
+    unawaited(_events?.cancel());
     _retry?.cancel();
     super.dispose();
   }

@@ -10,15 +10,13 @@ void main() {
   group('applyEngineEvent', () {
     test('snapshot sets running; update stores track path', () {
       var snap = EngineUiSnapshot.empty;
-      snap = applyEngineEvent(snap, engineSnapshotEvent(running: true));
+      snap = applyEngineEvent(snap, engineSnapshotEvent());
       expect(snap.running, isTrue);
 
       snap = applyEngineEvent(
         snap,
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             trackPath: '/music/Loaded.opus',
             durationMs: 1000,
           ),
@@ -73,7 +71,7 @@ void main() {
     test('updated playing flag is stored per deck', () {
       final snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, playing: true)),
+        deckUpdatedEvent(update: deckUpdated(playing: true)),
       );
       expect(snap.isPlaying(0), isTrue);
       expect(snap.isPlaying(1), isFalse);
@@ -83,18 +81,10 @@ void main() {
       final snap = applyEngineEvent(
         EngineUiSnapshot.empty,
         deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(
-            deck: 0,
-            trackPath: '/keep.wav',
-            durationMs: 5000,
-          ),
+          update: deckUpdated(trackPath: '/keep.wav', durationMs: 5000),
         ),
       );
-      final after = applyEngineEvent(
-        snap,
-        deckPositionEvent(deck: 0, positionMs: 12),
-      );
+      final after = applyEngineEvent(snap, deckPositionEvent(positionMs: 12));
       expect(after.trackPathFor(0), '/keep.wav');
       expect(identical(after, snap), isTrue);
     });
@@ -124,9 +114,7 @@ void main() {
       final snap = applyEngineEvent(
         EngineUiSnapshot.empty,
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             volume: 0.25,
             eq: const DeckEq(low: 0.5, mid: 0.5, high: 0.1),
             headphoneCue: true,
@@ -143,7 +131,7 @@ void main() {
     test('snapshot sets cueMix and masterCue without clobbering volume', () {
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, volume: 0.3)),
+        deckUpdatedEvent(update: deckUpdated(volume: 0.3)),
       );
       snap = applyEngineEvent(
         snap,
@@ -165,7 +153,7 @@ void main() {
     test('snapshot sets crossfader without clobbering volume', () {
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, volume: 0.3)),
+        deckUpdatedEvent(update: deckUpdated(volume: 0.3)),
       );
       snap = applyEngineEvent(snap, engineSnapshotEvent(crossfader: 0.2));
       expect(snap.running, isTrue);
@@ -176,7 +164,7 @@ void main() {
     test('levels patch peaks without changing volume', () {
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, volume: 0.4)),
+        deckUpdatedEvent(update: deckUpdated(volume: 0.4)),
       );
       snap = applyEngineEvent(
         snap,
@@ -217,10 +205,7 @@ void main() {
     test('updated padMode lands on the snapshot', () {
       final snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, padMode: PadMode.loopRoll),
-        ),
+        deckUpdatedEvent(update: deckUpdated(padMode: PadMode.loopRoll)),
       );
       expect(snap.padModeFor(0), PadMode.loopRoll);
     });
@@ -284,9 +269,7 @@ void main() {
       final snap = applyEngineEvent(
         EngineUiSnapshot.empty,
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             durationMs: 4000,
             quantize: false,
             jogTouching: true,
@@ -304,10 +287,7 @@ void main() {
     test('updated stores slip on empty deck like quantize', () {
       final snap = applyEngineEvent(
         EngineUiSnapshot.empty,
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, slipEnabled: true),
-        ),
+        deckUpdatedEvent(update: deckUpdated(slipEnabled: true)),
       );
       expect(snap.slipEnabledFor(0), isTrue);
     });
@@ -316,9 +296,7 @@ void main() {
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             trackPath: '/keep.wav',
             trackId: 'abc',
             durationMs: 8000,
@@ -330,10 +308,7 @@ void main() {
       );
       snap = applyEngineEvent(
         snap,
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, playing: false, quantize: false),
-        ),
+        deckUpdatedEvent(update: deckUpdated(quantize: false)),
       );
       expect(snap.trackPathFor(0), isNull);
       expect(snap.trackIdFor(0), isNull);
@@ -347,19 +322,14 @@ void main() {
       var snap = applyEngineEvent(
         EngineUiSnapshot.empty,
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             trackPath: '/keep.wav',
             trackId: 'abc',
             durationMs: 8000,
           ),
         ),
       );
-      snap = applyEngineEvent(
-        snap,
-        deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0)),
-      );
+      snap = applyEngineEvent(snap, deckUpdatedEvent(update: deckUpdated()));
       expect(snap.trackPathFor(0), isNull);
       expect(snap.trackIdFor(0), isNull);
       expect(snap.durationMsFor(0), isNull);
@@ -384,10 +354,7 @@ void main() {
       expect(snap.activeSamplerBankIdFor(0), 'bank-1');
       // A null duration is the engine's unloaded snapshot: the bank and the
       // slots go with the track, exactly as the engine published them.
-      snap = applyEngineEvent(
-        snap,
-        deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0)),
-      );
+      snap = applyEngineEvent(snap, deckUpdatedEvent(update: deckUpdated()));
       expect(snap.trackPathFor(0), isNull);
       expect(snap.trackIdFor(0), isNull);
       expect(snap.activeSamplerBankIdFor(0), isNull);
@@ -408,7 +375,7 @@ void main() {
         snap,
         engineSnapshotEvent(
           crossfader: 0.2,
-          decks: [deckSnapshot(deck: 0, trackId: 't1', durationMs: 1000)],
+          decks: [deckSnapshot(trackId: 't1', durationMs: 1000)],
         ),
       );
 
@@ -424,7 +391,7 @@ void main() {
       );
       snap = applyEngineEvent(
         snap,
-        engineSnapshotEvent(decks: [deckSnapshot(deck: 0)]),
+        engineSnapshotEvent(decks: [deckSnapshot()]),
       );
       expect(snap.samplerSlotsFor(0), isEmpty);
     });
@@ -440,10 +407,7 @@ void main() {
 
       snap = applyEngineEvent(
         snap,
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(deck: 0, trackId: 't1', durationMs: 1000),
-        ),
+        deckUpdatedEvent(update: deckUpdated(trackId: 't1', durationMs: 1000)),
       );
       expect(snap.samplerSlotsFor(0), isEmpty);
     });
@@ -472,12 +436,7 @@ void main() {
         snap,
         deckUpdatedEvent(
           deck: 1,
-          update: deckUpdated(
-            deck: 1,
-            durationMs: 1000,
-            stemsReady: true,
-            stemMute: const [false, false, false, false],
-          ),
+          update: deckUpdated(deck: 1, durationMs: 1000, stemsReady: true),
         ),
       );
       expect(snap.stemIsolateFor(1), isNull);
@@ -495,9 +454,7 @@ void main() {
       final snap = applyEngineEvent(
         EngineUiSnapshot.empty,
         deckUpdatedEvent(
-          deck: 0,
           update: deckUpdated(
-            deck: 0,
             durationMs: 1000,
             keyShift: 2,
             keyboardPage: 5,

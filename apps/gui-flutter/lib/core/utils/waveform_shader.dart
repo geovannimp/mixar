@@ -57,6 +57,7 @@ class WaveformPeaksTexture implements OwnedResource {
   /// Idempotent: a provider reload can hand the same texture to a painter
   /// after its scheduled disposal has already run, and double-disposing a
   /// `ui.Image` trips an assert.
+  @override
   void dispose() {
     if (_disposed) {
       return;

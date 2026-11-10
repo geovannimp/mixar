@@ -8,7 +8,7 @@ enum MixarToastVariant { primary, destructive }
 
 var _mixarToastSeq = 0;
 
-/// Mixar toast over [context_show] (Forui-free chrome; theme tokens OK).
+/// Mixar toast over `context_show` (Forui-free chrome; theme tokens OK).
 ///
 /// Pass a stable [id] to dismiss later via [dismissMixarToast].
 void showMixarToast({
@@ -144,7 +144,7 @@ class _MixarToastChrome extends StatelessWidget {
               ],
               if (suffix != null) ...[
                 const SizedBox(height: 12),
-                Align(alignment: Alignment.centerRight, child: suffix!),
+                Align(alignment: Alignment.centerRight, child: suffix),
               ],
             ],
           ),

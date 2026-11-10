@@ -7,12 +7,12 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/widgets/library/history_deck_badge.dart';
 import 'package:gui_flutter/widgets/library/history_detail_pane.dart';
 import 'package:gui_flutter/widgets/library/history_index_badge.dart';
+import 'package:gui_flutter/widgets/library/history_row_layout.dart';
 import 'package:gui_flutter/widgets/library/meta_pill.dart';
 import 'package:gui_flutter/widgets/library/meta_pill_glyph.dart';
 import 'package:gui_flutter/widgets/library/trailing_meta.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:gui_flutter/widgets/library/history_row_layout.dart';
 
 /// Title + metadata pills on the left, BPM/key on the right.
 class HistoryComfortableEntryRow extends StatelessWidget {
@@ -22,6 +22,7 @@ class HistoryComfortableEntryRow extends StatelessWidget {
     required this.keyDisplayMode,
     required this.keyColorMode,
     required this.actionsSlot,
+    super.key,
   });
 
   final int index;

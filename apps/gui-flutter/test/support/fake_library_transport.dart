@@ -69,7 +69,7 @@ class FakeLibraryTransport implements LibraryTransport {
   List<LibraryCollectionSummary> collections;
 
   /// When set, [deleteCollection] throws it after the collection row is gone.
-  final Object? deleteCollectionError;
+  final Exception? deleteCollectionError;
   final List<String> getTrackCalls = [];
   final List<String> listCollectionEntriesCalls = [];
   int listCollectionsCalls = 0;
@@ -175,7 +175,7 @@ class FakeLibraryTransport implements LibraryTransport {
   addCollectionEntryCalls = [];
 
   /// When set, [addCollectionEntry] throws it instead of recording success.
-  Object? addCollectionEntryError;
+  Exception? addCollectionEntryError;
 
   @override
   Future<void> addCollectionEntry({

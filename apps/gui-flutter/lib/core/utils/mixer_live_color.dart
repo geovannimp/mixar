@@ -1,7 +1,7 @@
 import 'package:gui_flutter/core/theme/mixar_palette.dart';
 
 /// Cue amber border/label when theme is unavailable — prefer
-/// [MixarColors.cueOn] in widgets (theme-aware for light/dark contrast).
+/// `MixarColors.cueOn` in widgets (theme-aware for light/dark contrast).
 const kMixerCueOn = MixarAmber.s300;
 const kMixerCueBorder = MixarAmber.s600;
 

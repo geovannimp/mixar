@@ -14,8 +14,9 @@ class MTabEntry {
 /// [direction] lays out the tab bar: [Axis.horizontal] on top, [Axis.vertical] on the start edge.
 /// Pass [index] to control selection; omit it for internal state.
 ///
-/// When [expands] is true, the selected chip slides between equal slots (Material [TabBar]
-/// parity). When false, the chip snaps onto the selected label without a slide.
+/// When `expands` is true, the selected chip slides between equal slots
+/// (Material `TabBar` parity). When false, the chip snaps onto the selected
+/// label without a slide.
 class MTabs extends StatefulWidget {
   const new({
     required this.children,
@@ -42,7 +43,7 @@ class MTabs extends StatefulWidget {
   /// the selected chip can sit flush to the bar.
   ///
   /// Only the colour (and style) are used: the width is forced to the theme
-  /// hairline, since the width is part of [kMTabBarMinHeight]'s alignment
+  /// hairline, since the width is part of `kMTabBarMinHeight`'s alignment
   /// contract and a wider side would overlap the header strip.
   final BorderSide? barBottomBorder;
 

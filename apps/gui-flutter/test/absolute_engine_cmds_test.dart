@@ -1,17 +1,15 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
-import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show FxSlotState;
 
 import 'support/bus_events.dart';
 import 'support/fake_engine_transport.dart';
+import 'support/fx_events.dart';
 
 void main() {
   group('sendDeckPlaying', () {
@@ -65,7 +63,7 @@ void main() {
       // Controller published absolute pause.
       container
           .read(engineUiProvider.notifier)
-          .apply(deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0)));
+          .apply(deckUpdatedEvent(update: deckUpdated()));
       expect(container.read(engineUiProvider).isPlaying(0), isFalse);
 
       // UI click captured wantPlaying=true from prior chrome; absolute set.
@@ -95,17 +93,7 @@ void main() {
       expect(container.read(engineUiProvider).keyLockFor(0), isTrue);
 
       // MIDI races the opposite polarity before the evt from our cmds.
-      ui.apply(
-        deckUpdatedEvent(
-          deck: 0,
-          update: deckUpdated(
-            deck: 0,
-            quantize: true,
-            slipEnabled: false,
-            keyLock: false,
-          ),
-        ),
-      );
+      ui.apply(deckUpdatedEvent(update: deckUpdated()));
       expect(container.read(engineUiProvider).quantizeFor(0), isTrue);
       expect(container.read(engineUiProvider).slipEnabledFor(0), isFalse);
       expect(container.read(engineUiProvider).keyLockFor(0), isFalse);
@@ -132,12 +120,7 @@ void main() {
         expect(ui.isOptimisticCurrent(OptimisticField.playing, 0, gen), isTrue);
 
         // MIDI confirms the same absolute play state.
-        ui.apply(
-          deckUpdatedEvent(
-            deck: 0,
-            update: deckUpdated(deck: 0, playing: true),
-          ),
-        );
+        ui.apply(deckUpdatedEvent(update: deckUpdated(playing: true)));
         expect(
           ui.isOptimisticCurrent(OptimisticField.playing, 0, gen),
           isFalse,
@@ -352,26 +335,13 @@ void main() {
       final gate = Completer<EngineTransport?>();
       final (container, ref) = await captureEngine(tester, () => gate.future);
 
-      final slot = FxSlotState(
-        kind: FxKind.echo,
-        enabled: false,
-        wet: 0.5,
-        params: Float32List.fromList([0.5, 0.5, 0.0]),
-      );
-      container
-          .read(engineUiProvider.notifier)
-          .apply(
-            deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0, fx: [slot])),
-          );
+      final slot = echoSlot();
+      applyDeckFx(container, [slot]);
 
       // Tap while the transport is still resolving.
       final pending = setFxUnitDivision(ref, 0, 4);
       // The other deck's update republishes the unchanged unit.
-      container
-          .read(engineUiProvider.notifier)
-          .apply(
-            deckUpdatedEvent(deck: 1, update: deckUpdated(deck: 1, fx: [slot])),
-          );
+      applyDeckFx(container, [slot], deck: 1);
 
       // The evt merge must not discard the owned division: the stepper
       // derives its next target from this mirror.
@@ -387,24 +357,7 @@ void main() {
       final engine = FakeEngineTransport();
       final (container, ref) = await captureEngine(tester, () async => engine);
 
-      container
-          .read(engineUiProvider.notifier)
-          .apply(
-            deckUpdatedEvent(
-              deck: 0,
-              update: deckUpdated(
-                deck: 0,
-                fx: [
-                  FxSlotState(
-                    kind: FxKind.echo,
-                    enabled: false,
-                    wet: 0.5,
-                    params: Float32List.fromList([0.5, 0.5, 0.0]),
-                  ),
-                ],
-              ),
-            ),
-          );
+      applyDeckFx(container, [echoSlot()]);
       expect(container.read(fxSlotsProvider).single.enabled, isFalse);
       await setFxUnitSlotEnabled(ref, 0, true);
       expect(container.read(fxSlotsProvider).single.enabled, isTrue);

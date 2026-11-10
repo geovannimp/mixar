@@ -39,7 +39,6 @@ void main() {
     await tester.pumpWidget(
       mixarTestMaterialApp(
         theme: MixarThemeData.dark(),
-        locale: const Locale('en'),
         home: Builder(
           builder: (context) =>
               Text(AppLocalizations.of(context)!.settingsTitle),

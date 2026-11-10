@@ -3,13 +3,13 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
-import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
-import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
-import 'package:gui_flutter/widgets/shell/mixar_menu_dialog_chrome.dart';
 import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_dialog_chrome.dart';
 import 'package:gui_flutter/widgets/shell/mixar_menu_dialog_controller.dart';
+import 'package:gui_flutter/widgets/shell/mixar_menu_panel.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Button-anchored action menu (⋯ menus).
 ///

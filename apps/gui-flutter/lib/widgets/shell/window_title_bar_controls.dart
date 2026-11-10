@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -17,7 +19,7 @@ class _WindowTitleBarControlsState extends State<WindowTitleBarControls>
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    _refreshMaximized();
+    unawaited(_refreshMaximized());
   }
 
   @override

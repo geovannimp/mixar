@@ -11,7 +11,7 @@ const androidMediaAccessChannel = 'top.mixar.app/media_access';
 /// Method `MainActivity` answers on [androidMediaAccessChannel].
 const androidEnsureAudioReadMethod = 'ensureAudioReadPermission';
 
-final _channel = MethodChannel(androidMediaAccessChannel);
+const _channel = MethodChannel(androidMediaAccessChannel);
 
 /// Shown when the runtime permission is refused, so the folder import stops
 /// with a reason instead of landing as an empty collection.

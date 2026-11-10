@@ -1,19 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
-import 'package:gui_flutter/core/models/bus_enums.dart';
+import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
+import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/pads/beat_jump_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/key_shift_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/keyboard_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/sampler_pads.dart';
-import 'package:gui_flutter/providers/shell/mixar_overlay_controller.dart';
-import 'package:gui_flutter/widgets/mixer/mixer_button.dart';
 import 'package:gui_flutter/widgets/mixer/pads/stems_pads.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
@@ -109,7 +109,7 @@ class DeckPadsPanel extends StatelessWidget {
   final int keyboardRootHotCue;
   final ValueChanged<int>? onSelectRoot;
 
-  /// Jumps the active Keyboard / Key Shift mode to [page].
+  /// Jumps the active Keyboard / Key Shift mode to `page`.
   final ValueChanged<int> onSelectPage;
 
   final bool hasTrack;
@@ -298,7 +298,7 @@ class DeckPadsPanel extends StatelessWidget {
       padMode == PadMode.keyShift;
 
   /// Mode label parts: the selected mode can carry a bank / page / source
-  /// suffix. The suffix is rendered muted; [labelBuilder] keeps the plain
+  /// suffix. The suffix is rendered muted; `labelBuilder` keeps the plain
   /// string for semantics and fallback.
   ({String label, String? suffix}) _modeParts(
     PadMode mode,

@@ -11,7 +11,7 @@ void main() {
 
     container
         .read(engineUiProvider.notifier)
-        .apply(deckPositionEvent(deck: 0, positionMs: 1234));
+        .apply(deckPositionEvent(positionMs: 1234));
 
     expect(container.read(deckPositionMsProvider(0)), 1234);
     expect(container.read(deckPositionMsProvider(1)), 0);
@@ -21,10 +21,10 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final ui = container.read(engineUiProvider.notifier)
-      ..apply(deckPositionEvent(deck: 0, positionMs: 500));
+      ..apply(deckPositionEvent(positionMs: 500));
     final first = container.read(deckPlayheadsProvider);
 
-    ui.apply(deckPositionEvent(deck: 0, positionMs: 500));
+    ui.apply(deckPositionEvent(positionMs: 500));
     final second = container.read(deckPlayheadsProvider);
 
     expect(identical(first, second), isTrue);
@@ -38,8 +38,7 @@ void main() {
         .read(engineUiProvider.notifier)
         .apply(
           deckUpdatedEvent(
-            deck: 0,
-            update: deckUpdated(deck: 0, durationMs: 10000, positionMs: 2000),
+            update: deckUpdated(durationMs: 10000, positionMs: 2000),
           ),
         );
 
@@ -50,13 +49,11 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final ui = container.read(engineUiProvider.notifier)
-      ..apply(
-        deckPositionEvent(deck: 0, positionMs: 900, slipShadowPositionMs: 800),
-      );
+      ..apply(deckPositionEvent(positionMs: 900, slipShadowPositionMs: 800));
     expect(container.read(deckPositionMsProvider(0)), 900);
     expect(container.read(deckSlipShadowsProvider)[0], 800);
 
-    ui.apply(deckUpdatedEvent(deck: 0, update: deckUpdated(deck: 0)));
+    ui.apply(deckUpdatedEvent(update: deckUpdated()));
 
     expect(container.read(deckPlayheadsProvider).containsKey(0), isFalse);
     expect(container.read(deckSlipShadowsProvider).containsKey(0), isFalse);

@@ -103,7 +103,7 @@ void main() {
 
   /// WCAG 2.x relative luminance and contrast ratio, so the palette rules below
   /// are asserted as ratios rather than as pinned hex values.
-  double _luminance(Color color) {
+  double luminance(Color color) {
     double channel(double c) => c <= 0.03928
         ? c / 12.92
         : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
@@ -112,9 +112,9 @@ void main() {
         0.0722 * channel(color.b);
   }
 
-  double _contrast(Color a, Color b) {
-    final la = _luminance(a);
-    final lb = _luminance(b);
+  double contrast(Color a, Color b) {
+    final la = luminance(a);
+    final lb = luminance(b);
     return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
   }
 
@@ -126,7 +126,7 @@ void main() {
             ? MixarColors.light.background
             : MixarColors.dark.background;
         expect(
-          _contrast(textColorStep(tone, brightness), background),
+          contrast(textColorStep(tone, brightness), background),
           greaterThanOrEqualTo(4.5),
           reason: '$accent ink on the ${brightness.name} plate',
         );
@@ -137,7 +137,7 @@ void main() {
   test('primary hover keeps its label readable', () {
     for (final colors in [MixarColors.light, MixarColors.dark]) {
       expect(
-        _contrast(colors.primaryHover, colors.primaryForeground),
+        contrast(colors.primaryHover, colors.primaryForeground),
         greaterThanOrEqualTo(4.5),
         reason: '${colors.brightness} primary hover label',
       );
@@ -147,7 +147,7 @@ void main() {
   test('destructive text inside a destructive fill clears AA', () {
     for (final colors in [MixarColors.light, MixarColors.dark]) {
       expect(
-        _contrast(colors.destructiveForeground, colors.destructive),
+        contrast(colors.destructiveForeground, colors.destructive),
         greaterThanOrEqualTo(4.5),
         reason: '${colors.brightness} destructive toast label',
       );

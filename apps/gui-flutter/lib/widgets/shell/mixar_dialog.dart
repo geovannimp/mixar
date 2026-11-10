@@ -50,7 +50,7 @@ ShadDialog _mixarDialogShell({
   const titleLineHeight = 24.0;
   const closeSize = 32.0;
   const closeIconSize = 20.0;
-  final closeTop = titleInset + titleLineHeight / 2 - closeSize / 2;
+  const closeTop = titleInset + titleLineHeight / 2 - closeSize / 2;
   return ShadDialog(
     title: title,
     description: description,

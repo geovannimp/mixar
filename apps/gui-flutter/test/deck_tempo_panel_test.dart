@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
+import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/theme/material_theme.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart'
     show defaultAppSettings;
-import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/mixer/deck_tempo_panel.dart';
@@ -134,11 +134,11 @@ void main() {
     await pumpPanel(
       tester,
       isMaster: true,
-      trackBpm: 128.0,
+      trackBpm: 128,
       onToggleSync: beats.add,
     );
 
-    final bpmText = formatBpm(effectiveBpm(128.0, 0.5, kDefaultTempoRange));
+    final bpmText = formatBpm(effectiveBpm(128, 0.5));
     await tester.tap(find.text(bpmText));
     await tester.pumpAndSettle();
     expect(beats, isEmpty);
@@ -178,9 +178,9 @@ void main() {
 
   testWidgets('BPM area of sync button also toggles sync', (tester) async {
     final beats = <bool>[];
-    await pumpPanel(tester, trackBpm: 128.0, onToggleSync: beats.add);
+    await pumpPanel(tester, trackBpm: 128, onToggleSync: beats.add);
 
-    final bpmText = formatBpm(effectiveBpm(128.0, 0.5, kDefaultTempoRange));
+    final bpmText = formatBpm(effectiveBpm(128, 0.5));
     await tester.tap(find.text(bpmText));
     await tester.pumpAndSettle();
     expect(beats, [false]);

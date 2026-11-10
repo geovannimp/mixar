@@ -12,8 +12,8 @@ import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/library/history_refresh.dart';
 import 'package:gui_flutter/providers/shell/app_notice.dart';
 import 'package:gui_flutter/providers/shell/bus_providers.dart';
-import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
+import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
 
@@ -118,7 +118,8 @@ class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
     return tracks;
   }
 
-  /// Apply a [LibraryEvtKind.trackUpdated] / [LibraryEvtKind.trackAnalyzed] row.
+  /// Apply a `LibraryEvtKind.trackUpdated` / `LibraryEvtKind.trackAnalyzed`
+  /// row.
   void scheduleTrackRowEvent(LibraryTrackSummary? track) {
     var queued = false;
     if (track == null) {

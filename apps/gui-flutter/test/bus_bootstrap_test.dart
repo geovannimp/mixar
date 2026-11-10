@@ -21,10 +21,7 @@ void main() {
 
     dispatchBusEvent(
       container.read(_capturedRef),
-      deckUpdatedEvent(
-        deck: 0,
-        update: deckUpdated(deck: 0, volume: 0.25, playing: true),
-      ),
+      deckUpdatedEvent(update: deckUpdated(volume: 0.25, playing: true)),
     );
 
     final state = container.read(engineUiProvider);
@@ -38,9 +35,7 @@ void main() {
 
     dispatchBusEvent(
       container.read(_capturedRef),
-      Event.error(
-        const Error(message: 'No track loaded', trackId: null, deck: 0),
-      ),
+      const Event.error(Error(message: 'No track loaded', deck: 0)),
     );
 
     final notice = container.read(appNoticeProvider);

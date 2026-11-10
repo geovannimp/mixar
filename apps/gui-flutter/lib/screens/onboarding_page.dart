@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +10,7 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/providers/onboarding/onboarding_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_appearance_step.dart';
@@ -22,7 +22,6 @@ import 'package:gui_flutter/widgets/onboarding/onboarding_privacy_step.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_ready_step.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_ui.dart';
 import 'package:gui_flutter/widgets/onboarding/onboarding_welcome_step.dart';
-import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/m_loader.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';

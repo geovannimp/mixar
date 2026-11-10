@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/library/history_row_layout.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 /// Leading `#` position, right-aligned so the numbers line up down the list.
 class IndexBadge extends StatelessWidget {
-  const new({required this.index});
+  const new({required this.index, super.key});
 
   final int index;
 
