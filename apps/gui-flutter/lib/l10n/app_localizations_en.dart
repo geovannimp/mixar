@@ -820,7 +820,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsWaveformShapingDescription =>
-      'Scale the lane bars with the channel fader and the deck EQ. Off keeps the waveform still while you move them.';
+      'Scale the lane bars with the channel gain and the deck EQ. Off keeps the waveform still while you move them.';
 
   @override
   String get settingsWaveformShapingEnable =>

@@ -827,7 +827,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get settingsWaveformShapingDescription =>
-      'Escala as barras da faixa com o fader do canal e o EQ do deck. Desligado mantém a forma de onda parada quando você os move.';
+      'Escala as barras da faixa com o gain do canal e o EQ do deck. Desligado mantém a forma de onda parada quando você os move.';
 
   @override
   String get settingsWaveformShapingEnable =>

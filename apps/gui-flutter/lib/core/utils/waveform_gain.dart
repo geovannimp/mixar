@@ -19,14 +19,19 @@ WaveformBandGain waveformBandGainFor(MixerChannelUi channel) => (
 
 /// The lane painter's amplitude multipliers for [channel].
 ///
+/// Shaped follows the deck's **gain** knob and EQ, never the channel fader:
+/// gain is how hot the deck arrives, so the lane tracks it the way it tracks
+/// the EQ, while the fader stays a mix move that leaves the shape alone. Unity
+/// is the knob centre (0.5), doubling at full.
+///
 /// With [shaped] off (Settings → Waveform) the lane draws the stored peaks at
-/// unity, so moving the volume fader or an EQ knob leaves it unchanged.
+/// unity, so moving the gain or an EQ knob leaves it unchanged too.
 ({double gain, WaveformBandGain bandGain}) waveformGainsFor(
   MixerChannelUi channel, {
   bool shaped = true,
 }) => shaped
     ? (
-        gain: channel.volume.clamp(0.0, 1.0),
+        gain: (channel.gainTrim * 2).clamp(0.0, 2.0),
         bandGain: waveformBandGainFor(channel),
       )
     : (gain: 1.0, bandGain: flatWaveformBandGain);
