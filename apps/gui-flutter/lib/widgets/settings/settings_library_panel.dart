@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/library_row_fields.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
@@ -9,6 +10,8 @@ import 'package:gui_flutter/widgets/settings/settings_header_switch.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
+import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class SettingsLibraryPanel extends StatelessWidget {
   const new({required this.draft, required this.onChanged, super.key});
@@ -157,12 +160,17 @@ class SettingsLibraryPanel extends StatelessWidget {
             children: [
               SettingsField(
                 label: l10n.settingsLibraryKeyDisplayMode,
-                child: SettingsSelect(
-                  dialogTitle: l10n.settingsLibraryKeyDisplayMode,
+                child: SettingsVisualChoice<KeyDisplayModeSetting>(
                   value: draft.keyDisplayMode,
-                  options: _keyDisplayModes,
-                  labelBuilder: (mode) => _keyDisplayLabel(l10n, mode),
-                  subtitleBuilder: (mode) => _keyDisplaySubtitle(l10n, mode),
+                  options: [
+                    for (final mode in _keyDisplayModes)
+                      SettingsVisualOption<KeyDisplayModeSetting>(
+                        value: mode,
+                        label: _keyDisplayLabel(l10n, mode),
+                        subtitle: _keyDisplaySubtitle(l10n, mode),
+                        preview: _KeyDisplayPreview(mode: mode),
+                      ),
+                  ],
                   onChanged: (m) =>
                       onChanged(copyAppSettings(draft, keyDisplayMode: m)),
                 ),
@@ -279,6 +287,41 @@ class SettingsLibraryPanel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The same key in each notation: `Am` for musical, `8A` for Camelot.
+class _KeyDisplayPreview extends StatelessWidget {
+  const new({required this.mode});
+
+  final KeyDisplayModeSetting mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final label = formatDeckKey(
+      '8A',
+      mode == KeyDisplayModeSetting.musical
+          ? KeyDisplayMode.musical
+          : KeyDisplayMode.camelot,
+    );
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: theme.colors.muted,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: theme.colors.border),
+        ),
+        child: Text(
+          label,
+          style: theme.typography.body.xs.copyWith(
+            color: theme.colors.foreground,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

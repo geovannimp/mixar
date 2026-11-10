@@ -7,6 +7,7 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_accent_picker.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -19,6 +20,7 @@ void main() {
     AppSettings? draft,
     ValueChanged<AppSettings>? onChanged,
   }) async {
+    final settings = draft ?? defaultAppSettings();
     await tester.pumpWidget(
       ProviderScope(
         child: mixarTestMaterialApp(
@@ -26,7 +28,8 @@ void main() {
           home: Scaffold(
             body: SingleChildScrollView(
               child: SettingsUiPanel(
-                draft: draft ?? defaultAppSettings(),
+                draft: settings,
+                savedAccentPalette: settings.accentPalette,
                 onChanged: onChanged ?? (_) {},
               ),
             ),
@@ -43,10 +46,15 @@ void main() {
     await pumpPanel(tester);
     await tester.pump();
 
-    expect(find.text('ACCENT COLOR'), findsOneWidget);
-    expect(find.byType(SettingsAccentPicker), findsOneWidget);
+    expect(find.text('Accent color'), findsOneWidget);
+    final choice = find.byType(SettingsVisualChoice<AccentPaletteSetting>);
+    expect(choice, findsOneWidget);
     for (final label in ['Teal', 'Blue', 'Violet', 'Orange', 'Pink']) {
-      expect(find.text(label), findsOneWidget, reason: label);
+      expect(
+        find.descendant(of: choice, matching: find.text(label)),
+        findsOneWidget,
+        reason: label,
+      );
     }
     expect(find.text('Emerald'), findsNothing);
 
@@ -81,7 +89,13 @@ void main() {
       onChanged: (settings) => changed = settings,
     );
 
-    await tester.tap(find.text('Violet'));
+    final violet = find.descendant(
+      of: find.byType(SettingsVisualChoice<AccentPaletteSetting>),
+      matching: find.text('Violet'),
+    );
+    await tester.ensureVisible(violet);
+    await tester.pumpAndSettle();
+    await tester.tap(violet);
     await tester.pump();
 
     expect(changed?.accentPalette, AccentPaletteSetting.violet);

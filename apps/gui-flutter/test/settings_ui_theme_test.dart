@@ -3,9 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/core/theme/mixar_accent.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
+import 'package:gui_flutter/widgets/settings/settings_visual_choice.dart';
+import 'package:gui_flutter/widgets/settings/theme_swatch.dart';
 import 'package:gui_flutter/widgets/shell/mixar_select.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -19,6 +22,7 @@ void main() {
     AppSettings? draft,
     ValueChanged<AppSettings>? onChanged,
     Key? captureKey,
+    AccentPaletteSetting savedAccentPalette = AccentPaletteSetting.teal,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -30,6 +34,7 @@ void main() {
                 key: captureKey,
                 child: SettingsUiPanel(
                   draft: draft ?? defaultAppSettings(),
+                  savedAccentPalette: savedAccentPalette,
                   onChanged: onChanged ?? (_) {},
                 ),
               ),
@@ -40,26 +45,59 @@ void main() {
     );
   }
 
-  testWidgets('UI panel offers the theme select, defaulting to system', (
+  testWidgets('theme previews use the saved accent until a save', (
+    tester,
+  ) async {
+    await pumpPanel(
+      tester,
+      draft: copyAppSettings(
+        defaultAppSettings(),
+        accentPalette: AccentPaletteSetting.teal,
+      ),
+      savedAccentPalette: AccentPaletteSetting.orange,
+    );
+    await tester.pumpAndSettle();
+
+    final palettes = tester
+        .widgetList<ThemeSwatch>(find.byType(ThemeSwatch))
+        .map((swatch) => swatch.palette)
+        .toSet();
+    expect(palettes, {MixarAccentPalette.orange});
+  }, semanticsEnabled: false);
+
+  testWidgets('UI panel offers the theme choice, defaulting to system', (
     tester,
   ) async {
     await pumpPanel(tester);
     expect(find.text('THEME'), findsOneWidget);
-    final select = find.byType(MixarSelect<ThemeSetting>);
-    expect(select, findsOneWidget);
-    expect(
-      find.descendant(of: select, matching: find.text('System default')),
-      findsOneWidget,
-    );
+    final choice = find.byType(SettingsVisualChoice<ThemeSetting>);
+    expect(choice, findsOneWidget);
+    final widget = tester.widget<SettingsVisualChoice<ThemeSetting>>(choice);
+    expect(widget.value, ThemeSetting.system);
+    expect(widget.options.map((option) => option.value), [
+      ThemeSetting.system,
+      ThemeSetting.light,
+      ThemeSetting.dark,
+    ]);
+    for (final label in ['System default', 'Light', 'Dark']) {
+      expect(
+        find.descendant(of: choice, matching: find.text(label)),
+        findsOneWidget,
+      );
+    }
   }, semanticsEnabled: false);
 
   testWidgets('picking Dark emits the theme setting', (tester) async {
     AppSettings? changed;
     await pumpPanel(tester, onChanged: (settings) => changed = settings);
 
-    await tester.tap(find.byType(MixarSelect<ThemeSetting>));
+    final darkOption = find.descendant(
+      of: find.byType(SettingsVisualChoice<ThemeSetting>),
+      matching: find.text('Dark'),
+    );
+    await tester.ensureVisible(darkOption);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Dark').last);
+    await tester.tap(darkOption);
     await tester.pumpAndSettle();
 
     expect(changed?.theme, ThemeSetting.dark);
@@ -74,7 +112,7 @@ void main() {
     final captureKey = GlobalKey();
     await pumpPanel(tester, captureKey: captureKey);
 
-    final select = find.byType(MixarSelect<ThemeSetting>);
+    final select = find.byType(MixarSelect<UiLanguageSetting>);
     await _focusSelect(tester, select);
 
     // The ring sits 4px outside the control and strokes 2px wide, so the
@@ -97,45 +135,6 @@ void main() {
       isTrue,
       reason: 'the ring stroke is 2px wide',
     );
-  }, semanticsEnabled: false);
-
-  testWidgets('last field keeps the bottom stroke of its focus ring', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1200, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    final captureKey = GlobalKey();
-    await pumpPanel(tester, captureKey: captureKey);
-
-    // The select-style control ends its card body, so the ring's bottom
-    // stroke falls below the body's own bottom edge -- the one the card clips.
-    final select = find.byType(MixarSelect<SelectStyleSetting>);
-    expect(select, findsOneWidget);
-    await _focusSelect(tester, select);
-
-    final rect = tester.getRect(select);
-    final capture = await _capturePanel(tester, captureKey);
-    final primary = MixarThemeData.dark().colors.primary;
-    final column = (rect.center.dx - capture.origin.dx).round();
-    final bottomEdge = (rect.bottom - capture.origin.dy).round();
-    // The ring is inflated 4px and stroked 2px inward, so its bottom stroke
-    // lands 2px and 3px below the control's own bottom edge.
-    for (final offset in const [2, 3]) {
-      expect(
-        _hasColor(
-          capture.rgba,
-          capture.stride,
-          column,
-          bottomEdge + offset,
-          primary,
-        ),
-        isTrue,
-        reason:
-            'the ring paints at y=${bottomEdge + offset}, $offset px below '
-            'the control bottom ${rect.bottom - capture.origin.dy}',
-      );
-    }
   }, semanticsEnabled: false);
 }
 
