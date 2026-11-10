@@ -23,30 +23,58 @@ final _kTinyPngArtwork = Uint8List.fromList(const [
   0x44, 0xAE, 0x42, 0x60, 0x82,
 ]);
 
-/// One platter on a themed scaffold, with the cover art the label should show.
-Widget _platterApp(Uint8List? artwork) {
+/// The platter alone, with this file's defaults. Tests that need to re-pump
+/// the platter from their own state build this inside their own builder.
+Widget _platterFace({
+  Uint8List? artwork,
+  double? bpm = 120,
+  bool enabled = true,
+  bool jogTouching = false,
+  int positionMs = 0,
+}) {
+  return SizedBox(
+    width: 200,
+    height: 200,
+    child: JogPlatter(
+      accent: DeckAccent.a,
+      playing: false,
+      hasTrack: true,
+      bpm: bpm,
+      enabled: enabled,
+      jogTouching: jogTouching,
+      artwork: artwork,
+      positionMs: positionMs,
+      durationMs: 180_000,
+    ),
+  );
+}
+
+/// A centred [body] under the app theme, so theme plumbing lives in one place.
+Widget _app(Widget body) {
   final theme = MixarThemeData.dark();
   return MaterialApp(
     theme: materialUiThemeFromMixar(theme),
     builder: mixarMaterialAppBuilder(theme),
-    home: Scaffold(
-      body: Center(
-        child: SizedBox(
-          width: 200,
-          height: 200,
-          child: JogPlatter(
-            accent: DeckAccent.a,
-            playing: false,
-            hasTrack: true,
-            enabled: true,
-            artwork: artwork,
-            durationMs: 180_000,
-          ),
-        ),
-      ),
-    ),
+    home: Scaffold(body: Center(child: body)),
   );
 }
+
+/// One platter on the themed scaffold.
+Widget _platterApp({
+  Uint8List? artwork,
+  double? bpm = 120,
+  bool enabled = true,
+  bool jogTouching = false,
+  int positionMs = 0,
+}) => _app(
+  _platterFace(
+    artwork: artwork,
+    bpm: bpm,
+    enabled: enabled,
+    jogTouching: jogTouching,
+    positionMs: positionMs,
+  ),
+);
 
 void main() {
   Future<void> pumpPlatter(
@@ -54,30 +82,8 @@ void main() {
     required int positionMs,
     bool jogTouching = true,
   }) async {
-    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 200,
-              height: 200,
-              child: JogPlatter(
-                accent: DeckAccent.a,
-                playing: false,
-                hasTrack: true,
-                bpm: 120,
-                enabled: true,
-                jogTouching: jogTouching,
-                positionMs: positionMs,
-                durationMs: 180_000,
-              ),
-            ),
-          ),
-        ),
-      ),
+      _platterApp(positionMs: positionMs, jogTouching: jogTouching),
     );
   }
 
@@ -128,32 +134,15 @@ void main() {
   testWidgets('local drag freezes playhead-driven rotation', (tester) async {
     var positionMs = 0;
     late StateSetter setPos;
-    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
-        home: Scaffold(
-          body: StatefulBuilder(
-            builder: (context, setState) {
-              setPos = setState;
-              return Center(
-                child: SizedBox(
-                  width: 200,
-                  height: 200,
-                  child: JogPlatter(
-                    accent: DeckAccent.a,
-                    playing: false,
-                    hasTrack: true,
-                    bpm: 120,
-                    enabled: true,
-                    positionMs: positionMs,
-                    durationMs: 180_000,
-                  ),
-                ),
-              );
-            },
-          ),
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            setPos = setState;
+            // Rebuild the platter from this state, so the position jump really
+            // reaches the widget.
+            return _platterFace(positionMs: positionMs);
+          },
         ),
       ),
     );
@@ -187,7 +176,7 @@ void main() {
     tester,
   ) async {
     Future<void> pumpWithArtwork(Uint8List? artwork) async {
-      await tester.pumpWidget(_platterApp(artwork));
+      await tester.pumpWidget(_platterApp(artwork: artwork));
       await tester.pump();
     }
 
