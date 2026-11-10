@@ -49,7 +49,19 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?> {
       spanMs: durationMs.toDouble(),
       width: size.width,
     );
-    final next = recordBeatGridPicture(marks: marks, size: size);
+    final arrows = phaseMarkXs(
+      bpm: grid.bpm,
+      downbeatsSecs: grid.downbeats,
+      firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
+      originMs: 0,
+      spanMs: durationMs.toDouble(),
+      width: size.width,
+    );
+    final next = recordBeatGridPicture(
+      marks: marks,
+      phaseArrows: arrows,
+      size: size,
+    );
     _dropPictureAfterFrame(_owned);
     _owned = next;
     return next;
