@@ -452,7 +452,7 @@ void main() {
     final grid = find.byWidgetPredicate(
       (w) =>
           w is CustomPaint &&
-          w.painter.runtimeType.toString() == '_LaneBeatGridPainter',
+          w.painter.runtimeType.toString() == '_BeatGridPicturePainter',
     );
     expect(grid, findsOneWidget);
 
@@ -461,7 +461,7 @@ void main() {
     final stack = tester.widget<Stack>(
       find.byWidgetPredicate((w) => w is Stack && w.clipBehavior == Clip.none),
     );
-    final gridIndex = stack.children.indexWhere((c) => c is AnimatedBuilder);
+    final gridIndex = stack.children.indexWhere((c) => c is Positioned);
     final overlayIndex = stack.children.indexWhere(
       (c) =>
           c is CustomPaint &&

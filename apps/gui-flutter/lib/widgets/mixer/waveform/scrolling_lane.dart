@@ -6,10 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
-import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
-import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/core/utils/waveform_picture.dart';
 import 'package:gui_flutter/core/utils/waveform_spectral_color.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -17,7 +15,6 @@ import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
-import 'package:gui_flutter/src/rust/api/library.dart' show BeatGridData;
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
@@ -168,9 +165,6 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     );
     final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
-    final beatGrid = trackId == null
-        ? null
-        : ref.watch(beatGridProvider(trackId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
     final slipOn = ref.watch(deckSlipEnabledProvider(widget.deckId));
     final slipShadowMs = ref.watch(deckSlipShadowMsProvider(widget.deckId));
@@ -349,7 +343,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                           deckId: widget.deckId,
                           trackId: trackId,
                           durationMs: durationMs,
-                          beatGrid: beatGrid,
+                          visibleSpanMs: visibleSpanMs,
                           width: width,
                           height: height,
                           pxPerMs: pxPerMs,
@@ -461,7 +455,7 @@ class _LaneStrip extends ConsumerWidget {
     required this.deckId,
     required this.trackId,
     required this.durationMs,
-    required this.beatGrid,
+    required this.visibleSpanMs,
     required this.width,
     required this.height,
     required this.pxPerMs,
@@ -473,7 +467,7 @@ class _LaneStrip extends ConsumerWidget {
   final int deckId;
   final String trackId;
   final int durationMs;
-  final BeatGridData? beatGrid;
+  final int visibleSpanMs;
   final double width;
   final double height;
   final double pxPerMs;
@@ -522,6 +516,17 @@ class _LaneStrip extends ConsumerWidget {
     final cues = ref.watch(
       stripCuePictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
     );
+    // Wider than the audio window on both sides so the grid still covers the
+    // viewport when the strip is clamped at the track's start or end (and a
+    // little way into the silence before/after it). Recording it as a picture
+    // keeps the per-tick playback path to a translate.
+    final gridOrigin = stripOrigin - 2 * visibleSpanMs;
+    final gridSpan = stripSpan + 4 * visibleSpanMs;
+    final gridWidth = (gridSpan * pxPerMs).round();
+    final beatGrid = ref.watch(
+      stripBeatGridPictureProvider((trackId, gridOrigin, gridSpan, gridWidth)),
+    );
+    final beatGridLeft = (gridOrigin - stripOrigin) * pxPerMs;
 
     return AnimatedBuilder(
       animation: playhead,
@@ -543,8 +548,9 @@ class _LaneStrip extends ConsumerWidget {
       child: RepaintBoundary(
         child: Stack(
           fit: StackFit.expand,
-          // The grid is positioned in viewport space and may reach past the
-          // strip; the lane's ClipRect keeps it inside the lane.
+          // The grid picture starts before the strip's audio window and may
+          // reach past its far edge; the lane's ClipRect keeps it inside the
+          // lane.
           clipBehavior: Clip.none,
           children: [
             FittedBox(
@@ -559,26 +565,17 @@ class _LaneStrip extends ConsumerWidget {
                 ),
               ),
             ),
-            if (beatGrid case final grid?)
-              AnimatedBuilder(
-                animation: playhead,
-                builder: (context, _) {
-                  final visibleMs = width / pxPerMs;
-                  final viewOriginMs = displayMs() - visibleMs / 2;
-                  return Positioned(
-                    left: snapPx((viewOriginMs - stripOrigin) * pxPerMs, dpr),
-                    top: 0,
-                    bottom: 0,
-                    width: width,
-                    child: _LaneBeatGrid(
-                      grid: grid,
-                      durationMs: durationMs,
-                      visibleSpanMs: visibleMs.round(),
-                      displayMs: displayMs,
-                      ticks: playhead,
-                    ),
-                  );
-                },
+            if (beatGrid != null)
+              Positioned(
+                left: beatGridLeft,
+                top: 0,
+                bottom: 0,
+                width: gridWidth.toDouble(),
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _BeatGridPicturePainter(picture: beatGrid),
+                  ),
+                ),
               ),
             CustomPaint(
               painter: _StripOverlayPainter(
@@ -711,97 +708,28 @@ class _WaveformPainter extends CustomPainter {
       bandGain != oldDelegate.bandGain;
 }
 
-/// Tempo bars across the whole lane, including the silence before the track
-/// starts and after it ends.
+/// Replays the recorded tempo bars at the window they were recorded for.
 ///
-/// The strip picture only covers real audio (its window is clamped to the
-/// track), so the grid cannot live in it: beat lines and bar arrows are
-/// extrapolated from the analysed grid in both directions and painted over the
-/// lane's full width. Repainting follows the playhead animation without
-/// rebuilding the lane.
-class _LaneBeatGrid extends StatelessWidget {
-  const new({
-    required this.grid,
-    required this.durationMs,
-    required this.visibleSpanMs,
-    required this.displayMs,
-    required this.ticks,
-  });
+/// The grid picture is wider than the strip (the strip window is clamped at
+/// the track edges), anchored in source time, and translated with the strip,
+/// so playback only moves this layer instead of rebuilding the marks.
+class _BeatGridPicturePainter extends CustomPainter {
+  new({required this.picture});
 
-  final BeatGridData grid;
-  final int durationMs;
-  final int visibleSpanMs;
-  final double Function() displayMs;
-  final Listenable ticks;
-
-  @override
-  Widget build(BuildContext context) => RepaintBoundary(
-    child: CustomPaint(
-      painter: _LaneBeatGridPainter(
-        grid: grid,
-        durationMs: durationMs,
-        visibleSpanMs: visibleSpanMs,
-        displayMs: displayMs,
-        ticks: ticks,
-      ),
-    ),
-  );
-}
-
-class _LaneBeatGridPainter extends CustomPainter {
-  new({
-    required this.grid,
-    required this.durationMs,
-    required this.visibleSpanMs,
-    required this.displayMs,
-    required this.ticks,
-  }) : super(repaint: ticks);
-
-  final BeatGridData grid;
-  final int durationMs;
-  final int visibleSpanMs;
-  final double Function() displayMs;
-  final Listenable ticks;
+  final Picture picture;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bpm = grid.bpm;
-    if (bpm == null ||
-        durationMs <= 0 ||
-        visibleSpanMs <= 0 ||
-        size.width <= 0 ||
-        size.height <= 0) {
+    if (size.width <= 0 || size.height <= 0) {
       return;
     }
-    // Same window the strip is positioned in — playhead centered — but
-    // unclamped, so the grid keeps running outside the track's audio.
-    final originMs = displayMs() - visibleSpanMs / 2;
-    final firstBeatSecs = grid.beats.isEmpty ? 0.0 : grid.beats.first;
-    paintBeatGrid(
-      canvas,
-      marks: beatGridXs(
-        bpm: bpm,
-        firstBeatSecs: firstBeatSecs,
-        originMs: originMs,
-        spanMs: visibleSpanMs.toDouble(),
-        width: size.width,
-      ),
-      phaseArrows: phaseMarkXs(
-        bpm: bpm,
-        downbeatsSecs: grid.downbeats,
-        firstBeatSecs: firstBeatSecs,
-        originMs: originMs,
-        spanMs: visibleSpanMs.toDouble(),
-        width: size.width,
-      ),
-      size: size,
-    );
+    canvas.save();
+    canvas.scale(1, size.height / kWaveformStripHeight);
+    canvas.drawPicture(picture);
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_LaneBeatGridPainter oldDelegate) =>
-      !identical(grid, oldDelegate.grid) ||
-      durationMs != oldDelegate.durationMs ||
-      visibleSpanMs != oldDelegate.visibleSpanMs ||
-      !identical(ticks, oldDelegate.ticks);
+  bool shouldRepaint(_BeatGridPicturePainter oldDelegate) =>
+      !identical(picture, oldDelegate.picture);
 }

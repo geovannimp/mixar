@@ -58,6 +58,22 @@ void paintBeatGrid(
   }
 }
 
+/// Records [paintBeatGrid] for overlays that replay a static strip window.
+Picture recordBeatGridPicture({
+  required List<BeatMark> marks,
+  required Size size,
+  List<double> phaseArrows = const [],
+}) {
+  final recorder = PictureRecorder();
+  paintBeatGrid(
+    Canvas(recorder),
+    marks: marks,
+    phaseArrows: phaseArrows,
+    size: size,
+  );
+  return recorder.endRecording();
+}
+
 /// Down (top edge) and up (bottom edge) triangles marking a phase point.
 void _paintPhaseArrow(
   Canvas canvas, {

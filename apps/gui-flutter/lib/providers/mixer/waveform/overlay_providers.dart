@@ -2,10 +2,12 @@ import 'dart:ui';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
 import 'package:gui_flutter/core/utils/waveform_layout.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
+import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
 void _dropPictureAfterFrame(Picture? picture) {
@@ -170,6 +172,51 @@ class StripCuePictureNotifier extends Notifier<Picture?> with _OverlayPicture {
     );
   }
 }
+
+class StripBeatGridPictureNotifier extends Notifier<Picture?>
+    with _OverlayPicture {
+  new(this.arg);
+
+  final StripWindowKey arg;
+
+  @override
+  Picture? build() {
+    final (trackId, originMs, spanMs, widthPx) = arg;
+    ref.onDispose(dropPicture);
+    final grid = ref.watch(beatGridProvider(trackId));
+    if (grid == null || grid.bpm == null) {
+      dropPicture();
+      return null;
+    }
+    if (dropInvalidWindow(spanMs, widthPx)) {
+      return null;
+    }
+    final size = _stripSize(widthPx);
+    final marks = beatGridXs(
+      bpm: grid.bpm!,
+      firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
+      originMs: originMs.toDouble(),
+      spanMs: spanMs.toDouble(),
+      width: size.width,
+    );
+    final arrows = phaseMarkXs(
+      bpm: grid.bpm,
+      downbeatsSecs: grid.downbeats,
+      firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
+      originMs: originMs.toDouble(),
+      spanMs: spanMs.toDouble(),
+      width: size.width,
+    );
+    return publishPicture(
+      recordBeatGridPicture(marks: marks, phaseArrows: arrows, size: size),
+    );
+  }
+}
+
+final stripBeatGridPictureProvider = NotifierProvider.autoDispose
+    .family<StripBeatGridPictureNotifier, Picture?, StripWindowKey>(
+      StripBeatGridPictureNotifier.new,
+    );
 
 final stripLoopPictureProvider = NotifierProvider.autoDispose
     .family<StripLoopPictureNotifier, Picture?, StripWindowKey>(
