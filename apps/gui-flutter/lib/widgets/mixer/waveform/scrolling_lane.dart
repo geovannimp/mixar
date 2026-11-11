@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/gestures.dart' show PointerScrollEvent;
+import 'package:flutter/gestures.dart' show PointerScrollEvent, kPrimaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/theme/app_typography.dart';
 import 'package:gui_flutter/core/theme/deck_accent.dart';
 import 'package:gui_flutter/core/utils/waveform_gain.dart';
@@ -16,6 +17,7 @@ import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
 import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
@@ -46,6 +48,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   var _scrubAnchorMs = 0.0;
   final _seekClock = Stopwatch()..start();
   int? _lastSeekMs;
+  var _suppressSeek = false;
 
   @override
   void initState() {
@@ -239,6 +242,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
             onPointerDown: durationMs <= 0
                 ? null
                 : (e) {
+                    if (e.buttons != kPrimaryButton) {
+                      return;
+                    }
                     _scrubbing = true;
                     _playhead.stop();
                     _scrubAnchorX = e.localPosition.dx;
@@ -258,6 +264,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               _throttledSeek(ms.round());
             },
             onPointerUp: (e) {
+              if (_suppressSeek || shiftKeyPressed()) {
+                _suppressSeek = false;
+                _scrubbing = false;
+                return;
+              }
               if (!_scrubbing) {
                 return;
               }
@@ -312,6 +323,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                           playhead: _playhead,
                           displayMs: () => _displayMs(durationMs),
                           dpr: dpr,
+                          onMenuOpened: () => _suppressSeek = true,
                         ),
                       Align(
                         child: ColoredBox(
@@ -423,6 +435,7 @@ class _LaneStrip extends ConsumerWidget {
     required this.playhead,
     required this.displayMs,
     required this.dpr,
+    this.onMenuOpened,
   });
 
   final int deckId;
@@ -434,6 +447,7 @@ class _LaneStrip extends ConsumerWidget {
   final Animation<double> playhead;
   final double Function() displayMs;
   final double dpr;
+  final VoidCallback? onMenuOpened;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -446,6 +460,7 @@ class _LaneStrip extends ConsumerWidget {
     if (strip == null) {
       return const SizedBox.shrink();
     }
+    final savedLoops = ref.watch(deckSavedLoopsProvider(deckId));
     final stripOrigin = strip.originMs;
     final stripSpan = strip.spanMs;
     final stripWidth = strip.widthPx;
@@ -502,32 +517,42 @@ class _LaneStrip extends ConsumerWidget {
         width: displayWidth.toDouble(),
         child: child!,
       ),
-      child: RepaintBoundary(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            FittedBox(
-              fit: BoxFit.fill,
-              child: SizedBox(
-                width: stripWidth.toDouble(),
-                height: height,
-                child: _StripWaveform(
-                  deckId: deckId,
-                  strip: strip,
+      child: LoopBandDeleteRegion(
+        deckId: deckId,
+        trackId: trackId,
+        loops: savedLoops,
+        originMs: stripOrigin,
+        spanMs: stripSpan,
+        width: displayWidth.toDouble(),
+        height: height,
+        onMenuOpened: onMenuOpened,
+        child: RepaintBoundary(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              FittedBox(
+                fit: BoxFit.fill,
+                child: SizedBox(
+                  width: stripWidth.toDouble(),
                   height: height,
+                  child: _StripWaveform(
+                    deckId: deckId,
+                    strip: strip,
+                    height: height,
+                  ),
                 ),
               ),
-            ),
-            CustomPaint(
-              painter: _StripOverlayPainter(
-                beatGrid: beatGrid,
-                loops: loops,
-                activeLoop: activeLoop,
-                pendingLoopIn: pendingLoopIn,
-                cues: cues,
+              CustomPaint(
+                painter: _StripOverlayPainter(
+                  beatGrid: beatGrid,
+                  loops: loops,
+                  activeLoop: activeLoop,
+                  pendingLoopIn: pendingLoopIn,
+                  cues: cues,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

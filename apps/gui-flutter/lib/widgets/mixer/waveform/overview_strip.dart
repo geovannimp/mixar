@@ -11,6 +11,7 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
+import 'package:gui_flutter/widgets/mixer/waveform/loop_band_delete.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -54,16 +55,17 @@ class OverviewStrip extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapDown: durationMs <= 0
+              return LoopBandDeleteRegion(
+                deckId: deckId,
+                trackId: trackId ?? '',
+                loops: savedLoops,
+                originMs: 0,
+                spanMs: durationMs,
+                width: width,
+                height: height,
+                onTapMs: durationMs <= 0
                     ? null
-                    : (details) {
-                        final ms =
-                            (details.localPosition.dx / width * durationMs)
-                                .round();
-                        unawaited(_seek(ref, context, deckId, ms));
-                      },
+                    : (ms) => unawaited(_seek(ref, context, deckId, ms)),
                 child: ExcludeSemantics(
                   child: Stack(
                     fit: StackFit.expand,
