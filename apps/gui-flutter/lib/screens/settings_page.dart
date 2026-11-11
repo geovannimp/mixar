@@ -642,13 +642,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// The toggle is seated left of it, so the slot has to be known before the
   /// row lays out — and it changes with the label ("Save" / "Saving…").
   double _saveSlotWidth(MixarThemeData theme, String label) {
+    // Same style the button paints with (AppButton applies the app density's
+    // weight and a solid line height), so the measurement matches the label.
+    final style = theme.typography.body.sm.copyWith(
+      fontWeight: FontWeight.w500,
+      height: 1,
+    );
     final painter = TextPainter(
-      text: TextSpan(text: label, style: theme.typography.body.sm),
+      text: TextSpan(text: label, style: style),
       textDirection: TextDirection.ltr,
     )..layout();
-    // The sm button's own horizontal content padding, plus a pixel of slack so
-    // a rounding difference never clips the label.
-    final width = painter.width + 20 + 1;
+    // The sm button's own horizontal content padding, plus a little slack so a
+    // font-metric rounding difference never clips the label.
+    final width = painter.width + 20 + 4;
     painter.dispose();
     return width;
   }
