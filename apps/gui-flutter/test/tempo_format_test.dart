@@ -34,6 +34,20 @@ void main() {
     expect(effectiveBpm(100, 0), closeTo(106, 1e-12));
   });
 
+  test('effectiveBpmFromRatio ignores the fader span; null when invalid', () {
+    expect(effectiveBpmFromRatio(null, 1.2), isNull);
+    expect(effectiveBpmFromRatio(128, 1.0), 128);
+    // 100 BPM at 1.2× mirrors a 120 BPM master even though ±6% saturates at 106.
+    expect(effectiveBpmFromRatio(100, 1.2), closeTo(120, 1e-12));
+    expect(effectiveBpmFromRatio(100, 0), isNull);
+    expect(effectiveBpmFromRatio(100, double.nan), isNull);
+  });
+
+  test('formatRatioPercent renders the actual ratio', () {
+    expect(formatRatioPercent(1.2), '+20.00%');
+    expect(formatRatioPercent(0.96), '-4.00%');
+  });
+
   test('formatBpm handles unloaded and non-finite input', () {
     expect(formatBpm(null), '—');
     expect(formatBpm(double.nan), '—');

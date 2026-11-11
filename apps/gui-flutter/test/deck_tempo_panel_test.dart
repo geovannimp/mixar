@@ -28,6 +28,7 @@ void main() {
     SyncMode syncMode = SyncMode.off,
     bool isMaster = false,
     double? trackBpm,
+    double? playbackRatio,
     List<double> tempoRangeSteps = kTempoRangeSteps,
     ValueChanged<double>? onSpeedChange,
     ValueChanged<double>? onTempoRangeChange,
@@ -53,6 +54,7 @@ void main() {
                 syncMode: syncMode,
                 isMaster: isMaster,
                 trackBpm: trackBpm,
+                playbackRatio: playbackRatio,
                 tempoRangeSteps: tempoRangeSteps,
                 onSpeedChange: onSpeedChange ?? (_) {},
                 onTempoRangeChange: onTempoRangeChange ?? (_) {},
@@ -113,6 +115,26 @@ void main() {
       expect(beats, isEmpty);
     },
   );
+
+  testWidgets('synced deck mirrors master BPM outside the fader range', (
+    tester,
+  ) async {
+    // 100 BPM at 1.2× = 120 BPM. The default ±6% fader saturates at 106 BPM,
+    // so the readout must come from the engine's actual playback ratio.
+    for (final range in [kDefaultTempoRange, 0.25]) {
+      await pumpPanel(
+        tester,
+        speed: 0,
+        tempoRange: range,
+        syncMode: SyncMode.tempo,
+        trackBpm: 100,
+        playbackRatio: 1.2,
+      );
+
+      expect(find.text(formatBpm(120)), findsOneWidget);
+      expect(find.text(formatRatioPercent(1.2)), findsOneWidget);
+    }
+  });
 
   testWidgets('tempo header keeps 12px vertical padding around the readout', (
     tester,

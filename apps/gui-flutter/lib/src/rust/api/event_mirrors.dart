@@ -609,6 +609,7 @@ class DeckSnapshot {
   final double volume;
   final double speed;
   final double tempoRange;
+  final double playbackRatio;
   final bool keyLock;
   final double keyShift;
   final int keyboardPage;
@@ -661,6 +662,7 @@ class DeckSnapshot {
     required this.volume,
     required this.speed,
     required this.tempoRange,
+    required this.playbackRatio,
     required this.keyLock,
     required this.keyShift,
     required this.keyboardPage,
@@ -715,6 +717,7 @@ class DeckSnapshot {
       volume.hashCode ^
       speed.hashCode ^
       tempoRange.hashCode ^
+      playbackRatio.hashCode ^
       keyLock.hashCode ^
       keyShift.hashCode ^
       keyboardPage.hashCode ^
@@ -771,6 +774,7 @@ class DeckSnapshot {
           volume == other.volume &&
           speed == other.speed &&
           tempoRange == other.tempoRange &&
+          playbackRatio == other.playbackRatio &&
           keyLock == other.keyLock &&
           keyShift == other.keyShift &&
           keyboardPage == other.keyboardPage &&
@@ -824,6 +828,7 @@ class DeckUpdated {
   final double volume;
   final double speed;
   final double tempoRange;
+  final double playbackRatio;
   final bool keyLock;
   final double keyShift;
   final int keyboardPage;
@@ -877,6 +882,7 @@ class DeckUpdated {
     required this.volume,
     required this.speed,
     required this.tempoRange,
+    required this.playbackRatio,
     required this.keyLock,
     required this.keyShift,
     required this.keyboardPage,
@@ -932,6 +938,7 @@ class DeckUpdated {
       volume.hashCode ^
       speed.hashCode ^
       tempoRange.hashCode ^
+      playbackRatio.hashCode ^
       keyLock.hashCode ^
       keyShift.hashCode ^
       keyboardPage.hashCode ^
@@ -989,6 +996,7 @@ class DeckUpdated {
           volume == other.volume &&
           speed == other.speed &&
           tempoRange == other.tempoRange &&
+          playbackRatio == other.playbackRatio &&
           keyLock == other.keyLock &&
           keyShift == other.keyShift &&
           keyboardPage == other.keyboardPage &&

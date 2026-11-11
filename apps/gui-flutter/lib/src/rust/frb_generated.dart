@@ -9208,8 +9208,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DeckSnapshot dco_decode_deck_snapshot(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 50)
-      throw Exception('unexpected arr length: expect 50 but see ${arr.length}');
+    if (arr.length != 51)
+      throw Exception('unexpected arr length: expect 51 but see ${arr.length}');
     return DeckSnapshot(
       id: dco_decode_u_16(arr[0]),
       track: dco_decode_opt_String(arr[1]),
@@ -9225,42 +9225,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       volume: dco_decode_f_32(arr[11]),
       speed: dco_decode_f_32(arr[12]),
       tempoRange: dco_decode_f_32(arr[13]),
-      keyLock: dco_decode_bool(arr[14]),
-      keyShift: dco_decode_f_32(arr[15]),
-      keyboardPage: dco_decode_u_8(arr[16]),
-      keyShiftPage: dco_decode_u_8(arr[17]),
-      keyboardRootHotCue: dco_decode_u_8(arr[18]),
-      eq: dco_decode_deck_eq(arr[19]),
-      filter: dco_decode_f_32(arr[20]),
-      gainTrim: dco_decode_f_32(arr[21]),
-      fxRouted: dco_decode_bool(arr[22]),
-      fx: dco_decode_list_fx_slot_state(arr[23]),
-      headphoneCue: dco_decode_bool(arr[24]),
-      syncMode: dco_decode_sync_mode(arr[25]),
-      cuePointMs: dco_decode_opt_box_autoadd_i_32(arr[26]),
-      quantize: dco_decode_bool(arr[27]),
-      activeLoop: dco_decode_opt_box_autoadd_loop_region(arr[28]),
-      pendingLoopInMs: dco_decode_opt_box_autoadd_i_32(arr[29]),
-      slipEnabled: dco_decode_bool(arr[30]),
-      slipShadowPositionMs: dco_decode_opt_box_autoadd_i_32(arr[31]),
-      padMode: dco_decode_pad_mode(arr[32]),
-      stemsReady: dco_decode_bool(arr[33]),
-      stemsAudible: dco_decode_bool(arr[34]),
-      stemsLive: dco_decode_bool(arr[35]),
-      stemMute: dco_decode_list_bool(arr[36]),
-      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[37]),
-      stemEq: dco_decode_list_prim_f_32_strict(arr[38]),
-      stemEqEnabled: dco_decode_bool(arr[39]),
-      positionMs: dco_decode_opt_box_autoadd_i_32(arr[40]),
-      durationMs: dco_decode_opt_box_autoadd_i_32(arr[41]),
-      hotCues: dco_decode_list_deck_hot_cue(arr[42]),
-      savedLoops: dco_decode_list_deck_saved_loop(arr[43]),
-      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[44]),
-      autoGainDb: dco_decode_f_32(arr[45]),
-      activeSamplerBankId: dco_decode_opt_String(arr[46]),
-      topJogMode: dco_decode_jog_mode(arr[47]),
-      outerJogMode: dco_decode_jog_mode(arr[48]),
-      jogTouching: dco_decode_bool(arr[49]),
+      playbackRatio: dco_decode_f_32(arr[14]),
+      keyLock: dco_decode_bool(arr[15]),
+      keyShift: dco_decode_f_32(arr[16]),
+      keyboardPage: dco_decode_u_8(arr[17]),
+      keyShiftPage: dco_decode_u_8(arr[18]),
+      keyboardRootHotCue: dco_decode_u_8(arr[19]),
+      eq: dco_decode_deck_eq(arr[20]),
+      filter: dco_decode_f_32(arr[21]),
+      gainTrim: dco_decode_f_32(arr[22]),
+      fxRouted: dco_decode_bool(arr[23]),
+      fx: dco_decode_list_fx_slot_state(arr[24]),
+      headphoneCue: dco_decode_bool(arr[25]),
+      syncMode: dco_decode_sync_mode(arr[26]),
+      cuePointMs: dco_decode_opt_box_autoadd_i_32(arr[27]),
+      quantize: dco_decode_bool(arr[28]),
+      activeLoop: dco_decode_opt_box_autoadd_loop_region(arr[29]),
+      pendingLoopInMs: dco_decode_opt_box_autoadd_i_32(arr[30]),
+      slipEnabled: dco_decode_bool(arr[31]),
+      slipShadowPositionMs: dco_decode_opt_box_autoadd_i_32(arr[32]),
+      padMode: dco_decode_pad_mode(arr[33]),
+      stemsReady: dco_decode_bool(arr[34]),
+      stemsAudible: dco_decode_bool(arr[35]),
+      stemsLive: dco_decode_bool(arr[36]),
+      stemMute: dco_decode_list_bool(arr[37]),
+      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[38]),
+      stemEq: dco_decode_list_prim_f_32_strict(arr[39]),
+      stemEqEnabled: dco_decode_bool(arr[40]),
+      positionMs: dco_decode_opt_box_autoadd_i_32(arr[41]),
+      durationMs: dco_decode_opt_box_autoadd_i_32(arr[42]),
+      hotCues: dco_decode_list_deck_hot_cue(arr[43]),
+      savedLoops: dco_decode_list_deck_saved_loop(arr[44]),
+      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[45]),
+      autoGainDb: dco_decode_f_32(arr[46]),
+      activeSamplerBankId: dco_decode_opt_String(arr[47]),
+      topJogMode: dco_decode_jog_mode(arr[48]),
+      outerJogMode: dco_decode_jog_mode(arr[49]),
+      jogTouching: dco_decode_bool(arr[50]),
     );
   }
 
@@ -9268,8 +9269,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DeckUpdated dco_decode_deck_updated(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 51)
-      throw Exception('unexpected arr length: expect 51 but see ${arr.length}');
+    if (arr.length != 52)
+      throw Exception('unexpected arr length: expect 52 but see ${arr.length}');
     return DeckUpdated(
       deck: dco_decode_u_16(arr[0]),
       track: dco_decode_opt_String(arr[1]),
@@ -9285,43 +9286,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       volume: dco_decode_f_32(arr[11]),
       speed: dco_decode_f_32(arr[12]),
       tempoRange: dco_decode_f_32(arr[13]),
-      keyLock: dco_decode_bool(arr[14]),
-      keyShift: dco_decode_f_32(arr[15]),
-      keyboardPage: dco_decode_u_8(arr[16]),
-      keyShiftPage: dco_decode_u_8(arr[17]),
-      keyboardRootHotCue: dco_decode_u_8(arr[18]),
-      eq: dco_decode_deck_eq(arr[19]),
-      filter: dco_decode_f_32(arr[20]),
-      gainTrim: dco_decode_f_32(arr[21]),
-      fxRouted: dco_decode_bool(arr[22]),
-      fx: dco_decode_list_fx_slot_state(arr[23]),
-      headphoneCue: dco_decode_bool(arr[24]),
-      syncMode: dco_decode_sync_mode(arr[25]),
-      cuePointMs: dco_decode_opt_box_autoadd_i_32(arr[26]),
-      quantize: dco_decode_bool(arr[27]),
-      activeLoop: dco_decode_opt_box_autoadd_loop_region(arr[28]),
-      pendingLoopInMs: dco_decode_opt_box_autoadd_i_32(arr[29]),
-      slipEnabled: dco_decode_bool(arr[30]),
-      slipShadowPositionMs: dco_decode_opt_box_autoadd_i_32(arr[31]),
-      padMode: dco_decode_pad_mode(arr[32]),
-      stemsReady: dco_decode_bool(arr[33]),
-      stemsAudible: dco_decode_bool(arr[34]),
-      stemsLive: dco_decode_bool(arr[35]),
-      stemMute: dco_decode_list_bool(arr[36]),
-      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[37]),
-      stemEq: dco_decode_list_prim_f_32_strict(arr[38]),
-      stemEqEnabled: dco_decode_bool(arr[39]),
-      positionMs: dco_decode_opt_box_autoadd_i_32(arr[40]),
-      durationMs: dco_decode_opt_box_autoadd_i_32(arr[41]),
-      hotCues: dco_decode_list_deck_hot_cue(arr[42]),
-      savedLoops: dco_decode_list_deck_saved_loop(arr[43]),
-      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[44]),
-      autoGainDb: dco_decode_f_32(arr[45]),
-      activeSamplerBankId: dco_decode_opt_String(arr[46]),
-      topJogMode: dco_decode_jog_mode(arr[47]),
-      outerJogMode: dco_decode_jog_mode(arr[48]),
-      jogTouching: dco_decode_bool(arr[49]),
-      samplerSlots: dco_decode_list_sampler_slot_info(arr[50]),
+      playbackRatio: dco_decode_f_32(arr[14]),
+      keyLock: dco_decode_bool(arr[15]),
+      keyShift: dco_decode_f_32(arr[16]),
+      keyboardPage: dco_decode_u_8(arr[17]),
+      keyShiftPage: dco_decode_u_8(arr[18]),
+      keyboardRootHotCue: dco_decode_u_8(arr[19]),
+      eq: dco_decode_deck_eq(arr[20]),
+      filter: dco_decode_f_32(arr[21]),
+      gainTrim: dco_decode_f_32(arr[22]),
+      fxRouted: dco_decode_bool(arr[23]),
+      fx: dco_decode_list_fx_slot_state(arr[24]),
+      headphoneCue: dco_decode_bool(arr[25]),
+      syncMode: dco_decode_sync_mode(arr[26]),
+      cuePointMs: dco_decode_opt_box_autoadd_i_32(arr[27]),
+      quantize: dco_decode_bool(arr[28]),
+      activeLoop: dco_decode_opt_box_autoadd_loop_region(arr[29]),
+      pendingLoopInMs: dco_decode_opt_box_autoadd_i_32(arr[30]),
+      slipEnabled: dco_decode_bool(arr[31]),
+      slipShadowPositionMs: dco_decode_opt_box_autoadd_i_32(arr[32]),
+      padMode: dco_decode_pad_mode(arr[33]),
+      stemsReady: dco_decode_bool(arr[34]),
+      stemsAudible: dco_decode_bool(arr[35]),
+      stemsLive: dco_decode_bool(arr[36]),
+      stemMute: dco_decode_list_bool(arr[37]),
+      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[38]),
+      stemEq: dco_decode_list_prim_f_32_strict(arr[39]),
+      stemEqEnabled: dco_decode_bool(arr[40]),
+      positionMs: dco_decode_opt_box_autoadd_i_32(arr[41]),
+      durationMs: dco_decode_opt_box_autoadd_i_32(arr[42]),
+      hotCues: dco_decode_list_deck_hot_cue(arr[43]),
+      savedLoops: dco_decode_list_deck_saved_loop(arr[44]),
+      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[45]),
+      autoGainDb: dco_decode_f_32(arr[46]),
+      activeSamplerBankId: dco_decode_opt_String(arr[47]),
+      topJogMode: dco_decode_jog_mode(arr[48]),
+      outerJogMode: dco_decode_jog_mode(arr[49]),
+      jogTouching: dco_decode_bool(arr[50]),
+      samplerSlots: dco_decode_list_sampler_slot_info(arr[51]),
     );
   }
 
@@ -13752,6 +13754,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_volume = sse_decode_f_32(deserializer);
     var var_speed = sse_decode_f_32(deserializer);
     var var_tempoRange = sse_decode_f_32(deserializer);
+    var var_playbackRatio = sse_decode_f_32(deserializer);
     var var_keyLock = sse_decode_bool(deserializer);
     var var_keyShift = sse_decode_f_32(deserializer);
     var var_keyboardPage = sse_decode_u_8(deserializer);
@@ -13805,6 +13808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       volume: var_volume,
       speed: var_speed,
       tempoRange: var_tempoRange,
+      playbackRatio: var_playbackRatio,
       keyLock: var_keyLock,
       keyShift: var_keyShift,
       keyboardPage: var_keyboardPage,
@@ -13861,6 +13865,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_volume = sse_decode_f_32(deserializer);
     var var_speed = sse_decode_f_32(deserializer);
     var var_tempoRange = sse_decode_f_32(deserializer);
+    var var_playbackRatio = sse_decode_f_32(deserializer);
     var var_keyLock = sse_decode_bool(deserializer);
     var var_keyShift = sse_decode_f_32(deserializer);
     var var_keyboardPage = sse_decode_u_8(deserializer);
@@ -13915,6 +13920,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       volume: var_volume,
       speed: var_speed,
       tempoRange: var_tempoRange,
+      playbackRatio: var_playbackRatio,
       keyLock: var_keyLock,
       keyShift: var_keyShift,
       keyboardPage: var_keyboardPage,
@@ -18677,6 +18683,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.volume, serializer);
     sse_encode_f_32(self.speed, serializer);
     sse_encode_f_32(self.tempoRange, serializer);
+    sse_encode_f_32(self.playbackRatio, serializer);
     sse_encode_bool(self.keyLock, serializer);
     sse_encode_f_32(self.keyShift, serializer);
     sse_encode_u_8(self.keyboardPage, serializer);
@@ -18732,6 +18739,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.volume, serializer);
     sse_encode_f_32(self.speed, serializer);
     sse_encode_f_32(self.tempoRange, serializer);
+    sse_encode_f_32(self.playbackRatio, serializer);
     sse_encode_bool(self.keyLock, serializer);
     sse_encode_f_32(self.keyShift, serializer);
     sse_encode_u_8(self.keyboardPage, serializer);

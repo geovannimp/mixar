@@ -6,38 +6,19 @@ mod common;
 use bus_api::Event;
 use bus_api::SetMasterDeck;
 use bus_api::SetSpeed;
+use bus_api::SetTempoRange;
 use bus_api::SyncMode;
 use bus_api::ToggleSync;
 use common::recv_snapshot;
 use common::recv_updated;
 use common::recv_updated_where;
 use common::source_with_bpm;
-use engine_core::AudioConfig;
 use engine_core::EngineConfig;
 use engine_core::EngineSession;
-
-/// ±25% tempo fader span, wide enough that the 120→100 BPM sync ratio (1.2×)
-/// is reachable instead of saturating the default ±6% fader.
-const TEST_TEMPO_RANGE: f32 = 0.25;
 
 fn null_session_with_synced_decks() -> EngineSession {
     let config = EngineConfig {
         backend: "null".to_string(),
-        audio: Some(AudioConfig {
-            resampler_quality: None,
-            sampler_strip_route: None,
-            default_tempo_range: Some(TEST_TEMPO_RANGE),
-            tempo_range_steps: None,
-            default_key_lock: None,
-            vinyl_brake_pause: None,
-            vinyl_brake_stop_secs: None,
-            default_crossfader_curve: None,
-            default_channel_fader_curve: None,
-            default_tempo_curve: None,
-            default_fx_level_curve: None,
-            crossfader_behavior: None,
-            curve_library: None,
-        }),
         ..Default::default()
     };
     let session = EngineSession::new(config).expect("session");
@@ -67,12 +48,13 @@ fn toggle_sync_publishes_tempo_mode_and_matched_speed() {
     let update = recv_updated(&mut evt);
     assert_eq!(update.deck, 1);
     assert_eq!(update.sync_mode, SyncMode::Tempo);
-    // Master 120 BPM at unity → slave 100 BPM needs ratio 1.2×.
-    // playback_ratio_to_norm(1.2, ±0.25) = 0.5 − (1.2−1.0)/0.5 = 0.1.
+    // Master 120 BPM at unity → slave 100 BPM mirrors 120 BPM (1.2×). The
+    // default ±6% fader cannot express that, so `speed` saturates; the actual
+    // playback ratio must still track the master.
     assert!(
-        (update.speed - 0.1).abs() < 1e-3,
-        "slave should be synced to the master tempo, speed={}",
-        update.speed
+        (update.playback_ratio - 1.2).abs() < 1e-3,
+        "slave should mirror the master tempo, ratio={}",
+        update.playback_ratio
     );
 }
 
@@ -92,9 +74,8 @@ fn master_speed_change_updates_synced_slave() {
     session
         .publish_cmd(Event::SetSpeed(SetSpeed {
             deck: 0,
-            // Slower than unity: norm 0.8 with ±0.25 → ratio
-            // 1 + (0.5 − 0.8)·0.5 = 0.85, so the slave target
-            // 0.85 × 120/100 = 1.02 stays inside the fader span.
+            // Slower than unity: norm 0.8 with the default ±6% → ratio
+            // 1 + (0.5 − 0.8)·0.12 = 0.964.
             speed: 0.8,
             soft_takeover: false,
         }))
@@ -104,14 +85,74 @@ fn master_speed_change_updates_synced_slave() {
     // the shared helper so this wait reports timeouts/disconnects identically to
     // every other receive in the suite.
     let update = recv_updated_where(&mut evt, |update| update.deck == 1);
-    let speed = update.speed;
-    // Master ratio 0.85 → slave needs 0.85 × 120/100 = 1.02×.
-    // playback_ratio_to_norm(1.02, ±0.25) = 0.5 − 0.02/0.5 = 0.46.
-    // Asserting the derived value (not 0.0) means deleting `apply_tempo_sync`
-    // now fails this test.
+    // Slave target 0.964 × 120/100 = 1.1568, well outside the default ±6%
+    // fader. Asserting the actual ratio means deleting `apply_tempo_sync`
+    // fails this test even though the fader saturates.
+    let ratio = update.playback_ratio;
     assert!(
-        (speed - 0.46).abs() < 1e-3,
-        "slave should follow the master's new tempo, slave_speed={speed}"
+        (ratio - 1.1568).abs() < 1e-3,
+        "slave should follow the master's new tempo, slave_ratio={ratio}"
+    );
+}
+
+#[test]
+fn tempo_sync_stays_locked_across_tempo_range_changes() {
+    let session = null_session_with_synced_decks();
+    let mut evt = session.subscribe_evt_all().expect("sub");
+
+    session
+        .publish_cmd(Event::ToggleSync(ToggleSync {
+            deck: 1,
+            beat_sync: false,
+        }))
+        .expect("toggle");
+    let _ = recv_updated(&mut evt);
+
+    // The slave's own fader span is display-only: it must not change the ratio
+    // needed to mirror the master.
+    for range in [0.06_f32, 0.10, 0.25] {
+        session
+            .publish_cmd(Event::SetTempoRange(SetTempoRange {
+                deck: 1,
+                tempo_range: range,
+            }))
+            .expect("range");
+        let update = recv_updated_where(&mut evt, |update| update.deck == 1);
+        assert!(
+            (update.playback_ratio - 1.2).abs() < 1e-3,
+            "range {range}: slave should still mirror the master, ratio={}",
+            update.playback_ratio
+        );
+    }
+
+    // The master's span does change its effective tempo; the slave follows it.
+    session
+        .publish_cmd(Event::SetSpeed(SetSpeed {
+            deck: 0,
+            speed: 0.0,
+            soft_takeover: false,
+        }))
+        .expect("speed");
+    let _ = recv_updated_where(&mut evt, |update| update.deck == 0);
+    let slave = recv_updated_where(&mut evt, |update| update.deck == 1);
+    assert!(
+        (slave.playback_ratio - 1.272).abs() < 1e-3,
+        "master at ±6% should give 1.06× → slave 1.272×, got {}",
+        slave.playback_ratio
+    );
+
+    session
+        .publish_cmd(Event::SetTempoRange(SetTempoRange {
+            deck: 0,
+            tempo_range: 0.10,
+        }))
+        .expect("range");
+    let _ = recv_updated_where(&mut evt, |update| update.deck == 0);
+    let slave = recv_updated_where(&mut evt, |update| update.deck == 1);
+    assert!(
+        (slave.playback_ratio - 1.32).abs() < 1e-3,
+        "master at ±10% should give 1.10× → slave 1.32×, got {}",
+        slave.playback_ratio
     );
 }
 

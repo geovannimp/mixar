@@ -111,6 +111,11 @@ pub fn default_pitch_page() -> u8 {
     crate::pads::DEFAULT_PITCH_PAGE
 }
 
+/// Playback ratio assumed when a payload predates the field (`1.0` = unity).
+pub fn default_playback_ratio() -> f32 {
+    1.0
+}
+
 /// Jog platter policy for top (touched) or outer (untouched) turns.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -183,6 +188,11 @@ pub struct DeckSnapshot {
     pub speed: f32,
     /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
     pub tempo_range: f32,
+    /// Actual media playback ratio (`1.0` = unity), including the tempo-sync
+    /// override. Tempo sync can require a ratio the fader span cannot reach, so
+    /// this — not `speed` × `tempo_range` — is authoritative for effective tempo.
+    #[serde(default = "default_playback_ratio")]
+    pub playback_ratio: f32,
     /// Key lock (time-stretch); tempo changes without pitch when true.
     #[serde(default)]
     pub key_lock: bool,

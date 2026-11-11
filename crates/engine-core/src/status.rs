@@ -191,6 +191,7 @@ fn deck_snapshot_from_dsp(
         volume: channel.volume(),
         speed: deck.speed(),
         tempo_range: deck.tempo_range(),
+        playback_ratio: deck.playback_ratio(),
         key_lock: deck.key_lock(),
         key_shift: control.pitch_pad.key_shift_semitones,
         keyboard_page: control.pitch_pad.keyboard_page,

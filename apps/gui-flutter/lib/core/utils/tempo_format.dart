@@ -44,6 +44,20 @@ double? effectiveBpm(
   return bpm * normToSpeedRatio(speedNorm, tempoRange);
 }
 
+/// Effective BPM from the engine's actual playback ratio.
+///
+/// Tempo sync may need a ratio outside the fader span, so this stays exact
+/// where [effectiveBpm] would saturate at the fader edge.
+double? effectiveBpmFromRatio(double? bpm, double playbackRatio) {
+  if (bpm == null || !bpm.isFinite || bpm <= 0) {
+    return null;
+  }
+  if (!playbackRatio.isFinite || playbackRatio <= 0) {
+    return null;
+  }
+  return bpm * playbackRatio;
+}
+
 String formatBpm(double? bpm) {
   if (bpm == null || !bpm.isFinite) {
     return '—';
@@ -57,6 +71,13 @@ String formatPitchPercent(
   double tempoRange = kDefaultTempoRange,
 ]) {
   final percent = (normToSpeedRatio(speedNorm, tempoRange) - 1) * 100;
+  final sign = percent >= 0 ? '+' : '';
+  return '$sign${percent.toStringAsFixed(2)}%';
+}
+
+/// Format pitch from the engine's actual playback ratio (e.g. `+20.00%`).
+String formatRatioPercent(double playbackRatio) {
+  final percent = (playbackRatio - 1) * 100;
   final sign = percent >= 0 ? '+' : '';
   return '$sign${percent.toStringAsFixed(2)}%';
 }

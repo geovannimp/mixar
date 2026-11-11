@@ -25,6 +25,7 @@ class DeckTempoPanel extends StatelessWidget {
     required this.onTempoRangeChange,
     required this.onToggleSync,
     this.trackBpm,
+    this.playbackRatio,
     this.loading = false,
     this.tempoRangeSteps = kTempoRangeSteps,
     this.enabled = true,
@@ -42,6 +43,10 @@ class DeckTempoPanel extends StatelessWidget {
 
   /// Original track BPM when loaded; null → `—` and no live BPM scaling display source.
   final double? trackBpm;
+
+  /// Actual playback ratio from the engine (`1.0` = unity). Authoritative when
+  /// tempo sync needs a ratio outside [tempoRange]; null falls back to the fader.
+  final double? playbackRatio;
 
   /// Skeletonize the BPM readout while a track is loading.
   final bool loading;
@@ -85,7 +90,10 @@ class DeckTempoPanel extends StatelessWidget {
       deckTone(this.accent),
       theme.colors.brightness,
     );
-    final liveBpm = effectiveBpm(trackBpm, speed, tempoRange);
+    final ratio = playbackRatio;
+    final liveBpm = ratio == null
+        ? effectiveBpm(trackBpm, speed, tempoRange)
+        : effectiveBpmFromRatio(trackBpm, ratio);
     final sliderValue = speedToPitchSlider(speed);
     final faderDisabled = _syncActive;
     final syncOn = _syncActive && !loading;
@@ -162,7 +170,9 @@ class DeckTempoPanel extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              formatPitchPercent(speed, tempoRange),
+                              ratio == null
+                                  ? formatPitchPercent(speed, tempoRange)
+                                  : formatRatioPercent(ratio),
                               textAlign: .center,
                               style: theme.typography.body.xs.copyWith(
                                 fontFamily: MixarFonts.notoSansMono,

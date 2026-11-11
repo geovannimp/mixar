@@ -8795,6 +8795,7 @@ const _: fn() = || {
         let _: f32 = DeckSnapshot.volume;
         let _: f32 = DeckSnapshot.speed;
         let _: f32 = DeckSnapshot.tempo_range;
+        let _: f32 = DeckSnapshot.playback_ratio;
         let _: bool = DeckSnapshot.key_lock;
         let _: f32 = DeckSnapshot.key_shift;
         let _: u8 = DeckSnapshot.keyboard_page;
@@ -8848,6 +8849,7 @@ const _: fn() = || {
         let _: f32 = DeckUpdated.volume;
         let _: f32 = DeckUpdated.speed;
         let _: f32 = DeckUpdated.tempo_range;
+        let _: f32 = DeckUpdated.playback_ratio;
         let _: bool = DeckUpdated.key_lock;
         let _: f32 = DeckUpdated.key_shift;
         let _: u8 = DeckUpdated.keyboard_page;
@@ -10740,6 +10742,7 @@ impl SseDecode for crate::api::event_mirrors::DeckSnapshot {
         let mut var_volume = <f32>::sse_decode(deserializer);
         let mut var_speed = <f32>::sse_decode(deserializer);
         let mut var_tempoRange = <f32>::sse_decode(deserializer);
+        let mut var_playbackRatio = <f32>::sse_decode(deserializer);
         let mut var_keyLock = <bool>::sse_decode(deserializer);
         let mut var_keyShift = <f32>::sse_decode(deserializer);
         let mut var_keyboardPage = <u8>::sse_decode(deserializer);
@@ -10794,6 +10797,7 @@ impl SseDecode for crate::api::event_mirrors::DeckSnapshot {
             volume: var_volume,
             speed: var_speed,
             tempo_range: var_tempoRange,
+            playback_ratio: var_playbackRatio,
             key_lock: var_keyLock,
             key_shift: var_keyShift,
             keyboard_page: var_keyboardPage,
@@ -10852,6 +10856,7 @@ impl SseDecode for crate::api::event_mirrors::DeckUpdated {
         let mut var_volume = <f32>::sse_decode(deserializer);
         let mut var_speed = <f32>::sse_decode(deserializer);
         let mut var_tempoRange = <f32>::sse_decode(deserializer);
+        let mut var_playbackRatio = <f32>::sse_decode(deserializer);
         let mut var_keyLock = <bool>::sse_decode(deserializer);
         let mut var_keyShift = <f32>::sse_decode(deserializer);
         let mut var_keyboardPage = <u8>::sse_decode(deserializer);
@@ -10908,6 +10913,7 @@ impl SseDecode for crate::api::event_mirrors::DeckUpdated {
             volume: var_volume,
             speed: var_speed,
             tempo_range: var_tempoRange,
+            playback_ratio: var_playbackRatio,
             key_lock: var_keyLock,
             key_shift: var_keyShift,
             keyboard_page: var_keyboardPage,
@@ -16429,6 +16435,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Dec
             self.0.volume.into_into_dart().into_dart(),
             self.0.speed.into_into_dart().into_dart(),
             self.0.tempo_range.into_into_dart().into_dart(),
+            self.0.playback_ratio.into_into_dart().into_dart(),
             self.0.key_lock.into_into_dart().into_dart(),
             self.0.key_shift.into_into_dart().into_dart(),
             self.0.keyboard_page.into_into_dart().into_dart(),
@@ -16498,6 +16505,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::event_mirrors::Dec
             self.0.volume.into_into_dart().into_dart(),
             self.0.speed.into_into_dart().into_dart(),
             self.0.tempo_range.into_into_dart().into_dart(),
+            self.0.playback_ratio.into_into_dart().into_dart(),
             self.0.key_lock.into_into_dart().into_dart(),
             self.0.key_shift.into_into_dart().into_dart(),
             self.0.keyboard_page.into_into_dart().into_dart(),
@@ -20823,6 +20831,7 @@ impl SseEncode for crate::api::event_mirrors::DeckSnapshot {
         <f32>::sse_encode(self.volume, serializer);
         <f32>::sse_encode(self.speed, serializer);
         <f32>::sse_encode(self.tempo_range, serializer);
+        <f32>::sse_encode(self.playback_ratio, serializer);
         <bool>::sse_encode(self.key_lock, serializer);
         <f32>::sse_encode(self.key_shift, serializer);
         <u8>::sse_encode(self.keyboard_page, serializer);
@@ -20882,6 +20891,7 @@ impl SseEncode for crate::api::event_mirrors::DeckUpdated {
         <f32>::sse_encode(self.volume, serializer);
         <f32>::sse_encode(self.speed, serializer);
         <f32>::sse_encode(self.tempo_range, serializer);
+        <f32>::sse_encode(self.playback_ratio, serializer);
         <bool>::sse_encode(self.key_lock, serializer);
         <f32>::sse_encode(self.key_shift, serializer);
         <u8>::sse_encode(self.keyboard_page, serializer);

@@ -519,5 +519,38 @@ void main() {
       expect(after.single.enabled, isFalse);
       expect(container.read(engineUiProvider).channelFor(0).fxRouted, isFalse);
     });
+
+    test('a deck update stores the actual playback ratio', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      ui.apply(
+        deckUpdatedEvent(
+          update: deckUpdated(deck: 0, tempoRange: 0.06, playbackRatio: 1.2),
+        ),
+      );
+
+      expect(container.read(deckPlaybackRatioProvider(0)), closeTo(1.2, 1e-9));
+      expect(container.read(deckPlaybackRatioProvider(1)), closeTo(1.0, 1e-9));
+    });
+
+    test('the waveform speed ratio follows the actual playback ratio', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ui = container.read(engineUiProvider.notifier);
+      // The ±6% fader saturates at 1.06; the synced deck really plays 1.2×.
+      ui.apply(
+        deckUpdatedEvent(
+          update: deckUpdated(
+            deck: 0,
+            speed: 0,
+            tempoRange: 0.06,
+            playbackRatio: 1.2,
+          ),
+        ),
+      );
+
+      expect(container.read(deckSpeedRatioProvider(0)), closeTo(1.2, 1e-9));
+    });
   });
 }
