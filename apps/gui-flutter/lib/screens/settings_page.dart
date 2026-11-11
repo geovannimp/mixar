@@ -97,6 +97,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// back there instead of stranding them on a section the search picked.
   SettingsSection? _sectionBeforeSearch;
 
+  /// Captured on mount: `ref` is unsafe to touch from [dispose].
+  SettingsLeaveGuard? _leaveGuard;
+
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
 
@@ -157,6 +160,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     // Registering the guard writes a provider, which the widget tree forbids
     // while it builds; the first frame is the earliest slot for it.
     final leaveGuard = ref.read(settingsLeaveGuardProvider.notifier);
+    _leaveGuard = leaveGuard;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         leaveGuard.set(_confirmLeave);
@@ -169,6 +173,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   @override
   void dispose() {
+    // Deregistering writes a provider, which the tree forbids mid-teardown:
+    // defer it, and let `clearIf` drop it as a no-op if the container is gone.
+    final leaveGuard = _leaveGuard;
+    final guard = _confirmLeave;
+    if (leaveGuard != null) {
+      Future.microtask(() => leaveGuard.clearIf(guard));
+    }
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();

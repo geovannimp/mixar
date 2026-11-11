@@ -208,9 +208,9 @@ void main() {
           (w) => w is AppButton && w.semanticsLabel == 'Menu',
         ),
       ),
-      warnIfMissed: false,
     );
     await tester.pumpAndSettle();
+    expect(find.text('Play'), findsOneWidget, reason: 'the menu opened');
   }
 
   /// Settings is no longer a header button: it lives in the pages menu behind
@@ -219,6 +219,7 @@ void main() {
     await openMenu(tester);
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
+    expect(find.byType(SettingsPage), findsOneWidget);
   }
 
   testWidgets('four-deck profile renders all four deck panels', (tester) async {

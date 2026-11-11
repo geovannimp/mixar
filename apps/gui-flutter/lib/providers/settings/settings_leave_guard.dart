@@ -18,4 +18,17 @@ class SettingsLeaveGuard extends Notifier<Future<bool> Function()?> {
 
   /// Registers the open page's guard; null once it is gone.
   void set(Future<bool> Function()? guard) => state = guard;
+
+  /// Clears the registration if it is still [guard].
+  ///
+  /// The page calls this from its teardown, where the container may already be
+  /// gone; [Ref.mounted] keeps that a no-op instead of an error. The identity
+  /// check keeps a departing page from wiping the guard of the one that
+  /// replaced it (a deep link remounts the page first).
+  void clearIf(Future<bool> Function() guard) {
+    if (!ref.mounted || state != guard) {
+      return;
+    }
+    state = null;
+  }
 }

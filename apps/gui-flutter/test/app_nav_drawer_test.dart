@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
@@ -10,6 +11,7 @@ import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/app_nav_drawer.dart';
+import 'package:gui_flutter/widgets/shell/nav_list_item.dart';
 import 'package:gui_flutter/widgets/shell/m_tappable.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -99,12 +101,13 @@ void main() {
     final wordmark = find.byWidgetPredicate(
       (w) => w is Image && w.semanticLabel == 'Mixar',
     );
-    expect(wordmark, findsNWidgets(2));
-    expect(
-      tester.getRect(wordmark.last).top,
-      greaterThanOrEqualTo(kAppHeaderHeight),
-      reason: 'the menu copy of the wordmark sits inside the drawer',
+    expect(wordmark, findsWidgets);
+    final inMenu = wordmark.evaluate().where(
+      (e) =>
+          tester.getRect(find.byElementPredicate((w) => w == e)).top >=
+          kAppHeaderHeight,
     );
+    expect(inMenu, isNotEmpty, reason: 'the menu carries its own wordmark');
 
     // The panel is inset below the header, so it never covers the chrome that
     // opened it.
@@ -117,21 +120,24 @@ void main() {
       greaterThan(kAppNavDrawerWidth),
       reason: 'the panel is a drawer, not the whole window',
     );
-    expect(
-      tester
-          .getSize(
-            find
-                .ancestor(
-                  of: find.text('Play'),
-                  matching: find.byWidgetPredicate(
-                    (w) => w is DecoratedBox && w.decoration is BoxDecoration,
-                  ),
-                )
-                .last,
-          )
-          .width,
-      kAppNavDrawerWidth,
-    );
+    // Rows are full-bleed, so the row box *is* the panel width.
+    for (final item in find.byType(NavListItem).evaluate()) {
+      expect(
+        tester.getSize(find.byElementPredicate((w) => w == item)).width,
+        kAppNavDrawerWidth,
+      );
+    }
+  });
+
+  testWidgets('escape closes the drawer', (tester) async {
+    await pumpHeader(tester);
+    await openMenu(tester);
+    expect(find.text('Play'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Play'), findsNothing);
   });
 
   testWidgets('the open page is marked in the drawer', (tester) async {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/core/utils/app_assets.dart';
@@ -68,58 +69,71 @@ class _AppNavDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.only(top: kAppHeaderHeight),
-        child: SizedBox(
-          width: kAppNavDrawerWidth,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: theme.colors.card,
-              border: Border(
-                right: BorderSide(
-                  color: theme.colors.border,
-                  width: theme.style.borderWidth,
-                ),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // The menu carries the wordmark: it reads as the app's menu,
-                // not a page-local drawer.
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 14, 12, 12),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: ColorFiltered(
-                      colorFilter: ColorFilter.mode(
-                        theme.colors.foreground,
-                        BlendMode.srcIn,
-                      ),
-                      child: Image.asset(
-                        kMixarLogoAsset,
-                        height: 12,
-                        semanticLabel: title,
-                      ),
+    // Escape is the desktop way out; the barrier's own label covers screen
+    // readers, and the route handles the back button and gesture.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            Navigator.of(context).maybePop(),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(top: kAppHeaderHeight),
+            child: SizedBox(
+              width: kAppNavDrawerWidth,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colors.card,
+                  border: Border(
+                    right: BorderSide(
+                      color: theme.colors.border,
+                      width: theme.style.borderWidth,
                     ),
                   ),
                 ),
-                // Same rows as the settings sidebar: one navigation idiom.
-                NavListItem(
-                  icon: LucideIcons.play,
-                  label: 'Play',
-                  selected: current == ShellTab.mixer,
-                  onPress: () => unawaited(_select(context, ShellTab.mixer)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // The menu carries the wordmark: it reads as the app's menu,
+                    // not a page-local drawer.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 14, 12, 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: ColorFiltered(
+                          colorFilter: ColorFilter.mode(
+                            theme.colors.foreground,
+                            BlendMode.srcIn,
+                          ),
+                          child: Image.asset(
+                            kMixarLogoAsset,
+                            height: 12,
+                            semanticLabel: title,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Same rows as the settings sidebar: one navigation idiom.
+                    NavListItem(
+                      icon: LucideIcons.play,
+                      label: 'Play',
+                      selected: current == ShellTab.mixer,
+                      onPress: () =>
+                          unawaited(_select(context, ShellTab.mixer)),
+                    ),
+                    NavListItem(
+                      icon: LucideIcons.settings,
+                      label: 'Settings',
+                      selected: current == ShellTab.settings,
+                      onPress: () =>
+                          unawaited(_select(context, ShellTab.settings)),
+                    ),
+                  ],
                 ),
-                NavListItem(
-                  icon: LucideIcons.settings,
-                  label: 'Settings',
-                  selected: current == ShellTab.settings,
-                  onPress: () => unawaited(_select(context, ShellTab.settings)),
-                ),
-              ],
+              ),
             ),
           ),
         ),
