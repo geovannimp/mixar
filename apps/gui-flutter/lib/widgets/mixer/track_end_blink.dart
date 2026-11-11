@@ -23,6 +23,10 @@ class TrackEndBlink extends ConsumerWidget {
 
   /// Opacity at the dimmest point of the blink. Kept close to opaque on
   /// purpose — the cue has to catch the eye, not black out the deck.
+  ///
+  /// Each surface picks its own floor: the waveform lane takes the default
+  /// 0.55, while the track card passes a higher value so the title and the
+  /// times stay readable through the dip.
   final double minOpacity;
 
   @override
@@ -113,8 +117,9 @@ class _BlinkPulseState extends State<_BlinkPulse>
         oldWidget.period != widget.period ||
         oldWidget.minOpacity != widget.minOpacity;
     if (retimed) {
-      // A tempo change retimes the blink in place; build() picks the new
-      // animation up on this same frame.
+      // Stop first: a running controller must not carry the old simulation
+      // into a new period. `_sync` below restarts from the dip.
+      _controller.stop();
       _controller.duration = widget.period;
       _opacity = _controller.drive(_sequence(widget.period, widget.minOpacity));
     }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
 /// Beats per blink: half a 4/4 bar, so the cue lands on beats 1 and 3.
 const kEndWarningBlinkBeats = 2;
@@ -20,14 +21,21 @@ const kEndWarningMaxBlinkPeriod = Duration(seconds: 10);
 /// required, so this is a guard, not a normal path.
 const kEndWarningFallbackBlinkPeriod = Duration(seconds: 2);
 
+/// Read one setting, falling back while the settings are still loading.
+///
+/// Both warning fields go through this so their load-time default can never
+/// drift apart.
+T _setting<T>(Ref ref, T Function(AppSettings settings) read, T fallback) => ref
+    .watch(appSettingsProvider)
+    .maybeWhen(data: read, orElse: () => fallback);
+
 /// Warning window before a track ends, in seconds.
 final trackEndWarningSecsProvider = Provider<int>((ref) {
-  return ref
-      .watch(appSettingsProvider)
-      .maybeWhen(
-        data: (settings) => settings.trackEndWarningSecs,
-        orElse: () => kDefaultTrackEndWarningSecs,
-      );
+  return _setting(
+    ref,
+    (settings) => settings.trackEndWarningSecs,
+    kDefaultTrackEndWarningSecs,
+  );
 });
 
 /// True while the deck plays inside its end-of-track warning window.
@@ -35,12 +43,11 @@ final trackEndWarningSecsProvider = Provider<int>((ref) {
 /// Only flips on the crossing, so the 30 Hz position ticks never rebuild the
 /// widgets watching it — the waveform and the track card just start blinking.
 final deckTrackEndWarningProvider = Provider.family<bool, int>((ref, deckId) {
-  final enabled = ref
-      .watch(appSettingsProvider)
-      .maybeWhen(
-        data: (settings) => settings.trackEndWarning,
-        orElse: () => kDefaultTrackEndWarningEnabled,
-      );
+  final enabled = _setting(
+    ref,
+    (settings) => settings.trackEndWarning,
+    kDefaultTrackEndWarningEnabled,
+  );
   if (!enabled) {
     return false;
   }
