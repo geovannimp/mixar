@@ -490,7 +490,7 @@ class _QuantizeButton extends StatelessWidget {
     final tip = quantize ? 'Quantize on' : 'Quantize off';
     return AppTooltip(
       tip: tip,
-      description: 'Snap cues, loops, and hot cues to the beat grid.',
+      description: "Snap cues, loops, and hot cues to the grid, and start in time with the playing deck.",
       child: MixerButton(
         variant: .outline,
         size: .xs,

@@ -85,6 +85,11 @@ impl Engine {
         })
     }
 
+    /// Playback rate ratio used by the resampler (1.0 = normal, jog excluded).
+    pub(crate) fn deck_playback_ratio(&self, deck_id: usize) -> Option<f32> {
+        self.with_dsp_deck(deck_id, |deck| deck.playback_ratio())
+    }
+
     /// The DSP deck's copy of the stem-EQ toggle (diagnostics and tests).
     pub fn deck_stem_eq_armed(&self, deck_id: usize) -> Option<bool> {
         self.with_dsp_deck(deck_id, |deck| deck.stem_eq_enabled())

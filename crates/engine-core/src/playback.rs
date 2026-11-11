@@ -11,6 +11,15 @@ impl Engine {
     pub fn play(&mut self, deck_id: usize) -> Result<()> {
         tracing::info!("Playing deck {}", deck_id);
 
+        // Quantized launch: move the playhead up to half a beat so the first
+        // audible beat lands on the grid of the deck that is already playing.
+        if let Some((position_ms, _)) = self.deck_playback_ms(deck_id) {
+            let target = self.quantized_launch_position(deck_id, position_ms)?;
+            if target != position_ms {
+                self.seek_deck_audible(deck_id, target)?;
+            }
+        }
+
         let dsp_engine = self
             .dsp_engine
             .as_ref()
