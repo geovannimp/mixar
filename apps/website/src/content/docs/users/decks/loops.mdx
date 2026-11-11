@@ -22,10 +22,10 @@ One press does whichever of these applies first:
 | Situation | What happens |
 | --- | --- |
 | A loop is already active | Exits the loop; playback carries on from wherever the playhead is |
-| A saved loop sits under the playhead | Recalls it: seeks to its in point, activates it, and plays |
+| A saved loop sits under the playhead | Recalls it without jumping: playback continues from the current position and wraps at the loop out. If the playhead is already past the loop, it seeks to the in point |
 | Nothing saved under the playhead, no active loop | Starts an auto loop at the current length, snapped to the nearest beat |
 
-The key is lit while a loop is active. Exiting does not erase the loop: its band stays on the waveform in grey, and pressing **Loop** with the playhead inside that band recalls it.
+The key is lit while a loop is active. Exiting does not erase the loop: its band stays on the waveform as a shaded block, and pressing **Loop** with the playhead inside that band recalls it.
 
 ## Loops are remembered automatically
 
@@ -39,7 +39,7 @@ Up to **10** loops are remembered per track. The limit is independent of loop le
 
 Resizing an active loop with **‹** or **›** updates the remembered loop in place instead of creating another one.
 
-Exit a loop and its grey band remains on the waveform. Press **Loop** while the playhead is inside any grey band to reloop it.
+Exit a loop and its shaded band remains on the waveform. Press **Loop** while the playhead is inside any shaded band to reloop it.
 
 ## Change the loop length
 
@@ -75,7 +75,7 @@ Loop boundaries respect the deck's **Q** setting (on by default). With it on, ha
 
 ## Delete a remembered loop
 
-Saved loops are per track, stored in the library database next to the cues. They show as grey blocks on both the overview strip and the scrolling waveform.
+Saved loops are per track, stored in the library database next to the cues. They show as shaded blocks with in/out marker lines on both the overview strip and the scrolling waveform.
 
 | Gesture | Effect |
 | --- | --- |

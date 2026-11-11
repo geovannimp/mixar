@@ -258,7 +258,7 @@ Controller pads are the primary abstraction: the eight deck buttons carry a sele
 | L4 | **Loop roll** | Temporary loop while held | P2 |
 | L5 | **Saved loops** | Up to 10 loops remembered automatically per track, independent of length; imported loops preserved | P2 |
 | L6 | **Active loop on waveform** | Visual bracket + beat count | P1 |
-| L7 | **Reloop / exit loop** | Exit keeps the grey band; press Loop inside it to reloop; optional slip exit | P1 |
+| L7 | **Reloop / exit loop** | Exit keeps the shaded band; press Loop inside it to reloop. Recall keeps the playhead when before the loop out, and seeks to in only when already past it; optional slip exit | P1 |
 
 Loop engine must **wrap read position** within `[in, out)` while optionally advancing **shadow position** for slip mode.
 
