@@ -105,6 +105,17 @@ void main() {
     expect(container.read(deckTrackEndWarningProvider(0)), isFalse);
   });
 
+  test('a playhead beyond the duration does not warn', () async {
+    final container = containerWithWarning(seconds: 30);
+    await loadDeck(container, playing: true);
+
+    // Past the end the remaining time is negative; a blink there would never
+    // stop on its own.
+    seek(container, 61000);
+
+    expect(container.read(deckTrackEndWarningProvider(0)), isFalse);
+  });
+
   test('the blink runs one period every half bar of the track tempo', () {
     Duration period(double? bpm, {double ratio = 1}) => containerWithWarning(
       seconds: 30,
