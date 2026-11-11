@@ -68,7 +68,7 @@ class _BlinkPulseState extends State<_BlinkPulse>
   /// Length of one fade edge: 150 ms, shrunk to 15 % of a shorter period so a
   /// fast half bar still holds full opacity between blinks.
   static Duration _edge(Duration period) {
-    final share = (period.inMicroseconds * 0.15).round();
+    final share = period.inMicroseconds * 15 ~/ 100;
     return Duration(microseconds: math.min(150000, share));
   }
 
@@ -118,9 +118,10 @@ class _BlinkPulseState extends State<_BlinkPulse>
         oldWidget.minOpacity != widget.minOpacity;
     if (retimed) {
       // Stop first: a running controller must not carry the old simulation
-      // into a new period. `_sync` below restarts from the dip.
-      _controller.stop();
-      _controller.duration = widget.period;
+      // into a new period. `_sync` below restarts the cycle at full opacity.
+      _controller
+        ..stop()
+        ..duration = widget.period;
       _opacity = _controller.drive(_sequence(widget.period, widget.minOpacity));
     }
     if (retimed ||
@@ -150,7 +151,8 @@ class _BlinkPulseState extends State<_BlinkPulse>
         ..value = _dipValue(widget.period);
       return;
     }
-    // Restart at the dip so entering the window blinks right away.
+    // Restart at full opacity: the dip follows one edge later, ~150 ms in, so
+    // entering the window reads as an immediate blink.
     _controller
       ..stop()
       ..value = 0
