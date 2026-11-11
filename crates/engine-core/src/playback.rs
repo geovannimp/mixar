@@ -7,7 +7,11 @@ use crate::engine::Engine;
 use crate::status::map_jog_mode;
 
 impl Engine {
-    /// Play a deck
+    /// Play a deck.
+    ///
+    /// With Quantize on and another deck playing, the launch is phase-matched by
+    /// moving the playhead up to half a beat. That also applies when a hot cue
+    /// or saved loop starts playback; the stored marker itself is not moved.
     pub fn play(&mut self, deck_id: usize) -> Result<()> {
         tracing::info!("Playing deck {}", deck_id);
 

@@ -621,6 +621,13 @@ fn two_deck_session() -> EngineSession {
     session
 }
 
+/// Current media position of a deck, for tests that assert on a launch seek.
+fn deck_position_ms(session: &EngineSession, deck_id: usize) -> i32 {
+    session
+        .with_engine(|engine| Ok(engine.deck_playback_ms(deck_id).expect("deck").0))
+        .expect("engine")
+}
+
 #[test]
 fn quantized_play_phase_matches_the_deck_already_playing() {
     let session = two_deck_session();
@@ -646,9 +653,7 @@ fn quantized_play_phase_matches_the_deck_already_playing() {
         .expect("play deck B");
     let _ = recv_updated_where(&mut evt, |update| update.deck == 1);
 
-    let position = session
-        .with_engine(|engine| Ok(engine.deck_playback_ms(1).expect("deck B").0))
-        .expect("engine");
+    let position = deck_position_ms(&session, 1);
     assert!(
         (position - 150).abs() <= 2,
         "quantized launch should seek deck B to 150 ms, got {position}"
@@ -671,9 +676,7 @@ fn quantized_play_is_a_noop_when_no_other_deck_is_playing() {
         .expect("play deck B");
     let _ = recv_updated_where(&mut evt, |update| update.deck == 1);
 
-    let position = session
-        .with_engine(|engine| Ok(engine.deck_playback_ms(1).expect("deck B").0))
-        .expect("engine");
+    let position = deck_position_ms(&session, 1);
     assert_eq!(
         position, 50,
         "no other deck plays, so the playhead stays put"
