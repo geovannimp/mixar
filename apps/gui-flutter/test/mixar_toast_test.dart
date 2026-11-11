@@ -273,19 +273,26 @@ void main() {
     await tester.tap(find.text('Show'));
     await tester.pumpAndSettle();
 
-    final titleX = tester
-        .getTopLeft(find.text('Switch audio outputs to DDJ-400?'))
-        .dx;
-    // Tolerance: the copy column is padding, so sub-pixel rounding is all the
-    // slack an aligned element may have.
+    final card = find.ancestor(
+      of: find.text('Switch audio outputs to DDJ-400?'),
+      matching: find.byType(IntrinsicWidth),
+    );
+    // Card padding (14) + the copy column past the variant glyph (16) and its
+    // gap (12). Measured from the card, not from the title, so a suffix that
+    // drifts right cannot satisfy the assertion by moving the title with it.
+    final copyColumnX = tester.getTopLeft(card).dx + 14 + 28;
     void expectInCopyColumn(Finder finder, String reason) {
       expect(
         tester.getTopLeft(finder).dx,
-        moreOrLessEquals(titleX, epsilon: 0.5),
+        moreOrLessEquals(copyColumnX, epsilon: 0.5),
         reason: reason,
       );
     }
 
+    expectInCopyColumn(
+      find.text('Switch audio outputs to DDJ-400?'),
+      'title must sit in the copy column',
+    );
     expectInCopyColumn(
       find.text('Warning: Mixar will restart.'),
       'description must sit in the title copy column',

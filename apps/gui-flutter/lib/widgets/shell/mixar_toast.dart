@@ -560,6 +560,9 @@ class _MixarToastCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   Padding(
                     padding: const EdgeInsets.only(left: _toastCopyIndent),
+                    // A row that fills the width starts at the copy column; a
+                    // content-sized row (the plain Cancel/Enable pair) keeps
+                    // the corner alignment the prompts already use.
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: suffix,
