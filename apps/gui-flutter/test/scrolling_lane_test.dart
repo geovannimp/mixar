@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +13,7 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
+import 'package:gui_flutter/src/rust/api/library.dart' show BeatGridData;
 import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
@@ -119,6 +122,7 @@ Future<ProviderContainer> _pumpLane(
   bool jogTouching = false,
   int positionMs = 0,
   FakeEngineTransport? engine,
+  BeatGridData? beatGrid,
   int Function()? nowMs,
 }) async {
   debugOverrideDesktopWindow = false;
@@ -146,7 +150,7 @@ Future<ProviderContainer> _pumpLane(
           () => _FixedPlayheads({0: positionMs}),
         ),
         waveformStripProvider.overrideWith2(_FixedStrip.new),
-        beatGridFetchProvider.overrideWith((ref, id) async => null),
+        beatGridFetchProvider.overrideWith((ref, id) async => beatGrid),
       ],
       child: MaterialApp(
         theme: materialUiThemeFromMixar(theme),
@@ -403,4 +407,67 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     },
   );
+
+  testWidgets('dragging before the start keeps moving the strip', (
+    tester,
+  ) async {
+    final engine = FakeEngineTransport();
+    await _pumpLane(tester, playing: false, strip: _strip, engine: engine);
+
+    final restingLeft = _stripPositioned(tester).left!;
+    final center = tester.getCenter(find.byType(ScrollingLane));
+    final gesture = await tester.startGesture(center);
+    await tester.pump();
+
+    // Moving the waveform right walks the playhead backwards, into the
+    // silence before the track: the strip must follow instead of freezing at
+    // t=0 because the controller cannot go negative.
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump();
+
+    final movedLeft = _stripPositioned(tester).left!;
+    expect(movedLeft, greaterThan(restingLeft));
+    expect(movedLeft, closeTo(restingLeft + 40, 0.5));
+    expect(engine.seeks, isNotEmpty);
+    expect(engine.seeks.last.$2, lessThan(0));
+
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 400));
+  });
+  testWidgets('tempo bars paint below the cue and loop overlay', (
+    tester,
+  ) async {
+    await _pumpLane(
+      tester,
+      playing: false,
+      strip: _strip,
+      beatGrid: BeatGridData(
+        beats: Float32List.fromList(const [0, 0.5, 1, 1.5, 2]),
+        downbeats: Float32List.fromList(const [0, 2]),
+        bpm: 120,
+      ),
+    );
+    await tester.pump();
+
+    final grid = find.byWidgetPredicate(
+      (w) =>
+          w is CustomPaint &&
+          w.painter.runtimeType.toString() == '_BeatGridPicturePainter',
+    );
+    expect(grid, findsOneWidget);
+
+    // Grid and overlays share one strip stack; the overlay painter must be
+    // later so cue flags cover the phase arrows.
+    final stack = tester.widget<Stack>(
+      find.byWidgetPredicate((w) => w is Stack && w.clipBehavior == Clip.none),
+    );
+    final gridIndex = stack.children.indexWhere((c) => c is Positioned);
+    final overlayIndex = stack.children.indexWhere(
+      (c) =>
+          c is CustomPaint &&
+          c.painter.runtimeType.toString() == '_StripOverlayPainter',
+    );
+    expect(gridIndex, isNonNegative);
+    expect(overlayIndex, greaterThan(gridIndex));
+  });
 }

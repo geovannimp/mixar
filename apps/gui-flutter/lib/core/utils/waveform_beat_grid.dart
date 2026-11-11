@@ -143,7 +143,8 @@ List<({int index, double x})> evenGridXs({
 /// arrows are stepped from the bar period across the whole buffer instead of
 /// stopping with the stored downbeats. The first downbeat sets the phase; the
 /// meter comes from the downbeat spacing, falling back to 4/4 from `bpm` and
-/// `firstBeatSecs`.
+/// `firstBeatSecs`. Bars also run before the first downbeat when the window
+/// starts before it, so the lane keeps its grid before the track's audio.
 List<double> phaseMarkXs({
   required double? bpm,
   required List<double> downbeatsSecs,
@@ -159,7 +160,8 @@ List<double> phaseMarkXs({
   final anchorMs = downbeatsSecs.isNotEmpty
       ? downbeatsSecs.first * 1000
       : firstBeatSecs * 1000;
-  // Index 0 is the first downbeat, so nothing is drawn before it.
+  // Extrapolate backwards as well as forwards: the grid keeps running into
+  // the silence before the first downbeat (and before the track starts).
   final firstIndex = ((originMs - anchorMs) / barMs).ceil();
   return [
     for (final mark in evenGridXs(
@@ -168,7 +170,7 @@ List<double> phaseMarkXs({
       originMs: originMs,
       spanMs: spanMs,
       width: width,
-      firstIndex: firstIndex < 0 ? 0 : firstIndex,
+      firstIndex: firstIndex,
     ))
       mark.x,
   ];

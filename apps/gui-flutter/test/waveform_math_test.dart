@@ -177,7 +177,7 @@ void main() {
 
   test('phaseMarkXs anchors on the first downbeat, one arrow per bar', () {
     // 120 bpm, 4/4: one bar every 2 s, so arrows run 2 s apart from the first
-    // downbeat (1 s here), never before it.
+    // downbeat (1 s here). A window starting at 0 has nothing before it.
     final xs = phaseMarkXs(
       bpm: 120,
       downbeatsSecs: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19],
@@ -195,6 +195,42 @@ void main() {
     // Extrapolated past the stored downbeats (they stop at 19 s).
     expect(xs, hasLength(20));
     expect(xs.last, closeTo(390, 1e-6)); // 39 s
+  });
+
+  test('phaseMarkXs extrapolates bars before the track starts', () {
+    // Negative source time is the silence before the track: the established
+    // bar phase keeps running, so the lane's leading edge is not gridless.
+    final xs = phaseMarkXs(
+      bpm: 120,
+      downbeatsSecs: [1, 3, 5, 7],
+      firstBeatSecs: 1,
+      originMs: -4000,
+      spanMs: 8000,
+      width: 800,
+    );
+    expect(xs, [
+      closeTo(100, 1e-6), // -3 s
+      closeTo(300, 1e-6), // -1 s
+      closeTo(500, 1e-6), // 1 s
+      closeTo(700, 1e-6), // 3 s
+    ]);
+  });
+
+  test('beatGridXs extrapolates beats before the track starts', () {
+    final xs = beatGridXs(
+      bpm: 120,
+      firstBeatSecs: 0,
+      originMs: -1000,
+      spanMs: 2000,
+      width: 200,
+    );
+    expect(xs.map((mark) => mark.x), [
+      closeTo(0, 1e-6), // -1 s
+      closeTo(50, 1e-6), // -0.5 s
+      closeTo(100, 1e-6), // 0 s
+      closeTo(150, 1e-6), // 0.5 s
+      closeTo(200, 1e-6), // 1 s
+    ]);
   });
 
   test('phaseMarkXs keeps arrowing past the analyzed span', () {

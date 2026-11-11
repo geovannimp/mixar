@@ -41,6 +41,16 @@ class ScrollingLane extends ConsumerStatefulWidget {
 class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     with SingleTickerProviderStateMixin {
   late final AnimationController _playhead;
+
+  /// Playhead ticks plus out-of-track moves, so the strip follows a position
+  /// dragged before the start or past the end as well as normal playback.
+  late final Listenable _displayTicks;
+
+  /// Signed source position while the playhead sits outside `[0, duration]`.
+  /// The controller is clamped to the track, so it cannot represent those
+  /// positions on its own.
+  final ValueNotifier<double?> _outsideMs = ValueNotifier<double?>(null);
+
   var _scrubbing = false;
   var _scrubAnchorX = 0.0;
   var _scrubAnchorMs = 0.0;
@@ -51,19 +61,43 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   void initState() {
     super.initState();
     _playhead = AnimationController(vsync: this);
+    _displayTicks = Listenable.merge([_playhead, _outsideMs]);
   }
 
   @override
   void dispose() {
     _playhead.dispose();
+    _outsideMs.dispose();
     super.dispose();
   }
 
   double _displayMs(int durationMs) {
+    final outside = _outsideMs.value;
+    if (outside != null) {
+      return outside;
+    }
     if (durationMs <= 0) {
       return 0;
     }
     return _playhead.value * durationMs;
+  }
+
+  /// Shows [ms] on the lane, including positions outside the track.
+  ///
+  /// The controller only spans `0..duration`; the signed override keeps the
+  /// strip moving when the playhead is dragged before the start or past the
+  /// end, where the controller value would otherwise clamp and freeze.
+  void _showMs(double ms, {required int durationMs}) {
+    if (durationMs <= 0) {
+      _outsideMs.value = null;
+      _playhead.value = 0;
+      return;
+    }
+    final outside = ms < 0 || ms > durationMs;
+    _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
+    // Set after the controller so its clamped fraction cannot publish an
+    // in-range position over the override.
+    _outsideMs.value = outside ? ms : null;
   }
 
   void _setDisplayMs(
@@ -73,16 +107,18 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     required bool playing,
   }) {
     if (durationMs <= 0) {
+      _outsideMs.value = null;
       _playhead
         ..stop()
         ..value = 0;
       return;
     }
+    final outside = ms < 0 || ms > durationMs;
     _playhead
       ..stop()
-      ..duration = playheadWallDuration(durationMs: durationMs, speed: speed)
-      ..value = (ms / durationMs).clamp(0.0, 1.0);
-    if (playing && !_scrubbing) {
+      ..duration = playheadWallDuration(durationMs: durationMs, speed: speed);
+    _showMs(ms, durationMs: durationMs);
+    if (playing && !_scrubbing && !outside) {
       _playhead.forward();
     }
   }
@@ -93,6 +129,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     required double speed,
   }) {
     if (durationMs <= 0) {
+      _outsideMs.value = null;
       _playhead.stop();
       return;
     }
@@ -101,10 +138,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     if (_playhead.duration != wall) {
       _playhead
         ..stop()
-        ..duration = wall
-        ..value = (ms / durationMs).clamp(0.0, 1.0);
+        ..duration = wall;
+      _showMs(ms, durationMs: durationMs);
     }
-    if (playing && !_scrubbing) {
+    final outside = _outsideMs.value != null;
+    if (playing && !_scrubbing && !outside) {
       if (!_playhead.isAnimating) {
         _playhead.forward();
       }
@@ -137,9 +175,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     // rebuilds; ongoing ticks drive _playhead via ref.listen below.
     if (!advancing && !_scrubbing && durationMs > 0) {
       final enginePosMs = ref.read(deckPositionMsProvider(widget.deckId));
-      final v = (enginePosMs / durationMs).clamp(0.0, 1.0);
-      if ((_playhead.value - v).abs() > 1e-12) {
-        _playhead.value = v;
+      if ((_displayMs(durationMs) - enginePosMs).abs() > 0.5) {
+        _showMs(enginePosMs.toDouble(), durationMs: durationMs);
       }
     }
 
@@ -254,7 +291,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                 width: width,
                 spanMs: visibleSpanMs.toDouble(),
               );
-              _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
+              _showMs(ms, durationMs: durationMs);
               _throttledSeek(ms.round());
             },
             onPointerUp: (e) {
@@ -306,10 +343,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                           deckId: widget.deckId,
                           trackId: trackId,
                           durationMs: durationMs,
+                          visibleSpanMs: visibleSpanMs,
                           width: width,
                           height: height,
                           pxPerMs: pxPerMs,
-                          playhead: _playhead,
+                          playhead: _displayTicks,
                           displayMs: () => _displayMs(durationMs),
                           dpr: dpr,
                         ),
@@ -324,7 +362,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                       ),
                       if (slipOn && slipShadowMs != null && trackId != null)
                         AnimatedBuilder(
-                          animation: _playhead,
+                          animation: _displayTicks,
                           builder: (context, _) {
                             final audibleMs = _displayMs(durationMs);
                             final delta = slipShadowMs - audibleMs;
@@ -417,6 +455,7 @@ class _LaneStrip extends ConsumerWidget {
     required this.deckId,
     required this.trackId,
     required this.durationMs,
+    required this.visibleSpanMs,
     required this.width,
     required this.height,
     required this.pxPerMs,
@@ -428,10 +467,11 @@ class _LaneStrip extends ConsumerWidget {
   final int deckId;
   final String trackId;
   final int durationMs;
+  final int visibleSpanMs;
   final double width;
   final double height;
   final double pxPerMs;
-  final Animation<double> playhead;
+  final Listenable playhead;
   final double Function() displayMs;
   final double dpr;
 
@@ -451,17 +491,9 @@ class _LaneStrip extends ConsumerWidget {
     final stripWidth = strip.widthPx;
     // Overlays are recorded at the width they are painted at. Recording them at
     // the (fixed) peak-texture width and scaling that picture would resample
-    // 1 px beat lines, and an anti-alias-free hairline drawn at a fractional
-    // scale drops out at some zoom levels.
+    // 1 px loop and cue edges, and an anti-alias-free hairline drawn at a
+    // fractional scale drops out at some zoom levels.
     final displayWidth = (stripSpan * pxPerMs).round();
-    final beatGrid = ref.watch(
-      stripBeatGridPictureProvider((
-        trackId,
-        stripOrigin,
-        stripSpan,
-        displayWidth,
-      )),
-    );
     final loops = ref.watch(
       stripLoopPictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
     );
@@ -484,6 +516,17 @@ class _LaneStrip extends ConsumerWidget {
     final cues = ref.watch(
       stripCuePictureProvider((trackId, stripOrigin, stripSpan, displayWidth)),
     );
+    // Wider than the audio window on both sides so the grid still covers the
+    // viewport when the strip is clamped at the track's start or end (and a
+    // little way into the silence before/after it). Recording it as a picture
+    // keeps the per-tick playback path to a translate.
+    final gridOrigin = stripOrigin - 2 * visibleSpanMs;
+    final gridSpan = stripSpan + 4 * visibleSpanMs;
+    final gridWidth = (gridSpan * pxPerMs).round();
+    final beatGrid = ref.watch(
+      stripBeatGridPictureProvider((trackId, gridOrigin, gridSpan, gridWidth)),
+    );
+    final beatGridLeft = (gridOrigin - stripOrigin) * pxPerMs;
 
     return AnimatedBuilder(
       animation: playhead,
@@ -505,6 +548,10 @@ class _LaneStrip extends ConsumerWidget {
       child: RepaintBoundary(
         child: Stack(
           fit: StackFit.expand,
+          // The grid picture starts before the strip's audio window and may
+          // reach past its far edge; the lane's ClipRect keeps it inside the
+          // lane.
+          clipBehavior: Clip.none,
           children: [
             FittedBox(
               fit: BoxFit.fill,
@@ -518,9 +565,20 @@ class _LaneStrip extends ConsumerWidget {
                 ),
               ),
             ),
+            if (beatGrid != null)
+              Positioned(
+                left: beatGridLeft,
+                top: 0,
+                bottom: 0,
+                width: gridWidth.toDouble(),
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _BeatGridPicturePainter(picture: beatGrid),
+                  ),
+                ),
+              ),
             CustomPaint(
               painter: _StripOverlayPainter(
-                beatGrid: beatGrid,
                 loops: loops,
                 activeLoop: activeLoop,
                 pendingLoopIn: pendingLoopIn,
@@ -565,17 +623,37 @@ class _StripWaveform extends ConsumerWidget {
   }
 }
 
-/// Beat grid, loops and cues, replayed at the width they were recorded at.
+/// Draws pictures recorded at [kWaveformStripHeight] onto a strip canvas.
+///
+/// One place owns how recorded overlays map to the lane, so the grid and the
+/// loop/cue layer cannot drift apart if the vertical mapping changes.
+void _paintStripPictures(
+  Canvas canvas,
+  Size size,
+  Iterable<Picture?> pictures,
+) {
+  if (size.width <= 0 || size.height <= 0) {
+    return;
+  }
+  canvas.save();
+  canvas.scale(1, size.height / kWaveformStripHeight);
+  for (final picture in pictures) {
+    if (picture != null) {
+      canvas.drawPicture(picture);
+    }
+  }
+  canvas.restore();
+}
+
+/// Loops and cues, replayed at the width they were recorded at.
 class _StripOverlayPainter extends CustomPainter {
   new({
-    required this.beatGrid,
     required this.loops,
     required this.activeLoop,
     required this.pendingLoopIn,
     required this.cues,
   });
 
-  final Picture? beatGrid;
   final Picture? loops;
   final Picture? activeLoop;
   final Picture? pendingLoopIn;
@@ -583,24 +661,11 @@ class _StripOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) {
-      return;
-    }
-    // Overlays are authored at strip height; scale only vertically so their
-    // horizontal placement stays one picture pixel per canvas pixel.
-    canvas.save();
-    canvas.scale(1, size.height / kWaveformStripHeight);
-    for (final picture in [beatGrid, loops, activeLoop, pendingLoopIn, cues]) {
-      if (picture != null) {
-        canvas.drawPicture(picture);
-      }
-    }
-    canvas.restore();
+    _paintStripPictures(canvas, size, [loops, activeLoop, pendingLoopIn, cues]);
   }
 
   @override
   bool shouldRepaint(_StripOverlayPainter oldDelegate) =>
-      !identical(beatGrid, oldDelegate.beatGrid) ||
       !identical(loops, oldDelegate.loops) ||
       !identical(activeLoop, oldDelegate.activeLoop) ||
       !identical(pendingLoopIn, oldDelegate.pendingLoopIn) ||
@@ -651,4 +716,24 @@ class _WaveformPainter extends CustomPainter {
       mode != oldDelegate.mode ||
       gain != oldDelegate.gain ||
       bandGain != oldDelegate.bandGain;
+}
+
+/// Replays the recorded tempo bars at the window they were recorded for.
+///
+/// The grid picture is wider than the strip (the strip window is clamped at
+/// the track edges), anchored in source time, and translated with the strip,
+/// so playback only moves this layer instead of rebuilding the marks.
+class _BeatGridPicturePainter extends CustomPainter {
+  new({required this.picture});
+
+  final Picture picture;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    _paintStripPictures(canvas, size, [picture]);
+  }
+
+  @override
+  bool shouldRepaint(_BeatGridPicturePainter oldDelegate) =>
+      !identical(picture, oldDelegate.picture);
 }

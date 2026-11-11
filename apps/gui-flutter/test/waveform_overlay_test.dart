@@ -8,13 +8,16 @@ import 'package:gui_flutter/src/rust/api/event_mirrors.dart'
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
 void main() {
-  test('recordBeatGridPicture paints arrows on both lane edges', () async {
+  test('paintBeatGrid paints arrows on both lane edges', () async {
     const size = Size(120, 40);
-    final picture = recordBeatGridPicture(
+    final recorder = PictureRecorder();
+    paintBeatGrid(
+      Canvas(recorder),
       marks: const [],
       phaseArrows: const [60],
       size: size,
     );
+    final picture = recorder.endRecording();
     final image = await picture.toImage(120, 40);
     final bytes = await image.toByteData();
     int alphaAt(int x, int y) => bytes!.getUint8((y * 120 + x) * 4 + 3);
