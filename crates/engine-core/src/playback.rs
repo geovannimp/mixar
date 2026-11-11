@@ -248,7 +248,9 @@ impl Engine {
         self.play(deck_id)
     }
 
-    /// Recall a saved loop region: activate, seek to in, play.
+    /// Recall a saved loop region: activate it, keeping the playhead when it
+    /// is before the loop out; seek to the in point only when the playhead is
+    /// already past the region.
     pub fn recall_deck_saved_loop(
         &mut self,
         deck_id: usize,
@@ -265,8 +267,10 @@ impl Engine {
                 "Loop out must be after loop in: in={in_ms} out={out_ms}"
             ));
         }
-        // Seek first: the loop activation anchors the slip cursor at the in point.
-        self.seek_deck(deck_id, in_ms)?;
+        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
+        if position_ms >= out_ms {
+            self.seek_deck(deck_id, in_ms)?;
+        }
         self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
         // Drop the pending loop-in only once the activation succeeded, so a
         // failed recall leaves it intact for a retry.
