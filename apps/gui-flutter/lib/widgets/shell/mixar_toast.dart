@@ -333,6 +333,10 @@ class _MixarToastSlotState extends State<_MixarToastSlot>
       return;
     }
     _remaining = duration;
+    _scheduleAutoClose();
+  }
+
+  void _scheduleAutoClose() {
     _clock
       ..reset()
       ..start();
@@ -404,10 +408,7 @@ class _MixarToastSlotState extends State<_MixarToastSlot>
       _close();
       return;
     }
-    _clock
-      ..reset()
-      ..start();
-    _autoClose = Timer(_remaining, _close);
+    _scheduleAutoClose();
   }
 
   @override

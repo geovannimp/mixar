@@ -7,6 +7,12 @@ import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
+/// One tap target the toast tests mount; the callback receives a live context.
+typedef ToastTrigger = ({
+  String label,
+  void Function(BuildContext context) onTap,
+});
+
 void main() {
   Future<void> pumpHome(WidgetTester tester, Widget home) async {
     final theme = MixarThemeData.dark();
@@ -19,20 +25,38 @@ void main() {
     );
   }
 
-  testWidgets('showMixarToast displays title', (tester) async {
-    await pumpHome(
+  /// Mounts [triggers] as a column of tap targets inside the themed shell.
+  Future<void> pumpToastTriggers(
+    WidgetTester tester,
+    List<ToastTrigger> triggers,
+  ) {
+    return pumpHome(
       tester,
       Builder(
-        builder: (context) => GestureDetector(
-          onTap: () => showMixarToast(
-            context: context,
-            title: const Text('Engine failed'),
-            duration: const Duration(milliseconds: 200),
-          ),
-          child: const Text('Show'),
+        builder: (context) => Column(
+          children: [
+            for (final trigger in triggers)
+              GestureDetector(
+                onTap: () => trigger.onTap(context),
+                child: Text(trigger.label),
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  testWidgets('showMixarToast displays title', (tester) async {
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          title: const Text('Engine failed'),
+          duration: const Duration(milliseconds: 200),
+        ),
+      ),
+    ]);
 
     await tester.tap(find.text('Show'));
     await tester.pump();
@@ -45,21 +69,18 @@ void main() {
   testWidgets('showMixarToast suffix dismisses persistent toast', (
     tester,
   ) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () => showMixarToast(
-            context: context,
-            duration: null,
-            title: const Text('Controller connected'),
-            suffixBuilder: (context, dismiss) =>
-                GestureDetector(onTap: dismiss, child: const Text('Enable')),
-          ),
-          child: const Text('Show'),
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Controller connected'),
+          suffixBuilder: (context, dismiss) =>
+              GestureDetector(onTap: dismiss, child: const Text('Enable')),
         ),
       ),
-    );
+    ]);
 
     await tester.tap(find.text('Show'));
     await tester.pump();
@@ -72,15 +93,12 @@ void main() {
   });
 
   testWidgets('dismissMixarToast is a no-op for unknown id', (tester) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () => dismissMixarToast(context, id: 'missing-toast'),
-          child: const Text('Dismiss'),
-        ),
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Dismiss',
+        onTap: (context) => dismissMixarToast(context, id: 'missing-toast'),
       ),
-    );
+    ]);
 
     await tester.tap(find.text('Dismiss'));
     await tester.pumpAndSettle();
@@ -88,31 +106,22 @@ void main() {
   });
 
   testWidgets('dismissMixarToast closes toast by id', (tester) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => Column(
-          children: [
-            GestureDetector(
-              onTap: () => showMixarToast(
-                context: context,
-                id: 'controller-offer:TestDev Port',
-                duration: null,
-                title: const Text('Pioneer DDJ-400 connected'),
-              ),
-              child: const Text('Show'),
-            ),
-            GestureDetector(
-              onTap: () => dismissMixarToast(
-                context,
-                id: 'controller-offer:TestDev Port',
-              ),
-              child: const Text('Disconnect'),
-            ),
-          ],
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          id: 'controller-offer:TestDev Port',
+          duration: null,
+          title: const Text('Pioneer DDJ-400 connected'),
         ),
       ),
-    );
+      (
+        label: 'Disconnect',
+        onTap: (context) =>
+            dismissMixarToast(context, id: 'controller-offer:TestDev Port'),
+      ),
+    ]);
 
     await tester.tap(find.text('Show'));
     await tester.pump();
@@ -125,28 +134,25 @@ void main() {
   });
 
   testWidgets('showMixarToast stacks suffix below description', (tester) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => GestureDetector(
-          onTap: () => showMixarToast(
-            context: context,
-            duration: null,
-            title: const Text('Pioneer DDJ-400 connected'),
-            description: const Text('Do you want to use this controller?'),
-            suffixBuilder: (context, dismiss) => Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 8,
-              children: [
-                GestureDetector(onTap: dismiss, child: const Text('Cancel')),
-                GestureDetector(onTap: dismiss, child: const Text('Enable')),
-              ],
-            ),
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Pioneer DDJ-400 connected'),
+          description: const Text('Do you want to use this controller?'),
+          suffixBuilder: (context, dismiss) => Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 8,
+            children: [
+              GestureDetector(onTap: dismiss, child: const Text('Cancel')),
+              GestureDetector(onTap: dismiss, child: const Text('Enable')),
+            ],
           ),
-          child: const Text('Show'),
         ),
       ),
-    );
+    ]);
 
     await tester.tap(find.text('Show'));
     await tester.pump();
@@ -176,31 +182,24 @@ void main() {
   testWidgets('showMixarToast stacks newer toasts above the corner', (
     tester,
   ) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => Column(
-          children: [
-            GestureDetector(
-              onTap: () => showMixarToast(
-                context: context,
-                duration: null,
-                title: const Text('First notice'),
-              ),
-              child: const Text('Show first'),
-            ),
-            GestureDetector(
-              onTap: () => showMixarToast(
-                context: context,
-                duration: null,
-                title: const Text('Second notice'),
-              ),
-              child: const Text('Show second'),
-            ),
-          ],
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show first',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('First notice'),
         ),
       ),
-    );
+      (
+        label: 'Show second',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Second notice'),
+        ),
+      ),
+    ]);
 
     await tester.tap(find.text('Show first'));
     await tester.pumpAndSettle();
@@ -218,33 +217,26 @@ void main() {
   });
 
   testWidgets('toast variant picks its glyph', (tester) async {
-    await pumpHome(
-      tester,
-      Builder(
-        builder: (context) => Column(
-          children: [
-            GestureDetector(
-              onTap: () => showMixarToast(
-                context: context,
-                duration: null,
-                title: const Text('Saved'),
-                variant: MixarToastVariant.success,
-              ),
-              child: const Text('Show success'),
-            ),
-            GestureDetector(
-              onTap: () => showMixarToast(
-                context: context,
-                duration: null,
-                title: const Text('Failed'),
-                variant: MixarToastVariant.destructive,
-              ),
-              child: const Text('Show error'),
-            ),
-          ],
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show success',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Saved'),
+          variant: MixarToastVariant.success,
         ),
       ),
-    );
+      (
+        label: 'Show error',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Failed'),
+          variant: MixarToastVariant.destructive,
+        ),
+      ),
+    ]);
 
     await tester.tap(find.text('Show success'));
     await tester.pumpAndSettle();
