@@ -41,10 +41,6 @@ const kSettingsContentScrollKey = ValueKey('settings-content-scroll');
 /// Height of the Settings page's own header band (glyph, title, search, save).
 const double kSettingsHeaderHeight = 60;
 
-/// The search toggle's square, the size the close button used to be: one
-/// header-height cell, flush to the header's edge.
-const double _kSettingsToggleSize = kSettingsHeaderHeight;
-
 /// Slack between the header's right cluster members.
 const double _kSettingsHeaderGap = 8;
 
@@ -317,6 +313,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           _searchQuery,
           l10n,
         ).isEmpty;
+        // The band grows with the text scale: the title pair is the tallest
+        // thing in it, and a fixed square would clip it on a scaled desktop.
+        // The search square is one band tall, so it grows with it.
+        final headerHeight = MediaQuery.textScalerOf(context)
+            .scale(kSettingsHeaderHeight);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -329,7 +330,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               // field in its search state, and an intrinsic pass over a field
               // and a square cell fights over the same dimension.
               child: SizedBox(
-                height: kSettingsHeaderHeight,
+                height: headerHeight,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     // The toggle travels between the corner cell and the right
@@ -339,20 +340,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         ? l10n.settingsSaving
                         : l10n.settingsSaveChanges;
                     final saveWidth = dirty
-                        ? _saveSlotWidth(theme, saveLabel)
+                        ? _saveSlotWidth(context, theme, saveLabel)
                         : 0.0;
                     // The right edge is a square in both states — the search
                     // toggle, then the clear button — with the Save slot
                     // opening to its left. Open, the toggle becomes the corner
                     // cell instead.
                     final rightCluster =
-                        _kSettingsToggleSize +
+                        headerHeight +
                         (saveWidth == 0
                             ? 0.0
                             : saveWidth + 2 * _kSettingsHeaderGap);
                     final toggleLeft = _searchOpen
                         ? 0.0
-                        : constraints.maxWidth - _kSettingsToggleSize;
+                        : constraints.maxWidth - headerHeight;
                     return Stack(
                       children: [
                         Row(
@@ -360,7 +361,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             // Square corner cell. Closed, it names the page;
                             // open, the search toggle covers it.
                             SizedBox(
-                              width: kSettingsHeaderHeight,
+                              width: headerHeight,
                               child: Center(
                                 child: AnimatedOpacity(
                                   duration: _kSettingsHeaderSlide,
@@ -413,8 +414,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
+                                          // One line each: the band is a fixed
+                                          // height, so a wrapped subtitle would
+                                          // overflow it. Narrow windows and big
+                                          // text scales ellipsize instead.
                                           Text(
                                             l10n.settingsTitle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: theme.typography.body.xs
                                                 .copyWith(
                                                   fontWeight: FontWeight.w700,
@@ -424,6 +431,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                           const SizedBox(height: 4),
                                           Text(
                                             l10n.settingsSubtitle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                             style: theme.typography.body.sm
                                                 .copyWith(
                                                   color: theme
@@ -450,8 +459,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           curve: _kSettingsHeaderCurve,
                           left: toggleLeft,
                           top: 0,
-                          width: _kSettingsToggleSize,
-                          height: _kSettingsToggleSize,
+                          width: headerHeight,
+                          height: headerHeight,
                           child: _searchOpen
                               // Once it arrives it is a marker, not a control:
                               // the header is the search bar, and a press
@@ -473,8 +482,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           Positioned(
                             right: 0,
                             top: 0,
-                            width: _kSettingsToggleSize,
-                            height: _kSettingsToggleSize,
+                            width: headerHeight,
+                            height: headerHeight,
                             child: AppButton.icon(
                               variant: .ghost,
                               size: .sm,
@@ -487,7 +496,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           AnimatedPositioned(
                             duration: _kSettingsHeaderSlide,
                             curve: _kSettingsHeaderCurve,
-                            right: _kSettingsToggleSize + _kSettingsHeaderGap,
+                            right: headerHeight + _kSettingsHeaderGap,
                             top: 0,
                             bottom: 0,
                             child: Center(
@@ -651,10 +660,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// Width the Save button needs for [label].
   ///
   /// The toggle is seated left of it, so the slot has to be known before the
-  /// row lays out — and it changes with the label ("Save" / "Saving…").
-  double _saveSlotWidth(MixarThemeData theme, String label) {
-    // Same style the button paints with (AppButton applies the app density's
-    // weight and a solid line height), so the measurement matches the label.
+  /// row lays out — and it changes with the label ("Save changes" /
+  /// "Saving…").
+  ///
+  /// Measured with the style the button paints with (the app density's weight,
+  /// a solid line height) *and* the ambient text scaler: a scaled-up label is
+  /// wider than the raw font metrics, and the slot clips what it cannot fit.
+  double _saveSlotWidth(
+    BuildContext context,
+    MixarThemeData theme,
+    String label,
+  ) {
     final style = theme.typography.body.sm.copyWith(
       fontWeight: FontWeight.w500,
       height: 1,
@@ -662,10 +678,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final painter = TextPainter(
       text: TextSpan(text: label, style: style),
       textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
     )..layout();
-    // The sm button's own horizontal content padding, plus a little slack so a
-    // font-metric rounding difference never clips the label.
-    final width = painter.width + 20 + 4;
+    // The sm button's own horizontal content padding, plus a little slack for
+    // font-metric rounding differences.
+    final width = painter.width + 20 + 6;
     painter.dispose();
     return width;
   }

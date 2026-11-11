@@ -243,6 +243,36 @@ void main() {
     );
   });
 
+  testWidgets('the save slot follows the ambient text scale', (tester) async {
+    // A scaled-up label is wider than raw font metrics; the slot must grow with
+    // it instead of clipping the button (a real overflow on a scaled desktop).
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appSettingsProvider.overrideWith(
+            (ref) async => copyAppSettings(defaultAppSettings(), numDecks: 2),
+          ),
+        ],
+        child: mixarTestMaterialApp(
+          theme: MixarThemeData.dark(),
+          home: const MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(1.4)),
+            child: Scaffold(body: SettingsPage()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    tester
+        .widget<SettingsUiPanel>(find.byType(SettingsUiPanel))
+        .onChanged(copyAppSettings(defaultAppSettings(), showTooltips: false));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.widgetWithText(AppButton, 'Save changes'), findsOneWidget);
+  });
+
   testWidgets('a press outside keeps a filled search open', (tester) async {
     await pumpSettings(tester);
     await tester.tap(find.widgetWithIcon(AppButton, LucideIcons.search));
