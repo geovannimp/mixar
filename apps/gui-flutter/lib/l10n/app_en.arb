@@ -7,7 +7,11 @@
   "settingsSubtitle": "Saving restarts the engine automatically if it's running.",
   "settingsSearchHint": "Search",
   "@settingsSearchHint": {
-    "description": "Placeholder of the Settings sidebar search field"
+    "description": "Placeholder of the Settings header search field"
+  },
+  "settingsSearchClose": "Close search",
+  "@settingsSearchClose": {
+    "description": "Closes the Settings header search field"
   },
   "settingsSearchNoResults": "No matching settings",
   "@settingsSearchNoResults": {
@@ -23,8 +27,14 @@
     }
   },
   "settingsLoading": "Loading settings…",
-  "settingsCloseSemantics": "Close",
   "settingsSave": "Save",
+  "@settingsSave": {
+    "description": "Dialog action that saves and continues"
+  },
+  "settingsSaveChanges": "Save changes",
+  "@settingsSaveChanges": {
+    "description": "Header button that saves the edited settings"
+  },
   "settingsSaving": "Saving…",
   "settingsSavedToast": "Settings saved",
   "settingsSavedNotAppliedToast": "Settings saved, but not applied",

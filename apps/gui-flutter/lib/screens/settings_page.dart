@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/theme/mixar_button_style.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/providers/settings/settings_leave_guard.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -25,6 +27,7 @@ import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/settings/settings_waveform_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_dialog.dart';
+import 'package:gui_flutter/widgets/shell/mixar_input.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -35,9 +38,19 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 /// content target this key instead of the first `SingleChildScrollView`.
 const kSettingsContentScrollKey = ValueKey('settings-content-scroll');
 
+/// Height of the Settings page's own header band (glyph, title, search, save).
+const double kSettingsHeaderHeight = 60;
+
+/// Slack between the header's right cluster members.
+const double _kSettingsHeaderGap = 8;
+
+/// How long the toggle takes to slide between its two seats, and how the Save
+/// slot opens under it.
+const Duration _kSettingsHeaderSlide = Duration(milliseconds: 200);
+const Curve _kSettingsHeaderCurve = Curves.easeOutCubic;
+
 class SettingsPage extends ConsumerStatefulWidget {
   const new({
-    this.onClose,
     this.initialSection = SettingsSection.ui,
     this.scrollToPreviewBus = false,
     super.key,
@@ -46,7 +59,6 @@ class SettingsPage extends ConsumerStatefulWidget {
          'scrollToPreviewBus requires initialSection.audio',
        );
 
-  final VoidCallback? onClose;
   final SettingsSection initialSection;
 
   /// Scroll + glow the Preview bus card. Requires [initialSection] audio.
@@ -68,8 +80,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   AppSettings? _baseline;
   var _busy = false;
   var _didSchedulePreviewScroll = false;
+
   var _previewScrollAttempts = 0;
+
+  /// Header search: the button expands the title row into a field.
+  var _searchOpen = false;
   var _searchQuery = '';
+  final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  /// Section the user was on when the search first hid it. Clearing puts them
+  /// back there instead of stranding them on a section the search picked.
+  SettingsSection? _sectionBeforeSearch;
+
+  /// Captured on mount: `ref` is unsafe to touch from [dispose].
+  SettingsLeaveGuard? _leaveGuard;
 
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
@@ -128,8 +153,77 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    // Registering the guard writes a provider, which the widget tree forbids
+    // while it builds; the first frame is the earliest slot for it.
+    final leaveGuard = ref.read(settingsLeaveGuardProvider.notifier);
+    _leaveGuard = leaveGuard;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        leaveGuard.set(_confirmLeave);
+      }
+    });
     if (widget.scrollToPreviewBus) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _tryPreviewScroll());
+    }
+  }
+
+  @override
+  void dispose() {
+    // Deregistering writes a provider, which the tree forbids mid-teardown:
+    // defer it, and let `clearIf` drop it as a no-op if the container is gone.
+    final leaveGuard = _leaveGuard;
+    final guard = _confirmLeave;
+    if (leaveGuard != null) {
+      Future.microtask(() => leaveGuard.clearIf(guard));
+    }
+    _searchController.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  void _openSearch() {
+    setState(() => _searchOpen = true);
+    _searchFocus.requestFocus();
+  }
+
+  /// Collapses the header back to the page title and drops the query, so the
+  /// nav list and the panel show everything again.
+  void _closeSearch() {
+    _searchFocus.unfocus();
+    _searchController.clear();
+    setState(() {
+      _searchOpen = false;
+      _searchQuery = '';
+    });
+    _restoreSectionAfterSearch();
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() => _searchQuery = query);
+    if (query.trim().isEmpty) {
+      _restoreSectionAfterSearch();
+      return;
+    }
+    _ensureSelectionMatches();
+  }
+
+  /// Keeps the open section inside the filtered nav list.
+  void _ensureSelectionMatches() {
+    final l10n = AppLocalizations.of(context)!;
+    final matches = matchingSettingsSections(_searchQuery, l10n);
+    if (matches.isEmpty || matches.contains(_section)) {
+      return;
+    }
+    _sectionBeforeSearch ??= _section;
+    _selectFromSearch(matches.first);
+  }
+
+  /// Returns to the section the search hid, if the query was cleared.
+  void _restoreSectionAfterSearch() {
+    final restore = _sectionBeforeSearch;
+    _sectionBeforeSearch = null;
+    if (restore != null) {
+      _selectFromSearch(restore);
     }
   }
 
@@ -219,6 +313,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           _searchQuery,
           l10n,
         ).isEmpty;
+        // The band grows with the text scale: the title pair is the tallest
+        // thing in it, and a fixed square would clip it on a scaled desktop.
+        // The search square is one band tall, so it grows with it.
+        final headerHeight = MediaQuery.textScalerOf(context)
+            .scale(kSettingsHeaderHeight);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -227,73 +326,194 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 color: theme.colors.card,
                 border: Border(bottom: BorderSide(color: theme.colors.border)),
               ),
-              // IntrinsicHeight lets the close button stretch to the header's
-              // full height (the row itself sits in an unbounded Column).
-              child: IntrinsicHeight(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 0, 24, 0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (widget.onClose != null)
-                        // Square corner cell: the row stretch gives it the
-                        // header height, and the ratio turns that into width.
-                        AspectRatio(
-                          aspectRatio: 1,
-                          child: AppButton.icon(
-                            variant: .ghost,
-                            size: .sm,
-                            semanticsLabel: l10n.settingsCloseSemantics,
-                            onPress: _busy ? null : () => _close(dirty),
-                            child: const Icon(LucideIcons.x),
-                          ),
-                        ),
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            widget.onClose == null ? 12 : 4,
-                            12,
-                            0,
-                            12,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                l10n.settingsTitle,
-                                style: theme.typography.body.xs.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 2,
+              // A fixed height, not IntrinsicHeight: the row holds a text
+              // field in its search state, and an intrinsic pass over a field
+              // and a square cell fights over the same dimension.
+              child: SizedBox(
+                height: headerHeight,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // The toggle travels between the corner cell and the right
+                    // end, so both ends are plain geometry: no key lookups and
+                    // nothing to measure mid-animation.
+                    final saveLabel = _busy
+                        ? l10n.settingsSaving
+                        : l10n.settingsSaveChanges;
+                    final saveWidth = dirty
+                        ? _saveSlotWidth(context, theme, saveLabel)
+                        : 0.0;
+                    // The right edge is a square in both states — the search
+                    // toggle, then the clear button — with the Save slot
+                    // opening to its left. Open, the toggle becomes the corner
+                    // cell instead.
+                    final rightCluster =
+                        headerHeight +
+                        (saveWidth == 0
+                            ? 0.0
+                            : saveWidth + 2 * _kSettingsHeaderGap);
+                    final toggleLeft = _searchOpen
+                        ? 0.0
+                        : constraints.maxWidth - headerHeight;
+                    return Stack(
+                      children: [
+                        Row(
+                          children: [
+                            // Square corner cell. Closed, it names the page;
+                            // open, the search toggle covers it.
+                            SizedBox(
+                              width: headerHeight,
+                              child: Center(
+                                child: AnimatedOpacity(
+                                  duration: _kSettingsHeaderSlide,
+                                  opacity: _searchOpen ? 0 : 1,
+                                  child: Icon(
+                                    LucideIcons.settings,
+                                    size: 16,
+                                    color: theme.colors.mutedForeground,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                l10n.settingsSubtitle,
-                                style: theme.typography.body.sm.copyWith(
-                                  color: theme.colors.mutedForeground,
-                                ),
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 4),
+                                child: _searchOpen
+                                    ? Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: TapRegion(
+                                          // A press outside closes an empty
+                                          // bar only: with a query in it the
+                                          // search is still doing work, so the
+                                          // clear button is the way out. The
+                                          // press itself reaches what it hit.
+                                          onTapOutside: (_) {
+                                            if (_searchQuery.trim().isEmpty) {
+                                              _closeSearch();
+                                            }
+                                          },
+                                          child: MixarInput(
+                                            controller: _searchController,
+                                            focusNode: _searchFocus,
+                                            hint: l10n.settingsSearchHint,
+                                            borderless: true,
+                                            style: theme.typography.body.sm,
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 8,
+                                            ),
+                                            textInputAction:
+                                                TextInputAction.search,
+                                            onChanged: _onSearchChanged,
+                                            onSubmitted: (_) =>
+                                                _ensureSelectionMatches(),
+                                          ),
+                                        ),
+                                      )
+                                    : Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // One line each: the band is a fixed
+                                          // height, so a wrapped subtitle would
+                                          // overflow it. Narrow windows and big
+                                          // text scales ellipsize instead.
+                                          Text(
+                                            l10n.settingsTitle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.typography.body.xs
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: 2,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            l10n.settingsSubtitle,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.typography.body.sm
+                                                .copyWith(
+                                                  color: theme
+                                                      .colors
+                                                      .mutedForeground,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
                               ),
-                            ],
-                          ),
+                            ),
+                            // Reserved so the title and the field never reflow
+                            // under the controls; the slots open with the
+                            // toggle's own animation.
+                            AnimatedContainer(
+                              duration: _kSettingsHeaderSlide,
+                              curve: _kSettingsHeaderCurve,
+                              width: rightCluster,
+                            ),
+                          ],
                         ),
-                      ),
-                      if (dirty)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 0, 12),
-                          child: Align(
-                            alignment: Alignment.topRight,
-                            child: AppButton(
+                        AnimatedPositioned(
+                          duration: _kSettingsHeaderSlide,
+                          curve: _kSettingsHeaderCurve,
+                          left: toggleLeft,
+                          top: 0,
+                          width: headerHeight,
+                          height: headerHeight,
+                          child: _searchOpen
+                              // Once it arrives it is a marker, not a control:
+                              // the header is the search bar, and a press
+                              // anywhere outside closes it.
+                              ? const IgnorePointer(
+                                  child: Center(
+                                    child: Icon(LucideIcons.search, size: 16),
+                                  ),
+                                )
+                              : AppButton.icon(
+                                  variant: .ghost,
+                                  size: .sm,
+                                  semanticsLabel: l10n.settingsSearchHint,
+                                  onPress: _openSearch,
+                                  child: const Icon(LucideIcons.search),
+                                ),
+                        ),
+                        if (_searchOpen)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            width: headerHeight,
+                            height: headerHeight,
+                            child: AppButton.icon(
+                              variant: .ghost,
                               size: .sm,
-                              mainAxisSize: .min,
-                              onPress: _busy ? null : () => _save(draft),
-                              child: Text(
-                                _busy ? l10n.settingsSaving : l10n.settingsSave,
+                              semanticsLabel: l10n.settingsSearchClose,
+                              onPress: _closeSearch,
+                              child: const Icon(LucideIcons.x),
+                            ),
+                          ),
+                        if (dirty)
+                          AnimatedPositioned(
+                            duration: _kSettingsHeaderSlide,
+                            curve: _kSettingsHeaderCurve,
+                            right: headerHeight + _kSettingsHeaderGap,
+                            top: 0,
+                            bottom: 0,
+                            child: Center(
+                              child: SizedBox(
+                                width: saveWidth,
+                                child: AppButton(
+                                  size: .sm,
+                                  mainAxisSize: .min,
+                                  onPress: _busy ? null : () => _save(draft),
+                                  child: Text(saveLabel),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -303,10 +523,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 children: [
                   SettingsSidebar(
                     active: _section,
-                    onQueryChanged: (query) =>
-                        setState(() => _searchQuery = query),
-                    onSearchSelect: _selectFromSearch,
+                    query: _searchQuery,
                     onSelect: (section) => setState(() {
+                      // An explicit pick is where the user wants to be, so it
+                      // survives the query clearing.
+                      _sectionBeforeSearch = null;
                       if (section != _section) {
                         // One-shot deep-link glow; don't kill on re-tap.
                         _highlightPreviewBus = false;
@@ -440,13 +661,51 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
-  Future<void> _close(bool dirty) async {
-    if (!mounted || _busy) {
-      return;
+  /// Width the Save button needs for [label].
+  ///
+  /// The toggle is seated left of it, so the slot has to be known before the
+  /// row lays out — and it changes with the label ("Save changes" /
+  /// "Saving…").
+  ///
+  /// Measured with the style the button paints with (the app density's weight,
+  /// a solid line height) *and* the ambient text scaler: a scaled-up label is
+  /// wider than the raw font metrics, and the slot clips what it cannot fit.
+  double _saveSlotWidth(
+    BuildContext context,
+    MixarThemeData theme,
+    String label,
+  ) {
+    final style = theme.typography.body.sm.copyWith(
+      fontWeight: FontWeight.w500,
+      height: 1,
+    );
+    final painter = TextPainter(
+      text: TextSpan(text: label, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    // The sm button's own horizontal content padding, plus a little slack for
+    // font-metric rounding differences.
+    final width = painter.width + 20 + 6;
+    painter.dispose();
+    return width;
+  }
+
+  /// Whether the shell may leave this page: true when nothing is unsaved, or
+  /// when the user discarded or saved the draft.
+  Future<bool> _confirmLeave() async {
+    if (!mounted) {
+      // The page is gone: nothing left to protect. This is also what a guard
+      // registered by an earlier mount answers before the next one lands.
+      return true;
     }
-    if (!dirty) {
-      widget.onClose?.call();
-      return;
+    if (_busy) {
+      return false;
+    }
+    final draft = _draft;
+    final baseline = _baseline;
+    if (draft == null || baseline == null || !_isDirty(draft, baseline)) {
+      return true;
     }
     final l10n = AppLocalizations.of(context)!;
     final choice = await showMixarConfirm<_CloseChoice>(
@@ -468,24 +727,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       ],
     );
     if (!mounted) {
-      return;
+      return false;
     }
     switch (choice) {
       case null:
       case _CloseChoice.cancel:
-        return;
+        return false;
       case _CloseChoice.discard:
-        widget.onClose?.call();
-        return;
+        return true;
       case _CloseChoice.save:
         final draft = _draft;
         if (draft == null) {
-          return;
+          return false;
         }
         final savedAndApplied = await _save(draft);
-        if (mounted && savedAndApplied) {
-          widget.onClose?.call();
-        }
+        return mounted && savedAndApplied;
     }
   }
 }
