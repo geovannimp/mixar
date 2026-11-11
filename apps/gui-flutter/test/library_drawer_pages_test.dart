@@ -31,6 +31,7 @@ import 'helpers/collection_tracks_override.dart';
 import 'helpers/recording_deck_load_transport.dart';
 
 import 'support/mixar_material_app.dart';
+import 'support/row_drag.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -384,9 +385,10 @@ void main() {
     expect(find.byType(LibraryPanel), findsOneWidget);
     expect(find.text('Demo Track'), findsOneWidget);
 
-    // Drag the row for real: the drag source is a Flutter `Draggable`, so a
-    // pointer gesture drives it the way it drives the app.
-    final gesture = await tester.startGesture(
+    // Drag the row for real: the drag source is a Flutter drag widget, and on
+    // a touch host it arms on a hold, so the gesture waits out the press.
+    final gesture = await startRowDrag(
+      tester,
       tester.getCenter(find.text('Demo Track')),
     );
     await gesture.moveBy(const Offset(40, 0));
@@ -805,7 +807,8 @@ void main() {
       ),
     );
 
-    final gesture = await tester.startGesture(
+    final gesture = await startRowDrag(
+      tester,
       tester.getCenter(find.byType(SizedBox)),
     );
     await gesture.moveBy(const Offset(40, 0));

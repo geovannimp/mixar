@@ -18,6 +18,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
+import 'support/row_drag.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -219,12 +220,12 @@ void main() {
 
   testWidgets('row drag attaches after the engine starts', (tester) async {
     final container = await pumpPane(tester);
-    expect(find.byType(Draggable<TrackDragPayload>), findsNothing);
+    expect(rowDragSources(), findsNothing);
 
     container.read(engineUiProvider.notifier).setRunning(true);
     await tester.pumpAndSettle();
 
-    expect(find.byType(Draggable<TrackDragPayload>), findsWidgets);
+    expect(rowDragSources(), findsWidgets);
   });
 
   testWidgets('arrow keys move the focused row, like the track list', (

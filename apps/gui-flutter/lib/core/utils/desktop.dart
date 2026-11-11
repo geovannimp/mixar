@@ -34,3 +34,12 @@ bool get supportsAudioEngine =>
 /// the arm a test has to check on a desktop machine.
 bool audioEngineHost({required bool desktop, required bool android}) =>
     !kIsWeb && (desktop || android);
+
+/// Touch-first hosts, where a list row drag must be armed by a long press.
+///
+/// On these lists a finger pan is how you scroll, and an immediate drag
+/// recognizer claims that pan before the scroll view can: a scroll attempt on
+/// a row picks the track up instead. Delaying the drag's start until a long
+/// press leaves the pan with the list, and a mouse-only host keeps dragging
+/// straight off the press.
+bool get usesLongPressRowDrag => isAndroidHost;

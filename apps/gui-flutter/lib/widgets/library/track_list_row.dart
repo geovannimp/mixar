@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
@@ -81,7 +82,8 @@ class TrackListRow extends ConsumerWidget {
     // outlives the row where `ref` would not.
     final dragActive = ref.watch(libraryTrackDragActiveProvider.notifier);
     final drawerOpen = ref.watch(libraryDrawerOpenProvider.notifier);
-    final row = payload != null && ref.watch(engineRunningProvider)
+    final draggable = payload != null && ref.watch(engineRunningProvider);
+    final row = draggable
         ? libraryTrackDragSource(
             payload: payload,
             // Tuck the drawer away for the drag — it must never cover the deck
@@ -103,6 +105,11 @@ class TrackListRow extends ConsumerWidget {
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => onSelect(),
       child: _RowContextMenu(
+        // On a touch host the long press is what arms the row's drag, so it
+        // cannot open the menu as well: there the row's 3-dot button is the
+        // menu. A row with no drag source (no payload, or the engine is not
+        // running) keeps the long-press menu, since nothing else claims it.
+        enableLongPress: !(draggable && usesLongPressRowDrag),
         menuBuilder: menuBuilder,
         child: AnimatedOpacity(
           opacity: dimmed ? kSessionPlayedRowOpacity : 1,
@@ -144,7 +151,11 @@ class _RowActionsSlot extends StatelessWidget {
 /// Right-click / long-press menu wrapper. The menu body is built lazily so its
 /// `ref.watch`es only run while it is open.
 class _RowContextMenu extends StatelessWidget {
-  const new({required this.menuBuilder, required this.child});
+  const new({
+    required this.menuBuilder,
+    required this.child,
+    this.enableLongPress = true,
+  });
 
   final Widget Function(
     BuildContext context,
@@ -154,6 +165,10 @@ class _RowContextMenu extends StatelessWidget {
   menuBuilder;
   final Widget child;
 
+  /// Whether a long press opens the menu. False on a touch host row whose
+  /// press arms a drag instead — the two cannot share one gesture.
+  final bool enableLongPress;
+
   @override
   Widget build(BuildContext context) {
     return MixarContextMenu(
@@ -162,7 +177,9 @@ class _RowContextMenu extends StatelessWidget {
       ),
       childBuilder: (context, handle) => GestureDetector(
         onSecondaryTapDown: (details) => handle.showAt(details.globalPosition),
-        onLongPressStart: (details) => handle.showAt(details.globalPosition),
+        onLongPressStart: enableLongPress
+            ? (details) => handle.showAt(details.globalPosition)
+            : null,
         child: child,
       ),
     );
