@@ -183,6 +183,9 @@ void _paintLoopFlag(
   );
   canvas.drawRRect(rect, Paint()..color = accent);
   const icon = Icons.loop;
+  final glyphColor = accent.computeLuminance() > 0.5
+      ? const Color(0xFF000000)
+      : const Color(0xFFFFFFFF);
   final painter = TextPainter(
     text: TextSpan(
       text: String.fromCharCode(icon.codePoint),
@@ -191,7 +194,7 @@ void _paintLoopFlag(
         package: icon.fontPackage,
         fontSize: flagH * 0.68,
         height: 1,
-        color: const Color(0xFFFFFFFF),
+        color: glyphColor,
       ),
     ),
     textDirection: TextDirection.ltr,
