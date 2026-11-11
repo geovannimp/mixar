@@ -65,22 +65,22 @@ String formatBpm(double? bpm) {
   return bpm.toStringAsFixed(2);
 }
 
-/// Playback-ratio percent offset (e.g. `+6.00%`).
-String formatPitchPercent(
-  double speedNorm, [
-  double tempoRange = kDefaultTempoRange,
-]) {
-  final percent = (normToSpeedRatio(speedNorm, tempoRange) - 1) * 100;
+/// Ratio percent offset (e.g. `+6.00%`).
+String _formatPercent(double ratio) {
+  final percent = (ratio - 1) * 100;
   final sign = percent >= 0 ? '+' : '';
   return '$sign${percent.toStringAsFixed(2)}%';
 }
 
+/// Playback-ratio percent offset (e.g. `+6.00%`).
+String formatPitchPercent(
+  double speedNorm, [
+  double tempoRange = kDefaultTempoRange,
+]) => _formatPercent(normToSpeedRatio(speedNorm, tempoRange));
+
 /// Format pitch from the engine's actual playback ratio (e.g. `+20.00%`).
-String formatRatioPercent(double playbackRatio) {
-  final percent = (playbackRatio - 1) * 100;
-  final sign = percent >= 0 ? '+' : '';
-  return '$sign${percent.toStringAsFixed(2)}%';
-}
+String formatRatioPercent(double playbackRatio) =>
+    _formatPercent(playbackRatio);
 
 /// Format tempo range for UI (e.g. `±6%`).
 String formatTempoRange(double tempoRange) {
