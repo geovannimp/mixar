@@ -246,4 +246,76 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byIcon(LucideIcons.circleAlert), findsOneWidget);
   });
+
+  testWidgets('toast copy and actions share one left edge', (tester) async {
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Switch audio outputs to DDJ-400?'),
+          description: const Text('Warning: Mixar will restart.'),
+          // A full-width row, as the controller prompt uses: the first child
+          // then measures the copy column rather than a right-aligned cluster.
+          suffixBuilder: (context, dismiss) => Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            spacing: 8,
+            children: [
+              GestureDetector(onTap: dismiss, child: const Text('Remember')),
+              GestureDetector(onTap: dismiss, child: const Text('Switch')),
+            ],
+          ),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pumpAndSettle();
+
+    final titleX = tester
+        .getTopLeft(find.text('Switch audio outputs to DDJ-400?'))
+        .dx;
+    expect(
+      tester.getTopLeft(find.text('Warning: Mixar will restart.')).dx,
+      moreOrLessEquals(titleX, epsilon: 0.5),
+      reason: 'description must sit in the title copy column',
+    );
+    expect(
+      tester.getTopLeft(find.text('Remember')).dx,
+      moreOrLessEquals(titleX, epsilon: 0.5),
+      reason: 'actions must sit in the title copy column',
+    );
+  });
+
+  testWidgets('toast width follows content inside the cap', (tester) async {
+    const longTitle =
+        'Switch audio outputs to this rather long controller product name';
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text(longTitle),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pumpAndSettle();
+
+    final card = find.ancestor(
+      of: find.text(longTitle),
+      matching: find.byType(IntrinsicWidth),
+    );
+    expect(card, findsOneWidget);
+    final width = tester.getSize(card).width;
+    expect(width, greaterThanOrEqualTo(300), reason: 'card keeps its minimum');
+    expect(
+      width,
+      lessThanOrEqualTo(420),
+      reason: 'long copy must not push the card past its cap',
+    );
+  });
 }

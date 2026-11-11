@@ -290,9 +290,6 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       duration: null,
       title: Text('Switch audio outputs to $label?'),
       description: const _EngineRestartWarning(),
-      // Dismissing by hand (the close button) counts as "not now": clear the
-      // port so reconnecting can offer again.
-      onDismiss: () => _audioAskedPorts.remove(portName),
       suffixBuilder: (context, dismiss) => StatefulBuilder(
         builder: (context, setLocal) => Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
