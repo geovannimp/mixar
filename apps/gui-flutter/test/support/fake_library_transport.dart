@@ -71,6 +71,8 @@ class FakeLibraryTransport implements LibraryTransport {
   /// When set, [deleteCollection] throws it after the collection row is gone.
   final Exception? deleteCollectionError;
   final List<String> getTrackCalls = [];
+  final List<String> refreshTrackCalls = [];
+  final List<(String trackId, int slot)> deleteLoopCalls = [];
   final List<String> listCollectionEntriesCalls = [];
   int listCollectionsCalls = 0;
   final List<UpdateTrackMetadataCall> updateTrackMetadataCalls = [];
@@ -248,7 +250,9 @@ class FakeLibraryTransport implements LibraryTransport {
   Future<void> deleteHistorySession({required String sessionId}) async {}
 
   @override
-  Future<void> deleteLoop({required String trackId, required int slot}) async {}
+  Future<void> deleteLoop({required String trackId, required int slot}) async {
+    deleteLoopCalls.add((trackId, slot));
+  }
 
   @override
   Future<CdjExportReport> exportCdjUsb({
@@ -345,7 +349,9 @@ class FakeLibraryTransport implements LibraryTransport {
   Future<List<SamplerBankInfo>> listSamplerBanks() async => const [];
 
   @override
-  Future<void> refreshTrack({required String trackId}) async {}
+  Future<void> refreshTrack({required String trackId}) async {
+    refreshTrackCalls.add(trackId);
+  }
 
   @override
   Future<void> renameHistorySession({

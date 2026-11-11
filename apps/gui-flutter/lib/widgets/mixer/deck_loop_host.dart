@@ -107,24 +107,24 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
 
   Future<void> _onToggleLoop({
     required bool loopActive,
-    required LoopRegion? activeLoop,
     required List<SavedLoop> savedLoops,
     required int positionMs,
     required String? trackId,
   }) async {
-    if (shiftKeyPressed() && loopActive && activeLoop != null) {
+    if (shiftKeyPressed()) {
       final id = trackId;
       if (id == null || id.isEmpty) {
         return;
       }
-      final slot = autoLoopSlotForBeats(_loopBeats);
+      final loop = savedLoopAtPosition(savedLoops, positionMs);
+      if (loop == null) {
+        return;
+      }
+      if (loopActive) {
+        await _runEngine((engine) => engine.exitLoop(deckId: widget.deckId));
+      }
       await _runLibrary(
-        (library) => library.saveLoop(
-          trackId: id,
-          slot: slot,
-          inMs: activeLoop.inMs,
-          outMs: activeLoop.outMs,
-        ),
+        (library) => library.deleteLoop(trackId: id, slot: loop.slot),
       );
       return;
     }
@@ -159,37 +159,10 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     if (!loopActive) {
       return;
     }
-    // Resize active region from playhead (engine `set_auto_loop`); never
-    // writes the DB saved-loop row.
+    // Resize the active region; the engine auto-saves the updated loop.
     await _runEngine(
       (engine) =>
           engine.setAutoLoop(deckId: widget.deckId, beats: beats.toDouble()),
-    );
-  }
-
-  Future<void> _onBeatsChip({
-    required SavedLoop? savedAtSlot,
-    required String? trackId,
-  }) async {
-    if (savedAtSlot == null) {
-      return;
-    }
-    if (shiftKeyPressed()) {
-      final id = trackId;
-      if (id == null || id.isEmpty) {
-        return;
-      }
-      await _runLibrary(
-        (library) => library.deleteLoop(trackId: id, slot: savedAtSlot.slot),
-      );
-      return;
-    }
-    await _runEngine(
-      (engine) => engine.recallSavedLoop(
-        deckId: widget.deckId,
-        inMs: savedAtSlot.inMs,
-        outMs: savedAtSlot.outMs,
-      ),
     );
   }
 
@@ -197,9 +170,14 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     if (trackId == _hydratedTrackId) {
       return;
     }
-    _hydratedTrackId = trackId;
     final library = _library;
-    if (library != null && trackId != null && trackId.isNotEmpty) {
+    if (library == null) {
+      // Library not ready yet; leave `_hydratedTrackId` unset so the
+      // library-ready listener retries with this track.
+      return;
+    }
+    _hydratedTrackId = trackId;
+    if (trackId != null && trackId.isNotEmpty) {
       unawaited(library.refreshTrack(trackId: trackId));
     }
   }
@@ -212,10 +190,21 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
       (prev, next) => _hydrateTrack(next),
       fireImmediately: true,
     );
+    ref.listenManual<AsyncValue<LibraryTransport>>(libraryTransportProvider, (
+      prev,
+      next,
+    ) {
+      if (next.asData?.value != null) {
+        _hydrateTrack(ref.read(deckTrackIdProvider(widget.deckId)));
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    ref
+      ..watch(engineTransportProvider)
+      ..watch(libraryTransportProvider);
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
 
     ref.listen<LoopRegion?>(deckActiveLoopProvider(widget.deckId), (
@@ -232,25 +221,14 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     final savedLoops = ref.watch(deckSavedLoopsProvider(widget.deckId));
     final positionMs = ref.watch(deckPositionMsProvider(widget.deckId));
 
-    final slot = autoLoopSlotForBeats(_loopBeats);
-    SavedLoop? savedAtSlot;
-    for (final loop in savedLoops) {
-      if (loop.slot == slot) {
-        savedAtSlot = loop;
-        break;
-      }
-    }
-
     return DeckLoopPanel(
       loopActive: loopActive,
       loopPending: loopPending,
       loopBeats: _loopBeats,
-      savedLoopAtSlot: savedAtSlot != null,
       onToggleLoop: () {
         unawaited(
           _onToggleLoop(
             loopActive: loopActive,
-            activeLoop: activeLoop,
             savedLoops: savedLoops,
             positionMs: positionMs,
             trackId: trackId,
@@ -278,9 +256,6 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
         unawaited(
           _runEngine((e) => e.loopOut(deckId: widget.deckId, positionMs: ms)),
         );
-      },
-      onBeatsChipPress: () {
-        unawaited(_onBeatsChip(savedAtSlot: savedAtSlot, trackId: trackId));
       },
       hasTrack: widget.hasTrack,
       disabled: widget.disabled,

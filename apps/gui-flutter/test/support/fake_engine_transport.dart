@@ -25,6 +25,9 @@ class FakeEngineTransport implements EngineTransport {
   final List<(int deckId, bool routed)> deckFxRouted = [];
   final List<(int deckId, PadMode mode)> padModes = [];
   final List<(int deckId, int slot)> loopRollPresses = [];
+  final List<int> exitLoopCalls = [];
+  final List<(int deckId, double beats)> autoLoopCalls = [];
+  final List<(int deckId, int inMs, int outMs)> savedLoopRecallCalls = [];
   final List<int> unloads = [];
   final List<(int deckId, bool enabled)> stemEqEnabled = [];
 
@@ -85,7 +88,9 @@ class FakeEngineTransport implements EngineTransport {
   Future<void> endCueHold({required int deckId}) async {}
 
   @override
-  Future<void> exitLoop({required int deckId}) async {}
+  Future<void> exitLoop({required int deckId}) async {
+    exitLoopCalls.add(deckId);
+  }
 
   @override
   Future<void> hotCuePadPress({
@@ -179,7 +184,9 @@ class FakeEngineTransport implements EngineTransport {
     required int deckId,
     required int inMs,
     required int outMs,
-  }) async {}
+  }) async {
+    savedLoopRecallCalls.add((deckId, inMs, outMs));
+  }
 
   @override
   Future<void> restartFromSettings() async {}
@@ -198,10 +205,9 @@ class FakeEngineTransport implements EngineTransport {
   }) async {}
 
   @override
-  Future<void> setAutoLoop({
-    required int deckId,
-    required double beats,
-  }) async {}
+  Future<void> setAutoLoop({required int deckId, required double beats}) async {
+    autoLoopCalls.add((deckId, beats));
+  }
 
   @override
   Future<void> setCrossfader({required double position}) async {}
