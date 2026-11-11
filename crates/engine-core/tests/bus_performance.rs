@@ -13,9 +13,11 @@ use bus_api::Seek;
 use bus_api::SetAutoLoop;
 use bus_api::SetCuePoint;
 use bus_api::SetQuantize;
+use bus_api::TogglePlay;
 use bus_api::Unload;
 use common::recv_error;
 use common::recv_updated;
+use common::recv_updated_where;
 use common::short_tone_fixture;
 use common::source_with_bpm;
 use common::write_two_second_wav;
@@ -599,4 +601,113 @@ fn unload_clears_duration() {
     );
     assert!(update.active_loop.is_none());
     assert!(update.pending_loop_in_ms.is_none());
+}
+
+/// Two decks at 120 BPM and phase 0, both loaded and ready to play.
+fn two_deck_session() -> EngineSession {
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new(config).expect("session");
+    session.with_engine(|engine| engine.start()).expect("start");
+    session
+        .with_engine(|engine| {
+            engine.load_track(0, source_with_bpm("deck-a.wav", 120.0))?;
+            engine.load_track(1, source_with_bpm("deck-b.wav", 120.0))?;
+            Ok(())
+        })
+        .expect("load");
+    session
+}
+
+/// Current media position of a deck, for tests that assert on a launch seek.
+fn deck_position_ms(session: &EngineSession, deck_id: usize) -> i32 {
+    session
+        .with_engine(|engine| Ok(engine.deck_playback_ms(deck_id).expect("deck").0))
+        .expect("engine")
+}
+
+#[test]
+fn quantized_play_phase_matches_the_deck_already_playing() {
+    let session = two_deck_session();
+    session
+        .with_engine(|engine| {
+            // Deck A is 150 ms past its beat; deck B is 50 ms past its beat.
+            engine.seek_deck(0, 150)?;
+            engine.seek_deck(1, 50)?;
+            Ok(())
+        })
+        .expect("seek");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+
+    session
+        .publish_cmd(Event::TogglePlay(TogglePlay { deck: 0 }))
+        .expect("play deck A");
+    let _ = recv_updated_where(&mut evt, |update| update.deck == 0);
+
+    // Mixxx-style quantized launch: 120 BPM → +100 ms puts deck B 150 ms past
+    // its beat, matching deck A.
+    session
+        .publish_cmd(Event::TogglePlay(TogglePlay { deck: 1 }))
+        .expect("play deck B");
+    let _ = recv_updated_where(&mut evt, |update| update.deck == 1);
+
+    let position = deck_position_ms(&session, 1);
+    assert!(
+        (position - 150).abs() <= 2,
+        "quantized launch should seek deck B to 150 ms, got {position}"
+    );
+}
+
+#[test]
+fn quantized_play_is_a_noop_when_no_other_deck_is_playing() {
+    let session = two_deck_session();
+    session
+        .with_engine(|engine| {
+            engine.seek_deck(1, 50)?;
+            Ok(())
+        })
+        .expect("seek");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+
+    session
+        .publish_cmd(Event::TogglePlay(TogglePlay { deck: 1 }))
+        .expect("play deck B");
+    let _ = recv_updated_where(&mut evt, |update| update.deck == 1);
+
+    let position = deck_position_ms(&session, 1);
+    assert_eq!(
+        position, 50,
+        "no other deck plays, so the playhead stays put"
+    );
+}
+
+#[test]
+fn quantize_keeps_stored_loops_on_the_acting_decks_own_grid() {
+    let session = two_deck_session();
+    session
+        .with_engine(|engine| {
+            // Deck B plays on a 100 BPM grid with its first beat at 100 ms.
+            let grid = BeatGrid {
+                beats: vec![0.1],
+                downbeats: vec![0.1],
+                bpm: 100.0,
+            };
+            assert_eq!(engine.apply_track_beat_grid("deck-b.wav", &grid), vec![1]);
+            Ok(())
+        })
+        .expect("grid");
+    let mut evt = session.subscribe_evt_all().expect("sub");
+
+    session
+        .publish_cmd(Event::TogglePlay(TogglePlay { deck: 1 }))
+        .expect("play deck B");
+    let _ = recv_updated_where(&mut evt, |update| update.deck == 1);
+
+    // Loop In on deck A while deck B plays: deck A's own 120 BPM grid snaps
+    // 150 ms to 0, not deck B's 100 BPM / 100 ms grid (which would give 100).
+    session.publish_cmd(loop_in_cmd(150)).expect("loop in");
+    let loop_in = recv_updated_where(&mut evt, |update| update.deck == 0);
+    assert_eq!(loop_in.pending_loop_in_ms, Some(0));
 }

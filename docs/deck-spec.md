@@ -270,7 +270,7 @@ Loop engine must **wrap read position** within `[in, out)` while optionally adva
 |----|---------|-------------|----------|
 | G1 | **Beat grid display** | From library analysis | P0 |
 | G2 | **Grid edit mode** | Adjust downbeat / BPM | P3 |
-| G3 | **Quantize toggle (Q)** | Snap cue/loop/hotcue to grid | P1 |
+| G3 | **Quantize toggle (Q)** | Snap cue/loop/hotcue to grid; quantized play matches the other playing deck's phase | P1 |
 | G4 | **Quantize value** | 1/2 beat, 1 beat, 1 bar | P1 |
 | G5 | **Phase nudge** | Micro-adjust phase vs master (± ms) | P2 |
 | G6 | **Tap tempo** | Manual BPM override | P3 |

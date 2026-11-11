@@ -602,6 +602,10 @@ impl Engine {
         self.deck_control.get(deck_id).map(|c| c.stem_eq_enabled)
     }
 
+    /// This deck's own grid and quantize flag.
+    ///
+    /// Stored cue/loop positions always snap to this grid; a quantized launch
+    /// applies the cross-deck phase match on top.
     pub(crate) fn deck_quantize_params(&self, deck_id: usize) -> Result<(Option<f64>, f64, bool)> {
         let control = self
             .deck_control
@@ -609,6 +613,192 @@ impl Engine {
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
         Ok((control.bpm, control.first_beat_ms, control.quantize))
     }
+
+    /// Media position to launch a deck at so its next beat lands on the grid of
+    /// the deck that is currently playing.
+    ///
+    /// Mirrors Mixxx's quantized play (`BpmControl::getBeatMatchPosition`): the
+    /// launch is moved up to half a beat earlier or later so the first audible
+    /// beat lines up with the playing deck. Returns `position_ms` unchanged
+    /// when quantize is off or no other deck is playing with a usable grid.
+    pub(crate) fn quantized_launch_position(
+        &self,
+        deck_id: usize,
+        position_ms: i32,
+    ) -> Result<i32> {
+        let (this_bpm, this_first_beat_ms, quantize) = self.deck_quantize_params(deck_id)?;
+        if !quantize {
+            return Ok(position_ms);
+        }
+        let Some(other_id) = self.other_playing_deck(deck_id) else {
+            return Ok(position_ms);
+        };
+        let other = &self.deck_control[other_id];
+        let (Some(this_bpm), Some(other_bpm)) = (usable_bpm(this_bpm), usable_bpm(other.bpm))
+        else {
+            return Ok(position_ms);
+        };
+        if !usable_phase(this_first_beat_ms) || !usable_phase(other.first_beat_ms) {
+            return Ok(position_ms);
+        }
+        let (Some(this_rate), Some(other_rate)) = (
+            self.deck_playback_ratio(deck_id),
+            self.deck_playback_ratio(other_id),
+        ) else {
+            return Ok(position_ms);
+        };
+        let other_position_ms = self
+            .deck_playback_ms(other_id)
+            .map(|(position, _)| position)
+            .unwrap_or(0);
+        let duration_ms = self
+            .deck_playback_ms(deck_id)
+            .map(|(_, duration)| duration)
+            .unwrap_or(0);
+
+        let offset = phase_match_offset_ms(
+            f64::from(position_ms),
+            this_bpm,
+            this_first_beat_ms,
+            f64::from(this_rate),
+            f64::from(other_position_ms),
+            other_bpm,
+            other.first_beat_ms,
+            f64::from(other_rate),
+        );
+        let target = (f64::from(position_ms) + offset).round() as i32;
+        // A launch inside an active loop must stay in the loop: mirror Mixxx's
+        // `getSyncPositionInsideLoop` so a -half-beat nudge does not start the
+        // deck before Loop In.
+        let target = if let Some((_, Some((in_ms, out_ms)))) = self.deck_transport_state(deck_id) {
+            sync_position_inside_loop(position_ms, target, in_ms, out_ms)
+        } else {
+            target
+        };
+        Ok(if duration_ms > 0 {
+            target.clamp(0, duration_ms)
+        } else {
+            target.max(0)
+        })
+    }
+
+    /// Another deck that is playing and has a usable beat grid.
+    ///
+    /// The sync master wins when it is playing; otherwise the lowest-numbered
+    /// playing deck with a usable grid is used. A playing deck with no grid is
+    /// skipped so a silent/unanchored deck cannot block quantization.
+    fn other_playing_deck(&self, deck_id: usize) -> Option<usize> {
+        let master = self.master_deck;
+        (0..self.deck_control.len())
+            .filter(|id| *id != deck_id)
+            .filter(|id| self.deck_is_playing(*id) == Some(true))
+            .filter(|id| {
+                let control = &self.deck_control[*id];
+                usable_bpm(control.bpm).is_some() && usable_phase(control.first_beat_ms)
+            })
+            .min_by_key(|id| usize::from(*id != master))
+    }
+}
+
+fn usable_bpm(bpm: Option<f64>) -> Option<f64> {
+    bpm.filter(|bpm| bpm.is_finite() && *bpm > 0.0)
+}
+
+fn usable_phase(first_beat_ms: f64) -> bool {
+    first_beat_ms.is_finite() && first_beat_ms >= 0.0
+}
+
+/// Keep a phase-matched launch inside the active loop.
+///
+/// Ported from Mixxx's `LoopingControl::getSyncPositionInsideLoop`: only when
+/// the requested position is inside the loop is the synced (phase-matched)
+/// position wrapped back into it. The loop is `[in, out)`.
+pub(crate) fn sync_position_inside_loop(
+    requested_ms: i32,
+    synced_ms: i32,
+    in_ms: i32,
+    out_ms: i32,
+) -> i32 {
+    if out_ms <= in_ms || requested_ms < in_ms || requested_ms >= out_ms {
+        return synced_ms;
+    }
+    let loop_len = i64::from(out_ms) - i64::from(in_ms);
+    if synced_ms < in_ms {
+        let adjustment = i64::from(in_ms) - i64::from(synced_ms);
+        let adjustment = adjustment % loop_len;
+        return if adjustment == 0 {
+            in_ms
+        } else {
+            (i64::from(out_ms) - adjustment) as i32
+        };
+    }
+    if synced_ms >= out_ms {
+        let adjustment = i64::from(synced_ms) - i64::from(out_ms);
+        let adjustment = adjustment % loop_len;
+        return (i64::from(in_ms) + adjustment) as i32;
+    }
+    synced_ms
+}
+
+/// Position offset (ms) that moves `this_position_ms` up to half a beat so the
+/// next beat of this deck coincides with the nearest beat of the other deck.
+///
+/// Ported from Mixxx (`BpmControl::getBeatMatchPosition`), including its 1/8
+/// beat "past beat" rule: when the other deck is about to reach its next beat,
+/// match the previous beat instead of waiting a full beat.
+#[allow(clippy::too_many_arguments)] // both grids plus both positions and rates
+pub(crate) fn phase_match_offset_ms(
+    this_position_ms: f64,
+    this_bpm: f64,
+    this_first_beat_ms: f64,
+    this_rate: f64,
+    other_position_ms: f64,
+    other_bpm: f64,
+    other_first_beat_ms: f64,
+    other_rate: f64,
+) -> f64 {
+    if !(this_bpm > 0.0
+        && other_bpm > 0.0
+        && this_rate > 0.0
+        && other_rate > 0.0
+        && usable_phase(this_first_beat_ms)
+        && usable_phase(other_first_beat_ms))
+    {
+        return 0.0;
+    }
+    let this_beat = beat_ms(this_bpm);
+    let other_beat = beat_ms(other_bpm);
+    if !this_beat.is_finite() || !other_beat.is_finite() {
+        return 0.0;
+    }
+
+    // First beat strictly after the launch position on this deck's grid.
+    let this_next_beat = this_first_beat_ms
+        + ((this_position_ms - this_first_beat_ms) / this_beat).floor() * this_beat
+        + this_beat;
+
+    // Convert both decks to the same wall-clock frame, then look up how far the
+    // other deck is from its beat when this deck's next beat arrives.
+    let rate_factor = other_rate / this_rate;
+    let other_at_this_next_beat =
+        this_next_beat * rate_factor + (other_position_ms - this_position_ms * rate_factor);
+    let mut other_beat_fraction =
+        ((other_at_this_next_beat - other_first_beat_ms) / other_beat).rem_euclid(1.0);
+    const PAST_BEAT_MATCH_THRESHOLD: f64 = 1.0 / 8.0;
+    if other_beat_fraction > 1.0 - PAST_BEAT_MATCH_THRESHOLD {
+        // The other deck is almost on its next beat; match the past beat, which
+        // is a much shorter move than waiting for the next one.
+        other_beat_fraction -= 1.0;
+    }
+    let mut seek_ms = other_beat_fraction * other_beat / other_rate * this_rate;
+
+    // Prefer the closest beat: never move more than half a beat.
+    if this_beat / 2.0 < seek_ms {
+        seek_ms -= this_beat;
+    } else if this_beat / 2.0 < -seek_ms {
+        seek_ms += this_beat;
+    }
+    seek_ms
 }
 
 #[cfg(test)]
@@ -656,6 +846,77 @@ mod tests {
             10_000, 120.0, 120.0, 0.0, 0.0, false,
         );
         assert!(target >= 0, "expected non-negative target, got {target}");
+    }
+
+    #[test]
+    fn phase_match_seeks_forward_to_the_other_phase() {
+        // 120 BPM both sides (500 ms beats). Other is 200 ms past its beat at
+        // 300 ms while this deck launches at 100 ms: +200 ms puts both 300 ms
+        // past their beat.
+        let offset = phase_match_offset_ms(100.0, 120.0, 0.0, 1.0, 300.0, 120.0, 0.0, 1.0);
+        assert!((offset - 200.0).abs() < 1e-6, "offset {offset}");
+    }
+
+    #[test]
+    fn phase_match_seeks_back_when_the_forward_move_exceeds_half_a_beat() {
+        // Other is 450 ms past its beat: forwarding 350 ms would cross half a
+        // beat, so the closest match is 150 ms earlier.
+        let offset = phase_match_offset_ms(100.0, 120.0, 0.0, 1.0, 450.0, 120.0, 0.0, 1.0);
+        assert!((offset + 150.0).abs() < 1e-6, "offset {offset}");
+    }
+
+    #[test]
+    fn phase_match_prefers_the_past_beat_when_almost_on_the_next_one() {
+        // Other is 90 % through its beat (50 ms). Matching the past beat is a
+        // 50 ms move backwards instead of a full beat forwards.
+        let offset = phase_match_offset_ms(100.0, 120.0, 0.0, 1.0, 50.0, 120.0, 0.0, 1.0);
+        assert!((offset + 50.0).abs() < 1e-6, "offset {offset}");
+    }
+
+    #[test]
+    fn phase_match_accounts_for_different_playback_rates() {
+        // This deck runs at 1.2×, the other at 1.0×. The offset must be
+        // converted through wall time, not used as a raw media delta.
+        let offset = phase_match_offset_ms(100.0, 120.0, 0.0, 1.2, 300.0, 120.0, 0.0, 1.0);
+        assert!((offset - 160.0).abs() < 1e-6, "offset {offset}");
+    }
+
+    #[test]
+    fn phase_match_is_a_noop_without_usable_tempo() {
+        assert_eq!(
+            phase_match_offset_ms(100.0, 120.0, 0.0, 0.0, 300.0, 120.0, 0.0, 1.0),
+            0.0
+        );
+        assert_eq!(
+            phase_match_offset_ms(100.0, 0.0, 0.0, 1.0, 300.0, 120.0, 0.0, 1.0),
+            0.0
+        );
+        assert_eq!(
+            phase_match_offset_ms(100.0, 120.0, f64::NAN, 1.0, 300.0, 120.0, 0.0, 1.0),
+            0.0
+        );
+    }
+
+    #[test]
+    fn sync_position_inside_loop_wraps_a_launch_before_loop_in() {
+        // Requested 200 is inside [100, 500); synced 50 is 50 ms before the
+        // loop, so it wraps to 50 ms before the loop end.
+        assert_eq!(sync_position_inside_loop(200, 50, 100, 500), 450);
+        // A full loop behind wraps exactly to Loop In, never to the exclusive
+        // out point.
+        assert_eq!(sync_position_inside_loop(200, -300, 100, 500), 100);
+    }
+
+    #[test]
+    fn sync_position_inside_loop_wraps_a_launch_after_loop_out() {
+        assert_eq!(sync_position_inside_loop(200, 600, 100, 500), 200);
+    }
+
+    #[test]
+    fn sync_position_inside_loop_leaves_outside_requests_alone() {
+        // A request outside the loop disables it; do not wrap.
+        assert_eq!(sync_position_inside_loop(600, 50, 100, 500), 50);
+        assert_eq!(sync_position_inside_loop(50, 50, 100, 500), 50);
     }
 
     #[test]
