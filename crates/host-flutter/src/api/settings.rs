@@ -18,6 +18,11 @@ const PREVIEW_BUS_ID: &str = "cue";
 const TARGET_LUFS_MIN: f32 = -24.0;
 const TARGET_LUFS_MAX: f32 = -9.0;
 const TARGET_LUFS_DEFAULT: f32 = -18.0;
+/// Bounds for the end-of-track warning window, in seconds. The window only
+/// matters while `track_end_warning` is on; the toggle, not a zero window,
+/// turns the cue off.
+const TRACK_END_WARNING_SECS_MAX: u32 = 60;
+const TRACK_END_WARNING_SECS_MIN: u32 = 5;
 /// Sample rate `EngineConfig::default()` used before rates moved onto the buses.
 const LEGACY_DEFAULT_SAMPLE_RATE: u32 = 48_000;
 
@@ -614,6 +619,14 @@ fn default_vinyl_brake_stop_secs() -> f32 {
 fn default_show_waveform() -> bool {
     true
 }
+fn default_track_end_warning() -> bool {
+    true
+}
+
+fn default_track_end_warning_secs() -> u32 {
+    30
+}
+
 fn default_waveform_gain_eq_shaping() -> bool {
     true
 }
@@ -727,6 +740,13 @@ pub struct AppSettings {
     /// lane stays still while the knobs move.
     #[serde(default = "default_waveform_gain_eq_shaping")]
     pub waveform_gain_eq_shaping: bool,
+    /// Blink the deck's waveform and track details once a playing track is
+    /// close to its end (Settings → Deck).
+    #[serde(default = "default_track_end_warning")]
+    pub track_end_warning: bool,
+    /// How close to the end the blink starts, in seconds.
+    #[serde(default = "default_track_end_warning_secs")]
+    pub track_end_warning_secs: u32,
     #[serde(default)]
     pub key_display_mode: KeyDisplayModeSetting,
     #[serde(default)]
@@ -826,6 +846,8 @@ struct SettingsHost {
     default_outer_jog_mode: JogModeSetting,
     waveform_display_mode: WaveformDisplayModeSetting,
     waveform_gain_eq_shaping: bool,
+    track_end_warning: bool,
+    track_end_warning_secs: u32,
     key_display_mode: KeyDisplayModeSetting,
     key_color_mode: KeyColorModeSetting,
     trusted_controller_device_ids: Vec<String>,
@@ -876,6 +898,8 @@ impl Default for SettingsHost {
             default_outer_jog_mode: JogModeSetting::PitchBend,
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
             waveform_gain_eq_shaping: default_waveform_gain_eq_shaping(),
+            track_end_warning: default_track_end_warning(),
+            track_end_warning_secs: default_track_end_warning_secs(),
             key_display_mode: KeyDisplayModeSetting::Musical,
             key_color_mode: KeyColorModeSetting::Off,
             trusted_controller_device_ids: Vec::new(),
@@ -1114,6 +1138,12 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         errors.push("history_min_deck_volume must be between 0 and 1".into());
     }
 
+    // Keep the window inside the slider's range rather than reject, so a
+    // hand-edited settings file still loads.
+    settings.track_end_warning_secs = settings
+        .track_end_warning_secs
+        .clamp(TRACK_END_WARNING_SECS_MIN, TRACK_END_WARNING_SECS_MAX);
+
     settings.stems_format = normalize_stems_format(&settings.stems_format);
     settings.stems_model = normalize_stems_model(&settings.stems_model);
 
@@ -1301,6 +1331,8 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         vinyl_brake_stop_secs: config.vinyl_brake_stop_secs(),
         waveform_display_mode: host.waveform_display_mode,
         waveform_gain_eq_shaping: host.waveform_gain_eq_shaping,
+        track_end_warning: host.track_end_warning,
+        track_end_warning_secs: host.track_end_warning_secs,
         key_display_mode: host.key_display_mode,
         key_color_mode: host.key_color_mode,
         trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
@@ -1374,6 +1406,8 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
     host.waveform_display_mode = settings.waveform_display_mode;
     host.waveform_gain_eq_shaping = settings.waveform_gain_eq_shaping;
+    host.track_end_warning = settings.track_end_warning;
+    host.track_end_warning_secs = settings.track_end_warning_secs;
     host.key_display_mode = settings.key_display_mode;
     host.key_color_mode = settings.key_color_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
@@ -2374,6 +2408,47 @@ mod tests {
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert!(!restored.waveform_gain_eq_shaping);
+    }
+
+    #[test]
+    fn missing_track_end_warning_defaults_to_on_and_30_seconds() {
+        let settings: AppSettings = serde_json::from_value({
+            let mut value = serde_json::to_value(sample_settings()).expect("json");
+            let object = value.as_object_mut().expect("object");
+            object.remove("track_end_warning");
+            object.remove("track_end_warning_secs");
+            value
+        })
+        .expect("parse");
+        assert!(settings.track_end_warning);
+        assert_eq!(settings.track_end_warning_secs, 30);
+    }
+
+    #[test]
+    fn track_end_warning_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.track_end_warning = false;
+        settings.track_end_warning_secs = 45;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.track_end_warning);
+        assert_eq!(restored.track_end_warning_secs, 45);
+    }
+
+    #[test]
+    fn track_end_warning_window_is_clamped_to_the_slider_range() {
+        let mut settings = sample_settings();
+        settings.track_end_warning_secs = 900;
+        let parsed = parse_settings(settings.clone()).expect("parse");
+        assert_eq!(parsed.track_end_warning_secs, TRACK_END_WARNING_SECS_MAX);
+
+        settings.track_end_warning_secs = 0;
+        let parsed = parse_settings(settings).expect("parse");
+        assert_eq!(parsed.track_end_warning_secs, TRACK_END_WARNING_SECS_MIN);
     }
 
     #[test]

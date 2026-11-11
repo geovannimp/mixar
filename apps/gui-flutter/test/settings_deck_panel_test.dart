@@ -8,6 +8,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/settings/settings_deck_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 import 'support/mixar_material_app.dart';
@@ -198,6 +199,84 @@ void main() {
     expect(
       find.text(l10n.settingsDeckDefaultSamplerBankD.toUpperCase()),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('end-of-track warning slider reports the snapped seconds', (
+    tester,
+  ) async {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    AppSettings? emitted;
+    await pumpDeckPanel(
+      tester,
+      draft: copyAppSettings(
+        defaultAppSettings(),
+        trackEndWarningSecs: kDefaultTrackEndWarningSecs,
+      ),
+      onChanged: (settings) => emitted = settings,
+    );
+
+    expect(find.text(l10n.settingsDeckEndWarning), findsOneWidget);
+    expect(find.text(l10n.settingsDeckEndWarningSeconds(30)), findsOneWidget);
+
+    final slider = find.byType(MixarSlider);
+    await tester.ensureVisible(slider);
+    await tester.pumpAndSettle();
+    final box = tester.getRect(slider);
+    await tester.tapAt(Offset(box.left + box.width * 0.75, box.center.dy));
+    await tester.pump();
+
+    expect(emitted, isNotNull);
+    expect(emitted!.trackEndWarningSecs, 45);
+    expect(emitted!.trackEndWarningSecs % kTrackEndWarningSecsStep, 0);
+  });
+
+  testWidgets('the warning window only shows while the toggle is on', (
+    tester,
+  ) async {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    final off = copyAppSettings(defaultAppSettings(), trackEndWarning: false);
+    await pumpDeckPanel(tester, draft: off, onChanged: (_) {});
+
+    expect(find.text(l10n.settingsDeckEndWarning), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(l10n.settingsDeckEndWarningToggle),
+      findsOneWidget,
+      reason: 'switch lives in the card header like the vinyl brake',
+    );
+    expect(find.byType(MixarSlider), findsNothing);
+
+    await pumpDeckPanel(
+      tester,
+      draft: copyAppSettings(off, trackEndWarning: true),
+      onChanged: (_) {},
+    );
+
+    expect(find.byType(MixarSlider), findsOneWidget);
+    expect(find.text(l10n.settingsDeckEndWarningSeconds(30)), findsOneWidget);
+  });
+
+  testWidgets('the warning switch reports the toggle', (tester) async {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    AppSettings? emitted;
+    await pumpDeckPanel(
+      tester,
+      draft: defaultAppSettings(),
+      onChanged: (settings) => emitted = settings,
+    );
+
+    final toggle = find.bySemanticsLabel(l10n.settingsDeckEndWarningToggle);
+    await tester.ensureVisible(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(toggle);
+    await tester.pump();
+
+    expect(emitted, isNotNull);
+    expect(emitted!.trackEndWarning, isFalse);
+    expect(
+      emitted!.trackEndWarningSecs,
+      kDefaultTrackEndWarningSecs,
+      reason: 'turning the cue off keeps the saved window',
     );
   });
 }

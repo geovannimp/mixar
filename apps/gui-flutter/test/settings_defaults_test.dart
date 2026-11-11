@@ -109,6 +109,41 @@ void main() {
     expect(appSettingsDirty(normalized, baseline), isTrue);
   });
 
+  test('end-of-track warning is on by default and dirty when toggled', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.trackEndWarning, isTrue);
+    expect(baseline.trackEndWarningSecs, kDefaultTrackEndWarningSecs);
+    expect(kDefaultTrackEndWarningSecs, 30);
+
+    final off = copyAppSettings(baseline, trackEndWarning: false);
+    expect(appSettingsDirty(off, baseline), isTrue);
+    expect(normalizeAppSettings(off).trackEndWarning, isFalse);
+
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, trackEndWarningSecs: 45),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
+
+  test('end-of-track warning window clamps to the 5..60 s range', () {
+    final baseline = defaultAppSettings();
+
+    expect(
+      normalizeAppSettings(copyAppSettings(baseline, trackEndWarningSecs: 600))
+          .trackEndWarningSecs,
+      kMaxTrackEndWarningSecs,
+    );
+    expect(
+      normalizeAppSettings(copyAppSettings(baseline, trackEndWarningSecs: 0))
+          .trackEndWarningSecs,
+      kMinTrackEndWarningSecs,
+    );
+    expect(kMinTrackEndWarningSecs, 5);
+  });
+
   test('row density defaults comfortable and is dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.libraryRowDensity, LibraryRowDensitySetting.comfortable);

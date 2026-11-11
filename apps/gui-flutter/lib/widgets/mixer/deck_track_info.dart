@@ -13,6 +13,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/mixer/deck_cover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_drop_hover.dart';
 import 'package:gui_flutter/widgets/mixer/deck_key_lock_button.dart';
+import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/widgets/shell/m_card.dart';
 import 'package:gui_flutter/widgets/shell/m_divider.dart';
@@ -96,83 +97,89 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
 
     // Drop target stays deck-wide; only this card takes the hover chrome.
     // In-bounds border (not an outward glow) so ClipRect cannot eat an edge.
-    return MCard(
-      clipBehavior: .antiAlias,
-      borderColor: dropHover ? theme.colors.primary : null,
-      child: Column(
-        mainAxisSize: .min,
-        children: [
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: .stretch,
-              children: [
-                // Square cover — the deck's load surface. Fixed size so a
-                // large decoded image's intrinsic size cannot expand the row.
-                SizedBox.square(
-                  dimension: _artworkThumbSize,
-                  child: DeckCover(
-                    deckId: widget.deckId,
-                    hasTrack: widget.hasTrack,
-                    artwork: artwork,
-                  ),
-                ),
-                MDivider(
-                  axis: .vertical,
-                  padding: .zero,
-                  color: theme.colors.border,
-                  thickness: theme.style.borderWidth,
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const .symmetric(horizontal: 8, vertical: 4),
-                    child: Column(
-                      crossAxisAlignment: .stretch,
-                      children: [
-                        Row(
-                          spacing: 8,
-                          children: [
-                            Expanded(
-                              child: _DeckTitleArtist(
-                                hasTrack: widget.hasTrack,
-                                title: widget.title,
-                                artist: artist,
-                                skeleton: skeleton,
-                              ),
-                            ),
-                            // Harmonic ref flips on play/pause — keep it off
-                            // the parent so artwork / title do not rebuild.
-                            _DeckKeyLockControl(
-                              deckId: widget.deckId,
-                              hasTrack: widget.hasTrack,
-                              rawKey: lib?.key,
-                              keyMode: keyMode,
-                              keyColorMode: keyColorMode,
-                            ),
-                          ],
-                        ),
-                        // Playhead ticks must not rebuild artwork / title / key.
-                        RepaintBoundary(
-                          child: _DeckTimeRow(
-                            deckId: widget.deckId,
-                            hasTrack: widget.hasTrack,
-                          ),
-                        ),
-                      ],
+    // Blinks as a whole once the track is about to end; a gentler floor than
+    // the waveform's keeps the title and times readable through the blink.
+    return TrackEndBlink(
+      deckId: widget.deckId,
+      minOpacity: 0.7,
+      child: MCard(
+        clipBehavior: .antiAlias,
+        borderColor: dropHover ? theme.colors.primary : null,
+        child: Column(
+          mainAxisSize: .min,
+          children: [
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: .stretch,
+                children: [
+                  // Square cover — the deck's load surface. Fixed size so a
+                  // large decoded image's intrinsic size cannot expand the row.
+                  SizedBox.square(
+                    dimension: _artworkThumbSize,
+                    child: DeckCover(
+                      deckId: widget.deckId,
+                      hasTrack: widget.hasTrack,
+                      artwork: artwork,
                     ),
                   ),
-                ),
-              ],
+                  MDivider(
+                    axis: .vertical,
+                    padding: .zero,
+                    color: theme.colors.border,
+                    thickness: theme.style.borderWidth,
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const .symmetric(horizontal: 8, vertical: 4),
+                      child: Column(
+                        crossAxisAlignment: .stretch,
+                        children: [
+                          Row(
+                            spacing: 8,
+                            children: [
+                              Expanded(
+                                child: _DeckTitleArtist(
+                                  hasTrack: widget.hasTrack,
+                                  title: widget.title,
+                                  artist: artist,
+                                  skeleton: skeleton,
+                                ),
+                              ),
+                              // Harmonic ref flips on play/pause — keep it off
+                              // the parent so artwork / title do not rebuild.
+                              _DeckKeyLockControl(
+                                deckId: widget.deckId,
+                                hasTrack: widget.hasTrack,
+                                rawKey: lib?.key,
+                                keyMode: keyMode,
+                                keyColorMode: keyColorMode,
+                              ),
+                            ],
+                          ),
+                          // Playhead ticks must not rebuild artwork / title / key.
+                          RepaintBoundary(
+                            child: _DeckTimeRow(
+                              deckId: widget.deckId,
+                              hasTrack: widget.hasTrack,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          MDivider(
-            padding: .zero,
-            color: theme.colors.border,
-            thickness: theme.style.borderWidth,
-          ),
-          RepaintBoundary(
-            child: OverviewStrip(deckId: widget.deckId, height: 36),
-          ),
-        ],
+            MDivider(
+              padding: .zero,
+              color: theme.colors.border,
+              thickness: theme.style.borderWidth,
+            ),
+            RepaintBoundary(
+              child: OverviewStrip(deckId: widget.deckId, height: 36),
+            ),
+          ],
+        ),
       ),
     );
   }

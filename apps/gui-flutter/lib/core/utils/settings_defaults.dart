@@ -106,6 +106,14 @@ const kMinVinylBrakeStopSecs = 0.05;
 const kMaxVinylBrakeStopSecs = 3.0;
 const kVinylBrakeStopSecsStep = 0.05;
 
+/// End-of-track warning: the switch in Settings → Deck gates it, this is the
+/// window the slider offers once it is on.
+const kDefaultTrackEndWarningEnabled = true;
+const kDefaultTrackEndWarningSecs = 30;
+const kMinTrackEndWarningSecs = 5;
+const kMaxTrackEndWarningSecs = 60;
+const kTrackEndWarningSecsStep = 5;
+
 /// Device id for the synthetic “System default” routing token.
 const defaultAudioDeviceId = 'default';
 
@@ -170,6 +178,8 @@ AppSettings defaultAppSettings() {
     defaultKeyLock: false,
     vinylBrakePause: false,
     vinylBrakeStopSecs: kDefaultVinylBrakeStopSecs,
+    trackEndWarning: kDefaultTrackEndWarningEnabled,
+    trackEndWarningSecs: kDefaultTrackEndWarningSecs,
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
     waveformGainEqShaping: true,
     keyDisplayMode: KeyDisplayModeSetting.musical,
@@ -218,6 +228,10 @@ AppSettings normalizeAppSettings(AppSettings settings) {
     settings,
     targetLufs: target,
     numDecks: numDecks,
+    trackEndWarningSecs: settings.trackEndWarningSecs.clamp(
+      kMinTrackEndWarningSecs,
+      kMaxTrackEndWarningSecs,
+    ),
     deckDefaultSamplerBankId: banks,
     masterBus: _normalizeBus(settings.masterBus),
     previewBus: _normalizeBus(settings.previewBus),
@@ -300,6 +314,8 @@ AppSettings copyAppSettings(
   bool? defaultKeyLock,
   bool? vinylBrakePause,
   double? vinylBrakeStopSecs,
+  bool? trackEndWarning,
+  int? trackEndWarningSecs,
   WaveformDisplayModeSetting? waveformDisplayMode,
   bool? waveformGainEqShaping,
   KeyDisplayModeSetting? keyDisplayMode,
@@ -363,6 +379,8 @@ AppSettings copyAppSettings(
     defaultKeyLock: defaultKeyLock ?? base.defaultKeyLock,
     vinylBrakePause: vinylBrakePause ?? base.vinylBrakePause,
     vinylBrakeStopSecs: vinylBrakeStopSecs ?? base.vinylBrakeStopSecs,
+    trackEndWarning: trackEndWarning ?? base.trackEndWarning,
+    trackEndWarningSecs: trackEndWarningSecs ?? base.trackEndWarningSecs,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
     waveformGainEqShaping: waveformGainEqShaping ?? base.waveformGainEqShaping,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
@@ -429,6 +447,8 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultKeyLock != baseline.defaultKeyLock ||
       draft.vinylBrakePause != baseline.vinylBrakePause ||
       !_sameDuration(draft.vinylBrakeStopSecs, baseline.vinylBrakeStopSecs) ||
+      draft.trackEndWarning != baseline.trackEndWarning ||
+      draft.trackEndWarningSecs != baseline.trackEndWarningSecs ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
       draft.waveformGainEqShaping != baseline.waveformGainEqShaping ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||

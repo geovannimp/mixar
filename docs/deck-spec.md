@@ -198,7 +198,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 | W6 | **Zoom** | Adjust `visible_ms` (e.g. 4000–64000 ms); mouse wheel or buttons | P1 → [#210](https://github.com/geovannimp/mixar/issues/210) |
 | W7 | **Stacked dual-deck view** | Deck A lane above Deck B (current) | P0 |
 | W8 | **Phase / beat phase indicator** | Small bar showing position within beat/bar | P2 |
-| W9 | **End-of-track warning** | Visual cue near track end | P2 |
+| W9 | **End-of-track warning** | Settings → Deck: a `track_end_warning` switch (default on, vinyl-brake style) plus the `track_end_warning_secs` window (5–60 s, default 30). While a track is playing inside that window, the waveform and the track-details card blink **once per half bar of the deck's sounding tempo** (`2 × 60000 / bpm`; pitch fader included), clamped to 0.5–10 s. Each blink is a dip of 150 ms down + 150 ms up, shrinking to 15 % of the period on very fast tracks, so it never fills the gap. Reduce-motion holds a steady dim instead. | P0 (shipped) |
 | W10 | **Intro / outro markers** | From analysis phrases | P3 |
 
 ---

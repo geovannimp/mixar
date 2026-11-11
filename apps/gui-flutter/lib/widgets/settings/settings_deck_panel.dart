@@ -13,6 +13,8 @@ import 'package:gui_flutter/widgets/settings/settings_numeric_stepper.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_body.dart';
 import 'package:gui_flutter/widgets/settings/settings_section_card.dart';
 import 'package:gui_flutter/widgets/settings/settings_select.dart';
+import 'package:gui_flutter/widgets/shell/mixar_slider.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class SettingsDeckPanel extends ConsumerWidget {
   const new({required this.draft, required this.onChanged, super.key});
@@ -67,6 +69,27 @@ class SettingsDeckPanel extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+        SettingsSectionCard(
+          title: l10n.settingsDeckEndWarning,
+          subtitle: l10n.settingsDeckEndWarningHint,
+          trailing: SettingsHeaderSwitch(
+            value: draft.trackEndWarning,
+            semanticsLabel: l10n.settingsDeckEndWarningToggle,
+            onChanged: (v) =>
+                onChanged(copyAppSettings(draft, trackEndWarning: v)),
+          ),
+          child: draft.trackEndWarning
+              ? SettingsField(
+                  label: l10n.settingsDeckEndWarningWindow,
+                  child: _EndWarningSlider(
+                    value: draft.trackEndWarningSecs,
+                    onChanged: (seconds) => onChanged(
+                      copyAppSettings(draft, trackEndWarningSecs: seconds),
+                    ),
+                  ),
+                )
+              : null,
         ),
         SettingsSectionCard(
           title: l10n.settingsDeckVinylBrakePause,
@@ -244,4 +267,55 @@ class SettingsDeckPanel extends ConsumerWidget {
         JogModeSetting.pitchBend => l10n.settingsDeckJogPitchBend,
         JogModeSetting.ignore => l10n.settingsDeckJogIgnore,
       };
+}
+
+/// Warning window in seconds, snapped to the slider's 5 s grid. The card's
+/// switch, not the value, decides whether the blink happens.
+class _EndWarningSlider extends StatelessWidget {
+  const new({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  static int _snap(double seconds) =>
+      ((seconds / kTrackEndWarningSecsStep).round() * kTrackEndWarningSecsStep)
+          .clamp(kMinTrackEndWarningSecs, kMaxTrackEndWarningSecs);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final l10n = AppLocalizations.of(context)!;
+    final seconds = value.clamp(
+      kMinTrackEndWarningSecs,
+      kMaxTrackEndWarningSecs,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            l10n.settingsDeckEndWarningSeconds(seconds),
+            style: theme.typography.body.sm.copyWith(
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        MixarSlider(
+          value: seconds.toDouble(),
+          min: kMinTrackEndWarningSecs.toDouble(),
+          max: kMaxTrackEndWarningSecs.toDouble(),
+          divisions:
+              (kMaxTrackEndWarningSecs - kMinTrackEndWarningSecs) ~/
+              kTrackEndWarningSecsStep,
+          semanticFormatterCallback: (v) =>
+              l10n.settingsDeckEndWarningSeconds(_snap(v)),
+          onChanged: (v) => onChanged(_snap(v)),
+        ),
+      ],
+    );
+  }
 }

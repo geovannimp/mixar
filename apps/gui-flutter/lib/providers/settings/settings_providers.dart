@@ -332,6 +332,10 @@ Future<SaveAppSettingsResult> saveAppSettings(
       accentPalette: previous.accentPalette,
       waveformPosition: previous.waveformPosition,
       showWaveform: previous.showWaveform,
+      // Track end warning: a display-only cue, so changing it never glitches
+      // audio.
+      trackEndWarning: previous.trackEndWarning,
+      trackEndWarningSecs: previous.trackEndWarningSecs,
       showMixer: previous.showMixer,
       showFxBar: previous.showFxBar,
       showCrossfader: previous.showCrossfader,

@@ -15,6 +15,7 @@ import 'package:gui_flutter/providers/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_zoom.dart';
+import 'package:gui_flutter/widgets/mixer/track_end_blink.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
 
@@ -210,168 +211,171 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
       );
     });
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-        if (width <= 0 || height <= 0) {
-          return const SizedBox.expand();
-        }
-        // Source time on screen: zoom is shared, tempo widens the source span
-        // so the musical span holds.
-        final visibleSpanMs = visibleSourceMs(speed, zoomMs);
-        final pxPerMs = width / visibleSpanMs;
-        final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
+    return TrackEndBlink(
+      deckId: widget.deckId,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final height = constraints.maxHeight;
+          if (width <= 0 || height <= 0) {
+            return const SizedBox.expand();
+          }
+          // Source time on screen: zoom is shared, tempo widens the source span
+          // so the musical span holds.
+          final visibleSpanMs = visibleSourceMs(speed, zoomMs);
+          final pxPerMs = width / visibleSpanMs;
+          final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
 
-        return Listener(
-          onPointerSignal: durationMs <= 0
-              ? null
-              : (event) {
-                  if (event is PointerScrollEvent) {
-                    ref
-                        .read(waveformZoomProvider.notifier)
-                        .zoomBy(event.scrollDelta.dy);
-                  }
-                },
-          onPointerDown: durationMs <= 0
-              ? null
-              : (e) {
-                  _scrubbing = true;
-                  _playhead.stop();
-                  _scrubAnchorX = e.localPosition.dx;
-                  _scrubAnchorMs = _displayMs(durationMs);
-                },
-          onPointerMove: (e) {
-            if (!_scrubbing || durationMs <= 0) {
-              return;
-            }
-            final ms = centerScrubMs(
-              anchorPosMs: _scrubAnchorMs,
-              deltaX: e.localPosition.dx - _scrubAnchorX,
-              width: width,
-              spanMs: visibleSpanMs.toDouble(),
-            );
-            _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
-            _throttledSeek(ms.round());
-          },
-          onPointerUp: (e) {
-            if (!_scrubbing) {
-              return;
-            }
-            final ms = durationMs <= 0
-                ? 0
-                : centerScrubMs(
-                    anchorPosMs: _scrubAnchorMs,
-                    deltaX: e.localPosition.dx - _scrubAnchorX,
-                    width: width,
-                    spanMs: visibleSpanMs.toDouble(),
-                  ).round();
-            _scrubbing = false;
-            if (durationMs > 0) {
-              _setDisplayMs(
-                ms.toDouble(),
-                durationMs: durationMs,
-                speed: speed,
-                playing: advancing,
+          return Listener(
+            onPointerSignal: durationMs <= 0
+                ? null
+                : (event) {
+                    if (event is PointerScrollEvent) {
+                      ref
+                          .read(waveformZoomProvider.notifier)
+                          .zoomBy(event.scrollDelta.dy);
+                    }
+                  },
+            onPointerDown: durationMs <= 0
+                ? null
+                : (e) {
+                    _scrubbing = true;
+                    _playhead.stop();
+                    _scrubAnchorX = e.localPosition.dx;
+                    _scrubAnchorMs = _displayMs(durationMs);
+                  },
+            onPointerMove: (e) {
+              if (!_scrubbing || durationMs <= 0) {
+                return;
+              }
+              final ms = centerScrubMs(
+                anchorPosMs: _scrubAnchorMs,
+                deltaX: e.localPosition.dx - _scrubAnchorX,
+                width: width,
+                spanMs: visibleSpanMs.toDouble(),
               );
-            }
-            unawaited(_seek(ms));
-          },
-          onPointerCancel: (_) {
-            _scrubbing = false;
-            if (advancing && durationMs > 0) {
-              _syncPlayback(
-                playing: advancing,
-                durationMs: durationMs,
-                speed: speed,
-              );
-            }
-          },
-          child: ExcludeSemantics(
-            child: ClipRect(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onDoubleTap: durationMs <= 0
-                    ? null
-                    : () => ref.read(waveformZoomProvider.notifier).reset(),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ColoredBox(color: theme.colors.waveformBackground),
-                    if (trackId != null && durationMs > 0)
-                      _LaneStrip(
-                        deckId: widget.deckId,
-                        trackId: trackId,
-                        durationMs: durationMs,
-                        width: width,
-                        height: height,
-                        pxPerMs: pxPerMs,
-                        playhead: _playhead,
-                        displayMs: () => _displayMs(durationMs),
-                        dpr: dpr,
-                      ),
-                    Align(
-                      child: ColoredBox(
-                        color: theme.colors.foreground.withValues(alpha: 0.9),
-                        child: const SizedBox(
-                          width: 1,
-                          height: double.infinity,
+              _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
+              _throttledSeek(ms.round());
+            },
+            onPointerUp: (e) {
+              if (!_scrubbing) {
+                return;
+              }
+              final ms = durationMs <= 0
+                  ? 0
+                  : centerScrubMs(
+                      anchorPosMs: _scrubAnchorMs,
+                      deltaX: e.localPosition.dx - _scrubAnchorX,
+                      width: width,
+                      spanMs: visibleSpanMs.toDouble(),
+                    ).round();
+              _scrubbing = false;
+              if (durationMs > 0) {
+                _setDisplayMs(
+                  ms.toDouble(),
+                  durationMs: durationMs,
+                  speed: speed,
+                  playing: advancing,
+                );
+              }
+              unawaited(_seek(ms));
+            },
+            onPointerCancel: (_) {
+              _scrubbing = false;
+              if (advancing && durationMs > 0) {
+                _syncPlayback(
+                  playing: advancing,
+                  durationMs: durationMs,
+                  speed: speed,
+                );
+              }
+            },
+            child: ExcludeSemantics(
+              child: ClipRect(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onDoubleTap: durationMs <= 0
+                      ? null
+                      : () => ref.read(waveformZoomProvider.notifier).reset(),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ColoredBox(color: theme.colors.waveformBackground),
+                      if (trackId != null && durationMs > 0)
+                        _LaneStrip(
+                          deckId: widget.deckId,
+                          trackId: trackId,
+                          durationMs: durationMs,
+                          width: width,
+                          height: height,
+                          pxPerMs: pxPerMs,
+                          playhead: _playhead,
+                          displayMs: () => _displayMs(durationMs),
+                          dpr: dpr,
                         ),
-                      ),
-                    ),
-                    if (slipOn && slipShadowMs != null && trackId != null)
-                      AnimatedBuilder(
-                        animation: _playhead,
-                        builder: (context, _) {
-                          final audibleMs = _displayMs(durationMs);
-                          final delta = slipShadowMs - audibleMs;
-                          if (delta.abs() < 3) {
-                            return const SizedBox.shrink();
-                          }
-                          return Positioned(
-                            left: snapPx(
-                              width / 2 + delta * pxPerMs - 0.5,
-                              dpr,
-                            ),
-                            top: 0,
-                            bottom: 0,
-                            width: 1,
-                            child: ColoredBox(
-                              color: theme.colors.primary.withValues(
-                                alpha: 0.65,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    if (widget.label case final label?)
                       Align(
-                        alignment: Alignment.centerLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Text(
-                            label.toUpperCase(),
-                            style: theme.typography.display.xs.copyWith(
-                              fontFamily: MixarFonts.spaceGrotesk,
-                              color: deckInk(
-                                deckAccentFor(widget.deckId) ??
-                                    DeckAccent.neutral,
-                                theme.colors.brightness,
-                              ).withValues(alpha: 0.55),
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.6,
-                              height: 1,
-                            ),
+                        child: ColoredBox(
+                          color: theme.colors.foreground.withValues(alpha: 0.9),
+                          child: const SizedBox(
+                            width: 1,
+                            height: double.infinity,
                           ),
                         ),
                       ),
-                  ],
+                      if (slipOn && slipShadowMs != null && trackId != null)
+                        AnimatedBuilder(
+                          animation: _playhead,
+                          builder: (context, _) {
+                            final audibleMs = _displayMs(durationMs);
+                            final delta = slipShadowMs - audibleMs;
+                            if (delta.abs() < 3) {
+                              return const SizedBox.shrink();
+                            }
+                            return Positioned(
+                              left: snapPx(
+                                width / 2 + delta * pxPerMs - 0.5,
+                                dpr,
+                              ),
+                              top: 0,
+                              bottom: 0,
+                              width: 1,
+                              child: ColoredBox(
+                                color: theme.colors.primary.withValues(
+                                  alpha: 0.65,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      if (widget.label case final label?)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: Text(
+                              label.toUpperCase(),
+                              style: theme.typography.display.xs.copyWith(
+                                fontFamily: MixarFonts.spaceGrotesk,
+                                color: deckInk(
+                                  deckAccentFor(widget.deckId) ??
+                                      DeckAccent.neutral,
+                                  theme.colors.brightness,
+                                ).withValues(alpha: 0.55),
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.6,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

@@ -356,6 +356,19 @@
   "settingsDeckVinylBrakePauseToggle": "Brake on pause",
   "settingsDeckVinylBrakeStopTime": "Stop time",
   "settingsDeckVinylBrakeStopTimeHint": "How long the platter takes to stop after pause.",
+  "settingsDeckEndWarning": "Track end warning",
+  "settingsDeckEndWarningHint": "Blink the waveform and track details once a playing track is this close to its end.",
+  "settingsDeckEndWarningWindow": "Warn before the end",
+  "settingsDeckEndWarningToggle": "Blink before the track ends",
+  "settingsDeckEndWarningSeconds": "{count, plural, =1{1 second} other{{count} seconds}}",
+  "@settingsDeckEndWarningSeconds": {
+    "description": "Length of the end-of-track warning window, read aloud by screen readers.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsStepperDecrease": "Decrease {field}",
   "@settingsStepperDecrease": {
     "description": "Screen-reader label for a numeric stepper's decrement button.",

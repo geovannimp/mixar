@@ -1683,6 +1683,36 @@ abstract class AppLocalizations {
   /// **'How long the platter takes to stop after pause.'**
   String get settingsDeckVinylBrakeStopTimeHint;
 
+  /// No description provided for @settingsDeckEndWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Track end warning'**
+  String get settingsDeckEndWarning;
+
+  /// No description provided for @settingsDeckEndWarningHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Blink the waveform and track details once a playing track is this close to its end.'**
+  String get settingsDeckEndWarningHint;
+
+  /// No description provided for @settingsDeckEndWarningWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Warn before the end'**
+  String get settingsDeckEndWarningWindow;
+
+  /// No description provided for @settingsDeckEndWarningToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Blink before the track ends'**
+  String get settingsDeckEndWarningToggle;
+
+  /// Length of the end-of-track warning window, read aloud by screen readers.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 second} other{{count} seconds}}'**
+  String settingsDeckEndWarningSeconds(int count);
+
   /// Screen-reader label for a numeric stepper's decrement button.
   ///
   /// In en, this message translates to:
