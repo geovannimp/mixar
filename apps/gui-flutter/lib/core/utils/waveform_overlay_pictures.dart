@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/painting.dart';
@@ -9,12 +8,12 @@ import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 
-// Lane chrome neutrals are mid greys rather than light-on-dark white washes,
-// so saved loops and the beat grid read on both the near-black dark lane and
-// the light one.
-const _savedLoopFill = Color.fromRGBO(120, 124, 134, 0.22);
-const _savedLoopBorder = Color.fromRGBO(120, 124, 134, 0.85);
-const _savedLoopMarker = Color.fromRGBO(120, 124, 134, 0.95);
+// Saved-loop fill stays neutral so it reads on both the near-black dark lane
+// and the light one; the edges reuse the active-loop teal at lower alpha so a
+// remembered region is recognizable without competing with the active loop.
+const _savedLoopFill = Color.fromRGBO(148, 163, 184, 0.24);
+const _savedLoopBorder = Color.fromRGBO(52, 211, 153, 0.45);
+const _savedLoopMarker = Color.fromRGBO(52, 211, 153, 0.85);
 const _beatGridBar = Color.fromRGBO(150, 155, 165, 0.42);
 const _beatGridBeat = Color.fromRGBO(150, 155, 165, 0.26);
 // Phase arrows sit on top of the bar lines, so they get more weight than the
@@ -105,7 +104,6 @@ Picture recordLoopPicture({
     ..color = _savedLoopMarker
     ..strokeWidth = 2
     ..isAntiAlias = false;
-  final cap = Paint()..color = _savedLoopMarker;
   for (final loop in loops) {
     final rect = loopRegionRect(
       inMs: loop.inMs,
@@ -120,24 +118,13 @@ Picture recordLoopPicture({
     }
     canvas.drawRect(rect, fill);
     canvas.drawRect(rect, border);
-    final half = math.min(4.0, rect.width / 4);
     for (final x in [rect.left.roundToDouble(), rect.right.roundToDouble()]) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), edge);
-      canvas.drawPath(
-        Path()
-          ..moveTo(x - half, 0)
-          ..lineTo(x + half, 0)
-          ..lineTo(x, 5)
-          ..close(),
-        cap,
-      );
-      canvas.drawPath(
-        Path()
-          ..moveTo(x - half, size.height)
-          ..lineTo(x + half, size.height)
-          ..lineTo(x, size.height - 5)
-          ..close(),
-        cap,
+      canvas.drawLine(Offset(x - 3, 1), Offset(x + 3, 1), edge);
+      canvas.drawLine(
+        Offset(x - 3, size.height - 1),
+        Offset(x + 3, size.height - 1),
+        edge,
       );
     }
   }
