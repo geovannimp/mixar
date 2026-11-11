@@ -25,6 +25,7 @@ void main() {
   Future<void> pumpSettings(
     WidgetTester tester, {
     SettingsSection initialSection = SettingsSection.ui,
+    TextScaler textScaler = TextScaler.noScaling,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -37,10 +38,22 @@ void main() {
         ],
         child: mixarTestMaterialApp(
           theme: MixarThemeData.dark(),
-          home: Scaffold(body: SettingsPage(initialSection: initialSection)),
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: textScaler),
+            child: Scaffold(body: SettingsPage(initialSection: initialSection)),
+          ),
         ),
       ),
     );
+    await tester.pumpAndSettle();
+  }
+
+  /// Dirties the draft through the UI card's own callback, so the header's
+  /// Save slot opens without a press that would also fire the save toast.
+  Future<void> dirtyDraft(WidgetTester tester) async {
+    tester
+        .widget<SettingsUiPanel>(find.byType(SettingsUiPanel))
+        .onChanged(copyAppSettings(defaultAppSettings(), showTooltips: false));
     await tester.pumpAndSettle();
   }
 
@@ -330,10 +343,7 @@ void main() {
     final headerRight = tester.getRect(find.byType(SettingsPage)).right;
     expect(find.widgetWithText(AppButton, 'Save changes'), findsNothing);
 
-    tester
-        .widget<SettingsUiPanel>(find.byType(SettingsUiPanel))
-        .onChanged(copyAppSettings(defaultAppSettings(), showTooltips: false));
-    await tester.pumpAndSettle();
+    await dirtyDraft(tester);
 
     final save = tester.getRect(find.widgetWithText(AppButton, 'Save changes'));
     final shifted = tester.getRect(toggle);

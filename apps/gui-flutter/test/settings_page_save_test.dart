@@ -43,13 +43,19 @@ void main() {
     );
     Future<bool> leave() => container.read(settingsLeaveGuardProvider)!();
 
+    bool? left;
+
+    /// Asks the page to leave the way the shell does, and records the answer.
+    Future<void> askToLeave() async {
+      unawaited(leave().then((value) => left = value));
+      await tester.pumpAndSettle();
+    }
+
     tester
         .widget<SettingsMixerPanel>(find.byType(SettingsMixerPanel))
         .onChanged(copyAppSettings(baseline, numDecks: 4));
     await tester.pumpAndSettle();
-    bool? left;
-    unawaited(leave().then((value) => left = value));
-    await tester.pumpAndSettle();
+    await askToLeave();
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
 
     await tester.tap(find.widgetWithText(AppButton, l10n.settingsSave).last);
@@ -79,16 +85,14 @@ void main() {
       isNotNull,
     );
 
-    unawaited(leave().then((value) => left = value));
-    await tester.pumpAndSettle();
+    await askToLeave();
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
     await tester.tap(find.widgetWithText(AppButton, l10n.settingsCancel));
     await tester.pumpAndSettle();
     expect(left, isFalse);
 
     // Discarding is a real leave: the shell may navigate away.
-    unawaited(leave().then((value) => left = value));
-    await tester.pumpAndSettle();
+    await askToLeave();
     await tester.tap(find.widgetWithText(AppButton, l10n.settingsDiscard));
     await tester.pumpAndSettle();
     expect(left, isTrue);

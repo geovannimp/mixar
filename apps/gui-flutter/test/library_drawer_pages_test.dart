@@ -20,6 +20,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/widgets/library/library_pane_back_button.dart';
 import 'package:gui_flutter/widgets/library/library_row_density_button.dart';
 import 'package:gui_flutter/widgets/mixer/library_panel.dart';
+import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/m_tab_bar.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
@@ -457,7 +458,7 @@ void main() {
     final container = mixerContainer(tester);
     final button = find.descendant(
       of: find.byType(AppHeader),
-      matching: find.text('Library'),
+      matching: find.widgetWithText(AppButton, 'Library'),
     );
 
     await tester.tap(button);
@@ -594,7 +595,7 @@ void main() {
     // uses other Lucide icons.
     final button = find.descendant(
       of: find.byType(AppHeader),
-      matching: find.text('Library'),
+      matching: find.widgetWithText(AppButton, 'Library'),
     );
     expect(button, findsOneWidget);
     final container = ProviderScope.containerOf(
@@ -625,7 +626,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(AppHeader),
-        matching: find.text('Library'),
+        matching: find.widgetWithText(AppButton, 'Library'),
       ),
       findsNothing,
     );
@@ -647,7 +648,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(AppHeader),
-        matching: find.text('Library'),
+        matching: find.widgetWithText(AppButton, 'Library'),
       ),
       findsNothing,
     );

@@ -75,28 +75,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// A drawer row, addressed by the shared widget's own label rather than by
+  /// rendered text.
+  Finder rowFinder(String label) =>
+      find.byWidgetPredicate((w) => w is NavListItem && w.label == label);
+
   MTappable row(WidgetTester tester, String label) => tester.widget<MTappable>(
-    find.byWidgetPredicate((w) => w is MTappable && w.semanticsLabel == label),
+    find.descendant(of: rowFinder(label), matching: find.byType(MTappable)),
   );
 
   testWidgets('the hamburger lists the shell pages', (tester) async {
     await pumpHeader(tester);
-    expect(find.text('Play'), findsNothing);
+    expect(rowFinder('Play'), findsNothing);
 
     await openMenu(tester);
 
     expect(find.byType(AppHeader), findsOneWidget);
-    expect(
-      find.descendant(of: find.byType(MTappable), matching: find.text('Play')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byType(MTappable),
-        matching: find.text('Settings'),
-      ),
-      findsOneWidget,
-    );
+    expect(rowFinder('Play'), findsOneWidget);
+    expect(rowFinder('Settings'), findsOneWidget);
     // The wordmark stays in the titlebar and heads the menu.
     final wordmark = find.byWidgetPredicate(
       (w) => w is Image && w.semanticLabel == 'Mixar',
@@ -112,7 +108,7 @@ void main() {
     // The panel is inset below the header, so it never covers the chrome that
     // opened it.
     expect(
-      tester.getTopLeft(find.text('Play')).dy,
+      tester.getTopLeft(rowFinder('Play')).dy,
       greaterThan(kAppHeaderHeight),
     );
     expect(
@@ -132,12 +128,12 @@ void main() {
   testWidgets('escape closes the drawer', (tester) async {
     await pumpHeader(tester);
     await openMenu(tester);
-    expect(find.text('Play'), findsOneWidget);
+    expect(rowFinder('Play'), findsOneWidget);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
 
-    expect(find.text('Play'), findsNothing);
+    expect(rowFinder('Play'), findsNothing);
   });
 
   testWidgets('the open page is marked in the drawer', (tester) async {
@@ -154,11 +150,11 @@ void main() {
     final picked = await pumpHeader(tester);
     await openMenu(tester);
 
-    await tester.tap(find.text('Settings'));
+    await tester.tap(rowFinder('Settings'));
     await tester.pumpAndSettle();
 
     expect(picked, [ShellTab.settings]);
-    expect(find.text('Play'), findsNothing);
+    expect(rowFinder('Play'), findsNothing);
   });
 
   testWidgets('a press outside the drawer closes it without navigating', (
@@ -171,7 +167,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picked, isEmpty);
-    expect(find.text('Play'), findsNothing);
+    expect(rowFinder('Play'), findsNothing);
   });
 
   testWidgets('the header no longer carries a settings button', (tester) async {

@@ -26,9 +26,9 @@ Future<void> showAppNavDrawer(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Close menu',
-    pageBuilder: (context, _, _) =>
+    pageBuilder: (dialogContext, _, _) =>
         _AppNavDrawer(title: title, current: current, onSelect: onSelect),
-    transitionBuilder: (context, animation, _, child) => SlideTransition(
+    transitionBuilder: (dialogContext, animation, _, child) => SlideTransition(
       position: Tween(
         begin: const Offset(-1, 0),
         end: Offset.zero,
