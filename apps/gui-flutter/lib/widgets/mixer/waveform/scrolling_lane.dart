@@ -623,6 +623,28 @@ class _StripWaveform extends ConsumerWidget {
   }
 }
 
+/// Draws pictures recorded at [kWaveformStripHeight] onto a strip canvas.
+///
+/// One place owns how recorded overlays map to the lane, so the grid and the
+/// loop/cue layer cannot drift apart if the vertical mapping changes.
+void _paintStripPictures(
+  Canvas canvas,
+  Size size,
+  Iterable<Picture?> pictures,
+) {
+  if (size.width <= 0 || size.height <= 0) {
+    return;
+  }
+  canvas.save();
+  canvas.scale(1, size.height / kWaveformStripHeight);
+  for (final picture in pictures) {
+    if (picture != null) {
+      canvas.drawPicture(picture);
+    }
+  }
+  canvas.restore();
+}
+
 /// Loops and cues, replayed at the width they were recorded at.
 class _StripOverlayPainter extends CustomPainter {
   new({
@@ -639,19 +661,7 @@ class _StripOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) {
-      return;
-    }
-    // Overlays are authored at strip height; scale only vertically so their
-    // horizontal placement stays one picture pixel per canvas pixel.
-    canvas.save();
-    canvas.scale(1, size.height / kWaveformStripHeight);
-    for (final picture in [loops, activeLoop, pendingLoopIn, cues]) {
-      if (picture != null) {
-        canvas.drawPicture(picture);
-      }
-    }
-    canvas.restore();
+    _paintStripPictures(canvas, size, [loops, activeLoop, pendingLoopIn, cues]);
   }
 
   @override
@@ -720,13 +730,7 @@ class _BeatGridPicturePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) {
-      return;
-    }
-    canvas.save();
-    canvas.scale(1, size.height / kWaveformStripHeight);
-    canvas.drawPicture(picture);
-    canvas.restore();
+    _paintStripPictures(canvas, size, [picture]);
   }
 
   @override
