@@ -12,6 +12,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'support/fake_library_transport.dart';
 import 'support/mixar_material_app.dart';
+import 'support/row_drag.dart';
 
 /// Playlist rows are drop targets for a library track; folder rows are not.
 void main() {
@@ -106,8 +107,8 @@ void main() {
   /// chrome while the payload is still over it, then release the drop.
   Future<double> dragOver(WidgetTester tester, String name) async {
     final from = tester.getCenter(find.byKey(const Key('drag-source')));
-    final gesture = await tester.startGesture(from);
-    await tester.pump(const Duration(milliseconds: 50));
+    // Held long enough to arm the row's drag, as a finger on a touch host does.
+    final gesture = await startRowDrag(tester, from);
     // Past the touch slop, so the drag starts before aiming at the row.
     await gesture.moveBy(const Offset(0, -30));
     await tester.pump();

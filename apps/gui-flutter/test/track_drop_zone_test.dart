@@ -11,6 +11,7 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 import 'helpers/recording_deck_load_transport.dart';
 import 'support/fake_engine_transport.dart';
+import 'support/row_drag.dart';
 
 const _sourceKey = Key('drag-source');
 const _targetKey = Key('drop-target');
@@ -73,7 +74,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final gesture = await tester.startGesture(
+    final gesture = await startRowDrag(
+      tester,
       tester.getCenter(find.byKey(_sourceKey)),
     );
     await gesture.moveTo(tester.getCenter(find.byKey(_targetKey)));
@@ -137,7 +139,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final gesture = await tester.startGesture(
+    final gesture = await startRowDrag(
+      tester,
       tester.getCenter(find.byKey(_sourceKey)),
     );
     await gesture.moveTo(tester.getCenter(find.byType(PadFace).first));

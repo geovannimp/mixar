@@ -9,7 +9,6 @@ import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/key_format.dart';
 import 'package:gui_flutter/core/utils/library_list_layout.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
-import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/focused_load.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
@@ -30,6 +29,7 @@ import 'helpers/collection_tracks_override.dart';
 import 'support/border_helpers.dart';
 import 'support/fake_library_transport.dart';
 import 'support/mixar_material_app.dart';
+import 'support/row_drag.dart';
 
 /// The row element whose text is [label], for the row-height assertions.
 Finder rowByText(String label) =>
@@ -174,12 +174,12 @@ void main() {
       'collection', (tester) async {
     final container = await pumpList(tester);
     expect(find.text('Demo Track'), findsOneWidget);
-    expect(find.byType(Draggable<TrackDragPayload>), findsNothing);
+    expect(rowDragSources(), findsNothing);
 
     container.read(engineUiProvider.notifier).setRunning(true);
     await tester.pumpAndSettle();
 
-    expect(find.byType(Draggable<TrackDragPayload>), findsWidgets);
+    expect(rowDragSources(), findsWidgets);
   });
 
   testWidgets('MIDI focus survives analysis-state row rebuild', (tester) async {

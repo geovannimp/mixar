@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -268,13 +269,30 @@ Widget libraryTrackDragSource({
   VoidCallback? onDragStart,
   VoidCallback? onDragEnd,
 }) {
+  final feedback = IgnorePointer(child: LibraryDragCard(title: payload.title));
+  // A touch host arms the drag with a long press: the pointer stays with the
+  // surrounding list while the finger pans, so scrolling a library never picks
+  // a track up. Mouse-driven hosts keep dragging off the press, where there is
+  // no scroll gesture competing for the same pan. See [usesLongPressRowDrag].
+  if (usesLongPressRowDrag) {
+    return LongPressDraggable<TrackDragPayload>(
+      data: payload,
+      hitTestBehavior: HitTestBehavior.opaque,
+      dragAnchorStrategy: pointerDragAnchorStrategy,
+      feedback: feedback,
+      childWhenDragging: child,
+      onDragStarted: onDragStart,
+      onDragEnd: (_) => onDragEnd?.call(),
+      child: child,
+    );
+  }
   return Draggable<TrackDragPayload>(
     data: payload,
     // The whole row is the drag handle, padding and gaps included: the
     // plugin's drag source behaved the same way.
     hitTestBehavior: HitTestBehavior.opaque,
     dragAnchorStrategy: pointerDragAnchorStrategy,
-    feedback: IgnorePointer(child: LibraryDragCard(title: payload.title)),
+    feedback: feedback,
     childWhenDragging: child,
     onDragStarted: onDragStart,
     onDragEnd: (_) => onDragEnd?.call(),
