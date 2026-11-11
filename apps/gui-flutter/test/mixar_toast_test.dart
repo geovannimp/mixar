@@ -7,6 +7,11 @@ import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
+/// The card wrapping [text]: the toast is an intrinsic-width box in the root
+/// overlay, so layout assertions measure this instead of the whole overlay.
+Finder toastCard(Finder text) =>
+    find.ancestor(of: text, matching: find.byType(IntrinsicWidth));
+
 /// One tap target the toast tests mount; the callback receives a live context.
 typedef ToastTrigger = ({
   String label,
@@ -245,5 +250,86 @@ void main() {
     await tester.tap(find.text('Show error'));
     await tester.pumpAndSettle();
     expect(find.byIcon(LucideIcons.circleAlert), findsOneWidget);
+  });
+
+  testWidgets('toast copy and actions share one left edge', (tester) async {
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text('Switch audio outputs to DDJ-400?'),
+          description: const Text('Warning: Mixar will restart.'),
+          // A full-width row, as the controller prompt uses: the first child
+          // then measures the copy column rather than a right-aligned cluster.
+          suffixBuilder: (context, dismiss) => Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            spacing: 8,
+            children: [
+              GestureDetector(onTap: dismiss, child: const Text('Remember')),
+              GestureDetector(onTap: dismiss, child: const Text('Switch')),
+            ],
+          ),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pumpAndSettle();
+
+    final card = toastCard(find.text('Switch audio outputs to DDJ-400?'));
+    // Card padding (14) + the copy column past the variant glyph (16) and its
+    // gap (12). Measured from the card, not from the title, so a suffix that
+    // drifts right cannot satisfy the assertion by moving the title with it.
+    final copyColumnX = tester.getTopLeft(card).dx + 14 + 28;
+    void expectInCopyColumn(Finder finder, String reason) {
+      expect(
+        tester.getTopLeft(finder).dx,
+        moreOrLessEquals(copyColumnX, epsilon: 0.5),
+        reason: reason,
+      );
+    }
+
+    expectInCopyColumn(
+      find.text('Switch audio outputs to DDJ-400?'),
+      'title must sit in the copy column',
+    );
+    expectInCopyColumn(
+      find.text('Warning: Mixar will restart.'),
+      'description must sit in the title copy column',
+    );
+    expectInCopyColumn(
+      find.text('Remember'),
+      'actions must sit in the title copy column',
+    );
+  });
+
+  testWidgets('toast width follows content inside the cap', (tester) async {
+    const longTitle =
+        'Switch audio outputs to this rather long controller product name';
+    await pumpToastTriggers(tester, [
+      (
+        label: 'Show',
+        onTap: (context) => showMixarToast(
+          context: context,
+          duration: null,
+          title: const Text(longTitle),
+        ),
+      ),
+    ]);
+
+    await tester.tap(find.text('Show'));
+    await tester.pumpAndSettle();
+
+    final card = toastCard(find.text(longTitle));
+    expect(card, findsOneWidget);
+    final width = tester.getSize(card).width;
+    expect(width, greaterThanOrEqualTo(300), reason: 'card keeps its minimum');
+    expect(
+      width,
+      lessThanOrEqualTo(420),
+      reason: 'long copy must not push the card past its cap',
+    );
   });
 }

@@ -118,8 +118,7 @@ Shift banks. This checklist is about what the unit *does* with them.
 ## Audio outputs
 
 - [ ] With another output selected in Settings → Audio, attach the unit: a
-      toast offers **Switch audio outputs to DDJ-400?** and lists master
-      channels 1–2 and headphones 3–4.
+      toast offers **Switch audio outputs to DDJ-400?**.
 - [ ] **Switch outputs** moves the master bus to the DDJ-400 and enables the
       preview bus on channels 3–4; the engine restarts once and audio continues
       from the unit's master and headphone jacks.
@@ -128,7 +127,7 @@ Shift banks. This checklist is about what the unit *does* with them.
 - [ ] While overridden, Settings → Audio marks the master and preview cards
       **Overridden by DDJ-400 mapping** and shows the controller route in the
       fields. Editing a field removes that card's badge; Save applies it.
-- [ ] Tick **Always switch audio to this controller** before **Switch outputs**
+- [ ] Tick **Remember** before **Switch outputs**
       (or enable the mapping row's **Audio** toggle and Save): later attaches
       switch without the prompt.
 - [ ] Unplug the unit (or detach the mapping): the saved master and preview

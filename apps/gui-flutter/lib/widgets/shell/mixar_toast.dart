@@ -12,7 +12,11 @@ enum MixarToastVariant { primary, success, warning, destructive }
 
 const _toastGap = 8.0;
 const _toastMinWidth = 300.0;
-const _toastMaxWidth = 380.0;
+const _toastMaxWidth = 420.0;
+
+/// Left edge of the copy column: past the variant glyph (16) and its gap (12).
+/// Description and actions share it so the card reads as one stack.
+const _toastCopyIndent = 28.0;
 const _toastEnter = Duration(milliseconds: 320);
 const _toastExit = Duration(milliseconds: 180);
 const _toastLift = 18.0;
@@ -528,9 +532,9 @@ class _MixarToastCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DefaultTextStyle(
-                        style: theme.typography.body.sm.copyWith(
+                        style: theme.typography.body.md.copyWith(
                           color: colors.foreground,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                         ),
                         child: spec.title,
                       ),
@@ -540,9 +544,9 @@ class _MixarToastCard extends StatelessWidget {
                   ],
                 ),
                 if (description != null) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 10),
                   Padding(
-                    padding: const EdgeInsets.only(left: 28),
+                    padding: const EdgeInsets.only(left: _toastCopyIndent),
                     child: DefaultTextStyle(
                       style: theme.typography.body.xs.copyWith(
                         color: colors.mutedForeground,
@@ -554,7 +558,16 @@ class _MixarToastCard extends StatelessWidget {
                 ],
                 if (suffix != null) ...[
                   const SizedBox(height: 10),
-                  Align(alignment: Alignment.centerRight, child: suffix),
+                  Padding(
+                    padding: const EdgeInsets.only(left: _toastCopyIndent),
+                    // A row that fills the width starts at the copy column; a
+                    // content-sized row (the plain Cancel/Enable pair) keeps
+                    // the corner alignment the prompts already use.
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: suffix,
+                    ),
+                  ),
                 ],
               ],
             ),

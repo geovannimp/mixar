@@ -14,7 +14,9 @@ import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/mixar_checkbox.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/mixar_toast.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Listens for MIDI mapping offers and prompts to enable (Tauri toast flow).
 class ControllerOfferBridge extends ConsumerStatefulWidget {
@@ -281,68 +283,51 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     required ControllerAudioHints hints,
     required OutputDevice device,
   }) {
-    final master = hints.masterChannels;
-    final headphones = hints.headphoneChannels;
     var alwaysSwitch = false;
     showMixarToast(
       context: context,
       id: _audioToastId(portName),
       duration: null,
       title: Text('Switch audio outputs to $label?'),
-      description: StatefulBuilder(
-        builder: (context, setLocal) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+      description: const _EngineRestartWarning(),
+      suffixBuilder: (context, dismiss) => StatefulBuilder(
+        builder: (context, setLocal) => Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          spacing: 8,
           children: [
-            if (master != null)
-              Text('Master → $label (channels ${master.left}–${master.right})'),
-            if (headphones != null)
-              Text(
-                'Headphones → $label '
-                '(channels ${headphones.left}–${headphones.right})',
-              ),
-            const SizedBox(height: 4),
-            const Text('Mixar will restart the audio engine.'),
-            const SizedBox(height: 8),
             MixarCheckbox(
               value: alwaysSwitch,
-              label: const Text('Always switch audio to this controller'),
+              label: const Text('Remember'),
               onChanged: (value) => setLocal(() => alwaysSwitch = value),
+            ),
+            AppButton(
+              size: .sm,
+              mainAxisSize: .min,
+              variant: .outline,
+              onPress: dismiss,
+              child: const Text('Keep current'),
+            ),
+            AppButton(
+              size: .sm,
+              mainAxisSize: .min,
+              onPress: () {
+                dismiss();
+                unawaited(
+                  _switchAudioOutputs(
+                    portName: portName,
+                    mappingId: mappingId,
+                    controllerDeviceId: controllerDeviceId,
+                    label: label,
+                    hints: hints,
+                    device: device,
+                    alwaysSwitch: alwaysSwitch,
+                  ),
+                );
+              },
+              child: const Text('Switch outputs'),
             ),
           ],
         ),
-      ),
-      suffixBuilder: (context, dismiss) => Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 8,
-        children: [
-          AppButton(
-            size: .sm,
-            mainAxisSize: .min,
-            variant: .outline,
-            onPress: dismiss,
-            child: const Text('Keep current'),
-          ),
-          AppButton(
-            size: .sm,
-            mainAxisSize: .min,
-            onPress: () {
-              dismiss();
-              unawaited(
-                _switchAudioOutputs(
-                  portName: portName,
-                  mappingId: mappingId,
-                  controllerDeviceId: controllerDeviceId,
-                  label: label,
-                  hints: hints,
-                  device: device,
-                  alwaysSwitch: alwaysSwitch,
-                ),
-              );
-            },
-            child: const Text('Switch outputs'),
-          ),
-        ],
       ),
     );
   }
@@ -622,4 +607,50 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
 
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// Muted amber pill: switching outputs restarts the engine, so audio drops
+/// briefly. Light chrome uses the palette's cream `cueTint` fill; dark chrome
+/// has no pale amber surface, so it tints `cueOn` over the toast instead of
+/// filling amber-950, which reads as a solid brown block.
+class _EngineRestartWarning extends StatelessWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final colors = theme.colors;
+    final dark = colors.brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: dark ? colors.cueOn.withValues(alpha: 0.12) : colors.cueTint,
+        border: Border.all(color: colors.cueOn.withValues(alpha: 0.4)),
+        borderRadius: theme.style.borderRadius.pill,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 6,
+          children: [
+            Icon(LucideIcons.triangleAlert, size: 14, color: colors.cueOn),
+            Flexible(
+              child: Text.rich(
+                style: theme.typography.body.xs.copyWith(color: colors.cueOn),
+                const TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Warning: ',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    TextSpan(text: 'Mixar will restart the audio engine.'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
