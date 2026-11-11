@@ -40,8 +40,10 @@ final trackEndWarningSecsProvider = Provider<int>((ref) {
 
 /// True while the deck plays inside its end-of-track warning window.
 ///
-/// Only flips on the crossing, so the 30 Hz position ticks never rebuild the
-/// widgets watching it — the waveform and the track card just start blinking.
+/// Re-evaluated on every 30 Hz position tick, but it yields a plain `bool`, so
+/// Riverpod's value equality keeps the watchers still until the flag actually
+/// flips — the waveform and the track card only rebuild when the window opens
+/// or closes.
 final deckTrackEndWarningProvider = Provider.family<bool, int>((ref, deckId) {
   final enabled = _setting(
     ref,
