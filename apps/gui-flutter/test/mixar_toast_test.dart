@@ -7,6 +7,11 @@ import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
+/// The card wrapping [text]: the toast is an intrinsic-width box in the root
+/// overlay, so layout assertions measure this instead of the whole overlay.
+Finder toastCard(Finder text) =>
+    find.ancestor(of: text, matching: find.byType(IntrinsicWidth));
+
 /// One tap target the toast tests mount; the callback receives a live context.
 typedef ToastTrigger = ({
   String label,
@@ -273,10 +278,7 @@ void main() {
     await tester.tap(find.text('Show'));
     await tester.pumpAndSettle();
 
-    final card = find.ancestor(
-      of: find.text('Switch audio outputs to DDJ-400?'),
-      matching: find.byType(IntrinsicWidth),
-    );
+    final card = toastCard(find.text('Switch audio outputs to DDJ-400?'));
     // Card padding (14) + the copy column past the variant glyph (16) and its
     // gap (12). Measured from the card, not from the title, so a suffix that
     // drifts right cannot satisfy the assertion by moving the title with it.
@@ -320,10 +322,7 @@ void main() {
     await tester.tap(find.text('Show'));
     await tester.pumpAndSettle();
 
-    final card = find.ancestor(
-      of: find.text(longTitle),
-      matching: find.byType(IntrinsicWidth),
-    );
+    final card = toastCard(find.text(longTitle));
     expect(card, findsOneWidget);
     final width = tester.getSize(card).width;
     expect(width, greaterThanOrEqualTo(300), reason: 'card keeps its minimum');
