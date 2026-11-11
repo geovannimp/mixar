@@ -3,12 +3,16 @@
 use sea_orm::sea_query::OnConflict;
 use sea_orm::ColumnTrait;
 use sea_orm::{EntityTrait, QueryFilter, Set};
+use std::collections::HashSet;
 
 use library_core::{Library, LibraryError, LoopImport, Result, TrackId};
 
 use crate::db::{self, Db};
 use crate::entity::{track_hot_cue, track_loop, TrackHotCueEntity, TrackLoopEntity};
 use crate::{tags, unix_secs_string, LibraryManager, TrackMetadataEdit};
+
+/// Maximum automatic loop rows kept per track (rekordbox parity).
+pub const MAX_AUTO_LOOPS: usize = 10;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HotCueRecord {
@@ -26,6 +30,7 @@ pub struct LoopRecord {
     pub out_ms: i32,
     pub label: Option<String>,
     pub color: Option<String>,
+    pub auto_saved: bool,
 }
 
 pub fn list_hot_cues(db: &Db, track_id: &TrackId) -> Result<Vec<HotCueRecord>> {
@@ -115,6 +120,7 @@ pub fn list_loops(db: &Db, track_id: &TrackId) -> Result<Vec<LoopRecord>> {
             out_ms: row.out_ms,
             label: row.label,
             color: row.color,
+            auto_saved: row.auto_saved,
         })
         .collect();
     loops.sort_by_key(|row| row.slot_index);
@@ -141,6 +147,7 @@ pub fn save_loop(
             color,
         },
         true,
+        false,
     )
 }
 
@@ -151,10 +158,87 @@ pub fn save_loop(
 /// stale label from an earlier import of a different library would survive
 /// otherwise.
 pub fn import_loop(db: &Db, track_id: &TrackId, saved: &LoopImport) -> Result<()> {
-    upsert_loop(db, track_id, saved, false)
+    upsert_loop(db, track_id, saved, false, false)
 }
 
-fn upsert_loop(db: &Db, track_id: &TrackId, saved: &LoopImport, preserve: bool) -> Result<()> {
+/// Remember a loop the deck just activated. At most [`MAX_AUTO_LOOPS`] auto
+/// rows are kept; imported/explicit rows are never matched or evicted.
+pub fn auto_save_loop(db: &Db, track_id: &TrackId, in_ms: i32, out_ms: i32) -> Result<()> {
+    if out_ms <= in_ms {
+        return Err(LibraryError::Backend {
+            backend: "deck_data",
+            message: "loop out must be after loop in".into(),
+        });
+    }
+
+    let rows = TrackLoopEntity::find()
+        .filter(track_loop::Column::TrackId.eq(track_id.as_str()))
+        .all(db.conn()?.as_connection())
+        .map_err(db::db_err)?;
+    let new_span = i64::from(out_ms) - i64::from(in_ms);
+    let mut best: Option<(i32, i64)> = None;
+    for row in rows.iter().filter(|row| row.auto_saved) {
+        let overlap = (out_ms.min(row.out_ms) - in_ms.max(row.in_ms)).max(0) as i64;
+        let row_span = i64::from(row.out_ms) - i64::from(row.in_ms);
+        let min_span = new_span.min(row_span);
+        if min_span > 0 && overlap * 2 >= min_span {
+            let better = match best {
+                Some((_, best_overlap)) => overlap > best_overlap,
+                None => true,
+            };
+            if better {
+                best = Some((row.slot_index, overlap));
+            }
+        }
+    }
+
+    let slot = if let Some((slot, _)) = best {
+        slot
+    } else {
+        let auto_rows: Vec<&track_loop::Model> = rows.iter().filter(|row| row.auto_saved).collect();
+        if auto_rows.len() >= MAX_AUTO_LOOPS {
+            let oldest = auto_rows
+                .iter()
+                .min_by(|a, b| {
+                    a.updated_at
+                        .cmp(&b.updated_at)
+                        .then(a.slot_index.cmp(&b.slot_index))
+                })
+                .expect("auto rows is non-empty");
+            oldest.slot_index
+        } else {
+            let used: HashSet<i32> = rows.iter().map(|row| row.slot_index).collect();
+            (0..=15)
+                .find(|slot| !used.contains(slot))
+                .ok_or_else(|| LibraryError::Backend {
+                    backend: "deck_data",
+                    message: "loop memory full".into(),
+                })?
+        }
+    };
+
+    upsert_loop(
+        db,
+        track_id,
+        &LoopImport {
+            slot: slot as u8,
+            in_ms,
+            out_ms,
+            label: None,
+            color: None,
+        },
+        true,
+        true,
+    )
+}
+
+fn upsert_loop(
+    db: &Db,
+    track_id: &TrackId,
+    saved: &LoopImport,
+    preserve: bool,
+    auto_saved: bool,
+) -> Result<()> {
     let (slot_index, in_ms, out_ms) = (saved.slot, saved.in_ms, saved.out_ms);
     if slot_index > 15 {
         return Err(LibraryError::Backend {
@@ -198,6 +282,7 @@ fn upsert_loop(db: &Db, track_id: &TrackId, saved: &LoopImport, preserve: bool) 
         out_ms: Set(out_ms),
         label: Set(label),
         color: Set(color),
+        auto_saved: Set(auto_saved),
         updated_at: Set(crate::unix_secs_string()),
     })
     .on_conflict(
@@ -207,6 +292,7 @@ fn upsert_loop(db: &Db, track_id: &TrackId, saved: &LoopImport, preserve: bool) 
                 track_loop::Column::OutMs,
                 track_loop::Column::Label,
                 track_loop::Column::Color,
+                track_loop::Column::AutoSaved,
                 track_loop::Column::UpdatedAt,
             ])
             .to_owned(),
@@ -338,6 +424,10 @@ impl LibraryManager {
     pub fn delete_track_loop(&self, id: &TrackId, slot_index: u8) -> Result<()> {
         crate::deck_data::delete_loop(&self.db, id, slot_index)
     }
+
+    pub fn auto_save_track_loop(&self, id: &TrackId, in_ms: i32, out_ms: i32) -> Result<()> {
+        crate::deck_data::auto_save_loop(&self.db, id, in_ms, out_ms)
+    }
 }
 
 #[cfg(test)]
@@ -346,7 +436,17 @@ mod tests {
     use crate::db;
     use crate::store::Store;
     use library_core::TrackMetadata;
+    use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
     use std::path::Path;
+
+    fn seed_track(db: &Db, path: &str) -> TrackId {
+        let store = Store::new(db);
+        let id = TrackId::new(path);
+        store
+            .upsert_file_track(&id, Path::new(path), &TrackMetadata::default(), "1")
+            .unwrap();
+        id
+    }
 
     #[test]
     fn hot_cue_and_loop_roundtrip_ms() {
@@ -459,5 +559,106 @@ mod tests {
         assert_eq!(loops[0].out_ms, 2000);
         assert_eq!(loops[0].label.as_deref(), Some("intro"));
         assert_eq!(loops[0].color.as_deref(), Some("#ff00ff"));
+    }
+
+    #[test]
+    fn auto_save_allocates_lowest_free_slot_and_marks_auto() {
+        let db = db::open_in_memory().unwrap();
+        let id = seed_track(&db, "/music/auto-slot.wav");
+        save_loop(&db, &id, 0, 0, 1000, None, None).unwrap();
+
+        auto_save_loop(&db, &id, 1000, 3000).unwrap();
+
+        let loops = list_loops(&db, &id).unwrap();
+        assert_eq!(loops.len(), 2);
+        let auto = loops.iter().find(|row| row.auto_saved).expect("auto row");
+        assert_eq!(auto.slot_index, 1);
+        assert_eq!((auto.in_ms, auto.out_ms), (1000, 3000));
+        let manual = loops
+            .iter()
+            .find(|row| !row.auto_saved)
+            .expect("manual row");
+        assert_eq!(manual.slot_index, 0);
+    }
+
+    #[test]
+    fn auto_save_updates_overlapping_auto_loop_in_place() {
+        let db = db::open_in_memory().unwrap();
+        let id = seed_track(&db, "/music/auto-resize.wav");
+
+        auto_save_loop(&db, &id, 1000, 3000).unwrap();
+        auto_save_loop(&db, &id, 1000, 5000).unwrap();
+
+        let loops = list_loops(&db, &id).unwrap();
+        assert_eq!(loops.len(), 1);
+        assert_eq!(loops[0].slot_index, 0);
+        assert_eq!(loops[0].out_ms, 5000);
+        assert!(loops[0].auto_saved);
+    }
+
+    #[test]
+    fn auto_save_never_updates_an_imported_loop() {
+        let db = db::open_in_memory().unwrap();
+        let id = seed_track(&db, "/music/auto-imported.wav");
+        import_loop(
+            &db,
+            &id,
+            &LoopImport {
+                slot: 0,
+                in_ms: 1000,
+                out_ms: 3000,
+                label: Some("Drop".into()),
+                color: Some("#FF0000".into()),
+            },
+        )
+        .unwrap();
+
+        auto_save_loop(&db, &id, 1000, 3000).unwrap();
+
+        let loops = list_loops(&db, &id).unwrap();
+        assert_eq!(loops.len(), 2);
+        let imported = loops.iter().find(|row| !row.auto_saved).unwrap();
+        assert_eq!(imported.slot_index, 0);
+        assert_eq!(imported.label.as_deref(), Some("Drop"));
+        let auto = loops.iter().find(|row| row.auto_saved).unwrap();
+        assert_eq!(auto.slot_index, 1);
+    }
+
+    #[test]
+    fn auto_save_keeps_at_most_ten_auto_rows_and_replaces_the_oldest() {
+        let db = db::open_in_memory().unwrap();
+        let id = seed_track(&db, "/music/auto-cap.wav");
+        for i in 0..10 {
+            auto_save_loop(&db, &id, i * 1000, i * 1000 + 500).unwrap();
+        }
+
+        {
+            let conn = db.conn().unwrap();
+            for i in 0..10 {
+                conn.as_connection()
+                    .execute_raw(Statement::from_string(
+                        DatabaseBackend::Sqlite,
+                        format!(
+                            "UPDATE track_loop SET updated_at = '{i:02}' WHERE slot_index = {i}"
+                        ),
+                    ))
+                    .unwrap();
+            }
+        }
+
+        auto_save_loop(&db, &id, 100_000, 101_000).unwrap();
+
+        let loops = list_loops(&db, &id).unwrap();
+        assert_eq!(loops.len(), 10);
+        let replaced = loops.iter().find(|row| row.slot_index == 0).unwrap();
+        assert_eq!((replaced.in_ms, replaced.out_ms), (100_000, 101_000));
+        assert!(replaced.auto_saved);
+    }
+
+    #[test]
+    fn auto_save_rejects_inverted_region() {
+        let db = db::open_in_memory().unwrap();
+        let id = seed_track(&db, "/music/auto-invalid.wav");
+        assert!(auto_save_loop(&db, &id, 3000, 1000).is_err());
     }
 }

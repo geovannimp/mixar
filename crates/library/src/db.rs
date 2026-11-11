@@ -278,6 +278,47 @@ mod tests {
     }
 
     #[test]
+    fn sync_adds_auto_saved_to_existing_track_loop() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("library.db");
+        {
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE track_loop (
+                    track_id TEXT NOT NULL,
+                    slot_index INTEGER NOT NULL,
+                    in_ms INTEGER NOT NULL,
+                    out_ms INTEGER NOT NULL,
+                    label TEXT,
+                    color TEXT,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (track_id, slot_index)
+                );",
+            )
+            .unwrap();
+        }
+
+        let db = open(&db_path).unwrap();
+        let conn = db.conn().unwrap();
+        let rows = conn
+            .as_connection()
+            .query_all_raw(Statement::from_string(
+                sea_orm::DatabaseBackend::Sqlite,
+                "PRAGMA table_info(track_loop)".to_string(),
+            ))
+            .map_err(db_err)
+            .unwrap();
+        let columns: Vec<String> = rows
+            .into_iter()
+            .map(|row| row.try_get::<String>("", "name").unwrap())
+            .collect();
+        assert!(
+            columns.iter().any(|name| name == "auto_saved"),
+            "sync did not add auto_saved: {columns:?}"
+        );
+    }
+
+    #[test]
     fn open_creates_parent_dirs() {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("nested").join("library.db");
