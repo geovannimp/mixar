@@ -111,10 +111,7 @@ void main() {
           onEnd: () => ends++,
         );
 
-        final gesture = await tester.startGesture(
-          tester.getCenter(find.text('row 1')),
-        );
-        await tester.pump(rowDragArm);
+        final gesture = await holdRow(tester, find.text('row 1'));
         await gesture.moveBy(const Offset(0, -30));
         await tester.pump();
 
@@ -209,10 +206,7 @@ void main() {
       await withPlatform(TargetPlatform.android, () async {
         final container = await pumpRow(tester, engineRunning: true);
 
-        final gesture = await tester.startGesture(
-          tester.getCenter(find.text('Demo Track')),
-        );
-        await tester.pump(rowDragArm);
+        final gesture = await holdRow(tester, find.text('Demo Track'));
         await tester.pumpAndSettle();
 
         expect(
@@ -241,10 +235,7 @@ void main() {
       await withPlatform(TargetPlatform.linux, () async {
         await pumpRow(tester, engineRunning: true);
 
-        final gesture = await tester.startGesture(
-          tester.getCenter(find.text('Demo Track')),
-        );
-        await tester.pump(rowDragArm);
+        final gesture = await holdRow(tester, find.text('Demo Track'));
         await tester.pumpAndSettle();
 
         expect(find.text('row menu'), findsOneWidget);
@@ -260,10 +251,7 @@ void main() {
       await withPlatform(TargetPlatform.android, () async {
         await pumpRow(tester, engineRunning: false);
 
-        final gesture = await tester.startGesture(
-          tester.getCenter(find.text('Demo Track')),
-        );
-        await tester.pump(rowDragArm);
+        final gesture = await holdRow(tester, find.text('Demo Track'));
         await tester.pumpAndSettle();
 
         expect(

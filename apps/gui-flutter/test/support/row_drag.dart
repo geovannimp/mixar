@@ -19,6 +19,11 @@ Future<TestGesture> startRowDrag(WidgetTester tester, Offset from) async {
   return gesture;
 }
 
+/// Presses [target] and holds for the same window, for a row whose press is
+/// what is under test rather than the drop that follows it.
+Future<TestGesture> holdRow(WidgetTester tester, Finder target) =>
+    startRowDrag(tester, tester.getCenter(target));
+
 /// Any library row drag source, whatever the host: `LongPressDraggable` is a
 /// `Draggable` subclass, so `find.byType(Draggable<…>)` would miss the touch
 /// host's variant.

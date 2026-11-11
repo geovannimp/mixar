@@ -269,7 +269,16 @@ Widget libraryTrackDragSource({
   VoidCallback? onDragStart,
   VoidCallback? onDragEnd,
 }) {
+  // Every value the drag needs is built here, once, so the two recognizers
+  // below cannot wire a row differently. Change the drag wiring here, never in
+  // one branch: a touch host and a mouse host must behave the same apart from
+  // how the drag is claimed.
+  //
+  // The whole row is the drag handle, padding and gaps included: the plugin's
+  // drag source behaved the same way.
+  const hitTestBehavior = HitTestBehavior.opaque;
   final feedback = IgnorePointer(child: LibraryDragCard(title: payload.title));
+  void dragEnded(DraggableDetails _) => onDragEnd?.call();
   // A touch host arms the drag with a long press: the pointer stays with the
   // surrounding list while the finger pans, so scrolling a library never picks
   // a track up. Mouse-driven hosts keep dragging off the press, where there is
@@ -277,25 +286,23 @@ Widget libraryTrackDragSource({
   if (usesLongPressRowDrag) {
     return LongPressDraggable<TrackDragPayload>(
       data: payload,
-      hitTestBehavior: HitTestBehavior.opaque,
+      hitTestBehavior: hitTestBehavior,
       dragAnchorStrategy: pointerDragAnchorStrategy,
       feedback: feedback,
       childWhenDragging: child,
       onDragStarted: onDragStart,
-      onDragEnd: (_) => onDragEnd?.call(),
+      onDragEnd: dragEnded,
       child: child,
     );
   }
   return Draggable<TrackDragPayload>(
     data: payload,
-    // The whole row is the drag handle, padding and gaps included: the
-    // plugin's drag source behaved the same way.
-    hitTestBehavior: HitTestBehavior.opaque,
+    hitTestBehavior: hitTestBehavior,
     dragAnchorStrategy: pointerDragAnchorStrategy,
     feedback: feedback,
     childWhenDragging: child,
     onDragStarted: onDragStart,
-    onDragEnd: (_) => onDragEnd?.call(),
+    onDragEnd: dragEnded,
     child: child,
   );
 }
