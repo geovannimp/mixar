@@ -10067,6 +10067,8 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_waveformDisplayMode =
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
         let mut var_waveformGainEqShaping = <bool>::sse_decode(deserializer);
+        let mut var_trackEndWarning = <bool>::sse_decode(deserializer);
+        let mut var_trackEndWarningSecs = <u32>::sse_decode(deserializer);
         let mut var_keyDisplayMode =
             <crate::api::settings::KeyDisplayModeSetting>::sse_decode(deserializer);
         let mut var_keyColorMode =
@@ -10134,6 +10136,8 @@ impl SseDecode for crate::api::settings::AppSettings {
             vinyl_brake_stop_secs: var_vinylBrakeStopSecs,
             waveform_display_mode: var_waveformDisplayMode,
             waveform_gain_eq_shaping: var_waveformGainEqShaping,
+            track_end_warning: var_trackEndWarning,
+            track_end_warning_secs: var_trackEndWarningSecs,
             key_display_mode: var_keyDisplayMode,
             key_color_mode: var_keyColorMode,
             trusted_controller_device_ids: var_trustedControllerDeviceIds,
@@ -15530,6 +15534,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.vinyl_brake_stop_secs.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
             self.waveform_gain_eq_shaping.into_into_dart().into_dart(),
+            self.track_end_warning.into_into_dart().into_dart(),
+            self.track_end_warning_secs.into_into_dart().into_dart(),
             self.key_display_mode.into_into_dart().into_dart(),
             self.key_color_mode.into_into_dart().into_dart(),
             self.trusted_controller_device_ids
@@ -20367,6 +20373,8 @@ impl SseEncode for crate::api::settings::AppSettings {
             serializer,
         );
         <bool>::sse_encode(self.waveform_gain_eq_shaping, serializer);
+        <bool>::sse_encode(self.track_end_warning, serializer);
+        <u32>::sse_encode(self.track_end_warning_secs, serializer);
         <crate::api::settings::KeyDisplayModeSetting>::sse_encode(
             self.key_display_mode,
             serializer,

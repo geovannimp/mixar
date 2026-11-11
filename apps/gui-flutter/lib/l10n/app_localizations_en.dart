@@ -890,6 +890,30 @@ class AppLocalizationsEn extends AppLocalizations {
       'How long the platter takes to stop after pause.';
 
   @override
+  String get settingsDeckEndWarning => 'Track end warning';
+
+  @override
+  String get settingsDeckEndWarningHint =>
+      'Blink the waveform and track details once a playing track is this close to its end.';
+
+  @override
+  String get settingsDeckEndWarningWindow => 'Warn before the end';
+
+  @override
+  String get settingsDeckEndWarningToggle => 'Blink before the track ends';
+
+  @override
+  String settingsDeckEndWarningSeconds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seconds',
+      one: '1 second',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String settingsStepperDecrease(String field) {
     return 'Decrease $field';
   }

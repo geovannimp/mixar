@@ -5,6 +5,10 @@
   "settingsDeckVinylBrakePauseToggle": "Frear no pause",
   "settingsDeckVinylBrakeStopTime": "Tempo de parada",
   "settingsDeckVinylBrakeStopTimeHint": "Quanto tempo o prato leva para parar após o pause.",
+  "settingsDeckEndWarning": "Aviso de faixa acabando",
+  "settingsDeckEndWarningHint": "Faz a waveform e os detalhes da faixa piscarem quando uma faixa tocando está perto do fim.",
+  "settingsDeckEndWarningWindow": "Avisar antes do fim",
+  "settingsDeckEndWarningToggle": "Piscar antes do fim da faixa",
   "settingsStepperDecrease": "Diminuir {field}",
   "@settingsStepperDecrease": {
     "description": "Screen-reader label for a numeric stepper's decrement button.",

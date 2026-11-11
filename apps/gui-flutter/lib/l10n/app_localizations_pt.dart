@@ -897,6 +897,30 @@ class AppLocalizationsPt extends AppLocalizations {
       'Quanto tempo o prato leva para parar após o pause.';
 
   @override
+  String get settingsDeckEndWarning => 'Aviso de faixa acabando';
+
+  @override
+  String get settingsDeckEndWarningHint =>
+      'Faz a waveform e os detalhes da faixa piscarem quando uma faixa tocando está perto do fim.';
+
+  @override
+  String get settingsDeckEndWarningWindow => 'Avisar antes do fim';
+
+  @override
+  String get settingsDeckEndWarningToggle => 'Piscar antes do fim da faixa';
+
+  @override
+  String settingsDeckEndWarningSeconds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count segundos',
+      one: '1 segundo',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String settingsStepperDecrease(String field) {
     return 'Diminuir $field';
   }
@@ -2085,6 +2109,19 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   @override
   String get settingsDeckVinylBrakeStopTimeHint =>
       'Quanto tempo o prato leva para parar após o pause.';
+
+  @override
+  String get settingsDeckEndWarning => 'Aviso de faixa acabando';
+
+  @override
+  String get settingsDeckEndWarningHint =>
+      'Faz a waveform e os detalhes da faixa piscarem quando uma faixa tocando está perto do fim.';
+
+  @override
+  String get settingsDeckEndWarningWindow => 'Avisar antes do fim';
+
+  @override
+  String get settingsDeckEndWarningToggle => 'Piscar antes do fim da faixa';
 
   @override
   String settingsStepperDecrease(String field) {
