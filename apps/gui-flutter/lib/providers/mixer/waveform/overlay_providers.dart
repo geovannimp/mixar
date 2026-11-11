@@ -8,6 +8,7 @@ import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 
 void _dropPictureAfterFrame(Picture? picture) {
@@ -124,6 +125,7 @@ class StripLoopPictureNotifier extends Notifier<Picture?> with _OverlayPicture {
         originMs: originMs,
         spanMs: spanMs,
         size: _stripSize(widthPx),
+        accent: ref.watch(themePrimaryProvider),
       ),
     );
   }
@@ -148,6 +150,7 @@ class StripActiveLoopPictureNotifier extends Notifier<Picture?>
         originMs: originMs,
         spanMs: spanMs,
         size: _stripSize(widthPx),
+        accent: ref.watch(themePrimaryProvider),
       ),
     );
   }

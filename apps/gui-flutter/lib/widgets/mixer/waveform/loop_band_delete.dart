@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/pad_modes.dart';
 import 'package:gui_flutter/core/utils/waveform_overlay_geometry.dart';
+import 'package:gui_flutter/core/utils/waveform_overlay_pictures.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart' show SavedLoop;
@@ -63,6 +64,8 @@ class LoopBandDeleteRegion extends ConsumerStatefulWidget {
     required this.child,
     this.onTapMs,
     this.onMenuOpened,
+    this.compact = false,
+    this.iconAbove = false,
     super.key,
   });
 
@@ -76,6 +79,8 @@ class LoopBandDeleteRegion extends ConsumerStatefulWidget {
   final Widget child;
   final ValueChanged<int>? onTapMs;
   final VoidCallback? onMenuOpened;
+  final bool compact;
+  final bool iconAbove;
 
   @override
   ConsumerState<LoopBandDeleteRegion> createState() =>
@@ -87,6 +92,8 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
   SavedLoop? _hoverLoop;
   var _hoverX = 0.0;
   var _suppressTapUp = false;
+  var _pointerInside = false;
+  var _pointerX = 0.0;
 
   @override
   void initState() {
@@ -101,12 +108,24 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
   }
 
   bool _onKey(KeyEvent event) {
-    if (event is KeyUpEvent &&
+    if (event is KeyDownEvent &&
+        (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
+            event.logicalKey == LogicalKeyboardKey.shiftRight)) {
+      _updateHoverFromPointer();
+    } else if (event is KeyUpEvent &&
         (event.logicalKey == LogicalKeyboardKey.shiftLeft ||
             event.logicalKey == LogicalKeyboardKey.shiftRight)) {
       _clearHover();
     }
     return false;
+  }
+
+  void _updateHoverFromPointer() {
+    if (!_pointerInside || !shiftKeyPressed()) {
+      _clearHover();
+      return;
+    }
+    _updateHover(_loopAt(_pointerX), _pointerX);
   }
 
   SavedLoop? _loopAt(double x) {
@@ -182,9 +201,16 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
             width: widget.width,
             height: widget.height,
           );
-    final iconLeft = widget.width <= 18
+    final iconSize = widget.compact ? 22.0 : 26.0;
+    final maxIconLeft = widget.width <= iconSize
         ? 0.0
-        : (_hoverX - 9).clamp(0.0, widget.width - 18);
+        : widget.width - iconSize;
+    final iconLeft = hoverRect == null
+        ? 0.0
+        : (hoverRect.center.dx - iconSize / 2).clamp(0.0, maxIconLeft);
+    final iconTop = widget.iconAbove
+        ? -iconSize - 2
+        : (widget.height - iconSize) / 2;
 
     return MixarContextMenu(
       enabled: widget.loops.isNotEmpty,
@@ -200,14 +226,19 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
         },
       ),
       childBuilder: (context, handle) => MouseRegion(
-        onHover: (event) {
-          if (!shiftKeyPressed()) {
-            _clearHover();
-            return;
-          }
-          _updateHover(_loopAt(event.localPosition.dx), event.localPosition.dx);
+        onEnter: (event) {
+          _pointerInside = true;
+          _pointerX = event.localPosition.dx;
+          _updateHoverFromPointer();
         },
-        onExit: (_) => _clearHover(),
+        onHover: (event) {
+          _pointerX = event.localPosition.dx;
+          _updateHoverFromPointer();
+        },
+        onExit: (_) {
+          _pointerInside = false;
+          _clearHover();
+        },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapDown: _hoverLoop == null
@@ -255,34 +286,40 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
           ),
           child: Stack(
             fit: StackFit.expand,
+            clipBehavior: Clip.none,
             children: [
               widget.child,
               if (hoverRect != null)
-                Positioned(
-                  left: hoverRect.left,
-                  width: hoverRect.width,
-                  top: 0,
-                  bottom: 0,
+                Positioned.fill(
                   child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: theme.colors.destructive.withValues(alpha: 0.18),
-                        border: Border.all(color: theme.colors.destructive),
+                    child: CustomPaint(
+                      painter: _DeleteBandPainter(
+                        rect: hoverRect,
+                        accent: theme.colors.destructive,
+                        compact: widget.compact,
                       ),
                     ),
                   ),
                 ),
-              if (hover != null)
+              if (hoverRect != null)
                 Positioned(
                   left: iconLeft,
-                  top: (widget.height - 18) / 2,
-                  width: 18,
-                  height: 18,
+                  top: iconTop,
+                  width: iconSize,
+                  height: iconSize,
                   child: IgnorePointer(
-                    child: Icon(
-                      LucideIcons.trash2,
-                      size: 18,
-                      color: theme.colors.destructive,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: theme.colors.destructive,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          LucideIcons.trash2,
+                          size: iconSize * 0.55,
+                          color: const Color(0xFFFFFFFF),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -292,4 +329,31 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
       ),
     );
   }
+}
+
+class _DeleteBandPainter extends CustomPainter {
+  new({required this.rect, required this.accent, required this.compact});
+
+  final Rect rect;
+  final Color accent;
+  final bool compact;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    paintLoopBand(
+      canvas: canvas,
+      rect: rect,
+      size: size,
+      accent: accent,
+      fill: accent.withValues(alpha: 0.14),
+      compact: compact,
+      showFlag: true,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DeleteBandPainter oldDelegate) =>
+      oldDelegate.rect != rect ||
+      oldDelegate.accent != accent ||
+      oldDelegate.compact != compact;
 }

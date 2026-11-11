@@ -127,8 +127,33 @@ void main() {
     await tester.pump();
 
     expect(find.byIcon(LucideIcons.trash2), findsOneWidget);
+    final stripTopLeft = tester.getTopLeft(find.byType(OverviewStrip));
+    final iconCenter = tester.getCenter(find.byIcon(LucideIcons.trash2));
+    expect(iconCenter.dx, closeTo(stripTopLeft.dx + stripWidth * 0.3, 1));
+    expect(iconCenter.dy, lessThan(stripTopLeft.dy));
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
   });
+
+  testWidgets(
+    'pressing Shift over a paused mouse shows the delete affordance',
+    (tester) async {
+      await pumpStrip(tester);
+      final position = centerOfLoop(tester);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: position);
+      await tester.sendEventToBinding(
+        PointerHoverEvent(position: position + const Offset(1, 0)),
+      );
+      await tester.pump();
+      expect(find.byIcon(LucideIcons.trash2), findsNothing);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+
+      expect(find.byIcon(LucideIcons.trash2), findsOneWidget);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    },
+  );
 
   testWidgets('shift+hover click deletes without the menu', (tester) async {
     final fake = await pumpStrip(tester);

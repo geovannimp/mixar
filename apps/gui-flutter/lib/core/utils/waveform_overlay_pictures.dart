@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/painting.dart';
 import 'package:gui_flutter/core/models/bus_enums.dart';
 import 'package:gui_flutter/core/utils/waveform_beat_grid.dart';
@@ -9,18 +11,15 @@ import 'package:gui_flutter/widgets/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 
 // Saved-loop fill stays neutral so it reads on both the near-black dark lane
-// and the light one; the edges reuse the active-loop teal at lower alpha so a
-// remembered region is recognizable without competing with the active loop.
+// and the light one; the edges reuse the theme primary accent so a remembered
+// region is recognizable without competing with the active loop.
 const _savedLoopFill = Color.fromRGBO(148, 163, 184, 0.24);
-const _savedLoopBorder = Color.fromRGBO(52, 211, 153, 0.45);
-const _savedLoopMarker = Color.fromRGBO(52, 211, 153, 0.85);
+const _fallbackLoopAccent = Color.fromRGBO(52, 211, 153, 1);
 const _beatGridBar = Color.fromRGBO(150, 155, 165, 0.42);
 const _beatGridBeat = Color.fromRGBO(150, 155, 165, 0.26);
 // Phase arrows sit on top of the bar lines, so they get more weight than the
 // grid itself without becoming chrome.
 const _phaseArrow = Color.fromRGBO(190, 195, 205, 0.9);
-const _activeLoopFill = Color.fromRGBO(52, 211, 153, 0.18);
-const _activeLoopBorder = Color.fromRGBO(52, 211, 153, 0.70);
 const _pendingLoopIn = Color.fromRGBO(251, 191, 36, 0.95);
 
 Picture recordBeatGridPicture({
@@ -89,21 +88,12 @@ Picture recordLoopPicture({
   required int originMs,
   required int spanMs,
   required Size size,
+  Color? accent,
+  bool compact = false,
 }) {
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder, Offset.zero & size);
-  final fill = Paint()
-    ..color = _savedLoopFill
-    ..style = PaintingStyle.fill;
-  final border = Paint()
-    ..color = _savedLoopBorder
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 1
-    ..isAntiAlias = false;
-  final edge = Paint()
-    ..color = _savedLoopMarker
-    ..strokeWidth = 2
-    ..isAntiAlias = false;
+  final color = accent ?? _fallbackLoopAccent;
   for (final loop in loops) {
     final rect = loopRegionRect(
       inMs: loop.inMs,
@@ -116,8 +106,45 @@ Picture recordLoopPicture({
     if (rect == null) {
       continue;
     }
-    canvas.drawRect(rect, fill);
-    canvas.drawRect(rect, border);
+    paintLoopBand(
+      canvas: canvas,
+      rect: rect,
+      size: size,
+      accent: color,
+      fill: _savedLoopFill,
+      compact: compact,
+    );
+  }
+  return recorder.endRecording();
+}
+
+/// Paint one saved-loop band.
+///
+/// Compact previews use the same 1px box as the delete affordance; the taller
+/// scrolling lane gets the 2px in/out edges so the region reads at speed.
+void paintLoopBand({
+  required Canvas canvas,
+  required Rect rect,
+  required Size size,
+  required Color accent,
+  required Color fill,
+  required bool compact,
+  bool showFlag = true,
+}) {
+  canvas.drawRect(rect, Paint()..color = fill);
+  canvas.drawRect(
+    rect,
+    Paint()
+      ..color = accent.withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..isAntiAlias = false,
+  );
+  if (!compact) {
+    final edge = Paint()
+      ..color = accent.withValues(alpha: 0.85)
+      ..strokeWidth = 2
+      ..isAntiAlias = false;
     for (final x in [rect.left.roundToDouble(), rect.right.roundToDouble()]) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), edge);
       canvas.drawLine(Offset(x - 3, 1), Offset(x + 3, 1), edge);
@@ -128,7 +155,54 @@ Picture recordLoopPicture({
       );
     }
   }
-  return recorder.endRecording();
+  if (showFlag) {
+    _paintLoopFlag(
+      canvas,
+      x: rect.left,
+      accent: accent,
+      laneHeight: size.height,
+      width: size.width,
+    );
+  }
+}
+
+void _paintLoopFlag(
+  Canvas canvas, {
+  required double x,
+  required Color accent,
+  required double laneHeight,
+  required double width,
+}) {
+  final flagH = laneHeight >= 64 ? 20.0 : (laneHeight * 0.42).clamp(10.0, 14.0);
+  final flagW = flagH * 1.15;
+  final maxLeft = math.max(0.0, width - flagW);
+  final left = (x - flagW / 2).clamp(0.0, maxLeft);
+  final rect = RRect.fromRectAndRadius(
+    Rect.fromLTWH(left, 1, flagW, flagH),
+    Radius.circular(flagH * 0.18),
+  );
+  canvas.drawRRect(rect, Paint()..color = accent);
+  const icon = Icons.loop;
+  final painter = TextPainter(
+    text: TextSpan(
+      text: String.fromCharCode(icon.codePoint),
+      style: TextStyle(
+        fontFamily: icon.fontFamily,
+        package: icon.fontPackage,
+        fontSize: flagH * 0.68,
+        height: 1,
+        color: const Color(0xFFFFFFFF),
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  painter.paint(
+    canvas,
+    Offset(
+      rect.center.dx - painter.width / 2,
+      rect.center.dy - painter.height / 2,
+    ),
+  );
 }
 
 /// Returns null when there is no engaged active loop to draw.
@@ -137,6 +211,7 @@ Picture? recordActiveLoopPicture({
   required int originMs,
   required int spanMs,
   required Size size,
+  Color? accent,
 }) {
   if (loop == null || !loop.active) {
     return null;
@@ -152,18 +227,19 @@ Picture? recordActiveLoopPicture({
   if (rect == null) {
     return null;
   }
+  final color = accent ?? _fallbackLoopAccent;
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder, Offset.zero & size);
   canvas.drawRect(
     rect,
     Paint()
-      ..color = _activeLoopFill
+      ..color = color.withValues(alpha: 0.18)
       ..style = PaintingStyle.fill,
   );
   canvas.drawRect(
     rect,
     Paint()
-      ..color = _activeLoopBorder
+      ..color = color.withValues(alpha: 0.70)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
       ..isAntiAlias = false,
@@ -224,7 +300,7 @@ Picture recordCuePicture({
     final color = hotCueAccent(cue.slot).border.withValues(alpha: 1);
     final line = Paint()
       ..color = color
-      ..strokeWidth = 1
+      ..strokeWidth = 2
       ..isAntiAlias = false;
     canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
     _paintCueFlag(
@@ -259,7 +335,7 @@ void _paintCueFlag(
     Paint()
       ..color = const Color.fromRGBO(0, 0, 0, 0.4)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1,
+      ..strokeWidth = 2,
   );
   final tp = TextPainter(
     text: TextSpan(

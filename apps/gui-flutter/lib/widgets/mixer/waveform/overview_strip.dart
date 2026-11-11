@@ -63,6 +63,8 @@ class OverviewStrip extends ConsumerWidget {
                 spanMs: durationMs,
                 width: width,
                 height: height,
+                compact: true,
+                iconAbove: true,
                 onTapMs: durationMs <= 0
                     ? null
                     : (ms) => unawaited(_seek(ref, context, deckId, ms)),
@@ -85,6 +87,7 @@ class OverviewStrip extends ConsumerWidget {
                             height: height,
                             hotCues: hotCues,
                             savedLoops: savedLoops,
+                            accent: theme.colors.primary,
                           ),
                         ),
                       if (durationMs > 0)
@@ -171,6 +174,7 @@ class _OverviewOverlayLayer extends StatefulWidget {
     required this.height,
     required this.hotCues,
     required this.savedLoops,
+    required this.accent,
   });
 
   final int durationMs;
@@ -178,6 +182,7 @@ class _OverviewOverlayLayer extends StatefulWidget {
   final double height;
   final List<DeckHotCue> hotCues;
   final List<SavedLoop> savedLoops;
+  final Color accent;
 
   @override
   State<_OverviewOverlayLayer> createState() => _OverviewOverlayLayerState();
@@ -223,6 +228,7 @@ class _OverviewOverlayLayerState extends State<_OverviewOverlayLayer> {
       widget.durationMs,
       widget.width,
       widget.height,
+      widget.accent,
       Object.hashAll(widget.savedLoops),
     );
     if (loopKey != _loopKey) {
@@ -234,6 +240,8 @@ class _OverviewOverlayLayerState extends State<_OverviewOverlayLayer> {
               originMs: 0,
               spanMs: widget.durationMs,
               size: size,
+              accent: widget.accent,
+              compact: true,
             );
       _loopKey = loopKey;
     }

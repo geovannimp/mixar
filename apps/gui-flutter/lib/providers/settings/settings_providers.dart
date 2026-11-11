@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show Brightness, Color, PlatformDispatcher;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -13,6 +14,7 @@ import 'package:gui_flutter/providers/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 
 class SettingsDeepLink {
   const new({
@@ -52,6 +54,20 @@ final audioDevicesProvider = FutureProvider<List<OutputDevice>>(
 final appSettingsProvider = FutureProvider<AppSettings>((ref) async {
   final settings = await ref.watch(settingsTransportProvider.future);
   return normalizeAppSettings(await settings.getSettings());
+});
+
+/// Primary accent for canvas-painted overlays, which cannot read a build
+/// context from a provider.
+final themePrimaryProvider = Provider<Color>((ref) {
+  final settings =
+      ref.watch(appSettingsProvider).asData?.value ?? defaultAppSettings();
+  final palette = accentPaletteFromSettings(settings.accentPalette);
+  final brightness = switch (settings.theme) {
+    ThemeSetting.light => Brightness.light,
+    ThemeSetting.dark => Brightness.dark,
+    ThemeSetting.system => PlatformDispatcher.instance.platformBrightness,
+  };
+  return MixarThemeData.of(palette, brightness).colors.primary;
 });
 
 /// Resolve the saved settings before the first frame.
