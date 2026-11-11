@@ -132,6 +132,7 @@ class EngineUiSnapshot {
     this.durationMs = const {},
     this.speeds = const {},
     this.tempoRanges = const {},
+    this.playbackRatios = const {},
     this.keyLocks = const {},
     this.keyShifts = const {},
     this.keyboardPages = const {},
@@ -179,6 +180,7 @@ class EngineUiSnapshot {
   final Map<int, int> durationMs;
   final Map<int, double> speeds;
   final Map<int, double> tempoRanges;
+  final Map<int, double> playbackRatios;
   final Map<int, bool> keyLocks;
   final Map<int, double> keyShifts;
   final Map<int, int> keyboardPages;
@@ -220,6 +222,9 @@ class EngineUiSnapshot {
   double speedFor(int deckId) => speeds[deckId] ?? 0.5;
 
   double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? kDefaultTempoRange;
+
+  /// Actual playback ratio (`1.0` = unity), including a tempo-sync override.
+  double playbackRatioFor(int deckId) => playbackRatios[deckId] ?? 1.0;
 
   bool keyLockFor(int deckId) => keyLocks[deckId] ?? false;
 
@@ -286,6 +291,7 @@ class EngineUiSnapshot {
     Map<int, int>? durationMs,
     Map<int, double>? speeds,
     Map<int, double>? tempoRanges,
+    Map<int, double>? playbackRatios,
     Map<int, bool>? keyLocks,
     Map<int, double>? keyShifts,
     Map<int, int>? keyboardPages,
@@ -326,6 +332,7 @@ class EngineUiSnapshot {
     durationMs: durationMs ?? this.durationMs,
     speeds: speeds ?? this.speeds,
     tempoRanges: tempoRanges ?? this.tempoRanges,
+    playbackRatios: playbackRatios ?? this.playbackRatios,
     keyLocks: keyLocks ?? this.keyLocks,
     keyShifts: keyShifts ?? this.keyShifts,
     keyboardPages: keyboardPages ?? this.keyboardPages,
@@ -390,6 +397,7 @@ EngineUiSnapshot _applyDeckUpdate(
   final channels = Map<int, MixerChannelUi>.from(prev.channels);
   final speeds = Map<int, double>.from(prev.speeds);
   final tempoRanges = Map<int, double>.from(prev.tempoRanges);
+  final playbackRatios = Map<int, double>.from(prev.playbackRatios);
   final keyLocks = Map<int, bool>.from(prev.keyLocks);
   final keyShifts = Map<int, double>.from(prev.keyShifts);
   final keyboardPages = Map<int, int>.from(prev.keyboardPages);
@@ -417,6 +425,7 @@ EngineUiSnapshot _applyDeckUpdate(
   channels[id] = MixerChannelUi.fromDeckUpdate(update);
   speeds[id] = update.speed;
   tempoRanges[id] = update.tempoRange;
+  playbackRatios[id] = update.playbackRatio;
   keyLocks[id] = update.keyLock;
   quantize[id] = update.quantize;
   slipEnabled[id] = update.slipEnabled;
@@ -508,6 +517,7 @@ EngineUiSnapshot _applyDeckUpdate(
     channels: channels,
     speeds: speeds,
     tempoRanges: tempoRanges,
+    playbackRatios: playbackRatios,
     keyLocks: keyLocks,
     keyShifts: keyShifts,
     keyboardPages: keyboardPages,
@@ -614,6 +624,7 @@ bus.DeckUpdated _updateFromSnapshot(
   volume: deck.volume,
   speed: deck.speed,
   tempoRange: deck.tempoRange,
+  playbackRatio: deck.playbackRatio,
   keyLock: deck.keyLock,
   keyShift: deck.keyShift,
   keyboardPage: deck.keyboardPage,

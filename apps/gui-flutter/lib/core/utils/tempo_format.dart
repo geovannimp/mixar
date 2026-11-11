@@ -44,6 +44,20 @@ double? effectiveBpm(
   return bpm * normToSpeedRatio(speedNorm, tempoRange);
 }
 
+/// Effective BPM from the engine's actual playback ratio.
+///
+/// Tempo sync may need a ratio outside the fader span, so this stays exact
+/// where [effectiveBpm] would saturate at the fader edge.
+double? effectiveBpmFromRatio(double? bpm, double playbackRatio) {
+  if (bpm == null || !bpm.isFinite || bpm <= 0) {
+    return null;
+  }
+  if (!playbackRatio.isFinite || playbackRatio <= 0) {
+    return null;
+  }
+  return bpm * playbackRatio;
+}
+
 String formatBpm(double? bpm) {
   if (bpm == null || !bpm.isFinite) {
     return '—';
@@ -51,15 +65,22 @@ String formatBpm(double? bpm) {
   return bpm.toStringAsFixed(2);
 }
 
+/// Ratio percent offset (e.g. `+6.00%`).
+String _formatPercent(double ratio) {
+  final percent = (ratio - 1) * 100;
+  final sign = percent >= 0 ? '+' : '';
+  return '$sign${percent.toStringAsFixed(2)}%';
+}
+
 /// Playback-ratio percent offset (e.g. `+6.00%`).
 String formatPitchPercent(
   double speedNorm, [
   double tempoRange = kDefaultTempoRange,
-]) {
-  final percent = (normToSpeedRatio(speedNorm, tempoRange) - 1) * 100;
-  final sign = percent >= 0 ? '+' : '';
-  return '$sign${percent.toStringAsFixed(2)}%';
-}
+]) => _formatPercent(normToSpeedRatio(speedNorm, tempoRange));
+
+/// Format pitch from the engine's actual playback ratio (e.g. `+20.00%`).
+String formatRatioPercent(double playbackRatio) =>
+    _formatPercent(playbackRatio);
 
 /// Format tempo range for UI (e.g. `±6%`).
 String formatTempoRange(double tempoRange) {

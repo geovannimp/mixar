@@ -78,6 +78,7 @@ class DeckPanel extends ConsumerWidget {
       syncMode: ref.watch(deckSyncModeProvider(deckId)),
       isMaster: isMaster,
       trackBpm: ref.watch(deckBpmProvider(deckId)),
+      playbackRatio: ref.watch(deckPlaybackRatioProvider(deckId)),
       loading: skeleton,
       enabled: engineRunning,
       tempoRangeSteps: settings?.tempoRangeSteps ?? kTempoRangeSteps,

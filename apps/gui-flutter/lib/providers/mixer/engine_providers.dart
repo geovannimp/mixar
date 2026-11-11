@@ -8,7 +8,6 @@ import 'package:gui_flutter/core/models/engine_ui.dart';
 import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/fx_params.dart';
 import 'package:gui_flutter/core/utils/jog_ticks.dart';
-import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/core/utils/track_drag.dart';
 import 'package:gui_flutter/providers/library/providers.dart';
 import 'package:gui_flutter/providers/mixer/waveform/waveform_providers.dart';
@@ -497,13 +496,13 @@ final ProviderFamily<int?, int> deckDurationMsProvider =
 
 final ProviderFamily<double, int> deckSpeedRatioProvider =
     Provider.family<double, int>((ref, deckId) {
-      final speed = ref.watch(
-        engineUiProvider.select((s) => s.speedFor(deckId)),
+      // The engine's actual playback ratio includes the tempo-sync override.
+      // Deriving it from `speed` × `tempoRange` saturates at the fader edge,
+      // which would scale the waveform grid/scroll at the wrong tempo when a
+      // synced deck needs a ratio outside its tempo range.
+      return ref.watch(
+        engineUiProvider.select((s) => s.playbackRatioFor(deckId)),
       );
-      final range = ref.watch(
-        engineUiProvider.select((s) => s.tempoRangeFor(deckId)),
-      );
-      return normToSpeedRatio(speed, range);
     });
 
 final engineRunningProvider = Provider<bool>(
@@ -740,6 +739,16 @@ final ProviderFamily<double, int> deckTempoRangeProvider =
     Provider.family<double, int>(
       (ref, deckId) =>
           ref.watch(engineUiProvider.select((s) => s.tempoRangeFor(deckId))),
+    );
+
+/// Actual playback ratio (`1.0` = unity), including a tempo-sync override.
+///
+/// Unlike `speed` × `tempoRange`, this stays correct when sync needs a ratio
+/// outside the tempo fader's span.
+final ProviderFamily<double, int> deckPlaybackRatioProvider =
+    Provider.family<double, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.playbackRatioFor(deckId))),
     );
 
 final ProviderFamily<bool, int> deckKeyLockProvider =

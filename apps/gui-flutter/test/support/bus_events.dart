@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:gui_flutter/core/utils/tempo_format.dart';
 import 'package:gui_flutter/src/rust/api/event_mirrors.dart';
 
 /// Bus events built for tests.
@@ -19,6 +20,7 @@ DeckUpdated deckUpdated({
   double volume = 1,
   double speed = 0.5,
   double tempoRange = 0.06,
+  double? playbackRatio,
   bool keyLock = false,
   double keyShift = 0,
   int keyboardPage = 2,
@@ -67,6 +69,7 @@ DeckUpdated deckUpdated({
   volume: volume,
   speed: speed,
   tempoRange: tempoRange,
+  playbackRatio: playbackRatio ?? normToSpeedRatio(speed, tempoRange),
   keyLock: keyLock,
   keyShift: keyShift,
   keyboardPage: keyboardPage,
@@ -221,6 +224,7 @@ DeckSnapshot deckSnapshot({
   String? artist,
   bool playing = false,
   double volume = 1,
+  double playbackRatio = 1,
   int? durationMs,
   int? positionMs,
   bool headphoneCue = false,
@@ -235,6 +239,7 @@ DeckSnapshot deckSnapshot({
   volume: volume,
   speed: 0.5,
   tempoRange: 0.06,
+  playbackRatio: playbackRatio,
   keyLock: false,
   keyShift: 0,
   keyboardPage: 2,
