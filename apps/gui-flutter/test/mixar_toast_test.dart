@@ -276,15 +276,23 @@ void main() {
     final titleX = tester
         .getTopLeft(find.text('Switch audio outputs to DDJ-400?'))
         .dx;
-    expect(
-      tester.getTopLeft(find.text('Warning: Mixar will restart.')).dx,
-      moreOrLessEquals(titleX, epsilon: 0.5),
-      reason: 'description must sit in the title copy column',
+    // Tolerance: the copy column is padding, so sub-pixel rounding is all the
+    // slack an aligned element may have.
+    void expectInCopyColumn(Finder finder, String reason) {
+      expect(
+        tester.getTopLeft(finder).dx,
+        moreOrLessEquals(titleX, epsilon: 0.5),
+        reason: reason,
+      );
+    }
+
+    expectInCopyColumn(
+      find.text('Warning: Mixar will restart.'),
+      'description must sit in the title copy column',
     );
-    expect(
-      tester.getTopLeft(find.text('Remember')).dx,
-      moreOrLessEquals(titleX, epsilon: 0.5),
-      reason: 'actions must sit in the title copy column',
+    expectInCopyColumn(
+      find.text('Remember'),
+      'actions must sit in the title copy column',
     );
   });
 
