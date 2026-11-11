@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
@@ -97,8 +95,8 @@ class _AppNavDrawer extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // The menu carries the wordmark: it reads as the app's menu,
-                    // not a page-local drawer.
+                    // The menu carries the wordmark: it reads as the app's
+                    // menu, not a page-local drawer.
                     Padding(
                       padding: const EdgeInsets.fromLTRB(18, 14, 12, 12),
                       child: Align(
@@ -121,15 +119,13 @@ class _AppNavDrawer extends StatelessWidget {
                       icon: LucideIcons.play,
                       label: 'Play',
                       selected: current == ShellTab.mixer,
-                      onPress: () =>
-                          unawaited(_select(context, ShellTab.mixer)),
+                      onPress: () => _select(context, ShellTab.mixer),
                     ),
                     NavListItem(
                       icon: LucideIcons.settings,
                       label: 'Settings',
                       selected: current == ShellTab.settings,
-                      onPress: () =>
-                          unawaited(_select(context, ShellTab.settings)),
+                      onPress: () => _select(context, ShellTab.settings),
                     ),
                   ],
                 ),
