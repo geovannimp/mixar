@@ -5,6 +5,8 @@ use bus_api::DeleteTrackHotCue;
 use bus_api::Event;
 use bus_api::HotCue;
 use bus_api::SaveTrackHotCue;
+use bus_api::SaveTrackLoop;
+use bus_api::AUTO_LOOP_SLOT;
 
 use crate::engine::Engine;
 
@@ -56,6 +58,29 @@ impl Engine {
             slot,
         }))?;
         Ok(())
+    }
+
+    /// Persist the loop region a user just activated or edited. Best-effort:
+    /// a deck action never fails because the library bus is unavailable.
+    pub fn auto_save_deck_loop(&mut self, deck_id: usize, in_ms: i32, out_ms: i32) -> Result<()> {
+        let track_id = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|control| control.track_id.clone());
+        let Some(track_id) = track_id else {
+            return Ok(());
+        };
+        if self.library_cmd.is_none() {
+            return Ok(());
+        }
+        self.publish_library_cmd(Event::SaveTrackLoop(SaveTrackLoop {
+            track_id: track_id.as_str().to_string(),
+            slot: AUTO_LOOP_SLOT,
+            in_ms,
+            out_ms,
+            label: None,
+            color: None,
+        }))
     }
 
     /// Apply library-acked hot cues to every deck currently loaded with `track_id`.
