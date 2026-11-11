@@ -412,10 +412,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           context: context,
           title: Text(l10n.settingsSavedNotAppliedToast),
           description: Text(result.applyError!),
-          variant: MixarToastVariant.destructive,
+          variant: MixarToastVariant.warning,
         );
       } else {
-        showMixarToast(context: context, title: Text(l10n.settingsSavedToast));
+        showMixarToast(
+          context: context,
+          title: Text(l10n.settingsSavedToast),
+          variant: MixarToastVariant.success,
+        );
       }
       return result.applyError == null;
     } catch (e) {

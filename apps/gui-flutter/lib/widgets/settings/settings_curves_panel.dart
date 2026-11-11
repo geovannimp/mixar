@@ -254,6 +254,7 @@ class _SettingsCurvesPanelState extends State<SettingsCurvesPanel> {
     showMixarToast(
       context: context,
       title: Text(l10n.curvesImported(_groupName(imported))),
+      variant: MixarToastVariant.success,
     );
   }
 

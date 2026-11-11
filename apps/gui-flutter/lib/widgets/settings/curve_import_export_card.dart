@@ -120,6 +120,7 @@ class _CurveImportExportCardState extends State<CurveImportExportCard> {
           imported.displayName.isEmpty ? imported.id : imported.displayName,
         ),
       ),
+      variant: MixarToastVariant.success,
     );
   }
 

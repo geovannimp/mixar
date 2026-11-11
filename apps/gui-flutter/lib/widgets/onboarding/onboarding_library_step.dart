@@ -78,8 +78,12 @@ class _OnboardingLibraryStepState extends ConsumerState<OnboardingLibraryStep> {
               : l10n.onboardingLibraryFolderFailed,
         ),
         description: notice == null ? null : Text(notice.message),
-        variant: imported && notice == null
-            ? MixarToastVariant.primary
+        // Unreadable files are an error even when the rest of the folder
+        // imported; an empty folder is a failure, not an error.
+        variant: (notice?.isError ?? false)
+            ? MixarToastVariant.destructive
+            : imported
+            ? MixarToastVariant.success
             : MixarToastVariant.destructive,
       );
     } on Object catch (e) {

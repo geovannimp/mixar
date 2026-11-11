@@ -136,6 +136,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     showMixarToast(
       context: context,
       title: Text('Added “$title” to “${collection.name}”'),
+      variant: MixarToastVariant.success,
     );
   }
 

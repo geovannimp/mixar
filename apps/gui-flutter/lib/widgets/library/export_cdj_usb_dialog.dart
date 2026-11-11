@@ -133,11 +133,15 @@ class _ExportCdjUsbDialogBodyState
         context: context,
         title: Text(l10n.cdjExportFinishedWithWarnings(report.warnings.length)),
         description: Text([...report.warnings.take(3), summary].join('\n')),
-        variant: MixarToastVariant.destructive,
+        variant: MixarToastVariant.warning,
       );
       return;
     }
-    showMixarToast(context: context, title: Text(summary));
+    showMixarToast(
+      context: context,
+      title: Text(summary),
+      variant: MixarToastVariant.success,
+    );
   }
 
   void _toastError(String title, Object error) {

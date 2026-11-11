@@ -98,6 +98,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
               ? toastL10n.settingsStorageStemAlreadyInSync
               : toastL10n.settingsStorageRemovedOrphans(removed),
         ),
+        variant: MixarToastVariant.success,
       );
       await _refresh();
     } catch (e) {

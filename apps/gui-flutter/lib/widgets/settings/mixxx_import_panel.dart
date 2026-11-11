@@ -136,6 +136,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
     showMixarToast(
       context: context,
       title: Text(mixxxImportSummary(l10n, report)),
+      variant: MixarToastVariant.success,
     );
   }
 
