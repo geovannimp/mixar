@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/analytics/analytics_providers.dart';
@@ -6,6 +8,7 @@ import 'package:gui_flutter/core/models/shell_tab.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/library/history_providers.dart';
 import 'package:gui_flutter/providers/mixer/deck_load.dart';
+import 'package:gui_flutter/providers/settings/settings_leave_guard.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/providers/shell/bus_providers.dart';
 import 'package:gui_flutter/screens/mixer_page.dart';
@@ -36,6 +39,33 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// of the settings page.
   void _closeLibraryDrawer() {
     ref.read(libraryDrawerOpenProvider.notifier).set(false);
+  }
+
+  /// Switches pages from the header's menu.
+  ///
+  /// Leaving Settings asks the page first: its draft, and the save that can
+  /// apply it, live there — the menu cannot see either.
+  Future<void> _selectPage(ShellTab tab) async {
+    if (tab == _tab) {
+      return;
+    }
+    if (_tab == ShellTab.settings) {
+      final guard = ref.read(settingsLeaveGuardProvider);
+      if (guard != null && !await guard()) {
+        return;
+      }
+      if (!mounted) {
+        return;
+      }
+    }
+    if (tab != ShellTab.mixer) {
+      _closeLibraryDrawer();
+    }
+    setState(() {
+      _tab = tab;
+      // Manual tab changes never carry a deep link; listen sets it.
+      _settingsDeepLink = null;
+    });
   }
 
   @override
@@ -70,16 +100,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           AppHeader(
             appTitle: widget.appTitle,
             tab: _tab,
-            onTabChanged: (tab) {
-              if (tab != ShellTab.mixer) {
-                _closeLibraryDrawer();
-              }
-              setState(() {
-                _tab = tab;
-                // Manual tab changes never carry a deep link; listen sets it.
-                _settingsDeepLink = null;
-              });
-            },
+            onTabChanged: _selectPage,
           ),
           const AppNoticeBridge(),
           const ControllerOfferBridge(),
@@ -95,10 +116,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                     _settingsDeepLink?.section ?? SettingsSection.ui,
                 scrollToPreviewBus:
                     _settingsDeepLink?.scrollToPreviewBus ?? false,
-                onClose: () => setState(() {
-                  _tab = ShellTab.mixer;
-                  _settingsDeepLink = null;
-                }),
               ),
             },
           ),

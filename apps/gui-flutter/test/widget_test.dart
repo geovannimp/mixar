@@ -39,7 +39,7 @@ import 'package:gui_flutter/widgets/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/widgets/mixer/waveform/vertical_lane.dart';
 import 'package:gui_flutter/widgets/mixer/waveform_section.dart';
 import 'package:gui_flutter/widgets/settings/settings_glow_flash.dart';
-import 'package:gui_flutter/widgets/settings/settings_sidebar.dart';
+import 'package:gui_flutter/widgets/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
 import 'package:gui_flutter/widgets/shell/app_header.dart';
 import 'package:gui_flutter/widgets/shell/mixar_input.dart';
@@ -196,6 +196,29 @@ void main() {
     } else {
       await tester.pump();
     }
+  }
+
+  /// The menu button holds the hamburger and the wordmark, so the icon alone
+  /// is not the hit target: press the button.
+  Future<void> openMenu(WidgetTester tester) async {
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppHeader),
+        matching: find.byWidgetPredicate(
+          (w) => w is AppButton && w.semanticsLabel == 'Menu',
+        ),
+      ),
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle();
+  }
+
+  /// Settings is no longer a header button: it lives in the pages menu behind
+  /// the hamburger next to the logo.
+  Future<void> openSettings(WidgetTester tester) async {
+    await openMenu(tester);
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
   }
 
   testWidgets('four-deck profile renders all four deck panels', (tester) async {
@@ -364,20 +387,14 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.byType(AppHeader),
-        matching: find.byIcon(LucideIcons.libraryBig),
+        matching: find.text('Library'),
       ),
     );
     await tester.pumpAndSettle();
     expect(find.byType(LibraryPanel), findsOneWidget);
 
     // ...and leaving the mixer puts it away, so it cannot sit over settings.
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AppHeader),
-        matching: find.byIcon(LucideIcons.settings),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await openSettings(tester);
     expect(find.byType(LibraryPanel), findsNothing);
     expect(container.read(libraryDrawerOpenProvider), isFalse);
   });
@@ -626,20 +643,22 @@ void main() {
 
     // The search moves the pane on its own; it must not consume the one-shot
     // deep-link glow owned by the Audio preview card.
-    await tester.enterText(
+    await tester.tap(
       find.descendant(
-        of: find.byType(SettingsSidebar),
-        matching: find.byType(MixarInput),
+        of: find.byType(SettingsPage),
+        matching: find.widgetWithIcon(AppButton, LucideIcons.search),
       ),
-      'theme',
     );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(MixarInput), 'theme');
     await tester.pumpAndSettle();
     expect(find.text('Preview bus'), findsNothing);
 
+    // The right-edge clear button puts the header back to the page title.
     await tester.tap(
       find.descendant(
-        of: find.byType(SettingsSidebar),
-        matching: find.byIcon(LucideIcons.x),
+        of: find.byType(SettingsPage),
+        matching: find.widgetWithIcon(AppButton, LucideIcons.x),
       ),
     );
     await tester.pumpAndSettle();
@@ -841,19 +860,17 @@ void main() {
 
   testWidgets('settings switches waveform display mode', (tester) async {
     await pumpShell(tester);
-    await tester.tap(find.byIcon(LucideIcons.settings));
-    await tester.pumpAndSettle();
+    await openSettings(tester);
     await tester.tap(find.text('Waveform'));
     await tester.pumpAndSettle();
     expect(find.text('DISPLAY MODE'), findsOneWidget);
     expect(find.text('RGB'), findsOneWidget);
-    expect(find.text('Save'), findsNothing);
+    expect(find.text('Save changes'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('settings opens on the UI section', (tester) async {
     await pumpShell(tester);
-    await tester.tap(find.byIcon(LucideIcons.settings));
-    await tester.pumpAndSettle();
+    await openSettings(tester);
 
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(
@@ -887,7 +904,7 @@ void main() {
     await tester.tap(find.text('Waveform'));
     await tester.pumpAndSettle();
     expect(find.text('DISPLAY MODE'), findsOneWidget);
-    expect(find.text('Save'), findsNothing);
+    expect(find.text('Save changes'), findsNothing);
 
     await tester.tap(find.text('Audio'));
     await tester.pumpAndSettle();
@@ -896,7 +913,7 @@ void main() {
     expect(find.text('Low latency'), findsOneWidget);
     await tester.tap(find.byType(MixarSwitch).first);
     await tester.pumpAndSettle();
-    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Save changes'), findsOneWidget);
 
     await tester.tap(find.text('Controllers'));
     await tester.pumpAndSettle();
@@ -1054,8 +1071,7 @@ void main() {
 
     // The reported gap: Settings had no line under the tab bar because the
     // hairline lived on the mixer's waveform pane.
-    await tester.tap(find.byIcon(LucideIcons.settings));
-    await tester.pumpAndSettle();
+    await openSettings(tester);
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(tester.getTopLeft(find.byType(SettingsPage)).dy, header.bottom);
     expect(headerHairline(), expected);
@@ -1100,8 +1116,7 @@ void main() {
   ) async {
     for (final theme in [MixarThemeData.dark(), MixarThemeData.light()]) {
       await pumpShell(tester, theme: theme);
-      await tester.tap(find.byIcon(LucideIcons.settings));
-      await tester.pumpAndSettle();
+      await openSettings(tester);
 
       final windowBarSurface = tester
           .widget<ColoredBox>(
@@ -1134,10 +1149,43 @@ void main() {
     }
   });
 
-  testWidgets('settings close button fills the header corner', (tester) async {
+  testWidgets('leaving settings with a dirty draft asks first', (tester) async {
     await pumpShell(tester);
-    await tester.tap(find.byIcon(LucideIcons.settings));
+    await openSettings(tester);
+
+    // Dirty the draft the way the UI card would; a real press would also fire
+    // the page's save toast, which this test does not need.
+    tester
+        .widget<SettingsUiPanel>(find.byType(SettingsUiPanel))
+        .onChanged(copyAppSettings(defaultAppSettings(), showTooltips: false));
     await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppButton, 'Save changes'), findsOneWidget);
+
+    // The pages menu is the way out now, so it runs the page's guard.
+    await openMenu(tester);
+    await tester.tap(find.text('Play'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unsaved settings'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(AppButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsPage), findsOneWidget);
+
+    // The menu still opens after a cancelled guard, and discarding leaves.
+    await openMenu(tester);
+    await tester.tap(find.text('Play'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(AppButton, 'Discard'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsPage), findsNothing);
+    expect(find.byType(MixerStrip), findsOneWidget);
+  });
+
+  testWidgets('settings header marks the page with the settings glyph', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await openSettings(tester);
 
     final header = find
         .ancestor(
@@ -1145,26 +1193,28 @@ void main() {
           matching: find.byType(DecoratedBox),
         )
         .first;
-    final close = find
-        .descendant(
-          of: header,
-          matching: find.widgetWithIcon(AppButton, LucideIcons.x),
-        )
-        .first;
-
+    // Navigation is the header's pages menu, so the corner cell is a marker:
+    // no control, just the glyph naming the page. The search toggle's seat is
+    // that same square, so the title starts one cell plus its gap in.
+    final glyph = find.descendant(
+      of: header,
+      matching: find.byIcon(LucideIcons.settings),
+    );
     final headerRect = tester.getRect(header);
-    final closeRect = tester.getRect(close);
+    final glyphRect = tester.getRect(glyph);
     final titleRect = tester.getRect(find.text('SETTINGS'));
 
-    expect(closeRect.top, moreOrLessEquals(headerRect.top));
-    expect(closeRect.bottom, moreOrLessEquals(headerRect.bottom));
-    expect(closeRect.height, greaterThan(32));
-    expect(closeRect.left, moreOrLessEquals(headerRect.left));
-    expect(closeRect.width, moreOrLessEquals(closeRect.height));
+    expect(glyph, findsOneWidget);
+    expect(headerRect.height, kSettingsHeaderHeight);
     expect(
       titleRect.left - headerRect.left,
-      moreOrLessEquals(closeRect.width + 4),
-      reason: 'the square close cell keeps a 4px gap before the title',
+      moreOrLessEquals(kSettingsHeaderHeight + 4),
+      reason: 'the square glyph cell keeps a 4px gap before the title',
+    );
+    expect(
+      glyphRect.left - headerRect.left,
+      lessThan(kSettingsHeaderHeight),
+      reason: 'the glyph sits inside the corner cell',
     );
   });
 

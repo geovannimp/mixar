@@ -38,11 +38,8 @@ void main() {
         ],
         child: mixarTestMaterialApp(
           theme: MixarThemeData.dark(),
-          home: Scaffold(
-            body: SettingsPage(
-              initialSection: SettingsSection.audio,
-              onClose: () {},
-            ),
+          home: const Scaffold(
+            body: SettingsPage(initialSection: SettingsSection.audio),
           ),
         ),
       ),

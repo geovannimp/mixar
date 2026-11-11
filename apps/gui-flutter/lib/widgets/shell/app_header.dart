@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/core/models/shell_tab.dart';
@@ -7,6 +9,7 @@ import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/providers/library/drawer_providers.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/widgets/shell/app_button.dart';
+import 'package:gui_flutter/widgets/shell/app_nav_drawer.dart';
 import 'package:gui_flutter/widgets/shell/app_tooltip.dart';
 import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 import 'package:gui_flutter/widgets/shell/window_title_bar_controls.dart';
@@ -30,7 +33,7 @@ class AppHeader extends ConsumerWidget {
 
   final String appTitle;
   final ShellTab tab;
-  final ValueChanged<ShellTab> onTabChanged;
+  final Future<void> Function(ShellTab) onTabChanged;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,7 +42,6 @@ class AppHeader extends ConsumerWidget {
     final settings = ref
         .watch(appSettingsProvider)
         .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
-    final drawerOpen = ref.watch(libraryDrawerOpenProvider);
     // The mixer forces the drawer when the body leaves too little room to dock
     // the library, so the toggle has to appear even with docked mode set.
     final drawerAvailable =
@@ -68,21 +70,48 @@ class AppHeader extends ConsumerWidget {
           height: kAppHeaderHeight,
           child: Row(
             children: [
-              _maybeDrag(
-                desktop: desktop,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Center(
-                    child: ColorFiltered(
-                      colorFilter: ColorFilter.mode(
-                        theme.colors.foreground,
-                        BlendMode.srcIn,
-                      ),
-                      child: Image.asset(
-                        kMixarLogoAsset,
-                        height: 12,
-                        semanticLabel: appTitle,
-                      ),
+              // The menu button carries the wordmark: one control in the
+              // window-manager corner, the way an app menu reads.
+              AppTooltip(
+                tip: 'Menu',
+                child: SizedBox(
+                  height: kAppHeaderHeight,
+                  child: AppButton(
+                    variant: .ghost,
+                    size: .sm,
+                    mainAxisSize: .min,
+                    semanticsLabel: 'Menu',
+                    onPress: () {
+                      // The pages drawer opens above the library drawer, and
+                      // the library route only pops itself while it is current
+                      // — so close it first, not from the tab change below.
+                      ref.read(libraryDrawerOpenProvider.notifier).set(false);
+                      unawaited(
+                        showAppNavDrawer(
+                          context,
+                          title: appTitle,
+                          current: tab,
+                          onSelect: onTabChanged,
+                        ),
+                      );
+                    },
+                    child: Row(
+                      mainAxisSize: .min,
+                      children: [
+                        const Icon(LucideIcons.menu),
+                        const SizedBox(width: 8),
+                        ColorFiltered(
+                          colorFilter: ColorFilter.mode(
+                            theme.colors.foreground,
+                            BlendMode.srcIn,
+                          ),
+                          child: Image.asset(
+                            kMixarLogoAsset,
+                            height: 12,
+                            semanticLabel: appTitle,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -96,29 +125,24 @@ class AppHeader extends ConsumerWidget {
               // Only when the library lives in a drawer, and only on the
               // mixer: the docked mode has nothing to toggle.
               if (drawerAvailable && tab == ShellTab.mixer)
-                AppTooltip(
-                  tip: drawerOpen ? 'Close library' : 'Open library',
-                  child: AppButton.icon(
+                SizedBox(
+                  height: kAppHeaderHeight,
+                  child: AppButton(
                     variant: .ghost,
                     size: .sm,
-                    semanticsLabel: drawerOpen
-                        ? 'Close library'
-                        : 'Open library',
+                    mainAxisSize: .min,
                     onPress: () =>
                         ref.read(libraryDrawerOpenProvider.notifier).toggle(),
-                    child: const Icon(LucideIcons.libraryBig),
+                    child: const Row(
+                      mainAxisSize: .min,
+                      children: [
+                        Icon(LucideIcons.libraryBig),
+                        SizedBox(width: 6),
+                        Text('Library'),
+                      ],
+                    ),
                   ),
                 ),
-              AppTooltip(
-                tip: 'Settings',
-                child: AppButton.icon(
-                  variant: .ghost,
-                  size: .sm,
-                  semanticsLabel: 'Settings',
-                  onPress: () => onTabChanged(ShellTab.settings),
-                  child: const Icon(LucideIcons.settings),
-                ),
-              ),
               if (desktop) const WindowTitleBarControls(),
             ],
           ),

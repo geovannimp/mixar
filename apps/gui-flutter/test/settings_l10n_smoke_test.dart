@@ -59,9 +59,8 @@ void main() {
         home: Scaffold(
           body: SettingsSidebar(
             active: SettingsSection.ui,
+            query: '',
             onSelect: (_) {},
-            onSearchSelect: (_) {},
-            onQueryChanged: (_) {},
           ),
         ),
       ),

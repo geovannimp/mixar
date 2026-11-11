@@ -20,6 +20,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSearchHint => 'Search';
 
   @override
+  String get settingsSearchClose => 'Close search';
+
+  @override
   String get settingsSearchNoResults => 'No matching settings';
 
   @override
@@ -31,10 +34,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsLoading => 'Loading settings…';
 
   @override
-  String get settingsCloseSemantics => 'Close';
+  String get settingsSave => 'Save';
 
   @override
-  String get settingsSave => 'Save';
+  String get settingsSaveChanges => 'Save changes';
 
   @override
   String get settingsSaving => 'Saving…';

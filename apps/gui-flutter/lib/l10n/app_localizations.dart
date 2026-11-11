@@ -111,11 +111,17 @@ abstract class AppLocalizations {
   /// **'Saving restarts the engine automatically if it\'s running.'**
   String get settingsSubtitle;
 
-  /// Placeholder of the Settings sidebar search field
+  /// Placeholder of the Settings header search field
   ///
   /// In en, this message translates to:
   /// **'Search'**
   String get settingsSearchHint;
+
+  /// Closes the Settings header search field
+  ///
+  /// In en, this message translates to:
+  /// **'Close search'**
+  String get settingsSearchClose;
 
   /// Shown when the Settings sidebar search matches no section
   ///
@@ -135,17 +141,17 @@ abstract class AppLocalizations {
   /// **'Loading settings…'**
   String get settingsLoading;
 
-  /// No description provided for @settingsCloseSemantics.
-  ///
-  /// In en, this message translates to:
-  /// **'Close'**
-  String get settingsCloseSemantics;
-
-  /// No description provided for @settingsSave.
+  /// Dialog action that saves and continues
   ///
   /// In en, this message translates to:
   /// **'Save'**
   String get settingsSave;
+
+  /// Header button that saves the edited settings
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get settingsSaveChanges;
 
   /// No description provided for @settingsSaving.
   ///

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/core/models/settings_section.dart';
 import 'package:gui_flutter/core/utils/settings_defaults.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
+import 'package:gui_flutter/providers/settings/settings_leave_guard.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -16,33 +19,36 @@ import 'package:material_ui/material_ui.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
-  testWidgets('canceling restart while closing preserves the dirty draft', (
+  testWidgets('canceling restart while leaving preserves the dirty draft', (
     tester,
   ) async {
     final baseline = copyAppSettings(defaultAppSettings(), numDecks: 2);
     final l10n = lookupAppLocalizations(const Locale('en'));
-    var closeCount = 0;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appSettingsProvider.overrideWith((ref) async => baseline)],
         child: mixarTestMaterialApp(
           theme: MixarThemeData.dark(),
-          home: Scaffold(
-            body: SettingsPage(
-              initialSection: SettingsSection.mixer,
-              onClose: () => closeCount++,
-            ),
+          home: const Scaffold(
+            body: SettingsPage(initialSection: SettingsSection.mixer),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
+    // The shell asks the page before leaving it; the page owns the draft.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(SettingsPage)),
+    );
+    Future<bool> leave() => container.read(settingsLeaveGuardProvider)!();
+
     tester
         .widget<SettingsMixerPanel>(find.byType(SettingsMixerPanel))
         .onChanged(copyAppSettings(baseline, numDecks: 4));
     await tester.pumpAndSettle();
-    await tester.tap(find.bySemanticsLabel(l10n.settingsCloseSemantics));
+    bool? left;
+    unawaited(leave().then((value) => left = value));
     await tester.pumpAndSettle();
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
 
@@ -52,7 +58,7 @@ void main() {
     await tester.tap(find.widgetWithText(AppButton, l10n.settingsCancel));
     await tester.pumpAndSettle();
 
-    expect(closeCount, 0);
+    expect(left, isFalse);
     expect(
       tester
           .widget<SettingsMixerPanel>(find.byType(SettingsMixerPanel))
@@ -60,20 +66,32 @@ void main() {
           .numDecks,
       4,
     );
-    expect(find.widgetWithText(AppButton, l10n.settingsSave), findsOneWidget);
+    expect(
+      find.widgetWithText(AppButton, l10n.settingsSaveChanges),
+      findsOneWidget,
+    );
     expect(
       tester
-          .widget<AppButton>(find.widgetWithText(AppButton, l10n.settingsSave))
+          .widget<AppButton>(
+            find.widgetWithText(AppButton, l10n.settingsSaveChanges),
+          )
           .onPress,
       isNotNull,
     );
 
-    await tester.tap(find.bySemanticsLabel(l10n.settingsCloseSemantics));
+    unawaited(leave().then((value) => left = value));
     await tester.pumpAndSettle();
     expect(find.text(l10n.settingsUnsavedTitle), findsOneWidget);
     await tester.tap(find.widgetWithText(AppButton, l10n.settingsCancel));
     await tester.pumpAndSettle();
-    expect(closeCount, 0);
+    expect(left, isFalse);
+
+    // Discarding is a real leave: the shell may navigate away.
+    unawaited(leave().then((value) => left = value));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(AppButton, l10n.settingsDiscard));
+    await tester.pumpAndSettle();
+    expect(left, isTrue);
   });
 
   testWidgets('adopts audio outputs saved outside the page', (tester) async {
