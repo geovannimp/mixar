@@ -7,6 +7,9 @@ idiomatic_version_file_enable_tools = ["node", "rust"]
 flutter = { version = "3.47.7", postinstall = "dart pub global activate dashmonx" }
 ninja = "1.13.2"
 "npm:@colbymchenry/codegraph" = "latest"
+# Desktop control for agents (AX/AT-SPI tree + refs, no pixels). See AGENTS.md.
+# allow_builds runs the package postinstall, which links the native binary.
+"npm:agent-desktop" = { version = "1.2.0", allow_builds = ["agent-desktop"] }
 
 # dart pub global binaries (e.g. dashmonx from flutter postinstall)
 [env]
