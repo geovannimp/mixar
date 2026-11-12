@@ -155,19 +155,12 @@ class _CreateCollectionDialogBodyState
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return MixarDialog(
+      title: 'Create collection',
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Create collection',
-            style: theme.typography.body.md.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 16),
           SettingsField(
             label: 'Name',
             child: MixarInput(
@@ -247,37 +240,33 @@ class _CreateCollectionDialogBodyState
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            spacing: 8,
-            children: [
-              AppButton(
-                variant: .outline,
-                onPress: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              AppButton(
-                onPress: _canCreate
-                    ? () {
-                        Navigator.of(context).pop(
-                          CreateCollectionResult(
-                            name: _nameController.text.trim(),
-                            type: _type,
-                            folderPath: _type == CreateCollectionType.folder
-                                ? _folderPathController.text.trim()
-                                : null,
-                            scanSubfolders: _scanSubfolders,
-                            sortable: _sortable,
-                          ),
-                        );
-                      }
-                    : null,
-                child: const Text('Create'),
-              ),
-            ],
-          ),
         ],
       ),
+      actions: [
+        AppButton(
+          variant: .outline,
+          onPress: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        AppButton(
+          onPress: _canCreate
+              ? () {
+                  Navigator.of(context).pop(
+                    CreateCollectionResult(
+                      name: _nameController.text.trim(),
+                      type: _type,
+                      folderPath: _type == CreateCollectionType.folder
+                          ? _folderPathController.text.trim()
+                          : null,
+                      scanSubfolders: _scanSubfolders,
+                      sortable: _sortable,
+                    ),
+                  );
+                }
+              : null,
+          child: const Text('Create'),
+        ),
+      ],
     );
   }
 }

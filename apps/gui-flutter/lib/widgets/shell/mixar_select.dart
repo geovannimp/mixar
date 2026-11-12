@@ -166,20 +166,13 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
       final selected = await showMixarDialog<T>(
         context: context,
         builder: (dialogContext) {
-          final theme = dialogContext.theme;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+          return MixarDialog(
+            title: widget.dialogTitle ?? 'Select',
+            contentPadding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  widget.dialogTitle ?? 'Select',
-                  style: theme.typography.body.md.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 16),
                 for (final option in widget.options)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),

@@ -132,38 +132,20 @@ class HistoryDetailPane extends ConsumerWidget {
     final next = await showMixarDialog<String?>(
       context: context,
       builder: (context) {
-        final theme = context.theme;
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Rename session',
-                style: theme.typography.body.md.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              MixarInput(initialValue: title, onChanged: (v) => title = v),
-              const SizedBox(height: 16),
-              Row(
-                spacing: 8,
-                children: [
-                  AppButton(
-                    variant: .outline,
-                    onPress: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  AppButton(
-                    onPress: () => Navigator.of(context).pop(title.trim()),
-                    child: const Text('Save'),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return MixarDialog(
+          title: 'Rename session',
+          child: MixarInput(initialValue: title, onChanged: (v) => title = v),
+          actions: [
+            AppButton(
+              variant: .outline,
+              onPress: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            AppButton(
+              onPress: () => Navigator.of(context).pop(title.trim()),
+              child: const Text('Save'),
+            ),
+          ],
         );
       },
     );
@@ -193,25 +175,16 @@ class HistoryDetailPane extends ConsumerWidget {
       final format = await showMixarDialog<HistoryExportFormatSetting?>(
         context: context,
         builder: (context) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
+          return MixarDialog(
+            title: 'Export history session',
+            description: sessionTitle != null && sessionTitle.trim().isNotEmpty
+                ? sessionTitle
+                : null,
+            contentPadding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // The native save dialog cannot carry this title: GTK's is
-                // hardcoded by file_selector_linux, so name the action here.
-                const Text('Export history session'),
-                if (sessionTitle != null && sessionTitle.trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    sessionTitle,
-                    style: context.theme.typography.body.sm.copyWith(
-                      color: context.theme.colors.mutedForeground,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
                 for (final (label, value) in [
                   ('CSV', HistoryExportFormatSetting.csv),
                   ('M3U8', HistoryExportFormatSetting.m3U8),
