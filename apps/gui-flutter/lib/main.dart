@@ -4,14 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/analytics/analytics_providers.dart';
-import 'package:gui_flutter/core/utils/desktop.dart';
 import 'package:gui_flutter/core/utils/waveform_shader.dart';
 import 'package:gui_flutter/providers/settings/settings_providers.dart';
 import 'package:gui_flutter/screens/application.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,7 +62,10 @@ Future<void> main() async {
   installAnalyticsErrorReporting(container);
   await preloadAppSettings(container);
 
-  if (isDesktopWindow) {
+  // The Linux runner owns the window: my_application.cc sizes, centres and
+  // undecorates it. Other desktop hosts still let window_manager apply the
+  // options and hide the native title bar.
+  if (isDesktopWindow && defaultTargetPlatform != TargetPlatform.linux) {
     await windowManager.ensureInitialized();
     await windowManager.waitUntilReadyToShow(
       desktopWindowOptions(title: appTitle),

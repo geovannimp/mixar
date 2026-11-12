@@ -32,12 +32,11 @@ tasks:
   # Linux-only for now (macOS/Windows/web enabled in Flutter but unverified).
   # Uses repo mise.toml Flutter pin (not a system install).
   # dashmonx: activated by flutter postinstall in mise.toml; hot-reloads on lib/ changes.
-  # --no-enable-impeller: Impeller misrenders on Linux. Passed through to
-  # `flutter run`, which turns it into the enable-impeller=false engine switch.
-  # Built bundles get the same opt-out from linux/runner/my_application.cc.
+  # Impeller is the default backend again: the Linux half-window misrender was
+  # flutter/flutter#195885 (NVIDIA can_blit blocklist), fixed on master.
   dev-linux:
     command: "mise"
-    args: ["exec", "--", "dashmonx", "-d", "linux", "--no-enable-impeller"]
+    args: ["exec", "--", "dashmonx", "-d", "linux"]
     toolchain: "system"
     preset: "server"
     inputs:
@@ -73,8 +72,8 @@ tasks:
     options:
       runInCI: false
 
-  # Impeller is disabled for built bundles in linux/runner/my_application.cc
-  # (`flutter build linux` has no --no-enable-impeller flag).
+  # Impeller is the engine default; no opt-out is set in
+  # linux/runner/my_application.cc.
   build-linux:
     command: "mise"
     args: ["exec", "--", "flutter", "build", "linux", "--debug"]
