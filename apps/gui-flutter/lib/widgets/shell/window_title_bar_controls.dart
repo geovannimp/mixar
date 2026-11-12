@@ -30,6 +30,12 @@ class _WindowTitleBarControlsState extends State<WindowTitleBarControls> {
     // Typed events replace the 0.5.x WindowListener callbacks. Restoring also
     // fires for un-maximize, which is what flips the button back.
     _listener = WindowManager.instance.addListener((event) {
+      // A close requested by the window manager (or by the panel) waits for
+      // the app, so it has to end the process here as well.
+      if (event is WindowCloseRequestedEvent) {
+        _close();
+        return;
+      }
       final maximized = switch (event) {
         WindowMaximizedEvent() => true,
         WindowRestoredEvent() => false,
@@ -44,6 +50,36 @@ class _WindowTitleBarControlsState extends State<WindowTitleBarControls> {
   /// The native window, resolved on demand: the header can build before it
   /// exists, and caching a null from [initState] left the controls dead.
   Window? get _nativeWindow => _window ?? WindowManager.instance.getCurrent();
+
+  /// Ends the app.
+  ///
+  /// `close()` only destroys the window: window_manager 0.7 quits the process
+  /// itself just for platforms without a native close, and the Flutter runner
+  /// never ends on the last window being gone.
+  ///
+  /// Exiting is not straightforward either. `exit()` reaches `exit_group` at
+  /// once, but the kernel then waits on the loaded GPU/audio stack (NVIDIA +
+  /// gallium + PipeWire), which took ~10s here: the window stayed on screen and
+  /// GNOME offered to force-quit. The same process dies in ~0.2s on SIGKILL, so
+  /// on Linux the process is killed first — before any native close call that
+  /// could block — exactly as a force-quit would. Nothing is persisted at
+  /// exit; other platforms close the window and exit.
+  void _close() {
+    final window = _nativeWindow;
+    if (window == null) {
+      return;
+    }
+    if (Platform.isLinux) {
+      // Before close(): a close that blocks would keep the kill from running.
+      try {
+        Process.killPid(pid, ProcessSignal.sigkill);
+      } on Object {
+        // Fall through to the orderly exit below.
+      }
+    }
+    window.close();
+    exit(0);
+  }
 
   @override
   void dispose() {
@@ -85,10 +121,7 @@ class _WindowTitleBarControlsState extends State<WindowTitleBarControls> {
             brightness: brightness,
             onPressed: () => _nativeWindow?.maximize(),
           ),
-        WindowCaptionButton.close(
-          brightness: brightness,
-          onPressed: () => _nativeWindow?.close(),
-        ),
+        WindowCaptionButton.close(brightness: brightness, onPressed: _close),
       ],
     );
   }

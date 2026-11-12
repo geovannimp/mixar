@@ -66,7 +66,14 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "Mixar");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  // The runner owns the window geometry. It used to be applied from Dart
+  // through window_manager's WindowOptions, but on Flutter 3.50 that adds the
+  // window frame margin again on every resize: 1280x800 grew to 1544x1064 and
+  // then 1808x1328 while the FlView stayed 1280x800, inset 132px per side, so
+  // the UI ended up in the bottom-left of a mostly transparent window. Sizing
+  // here keeps window, surface and view in agreement (verified 1280x800 @0,0).
+  gtk_window_set_default_size(window, 1280, 800);
+  gtk_window_set_position(window, GTK_WIN_POS_CENTER);
   // window_manager WindowOptions.minimumSize uses gdk_window_set_geometry_hints,
   // which Wayland compositors ignore. Set it on the GtkWindow instead:
   // https://github.com/leanflutter/window_manager/issues/538
@@ -76,12 +83,18 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_geometry_hints(window, nullptr, &hints, GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
-  // Impeller misrenders on Linux, so keep the Skia backend. Flutter 3.47
-  // defaults FlDartProject to Impeller and `flutter build linux` has no
-  // --no-enable-impeller option, so opting out here is what covers built
-  // bundles (debug, release, AppImage). `flutter run` additionally passes
-  // --no-enable-impeller from the dev-linux moon task.
-  fl_dart_project_set_enable_impeller(project, FALSE);
+  // Flutter 3.50's engine exports libunwind's `_Unwind_*` / `unw_*` symbols
+  // from libflutter_linux_gtk.so (3.47.7 exported none of them). Rust's
+  // `std::backtrace` then resolves `_Unwind_GetIP` into the engine, which
+  // unwraps a libgcc_s frame context with libunwind and segfaults. anyhow
+  // captures a backtrace for every error, so an ordinary error path — e.g. a
+  // saved audio device that no longer resolves, which is meant to fall back to
+  // the system default — killed the app at startup. Keep std from capturing
+  // backtraces here; an explicit RUST_LIB_BACKTRACE=1 still wins (and will
+  // crash) if someone needs to debug one.
+  g_setenv("RUST_LIB_BACKTRACE", "0", /*overwrite=*/FALSE);
+  // Impeller is the default backend (Skia here was only ever a workaround for
+  // the Linux compositor bug flutter/flutter#195885, fixed upstream).
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 
@@ -92,6 +105,21 @@ static void my_application_activate(GApplication* application) {
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
+
+  // No GTK decorations: the app draws its own title bar and rounded chrome
+  // (window_manager TitleBarStyle.hidden). This has to happen after GTK's own
+  // header bar is configured and before the window is realized, otherwise GTK
+  // keeps its CSD shadow margins.
+  //
+  // Those margins are the reason the UI was landing in the bottom left. With
+  // CSD the toplevel GdkWindow -- the surface Flutter renders into -- is larger
+  // than the view: measured 1332x852 holding a 1280x800 FlView at (26,23).
+  // Flutter draws the 1280x800 scene into that surface without accounting for
+  // the margin, so the scene sits offset toward the bottom left (GL origin) and
+  // the margin stays transparent -- the desktop shows through, because the
+  // window is RGBA. Decorated=false makes window, surface and view agree:
+  // 1280x800 @ 0,0.
+  gtk_window_set_decorated(window, FALSE);
 
   // Show the window when Flutter renders.
   // Requires the view to be realized so we can start rendering.
