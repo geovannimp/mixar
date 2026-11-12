@@ -92,7 +92,6 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
         final theme = dialogContext.theme;
         return MixarDialog(
           title: widget.dialogTitle,
-          contentPadding: const EdgeInsets.all(16),
           child: DefaultTextStyle(
             style: theme.typography.body.sm.copyWith(
               color: theme.colors.foreground,

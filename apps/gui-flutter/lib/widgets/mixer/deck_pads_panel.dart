@@ -547,7 +547,6 @@ class DeckPadsPanel extends StatelessWidget {
             final theme = context.theme;
             return MixarDialog(
               title: bank == null ? 'New bank' : 'Bank settings',
-              contentPadding: const EdgeInsets.all(16),
               actions: [
                 AppButton(
                   variant: .outline,

@@ -168,7 +168,6 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
         builder: (dialogContext) {
           return MixarDialog(
             title: widget.dialogTitle ?? 'Select',
-            contentPadding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,

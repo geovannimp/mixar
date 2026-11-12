@@ -180,7 +180,6 @@ class HistoryDetailPane extends ConsumerWidget {
             description: sessionTitle != null && sessionTitle.trim().isNotEmpty
                 ? sessionTitle
                 : null,
-            contentPadding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
