@@ -290,6 +290,36 @@ Currently in center `DeckMixer`; may stay centralized or duplicate mini-strips o
 | X5 | **VU / level meter** | Peak or RMS per deck | P2 |
 | X6 | **Crossfader assign** | Crossfader A/B endpoint deck checklists; unchecked decks use thru | P2 |
 | X7 | **Channel fader curve** | Configurable crossfader law | P3 |
+| X8 | **Fader start** | Start/stop transport from the channel fader, per-edge actions | P2 |
+
+#### Fader start
+
+Off by default. One Settings → Deck toggle enables it; while it is on, two pickers decide what
+each edge does, and "nothing" is a valid choice on either side.
+
+| Edge | Options | Default |
+| ---- | ------- | ------- |
+| Fader leaves zero | Nothing / Play / Toggle play | Play |
+| Fader returns to zero | Nothing / Pause / Pause + back to cue | Pause + back to cue |
+
+- **Zero band.** The fader counts as closed at `volume <= threshold` and open again only above
+  `threshold + 2` points, so a fader parked at the edge cannot alternate play/pause on CC jitter.
+  The threshold defaults to 5% of fader travel and is adjustable from 1 to 20%.
+- **One transition per crossing.** The zero/open state is latched per deck; the first fader value
+  after a mapping attaches only seeds it, so a controller plugged in with its fader already up
+  cannot start a phantom playback.
+- **Back to cue** pauses and seeks the deck's main cue point. A freshly loaded track's cue sits at
+  0, so fader-down returns to the track start. Choose plain **Pause** to park where it is.
+- **Both fader and UI.** Detection reads the channel-fader level, so the on-screen fader and any
+  mapped controller behave the same, with or without a controller attached.
+- **Native controllers win.** A mapping that binds `fader_start` / `fader_stop` (the DDJ-400 binds
+  its own fader-start notes) disables the software threshold for those decks — the controller says
+  *when*, the settings say *what*. Never both, so hardware fader start cannot double-fire.
+- **Soft takeover applies.** The first move of a fader that has not yet caught the app's value
+  changes no level, so it triggers nothing.
+
+A deck with no track loaded is a silent no-op. Enabling or changing fader start takes the same
+engine-restart path as the vinyl-brake settings.
 
 ---
 
