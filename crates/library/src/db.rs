@@ -172,7 +172,6 @@ mod tests {
             "track_stem",
             "track_hot_cue",
             "track_loop",
-            "track_stem",
             "sampler_bank",
             "sampler_slot",
         ] {

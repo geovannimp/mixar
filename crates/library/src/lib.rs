@@ -405,22 +405,19 @@ pub(crate) fn collect_audio_files(root: &Path, recursive: bool) -> Result<Vec<Pa
     Ok(files)
 }
 
-pub(crate) fn unix_secs_string() -> String {
+fn unix_now() -> std::time::Duration {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    format!("{secs}")
+        .unwrap_or_default()
+}
+
+pub(crate) fn unix_secs_string() -> String {
+    unix_now().as_secs().to_string()
 }
 
 pub(crate) fn unix_millis_string() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let millis = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    format!("{millis}")
+    unix_now().as_millis().to_string()
 }
 
 #[cfg(test)]
