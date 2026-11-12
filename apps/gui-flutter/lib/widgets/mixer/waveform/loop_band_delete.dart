@@ -347,7 +347,6 @@ class _DeleteBandPainter extends CustomPainter {
       accent: accent,
       fill: accent.withValues(alpha: 0.14),
       compact: compact,
-      showFlag: true,
     );
   }
 

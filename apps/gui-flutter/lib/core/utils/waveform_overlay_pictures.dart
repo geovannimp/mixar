@@ -13,7 +13,6 @@ import 'package:gui_flutter/widgets/mixer/pads/pad_button.dart';
 // Saved-loop fill stays neutral so it reads on both the near-black dark lane
 // and the light one; the edges reuse the theme primary accent so a remembered
 // region is recognizable without competing with the active loop.
-const _savedLoopFill = Color.fromRGBO(148, 163, 184, 0.24);
 const _fallbackLoopAccent = Color.fromRGBO(52, 211, 153, 1);
 const _beatGridBar = Color.fromRGBO(150, 155, 165, 0.42);
 const _beatGridBeat = Color.fromRGBO(150, 155, 165, 0.26);
@@ -111,7 +110,7 @@ Picture recordLoopPicture({
       rect: rect,
       size: size,
       accent: color,
-      fill: _savedLoopFill,
+      fill: color.withValues(alpha: 0.12),
       compact: compact,
     );
   }
@@ -132,27 +131,22 @@ void paintLoopBand({
   bool showFlag = true,
 }) {
   canvas.drawRect(rect, Paint()..color = fill);
-  canvas.drawRect(
-    rect,
-    Paint()
-      ..color = accent.withValues(alpha: 0.55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..isAntiAlias = false,
-  );
-  if (!compact) {
+  if (compact) {
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = accent.withValues(alpha: 0.55)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..isAntiAlias = false,
+    );
+  } else {
     final edge = Paint()
       ..color = accent.withValues(alpha: 0.85)
       ..strokeWidth = 2
       ..isAntiAlias = false;
     for (final x in [rect.left.roundToDouble(), rect.right.roundToDouble()]) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), edge);
-      canvas.drawLine(Offset(x - 3, 1), Offset(x + 3, 1), edge);
-      canvas.drawLine(
-        Offset(x - 3, size.height - 1),
-        Offset(x + 3, size.height - 1),
-        edge,
-      );
     }
   }
   if (showFlag) {
@@ -233,19 +227,13 @@ Picture? recordActiveLoopPicture({
   final color = accent ?? _fallbackLoopAccent;
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder, Offset.zero & size);
-  canvas.drawRect(
-    rect,
-    Paint()
-      ..color = color.withValues(alpha: 0.18)
-      ..style = PaintingStyle.fill,
-  );
-  canvas.drawRect(
-    rect,
-    Paint()
-      ..color = color.withValues(alpha: 0.70)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..isAntiAlias = false,
+  paintLoopBand(
+    canvas: canvas,
+    rect: rect,
+    size: size,
+    accent: color,
+    fill: color.withValues(alpha: 0.16),
+    compact: false,
   );
   return recorder.endRecording();
 }
