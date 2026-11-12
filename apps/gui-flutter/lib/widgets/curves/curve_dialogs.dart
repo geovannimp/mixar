@@ -12,6 +12,22 @@ import 'package:gui_flutter/widgets/shell/mixar_theme.dart';
 const _scalarControl = 'scalar';
 const _abControl = 'ab';
 
+/// Cancel + dialog-specific confirm button for the curve dialogs.
+List<Widget> _curveDialogActions({
+  required BuildContext context,
+  required String cancelLabel,
+  required Widget confirm,
+}) {
+  return [
+    AppButton(
+      variant: .outline,
+      onPress: () => Navigator.of(context).pop(),
+      child: Text(cancelLabel),
+    ),
+    confirm,
+  ];
+}
+
 /// Create a custom curve group with a stable id.
 Future<CurveGroupSpec?> showCreateCurveGroupDialog(
   BuildContext context, {
@@ -144,13 +160,10 @@ class _CurveGroupDialogBodyState extends State<_CurveGroupDialogBody> {
           ),
         ],
       ),
-      actions: [
-        AppButton(
-          variant: .outline,
-          onPress: () => Navigator.of(context).pop(),
-          child: Text(l10n.curvesCancel),
-        ),
-        AppButton(
+      actions: _curveDialogActions(
+        context: context,
+        cancelLabel: l10n.curvesCancel,
+        confirm: AppButton(
           onPress: _canCreate
               ? () {
                   Navigator.of(context).pop(
@@ -164,7 +177,7 @@ class _CurveGroupDialogBodyState extends State<_CurveGroupDialogBody> {
               : null,
           child: Text(l10n.curvesCreate),
         ),
-      ],
+      ),
     );
   }
 }
@@ -236,13 +249,10 @@ class _CurveSetDialogBodyState extends State<_CurveSetDialogBody> {
           ),
         ],
       ),
-      actions: [
-        AppButton(
-          variant: .outline,
-          onPress: () => Navigator.of(context).pop(),
-          child: Text(l10n.curvesCancel),
-        ),
-        AppButton(
+      actions: _curveDialogActions(
+        context: context,
+        cancelLabel: l10n.curvesCancel,
+        confirm: AppButton(
           onPress: _canCreate
               ? () {
                   Navigator.of(context).pop(
@@ -255,7 +265,7 @@ class _CurveSetDialogBodyState extends State<_CurveSetDialogBody> {
               : null,
           child: Text(l10n.curvesCreate),
         ),
-      ],
+      ),
     );
   }
 }
@@ -308,19 +318,16 @@ class _RenameDialogBodyState extends State<_RenameDialogBody> {
           ),
         ],
       ),
-      actions: [
-        AppButton(
-          variant: .outline,
-          onPress: () => Navigator.of(context).pop(),
-          child: Text(l10n.curvesCancel),
-        ),
-        AppButton(
+      actions: _curveDialogActions(
+        context: context,
+        cancelLabel: l10n.curvesCancel,
+        confirm: AppButton(
           onPress: _name.text.trim().isEmpty
               ? null
               : () => Navigator.of(context).pop(_name.text.trim()),
           child: Text(l10n.curvesSave),
         ),
-      ],
+      ),
     );
   }
 }
