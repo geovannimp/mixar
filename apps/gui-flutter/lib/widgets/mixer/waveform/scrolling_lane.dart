@@ -514,7 +514,7 @@ class _LaneStrip extends ConsumerWidget {
     final hotCues = ref.watch(deckHotCuesProvider(deckId));
     final activeLoop = ref.watch(deckActiveLoopProvider(deckId));
     final active = activeLoop != null && activeLoop.active ? activeLoop : null;
-    final visibleSavedLoops = <SavedLoop>[
+    final visibleSavedLoops = [
       for (final loop in savedLoops)
         if (active == null ||
             loop.inMs != active.inMs ||
