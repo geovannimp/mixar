@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:window_manager/window_manager.dart';
@@ -11,34 +11,47 @@ class WindowTitleBarControls extends StatefulWidget {
   State<WindowTitleBarControls> createState() => _WindowTitleBarControlsState();
 }
 
-class _WindowTitleBarControlsState extends State<WindowTitleBarControls>
-    with WindowListener {
+class _WindowTitleBarControlsState extends State<WindowTitleBarControls> {
+  Window? _window;
+  ListenerId? _listener;
   var _maximized = false;
 
   @override
   void initState() {
     super.initState();
-    windowManager.addListener(this);
-    unawaited(_refreshMaximized());
+    final window = WindowManager.instance.getCurrent();
+    if (window == null) {
+      // Hosts without a native window (widget tests) keep the drawn controls
+      // inert instead of failing on every press.
+      return;
+    }
+    _window = window;
+    _maximized = window.isMaximized;
+    // Typed events replace the 0.5.x WindowListener callbacks. Restoring also
+    // fires for un-maximize, which is what flips the button back.
+    _listener = WindowManager.instance.addListener((event) {
+      final maximized = switch (event) {
+        WindowMaximizedEvent() => true,
+        WindowRestoredEvent() => false,
+        _ => null,
+      };
+      if (maximized != null && mounted) {
+        setState(() => _maximized = maximized);
+      }
+    });
   }
+
+  /// The native window, resolved on demand: the header can build before it
+  /// exists, and caching a null from [initState] left the controls dead.
+  Window? get _nativeWindow => _window ?? WindowManager.instance.getCurrent();
 
   @override
   void dispose() {
-    windowManager.removeListener(this);
-    super.dispose();
-  }
-
-  @override
-  void onWindowMaximize() => setState(() => _maximized = true);
-
-  @override
-  void onWindowUnmaximize() => setState(() => _maximized = false);
-
-  Future<void> _refreshMaximized() async {
-    final maximized = await windowManager.isMaximized();
-    if (mounted) {
-      setState(() => _maximized = maximized);
+    final listener = _listener;
+    if (listener != null) {
+      WindowManager.instance.removeListener(listener);
     }
+    super.dispose();
   }
 
   @override
@@ -50,27 +63,31 @@ class _WindowTitleBarControlsState extends State<WindowTitleBarControls>
       children: [
         WindowCaptionButton.minimize(
           brightness: brightness,
-          onPressed: () async {
-            if (await windowManager.isMinimized()) {
-              await windowManager.restore();
+          onPressed: () {
+            final window = _nativeWindow;
+            if (window == null) {
+              return;
+            }
+            if (window.isMinimized) {
+              window.restore();
             } else {
-              await windowManager.minimize();
+              window.minimize();
             }
           },
         ),
         if (_maximized)
           WindowCaptionButton.unmaximize(
             brightness: brightness,
-            onPressed: windowManager.unmaximize,
+            onPressed: () => _nativeWindow?.unmaximize(),
           )
         else
           WindowCaptionButton.maximize(
             brightness: brightness,
-            onPressed: windowManager.maximize,
+            onPressed: () => _nativeWindow?.maximize(),
           ),
         WindowCaptionButton.close(
           brightness: brightness,
-          onPressed: windowManager.close,
+          onPressed: () => _nativeWindow?.close(),
         ),
       ],
     );

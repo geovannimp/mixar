@@ -26,6 +26,8 @@ analyzer:
     - linux/**
     - rust_builder/**
     - lib/src/rust/**
+    # Vendored dependency (see pubspec.yaml dependency_overrides).
+    - third_party/**
   errors:
     # Unnamed constructors are declared as `new` so a class rename touches one
     # line instead of every constructor. very_good_analysis ships

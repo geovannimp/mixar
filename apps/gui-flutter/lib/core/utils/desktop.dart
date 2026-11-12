@@ -8,6 +8,12 @@ import 'package:gui_flutter/core/utils/desktop_stub.dart'
 /// `window_manager`.
 bool? debugOverrideDesktopWindow;
 
+/// Test override — the host window's maximized state.
+///
+/// `window_manager` 0.7 reports this through nativeapi over FFI, so there is no
+/// method channel for a widget test to mock; tests set this instead.
+bool? debugOverrideWindowMaximized;
+
 /// Desktop hosts where `window_manager` applies (not web / mobile).
 bool get isDesktopWindow =>
     debugOverrideDesktopWindow ?? (!kIsWeb && platform.ioIsDesktop);
