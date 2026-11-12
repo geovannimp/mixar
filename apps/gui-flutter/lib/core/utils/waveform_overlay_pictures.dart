@@ -10,13 +10,16 @@ const _beatGridBeat = Color.fromRGBO(150, 155, 165, 0.26);
 const _phaseArrow = Color.fromRGBO(190, 195, 205, 0.9);
 const _pendingLoopIn = Color.fromRGBO(251, 191, 36, 0.95);
 
-Picture recordBeatGridPicture({
+/// Paints beat lines and one phase arrow per bar directly onto [canvas].
+///
+/// Shared by the recorded strip picture and the lane-wide grid, so both layers
+/// use the same weights and arrow geometry.
+void paintBeatGrid(
+  Canvas canvas, {
   required List<BeatMark> marks,
   required Size size,
   List<double> phaseArrows = const [],
 }) {
-  final recorder = PictureRecorder();
-  final canvas = Canvas(recorder, Offset.zero & size);
   final bar = Paint()
     ..color = _beatGridBar
     ..strokeWidth = 1
@@ -41,6 +44,21 @@ Picture recordBeatGridPicture({
     canvas.drawLine(Offset(arrowX, 0), Offset(arrowX, size.height), bar);
     _paintPhaseArrow(canvas, x: arrowX, height: size.height, paint: arrow);
   }
+}
+
+/// Records [paintBeatGrid] for overlays that replay a static strip window.
+Picture recordBeatGridPicture({
+  required List<BeatMark> marks,
+  required Size size,
+  List<double> phaseArrows = const [],
+}) {
+  final recorder = PictureRecorder();
+  paintBeatGrid(
+    Canvas(recorder),
+    marks: marks,
+    phaseArrows: phaseArrows,
+    size: size,
+  );
   return recorder.endRecording();
 }
 

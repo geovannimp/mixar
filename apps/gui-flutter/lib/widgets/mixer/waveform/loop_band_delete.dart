@@ -286,7 +286,7 @@ class _LoopBandDeleteRegionState extends ConsumerState<LoopBandDeleteRegion> {
           ),
           child: Stack(
             fit: StackFit.expand,
-            clipBehavior: Clip.none,
+            clipBehavior: widget.iconAbove ? Clip.none : Clip.hardEdge,
             children: [
               widget.child,
               if (hoverRect != null)
