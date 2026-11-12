@@ -194,19 +194,23 @@ mod tests {
         }
     }
 
-    fn track_columns(db: &Db) -> Vec<String> {
+    fn table_columns(db: &Db, table: &str) -> Vec<String> {
         db.conn()
             .unwrap()
             .as_connection()
             .query_all_raw(Statement::from_string(
                 sea_orm::DatabaseBackend::Sqlite,
-                "PRAGMA table_info(tracks)".to_string(),
+                format!("PRAGMA table_info({table})"),
             ))
             .map_err(db_err)
             .unwrap()
             .into_iter()
             .map(|row| row.try_get::<String>("", "name").unwrap())
             .collect()
+    }
+
+    fn track_columns(db: &Db) -> Vec<String> {
+        table_columns(db, "tracks")
     }
 
     #[test]
@@ -299,19 +303,7 @@ mod tests {
         }
 
         let db = open(&db_path).unwrap();
-        let conn = db.conn().unwrap();
-        let rows = conn
-            .as_connection()
-            .query_all_raw(Statement::from_string(
-                sea_orm::DatabaseBackend::Sqlite,
-                "PRAGMA table_info(track_loop)".to_string(),
-            ))
-            .map_err(db_err)
-            .unwrap();
-        let columns: Vec<String> = rows
-            .into_iter()
-            .map(|row| row.try_get::<String>("", "name").unwrap())
-            .collect();
+        let columns = table_columns(&db, "track_loop");
         assert!(
             columns.iter().any(|name| name == "auto_saved"),
             "sync did not add auto_saved: {columns:?}"

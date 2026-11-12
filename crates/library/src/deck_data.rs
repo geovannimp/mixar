@@ -2,14 +2,14 @@
 
 use sea_orm::sea_query::OnConflict;
 use sea_orm::ColumnTrait;
-use sea_orm::{EntityTrait, QueryFilter, Set};
+use sea_orm::{EntityName, EntityTrait, QueryFilter, Set};
 use std::collections::HashSet;
 
 use library_core::{Library, LibraryError, LoopImport, Result, TrackId};
 
 use crate::db::{self, Db};
 use crate::entity::{track_hot_cue, track_loop, TrackHotCueEntity, TrackLoopEntity};
-use crate::{tags, unix_secs_string, LibraryManager, TrackMetadataEdit};
+use crate::{tags, unix_millis_string, unix_secs_string, LibraryManager, TrackMetadataEdit};
 
 /// Maximum automatic loop rows kept per track (rekordbox parity).
 pub const MAX_AUTO_LOOPS: usize = 10;
@@ -161,6 +161,17 @@ pub fn import_loop(db: &Db, track_id: &TrackId, saved: &LoopImport) -> Result<()
     upsert_loop(db, track_id, saved, false, false)
 }
 
+/// Least-recently-updated automatic loop, breaking exact timestamp ties by slot.
+fn oldest_auto_slot(rows: &[&track_loop::Model]) -> Option<i32> {
+    rows.iter()
+        .min_by(|a, b| {
+            a.updated_at
+                .cmp(&b.updated_at)
+                .then(a.slot_index.cmp(&b.slot_index))
+        })
+        .map(|row| row.slot_index)
+}
+
 /// Remember a loop the deck just activated. At most [`MAX_AUTO_LOOPS`] auto
 /// rows are kept; imported/explicit rows are never matched or evicted.
 pub fn auto_save_loop(db: &Db, track_id: &TrackId, in_ms: i32, out_ms: i32) -> Result<()> {
@@ -197,23 +208,19 @@ pub fn auto_save_loop(db: &Db, track_id: &TrackId, in_ms: i32, out_ms: i32) -> R
     } else {
         let auto_rows: Vec<&track_loop::Model> = rows.iter().filter(|row| row.auto_saved).collect();
         if auto_rows.len() >= MAX_AUTO_LOOPS {
-            let oldest = auto_rows
-                .iter()
-                .min_by(|a, b| {
-                    a.updated_at
-                        .cmp(&b.updated_at)
-                        .then(a.slot_index.cmp(&b.slot_index))
-                })
-                .expect("auto rows is non-empty");
-            oldest.slot_index
+            oldest_auto_slot(&auto_rows).expect("auto rows is non-empty")
         } else {
             let used: HashSet<i32> = rows.iter().map(|row| row.slot_index).collect();
-            (0..=15)
-                .find(|slot| !used.contains(slot))
-                .ok_or_else(|| LibraryError::Backend {
+            match (0..=15).find(|slot| !used.contains(slot)) {
+                Some(slot) => slot,
+                // Imported/explicit rows can occupy every slot even when the
+                // auto cap is not reached. Reclaim the oldest auto row instead
+                // of silently disabling loop memory for this track.
+                None => oldest_auto_slot(&auto_rows).ok_or_else(|| LibraryError::Backend {
                     backend: "deck_data",
                     message: "loop memory full".into(),
-                })?
+                })?,
+            }
         }
     };
 
@@ -283,7 +290,7 @@ fn upsert_loop(
         label: Set(label),
         color: Set(color),
         auto_saved: Set(auto_saved),
-        updated_at: Set(crate::unix_secs_string()),
+        updated_at: Set(unix_millis_string()),
     })
     .on_conflict(
         OnConflict::columns([track_loop::Column::TrackId, track_loop::Column::SlotIndex])
@@ -633,14 +640,13 @@ mod tests {
         }
 
         {
+            let table = track_loop::Entity::default().table_name();
             let conn = db.conn().unwrap();
             for i in 0..10 {
                 conn.as_connection()
                     .execute_raw(Statement::from_string(
                         DatabaseBackend::Sqlite,
-                        format!(
-                            "UPDATE track_loop SET updated_at = '{i:02}' WHERE slot_index = {i}"
-                        ),
+                        format!("UPDATE {table} SET updated_at = '{i:02}' WHERE slot_index = {i}"),
                     ))
                     .unwrap();
             }

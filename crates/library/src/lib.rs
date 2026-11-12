@@ -414,5 +414,14 @@ pub(crate) fn unix_secs_string() -> String {
     format!("{secs}")
 }
 
+pub(crate) fn unix_millis_string() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    format!("{millis}")
+}
+
 #[cfg(test)]
 mod tests;

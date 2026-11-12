@@ -178,7 +178,9 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     }
     _hydratedTrackId = trackId;
     if (trackId != null && trackId.isNotEmpty) {
-      unawaited(library.refreshTrack(trackId: trackId));
+      unawaited(
+        _runLibrary((library) => library.refreshTrack(trackId: trackId)),
+      );
     }
   }
 
